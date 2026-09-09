@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+packages/web/dev-dist/
+
+# Secrets — never commit these
+.env
+.env.*
+!.env.example
+
+# Prisma generated client
+packages/api/src/generated/
+packages/api/prisma/*.db
+
+# Test and coverage output
+coverage/
+.vitest/
+
+# Editor and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local database volume
+.postgres-data/
+
+# Capacitor native projects (added in a later phase)
+packages/web/android/
+packages/web/ios/

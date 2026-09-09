@@ -1,0 +1,75 @@
+{
+  "configVersion": 1,
+  "productName": "Aldilivery",
+  "assistantName": "Ozi",
+  "tagline": "Say it, Ozi shops it, a Runner brings it",
+  "contact": {
+    "telephonePlaceholder": "0800 000 0000",
+    "telephoneIsPlaceholder": true
+  },
+  "store": {
+    "displayName": "Aldi",
+    "legalEntityName": "PLACEHOLDER LEGAL ENTITY LIMITED",
+    "legalEntityIsPlaceholder": true,
+    "country": "GB",
+    "currency": "GBP",
+    "currencySymbol": "£",
+    "catalogueSource": {
+      "mode": "community",
+      "allowedModes": ["partner_feed", "community"],
+      "attribution": "Prices are community estimates and are not supplied by the store. Your Runner pays the shelf price and you are charged the receipt."
+    }
+  },
+  "brand": {
+    "colours": {
+      "navy": "#0B1F3A",
+      "gold": "#D4AF37",
+      "white": "#FFFFFF"
+    }
+  },
+  "fees": {
+    "currency": "GBP",
+    "runnerPaymentPence": 500,
+    "minimumNetPence": 200,
+    "maximumGoodsPence": 30000,
+    "bands": [
+      { "uptoPence": 3500, "feePence": 800 },
+      { "uptoPence": 10000, "feePence": 900 },
+      { "uptoPence": 16500, "feePence": 1000 },
+      { "uptoPence": 24000, "feePence": 1100 },
+      { "uptoPence": 30000, "feePence": 1200 }
+    ],
+    "processor": {
+      "percentageBasisPoints": 150,
+      "fixedPence": 20
+    },
+    "coolBag": {
+      "depositPence": 1000,
+      "withholdPerOrderPence": 100,
+      "releaseAfterCompletedDeliveries": 20
+    }
+  },
+  "payments": {
+    "provider": "stripe",
+    "supportedCardRegions": ["UK", "EU"]
+  },
+  "allocation": {
+    "offerHoldSeconds": 60,
+    "poolingRadiusMiles": 1
+  },
+  "recurringOrders": {
+    "noticeMinutesBefore": 30,
+    "skipWord": "skip"
+  },
+  "accountDeletion": {
+    "recycleBinDays": 7
+  },
+  "accessibility": {
+    "targetStandard": "WCAG 2.2 AA",
+    "baseFontSizePx": 20,
+    "minimumControlHeightPx": 48
+  },
+  "versionOneRestrictions": {
+    "ageRestrictedGoodsAllowed": false
+  }
+}

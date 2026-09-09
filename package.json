@@ -1,0 +1,42 @@
+{
+  "name": "aldilivery",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Aldilivery — a voice-first grocery messenger service for the United Kingdom.",
+  "license": "UNLICENSED",
+  "author": "Anthony Tochukwu Ibe",
+  "type": "module",
+  "engines": {
+    "node": ">=20.11.0",
+    "pnpm": ">=9"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "scripts": {
+    "build:core": "pnpm --filter @aldilivery/core build",
+    "build": "pnpm run build:core && pnpm --filter @aldilivery/api build && pnpm --filter @aldilivery/web build",
+    "test": "pnpm run build:core && pnpm --filter @aldilivery/core test && pnpm --filter @aldilivery/api test && pnpm --filter @aldilivery/web test",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "pnpm run build:core && pnpm --filter @aldilivery/api typecheck && pnpm --filter @aldilivery/web typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "dev:api": "pnpm --filter @aldilivery/api dev",
+    "dev:web": "pnpm --filter @aldilivery/web dev",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:push": "pnpm --filter @aldilivery/api db:push",
+    "db:seed": "pnpm --filter @aldilivery/api db:seed",
+    "verify": "pnpm run lint && pnpm run typecheck && pnpm run test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "globals": "^15.14.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.2"
+  }
+}
