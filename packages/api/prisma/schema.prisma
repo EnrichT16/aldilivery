@@ -1,0 +1,485 @@
+// Aldilivery data model.
+//
+// Two things to notice before reading any further.
+//
+// Rule Ten: there is no field anywhere in this schema capable of holding a card number.
+// `PaymentMethod` holds a Stripe payment method identifier and the last four digits, which
+// is all that is needed to say "the card ending 4242" back to a Shopper. Card details go
+// from the Shopper's browser to Stripe and never touch this database.
+//
+// Rule Eight: this database belongs to Aldilivery alone. It shares no table, no user table
+// and no payment account with any other product.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enumerations
+// ---------------------------------------------------------------------------
+
+enum VehicleType {
+  on_foot
+  bicycle
+  motorbike
+  car
+  van
+}
+
+/// What a Shopper wants to happen when something is not on the shelf.
+enum SubstitutionPreference {
+  no_substitutes
+  similar_item
+  ask_me
+}
+
+enum OrderStatus {
+  draft
+  confirmed
+  paid
+  offered
+  accepted
+  shopping
+  receipt_submitted
+  delivering
+  delivered
+  completed
+  cancelled
+  refunded
+}
+
+/// What actually happened to a single line of an order once the Runner was at the shelf.
+enum SubstitutionOutcome {
+  pending
+  supplied
+  substituted
+  unavailable
+}
+
+/// Where a catalogue item's price estimate came from. Configuration decides which mode is
+/// live; see `store.catalogueSource.mode` in config/store.json.
+enum CatalogueItemSource {
+  partner_feed
+  community
+}
+
+/// The cool bag deposit is withheld from a Runner's early payouts and released after their
+/// twentieth completed delivery. It is never a reduction of the five pounds earned.
+enum CoolBagDepositStatus {
+  not_started
+  withholding
+  held
+  released
+}
+
+enum JobOfferOutcome {
+  pending
+  accepted
+  declined
+  expired
+  superseded
+}
+
+enum SetFrequency {
+  weekly
+  fortnightly
+  monthly
+}
+
+enum AccountRole {
+  shopper
+  runner
+}
+
+// ---------------------------------------------------------------------------
+// People
+// ---------------------------------------------------------------------------
+
+model Shopper {
+  id                   String                 @id @default(cuid())
+  displayName          String
+  /// Short, speakable, unique. Used instead of an email address.
+  handle               String                 @unique
+  phone                String                 @unique
+  /// A hash of the Shopper's spoken code. The code itself is never stored.
+  spokenCodeHash       String?
+  preferredLanguage    String                 @default("en-GB")
+  /// Free text the Runner reads at the door: "knock loudly, I am slow to the door".
+  doorstepProtocol     String                 @default("")
+  substitutionDefault  SubstitutionPreference @default(ask_me)
+  /// An upper limit the Shopper sets on the goods estimate. Never a minimum (Rule Four).
+  budgetCapPence       Int?
+  /// Set when the Shopper asks for deletion. The row survives for the recycle bin window
+  /// and is removed afterwards. Deleting is never immediate and never silent.
+  deletionScheduledFor DateTime?
+
+  organisationId String?
+  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders            Order[]
+  sets              Set[]
+  paymentMethods    PaymentMethod[]
+  circleMemberships HouseholdCircleMember[]
+
+  @@index([deletionScheduledFor])
+}
+
+model Runner {
+  id          String      @id @default(cuid())
+  name        String
+  phone       String      @unique
+  vehicleType VehicleType @default(on_foot)
+
+  /// Both checks must be true before a Runner may be offered any job.
+  rightToWorkVerified          Boolean @default(false)
+  criminalRecordCheckVerified  Boolean @default(false)
+
+  /// The Runner's own Stripe Connect account. Their money is transferred straight to it;
+  /// Aldilivery never holds it (Rule Ten).
+  stripeConnectedAccountId String?
+
+  coolBagDepositStatus   CoolBagDepositStatus @default(not_started)
+  coolBagWithheldPence   Int                  @default(0)
+  completedDeliveryCount Int                  @default(0)
+
+  /// Availability and last known position, used by the rotating fair queue.
+  available          Boolean   @default(false)
+  latitude           Float?
+  longitude          Float?
+  /// When this Runner last finished a job. The queue offers to whoever has waited longest.
+  lastJobCompletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders  Order[]
+  offers  JobOffer[]
+  payouts RunnerPayout[]
+
+  @@index([available, lastJobCompletedAt])
+}
+
+/// A council, charity or care provider that pays for Shoppers as service users.
+model Organisation {
+  id            String  @id @default(cuid())
+  name          String
+  contactName   String
+  contactEmail  String
+  contactPhone  String?
+  /// Free text, for example "30 days from invoice, purchase order required".
+  invoiceTerms  String  @default("")
+  active        Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The Shoppers this organisation supports.
+  serviceUsers Shopper[]
+}
+
+/// A group of Shoppers who may order for one another — a daughter ordering for her father.
+model HouseholdCircle {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members HouseholdCircleMember[]
+}
+
+/// Membership of a circle, with consent recorded explicitly. No one is added to a circle
+/// without a recorded, timestamped consent.
+model HouseholdCircleMember {
+  id        String @id @default(cuid())
+  circleId  String
+  shopperId String
+
+  circle  HouseholdCircle @relation(fields: [circleId], references: [id], onDelete: Cascade)
+  shopper Shopper         @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+
+  /// Null until the Shopper has consented. A member without a consent timestamp has no
+  /// powers in the circle.
+  consentGivenAt  DateTime?
+  /// How the consent was captured, for example "spoken to Ozi" or "typed on the web".
+  consentMethod   String?
+  /// Who recorded it, for the audit trail.
+  consentRecordedBy String?
+  canOrderForOthers Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@unique([circleId, shopperId])
+}
+
+// ---------------------------------------------------------------------------
+// Catalogue
+// ---------------------------------------------------------------------------
+
+model CatalogueItem {
+  id                  String              @id @default(cuid())
+  name                String
+  category            String
+  /// An estimate only. The Shopper is charged the receipt, not the estimate.
+  estimatedPricePence Int
+  /// Rule Six: anything true here cannot reach a basket in version one.
+  ageRestricted       Boolean             @default(false)
+  source              CatalogueItemSource
+  /// A reference from the upstream feed, when there is one.
+  externalRef         String?
+  lastSeenAt          DateTime            @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderItems OrderItem[]
+  setItems   SetItem[]
+
+  @@index([name])
+  @@index([category])
+  @@index([ageRestricted])
+}
+
+// ---------------------------------------------------------------------------
+// Payment methods — Rule Ten
+// ---------------------------------------------------------------------------
+
+/// A saved card, as far as Aldilivery is concerned.
+///
+/// There is no card number field, no CVC field and no expiry-plus-number pairing that
+/// could be reassembled into one. `lastFour` exists solely so a Shopper can be told which
+/// card is about to be used.
+model PaymentMethod {
+  id                    String  @id @default(cuid())
+  shopperId             String
+  shopper               Shopper @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+
+  stripePaymentMethodId String  @unique
+  lastFour              String
+  brand                 String?
+  /// The card's region, checked against payments.supportedCardRegions in configuration.
+  region                String?
+  isDefault             Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+  sets   Set[]
+}
+
+// ---------------------------------------------------------------------------
+// Orders
+// ---------------------------------------------------------------------------
+
+model Order {
+  id        String      @id @default(cuid())
+  shopperId String
+  shopper   Shopper     @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  status    OrderStatus @default(draft)
+
+  runnerId String?
+  runner   Runner? @relation(fields: [runnerId], references: [id], onDelete: SetNull)
+
+  setId String?
+  set   Set?    @relation(fields: [setId], references: [id], onDelete: SetNull)
+
+  /// What the Shopper was quoted, before the Runner reached the till.
+  goodsEstimatePence Int
+  feePence           Int
+  totalEstimatePence Int
+
+  /// What the till actually said. Null until the Runner submits the receipt.
+  receiptTotalPence  Int?
+  /// The fee recalculated against the receipt, and the amount finally charged.
+  receiptFeePence    Int?
+  finalTotalPence    Int?
+
+  /// Rule One. The order may not reach a payment intent until this is set. It records the
+  /// single explicit confirmation the Shopper gave, and how they gave it.
+  spokenConfirmationAt   DateTime?
+  confirmationChannel    String?
+  confirmationStatement  String?
+
+  /// The doorstep instructions as they stood at the moment of confirmation, so a later
+  /// edit to the Shopper's profile cannot change what the Runner was told to do.
+  doorstepProtocolSnapshot String @default("")
+
+  stripePaymentIntentId String?        @unique
+  paymentMethodId       String?
+  paymentMethod         PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+
+  deliveryAddress String
+  latitude        Float?
+  longitude       Float?
+
+  /// Orders sharing a pool identifier are delivered in one trip. Each still pays the
+  /// Runner five pounds in full (Rule Two).
+  poolId String?
+
+  /// Recorded for the audit trail; always the constant, never a calculation.
+  runnerPaymentPence Int     @default(500)
+  runnerTransferId   String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  acceptedAt  DateTime?
+  deliveredAt DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+
+  items  OrderItem[]
+  offers JobOffer[]
+  payout RunnerPayout?
+
+  @@index([status])
+  @@index([shopperId])
+  @@index([poolId])
+}
+
+model OrderItem {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  catalogueItemId String?
+  catalogueItem   CatalogueItem? @relation(fields: [catalogueItemId], references: [id], onDelete: SetNull)
+
+  /// The name as the Shopper said it, kept even if the catalogue entry later changes.
+  name                String
+  quantity            Int    @default(1)
+  estimatedPricePence Int
+
+  /// What happened at the shelf.
+  substitutionOutcome SubstitutionOutcome @default(pending)
+  substitutedForName  String?
+  actualPricePence    Int?
+  note                String?
+
+  createdAt DateTime @default(now())
+}
+
+/// One offer of one job to one Runner, held for sixty seconds.
+model JobOffer {
+  id       String @id @default(cuid())
+  orderId  String
+  order    Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  runnerId String
+  runner   Runner @relation(fields: [runnerId], references: [id], onDelete: Cascade)
+
+  offeredAt   DateTime        @default(now())
+  expiresAt   DateTime
+  respondedAt DateTime?
+  outcome     JobOfferOutcome @default(pending)
+  /// Where this Runner sat in the rotation when the offer was made, for auditing fairness.
+  queuePosition Int
+  distanceMiles Float?
+
+  @@index([orderId, outcome])
+  @@index([runnerId])
+}
+
+/// The record of money moved to a Runner. One per completed order.
+model RunnerPayout {
+  id       String @id @default(cuid())
+  orderId  String @unique
+  order    Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  runnerId String
+  runner   Runner @relation(fields: [runnerId], references: [id], onDelete: Cascade)
+
+  /// Always five hundred. Recorded per payout so the audit trail is self evident.
+  earnedPence          Int
+  /// Held back towards the cool bag deposit, never taken from the earning.
+  coolBagWithheldPence Int    @default(0)
+  /// What actually moved to the Runner's own account in this transfer.
+  transferredPence     Int
+  stripeTransferId     String?
+
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Recurring orders — a "Set"
+// ---------------------------------------------------------------------------
+
+model Set {
+  id        String  @id @default(cuid())
+  shopperId String
+  shopper   Shopper @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+
+  name String
+
+  deliveryAddress String
+  latitude        Float?
+  longitude       Float?
+
+  paymentMethodId String?
+  paymentMethod   PaymentMethod? @relation(fields: [paymentMethodId], references: [id], onDelete: SetNull)
+
+  frequency SetFrequency
+  /// 1 is Monday, 7 is Sunday.
+  dayOfWeek Int
+  /// Local time of day in 24 hour "HH:MM".
+  timeOfDay String
+  timezone  String       @default("Europe/London")
+
+  active Boolean @default(true)
+
+  nextFireAt DateTime
+
+  /// Rule Five. A Set may not fire unless a notice went out thirty minutes beforehand.
+  noticeSentAt DateTime?
+  /// Set when the Shopper replies with the one word skip. Cleared once the skipped
+  /// occurrence has passed.
+  skipRequestedForFireAt DateTime?
+  lastFiredAt            DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items  SetItem[]
+  orders Order[]
+
+  @@index([active, nextFireAt])
+}
+
+model SetItem {
+  id    String @id @default(cuid())
+  setId String
+  set   Set    @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  catalogueItemId String?
+  catalogueItem   CatalogueItem? @relation(fields: [catalogueItemId], references: [id], onDelete: SetNull)
+
+  name                String
+  quantity            Int    @default(1)
+  estimatedPricePence Int
+
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
+// Authentication — phone plus a one time code
+// ---------------------------------------------------------------------------
+
+/// A one time code, stored as a hash. The code itself is never written down.
+model OneTimeCode {
+  id         String      @id @default(cuid())
+  phone      String
+  codeHash   String
+  role       AccountRole @default(shopper)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int         @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([phone, consumedAt])
+}
