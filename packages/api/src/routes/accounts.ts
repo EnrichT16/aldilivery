@@ -7,6 +7,7 @@
  */
 
 import type { FastifyInstance } from 'fastify';
+import { formatPence, RUNNER_PAYMENT_PENCE } from '@aldilivery/core';
 import { z } from 'zod';
 
 import { requireSession } from '../app.js';
@@ -118,7 +119,9 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       nextSteps: [
         'We need to check your right to work in the United Kingdom.',
         'We need a criminal record check.',
-        `You will be paid £${(500 / 100).toFixed(2)} for every order you complete.`,
+        // Rule Two, from the constant. The figure a Runner is told is the figure the
+        // payout route transfers, because both read the same number.
+        `You will be paid ${formatPence(RUNNER_PAYMENT_PENCE, config.store.currencySymbol)} for every order you complete.`,
       ],
     };
   });
