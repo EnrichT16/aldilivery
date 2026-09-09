@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Rule Seven, in CSS.
+ *
+ * Everything here exists for a person, not for a design. The base size is twenty pixels
+ * because sixteen is too small for a great many of the people this product is for. Controls
+ * are at least forty eight pixels tall and wide because a shaking hand or a thick finger
+ * needs somewhere to land. Focus is a thick, high contrast ring because a keyboard user who
+ * cannot see where they are is lost.
+ *
+ * The values come from configuration through `applyBrandToDocument`, with the same numbers
+ * repeated here as fallbacks so the page is still usable if a script fails.
+ */
+
+:root {
+  --colour-ink: #0b1f3a;
+  --colour-highlight: #d4af37;
+  --colour-paper: #ffffff;
+  --base-font-size: 20px;
+  --control-height: 48px;
+}
+
+html {
+  font-size: var(--base-font-size);
+  /* Never disable zoom, and never cap it. Text must reach 200 percent. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--colour-ink);
+  color: var(--colour-paper);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: var(--base-font-size);
+  line-height: 1.6;
+  /* Long words break rather than force a sideways scroll at 200 percent zoom. */
+  overflow-wrap: break-word;
+}
+
+/* Every interactive thing on every screen carries this class. */
+.control {
+  min-height: var(--control-height);
+  min-width: var(--control-height);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.75rem;
+  font-size: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: 2px solid transparent;
+}
+
+/*
+ * A focus ring that is visible on the navy background, on the gold button and on white.
+ * Two rings, one dark and one light, so there is always contrast against whatever is behind.
+ */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 4px solid var(--colour-paper);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 8px var(--colour-ink);
+}
+
+/*
+ * Never remove the outline without putting something else in its place. Older browsers that
+ * do not support :focus-visible still get a ring from :focus.
+ */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus {
+  outline: 4px solid var(--colour-paper);
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+}
+
+.skip-link:focus {
+  left: 1rem;
+  top: 1rem;
+  background: var(--colour-paper);
+  color: var(--colour-ink);
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+}
+
+/* Available to a screen reader, invisible on the screen. Never used to hide meaning that a
+   sighted user also needs. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Respect a person who has asked their computer for less movement. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Respect a person who has asked for more contrast. */
+@media (prefers-contrast: more) {
+  .control {
+    border-color: var(--colour-paper);
+  }
+}
