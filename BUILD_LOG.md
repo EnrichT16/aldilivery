@@ -302,6 +302,152 @@ not hoist it.
 
 ---
 
+## 2026-09-10 — Step 7: ready for DigitalOcean
+
+Made the two deployable packages production ready and wrote the App Platform spec. Nothing
+was built for Shoppers or Runners, and neither the fee engine nor the rules were touched:
+`packages/core` has no change in it at all.
+
+### The API
+
+`GET /health` now answers `status: "ok"` and the git commit, alongside what it already
+reported. The commit is worked out once at startup from three places in order — an
+environment variable a platform or CI set, a `COMMIT` file a build may have written beside
+the compiled code, and finally `git rev-parse` if a checkout is still there — and is `null`
+rather than a guess when nothing can say. It is resolved once and cached, because a
+liveness probe that spawns a process on every poll is a liveness problem of its own.
+
+**One number for the port, in development and in production.** The API reads `PORT` first,
+then `API_PORT` for anyone whose `.env` still has it, and falls back to **8080**. It binds
+`0.0.0.0`. Development used to be 3001 while production would have been 8080; two numbers
+for one thing is how a proxy ends up pointing at nothing, so `.env.example`, the Vite dev
+proxy and the README all moved to 8080 together.
+
+**The data backend follows `DATABASE_URL`.** Present, and it is Prisma against PostgreSQL;
+absent, and it is the in-memory store with the warning it has always printed. There was a
+latent bug here worth naming: `databaseUrl` was assigned from a conditional whose two
+branches were identical, so a placeholder connection string counted as a real one. A `.env`
+copied from `.env.example` and not filled in would have sent the API at a database that is
+not there. It now resolves to nothing, the same as every other placeholder.
+
+**One decision I made on Anthony's behalf.** The instruction was to fall back to the
+in-memory store when `DATABASE_URL` is absent. In production I have made it refuse to start
+instead, with a plain message. In-memory means every order, every Shopper and every Runner
+is lost when the process restarts, and App Platform restarts a process for its own reasons —
+a deploy, a failed health check, a machine move. An Aldilivery that silently forgets an
+order is worse than one that will not start, and the second failure is the one you find out
+about in ten seconds rather than three weeks. The development fallback is untouched, so
+`pnpm run dev:api` still needs no database. If you would rather have it the other way, it is
+the one `if` block at the top of `readEnv`.
+
+**Fail fast, and say which one.** In production the server refuses to start without
+`STRIPE_SECRET_KEY` or `STRIPE_WEBHOOK_SECRET`, naming the missing one in a plain sentence
+with no stack trace. `STRIPE_WEBHOOK_SECRET` was not checked before, which meant a
+production server could have started, accepted a webhook, and been unable to prove it came
+from Stripe. A value carrying one of the placeholder markers counts as missing, so
+`.do/app.yaml` can ship obvious placeholders and the server still refuses to run on them.
+
+**CORS is now `ALLOWED_ORIGIN`.** One origin, or several separated by commas, with a
+trailing slash forgiven because a trailing slash is the single easiest way to get this
+wrong. `WEB_ORIGIN` is still read as a fallback. `*` still means anything, which is what the
+tests use and what nothing in production should.
+
+**`prisma migrate deploy` before the server, always in that order.** `pnpm --filter
+@aldilivery/api start` runs `scripts/start.mjs`, which applies migrations and only then
+starts the server, because a server that binds before its schema exists gets the first thing
+wrong in front of a Shopper. With no `DATABASE_URL` it skips the migration step and says so,
+which is the only way it ever behaves on a developer's machine.
+
+Two things this needed. There were **no migrations in the repository** — the local workflow
+was `prisma db push`, which does not write any — so an initial migration was generated from
+the schema with `prisma migrate diff` and committed as `20260909000000_init`. And **`prisma`
+moved from devDependencies to dependencies**, because the CLI has to exist at run time, not
+just at build time, and a platform that prunes development dependencies after a build would
+otherwise take it away. The start script resolves the Prisma CLI as a module and runs it on
+the same Node binary rather than through a `.bin` shim, so it needs no shell and behaves the
+same on Windows as on the build machine.
+
+### The web app
+
+The API address is read from `VITE_API_URL` at build time. With nothing set it is
+`http://localhost:8080` in development and `/api` in production, which is where the API sits
+behind the App Platform routes. Trailing slashes are trimmed so `/api/` and `/api` cannot
+become two different URLs for one route. `base` and the build output directory are now
+explicit, and the manifest, the service worker and its scope all resolve from `/`, which a
+build check confirmed: `dist` contains `index.html`, `manifest.webmanifest` with `start_url`
+and `scope` both `/`, `sw.js`, and root-absolute asset paths.
+
+### The App Platform spec
+
+`.do/app.yaml` describes a service named `api`, a static site named `web`, and a development
+PostgreSQL database named `aldilivery-db`, all from this repository's `main` branch with the
+repository root as the source directory. The API is `basic-xxs`, one instance, HTTP port
+8080, health checked on `/health` after a delay long enough for migrations to run. The web
+app builds to `packages/web/dist` and serves at `/`; the API serves at `/api`. Because both
+sit behind one hostname, the browser never makes a cross origin request in ordinary use.
+
+**Two traps worth recording.**
+
+`NODE_ENV` is scoped to run time only, never to build time. pnpm reads `NODE_ENV`, and at
+build time `NODE_ENV=production` would skip devDependencies — taking away TypeScript, Vitest
+and ESLint, which is to say the compiler and the entire accessibility gate. The build
+command passes `--prod=false` as well, so it takes two mistakes rather than one to lose the
+gate.
+
+**The Node and pnpm versions are pinned rather than guessed**, as asked: `engines` in the
+root `package.json` says `node: 24.x` and `pnpm: 9.x`, `.nvmrc` says `24.18.0`, and
+`packageManager` already said `pnpm@9.15.9` exactly. I pinned Node to the line this machine
+already runs rather than to an older one, so that what Anthony develops on and what
+DigitalOcean builds on are the same thing. If the buildpack turns out not to have Node 24,
+the fix is two lines and it is written down in `DEPLOY.md`.
+
+The web build command deliberately runs `pnpm --filter @aldilivery/web build`, the full
+gate, not `build:only`. Deploying is exactly when you want the accessibility tests to have
+the last word: a screen with a violation fails the deployment instead of reaching a person
+who depends on it.
+
+`AUTH_TOKEN_SECRET` is in the spec as a third secret. It was not on the list, but the API
+has always refused to start in production without it, so an app created without it would
+have built successfully and then never come up.
+
+### DEPLOY.md
+
+Written for Anthony rather than for a developer, and written to be read aloud: no bullet
+points, no headings marked with symbols, no backticks, no tables, no markdown syntax of any
+kind. Continuous prose, one idea to a paragraph. It goes through the dashboard in the order
+the screens appear, says which value is pasted where and where each one comes from, and ends
+with the four fields to read back off `/health` — `status`, `commit`, `dataBackend` and
+`paymentsMode` — and what it means if the last two say `memory` or `rehearsal` rather than
+`postgres` and `stripe`.
+
+It also says plainly that the first deploy will build and then fail to start, because the
+Stripe webhook secret cannot exist until the app has an address to point the webhook at.
+That is the sort of thing that reads as a disaster at half past eleven at night if nobody
+warned you it was coming.
+
+### Checked
+
+- `pnpm lint` — clean, no errors and no warnings.
+- `pnpm run typecheck` — clean across all three packages.
+- `pnpm test` — **197 tests passing**: 43 in `core`, 127 in `api` (19 new), 27 in `web`.
+- `pnpm --filter @aldilivery/web build` — the gate ran, and `dist` was checked by hand for
+  the manifest, the service worker and root-absolute paths.
+- The built server was started through the real start script and exercised over HTTP. It
+  listened on `0.0.0.0:8080`, `/health` returned `status: "ok"` with the live commit,
+  `access-control-allow-origin` came back for the allowed origin and was **absent** for
+  another site, and the three production refusals were each provoked in turn and printed one
+  plain sentence naming the missing variable.
+
+**A defect the new tests found.** `gitCommit: options.gitCommit ?? gitCommit()` looked right
+and was wrong: `null` is nullish, so pinning the commit to `null` in a test fell straight
+through to the real lookup and the test read the actual commit off the working copy. Here
+`null` is a deliberate answer meaning "nothing knows which commit this is", not an absent
+one, so the option is now checked for presence instead. The same bug in the other direction
+would have made `/health` shell out to git, on every single poll, on a machine where the
+answer is genuinely nothing.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has
@@ -377,7 +523,7 @@ basket. That is Rule Six, and there is a test for each of those three doors.
 
 ### Checking the promises without reading any code
 
-Type `pnpm run verify`. It runs the linter, the type checker, and all 178 tests, and takes
+Type `pnpm run verify`. It runs the linter, the type checker, and all 197 tests, and takes
 about half a minute. If it prints no errors, then all ten rules are being kept by the code as
 it stands today, because each rule has tests attached to it. The table at the bottom of
 `RULES.md` says which file and which test enforces each one.
@@ -414,6 +560,34 @@ that a button really is forty eight pixels tall, because they run without a real
 they check that every control carries the styling that sets it, and the styling does set it.
 A proper browser pass, including a check at 200 percent zoom, is the first thing I would add
 next.
+
+### Putting it on the internet
+
+This is now ready to deploy, and there is a separate file for it: **[DEPLOY.md](DEPLOY.md)**.
+That one is written in plain prose with no lists, no symbols and no markdown, so it reads
+properly aloud from start to finish. It walks through the DigitalOcean dashboard in the order
+the screens appear.
+
+The short version. `.do/app.yaml` in this repository describes the whole thing — the API, the
+web app and a PostgreSQL database — so DigitalOcean configures itself from it and you are not
+typing build commands. There are four values you paste in by hand: your Stripe secret key,
+your Stripe webhook signing secret, a long random string to sign sign-in tokens, and the
+app's own web address, which does not exist until DigitalOcean has created the app. Expect
+the very first deploy to build and then fail to start, because the webhook secret cannot
+exist until there is an address to point the webhook at. That is written down in DEPLOY.md so
+it is not a surprise at eleven at night.
+
+When it is up, visit your app address with `/api/health` on the end. Four things in what
+comes back tell you it is really working: `status` says `ok`, `commit` names the version that
+is live, `dataBackend` says `postgres` rather than `memory`, and `paymentsMode` says `stripe`
+rather than `rehearsal`. If the third says `memory`, the database is not attached and nothing
+anybody orders would survive a restart.
+
+One thing to know rather than to do. The database in that spec is a development database,
+which is the smallest and cheapest managed PostgreSQL there is, and **it is not backed up**.
+It is right for seeing Aldilivery running on the internet. It is not right for holding real
+orders from real people, and moving to a proper database cluster is a two line change in
+`.do/app.yaml` when you get there.
 
 ### What I would do next, in order
 

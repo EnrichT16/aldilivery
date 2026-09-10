@@ -19,7 +19,19 @@ export interface CatalogueResult {
   source: string;
 }
 
-const BASE_URL = import.meta.env['VITE_API_BASE_URL'] ?? '/api';
+/**
+ * Where the API lives. Baked in at build time from `VITE_API_URL`.
+ *
+ * On DigitalOcean the web app and the API sit behind one hostname, so this is set to `/api`
+ * and no request ever leaves the origin. On a developer's machine, with nothing set, it is
+ * the API running locally on port 8080. A trailing slash is trimmed so that `/api/` and
+ * `/api` cannot produce two different URLs for the same route.
+ */
+const LOCAL_API_URL = 'http://localhost:8080';
+
+const BASE_URL = String(
+  import.meta.env['VITE_API_URL'] ?? (import.meta.env.DEV ? LOCAL_API_URL : '/api'),
+).replace(/\/+$/, '');
 
 export class ApiUnavailableError extends Error {
   constructor() {

@@ -16,7 +16,11 @@ export interface Env {
   isProduction: boolean;
   host: string;
   port: number;
-  webOrigin: string;
+  /**
+   * Which browser origins may call this API. A single origin, a comma separated list, or
+   * `*` for anything, which is only ever sensible in development and in the tests.
+   */
+  allowedOrigins: string[];
   storeConfigPath: string | undefined;
   dataBackend: DataBackend;
   databaseUrl: string | undefined;
@@ -30,6 +34,9 @@ export interface Env {
   otpDelivery: 'log' | 'sms';
 }
 
+/** The port a platform-supplied `PORT` would have to beat. Used in production too. */
+export const DEFAULT_PORT = 8080;
+
 const PLACEHOLDER_MARKERS = ['placeholder', 'change_me', 'replace_with'];
 
 function looksLikePlaceholder(value: string | undefined): boolean {
@@ -38,10 +45,23 @@ function looksLikePlaceholder(value: string | undefined): boolean {
   return PLACEHOLDER_MARKERS.some((marker) => lowered.includes(marker));
 }
 
+/** A value we can actually use, or nothing. A placeholder is nothing. */
+function realValue(value: string | undefined): string | undefined {
+  return looksLikePlaceholder(value) ? undefined : value;
+}
+
 function integer(value: string | undefined, fallback: number): number {
   if (!value) return fallback;
   const parsed = Number.parseInt(value, 10);
   return Number.isInteger(parsed) ? parsed : fallback;
+}
+
+function originList(value: string | undefined, fallback: string): string[] {
+  const raw = value?.trim() ? value : fallback;
+  return raw
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/$/, ''))
+    .filter((origin) => origin.length > 0);
 }
 
 export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
@@ -50,15 +70,9 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const nodeEnv = (source['NODE_ENV'] ?? 'development') as Env['nodeEnv'];
   const isProduction = nodeEnv === 'production';
 
-  const stripeSecretKey = looksLikePlaceholder(source['STRIPE_SECRET_KEY'])
-    ? undefined
-    : source['STRIPE_SECRET_KEY'];
-  const stripeWebhookSecret = looksLikePlaceholder(source['STRIPE_WEBHOOK_SECRET'])
-    ? undefined
-    : source['STRIPE_WEBHOOK_SECRET'];
-  const databaseUrl = looksLikePlaceholder(source['DATABASE_URL'])
-    ? source['DATABASE_URL']
-    : source['DATABASE_URL'];
+  const stripeSecretKey = realValue(source['STRIPE_SECRET_KEY']);
+  const stripeWebhookSecret = realValue(source['STRIPE_WEBHOOK_SECRET']);
+  const databaseUrl = realValue(source['DATABASE_URL']);
 
   const authTokenSecret = source['AUTH_TOKEN_SECRET'];
   if (isProduction && looksLikePlaceholder(authTokenSecret)) {
@@ -66,20 +80,38 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
       'AUTH_TOKEN_SECRET is missing or still the placeholder. Set a real one before running in production.',
     );
   }
+  // Fail fast, and say which one. A production server that starts without these would take
+  // an order it cannot charge for, or accept a webhook it cannot prove came from Stripe.
   if (isProduction && !stripeSecretKey) {
-    throw new Error('STRIPE_SECRET_KEY is missing. Aldilivery will not run in production without it.');
+    throw new Error(
+      'STRIPE_SECRET_KEY is missing. Aldilivery will not run in production without it.',
+    );
+  }
+  if (isProduction && !stripeWebhookSecret) {
+    throw new Error(
+      'STRIPE_WEBHOOK_SECRET is missing. Aldilivery will not run in production without it, because an unverified webhook is not an event.',
+    );
+  }
+  if (isProduction && !databaseUrl) {
+    throw new Error(
+      'DATABASE_URL is missing. Aldilivery will not run in production on the in-memory store, because everything in it is lost when the process stops.',
+    );
   }
 
   const requestedBackend = source['DATA_BACKEND'];
   const dataBackend: DataBackend =
-    requestedBackend === 'memory' || (!databaseUrl && !isProduction) ? 'memory' : 'postgres';
+    databaseUrl && requestedBackend !== 'memory' ? 'postgres' : 'memory';
 
   return {
     nodeEnv,
     isProduction,
-    host: source['API_HOST'] ?? '0.0.0.0',
-    port: integer(source['API_PORT'], 3001),
-    webOrigin: source['WEB_ORIGIN'] ?? 'http://localhost:5173',
+    host: source['HOST'] ?? source['API_HOST'] ?? '0.0.0.0',
+    // `PORT` is what a platform sets. `API_PORT` is kept for anyone whose .env still has it.
+    port: integer(source['PORT'] ?? source['API_PORT'], DEFAULT_PORT),
+    allowedOrigins: originList(
+      source['ALLOWED_ORIGIN'] ?? source['WEB_ORIGIN'],
+      'http://localhost:5173',
+    ),
     storeConfigPath: source['STORE_CONFIG_PATH'],
     dataBackend,
     databaseUrl,

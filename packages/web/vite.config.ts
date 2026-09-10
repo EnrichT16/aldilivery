@@ -58,11 +58,23 @@ export default defineConfig({
       '@store-config': fileURLToPath(storeConfigUrl),
     },
   },
+  // Everything the browser needs is in `dist` and nothing else: a static site, served from
+  // the root of its own hostname, so the manifest, the service worker and its scope all
+  // resolve from `/`.
+  base: '/',
+  build: {
+    outDir: 'dist',
+    emptyOutDir: true,
+    sourcemap: true,
+  },
   server: {
     port: 5173,
+    // Only used by anyone who builds with VITE_API_URL set to /api. The default in
+    // development is to call the local API directly, which exercises CORS the same way
+    // production does.
     proxy: {
       '/api': {
-        target: process.env['VITE_API_BASE_URL'] ?? 'http://localhost:3001',
+        target: process.env['VITE_API_URL'] ?? 'http://localhost:8080',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },

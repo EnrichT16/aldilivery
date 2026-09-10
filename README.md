@@ -20,6 +20,8 @@ Owner: Anthony Tochukwu Ibe.
 - **[PLAN.md](PLAN.md)** — what this foundation phase set out to build.
 - **[BUILD_LOG.md](BUILD_LOG.md)** — a dated record of every step and every decision, ending
   with *What Anthony Should Check*.
+- **[DEPLOY.md](DEPLOY.md)** — how to put this on DigitalOcean, written in plain prose with
+  no lists or symbols, so it reads properly aloud.
 
 **This phase has no voice, speech or telephony in it.** The microphone button exists on the
 landing page and says so when pressed.
@@ -31,7 +33,7 @@ landing page and says so when pressed.
 ```bash
 pnpm install
 pnpm run build:core     # the shared fee engine, which everything else imports
-pnpm run dev:api        # http://localhost:3001
+pnpm run dev:api        # http://localhost:8080
 pnpm run dev:web        # http://localhost:5173
 ```
 
@@ -54,7 +56,7 @@ pnpm run db:seed
 pnpm run verify         # lint, typecheck, and every test
 ```
 
-- `pnpm test` — 178 tests across the three packages.
+- `pnpm test` — 197 tests across the three packages.
 - `pnpm lint` — includes `eslint-plugin-jsx-a11y` in its strict configuration.
 - `pnpm --filter @aldilivery/web build` — runs the axe accessibility tests and refuses to
   produce a bundle if any screen has a violation.
@@ -70,6 +72,23 @@ pnpm run verify         # lint, typecheck, and every test
 | `packages/api` | Fastify, PostgreSQL through Prisma, Stripe. |
 | `packages/web` | React, TypeScript, Vite, Tailwind. An installable Progressive Web App, ready for Capacitor later. |
 | `docker-compose.yml` | Local PostgreSQL, and nothing else. |
+| `.do/app.yaml` | The DigitalOcean App Platform spec: the `api` service, the `web` static site, and the `aldilivery-db` database. |
+
+## Deploying
+
+`.do/app.yaml` describes the whole app: an `api` service on port 8080 with a `/health`
+check, a `web` static site built to `packages/web/dist`, and a managed PostgreSQL database.
+DigitalOcean reads it straight out of the repository. The four values that cannot live here
+— the two Stripe secrets, the session signing secret, and the app's own address for
+`ALLOWED_ORIGIN` — are pasted into the dashboard. **[DEPLOY.md](DEPLOY.md)** walks through
+every screen.
+
+The API reads `PORT` (8080 by default) and binds `0.0.0.0`. With `DATABASE_URL` set it uses
+PostgreSQL through Prisma, running `prisma migrate deploy` before the server starts; without
+it, the in-memory store, saying so loudly. In production it refuses to start at all rather
+than run without a database or without its Stripe keys.
+
+---
 
 ## The fee
 

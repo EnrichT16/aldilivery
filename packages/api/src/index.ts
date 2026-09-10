@@ -46,16 +46,21 @@ async function main(): Promise<void> {
       store: config.store.displayName,
       catalogueSource: config.store.catalogueSource.mode,
       dataBackend: env.dataBackend,
+      nodeEnv: env.nodeEnv,
+      host: env.host,
+      port: env.port,
+      allowedOrigins: env.allowedOrigins,
+      commit: app.ctx.gitCommit,
     },
     'Configuration loaded',
   );
 
   if (env.dataBackend === 'memory') {
     app.log.warn(
-      'Running with an in-memory database. Nothing is saved when this process stops. Set DATABASE_URL and run docker compose up for a real one.',
+      'Running with an in-memory database. Nothing is saved when this process stops. Set DATABASE_URL for a real one.',
     );
   }
-  if (!env.stripeSecretKey) {
+  if (!env.stripeSecretKey || !env.stripeWebhookSecret) {
     app.log.warn(
       'Running in payments rehearsal mode. No money moves and no card is ever charged. Set STRIPE_SECRET_KEY for the real thing.',
     );

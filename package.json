@@ -7,8 +7,8 @@
   "author": "Anthony Tochukwu Ibe",
   "type": "module",
   "engines": {
-    "node": ">=20.11.0",
-    "pnpm": ">=9"
+    "node": "24.x",
+    "pnpm": "9.x"
   },
   "packageManager": "pnpm@9.15.9",
   "scripts": {

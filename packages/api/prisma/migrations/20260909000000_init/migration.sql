@@ -1,0 +1,384 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
+-- CreateEnum
+CREATE TYPE "VehicleType" AS ENUM ('on_foot', 'bicycle', 'motorbike', 'car', 'van');
+
+-- CreateEnum
+CREATE TYPE "SubstitutionPreference" AS ENUM ('no_substitutes', 'similar_item', 'ask_me');
+
+-- CreateEnum
+CREATE TYPE "OrderStatus" AS ENUM ('draft', 'confirmed', 'paid', 'offered', 'accepted', 'shopping', 'receipt_submitted', 'delivering', 'delivered', 'completed', 'cancelled', 'refunded');
+
+-- CreateEnum
+CREATE TYPE "SubstitutionOutcome" AS ENUM ('pending', 'supplied', 'substituted', 'unavailable');
+
+-- CreateEnum
+CREATE TYPE "CatalogueItemSource" AS ENUM ('partner_feed', 'community');
+
+-- CreateEnum
+CREATE TYPE "CoolBagDepositStatus" AS ENUM ('not_started', 'withholding', 'held', 'released');
+
+-- CreateEnum
+CREATE TYPE "JobOfferOutcome" AS ENUM ('pending', 'accepted', 'declined', 'expired', 'superseded');
+
+-- CreateEnum
+CREATE TYPE "SetFrequency" AS ENUM ('weekly', 'fortnightly', 'monthly');
+
+-- CreateEnum
+CREATE TYPE "AccountRole" AS ENUM ('shopper', 'runner');
+
+-- CreateTable
+CREATE TABLE "Shopper" (
+    "id" TEXT NOT NULL,
+    "displayName" TEXT NOT NULL,
+    "handle" TEXT NOT NULL,
+    "phone" TEXT NOT NULL,
+    "spokenCodeHash" TEXT,
+    "preferredLanguage" TEXT NOT NULL DEFAULT 'en-GB',
+    "doorstepProtocol" TEXT NOT NULL DEFAULT '',
+    "substitutionDefault" "SubstitutionPreference" NOT NULL DEFAULT 'ask_me',
+    "budgetCapPence" INTEGER,
+    "deletionScheduledFor" TIMESTAMP(3),
+    "organisationId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Shopper_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Runner" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "phone" TEXT NOT NULL,
+    "vehicleType" "VehicleType" NOT NULL DEFAULT 'on_foot',
+    "rightToWorkVerified" BOOLEAN NOT NULL DEFAULT false,
+    "criminalRecordCheckVerified" BOOLEAN NOT NULL DEFAULT false,
+    "stripeConnectedAccountId" TEXT,
+    "coolBagDepositStatus" "CoolBagDepositStatus" NOT NULL DEFAULT 'not_started',
+    "coolBagWithheldPence" INTEGER NOT NULL DEFAULT 0,
+    "completedDeliveryCount" INTEGER NOT NULL DEFAULT 0,
+    "available" BOOLEAN NOT NULL DEFAULT false,
+    "latitude" DOUBLE PRECISION,
+    "longitude" DOUBLE PRECISION,
+    "lastJobCompletedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Runner_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Organisation" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "contactName" TEXT NOT NULL,
+    "contactEmail" TEXT NOT NULL,
+    "contactPhone" TEXT,
+    "invoiceTerms" TEXT NOT NULL DEFAULT '',
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Organisation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "HouseholdCircle" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "HouseholdCircle_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "HouseholdCircleMember" (
+    "id" TEXT NOT NULL,
+    "circleId" TEXT NOT NULL,
+    "shopperId" TEXT NOT NULL,
+    "consentGivenAt" TIMESTAMP(3),
+    "consentMethod" TEXT,
+    "consentRecordedBy" TEXT,
+    "canOrderForOthers" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "HouseholdCircleMember_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CatalogueItem" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "category" TEXT NOT NULL,
+    "estimatedPricePence" INTEGER NOT NULL,
+    "ageRestricted" BOOLEAN NOT NULL DEFAULT false,
+    "source" "CatalogueItemSource" NOT NULL,
+    "externalRef" TEXT,
+    "lastSeenAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CatalogueItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PaymentMethod" (
+    "id" TEXT NOT NULL,
+    "shopperId" TEXT NOT NULL,
+    "stripePaymentMethodId" TEXT NOT NULL,
+    "lastFour" TEXT NOT NULL,
+    "brand" TEXT,
+    "region" TEXT,
+    "isDefault" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PaymentMethod_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Order" (
+    "id" TEXT NOT NULL,
+    "shopperId" TEXT NOT NULL,
+    "status" "OrderStatus" NOT NULL DEFAULT 'draft',
+    "runnerId" TEXT,
+    "setId" TEXT,
+    "goodsEstimatePence" INTEGER NOT NULL,
+    "feePence" INTEGER NOT NULL,
+    "totalEstimatePence" INTEGER NOT NULL,
+    "receiptTotalPence" INTEGER,
+    "receiptFeePence" INTEGER,
+    "finalTotalPence" INTEGER,
+    "spokenConfirmationAt" TIMESTAMP(3),
+    "confirmationChannel" TEXT,
+    "confirmationStatement" TEXT,
+    "doorstepProtocolSnapshot" TEXT NOT NULL DEFAULT '',
+    "stripePaymentIntentId" TEXT,
+    "paymentMethodId" TEXT,
+    "deliveryAddress" TEXT NOT NULL,
+    "latitude" DOUBLE PRECISION,
+    "longitude" DOUBLE PRECISION,
+    "poolId" TEXT,
+    "runnerPaymentPence" INTEGER NOT NULL DEFAULT 500,
+    "runnerTransferId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "acceptedAt" TIMESTAMP(3),
+    "deliveredAt" TIMESTAMP(3),
+    "completedAt" TIMESTAMP(3),
+    "cancelledAt" TIMESTAMP(3),
+
+    CONSTRAINT "Order_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OrderItem" (
+    "id" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "catalogueItemId" TEXT,
+    "name" TEXT NOT NULL,
+    "quantity" INTEGER NOT NULL DEFAULT 1,
+    "estimatedPricePence" INTEGER NOT NULL,
+    "substitutionOutcome" "SubstitutionOutcome" NOT NULL DEFAULT 'pending',
+    "substitutedForName" TEXT,
+    "actualPricePence" INTEGER,
+    "note" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "OrderItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "JobOffer" (
+    "id" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "runnerId" TEXT NOT NULL,
+    "offeredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "respondedAt" TIMESTAMP(3),
+    "outcome" "JobOfferOutcome" NOT NULL DEFAULT 'pending',
+    "queuePosition" INTEGER NOT NULL,
+    "distanceMiles" DOUBLE PRECISION,
+
+    CONSTRAINT "JobOffer_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "RunnerPayout" (
+    "id" TEXT NOT NULL,
+    "orderId" TEXT NOT NULL,
+    "runnerId" TEXT NOT NULL,
+    "earnedPence" INTEGER NOT NULL,
+    "coolBagWithheldPence" INTEGER NOT NULL DEFAULT 0,
+    "transferredPence" INTEGER NOT NULL,
+    "stripeTransferId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "RunnerPayout_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Set" (
+    "id" TEXT NOT NULL,
+    "shopperId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "deliveryAddress" TEXT NOT NULL,
+    "latitude" DOUBLE PRECISION,
+    "longitude" DOUBLE PRECISION,
+    "paymentMethodId" TEXT,
+    "frequency" "SetFrequency" NOT NULL,
+    "dayOfWeek" INTEGER NOT NULL,
+    "timeOfDay" TEXT NOT NULL,
+    "timezone" TEXT NOT NULL DEFAULT 'Europe/London',
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "nextFireAt" TIMESTAMP(3) NOT NULL,
+    "noticeSentAt" TIMESTAMP(3),
+    "skipRequestedForFireAt" TIMESTAMP(3),
+    "lastFiredAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Set_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SetItem" (
+    "id" TEXT NOT NULL,
+    "setId" TEXT NOT NULL,
+    "catalogueItemId" TEXT,
+    "name" TEXT NOT NULL,
+    "quantity" INTEGER NOT NULL DEFAULT 1,
+    "estimatedPricePence" INTEGER NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SetItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "OneTimeCode" (
+    "id" TEXT NOT NULL,
+    "phone" TEXT NOT NULL,
+    "codeHash" TEXT NOT NULL,
+    "role" "AccountRole" NOT NULL DEFAULT 'shopper',
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "consumedAt" TIMESTAMP(3),
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "OneTimeCode_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Shopper_handle_key" ON "Shopper"("handle");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Shopper_phone_key" ON "Shopper"("phone");
+
+-- CreateIndex
+CREATE INDEX "Shopper_deletionScheduledFor_idx" ON "Shopper"("deletionScheduledFor");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Runner_phone_key" ON "Runner"("phone");
+
+-- CreateIndex
+CREATE INDEX "Runner_available_lastJobCompletedAt_idx" ON "Runner"("available", "lastJobCompletedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "HouseholdCircleMember_circleId_shopperId_key" ON "HouseholdCircleMember"("circleId", "shopperId");
+
+-- CreateIndex
+CREATE INDEX "CatalogueItem_name_idx" ON "CatalogueItem"("name");
+
+-- CreateIndex
+CREATE INDEX "CatalogueItem_category_idx" ON "CatalogueItem"("category");
+
+-- CreateIndex
+CREATE INDEX "CatalogueItem_ageRestricted_idx" ON "CatalogueItem"("ageRestricted");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PaymentMethod_stripePaymentMethodId_key" ON "PaymentMethod"("stripePaymentMethodId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Order_stripePaymentIntentId_key" ON "Order"("stripePaymentIntentId");
+
+-- CreateIndex
+CREATE INDEX "Order_status_idx" ON "Order"("status");
+
+-- CreateIndex
+CREATE INDEX "Order_shopperId_idx" ON "Order"("shopperId");
+
+-- CreateIndex
+CREATE INDEX "Order_poolId_idx" ON "Order"("poolId");
+
+-- CreateIndex
+CREATE INDEX "JobOffer_orderId_outcome_idx" ON "JobOffer"("orderId", "outcome");
+
+-- CreateIndex
+CREATE INDEX "JobOffer_runnerId_idx" ON "JobOffer"("runnerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "RunnerPayout_orderId_key" ON "RunnerPayout"("orderId");
+
+-- CreateIndex
+CREATE INDEX "Set_active_nextFireAt_idx" ON "Set"("active", "nextFireAt");
+
+-- CreateIndex
+CREATE INDEX "OneTimeCode_phone_consumedAt_idx" ON "OneTimeCode"("phone", "consumedAt");
+
+-- AddForeignKey
+ALTER TABLE "Shopper" ADD CONSTRAINT "Shopper_organisationId_fkey" FOREIGN KEY ("organisationId") REFERENCES "Organisation"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "HouseholdCircleMember" ADD CONSTRAINT "HouseholdCircleMember_circleId_fkey" FOREIGN KEY ("circleId") REFERENCES "HouseholdCircle"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "HouseholdCircleMember" ADD CONSTRAINT "HouseholdCircleMember_shopperId_fkey" FOREIGN KEY ("shopperId") REFERENCES "Shopper"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PaymentMethod" ADD CONSTRAINT "PaymentMethod_shopperId_fkey" FOREIGN KEY ("shopperId") REFERENCES "Shopper"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Order" ADD CONSTRAINT "Order_shopperId_fkey" FOREIGN KEY ("shopperId") REFERENCES "Shopper"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Order" ADD CONSTRAINT "Order_runnerId_fkey" FOREIGN KEY ("runnerId") REFERENCES "Runner"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Order" ADD CONSTRAINT "Order_setId_fkey" FOREIGN KEY ("setId") REFERENCES "Set"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Order" ADD CONSTRAINT "Order_paymentMethodId_fkey" FOREIGN KEY ("paymentMethodId") REFERENCES "PaymentMethod"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "OrderItem" ADD CONSTRAINT "OrderItem_catalogueItemId_fkey" FOREIGN KEY ("catalogueItemId") REFERENCES "CatalogueItem"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobOffer" ADD CONSTRAINT "JobOffer_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "JobOffer" ADD CONSTRAINT "JobOffer_runnerId_fkey" FOREIGN KEY ("runnerId") REFERENCES "Runner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RunnerPayout" ADD CONSTRAINT "RunnerPayout_orderId_fkey" FOREIGN KEY ("orderId") REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "RunnerPayout" ADD CONSTRAINT "RunnerPayout_runnerId_fkey" FOREIGN KEY ("runnerId") REFERENCES "Runner"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Set" ADD CONSTRAINT "Set_shopperId_fkey" FOREIGN KEY ("shopperId") REFERENCES "Shopper"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Set" ADD CONSTRAINT "Set_paymentMethodId_fkey" FOREIGN KEY ("paymentMethodId") REFERENCES "PaymentMethod"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SetItem" ADD CONSTRAINT "SetItem_setId_fkey" FOREIGN KEY ("setId") REFERENCES "Set"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SetItem" ADD CONSTRAINT "SetItem_catalogueItemId_fkey" FOREIGN KEY ("catalogueItemId") REFERENCES "CatalogueItem"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+

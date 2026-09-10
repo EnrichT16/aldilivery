@@ -23,7 +23,7 @@ export const testEnv: Env = {
   isProduction: false,
   host: '127.0.0.1',
   port: 0,
-  webOrigin: '*',
+  allowedOrigins: ['*'],
   storeConfigPath: undefined,
   dataBackend: 'memory',
   databaseUrl: undefined,
@@ -64,6 +64,9 @@ export async function buildTestApp(startAt = new Date('2026-09-09T09:00:00.000Z'
     repository,
     payments,
     env: testEnv,
+    // Pinned so the tests never shell out to git, and never depend on which commit is
+    // checked out. `resolveGitCommit` itself is proved separately, in health.test.ts.
+    gitCommit: null,
     now,
     deliverCode: async (phone, code) => {
       deliveredCodes.push({ phone, code });

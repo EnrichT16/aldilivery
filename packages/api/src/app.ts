@@ -19,6 +19,7 @@ import { ApiError, UnauthorisedError } from './errors.js';
 import type { Env } from './env.js';
 import type { PaymentsGateway } from './lib/payments.js';
 import { verifySession } from './lib/tokens.js';
+import { gitCommit } from './lib/version.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerAccountRoutes } from './routes/accounts.js';
 import { registerBasketRoutes } from './routes/basket.js';
@@ -35,6 +36,8 @@ export interface AppContext {
   repository: Repository;
   payments: PaymentsGateway;
   env: Env;
+  /** The commit this process was built from, or null if nothing could say. */
+  gitCommit: string | null;
   /** Injected so tests can control time, and so nothing calls `new Date()` in a handler. */
   now: () => Date;
   /**
@@ -58,7 +61,8 @@ declare module 'fastify' {
   }
 }
 
-export interface BuildAppOptions extends Partial<Pick<AppContext, 'now' | 'deliverCode'>> {
+export interface BuildAppOptions
+  extends Partial<Pick<AppContext, 'now' | 'deliverCode' | 'gitCommit'>> {
   config: StoreConfig;
   repository: Repository;
   payments: PaymentsGateway;
@@ -87,6 +91,9 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     repository: options.repository,
     payments: options.payments,
     env: options.env,
+    // `??` would be wrong here: null is a deliberate answer, meaning "nothing knows which
+    // commit this is", and the tests pin it to exactly that.
+    gitCommit: 'gitCommit' in options ? (options.gitCommit ?? null) : gitCommit(),
     now: options.now ?? (() => new Date()),
     deliverCode:
       options.deliverCode ??
@@ -98,8 +105,11 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   app.decorate('ctx', ctx);
   app.decorateRequest('session', undefined);
 
+  // The browser origins allowed to call this API. In production this is exactly the site
+  // the web app is served from, named in `ALLOWED_ORIGIN`, and nothing else.
+  const allowAnyOrigin = options.env.allowedOrigins.includes('*');
   await app.register(cors, {
-    origin: options.env.webOrigin === '*' ? true : [options.env.webOrigin],
+    origin: allowAnyOrigin ? true : options.env.allowedOrigins,
     credentials: true,
   });
 
@@ -170,7 +180,14 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     });
   });
 
+  /**
+   * The health check the platform polls. It must stay cheap: no database call, no network
+   * call, and nothing that could make a healthy process look dead. `commit` is null rather
+   * than absent when nothing could tell us which commit this is.
+   */
   app.get('/health', async () => ({
+    status: 'ok',
+    commit: ctx.gitCommit,
     ok: true,
     product: ctx.config.productName,
     assistant: ctx.config.assistantName,
