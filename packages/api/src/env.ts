@@ -32,6 +32,12 @@ export interface Env {
   otpTtlSeconds: number;
   /** `log` writes the code to the server log, for development. */
   otpDelivery: 'log' | 'sms';
+  /**
+   * Fill an empty catalogue at startup. On by default, because a deployed Aldilivery with
+   * no catalogue looks broken. Set `SEED_ON_START=false` once the catalogue comes from
+   * somewhere else.
+   */
+  seedOnStart: boolean;
 }
 
 /** The port a platform-supplied `PORT` would have to beat. Used in production too. */
@@ -122,5 +128,6 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     otpLength: integer(source['OTP_LENGTH'], 6),
     otpTtlSeconds: integer(source['OTP_TTL_SECONDS'], 600),
     otpDelivery: source['OTP_DELIVERY'] === 'sms' ? 'sms' : 'log',
+    seedOnStart: source['SEED_ON_START'] !== 'false',
   };
 }

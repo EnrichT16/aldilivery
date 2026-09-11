@@ -35,6 +35,7 @@ export const testEnv: Env = {
   otpLength: 6,
   otpTtlSeconds: 600,
   otpDelivery: 'log',
+  seedOnStart: true,
 };
 
 export interface TestHarness {

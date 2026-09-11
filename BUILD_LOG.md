@@ -448,6 +448,68 @@ answer is genuinely nothing.
 
 ---
 
+## 2026-09-11 — Step 8: the empty catalogue, and why the seed writes no people
+
+A gap left by Step 7, found by reading it back rather than by a test failing.
+
+`prisma migrate deploy` creates tables. It does not create rows. The API only ever seeded
+itself on the in-memory path, so the first deployment would have come up with a catalogue of
+nothing: search returning no results, no basket that could be filled, no fee to show. Working
+exactly as designed, and indistinguishable from broken. Filling it needed `pnpm db:seed` from
+a terminal with `DATABASE_URL` set, which is precisely what `DEPLOY.md` promises Anthony will
+not need.
+
+So an empty catalogue is now filled once, at startup, on the PostgreSQL path. Three
+conditions have to agree, and the decision lives in `src/data/startup-seed.ts` rather than in
+`index.ts`, so that it is testable instead of buried in a `main` function nothing can reach.
+
+**The catalogue must be empty.** `seedRepository` already checked this and returns
+`alreadySeeded`, so a restart cannot duplicate anything and cannot overwrite a catalogue
+somebody has edited. That check was there from Step 4; it just had no caller on this path.
+
+**The catalogue source must be `community`.** The seeded rows carry the configured source as
+their provenance. In `partner_feed` mode these community price estimates would be labelled as
+though a supermarket had supplied them, which is a false claim about where a price came from,
+so it refuses and says so in the log instead.
+
+**And the part that actually matters: no people, ever, in a real database.**
+
+The development seed creates a Shopper called Margaret and two Runners, Tomasz and Ayesha,
+and it marks both Runners as having their right to work and their criminal record check
+verified. In memory that is harmless — nothing there is real and all of it is thrown away
+when the process stops. Written into PostgreSQL it would be something else entirely: three
+fabricated people, two of them carrying the exact two flags that decide who may be offered a
+job, handle somebody else's shopping, and be paid five pounds for it. Those checks are made
+by a person reading a document. Nothing automatic should ever be able to assert one, and a
+seed script least of all.
+
+`seedRepository` already took `withPeople: false`, so the fix was to use it. The startup path
+writes groceries and nothing else, and the log line says so in as many words. A test asserts
+that `listAvailable()` comes back empty afterwards, which is the strongest form of the claim:
+not merely that no Runner row was written, but that nothing the allocation engine could offer
+a job to exists.
+
+`SEED_ON_START` turns the whole thing off for when the catalogue comes from somewhere real.
+It defaults to on, because the failure it prevents is silent and the failure it could cause
+is not.
+
+One limit worth writing down. The emptiness check and the insert are not one transaction, so
+two instances starting at the same moment could in principle both decide the catalogue is
+empty. The spec runs one instance, so this cannot happen today. If `instance_count` ever goes
+above one, this wants a unique constraint on the catalogue item name to make the race
+harmless, and that is a schema change rather than a patch here.
+
+### Checked
+
+- `pnpm lint`, `pnpm run typecheck` — both clean.
+- `pnpm test` — **204 tests passing**: 43 in `core`, 134 in `api` (7 new), 27 in `web`.
+- `DEPLOY.md` now tells Anthony to search for milk after the health check, says the catalogue
+  fills itself and only once, says plainly that no Runner is created and why, and adds the
+  empty-catalogue case to the list of things that can go wrong. Still no lists, no headings
+  with symbols and no markdown syntax anywhere in it.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has
@@ -523,7 +585,7 @@ basket. That is Rule Six, and there is a test for each of those three doors.
 
 ### Checking the promises without reading any code
 
-Type `pnpm run verify`. It runs the linter, the type checker, and all 197 tests, and takes
+Type `pnpm run verify`. It runs the linter, the type checker, and all 204 tests, and takes
 about half a minute. If it prints no errors, then all ten rules are being kept by the code as
 it stands today, because each rule has tests attached to it. The table at the bottom of
 `RULES.md` says which file and which test enforces each one.

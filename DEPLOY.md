@@ -62,11 +62,17 @@ The fourth is a field called paymentsMode, whose value must be the word stripe. 
 
 If all four are right, the API is live and talking to its database. Now visit the app address on its own, with nothing after it, and you should see the Aldilivery landing page: deep navy, a large gold microphone in the middle, and the line about Ozi shopping for you. Press the Tab key once and a skip link should appear with a thick focus ring around it. That is the accessible shell, running in production.
 
+Then go to the shopping screen and search for something ordinary, like milk or bread, and you should get results. A brand new database has no rows in it, only empty tables, so the server fills the catalogue by itself the first time it starts, with the same everyday grocery list you see when running it on your own machine. You do not have to do anything to make that happen, and it only happens once: restarting the app will not duplicate anything.
+
+Two things about that catalogue are worth knowing. The first is that it writes groceries and nothing else. It creates no Shopper and no Runner, on purpose. A Runner carries two flags saying their right to work and their criminal record check have been verified, and those are decided by a person reading a document, never by a seed script, so nothing automatic is ever allowed to assert one. The database will therefore have no Runners in it until you add real ones, which is correct. The second is that if you search for wine you will get nothing back, even though there is a bottle of red wine sitting in the catalogue. That is Rule Six working.
+
 If something is wrong
 
 If the api component will not stay running, open its runtime logs from the app page. The messages are written in plain sentences and name the thing that is missing. A message about STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, AUTH_TOKEN_SECRET or DATABASE_URL means that variable is still a placeholder or still empty, and the fix is to paste the real value and save.
 
 If the health route says dataBackend is memory, then DATABASE_URL has been overwritten with something that is not a real connection string. Put it back to the name in curly brackets that refers to the database, and save.
+
+If the pages all load but searching for milk finds nothing, the catalogue did not fill. Open the runtime logs and look near the top, at the lines written when the server started. If one of them says the catalogue was empty and was filled, then it worked and the problem is elsewhere. If there is no such line at all, check whether an environment variable called SEED_ON_START has been added with the value false, because that switches it off.
 
 If the landing page loads but nothing you do on it reaches the server, and the browser console mentions the word origin, then ALLOWED_ORIGIN does not match the address you are actually visiting. The two must match character for character, including the https at the front, and ALLOWED_ORIGIN must not end in a slash.
 
