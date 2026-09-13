@@ -510,6 +510,96 @@ harmless, and that is a schema change rather than a patch here.
 
 ---
 
+## 2026-09-13 — Step 9: P3009, and getting out of it without deleting anything
+
+The first DigitalOcean deployment failed. The managed database was still being provisioned
+when the first `migrate deploy` ran, the attempt was interrupted part way through, and Prisma
+wrote a row into `_prisma_migrations` recording `20260909000000_init` as failed. From then on
+every later deploy refused to do anything at all and returned **P3009**.
+
+That refusal is correct and I have not tried to talk it out of it. Prisma will not apply
+migrations on top of a database whose state it cannot vouch for, because guessing there means
+guessing about somebody's data. What it needed was a way out that is equally careful.
+
+### What the start script does now
+
+Before deploying, it runs `prisma migrate status` and reads the output. If any migration is
+recorded as failed, it runs `prisma migrate resolve --rolled-back` for that migration by name,
+says so in a plain sentence naming the migration, and then runs `prisma migrate deploy`. The
+whole sequence — status, resolve, deploy — is wrapped in up to **five attempts with ten
+seconds between them**, because a managed database is briefly unreachable while it is being
+provisioned, promoted or moved, and a single failed connection at the wrong second should not
+take the service down when waiting ten seconds would have fixed it.
+
+**Nothing in it can delete data, and that is enforced rather than intended.** There is no
+`migrate reset`, no `db push --force-reset` and no `DROP` anywhere in the file. `migrate
+resolve --rolled-back` edits one row in Prisma's own bookkeeping table and touches no table of
+ours. A test asserts over every command the script actually issued that none of them matches
+`reset`, `--force`, `db push` or `drop`, and that a `resolve` is only ever `--rolled-back` and
+never `--applied` — the latter would tell Prisma a migration had run when it had not, which is
+the same class of lie as the failed record itself, pointing the other way.
+
+`migrate reset` is the fix the Prisma documentation and every forum answer reaches for first.
+It drops every table and everything in them. Today that would cost a seeded catalogue and
+nothing else. The point of writing the test now is that it will not always be today.
+
+### Where it lives, and why not in the script
+
+The logic moved into `src/lib/migrations.ts` and the script keeps only the real ways of
+running a command, writing a line and waiting. A `.mjs` file in `scripts/` is outside the
+TypeScript project and outside the test suite: it is neither typechecked nor provable. The
+same logic in `src/` is compiled, linted and covered like everything else, and `start.mjs`
+imports it out of `dist` after it has already checked `dist` exists. Everything the outside
+world does is injected, so the whole of P3009 recovery is proved with a scripted command
+runner, no database, no Prisma and nothing that really waits ten seconds.
+
+### Reading the output, which is the fiddly part
+
+Prisma has worded "these migrations failed" differently across versions, and the same fact
+appears both in `migrate status` and in the P3009 text from `migrate deploy`. Both wordings
+are read: a heading followed by bare migration names on their own lines, and the inline form
+that quotes the name in backticks. Anything not shaped like a migration folder name is
+ignored, because acting on a misread name is worse than missing one — and a test covers
+exactly that case.
+
+Two details worth recording because both were wrong first:
+
+**`migrate status` exits non-zero whenever anything is pending.** On a first deployment that
+is the ordinary case, not an error, so only its output is read and never its exit code. A test
+pins this.
+
+**The first version reported the wrong reason.** Running it for real against an unreachable
+database, the log said the migration failed because of a deprecation warning about
+`package.json#prisma`. The failure line picker was taking the first non-empty line, and Prisma
+prints the schema it loaded, a deprecation warning and sometimes a box advertising a new
+version before it gets to the error. It now prefers the line carrying a Prisma error code, so
+the log says `P1001: Can't reach database server` — which is the difference between a
+deployment log that tells you what to fix and one that sends you to the wrong place entirely.
+
+### A limit, recorded rather than papered over
+
+If the interrupted attempt had got far enough to create part of the schema before it stopped,
+rolling the record back and running the migration again will fail on the first `CREATE TABLE`
+for something that already exists. The script cannot fix that safely on its own: the honest
+options are a migration written for that exact half-built state, or dropping things, and only
+one of those is allowed here. It retries, reports `P3009` or the "already exists" error
+plainly, and refuses to start the server. `DEPLOY.md` now says so in as many words, and says
+plainly not to follow the advice about resetting the database that the Prisma documentation
+will offer.
+
+### Checked
+
+- `pnpm lint`, `pnpm run typecheck` — both clean.
+- `pnpm test` — **227 tests passing**: 43 in `core`, 157 in `api` (23 new), 27 in `web`.
+- Run for real against an unreachable database, with the built script and the real Prisma
+  command line: five attempts, four ten second waits, `Error: P1001: Can't reach database
+  server` reported each time, exit code 1, the server never started, and the closing line
+  saying nothing has been deleted.
+- `DEPLOY.md` now has the P3009 case in it: what it means, that a redeploy is usually the
+  whole fix, that nothing is deleted, and what to do in the half-built case instead.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has
@@ -585,7 +675,7 @@ basket. That is Rule Six, and there is a test for each of those three doors.
 
 ### Checking the promises without reading any code
 
-Type `pnpm run verify`. It runs the linter, the type checker, and all 204 tests, and takes
+Type `pnpm run verify`. It runs the linter, the type checker, and all 227 tests, and takes
 about half a minute. If it prints no errors, then all ten rules are being kept by the code as
 it stands today, because each rule has tests attached to it. The table at the bottom of
 `RULES.md` says which file and which test enforces each one.

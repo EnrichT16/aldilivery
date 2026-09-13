@@ -10,17 +10,23 @@
  * the server starts on its in-memory store, which says so loudly in the log. In production
  * `readEnv` refuses to start at all without a database, so this skip only ever happens on a
  * developer's machine.
+ *
+ * The migration step itself — clearing a failed migration record, and trying again when the
+ * managed database is not ready yet — lives in `src/lib/migrations.ts`, where it is
+ * typechecked and proved by tests. This file only supplies the real ways of running a
+ * command, writing a line and waiting.
  */
 
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const here = fileURLToPath(import.meta.url);
 const apiRoot = dirname(dirname(here));
 const serverEntry = join(apiRoot, 'dist', 'index.js');
+const migrationsModule = join(apiRoot, 'dist', 'lib', 'migrations.js');
 
 /**
  * Run the Prisma CLI on this same Node binary rather than through a `.bin` shim. The shim
@@ -65,8 +71,48 @@ if (process.env.DATABASE_URL) {
     );
     process.exit(1);
   }
+
+  const { applyMigrations } = await import(pathToFileURL(migrationsModule).href);
+
   console.log('Applying database migrations.');
-  run([prisma, 'migrate', 'deploy'], 'apply the database migrations');
+
+  const outcome = await applyMigrations({
+    /**
+     * Output is captured rather than inherited, because the migration logic has to read it
+     * to find the name of a migration the database has recorded as failed. It is echoed
+     * afterwards so nothing is hidden from the deployment log.
+     */
+    run: (args) => {
+      const result = spawnSync(process.execPath, [prisma, ...args], {
+        cwd: apiRoot,
+        encoding: 'utf8',
+        shell: false,
+      });
+      const stdout = result.stdout ?? '';
+      const stderr = result.stderr ?? (result.error ? result.error.message : '');
+      if (stdout.trim()) console.log(stdout.trimEnd());
+      if (stderr.trim()) console.error(stderr.trimEnd());
+      return { status: result.error ? 1 : result.status, stdout, stderr };
+    },
+    log: (message) => console.log(message),
+    wait: (milliseconds) =>
+      new Promise((resolve) => {
+        setTimeout(resolve, milliseconds);
+      }),
+  });
+
+  if (!outcome.applied) {
+    console.error(
+      `The database could not be migrated after ${outcome.attemptsUsed} attempts. The last thing that went wrong was: ${outcome.lastFailure}. The server has not been started, because it must never answer a request against a schema it cannot vouch for. Nothing has been deleted.`,
+    );
+    process.exit(1);
+  }
+
+  if (outcome.rolledBack.length > 0) {
+    console.log(
+      `Cleared the failed record for ${outcome.rolledBack.join(', ')} and applied the migrations successfully.`,
+    );
+  }
 } else {
   console.log('No DATABASE_URL is set, so there are no migrations to apply.');
 }
