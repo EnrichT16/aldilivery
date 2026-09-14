@@ -600,6 +600,98 @@ will offer.
 
 ---
 
+## 2026-09-14 — Step 10: P3018, and the one line that needed to be a superuser
+
+The deployment got past P3009 and failed on the next thing: **P3018**, applying
+`20260909000000_init`, with database error **42501, permission denied for database
+aldilivery-db**.
+
+### What needed a privilege the managed user does not have
+
+Exactly one statement, the first one in the file:
+
+```sql
+CREATE SCHEMA IF NOT EXISTS "public";
+```
+
+`prisma migrate diff` writes that at the top of any migration generated from empty. On a
+database you own it is harmless and does nothing, because `public` already exists. On managed
+PostgreSQL it is fatal. The user a managed provider hands you is deliberately not a superuser
+and is not the database owner: it has `CREATE` on the `public` schema, which is everything an
+application needs, and nothing at all on the database itself. `CREATE SCHEMA` needs `CREATE`
+**on the database**, so it fails.
+
+**The `IF NOT EXISTS` does not save it, and that is the part worth understanding.** It reads
+as though the statement should quietly do nothing when the schema is already there, and
+`public` always is. But PostgreSQL checks the privilege *before* it checks whether the object
+exists. There is no version of this that succeeds without the privilege, so no amount of
+defensive SQL would have helped — the statement had to go.
+
+### What else was checked, and what was already right
+
+I went through the whole migration for anything else needing database or server level
+privilege. Every statement in it is one of `CREATE TABLE`, `CREATE TYPE`, `CREATE INDEX`,
+`CREATE UNIQUE INDEX` or `ALTER TABLE` — eighteen, fourteen, twelve, seven and nine of them
+respectively — and every one of those needs only `CREATE` on the `public` schema, which the
+managed user has. There is no `CREATE EXTENSION`, no `ALTER DATABASE`, no `COMMENT ON
+DATABASE`, no `CREATE ROLE` and no `GRANT`.
+
+**There was nothing to replace, because no id was ever coming from the database.** The brief
+allowed for swapping an extension-backed id for Prisma side generation, and it turned out not
+to be needed: all fourteen `@id` columns in the schema were already `@default(cuid())`, which
+Prisma generates in the client before the insert. Neither `pgcrypto` nor `uuid-ossp` is
+referenced anywhere, there is no `dbgenerated`, and no `gen_random_uuid()` or
+`uuid_generate_v4()`. That was luck as much as foresight, and it is now held in place by a
+test rather than left to luck a second time: if any `@id` stops using `cuid()`, or anything
+asks the database to generate a value, the test says so.
+
+**The datasource declares no `schemas` list.** It is `provider` and `url` and nothing else, so
+Prisma has no multi-schema configuration that would make it emit `CREATE SCHEMA` for anything
+beyond the default. `postgresqlExtensions` is not turned on either. Both are now asserted.
+
+### Rewritten in place, and why that is safe here
+
+There is no production data — the database has never successfully been migrated — so the
+initial migration was edited rather than superseded by a second one. A follow-up migration
+could not have fixed this anyway: the failing statement is inside the first one, and it would
+have failed again before anything later could run.
+
+The removed statement is replaced by a comment at the top of the file explaining what it was,
+why it fails on managed PostgreSQL, and that it must not come back. That matters because the
+obvious next move — regenerating the migration after a schema change — puts it straight back
+in, and the resulting failure shows up only against a real managed database, several minutes
+into a deployment, nowhere that local work would catch it.
+
+### Verified, rather than assumed
+
+`prisma migrate diff --from-empty --to-schema-datamodel` regenerates the canonical SQL for the
+current schema. Compared statement by statement against the committed migration, ignoring
+comments and blank lines, the two are identical across all **247 statements**, with the single
+`CREATE SCHEMA` line as the only difference. The migration is exactly the schema, minus the
+statement that cannot run.
+
+`packages/api/test/migration-sql.test.ts` now keeps it that way. It reads every committed
+migration and fails on `CREATE SCHEMA`, `DROP SCHEMA`, `ALTER SCHEMA`, `CREATE EXTENSION`,
+`CREATE DATABASE`, `ALTER DATABASE`, `DROP DATABASE`, `COMMENT ON DATABASE`, `CREATE ROLE`,
+`ALTER ROLE` or `ALTER SYSTEM`, naming the statement and the privilege it wants. It strips SQL
+comments first, so the explanation at the top of the migration — which has to name the
+statements it warns about — does not trip the test enforcing it. It also fails if a
+`CREATE TABLE` ever names a schema explicitly, which would depend on a schema nothing here is
+allowed to create.
+
+I checked the guard by putting the line back and watching it fail, then taking it out again.
+A test that has never failed has not been tested.
+
+### Checked
+
+- `pnpm lint`, `pnpm run typecheck` — both clean.
+- `pnpm test` — **234 tests passing**: 43 in `core`, 164 in `api` (7 new), 27 in `web`.
+- `prisma migrate diff` — the committed migration matches the schema across 247 statements.
+- The new guard was proved to fail when `CREATE SCHEMA` is reintroduced, and to pass when it
+  is not.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has
@@ -675,7 +767,7 @@ basket. That is Rule Six, and there is a test for each of those three doors.
 
 ### Checking the promises without reading any code
 
-Type `pnpm run verify`. It runs the linter, the type checker, and all 227 tests, and takes
+Type `pnpm run verify`. It runs the linter, the type checker, and all 234 tests, and takes
 about half a minute. If it prints no errors, then all ten rules are being kept by the code as
 it stands today, because each rule has tests attached to it. The table at the bottom of
 `RULES.md` says which file and which test enforces each one.
