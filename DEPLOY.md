@@ -66,6 +66,27 @@ Then go to the shopping screen and search for something ordinary, like milk or b
 
 Two things about that catalogue are worth knowing. The first is that it writes groceries and nothing else. It creates no Shopper and no Runner, on purpose. A Runner carries two flags saying their right to work and their criminal record check have been verified, and those are decided by a person reading a document, never by a seed script, so nothing automatic is ever allowed to assert one. The database will therefore have no Runners in it until you add real ones, which is correct. The second is that if you search for wine you will get nothing back, even though there is a bottle of red wine sitting in the catalogue. That is Rule Six working.
 
+If the web address works but the api part of it does not
+
+This is worth reading if you ever visit your app address with slash api slash health on the end and get the Aldilivery page back, or a not found page, instead of the short piece of JSON.
+
+The first thing to check is the simplest. If the api component is in the middle of deploying, it is serving nothing at all for a minute or two, and during that time a request to anything under slash api is answered by the static site instead, because the static site is set up to answer any address it does not recognise with the app itself. That comes back with a success code on it, which is why it looks like a routing fault rather than a component that is briefly down. Wait until the app page shows the deployment as active, then try again. Your browser may also have kept the wrong answer for a few minutes, so do a hard refresh, which on Windows is Control and F5 together.
+
+If the deployment is active and it still happens, then the routing rules themselves need looking at. There is a thing that catches people out here. The routing lives in the app spec, in the file in the repository at dot do slash app dot yaml, where the api component claims the path slash api and the static site claims slash. DigitalOcean turns those into what it calls ingress rules when it creates the app. If the spec has ever been edited in the dashboard rather than in the repository, those ingress rules can end up out of step with what the file says, and pushing a new commit will not put them right, because the dashboard copy is the one the app is actually using.
+
+Putting it right means uploading the spec again. Here is exactly what to do.
+
+Sign in to DigitalOcean and open the Apps section, then open the app called aldilivery. Go to the Settings tab. Near the top of that page, in the section headed App Spec, there is an Edit button. Press it and you will see the whole spec as text, in the same shape as the file in the repository.
+
+Before you change anything, select all of that text and copy it somewhere safe, so you can put it back if you need to. Then open the file dot do slash app dot yaml from the repository on GitHub, select all of it, and copy it. Go back to the dashboard, select all of the text in the box, delete it, and paste the file in its place. Press Save.
+
+DigitalOcean will show you what it is about to change before it does anything. Read that summary. It should mention the routes or the ingress rules, and it should not mention deleting the database. If it says anything about removing or replacing the database, stop and do not continue, because the spec you pasted is not describing the same app.
+
+Saving starts a new deployment. When it finishes and shows as active, visit your app address with slash api slash health on the end again. You should get the short piece of JSON with status o k in it.
+
+There is one more reassurance worth having. The API now answers on both addresses, with and without the api part in front, so even if the routing is set up to pass the whole path through rather than trimming it off, the health route still answers. That means if slash api slash health is still giving you a web page after all of the above, the cause is the routing not reaching the api component at all, rather than the path arriving in an unexpected shape. In that case the ingress rules are the thing to look at, and re-uploading the spec as described is the fix.
+
+
 If something is wrong
 
 If the api component will not stay running, open its runtime logs from the app page. The messages are written in plain sentences and name the thing that is missing. A message about STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, AUTH_TOKEN_SECRET or DATABASE_URL means that variable is still a placeholder or still empty, and the fix is to paste the real value and save.

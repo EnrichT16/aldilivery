@@ -34,10 +34,30 @@ const BASE_URL = String(
 ).replace(/\/+$/, '');
 
 export class ApiUnavailableError extends Error {
-  constructor() {
+  /**
+   * `reason` is for the console and for us. The message a person sees stays the same plain
+   * sentence however the API failed to answer, because "we cannot reach it" is the whole of
+   * what a Shopper needs to know.
+   */
+  constructor(readonly reason = 'no answer') {
     super('We cannot reach Aldilivery at the moment.');
     this.name = 'ApiUnavailableError';
   }
+}
+
+/**
+ * Did something other than the API answer?
+ *
+ * When the API is redeploying, or a route is misconfigured, a request to `/api/...` can fall
+ * through to whatever serves the rest of the site and come back as the web app's own HTML
+ * page, with a perfectly cheerful 200 on it. Parsing that as JSON gives an empty object, and
+ * an empty object looks exactly like a shop with nothing in it. A blank catalogue that should
+ * have been an error message is the worst of both: nothing works and nothing says why.
+ */
+function isNotJson(response: Response): boolean {
+  const contentType = response.headers?.get?.('content-type');
+  // No header at all is not evidence of a problem; the wrong one is.
+  return typeof contentType === 'string' && !contentType.includes('json');
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -51,9 +71,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiUnavailableError();
   }
 
-  const body = (await response.json().catch(() => ({}))) as
-    | T
-    | { error?: { message?: string } };
+  if (isNotJson(response)) {
+    throw new ApiUnavailableError('the reply was not JSON');
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = await response.json();
+  } catch {
+    // A body that will not parse is not an empty body. Saying so is the whole point.
+    if (response.ok) throw new ApiUnavailableError('the reply could not be read');
+    parsed = {};
+  }
+
+  const body = parsed as T | { error?: { message?: string } };
 
   if (!response.ok) {
     const message =

@@ -181,6 +181,37 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   });
 
   /**
+   * Every route, mounted twice: once at the root and once under `/api`.
+   *
+   * On App Platform the API is served at `/api` and the platform strips that prefix before
+   * the request arrives, so the server sees `/health`. That is how it is deployed today and
+   * it works. But the prefix being stripped is a setting on somebody else's dashboard, one
+   * checkbox away from not being true, and the failure it causes is silent in the worst way:
+   * `/api/health` falls through to the web app's catch-all and answers 200 with an HTML page,
+   * so the API looks like it is missing rather than misrouted.
+   *
+   * Answering on both paths costs one extra registration and removes the whole class of
+   * problem. `/health` keeps working for the platform's own health check, which polls the
+   * container directly and never goes through the router.
+   */
+  const routes = async (instance: FastifyInstance): Promise<void> => {
+    await registerRoutesOn(instance);
+  };
+
+  await app.register(routes);
+  await app.register(routes, { prefix: '/api' });
+
+  return app;
+}
+
+/**
+ * Everything the API answers. Registered against whichever prefix it is handed, so that the
+ * same routes exist at the root and under `/api`.
+ */
+async function registerRoutesOn(app: FastifyInstance): Promise<void> {
+  const ctx = app.ctx;
+
+  /**
    * The health check the platform polls. It must stay cheap: no database call, no network
    * call, and nothing that could make a healthy process look dead. `commit` is null rather
    * than absent when nothing could tell us which commit this is.
@@ -223,8 +254,6 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   await registerPayoutRoutes(app);
   await registerSetRoutes(app);
   await registerWebhookRoutes(app);
-
-  return app;
 }
 
 /** Require a signed-in account, optionally of a particular kind. */

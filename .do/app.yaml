@@ -62,6 +62,23 @@ services:
       success_threshold: 1
       failure_threshold: 5
 
+    # How the routing works, because this is the part that looks wrong when it is right.
+    #
+    # App Platform turns each component's `routes` into ingress rules and matches them by
+    # how specific the path is, not by the order they appear in this file. `/api` is more
+    # specific than `/`, so anything beginning `/api` comes here and everything else goes to
+    # the static site. Verified live: `/api/health` returns the API's JSON, and `/api/nope`
+    # returns the API's own JSON 404 rather than the web app's page, which is the proof that
+    # this rule is matching rather than being fallen past.
+    #
+    # The prefix is stripped before the request reaches the server, so this component sees
+    # `/health`. It also answers on `/api/health` itself — see the note in src/app.ts — so
+    # the API keeps working whether the prefix is stripped or not.
+    #
+    # While this component is redeploying it serves nothing, and a request to /api then
+    # falls through to the static site's catchall_document and comes back as HTML with a 200
+    # on it. That is not a routing fault and it goes away on its own; the web client now says
+    # it cannot reach Aldilivery rather than showing an empty shop.
     routes:
       - path: /api
 
@@ -141,6 +158,9 @@ static_sites:
         scope: BUILD_TIME
         value: "/api"
 
+    # Everything that is not /api. `catchall_document` above means any address that is not a
+    # file on disk is answered with index.html, so a refresh on /basket works — and so an
+    # address under /api would be answered here too if the API were not matching first.
     routes:
       - path: /
 

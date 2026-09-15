@@ -46,6 +46,9 @@ export function stubCatalogueFetch(): void {
       Promise.resolve({
         ok: true,
         status: 200,
+        // A real Response says what it is sending, and the client checks: anything that is
+        // not JSON means something other than the API answered.
+        headers: new Headers({ 'content-type': 'application/json; charset=utf-8' }),
         json: async () => Promise.resolve(FAKE_CATALOGUE),
       } as unknown as Response),
     ),

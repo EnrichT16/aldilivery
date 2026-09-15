@@ -56,7 +56,7 @@ pnpm run db:seed
 pnpm run verify         # lint, typecheck, and every test
 ```
 
-- `pnpm test` — 234 tests across the three packages.
+- `pnpm test` — 249 tests across the three packages.
 - `pnpm lint` — includes `eslint-plugin-jsx-a11y` in its strict configuration.
 - `pnpm --filter @aldilivery/web build` — runs the axe accessibility tests and refuses to
   produce a bundle if any screen has a violation.

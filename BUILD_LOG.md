@@ -692,6 +692,109 @@ A test that has never failed has not been tested.
 
 ---
 
+## 2026-09-15 — Step 11: Aldilivery is live, and the routing was never broken
+
+Aldilivery is on the internet at `lobster-app-3ilv6.ondigitalocean.app`.
+
+The report was that `/api/health` returned the web app's not found page instead of the API,
+so App Platform must be routing `/api` to the static site. I went to check which of the three
+likely causes it was — the static site's catch-all swallowing it, the api component declaring
+its own `routes` block, or rule ordering — and found that none of them was, because the
+routing is correct and has been all along.
+
+### What the wire actually says
+
+```
+/api/health                  200  application/json   {"status":"ok","commit":"9af3c57…",
+                                                      "dataBackend":"postgres",
+                                                      "paymentsMode":"stripe"}
+/api/config                  200  application/json   the public configuration
+/api/catalogue/search?q=milk 200  application/json   2 results
+/api/nonsense                404  application/json   "There is nothing at that address."
+/                            200  text/html          the web app
+```
+
+All four health fields are right: `status` ok, `commit` matching the pushed HEAD,
+`dataBackend` **postgres**, `paymentsMode` **stripe**. The database is connected, Stripe is
+wired, and the catalogue seeded itself — a search for milk comes back with two results.
+
+**The line that settles the routing question is the fourth one.** `/api/nonsense` returns
+*Aldilivery's own* JSON 404, in Aldilivery's own words. If `/api` were falling through to the
+static site, that address would have come back as `index.html` with a 200 on it, because
+`catchall_document` answers anything it does not recognise with the app. An API-shaped 404
+under `/api` can only mean the request reached the API, which means the rule matched and the
+prefix was stripped. The response headers agree: `application/json`, `vary: Origin` and
+`access-control-allow-credentials` from our own CORS, and no `x-do-static-catchall-document`,
+which the root request does carry.
+
+So I have changed nothing about the routing. Rewriting working production ingress on a false
+premise is a good way to turn a healthy deployment into a broken one.
+
+### What was really seen, and why it was convincing
+
+The api component was still deploying. While it is, it serves nothing, and every request
+under `/api` falls through to the static site's catch-all and comes back as the web app's
+shell — with a **200** on it, which is why it reads as a routing fault rather than a
+component that is briefly down. The static response also came back `cf-cache-status: HIT`
+with an `Age` of several minutes, so Cloudflare would have kept serving that wrong answer for
+a while after the API came up.
+
+That is a genuinely misleading failure, and the fact that it was misleading is the part worth
+fixing. Three things now make it less so.
+
+### The API answers on both `/` and `/api`
+
+Every route is mounted twice: once at the root and once under `/api`. On App Platform the
+prefix is stripped, so the server sees `/health`; but whether it is stripped is a setting on
+somebody else's dashboard, one checkbox away from not being true. Answering on both costs one
+extra `app.register` and removes the whole class of problem. `/health` still answers bare,
+which matters because the platform's health check polls the container directly and never goes
+through the router.
+
+A second mount is a second front door, so the tests check it is not a weaker one: Rule Six is
+proved again through `/api`, where a search for wine returns nothing and an age restricted
+item is still refused at basket time. A prefix must not be a way round a rule.
+
+### The web app no longer shows an empty shop when it is handed a web page
+
+This is the defect the investigation actually turned up, and it was ours. The client did
+`response.json().catch(() => ({}))`. An HTML page with a 200 on it therefore parsed to `{}`,
+`response.ok` was true, and the call returned successfully with nothing in it. A search came
+back with no items and no error. **A shop with nothing in it and a shop that cannot be reached
+looked identical**, and only one of them is true.
+
+It now checks what it was handed. A reply whose content type is not JSON, or a body that will
+not parse when the status said success, raises `ApiUnavailableError` — the same error the
+screens already handle, so the Shopper sees the same plain sentence they would see with the
+server switched off. The real reason is kept on the error for the console. Seven tests cover
+it, including the exact case: HTML, 200, and the demand that it must not come back as an
+empty result.
+
+### The spec, documented rather than altered
+
+`.do/app.yaml` now explains in comments how the matching works — that App Platform matches
+ingress rules by specificity rather than by their order in the file, so `/api` wins over `/`
+— records the live evidence above, and notes that a request under `/api` during a redeploy
+lands on the static catch-all and that this is not a routing fault. The routes themselves are
+byte for byte what they were.
+
+`DEPLOY.md` has a new section for the symptom, in the same plain prose as the rest: check
+whether the component is simply mid-deploy first, hard refresh past the cache, and only then
+suspect the rules. It explains that a spec edited in the dashboard can leave the ingress out
+of step with the file in the repository, and that pushing a commit will not fix that because
+the dashboard copy is the one in use — then gives the exact steps to re-upload it: Settings,
+App Spec, Edit, copy the old one somewhere safe first, paste the file from the repository,
+read the summary of changes, and stop if it mentions the database.
+
+### Checked
+
+- `pnpm lint`, `pnpm run typecheck` — both clean.
+- `pnpm test` — **249 tests passing**: 43 in `core`, 172 in `api` (8 new), 34 in `web` (7 new).
+- The live deployment was probed on five paths, and the responses and headers are recorded
+  above.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has
@@ -767,7 +870,7 @@ basket. That is Rule Six, and there is a test for each of those three doors.
 
 ### Checking the promises without reading any code
 
-Type `pnpm run verify`. It runs the linter, the type checker, and all 234 tests, and takes
+Type `pnpm run verify`. It runs the linter, the type checker, and all 249 tests, and takes
 about half a minute. If it prints no errors, then all ten rules are being kept by the code as
 it stands today, because each rule has tests attached to it. The table at the bottom of
 `RULES.md` says which file and which test enforces each one.
