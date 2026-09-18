@@ -9,7 +9,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
 import { FAKE_CARD, FAKE_SHOPPER, stubApi, type RecordedRequest } from './setup';
@@ -236,11 +236,11 @@ describe('Rule Ten, on the wire', () => {
 });
 
 describe('the card screen', () => {
-  beforeEach(() => {
-    stubApi({ shopper: FAKE_SHOPPER, paymentsMode: 'rehearsal' });
-  });
-
+  // Each test sets up its own stub, once, before anything renders. A `beforeEach` stub that a
+  // test then replaced meant two different fetch mocks were live during one test, and which
+  // one answered depended on how fast the machine was.
   it('says plainly when card payments are not switched on, instead of a dead form', async () => {
+    stubApi({ shopper: FAKE_SHOPPER, paymentsMode: 'rehearsal' });
     renderAt('/card');
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent(/not switched on/);

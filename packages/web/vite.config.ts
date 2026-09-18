@@ -95,5 +95,16 @@ export default defineConfig({
      */
     testTimeout: 20_000,
     hookTimeout: 20_000,
+    /**
+     * One test file at a time.
+     *
+     * These files each render the whole application repeatedly, and one of them runs axe over
+     * every screen, so they are heavy on processor rather than on waiting. Run in parallel on
+     * a build container with few cores they compete with each other: the deployment log showed
+     * 113 seconds of test time inside 73 seconds of wall clock, which is several workers
+     * getting in each other's way. In series it is less total work, and — more importantly —
+     * the same work every time, on any machine.
+     */
+    fileParallelism: false,
   },
 });

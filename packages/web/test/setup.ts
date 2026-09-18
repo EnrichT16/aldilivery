@@ -102,8 +102,19 @@ export interface ApiStubOptions {
 export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
   const recorded: RecordedRequest[] = [];
 
+  /**
+   * Signed in, or signed out — never "whatever the last test left behind".
+   *
+   * This used to only ever write the token, so a test asking for nobody signed in inherited
+   * one from the test before it and reached the signed-out state only because `/me` answered
+   * 401 and the client cleared it. That worked by accident and stopped working on a slower
+   * machine, where one test's request was still in flight when the next one replaced the
+   * stub. Setting both states explicitly makes the order of tests stop mattering.
+   */
   if (options.shopper) {
     window.localStorage.setItem('aldilivery.session.token', 'test-token');
+  } else {
+    window.localStorage.removeItem('aldilivery.session.token');
   }
 
   const reply = (body: unknown, status = 200): Response =>
@@ -117,7 +128,24 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string, init?: RequestInit) => {
-      const path = String(url).replace(/^https?:\/\/[^/]+/, '');
+      /**
+       * The path, with wherever the client was pointed taken off the front.
+       *
+       * The client's base address is baked in at build time from `VITE_API_URL`, and that
+       * variable is set on the deployment: to `/api`, because there the web app and the API
+       * share a hostname. Vitest reads `import.meta.env` from the same place, so on the build
+       * machine every request arrived here as `/api/me` rather than `/me`, matched nothing,
+       * and fell through to the 404 below. The client then treated a 404 on `/me` as a
+       * refused session and signed itself out, and fourteen tests failed for a reason that
+       * had nothing to do with any of them.
+       *
+       * Taking both the origin and the `/api` prefix off makes these tests say the same thing
+       * whatever the client is pointed at, which is the only property that matters here: they
+       * are about what is sent, not about where it is sent.
+       */
+      const path = String(url)
+        .replace(/^https?:\/\/[^/]+/, '')
+        .replace(/^\/api(?=\/|$)/, '');
       const method = init?.method ?? 'GET';
       const body: unknown = init?.body ? JSON.parse(String(init.body)) : undefined;
       recorded.push({ path, method, body });
