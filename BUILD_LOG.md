@@ -795,6 +795,100 @@ read the summary of changes, and stop if it mentions the database.
 
 ---
 
+## 2026-09-18 — Step 12: the same report, checked again before changing anything
+
+The report came back: `/api/health` still returns the web app's not found page, the redeploy
+that carried the fix did not help, and the cause is that App Platform does not update its
+ingress from a pushed `app.yaml` — the dashboard copy is the one in force. The instruction was
+to install `doctl`, download the live spec, compare it with `.do/app.yaml`, correct the routes
+while preserving every environment variable and encrypted secret, and apply it.
+
+I installed `doctl` and then, before touching the spec, probed the live app. It is answering
+correctly, so I have applied nothing.
+
+### What the wire says today
+
+```
+/api/health      200  application/json   {"status":"ok","commit":"4a53a861…",
+                                          "dataBackend":"postgres","paymentsMode":"stripe"}
+/api/nope        404  application/json   "There is nothing at that address."
+/health          200  text/html          the web app
+/                200  text/html          the web app
+```
+
+`commit` is `4a53a861`, which is the current HEAD of `main`. The deployed code is the pushed
+code. `dataBackend` is postgres and `paymentsMode` is stripe, so the database and Stripe are
+both still attached.
+
+The deciding line is the second one, for the same reason it was the deciding line on 15
+September. `/api/nope` comes back as **Aldilivery's own JSON 404, in Aldilivery's own words**.
+If `/api` were falling through to the static site, that address would have been answered with
+`index.html` and a 200, because `catchall_document` answers anything it does not recognise
+with the app. An API-shaped 404 under `/api` can only mean the request reached the API.
+
+The third line is worth reading too, and it is not a fault: `/health` bare returns the web
+app, because the API is only routed under `/api`. The platform's own health check reaches the
+container directly and never goes through the router, so it is unaffected.
+
+### The cache was ruled out rather than assumed
+
+Last time, Cloudflare was serving a stale `cf-cache-status: HIT` with an `Age` of several
+minutes, which kept the wrong answer alive well after the API had come up. So this time the
+headers were read before drawing any conclusion:
+
+```
+cf-cache-status: BYPASS
+Cache-Control: private
+x-do-app-origin: 7ea031d5-ec83-40d6-8586-a3bf0c862bab
+```
+
+`BYPASS` means the edge did not answer this; it went to the origin. The request was then
+repeated six times with a fresh cache-busting query string each time, and all six came back
+`application/json` with `"status":"ok"`. This is not one lucky response between two bad ones.
+
+### The premise is true in general, and not what is happening here
+
+The reasoning behind the instruction is sound and worth keeping written down, because it will
+be right one day. App Platform really does not re-read `.do/app.yaml` on a push.
+`deploy_on_push` rebuilds the components from the new commit; the ingress rules come from the
+spec stored against the app, and that only changes when something explicitly updates it — app
+creation, an edit in the dashboard, or `doctl apps update`. A routing fix committed to the
+repository can therefore redeploy perfectly and change nothing at all about routing. That is a
+real trap and `DEPLOY.md` already describes it.
+
+It is just not the trap we are in. The routes are working, so there is nothing in them to
+correct, and rewriting live production ingress to fix a fault that the wire says is not there
+is how a healthy deployment becomes a broken one.
+
+### Not done, and why
+
+The comparison of the live spec against `.do/app.yaml` has **not** been made, because `doctl`
+is not authenticated. `doctl auth init` was run but no token was stored: there is no
+`config.yaml` under `%APPDATA%\doctl` or `%LOCALAPPDATA%\doctl`, a search of the profile finds
+none anywhere, and `doctl apps list` still fails with `access token is required`. `doctl auth
+list` prints `default (current)`, which is only the name of an empty context and not evidence
+of a credential.
+
+That comparison is still worth making as a read-only check — it would say whether the stored
+spec has drifted from the file in the repository, which is useful to know before the next
+change even though it is not causing this. It needs the token to actually persist first.
+
+### Installed
+
+`doctl` 1.169.0, downloaded from the project's GitHub releases and placed at
+`C:\Users\commy\bin\doctl.exe`. That directory is not on `PATH`; call it by its full path, or
+add it. Note that `doctl auth init` writes the token in clear text to `%APPDATA%\doctl\config.yaml`.
+
+### Checked
+
+- The live deployment was probed on four paths and then on six cache-busted repeats of
+  `/api/health`; the responses and the cache headers are recorded above.
+- No spec was downloaded, edited or applied. `.do/app.yaml` is unchanged, and so is the
+  spec stored against the app.
+- No secret values were read or printed.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has
