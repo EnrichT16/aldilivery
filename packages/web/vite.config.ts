@@ -86,5 +86,14 @@ export default defineConfig({
     setupFiles: ['./test/setup.ts'],
     css: true,
     include: ['test/**/*.test.{ts,tsx}'],
+    /**
+     * Generous, because these run on whatever machine builds the app and not only on a
+     * developer's. Several tests render the whole application and wait on it, which takes
+     * about a second here and can take several times that on a small build container. A
+     * test that fails because the box was slow teaches nobody anything and blocks a deploy,
+     * so the limit is set well clear of the real work rather than just above it.
+     */
+    testTimeout: 20_000,
+    hookTimeout: 20_000,
   },
 });

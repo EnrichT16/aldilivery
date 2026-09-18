@@ -14,6 +14,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { FAKE_CARD, FAKE_SHOPPER, stubApi, type RecordedRequest } from './setup';
 
+// Every `userEvent.setup` below passes `delay: null`, which turns off the simulated wait
+// between keystrokes. These tests type addresses and phone numbers, and the default delay is
+// realistic and slow: on a build container that slowness is the difference between a test
+// that passes and one that runs out of time. Nothing here is testing how fast anybody types.
+
 function renderAt(path: string) {
   return render(
     <MemoryRouter initialEntries={[path]}>
@@ -29,7 +34,7 @@ function sent(recorded: RecordedRequest[], method: string, path: string) {
 describe('setting up an account', () => {
   it('sends what was typed, and nothing that was not asked for', async () => {
     const recorded = stubApi();
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderAt('/sign-up');
 
     await user.type(screen.getByLabelText('Your name'), 'Ada');
@@ -58,7 +63,7 @@ describe('setting up an account', () => {
 
   it('keeps the session, so the next screen knows who you are', async () => {
     stubApi();
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderAt('/sign-up');
 
     await user.type(screen.getByLabelText('Your name'), 'Ada');
@@ -87,7 +92,7 @@ describe('setting up an account', () => {
       ),
     );
 
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderAt('/sign-up');
     await user.type(screen.getByLabelText('Your name'), 'Ada');
     await user.type(screen.getByLabelText('Your phone number'), '07700 900000');
@@ -101,7 +106,7 @@ describe('setting up an account', () => {
 
 describe('sending an order', () => {
   async function reachTheButton(recorded: RecordedRequest[]) {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderAt('/shop');
 
     await waitFor(() => {
@@ -185,7 +190,7 @@ describe('sending an order', () => {
 
   it('asks somebody with no account to set one up, rather than failing at the button', async () => {
     const recorded = stubApi({ paymentMethods: [] });
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderAt('/shop');
 
     await waitFor(() => {
@@ -204,7 +209,7 @@ describe('sending an order', () => {
 describe('Rule Ten, on the wire', () => {
   it('never sends anything that could be a card number to our own server', async () => {
     const recorded = stubApi({ shopper: FAKE_SHOPPER, paymentMethods: [FAKE_CARD] });
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderAt('/shop');
 
     await waitFor(() => {

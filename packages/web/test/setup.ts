@@ -1,9 +1,17 @@
 import '@testing-library/jest-dom/vitest';
 
 import { afterEach, beforeEach, vi } from 'vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 
 import { forgetCardEntry } from '../src/lib/stripe';
+
+/**
+ * How long `waitFor` and `findBy` keep trying. The default is one second, which is fine on
+ * a developer's machine and marginal on a build container: the screens here wait on the
+ * session being restored and on the payment methods arriving before they settle. Waiting
+ * longer costs nothing when the assertion passes, because these return as soon as it does.
+ */
+configure({ asyncUtilTimeout: 8_000 });
 
 /**
  * jsdom has no document language by default, and no layout engine. The language is set here
