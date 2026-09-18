@@ -75,10 +75,13 @@ services:
     # `/health`. It also answers on `/api/health` itself — see the note in src/app.ts — so
     # the API keeps working whether the prefix is stripped or not.
     #
-    # While this component is redeploying it serves nothing, and a request to /api then
-    # falls through to the static site's catchall_document and comes back as HTML with a 200
-    # on it. That is not a routing fault and it goes away on its own; the web client now says
-    # it cannot reach Aldilivery rather than showing an empty shop.
+    # When this component has no healthy version running — a deployment that errored, or the
+    # very first one — a request to /api falls through to the static site's catchall_document
+    # and comes back as HTML with a 200 on it. That is not a routing fault, but it does not
+    # clear on its own either: it lasts until a deployment succeeds. Measured 18 Sep 2026, a
+    # *successful* redeploy leaves no such gap — the running version keeps serving and the new
+    # one went active nine seconds before the old was retired. The web client now says it
+    # cannot reach Aldilivery rather than showing an empty shop.
     routes:
       - path: /api
 
