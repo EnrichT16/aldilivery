@@ -889,6 +889,142 @@ add it. Note that `doctl auth init` writes the token in clear text to `%APPDATA%
 
 ---
 
+## 2026-09-18 — Step 13: the live spec, read at last, and what it actually says
+
+`doctl` is authenticated and the stored spec has been read. Three questions were outstanding:
+whether the ingress had drifted from `.do/app.yaml`, what really caused the original report,
+and whether a redeploy leaves a window where `/api` is unserved. All three now have answers,
+and one of them turned up a defect that has nothing to do with routing.
+
+### The ingress has not drifted
+
+App Platform stores the routes in a different shape from the one we write. `.do/app.yaml`
+gives each component its own `routes:` block; the stored spec normalises both into a single
+top-level `ingress.rules` list. Reduced to the same form, the two are identical:
+
+```
+live: [('/', 'web'), ('/api', 'api')]
+repo: [('/', 'web'), ('/api', 'api')]
+```
+
+So the premise that the dashboard copy still held the original routing was wrong. It holds
+exactly what the repository holds. Nothing needed correcting and nothing was applied.
+
+### ALLOWED_ORIGIN is wrong, and it is the one real difference
+
+The structural comparison of every environment variable found a single mismatch:
+
+```
+api/ALLOWED_ORIGIN: live='https://example.com'  repo=''
+```
+
+`https://example.com` is a placeholder that was typed into the dashboard at some point. The
+repository leaves it empty, marked FILL IN, because the value cannot be known until App
+Platform has given the app a hostname. It should be `https://lobster-app-3ilv6.ondigitalocean.app`.
+
+**Why nothing appears to be broken.** The web app and the API share one hostname, so the
+browser's calls to `/api` are same origin and CORS never comes into it. The shop works. What
+is actually configured is that the single origin permitted to call this API from a browser is
+a domain neither of us controls. Nothing exploits that today — an attacker's page would have
+to be served from `example.com` — but it is the security control described in the spec's own
+comment as naming "that one hostname so that nothing else may call the API from a browser at
+all", and it currently names the wrong one. It should be corrected, deliberately, rather than
+left because the symptom is invisible.
+
+Every secret was present in both, as `EV[1:…]` ciphertext, and none was read, compared or
+printed. The only other difference is that `production: false` on the database is absent from
+the stored spec, which is the platform omitting a default rather than a change.
+
+### What actually caused the original report
+
+The deployment history settles it:
+
+```
+23667b3f  commit 5aaa37e   8/8              ACTIVE       18 Sep 12:10 → 12:13
+304c27b8  commit 4a53a86   8/8              SUPERSEDED   15 Sep 18:23
+c980da5d  app spec updated 8/8              SUPERSEDED   15 Sep 18:03
+73c499bb  app spec updated 6/8 (errors: 1)  ERROR        15 Sep 17:56
+…nine further ERROR deployments, back to the initial one on 13 Sep 14:57
+```
+
+From the app's creation on 13 September until `c980da5d` went active at 18:27 on 15 September,
+**every single deployment failed**, all of them at 6/8 with one error — the migration failures
+recorded in Steps 9 and 10. For those two and a half days the `api` component never came up at
+all, so every request under `/api` fell through to the static site's catch-all and came back as
+the web app's shell with a 200 on it. That is the not found page that was reported, and it was
+entirely real.
+
+It stopped being true at 18:27 on 15 September. The report today was of a condition that had
+already been fixed for nearly three days. Note also that no deployment at all happened between
+15 Sept 18:23 and our own push at 12:10 today: there was no redeploy in between that could have
+reintroduced it, so what was seen today was a stale answer — a browser cache, or the memory of
+a genuine earlier failure.
+
+### Redeploys do not leave a gap
+
+I had said a redeploy would leave a window where `/api` is unserved, and watched for it during
+the push of `5aaa37e`; across a poll every twenty seconds it never once appeared. The
+deployment record explains why. The new deployment reached ACTIVE at 12:13:58 and the previous
+one was marked SUPERSEDED at 12:14:07 — nine seconds **later**. The old container keeps serving
+until the new one is healthy, so a successful redeploy is a clean handover with no gap.
+
+That correction matters, because the fall-through story is still true — it is just not a story
+about redeploys. It happens when a deployment **fails**, or on the very first deploy, when
+there is no healthy predecessor to keep serving. Which is exactly the 13–15 September case
+above. `DEPLOY.md` says to check whether the component is mid-deploy first; it would be better
+advice to say check whether the last deployment **errored**.
+
+### ALLOWED_ORIGIN corrected, by hand, because the token was read only
+
+The fix was prepared as a spec differing from the live one by exactly two lines — one removed,
+one added — with all three `EV[1:…]` secrets carried across byte for byte:
+
+```
+   - key: ALLOWED_ORIGIN
+     scope: RUN_TIME
+-    value: https://example.com
++    value: https://lobster-app-3ilv6.ondigitalocean.app
+```
+
+`doctl apps update` then refused it: **403, not authorized to perform this operation**. The
+token had been created read only. Reads kept working throughout, which is why the scope
+problem did not surface until the write. The live spec was re-read afterwards and still said
+`example.com`, so nothing was half applied. Worth noting for next time: check the token's scope
+before building the change, not at the point of applying it.
+
+Anthony made the change in the dashboard instead — one field, no new credential, and no write
+capable token left on disk, which is the better trade for a single value. Deployment
+`8b6825eb`, cause `app spec updated`, went 8/8 ACTIVE at 13:03:37.
+
+### The control was then tested rather than assumed
+
+A configuration change that cannot be observed is not finished. `ALLOWED_ORIGIN` names the one
+browser origin permitted to call the API, so it was probed with three:
+
+```
+Origin: https://lobster-app-3ilv6.ondigitalocean.app  →  access-control-allow-origin: (that origin)
+Origin: https://example.com                           →  no header, refused
+Origin: https://evil.test                             →  no header, refused
+```
+
+The app's own origin is allowed, the old placeholder is now refused along with everything else,
+and `/api/nope` still returns the API's own JSON 404, so the routing was not disturbed.
+
+### Checked
+
+- `doctl apps spec get` against `.do/app.yaml`, compared structurally by parsing both rather
+  than by reading them side by side. Ingress identical; one environment variable differed.
+- `doctl apps list-deployments`, thirteen deployments, phases and timestamps as above.
+- `.do/app.yaml` is unchanged. The stored spec now differs from it in one deliberate way:
+  `ALLOWED_ORIGIN` holds the real hostname, where the file still says FILL IN. That is correct
+  — the value cannot be known until the app exists — and it is recorded here so the next
+  person reading the two side by side is not misled into thinking it is drift.
+- The live spec, the CORS behaviour on three origins, and `/api/health` were all re-read after
+  the change; results above.
+- No secret value was read, compared or printed at any point.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has
