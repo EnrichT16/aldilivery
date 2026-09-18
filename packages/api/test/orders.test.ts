@@ -250,6 +250,7 @@ describe('a payment the bank has not approved yet', () => {
   /** Stripe's answer when the Shopper has to authenticate. Nothing has been taken. */
   function gatewayNeedingAuthentication() {
     return {
+      mode: 'stripe' as const,
       async createPaymentIntent() {
         return {
           id: 'pi_needs_action',

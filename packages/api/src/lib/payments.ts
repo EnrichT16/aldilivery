@@ -49,6 +49,17 @@ export interface WebhookEvent {
 }
 
 export interface PaymentsGateway {
+  /**
+   * Which gateway this actually is.
+   *
+   * It lives here, on the gateway itself, because it used to be worked out separately in the
+   * health route from whether a Stripe secret key was configured — and that is not the same
+   * question. Building the real gateway needs the webhook secret as well, so a server with a
+   * secret key and no webhook secret ran the rehearsal gateway while `/health` cheerfully
+   * reported `paymentsMode: stripe`. DEPLOY.md tells Anthony to read that field as proof that
+   * money can move, so it has to be the truth rather than an inference about it.
+   */
+  readonly mode: 'stripe' | 'rehearsal';
   createPaymentIntent(input: CreatePaymentIntentInput): Promise<PaymentIntentResult>;
   createTransfer(input: CreateTransferInput): Promise<TransferResult>;
   /** Verifies the signature. A webhook that does not verify is not an event, it is noise. */
@@ -59,6 +70,7 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
   const stripe = new Stripe(secretKey, { apiVersion: '2024-12-18.acacia' as Stripe.LatestApiVersion });
 
   return {
+    mode: 'stripe',
     async createPaymentIntent(input) {
       const intent = await stripe.paymentIntents.create({
         amount: input.amountPence,
@@ -98,8 +110,10 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
 /**
  * A gateway that moves no money, for tests and for running the shell locally before any
  * Stripe account exists. It records what it was asked to do so tests can assert on it, and
- * it is impossible to select in production: `buildApp` only uses it when no Stripe secret
- * key is configured, and it says so loudly in the log at startup.
+ * it is selected only when the real thing cannot be built — which needs a Stripe secret key
+ * *and* a webhook secret, because a gateway that can take a payment but cannot verify what
+ * Stripe says happened to it is half a gateway. It says so loudly in the log at startup, and
+ * `mode` above carries the same fact to `/health` and `/config` so nothing has to guess.
  */
 export interface RecordedCall {
   kind: 'payment_intent' | 'transfer';
@@ -115,6 +129,7 @@ export function rehearsalGateway(): RehearsalGateway {
   let counter = 0;
 
   return {
+    mode: 'rehearsal',
     calls,
     async createPaymentIntent(input) {
       counter += 1;

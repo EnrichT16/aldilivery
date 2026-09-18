@@ -227,7 +227,8 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
     product: ctx.config.productName,
     assistant: ctx.config.assistantName,
     dataBackend: ctx.env.dataBackend,
-    paymentsMode: ctx.env.stripeSecretKey ? 'stripe' : 'rehearsal',
+    // Asked of the gateway that is actually in use, never inferred from configuration.
+    paymentsMode: ctx.payments.mode,
   }));
 
   /** The public facing configuration the web app is allowed to know about. */
@@ -252,7 +253,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
        * key is null rather than absent when it is missing, so the card screen can tell the
        * difference between "not configured" and "did not load".
        */
-      mode: ctx.env.stripeSecretKey ? 'stripe' : 'rehearsal',
+      mode: ctx.payments.mode,
       publishableKey: ctx.env.stripePublishableKey ?? null,
       supportedCardRegions: ctx.config.payments.supportedCardRegions,
     },

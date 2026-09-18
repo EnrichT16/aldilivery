@@ -7,7 +7,46 @@
  * moves no money.
  */
 
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { config as loadDotenv } from 'dotenv';
+
+/**
+ * Find the `.env` to read, searching upward from this file.
+ *
+ * `dotenv` on its own looks in the current working directory, and the working directory is
+ * wherever the process happened to be started. `pnpm --filter @aldilivery/api dev` starts it
+ * inside `packages/api`, so the `.env` at the top of the repository — the one `.env.example`
+ * sits beside and tells you to copy — was never read at all.
+ *
+ * That went unnoticed for a long time because every value in `.env.example` is a placeholder,
+ * and a placeholder produces exactly what no value at all produces: the in-memory store,
+ * rehearsal payments, localhost origins. The defaults hid it perfectly. It surfaced the first
+ * time somebody put a real Stripe key in that file and the server carried on saying
+ * `paymentsMode: rehearsal`.
+ *
+ * So the search starts from this module rather than from the working directory, and walks up.
+ * The nearest `.env` wins, which means a `packages/api/.env` still overrides the shared one if
+ * anybody wants that. The walk stops at the workspace root and never goes above it, because a
+ * stray `.env` in a home directory belongs to somebody else's project, not to this one.
+ */
+export function findDotenvFile(startDirectory: string): string | undefined {
+  let directory = startDirectory;
+
+  for (;;) {
+    const candidate = join(directory, '.env');
+    if (existsSync(candidate)) return candidate;
+
+    // The workspace root is the last place worth looking.
+    if (existsSync(join(directory, 'pnpm-workspace.yaml'))) return undefined;
+
+    const parent = dirname(directory);
+    if (parent === directory) return undefined;
+    directory = parent;
+  }
+}
 
 export type DataBackend = 'postgres' | 'memory';
 
@@ -78,7 +117,10 @@ function originList(value: string | undefined, fallback: string): string[] {
 }
 
 export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
-  loadDotenv();
+  // Never overrides a variable the platform has already set: on DigitalOcean there is no
+  // .env at all and everything comes from the real environment.
+  const envFile = findDotenvFile(dirname(fileURLToPath(import.meta.url)));
+  loadDotenv(envFile ? { path: envFile } : {});
 
   const nodeEnv = (source['NODE_ENV'] ?? 'development') as Env['nodeEnv'];
   const isProduction = nodeEnv === 'production';

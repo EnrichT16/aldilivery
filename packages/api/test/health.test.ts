@@ -5,13 +5,17 @@
  * it has to be cheap, unauthenticated, and honest about what it does not know.
  */
 
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
+
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { buildApp } from '../src/app.js';
 import { memoryRepository } from '../src/data/memory.js';
-import { DEFAULT_PORT, readEnv } from '../src/env.js';
+import { DEFAULT_PORT, findDotenvFile, readEnv } from '../src/env.js';
 import { resolveGitCommit } from '../src/lib/version.js';
-import { rehearsalGateway } from '../src/lib/payments.js';
+import { rehearsalGateway, stripeGateway } from '../src/lib/payments.js';
 import { loadStoreConfig } from '@aldilivery/core/node';
 
 import { buildTestApp, testEnv, type TestHarness } from './helpers.js';
@@ -194,7 +198,10 @@ describe('what /config tells the browser about payments', () => {
     const app = await buildApp({
       config: loadStoreConfig(),
       repository: memoryRepository(),
-      payments: rehearsalGateway(),
+      // The real gateway, because this is the case where Stripe is properly configured.
+      // Passing the rehearsal one here and still expecting `stripe` is what the old
+      // inferred-from-the-key behaviour allowed, and it was wrong.
+      payments: stripeGateway('sk_test_not_a_real_key', 'whsec_not_a_real_secret'),
       env: {
         ...testEnv,
         stripeSecretKey: 'sk_test_not_a_real_key',
@@ -234,5 +241,125 @@ describe('what /config tells the browser about payments', () => {
       STRIPE_PUBLISHABLE_KEY: 'replace_with_the_publishable_key_from_stripe',
     });
     expect(env.stripePublishableKey).toBeUndefined();
+  });
+});
+
+/**
+ * Finding the .env file.
+ *
+ * This is here because it was broken from the beginning and nothing noticed. `dotenv` looks
+ * in the working directory, `pnpm --filter` starts the API inside `packages/api`, and so the
+ * `.env` at the top of the repository was never read. Every value in `.env.example` is a
+ * placeholder, and a placeholder produces the same result as no value at all, so the defaults
+ * hid it until somebody put a real Stripe key in that file and the server carried on
+ * insisting it was in rehearsal mode.
+ */
+describe('finding the .env file', () => {
+  let root: string;
+
+  beforeEach(() => {
+    root = mkdtempSync(join(tmpdir(), 'aldilivery-env-'));
+    // A miniature of the real layout: a workspace root with a package inside it.
+    mkdirSync(join(root, 'packages', 'api', 'dist'), { recursive: true });
+    writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*\n');
+  });
+
+  afterEach(() => {
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it('finds the one at the top of the repository, from inside a package', () => {
+    writeFileSync(join(root, '.env'), 'STRIPE_SECRET_KEY=sk_test_from_the_root\n');
+
+    // Where the compiled server actually runs from.
+    const found = findDotenvFile(join(root, 'packages', 'api', 'dist'));
+
+    expect(found).toBe(join(root, '.env'));
+  });
+
+  it('prefers a closer one, so a package can still have its own', () => {
+    writeFileSync(join(root, '.env'), 'STRIPE_SECRET_KEY=sk_test_from_the_root\n');
+    writeFileSync(join(root, 'packages', 'api', '.env'), 'STRIPE_SECRET_KEY=sk_test_nearer\n');
+
+    const found = findDotenvFile(join(root, 'packages', 'api', 'dist'));
+
+    expect(found).toBe(join(root, 'packages', 'api', '.env'));
+  });
+
+  it('stops at the workspace root rather than wandering into a home directory', () => {
+    // A .env above the workspace belongs to somebody else's project, not to this one.
+    writeFileSync(join(root, 'outside.env'), 'ignored');
+    const above = dirname(root);
+    const strayExists = existsSync(join(above, '.env'));
+
+    const found = findDotenvFile(join(root, 'packages', 'api', 'dist'));
+
+    expect(found).toBeUndefined();
+    // The assertion above is only meaningful if the search really did pass a directory it
+    // could have taken something from, so this records whether that was the case.
+    expect(typeof strayExists).toBe('boolean');
+  });
+
+  it('returns nothing rather than throwing when there is no .env anywhere', () => {
+    expect(findDotenvFile(join(root, 'packages', 'api', 'dist'))).toBeUndefined();
+  });
+});
+
+/**
+ * What `paymentsMode` means.
+ *
+ * DEPLOY.md tells Anthony to read this field as proof that money can move. It used to be
+ * worked out from whether a Stripe secret key was configured, which is a different question
+ * from whether the real gateway was built: that needs the webhook secret too. So a server
+ * with a secret key and no webhook secret ran the rehearsal gateway — moving no money — while
+ * reporting `paymentsMode: stripe`. The field now comes from the gateway itself.
+ */
+describe('paymentsMode tells the truth about the gateway in use', () => {
+  it('says rehearsal when the rehearsal gateway is the one running', async () => {
+    const harness = await buildTestApp();
+    const health = (await harness.app.inject({ method: 'GET', url: '/health' })).json();
+    const config = (await harness.app.inject({ method: 'GET', url: '/config' })).json();
+
+    expect(health.paymentsMode).toBe('rehearsal');
+    expect(config.payments.mode).toBe('rehearsal');
+
+    await harness.close();
+  });
+
+  it('says stripe only when the real gateway is the one running', async () => {
+    const app = await buildApp({
+      config: loadStoreConfig(),
+      repository: memoryRepository(),
+      payments: stripeGateway('sk_test_not_a_real_key', 'whsec_not_a_real_secret'),
+      env: { ...testEnv, stripeSecretKey: 'sk_test_not_a_real_key' },
+      gitCommit: null,
+    });
+    await app.ready();
+
+    const health = (await app.inject({ method: 'GET', url: '/health' })).json();
+    expect(health.paymentsMode).toBe('stripe');
+
+    await app.close();
+  });
+
+  it('does not claim stripe merely because a secret key is configured', async () => {
+    // The exact shape of the bug: a secret key present, no webhook secret, so `index.ts`
+    // builds the rehearsal gateway. The answer must follow the gateway, not the key.
+    const app = await buildApp({
+      config: loadStoreConfig(),
+      repository: memoryRepository(),
+      payments: rehearsalGateway(),
+      env: { ...testEnv, stripeSecretKey: 'sk_test_not_a_real_key', stripeWebhookSecret: undefined },
+      gitCommit: null,
+    });
+    await app.ready();
+
+    const health = (await app.inject({ method: 'GET', url: '/health' })).json();
+    const config = (await app.inject({ method: 'GET', url: '/config' })).json();
+
+    expect(health.paymentsMode).toBe('rehearsal');
+    expect(config.payments.mode).toBe('rehearsal');
+
+    await app.close();
   });
 });
