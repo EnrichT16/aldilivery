@@ -1145,6 +1145,135 @@ charged. A price that moved is a reason to ask again, not to charge a different 
 
 ---
 
+## 2026-09-18 — Step 15: three failed deployments, and the three bugs behind them
+
+Step 14 was pushed and the deployment failed. It was redeployed and failed again. A change was
+made and it failed a third time. Nothing was ever wrong in production — a failed deployment on
+App Platform leaves the running version serving, so `62a2513` stayed up and healthy throughout,
+with the schema untouched — but three failures and two wrong guesses are worth writing down
+properly, because the wrong guesses are the instructive part.
+
+### What actually broke it
+
+The web component's tests, and for a reason that had nothing to do with any of them.
+
+The web client's base address is baked in at build time from `VITE_API_URL`. On the deployment
+that is set to `/api`, because there the web app and the API share a hostname. Vitest reads
+`import.meta.env` from the same place as the bundler does, so on the build machine — and only
+there — every request from the test suite arrived at the stub as `/api/me` rather than `/me`.
+
+The stub matched on `/me`, missed, and fell through to its catch-all 404. The client then did
+exactly the right thing with that: a 404 on `/me` means the session was refused, so it cleared
+the token and signed itself out. Which is why the deployment log showed the card screen
+rendering **"Set up your account first"** where the test was waiting for an alert. The
+component under test behaved correctly. The test was asking it a question in a dialect it does
+not speak away from this machine.
+
+It was reproduced exactly by running the suite with that one variable set:
+
+```
+VITE_API_URL=/api pnpm --filter @aldilivery/web test
+  ->  Tests  14 failed | 32 passed (46)
+```
+
+Fourteen and thirty-two, the same counts as the deployment log. The stub now takes both the
+origin and an `/api` prefix off the front of every request, so these tests say the same thing
+wherever the client happens to be pointed — which is the only property that matters, because
+they are about what is sent rather than where it is sent.
+
+### Two guesses first, and why they were wrong
+
+This took three deployments to find, and the first two attempts were guesses dressed in
+reasoning. Recording them because the reasoning sounded good and was still wrong.
+
+**The first guess was slowness.** The deployment log said the tests took 113 seconds where
+they take 3 here, and the new tests were written with no margin: vitest allows 5 seconds a
+test, Testing Library gives `waitFor` 1 second, and `userEvent` waits between keystrokes as a
+real person would. All three were raised or removed. It was a genuine fragility and the
+changes were kept — the suite got faster rather than slower — but it was not the cause, and
+the deployment failed again.
+
+**The second guess was test pollution.** The stub only ever wrote the session token and never
+cleared it, so a test asking for nobody signed in inherited one from the test before and
+reached the signed-out state only because `/me` answered 401. Setup by side effect. And the
+card tests had a `beforeEach` stub that a test then replaced, leaving two fetch mocks live in
+one test. Both are real defects, both were fixed, neither was the cause.
+
+The lesson is the ordinary one and it had to be learnt twice here: a plausible cause that
+explains the symptom is not the same as the cause, and the way to tell them apart is to
+reproduce the failure rather than to reason about it. Once the failure was reproducible on
+this machine it took minutes.
+
+### The .env at the top of the repository was never read
+
+Found while trying to test locally against real Stripe test keys, which stubbornly refused to
+take effect.
+
+`dotenv` looks in the working directory. `pnpm --filter @aldilivery/api dev` starts the API
+inside `packages/api`. So it looked for `packages/api/.env`, and the file at the top of the
+repository — the one `.env.example` sits beside, and that `DEPLOY.md` and this log both tell
+you to copy — was never read at all.
+
+It has been that way from the beginning and nothing noticed, because every value in
+`.env.example` is a placeholder and a placeholder produces exactly what no value produces: the
+in-memory store, rehearsal payments, localhost origins. The defaults hid it perfectly. It
+surfaced the first time a real Stripe key went into that file and the server carried on
+reporting `paymentsMode: rehearsal`.
+
+The search now starts from the module rather than the working directory and walks up. The
+nearest `.env` wins, so a `packages/api/.env` still overrides the shared one for anybody who
+wants that, and the walk stops at the workspace root so a stray `.env` in a home directory
+belonging to some other project is never picked up.
+
+### `paymentsMode` was reporting something it had not checked
+
+Then, with the keys finally loading, `/health` said `paymentsMode: stripe` and the server was
+still running the rehearsal gateway. It was inferring the answer from whether a Stripe secret
+key was configured, which is a different question from whether the real gateway was built:
+that also needs the webhook secret, because a gateway that can take a payment but cannot
+verify what Stripe says happened to it is half a gateway.
+
+This is the one worth caring about. `DEPLOY.md` tells Anthony to read that field as proof that
+money can move, and it could have said `stripe` on a server that moves no money at all. The
+field now comes from the gateway itself, which makes the two impossible to drift apart, and
+the type system then found every place that had to declare which gateway it was — including
+one of the tests written earlier the same day, which had built the app with the rehearsal
+gateway and asserted `stripe`. It was encoding the bug.
+
+### Stripe, for real this time
+
+With the keys loading and the real gateway built, the whole journey was run against Stripe in
+test mode rather than against the rehearsal gateway. Stripe publishes payment methods that can
+be used from a server, which is what made this possible without a browser:
+
+```
+pm_card_visa                    ->  intent pi_3UH7JW…  succeeded       order: paid
+pm_card_threeDSecure2Required   ->  intent pi_3UH7Jd…  requires_action  order: confirmed
+```
+
+The second line is the fix from Step 14 proved end to end against the real thing. Before it,
+that order would have been written `paid` while no money had moved — and worse, it could never
+have been corrected afterwards, because the webhook only advances an order that is still
+`confirmed`.
+
+### Checked
+
+- The deployment failure was reproduced on this machine, exactly, before anything was changed
+  to fix it: same fourteen failures, same thirty-two passes.
+- The suite now passes both with `VITE_API_URL` set as the deployment sets it and with it
+  unset as it is here. Either alone would have been a test of half the problem.
+- `pnpm run verify` — lint, typecheck and tests clean. **278 tests**: 43 in `core`, 189 in
+  `api` (7 new), 46 in `web`.
+- Real Stripe test-mode calls for both card outcomes, recorded above. No money can move in
+  test mode and no real card is involved.
+- Test files now run one at a time. The deployment log showed 113 seconds of test time inside
+  73 seconds of wall clock, which is workers competing for too few cores; in series it is less
+  total work and, more to the point, the same work on every machine.
+- Production was never touched by any of this. Three failed deployments left `62a2513` serving
+  throughout, and the migration added in Step 14 has still not run against the real database.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has
