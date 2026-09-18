@@ -10,7 +10,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { App } from '../src/App';
 import { storeConfig } from '../src/config';
-import { stubCatalogueFetch } from './setup';
+import { FAKE_CARD, FAKE_SHOPPER, stubApi, stubCatalogueFetch } from './setup';
 
 function renderAt(path: string) {
   return render(
@@ -111,15 +111,19 @@ describe('the basket', () => {
 
   it('does not confirm anything by itself: the only way on is a link', async () => {
     await addTwoThings();
-    expect(
-      screen.getByRole('link', { name: 'Check and send my order' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Check and send my order' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /send my order/i })).not.toBeInTheDocument();
   });
 });
 
 describe('the confirmation screen', () => {
+  /** The button only exists for somebody who has an account and a card, so: both. */
+  function signedInWithACard() {
+    return stubApi({ shopper: FAKE_SHOPPER, paymentMethods: [FAKE_CARD] });
+  }
+
   it('has exactly one button that could ever take a payment', async () => {
+    signedInWithACard();
     const user = userEvent.setup();
     renderAt('/shop');
 
@@ -131,15 +135,14 @@ describe('the confirmation screen', () => {
     await user.click(screen.getByRole('link', { name: 'Check and send my order' }));
 
     const buttons = screen.getAllByRole('button');
-    const confirming = buttons.filter((button) =>
-      /send my order/i.test(button.textContent ?? ''),
-    );
+    const confirming = buttons.filter((button) => /send my order/i.test(button.textContent ?? ''));
 
     expect(confirming).toHaveLength(1);
     expect(confirming[0]).toHaveTextContent('Send my order');
   });
 
   it('says what will happen before the button, not after it', async () => {
+    signedInWithACard();
     const user = userEvent.setup();
     renderAt('/shop');
     await waitFor(() => {
@@ -149,15 +152,22 @@ describe('the confirmation screen', () => {
     await user.click(screen.getByRole('link', { name: 'Basket' }));
     await user.click(screen.getByRole('link', { name: 'Check and send my order' }));
 
-    expect(
-      screen.getByText(/the only thing that will ever take a payment/i),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/the only thing that will ever take a payment/i)).toBeInTheDocument();
     expect(screen.getByText(/Our fee, £8\.00\. That is the only fee\./)).toBeInTheDocument();
   });
 });
 
 describe('the accessibility promises axe cannot see', () => {
-  const PATHS = ['/', '/sign-up', '/shop', '/basket', '/confirm', '/runner', '/just-looking'];
+  const PATHS = [
+    '/',
+    '/sign-up',
+    '/card',
+    '/shop',
+    '/basket',
+    '/confirm',
+    '/runner',
+    '/just-looking',
+  ];
 
   it('gives every control a name that a person could read out, on every screen', async () => {
     for (const path of PATHS) {
@@ -220,9 +230,7 @@ describe('the accessibility promises axe cannot see', () => {
     renderAt('/sign-up');
     expect(screen.getByLabelText('Your name')).toBeInTheDocument();
     expect(screen.getByLabelText('Your phone number')).toBeInTheDocument();
-    expect(
-      screen.getByLabelText('What should your Runner do at the door?'),
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText('What should your Runner do at the door?')).toBeInTheDocument();
   });
 
   it('lists form problems in words at the top, not by colour', async () => {
@@ -232,8 +240,10 @@ describe('the accessibility promises axe cannot see', () => {
     await user.click(screen.getByRole('button', { name: 'Create my account' }));
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('There are 2 problems to fix');
-    expect(within(alert).getByRole('link', { name: 'Please tell us your name.' })).toBeInTheDocument();
+    expect(alert).toHaveTextContent('There are 3 problems to fix');
+    expect(
+      within(alert).getByRole('link', { name: 'Please tell us your name.' }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -252,9 +262,7 @@ describe('Rule Nine, on the screen', () => {
   }
 
   function readableText(): string[] {
-    return Array.from(document.querySelectorAll('p, li, td')).map(
-      (node) => node.textContent ?? '',
-    );
+    return Array.from(document.querySelectorAll('p, li, td')).map((node) => node.textContent ?? '');
   }
 
   it('takes the store name and the product name from configuration', () => {
@@ -268,16 +276,13 @@ describe('Rule Nine, on the screen', () => {
     const user = userEvent.setup();
     renderAt('/');
     await user.click(screen.getByRole('button', { name: 'Say what you need' }));
-    expect(
-      readableText().some((line) => line.includes(storeConfig.assistantName)),
-    ).toBe(true);
+    expect(readableText().some((line) => line.includes(storeConfig.assistantName))).toBe(true);
   });
 
   it('shows the Runner five pounds, taken from the rule constant and not typed in', () => {
     renderAt('/runner');
     const runnerPay =
-      storeConfig.store.currencySymbol +
-      (storeConfig.fees.runnerPaymentPence / 100).toFixed(2);
+      storeConfig.store.currencySymbol + (storeConfig.fees.runnerPaymentPence / 100).toFixed(2);
     expect(readableText().some((line) => line.includes(runnerPay))).toBe(true);
   });
 });

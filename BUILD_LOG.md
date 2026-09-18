@@ -1025,6 +1025,126 @@ and `/api/nope` still returns the API's own JSON 404, so the routing was not dis
 
 ---
 
+## 2026-09-18 — Step 14: the web shell wired to the API
+
+The shell now does what it looked like it did. Signing up creates a real Shopper, a card is
+saved through Stripe, and the button on the confirmation screen creates a real order and takes
+a real payment. The three screens that used to end in "this is not switched on yet" no longer
+say that, because it is no longer true.
+
+The API needed almost nothing: accounts, auth, payment methods, orders and the Stripe webhook
+were all already there and already enforcing Rule One. The work was the browser half, plus
+three gaps that only showed up once something real tried to use it.
+
+### Two decisions that were Anthony's to take
+
+**Where the delivery address lives.** `deliveryAddress` was on Order from the beginning and
+never on Shopper, so `POST /orders` required an address that nothing in the product collected.
+It could have been asked for on every order, which needs no migration, or kept on the account
+and typed once. It is now on the account: the people Aldilivery is for are the people who
+least want to type an address into a phone every week. The migration is additive with a
+default of empty string, so every existing row got a valid value and no code has to handle a
+Shopper who predates the column.
+
+**Signing in.** `otpDelivery` has had `sms` as a legal value in `env.ts` since the beginning
+and nothing has ever implemented it; the only delivery writes the code to the server log. So a
+returning Shopper could not receive a code, and a sign-in screen would have been a screen that
+cannot do its job. Rather than build one, signing up issues the session — `POST /shoppers`
+already returns a token — and that keeps somebody signed in on the device they signed up on.
+
+The cost of that is real and is written down rather than hidden: **sign up on a phone, and you
+cannot get into that account from a laptop.** Fixing it needs an account with a company that
+sends text messages and costs money per message, which is a decision about spending rather
+than about code. `DEPLOY.md` now says so in the section on what this deployment is and is not.
+
+### The Stripe publishable key, which did not exist anywhere
+
+Saving a card in a browser needs the publishable key, and there was no such value in `env.ts`,
+in `/config`, in `.do/app.yaml` or in `DEPLOY.md`. It is now in all four.
+
+It is deliberately **not** a secret and deliberately not marked as one in the spec. A
+publishable key is in the page source of every site that takes a card; that is what it is for.
+So it travels to the web app in `/config` alongside the payments mode. There is a test that
+the *secret* key never appears in that reply, because those two keys sit next to each other in
+the Stripe dashboard and differ by two letters, and `DEPLOY.md` now has a paragraph whose only
+job is to say check the first two letters before you save.
+
+### A payment that said it had happened when it had not
+
+`POST /orders` wrote `status: paid` onto the order regardless of what Stripe answered. A card
+in the United Kingdom usually has to be authenticated by the Shopper's bank, and Stripe then
+answers `requires_action`, not `succeeded`. So the order claimed a payment that had not been
+taken.
+
+It was worse than a wrong label. The webhook handler advances an order from `confirmed` to
+`paid` when `payment_intent.succeeded` arrives, and it deliberately only touches an order that
+is still `confirmed` — so an order marked paid too early could never be marked paid properly.
+The eager write made the correct path unreachable.
+
+The status now follows the intent. Anything short of `succeeded` leaves the order `confirmed`,
+the client secret goes back so the browser can carry out whatever the bank asks, and the
+webhook finishes the job when Stripe says it is done. The message a Shopper sees says their
+bank wants to check it is really them, and that nothing has been taken yet, which is the truth.
+
+Two tests cover it, with a gateway that answers `requires_action` — the rehearsal gateway
+always answers `succeeded`, which is exactly why this went unnoticed. `buildTestApp` now takes
+a payments gateway so that a gateway other than the rehearsal one can be handed in.
+
+### What the browser half looks like
+
+`lib/session.ts` keeps the token, in `localStorage`, with every read and write wrapped: a
+private window or blocked site data throws on access rather than returning nothing, and a shop
+that will not load because it could not write a token is worse than one that forgets you. It
+falls back to keeping the token in memory for the life of the page.
+
+`state/session.tsx` restores the session once when the app opens, and draws a distinction that
+matters: a server that **refuses** the token clears it, a server that **cannot be reached**
+does not. Throwing a session away because the network hiccupped would sign people out for no
+reason.
+
+`lib/stripe.ts` loads Stripe.js only when somebody actually reaches the card screen, and
+reports why it cannot be used in words rather than spinning: payments are in rehearsal, there
+is no key, or the script was blocked. Each of those is a real state and the card screen says
+which.
+
+The card screen itself is the interesting one for Rule Seven. Stripe draws the card fields in
+its own iframe, which is why Rule Ten holds structurally rather than by being careful — but it
+also means those fields cannot be labelled from outside, because they are not in this
+document. So the label and the explanation are ours and are joined to the iframe's container
+with `aria-describedby`, and the font size and colours are handed to Stripe explicitly rather
+than inherited, because the iframe cannot see our stylesheet.
+
+### Rule One, on the wire
+
+The sentence beside the button is not decoration any more. It is sent as the `statement` on the
+confirmation and stored on the order, so what the Shopper was told they were agreeing to is on
+the record next to the charge. A test asserts that the statement sent is character for
+character the sentence rendered on the screen, rather than a second copy of the words written
+somewhere in the client.
+
+The total goes with it. The server prices the basket again from its own catalogue and refuses
+the whole order if the figure has moved, and that refusal now arrives on screen as the price
+changed while you were deciding, with the new figure and the assurance that nothing has been
+charged. A price that moved is a reason to ask again, not to charge a different amount.
+
+### Checked
+
+- `pnpm run verify` — lint, typecheck and tests all clean.
+- **271 tests passing**: 43 in `core`, 182 in `api` (13 new), 46 in `web` (12 new).
+- The axe sweep now covers the card screen as well, so the new screen is held to the same
+  WCAG 2.2 AA gate as every other one and cannot ship with a violation.
+- One test asserts that no request in the whole journey — signing up, saving a card, sending
+  an order — carries a run of thirteen or more digits. There is nothing to send, because the
+  card fields are Stripe's; the test is there to notice if that ever stops being true.
+- The test stub was rewritten to answer by path. The old one answered every request with the
+  catalogue, which was harmless while one screen called the server and would have quietly fed
+  the wrong shape to every screen that now does.
+- Not checked in a browser, and not checked against real Stripe. The migration has not run
+  against the live database yet either: it applies on the next deploy, because the run command
+  applies outstanding migrations before the server binds a port.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has
@@ -1168,8 +1288,15 @@ orders from real people, and moving to a proper database cluster is a two line c
 
 ### What I would do next, in order
 
-1. A real browser accessibility pass, measuring target sizes and zoom.
-2. Wire the web shell to the API properly: real sign up, a real saved card through Stripe,
-   and the confirmation screen actually creating an order.
-3. Screen reader testing with real users — the people this is for, not us.
-4. Then, and only then, the voice layer.
+1. A real browser accessibility pass, measuring target sizes and zoom. The card screen needs
+   this most, because the card fields are inside Stripe's iframe and axe cannot see into it,
+   so the one screen that handles money is the one screen the automated gate cannot judge.
+2. A run through the whole thing against Stripe's test keys, in a browser: sign up, save the
+   test card, send an order, and check the order really is `paid` and not left `confirmed`.
+3. Sending a one time code by text message, so somebody can sign back in. Until that exists,
+   an account is reachable only from the device it was created on — see Step 14.
+4. Screen reader testing with real users — the people this is for, not us.
+5. Then, and only then, the voice layer.
+
+Done since this list was written: wiring the web shell to the API — real sign up, a real saved
+card through Stripe, and the confirmation screen creating a real order. That is Step 14.

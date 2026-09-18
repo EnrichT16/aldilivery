@@ -37,6 +37,7 @@ export type CreateShopper = Pick<Shopper, 'displayName' | 'handle' | 'phone'> &
       | 'spokenCodeHash'
       | 'preferredLanguage'
       | 'doorstepProtocol'
+      | 'deliveryAddress'
       | 'substitutionDefault'
       | 'budgetCapPence'
       | 'organisationId'
@@ -156,7 +157,12 @@ export interface Repository {
     addMember(
       circleId: string,
       shopperId: string,
-      consent: { consentGivenAt: Date | null; consentMethod: string | null; consentRecordedBy: string | null; canOrderForOthers: boolean },
+      consent: {
+        consentGivenAt: Date | null;
+        consentMethod: string | null;
+        consentRecordedBy: string | null;
+        canOrderForOthers: boolean;
+      },
     ): Promise<HouseholdCircleMember>;
     listMembers(circleId: string): Promise<HouseholdCircleMember[]>;
   };

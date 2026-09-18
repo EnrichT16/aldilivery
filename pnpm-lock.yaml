@@ -93,6 +93,9 @@ importers:
       '@aldilivery/core':
         specifier: workspace:*
         version: link:../core
+      '@stripe/stripe-js':
+        specifier: ^5.4.0
+        version: 5.10.0
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -1398,6 +1401,10 @@ packages:
 
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
+
+  '@stripe/stripe-js@5.10.0':
+    resolution: {integrity: sha512-PTigkxMdMUP6B5ISS7jMqJAKhgrhZwjprDqR1eATtFfh0OpKVNp110xiH+goeVdrJ29/4LeZJR4FaHHWstsu0A==}
+    engines: {node: '>=12.16'}
 
   '@testing-library/dom@10.4.1':
     resolution: {integrity: sha512-o4PXJQidqJl82ckFaXUeoAW+XysPLauYI43Abki5hABd853iMhitooc6znOnczgbTYmEP6U6/y1ZyKAIsvMKGg==}
@@ -5120,6 +5127,8 @@ snapshots:
     optional: true
 
   '@standard-schema/spec@1.1.0': {}
+
+  '@stripe/stripe-js@5.10.0': {}
 
   '@testing-library/dom@10.4.1':
     dependencies:

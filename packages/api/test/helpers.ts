@@ -14,7 +14,11 @@ import { buildApp } from '../src/app.js';
 import { memoryRepository } from '../src/data/memory.js';
 import type { Repository } from '../src/data/repository.js';
 import type { Env } from '../src/env.js';
-import { rehearsalGateway, type RehearsalGateway } from '../src/lib/payments.js';
+import {
+  rehearsalGateway,
+  type PaymentsGateway,
+  type RehearsalGateway,
+} from '../src/lib/payments.js';
 
 export const TEST_SECRET = 'test-secret-that-is-long-enough-for-hmac';
 
@@ -28,6 +32,7 @@ export const testEnv: Env = {
   dataBackend: 'memory',
   databaseUrl: undefined,
   stripeSecretKey: undefined,
+  stripePublishableKey: undefined,
   stripeWebhookSecret: undefined,
   authTokenSecret: TEST_SECRET,
   // Long, because several tests move the clock weeks forward to reach a recurring order.
@@ -51,10 +56,22 @@ export interface TestHarness {
   close: () => Promise<void>;
 }
 
-export async function buildTestApp(startAt = new Date('2026-09-09T09:00:00.000Z')): Promise<TestHarness> {
+export interface TestAppOptions {
+  /**
+   * A gateway other than the rehearsal one. Used to reproduce what Stripe really does when
+   * a bank wants the Shopper to authenticate, which the rehearsal gateway never does
+   * because it always answers `succeeded`.
+   */
+  payments?: PaymentsGateway;
+}
+
+export async function buildTestApp(
+  startAt = new Date('2026-09-09T09:00:00.000Z'),
+  options: TestAppOptions = {},
+): Promise<TestHarness> {
   const config = loadStoreConfig();
   const repository = memoryRepository();
-  const payments = rehearsalGateway();
+  const payments = (options.payments ?? rehearsalGateway()) as RehearsalGateway;
   const deliveredCodes: Array<{ phone: string; code: string }> = [];
 
   let currentTime = startAt;
@@ -189,7 +206,13 @@ export interface SignedInRunner {
 
 export async function signUpRunner(
   harness: TestHarness,
-  overrides: { name?: string; phone?: string; verified?: boolean; latitude?: number; longitude?: number } = {},
+  overrides: {
+    name?: string;
+    phone?: string;
+    verified?: boolean;
+    latitude?: number;
+    longitude?: number;
+  } = {},
 ): Promise<SignedInRunner> {
   const response = await harness.app.inject({
     method: 'POST',

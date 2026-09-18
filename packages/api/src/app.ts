@@ -61,8 +61,9 @@ declare module 'fastify' {
   }
 }
 
-export interface BuildAppOptions
-  extends Partial<Pick<AppContext, 'now' | 'deliverCode' | 'gitCommit'>> {
+export interface BuildAppOptions extends Partial<
+  Pick<AppContext, 'now' | 'deliverCode' | 'gitCommit'>
+> {
   config: StoreConfig;
   repository: Repository;
   payments: PaymentsGateway;
@@ -161,7 +162,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     }
     if ((error as { validation?: unknown }).validation) {
       void reply.status(400).send({
-        error: { code: 'bad_request', message: 'Some of that was not quite right. Please try again.' },
+        error: {
+          code: 'bad_request',
+          message: 'Some of that was not quite right. Please try again.',
+        },
       });
       return;
     }
@@ -242,6 +246,16 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
     fees: { bands: ctx.config.fees.bands, maximumGoodsPence: ctx.config.fees.maximumGoodsPence },
     accessibility: ctx.config.accessibility,
     recurringOrders: ctx.config.recurringOrders,
+    payments: {
+      /**
+       * `rehearsal` means no card can be charged and the screens say so. The publishable
+       * key is null rather than absent when it is missing, so the card screen can tell the
+       * difference between "not configured" and "did not load".
+       */
+      mode: ctx.env.stripeSecretKey ? 'stripe' : 'rehearsal',
+      publishableKey: ctx.env.stripePublishableKey ?? null,
+      supportedCardRegions: ctx.config.payments.supportedCardRegions,
+    },
   }));
 
   await registerAuthRoutes(app);
@@ -261,9 +275,7 @@ export function requireSession(request: FastifyRequest, role?: AccountRole): Ses
   if (!request.session) throw new UnauthorisedError();
   if (role && request.session.role !== role) {
     throw new UnauthorisedError(
-      role === 'runner'
-        ? 'That part is for Runners.'
-        : 'That part is for Shoppers.',
+      role === 'runner' ? 'That part is for Runners.' : 'That part is for Shoppers.',
     );
   }
   return request.session;

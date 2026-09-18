@@ -111,6 +111,10 @@ model Shopper {
   preferredLanguage    String                 @default("en-GB")
   /// Free text the Runner reads at the door: "knock loudly, I am slow to the door".
   doorstepProtocol     String                 @default("")
+  /// Where the shopping goes. Typed once when the account is set up, and shown back for
+  /// checking on every order rather than assumed. Empty until the Shopper gives one: an
+  /// account can exist before there is anywhere to deliver to.
+  deliveryAddress      String                 @default("")
   substitutionDefault  SubstitutionPreference @default(ask_me)
   /// An upper limit the Shopper sets on the goods estimate. Never a minimum (Rule Four).
   budgetCapPence       Int?

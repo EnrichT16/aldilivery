@@ -3,6 +3,8 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
+import { forgetCardEntry } from '../src/lib/stripe';
+
 /**
  * jsdom has no document language by default, and no layout engine. The language is set here
  * because the real `index.html` sets it and every screen is judged against WCAG with it in
@@ -17,6 +19,9 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  window.localStorage.clear();
+  // Stripe.js is loaded once per page and memoised. Tests must not inherit each other's.
+  forgetCardEntry();
 });
 
 /** A small catalogue, so the shopping page has something to draw. */
@@ -39,18 +44,147 @@ export const FAKE_CATALOGUE = {
   source: 'community',
 };
 
-export function stubCatalogueFetch(): void {
+export const FAKE_SHOPPER = {
+  id: 'shopper-1',
+  displayName: 'Ada',
+  handle: 'ada',
+  phone: '07700 900000',
+  doorstepProtocol: 'Knock loudly, I am slow to the door.',
+  deliveryAddress: '12 Made Up Street, Leeds, LS1 1AA',
+  substitutionDefault: 'ask_me' as const,
+  budgetCapPence: null,
+};
+
+export const FAKE_CARD = {
+  id: 'pm-row-1',
+  lastFour: '4242',
+  brand: 'visa',
+  isDefault: true,
+};
+
+export interface RecordedRequest {
+  path: string;
+  method: string;
+  body: unknown;
+}
+
+export interface ApiStubOptions {
+  /** Present means signed in: a token is stored and `/me` answers with this Shopper. */
+  shopper?: typeof FAKE_SHOPPER | undefined;
+  paymentMethods?: Array<typeof FAKE_CARD>;
+  /** `rehearsal` keeps the card screen from ever reaching for Stripe.js. */
+  paymentsMode?: 'stripe' | 'rehearsal';
+  publishableKey?: string | null;
+  /** An error the API should return for `POST /orders`, as the API would phrase it. */
+  orderError?: string;
+  /** Stripe asked for the bank's approval rather than settling straight away. */
+  orderRequiresAction?: boolean;
+}
+
+/**
+ * The API, answered by path.
+ *
+ * The previous version of this helper answered every request with the catalogue, which was
+ * fine while only one screen called the server. Now that signing up, saving a card and
+ * sending an order all talk to it, a stub that cannot tell `/me` from `/config` would have
+ * every screen quietly reading the wrong shape. So this routes on the path, and returns the
+ * recorded requests so a test can assert on what was actually sent — which for the order is
+ * the point of the exercise, because Rule One is about what goes on the wire.
+ */
+export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
+  const recorded: RecordedRequest[] = [];
+
+  if (options.shopper) {
+    window.localStorage.setItem('aldilivery.session.token', 'test-token');
+  }
+
+  const reply = (body: unknown, status = 200): Response =>
+    ({
+      ok: status >= 200 && status < 300,
+      status,
+      headers: new Headers({ 'content-type': 'application/json; charset=utf-8' }),
+      json: async () => Promise.resolve(body),
+    }) as unknown as Response;
+
   vi.stubGlobal(
     'fetch',
-    vi.fn(async () =>
-      Promise.resolve({
-        ok: true,
-        status: 200,
-        // A real Response says what it is sending, and the client checks: anything that is
-        // not JSON means something other than the API answered.
-        headers: new Headers({ 'content-type': 'application/json; charset=utf-8' }),
-        json: async () => Promise.resolve(FAKE_CATALOGUE),
-      } as unknown as Response),
-    ),
+    vi.fn(async (url: string, init?: RequestInit) => {
+      const path = String(url).replace(/^https?:\/\/[^/]+/, '');
+      const method = init?.method ?? 'GET';
+      const body: unknown = init?.body ? JSON.parse(String(init.body)) : undefined;
+      recorded.push({ path, method, body });
+
+      if (path.startsWith('/catalogue/search')) return reply(FAKE_CATALOGUE);
+
+      if (path.startsWith('/config')) {
+        return reply({
+          payments: {
+            mode: options.paymentsMode ?? 'rehearsal',
+            publishableKey: options.publishableKey ?? null,
+            supportedCardRegions: ['GB'],
+          },
+        });
+      }
+
+      if (path === '/me' && method === 'GET') {
+        return options.shopper
+          ? reply({ role: 'shopper', shopper: options.shopper })
+          : reply({ error: { message: 'You are not signed in.' } }, 401);
+      }
+
+      if (path === '/me' && method === 'PATCH') {
+        const patch = (body ?? {}) as Record<string, unknown>;
+        return reply({ shopper: { ...FAKE_SHOPPER, ...patch } });
+      }
+
+      if (path === '/shoppers') {
+        return reply({ shopper: FAKE_SHOPPER, token: 'new-token' }, 201);
+      }
+
+      if (path === '/payment-methods' && method === 'GET') {
+        return reply({ paymentMethods: options.paymentMethods ?? [] });
+      }
+
+      if (path === '/payment-methods' && method === 'POST') {
+        return reply({ paymentMethod: FAKE_CARD, message: 'Saved. The card ending 4242.' }, 201);
+      }
+
+      if (path === '/orders' && method === 'POST') {
+        if (options.orderError) {
+          return reply({ error: { message: options.orderError } }, 400);
+        }
+        const requiresAction = options.orderRequiresAction ?? false;
+        return reply(
+          {
+            order: {
+              id: 'order-1',
+              status: requiresAction ? 'confirmed' : 'paid',
+              goodsEstimatePence: 214,
+              feePence: 800,
+              totalEstimatePence: 1014,
+            },
+            payment: {
+              id: 'pi_1',
+              status: requiresAction ? 'requires_action' : 'succeeded',
+              clientSecret: 'pi_1_secret',
+              requiresAction,
+            },
+            message: requiresAction
+              ? 'Your bank wants to check it is really you. Nothing has been taken yet.'
+              : 'Thank you. Your order is on its way to a Runner. We have taken £10.14.',
+          },
+          201,
+        );
+      }
+
+      return reply({ error: { message: `Nothing stubbed for ${method} ${path}` } }, 404);
+    }),
   );
+
+  return recorded;
+}
+
+/** Kept for the screens that only ever read the catalogue. */
+export function stubCatalogueFetch(): void {
+  stubApi();
 }

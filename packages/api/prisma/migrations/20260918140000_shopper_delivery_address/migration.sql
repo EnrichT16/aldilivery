@@ -1,0 +1,15 @@
+-- Where the shopping goes.
+--
+-- `deliveryAddress` was on Order from the start but never on Shopper, so there was nothing
+-- to prefill an order from and nowhere for the sign-up screen to put an address. This adds
+-- it to Shopper.
+--
+-- Additive and defaulted, deliberately. Every existing Shopper gets an empty string rather
+-- than a NULL, so the column is NOT NULL from the first moment and no code has to handle
+-- "this row predates the column". An empty address is a real state anyway — an account can
+-- exist before there is anywhere to deliver to — and the order route already refuses to
+-- accept a blank one, so nothing can be sent to nowhere.
+--
+-- As with the initial migration: no CREATE SCHEMA, ever. The managed database user is not a
+-- superuser and that statement fails with SQLSTATE 42501.
+ALTER TABLE "Shopper" ADD COLUMN "deliveryAddress" TEXT NOT NULL DEFAULT '';

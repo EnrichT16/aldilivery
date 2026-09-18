@@ -29,6 +29,7 @@ const shopperSchema = z.object({
   spokenCode: z.string().trim().min(4).max(20).optional(),
   preferredLanguage: z.string().trim().min(2).max(20).optional(),
   doorstepProtocol: z.string().trim().max(500).optional(),
+  deliveryAddress: z.string().trim().max(300).optional(),
   substitutionDefault: z.enum(['no_substitutes', 'similar_item', 'ask_me']).optional(),
   budgetCapPence: z.number().int().positive().optional(),
 });
@@ -44,6 +45,7 @@ const profileSchema = z.object({
   displayName: z.string().trim().min(1).max(80).optional(),
   preferredLanguage: z.string().trim().min(2).max(20).optional(),
   doorstepProtocol: z.string().trim().max(500).optional(),
+  deliveryAddress: z.string().trim().max(300).optional(),
   substitutionDefault: z.enum(['no_substitutes', 'similar_item', 'ask_me']).optional(),
   budgetCapPence: z.number().int().positive().nullable().optional(),
 });
@@ -73,6 +75,7 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       spokenCodeHash: input.spokenCode ? hashCode(input.spokenCode, env.authTokenSecret) : null,
       preferredLanguage: input.preferredLanguage ?? 'en-GB',
       doorstepProtocol: input.doorstepProtocol ?? '',
+      deliveryAddress: input.deliveryAddress ?? '',
       substitutionDefault: input.substitutionDefault ?? 'ask_me',
       budgetCapPence: input.budgetCapPence ?? null,
     });
@@ -171,7 +174,9 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
   app.post('/account/delete', async (request) => {
     const session = requireSession(request);
     if (session.role !== 'shopper') {
-      throw new BadRequestError('Runner accounts are closed by talking to us, so we can settle your pay.');
+      throw new BadRequestError(
+        'Runner accounts are closed by talking to us, so we can settle your pay.',
+      );
     }
 
     const shopper = await repository.shoppers.findById(session.accountId);

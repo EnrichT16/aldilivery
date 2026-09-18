@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { buildTestApp, type TestHarness } from './helpers.js';
+import { buildTestApp, signUpShopper, type TestHarness } from './helpers.js';
 
 let harness: TestHarness;
 
@@ -35,7 +35,10 @@ describe('signing in with a phone and a one time code', () => {
       payload: { phone: '+447700900555' },
     });
     const code = harness.deliveredCodes[0]!.code;
-    const stored = await harness.repository.oneTimeCodes.findLatestUnconsumed('+447700900555', 'shopper');
+    const stored = await harness.repository.oneTimeCodes.findLatestUnconsumed(
+      '+447700900555',
+      'shopper',
+    );
     expect(stored).not.toBeNull();
     expect(stored?.codeHash).not.toBe(code);
     expect(stored?.codeHash).not.toContain(code);
@@ -176,7 +179,11 @@ describe('the seven day recycle bin', () => {
     const { shopper, token } = signUp.json() as { shopper: { id: string }; token: string };
     const auth = { authorization: `Bearer ${token}` };
 
-    const response = await harness.app.inject({ method: 'POST', url: '/account/delete', headers: auth });
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/account/delete',
+      headers: auth,
+    });
     expect(response.statusCode).toBe(200);
     expect((response.json() as { recycleBinDays: number }).recycleBinDays).toBe(7);
 
@@ -200,7 +207,11 @@ describe('the seven day recycle bin', () => {
     const auth = { authorization: `Bearer ${token}` };
 
     await harness.app.inject({ method: 'POST', url: '/account/delete', headers: auth });
-    const restore = await harness.app.inject({ method: 'POST', url: '/account/restore', headers: auth });
+    const restore = await harness.app.inject({
+      method: 'POST',
+      url: '/account/restore',
+      headers: auth,
+    });
 
     expect(restore.json()).toMatchObject({ restored: true });
     const stored = await harness.repository.shoppers.findById(shopper.id);
@@ -298,5 +309,87 @@ describe('Rule Ten: no card numbers, anywhere', () => {
       payload: { stripePaymentMethodId: 'pm_test_visa', lastFour: '4242', region: 'US' },
     });
     expect(response.statusCode).toBe(400);
+  });
+});
+
+/**
+ * Where the shopping goes.
+ *
+ * `deliveryAddress` was on Order from the start but never on Shopper, so nothing could
+ * prefill an order and the sign-up screen had nowhere to put an address. It now lives on the
+ * account, typed once, and shown back for checking before every order.
+ */
+describe('the delivery address', () => {
+  it('is kept when the account is set up, and given back', async () => {
+    const harness = await buildTestApp();
+
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/shoppers',
+      payload: {
+        displayName: 'Margaret',
+        phone: '+447700900123',
+        deliveryAddress: '12 Example Street, Birmingham, B1 1AA',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().shopper.deliveryAddress).toBe('12 Example Street, Birmingham, B1 1AA');
+
+    await harness.close();
+  });
+
+  it('is empty rather than missing when nobody gave one', async () => {
+    const harness = await buildTestApp();
+
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/shoppers',
+      payload: { displayName: 'Margaret', phone: '+447700900124' },
+    });
+
+    // An account can exist before there is anywhere to deliver to. Empty is a real state,
+    // and the order route refuses a blank address, so nothing can be sent to nowhere.
+    expect(response.json().shopper.deliveryAddress).toBe('');
+
+    await harness.close();
+  });
+
+  it('can be corrected later without touching anything else', async () => {
+    const harness = await buildTestApp();
+    const them = await signUpShopper(harness);
+
+    const response = await harness.app.inject({
+      method: 'PATCH',
+      url: '/me',
+      headers: them.authHeader,
+      payload: { deliveryAddress: '9 New Road, Leeds, LS1 1AA' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const shopper = response.json().shopper;
+    expect(shopper.deliveryAddress).toBe('9 New Road, Leeds, LS1 1AA');
+    // The doorstep instructions are a different promise and must not have moved.
+    expect(shopper.doorstepProtocol).toBe('Knock loudly and wait.');
+
+    await harness.close();
+  });
+
+  it('is never sent back with the spoken code hash, which is nobody else business', async () => {
+    const harness = await buildTestApp();
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/shoppers',
+      payload: {
+        displayName: 'Margaret',
+        phone: '+447700900125',
+        deliveryAddress: '12 Example Street',
+        spokenCode: 'bluebell',
+      },
+    });
+
+    expect(Object.keys(response.json().shopper)).not.toContain('spokenCodeHash');
+
+    await harness.close();
   });
 });

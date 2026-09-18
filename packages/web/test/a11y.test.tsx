@@ -22,6 +22,7 @@ import { stubCatalogueFetch } from './setup';
 const SCREENS: Array<{ name: string; path: string }> = [
   { name: 'the landing page', path: '/' },
   { name: 'signing up', path: '/sign-up' },
+  { name: 'adding a card', path: '/card' },
   { name: 'browsing the shopping', path: '/shop' },
   { name: 'the basket', path: '/basket' },
   { name: 'the confirmation screen', path: '/confirm' },

@@ -16,13 +16,21 @@ DigitalOcean will then read the app spec out of the repository and show you thre
 
 The secrets to paste before the first deploy
 
-On the review screen, before you press the button that creates the app, open the environment variables for the component named api. Three of them are filled with obvious placeholder text, and Aldilivery refuses to start in production while any of them is still a placeholder. That refusal is deliberate. A server that started without them would take an order it cannot charge for, or accept a webhook it cannot prove came from Stripe.
+On the review screen, before you press the button that creates the app, open the environment variables for the component named api. Four of them are filled with obvious placeholder text. Three of those four are secrets, and Aldilivery refuses to start in production while any of the three is still a placeholder. That refusal is deliberate. A server that started without them would take an order it cannot charge for, or accept a webhook it cannot prove came from Stripe. The fourth is not a secret and does not stop the server starting; it is described after the three.
 
 The first is STRIPE_SECRET_KEY. Get it from the Stripe dashboard, under Developers and then API keys. It is the secret key, not the publishable one. Paste it in place of the placeholder text, and make sure the value is marked as encrypted.
 
 The second is STRIPE_WEBHOOK_SECRET. This one does not exist yet, because it is created when you add a webhook endpoint in Stripe, and that endpoint address needs the app to exist first. For now leave the placeholder alone. You will come back to it in a few minutes, and until you do, the api component will build and then refuse to start. That is expected at this stage rather than a fault.
 
 The third is AUTH_TOKEN_SECRET. This signs the tokens that keep a Shopper signed in. It needs to be a long random string that nobody has ever seen. Any password manager will generate one; ask it for a random password of sixty characters or more. Paste it in and mark it encrypted.
+
+The one value that is not a secret
+
+STRIPE_PUBLISHABLE_KEY is the fourth placeholder, and it is the odd one out. Fill it in, but do not mark it encrypted, because there is nothing to keep private: a publishable key sits in the page source of every website that takes a card, and is meant to. Aldilivery serves it to the web app so that the card form can work at all.
+
+Get it from the same place as the secret key, in the Stripe dashboard under Developers and then API keys. The two sit next to each other, which is exactly why this paragraph exists. The publishable key begins with the letters p k. The secret key begins with s k. Putting the secret key in this box would publish it to every visitor, so check the first two letters before you save.
+
+If you leave it as the placeholder, everything else still works: the shop, the basket, signing up. Only the card screen changes, and it says card payments are not finished being set up, rather than showing a form that could never work. So this is safe to come back to, but no Shopper can order until it is filled in, because an order needs a saved card.
 
 Leave DATABASE_URL exactly as it is. Its value is a name in curly brackets that refers to the database, and DigitalOcean substitutes the real connection string once the database exists. Typing a connection string there by hand would break it.
 
@@ -124,6 +132,8 @@ The database created here is a development database, which is the smallest manag
 
 The api component runs on one basic-xxs instance, which is the smallest size there is. It will be slow to answer the first request after a quiet period.
 
-Sign up does not save anybody yet, and the confirmation screen does not yet create a real order, so no money will move even with a real Stripe key in place. Wiring the web app to the API properly is the next piece of work, and it is listed at the end of BUILD_LOG.md.
+Sign up now saves a real Shopper, a card can be saved through Stripe, and the confirmation screen creates a real order and takes a real payment. With live Stripe keys in place, money will move. Test it with Stripe's test keys first: the card number four two four two, repeated four times, with any future expiry date and any three digit code, is the one Stripe provides for exactly this.
+
+There is one gap in that, and it is worth knowing before somebody else finds it. Signing up signs you in on the device you signed up on, and keeps you signed in. There is no way to sign back in, because signing in needs a one time code sent to a phone and there is nothing in Aldilivery yet that can send one. So a Shopper who signs up on their phone and later opens Aldilivery on a laptop cannot get into the account they already have, and the only thing they can do is set up another one on the other phone number. That is a real limitation, not a bug to be puzzled over, and it is the next thing to fix: it needs an account with a company that sends text messages, and it costs money per message. BUILD_LOG.md records the decision and why it was taken.
 
 There is still no voice, no speech and no telephone in this phase, exactly as planned. The microphone button on the landing page says so when pressed.

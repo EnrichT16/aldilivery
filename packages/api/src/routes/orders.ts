@@ -185,16 +185,39 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       confirmationRecordedAt: confirmedAt.toISOString(),
     });
 
-    const paid = await repository.orders.update(confirmed.id, {
-      status: 'paid',
+    /**
+     * Only Stripe gets to say a payment succeeded.
+     *
+     * A card in the United Kingdom usually has to be authenticated by the Shopper's bank,
+     * and when it does Stripe answers `requires_action` rather than `succeeded`. Writing
+     * `paid` here regardless would have been a lie on the order, and it also stepped on the
+     * webhook: `payment_intent.succeeded` only advances an order that is still `confirmed`,
+     * so an order marked paid too early could never be marked paid properly.
+     *
+     * So the status follows the intent. Anything short of `succeeded` stays `confirmed`,
+     * the client secret goes back so the browser can carry out whatever the bank asks for,
+     * and the webhook finishes the job when Stripe says it is done.
+     */
+    const succeeded = intent.status === 'succeeded';
+
+    const placed = await repository.orders.update(confirmed.id, {
+      ...(succeeded ? { status: 'paid' as const } : {}),
       stripePaymentIntentId: intent.id,
     });
 
     void reply.status(201);
     return {
-      order: paid,
-      payment: { id: intent.id, status: intent.status, clientSecret: intent.clientSecret },
-      message: `Thank you. Your order is on its way to a Runner. We have taken ${formatPence(paid.totalEstimatePence, symbol)}.`,
+      order: placed,
+      payment: {
+        id: intent.id,
+        status: intent.status,
+        clientSecret: intent.clientSecret,
+        /** The browser must finish this before any money moves. */
+        requiresAction: !succeeded,
+      },
+      message: succeeded
+        ? `Thank you. Your order is on its way to a Runner. We have taken ${formatPence(placed.totalEstimatePence, symbol)}.`
+        : 'Your bank wants to check it is really you. Nothing has been taken yet.',
     };
   });
 

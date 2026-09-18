@@ -25,6 +25,13 @@ export interface Env {
   dataBackend: DataBackend;
   databaseUrl: string | undefined;
   stripeSecretKey: string | undefined;
+  /**
+   * The key Stripe.js uses in the browser. Public by design — it is in the page source of
+   * every site that takes a card — so it is served from `/config` rather than kept secret.
+   * Without it the browser cannot turn a card into a payment method, so no card can be
+   * saved, and the card screen says so plainly instead of failing at the last moment.
+   */
+  stripePublishableKey: string | undefined;
   stripeWebhookSecret: string | undefined;
   authTokenSecret: string;
   authTokenTtlHours: number;
@@ -77,6 +84,7 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
   const isProduction = nodeEnv === 'production';
 
   const stripeSecretKey = realValue(source['STRIPE_SECRET_KEY']);
+  const stripePublishableKey = realValue(source['STRIPE_PUBLISHABLE_KEY']);
   const stripeWebhookSecret = realValue(source['STRIPE_WEBHOOK_SECRET']);
   const databaseUrl = realValue(source['DATABASE_URL']);
 
@@ -122,6 +130,7 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     dataBackend,
     databaseUrl,
     stripeSecretKey,
+    stripePublishableKey,
     stripeWebhookSecret,
     authTokenSecret: authTokenSecret ?? 'development-only-secret-not-for-production',
     authTokenTtlHours: integer(source['AUTH_TOKEN_TTL_HOURS'], 720),

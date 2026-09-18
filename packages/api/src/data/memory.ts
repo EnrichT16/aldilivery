@@ -83,6 +83,7 @@ export function memoryRepository(): Repository {
           spokenCodeHash: input.spokenCodeHash ?? null,
           preferredLanguage: input.preferredLanguage ?? 'en-GB',
           doorstepProtocol: input.doorstepProtocol ?? '',
+          deliveryAddress: input.deliveryAddress ?? '',
           substitutionDefault: input.substitutionDefault ?? 'ask_me',
           budgetCapPence: input.budgetCapPence ?? null,
           deletionScheduledFor: null,
@@ -342,7 +343,13 @@ export function memoryRepository(): Repository {
       async update(key, patch) {
         const existing = orders.get(key);
         if (!existing) throw new NotFoundError('Order', key);
-        const updated: Order = { ...existing, ...patch, id: existing.id, items: existing.items, updatedAt: now() };
+        const updated: Order = {
+          ...existing,
+          ...patch,
+          id: existing.id,
+          items: existing.items,
+          updatedAt: now(),
+        };
         orders.set(key, updated);
         return clone(updated);
       },

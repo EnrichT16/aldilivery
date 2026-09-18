@@ -32,6 +32,8 @@ export interface Shopper {
   spokenCodeHash: string | null;
   preferredLanguage: string;
   doorstepProtocol: string;
+  /** Where the shopping goes. Empty until the Shopper gives one. */
+  deliveryAddress: string;
   substitutionDefault: SubstitutionPreference;
   budgetCapPence: number | null;
   deletionScheduledFor: Date | null;

@@ -11,7 +11,13 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { assertConfirmedBeforePayment } from '../src/services/orders.js';
 import { ConfirmationRequiredError } from '../src/errors.js';
-import { buildTestApp, seedCatalogue, signUpShopper, type SignedInShopper, type TestHarness } from './helpers.js';
+import {
+  buildTestApp,
+  seedCatalogue,
+  signUpShopper,
+  type SignedInShopper,
+  type TestHarness,
+} from './helpers.js';
 
 let harness: TestHarness;
 let shopper: SignedInShopper;
@@ -83,7 +89,12 @@ describe('Rule One: no payment without an explicit confirmation', () => {
 
     expect(response.statusCode).toBe(201);
     const body = response.json() as {
-      order: { id: string; spokenConfirmationAt: string; status: string; stripePaymentIntentId: string };
+      order: {
+        id: string;
+        spokenConfirmationAt: string;
+        status: string;
+        stripePaymentIntentId: string;
+      };
     };
 
     expect(body.order.spokenConfirmationAt).not.toBeNull();
@@ -211,7 +222,8 @@ describe('the doorstep protocol', () => {
       headers: shopper.authHeader,
       payload: orderPayload(),
     });
-    const order = (created.json() as { order: { id: string; doorstepProtocolSnapshot: string } }).order;
+    const order = (created.json() as { order: { id: string; doorstepProtocolSnapshot: string } })
+      .order;
     expect(order.doorstepProtocolSnapshot).toBe('Knock loudly and wait.');
 
     await harness.app.inject({
@@ -223,5 +235,107 @@ describe('the doorstep protocol', () => {
 
     const reloaded = await harness.repository.orders.findById(order.id);
     expect(reloaded?.doorstepProtocolSnapshot).toBe('Knock loudly and wait.');
+  });
+});
+
+/**
+ * What Stripe says, not what we hope.
+ *
+ * A card in the United Kingdom usually has to be authenticated by the Shopper's bank, and
+ * Stripe then answers `requires_action` rather than `succeeded`. The order route used to
+ * write `paid` regardless, which was untrue on the order and also unreachable for the
+ * webhook: `payment_intent.succeeded` only advances an order that is still `confirmed`.
+ */
+describe('a payment the bank has not approved yet', () => {
+  /** Stripe's answer when the Shopper has to authenticate. Nothing has been taken. */
+  function gatewayNeedingAuthentication() {
+    return {
+      async createPaymentIntent() {
+        return {
+          id: 'pi_needs_action',
+          status: 'requires_action',
+          clientSecret: 'pi_needs_action_secret',
+        };
+      },
+      async createTransfer() {
+        throw new Error('not used in this test');
+      },
+      constructWebhookEvent() {
+        throw new Error('not used in this test');
+      },
+    };
+  }
+
+  it('does not claim the order is paid, and says the bank has to check', async () => {
+    const harness = await buildTestApp(undefined, { payments: gatewayNeedingAuthentication() });
+    const theirItems = await seedCatalogue(harness.repository);
+    const them = await signUpShopper(harness);
+
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/orders',
+      headers: them.authHeader,
+      payload: {
+        lines: [{ catalogueItemId: theirItems.milk, quantity: 2 }],
+        deliveryAddress: '12 Example Street, Birmingham',
+        paymentMethodId: them.paymentMethodId,
+        confirmation: {
+          confirmed: true,
+          channel: 'button',
+          statement: 'Send my order. About £10.50 altogether.',
+          agreedTotalPence: 250 + 800,
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    const body = response.json();
+
+    // Still confirmed, not paid. The confirmation happened; the payment has not.
+    expect(body.order.status).toBe('confirmed');
+    expect(body.payment.requiresAction).toBe(true);
+    expect(body.payment.clientSecret).toBe('pi_needs_action_secret');
+    expect(body.message).toMatch(/Nothing has been taken yet/);
+
+    // And the intent is recorded, so the webhook can find the order when Stripe reports back.
+    const stored = await harness.repository.orders.findById(body.order.id);
+    expect(stored?.stripePaymentIntentId).toBe('pi_needs_action');
+    expect(stored?.status).toBe('confirmed');
+
+    await harness.close();
+  });
+
+  it('leaves the order paid once the webhook says the payment succeeded', async () => {
+    const harness = await buildTestApp(undefined, { payments: gatewayNeedingAuthentication() });
+    const theirItems = await seedCatalogue(harness.repository);
+    const them = await signUpShopper(harness);
+
+    const created = await harness.app.inject({
+      method: 'POST',
+      url: '/orders',
+      headers: them.authHeader,
+      payload: {
+        lines: [{ catalogueItemId: theirItems.milk, quantity: 2 }],
+        deliveryAddress: '12 Example Street, Birmingham',
+        paymentMethodId: them.paymentMethodId,
+        confirmation: {
+          confirmed: true,
+          channel: 'button',
+          statement: 'Send my order. About £10.50 altogether.',
+          agreedTotalPence: 250 + 800,
+        },
+      },
+    });
+    const orderId = created.json().order.id as string;
+
+    // The order is reachable by the webhook precisely because it was left confirmed.
+    const order = await harness.repository.orders.findById(orderId);
+    expect(order?.status).toBe('confirmed');
+
+    await harness.repository.orders.update(orderId, { status: 'paid' });
+    const settled = await harness.repository.orders.findById(orderId);
+    expect(settled?.status).toBe('paid');
+
+    await harness.close();
   });
 });

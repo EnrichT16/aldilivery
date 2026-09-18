@@ -115,6 +115,19 @@ services:
         type: SECRET
         value: replace_with_the_secret_key_from_stripe
 
+      # FILL IN, but NOT as a secret, and not by accident as the secret key.
+      #
+      # This is the publishable key — it begins pk_ rather than sk_. The browser needs it to
+      # turn a card into a payment method, and it is public by design: it sits in the page
+      # source of every site that takes a card. So it is served to the web app from /config
+      # and there is nothing to protect. What must never go here is the secret key.
+      #
+      # Until it is filled in, the card screen says card payments are not finished being set
+      # up, rather than showing a form that cannot work.
+      - key: STRIPE_PUBLISHABLE_KEY
+        scope: RUN_TIME
+        value: replace_with_the_publishable_key_from_stripe
+
       - key: STRIPE_WEBHOOK_SECRET
         scope: RUN_TIME
         type: SECRET

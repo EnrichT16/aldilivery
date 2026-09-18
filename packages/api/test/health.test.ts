@@ -181,3 +181,58 @@ describe('production refuses to start without its secrets', () => {
     ).toThrow(/AUTH_TOKEN_SECRET/);
   });
 });
+
+/**
+ * The publishable key.
+ *
+ * Stripe.js in the browser needs it, and it is public by design — it sits in the page source
+ * of every site that takes a card — so it travels in `/config` rather than being treated as
+ * a secret. The point of the tests below is that the *secret* key never does.
+ */
+describe('what /config tells the browser about payments', () => {
+  it('serves the publishable key so the browser can turn a card into a token', async () => {
+    const app = await buildApp({
+      config: loadStoreConfig(),
+      repository: memoryRepository(),
+      payments: rehearsalGateway(),
+      env: {
+        ...testEnv,
+        stripeSecretKey: 'sk_test_not_a_real_key',
+        stripePublishableKey: 'pk_test_not_a_real_key',
+      },
+      gitCommit: null,
+    });
+    await app.ready();
+
+    const body = (await app.inject({ method: 'GET', url: '/config' })).json();
+
+    expect(body.payments.mode).toBe('stripe');
+    expect(body.payments.publishableKey).toBe('pk_test_not_a_real_key');
+    expect(body.payments.supportedCardRegions).toContain('UK');
+
+    // The one that matters: the secret key must not be anywhere in that reply.
+    expect(JSON.stringify(body)).not.toContain('sk_test_not_a_real_key');
+
+    await app.close();
+  });
+
+  it('says rehearsal, and offers no key, when Stripe is not configured', async () => {
+    const harness = await buildTestApp();
+    const body = (await harness.app.inject({ method: 'GET', url: '/config' })).json();
+
+    // Null rather than absent, so the card screen can tell "not configured" from "did not
+    // load" and say which.
+    expect(body.payments.mode).toBe('rehearsal');
+    expect(body.payments.publishableKey).toBeNull();
+
+    await harness.close();
+  });
+
+  it('treats a placeholder publishable key as no key at all', async () => {
+    const env = readEnv({
+      NODE_ENV: 'development',
+      STRIPE_PUBLISHABLE_KEY: 'replace_with_the_publishable_key_from_stripe',
+    });
+    expect(env.stripePublishableKey).toBeUndefined();
+  });
+});
