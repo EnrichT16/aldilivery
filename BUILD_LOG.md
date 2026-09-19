@@ -1274,6 +1274,118 @@ have been corrected afterwards, because the webhook only advances an order that 
 
 ---
 
+## 2026-09-19 — Step 16: Aldilivery took an order, in production
+
+The deployment from Step 15 went out and the whole journey now works on the live site: an
+account is created, a card is saved through Stripe, an order is sent, and a payment is taken.
+Proved rather than assumed — by running it against `lobster-app-3ilv6.ondigitalocean.app` and
+reading what came back.
+
+```
+order status  : paid
+stripe intent : pi_3UHPCF1AY63KU1qe09PRw92p
+stripe status : succeeded
+charged       : 1050 p
+```
+
+`paid` there is read back from the row after it was written, so the order really is stored
+that way in PostgreSQL rather than merely reported. And that intent identifier can only have
+come from Stripe answering a real request. The migration from Step 14 is proved by the same
+run, because the Shopper it created has a `deliveryAddress` and that column did not exist
+before the deployment applied it.
+
+### Production runs in Stripe test mode, on purpose
+
+Deliberate, and worth writing down so nobody later mistakes it for a mistake. All three Stripe
+values — the secret key, the publishable key and the webhook secret — should be test mode
+while there are no real Shoppers. Nothing can charge a real card. Switching to live later is
+one dashboard edit, and the rule is that **all of them move together**.
+
+### The publishable key was never going to arrive by pushing
+
+It was added to `.do/app.yaml` in Step 14 and the deployment landed without it, because App
+Platform does not read that file after the app exists. This is exactly the trap Step 13
+established and `DEPLOY.md` warns about, walked into anyway. A new environment variable in the
+spec file is a note to a human, not an instruction to the platform: it has to be typed into
+the dashboard as well.
+
+### An hour lost to a key that looked changed and was not
+
+With the publishable key in, the card screen could load but an order still failed with a plain
+five hundred. What the failure proved, before anything was guessed at:
+
+```
+POST /payment-methods  ->  201, card saved
+POST /orders           ->  500
+GET  /orders           ->  status: confirmed | stripePaymentIntentId: None
+```
+
+The order row exists and the confirmation is recorded on it; the payment intent is not there.
+So the route got as far as step four and Stripe refused. **Rule One held exactly as written**:
+the confirmation came first, no payment followed, and the message a Shopper would have seen —
+nothing has been charged — was true.
+
+The cause was found without the server log, from Stripe's own records. Stripe files every API
+call it receives under the mode of the key that made it, and the failed request was sitting in
+the **live** list. So the secret key was still a live key while the publishable key was a test
+one, and a live key rejects a test payment method, which is precisely what a five hundred from
+that call means.
+
+The dashboard edit to change it had been made and had not taken. Twice. The likely reason is
+that an encrypted value on App Platform displays as dots rather than as its content, so typing
+into the field without clearing it first can leave the original value in place while the form
+looks edited. The publishable key is not encrypted, which is why that one changed first time.
+
+**That mismatch was protective rather than dangerous, as it happens.** A test publishable key
+can only ever produce a test payment method, and a live secret key will not take one. There
+was no arrangement of those two keys that could have charged a real card. The failure was the
+safety working.
+
+### What this says about checking
+
+Three times now in two days something was reported as done and the thing it was meant to change
+had not changed: a `doctl` token that stored nothing, an `.env` saved with no write reaching
+disk, and now an encrypted variable that kept its old value. None of them announced a failure.
+
+The lesson is not about anybody being careless. It is that **a report of an action is not
+evidence of its effect**, and the check has to look at the effect. Reading the file's
+modification time, reading the key's length back out of `/config`, reading which mode Stripe
+filed the request under — each of those settled in seconds something that guessing had not
+settled in several rounds.
+
+### What is deliberately still wrong
+
+- **Webhooks are not verified.** `STRIPE_WEBHOOK_SECRET` is still the live-mode one, so a test
+  event fails its signature check. A card that settles immediately is unaffected, which is why
+  the order above went through. But an order needing 3D Secure would be left at `confirmed`
+  and nothing would ever advance it, because only the webhook does that. This must be fixed
+  before anybody real uses it.
+- **A failed payment leaves an order stranded.** When Stripe refused, the order stayed
+  `confirmed` for ever: there is no rollback, no retry and no way for a Shopper to cancel it.
+  Three such rows exist from this session's failures. That is tolerable for test rows and not
+  tolerable for somebody's shopping.
+- **Signing back in is still impossible**, as recorded in Step 14.
+
+### Test rows left in the production database
+
+Six Shoppers, all named `ZZ TEST ROW do not use`, on `+447700900931` to `934`, `941` and
+`942` — Ofcom's reserved range, which reaches nobody. Four saved cards. Four orders: one
+`paid`, three stranded at `confirmed`. All safe to delete, and worth deleting before anybody
+real signs up.
+
+### Checked
+
+- The full journey was run against production and the results are above. No money moved: test
+  mode cannot charge a real card.
+- `/api/health` — ok, `postgres`, `stripe`, commit `65c6622`.
+- `/api/config` — `pk_test_`, 107 characters, matching the secret key's mode at last.
+- `/api/nope` returns the API's own JSON 404 and `/` returns the web app, so the routing from
+  Step 13 is still right. An `evil.test` origin is still refused.
+- A search for milk returns results and a search for wine returns none, so Rule Six holds on
+  the live site and not only in the tests.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has
@@ -1417,15 +1529,25 @@ orders from real people, and moving to a proper database cluster is a two line c
 
 ### What I would do next, in order
 
-1. A real browser accessibility pass, measuring target sizes and zoom. The card screen needs
-   this most, because the card fields are inside Stripe's iframe and axe cannot see into it,
-   so the one screen that handles money is the one screen the automated gate cannot judge.
-2. A run through the whole thing against Stripe's test keys, in a browser: sign up, save the
-   test card, send an order, and check the order really is `paid` and not left `confirmed`.
-3. Sending a one time code by text message, so somebody can sign back in. Until that exists,
-   an account is reachable only from the device it was created on — see Step 14.
-4. Screen reader testing with real users — the people this is for, not us.
-5. Then, and only then, the voice layer.
+1. **A test-mode webhook secret.** `STRIPE_WEBHOOK_SECRET` in production is still the live one,
+   so a test event fails its signature check and nothing advances an order that needed the
+   bank's approval. Orders that settle at once are fine, which is why Step 16 went through and
+   why this is easy to miss. It is first on the list because it is quick and because the thing
+   it breaks is invisible until it matters.
+2. **Somewhere for a failed payment to go.** When Stripe refuses, the order stays `confirmed`
+   for ever: no rollback, no retry, no way for a Shopper to cancel it. Three such rows exist
+   from Step 16's failures. Fine for test rows, not fine for somebody's shopping.
+3. **A real browser accessibility pass**, measuring target sizes and zoom. The card screen
+   needs it most: the card fields are inside Stripe's iframe and axe cannot see into it, so the
+   one screen that handles money is the one screen the automated gate cannot judge.
+4. **The journey in a real browser.** Step 16 proved it over HTTP, which proves the server and
+   not the screens. Nobody has yet typed a card number into the Stripe field on the live site.
+5. **Sending a one time code by text message**, so somebody can sign back in. Until that
+   exists, an account is reachable only from the device it was created on — see Step 14.
+6. Screen reader testing with real users — the people this is for, not us.
+7. Then, and only then, the voice layer.
 
-Done since this list was written: wiring the web shell to the API — real sign up, a real saved
-card through Stripe, and the confirmation screen creating a real order. That is Step 14.
+Done since this list was written: the web shell wired to the API, and an order taken in
+production. Steps 14 to 16.
+
+Delete the six `ZZ TEST ROW` Shoppers and their four orders before anybody real signs up.
