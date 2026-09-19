@@ -340,3 +340,130 @@ describe('a payment the bank has not approved yet', () => {
     await harness.close();
   });
 });
+
+/**
+ * When the payment gateway refuses.
+ *
+ * This used to leave the order `confirmed` for ever: the row was written, the confirmation
+ * recorded, and then the Stripe call threw and nothing ever moved it again. No payment, no
+ * rollback, no retry, and no way for the Shopper to cancel it — they saw a bare five hundred
+ * and were left with a stranded order. Three such rows were made in production on 18
+ * September before anybody noticed, which is how this came to be written.
+ */
+describe('a payment the gateway refuses', () => {
+  /** A gateway that always refuses, the way Stripe does when it will not take the card. */
+  function refusingGateway() {
+    return {
+      mode: 'stripe' as const,
+      async createPaymentIntent(): Promise<never> {
+        throw new Error('No such payment_method: pm_card_visa');
+      },
+      async createTransfer(): Promise<never> {
+        throw new Error('not used in this test');
+      },
+      constructWebhookEvent(): never {
+        throw new Error('not used in this test');
+      },
+    };
+  }
+
+  async function refusedOrder() {
+    const harness = await buildTestApp(undefined, { payments: refusingGateway() });
+    const theirItems = await seedCatalogue(harness.repository);
+    const them = await signUpShopper(harness);
+
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/orders',
+      headers: them.authHeader,
+      payload: {
+        lines: [{ catalogueItemId: theirItems.milk, quantity: 2 }],
+        deliveryAddress: '12 Example Street, Birmingham',
+        paymentMethodId: them.paymentMethodId,
+        confirmation: {
+          confirmed: true,
+          channel: 'button',
+          statement: 'Send my order. About £10.50 altogether.',
+          agreedTotalPence: 250 + 800,
+        },
+      },
+    });
+
+    return { harness, them, response };
+  }
+
+  it('says plainly what happened, rather than a bare server error', async () => {
+    const { harness, response } = await refusedOrder();
+
+    expect(response.statusCode).toBe(402);
+    const body = response.json();
+    expect(body.error.code).toBe('payment_failed');
+    expect(body.error.message).toMatch(/Nothing has been charged/);
+    expect(body.error.message).toMatch(/try again/);
+    // Stripe's own words are for the log, not for somebody buying their shopping.
+    expect(JSON.stringify(body)).not.toMatch(/payment_method/);
+
+    await harness.close();
+  });
+
+  it('closes the order rather than stranding it', async () => {
+    const { harness, them } = await refusedOrder();
+
+    const orders = (
+      await harness.app.inject({ method: 'GET', url: '/orders', headers: them.authHeader })
+    ).json().orders;
+
+    expect(orders).toHaveLength(1);
+    expect(orders[0].status).toBe('cancelled');
+    expect(orders[0].cancelledAt).not.toBeNull();
+    // No payment was taken, so no intent should be recorded against it.
+    expect(orders[0].stripePaymentIntentId).toBeNull();
+
+    await harness.close();
+  });
+
+  it('keeps the confirmation on the record, because it did happen', async () => {
+    const { harness, them } = await refusedOrder();
+
+    const orders = (
+      await harness.app.inject({ method: 'GET', url: '/orders', headers: them.authHeader })
+    ).json().orders;
+
+    // Rule One is about what was recorded, not about whether the payment went through. The
+    // Shopper did confirm, and the order must still say so.
+    expect(orders[0].spokenConfirmationAt).not.toBeNull();
+    expect(orders[0].confirmationStatement).toBe('Send my order. About £10.50 altogether.');
+
+    await harness.close();
+  });
+
+  it('lets the Shopper simply send it again', async () => {
+    const { harness, them } = await refusedOrder();
+    const theirItems = await seedCatalogue(harness.repository);
+
+    // Nothing about the refusal blocks a second attempt: the basket lives in the browser and
+    // the cancelled order is out of the way.
+    const second = await harness.app.inject({
+      method: 'POST',
+      url: '/orders',
+      headers: them.authHeader,
+      payload: {
+        lines: [{ catalogueItemId: theirItems.milk, quantity: 2 }],
+        deliveryAddress: '12 Example Street, Birmingham',
+        paymentMethodId: them.paymentMethodId,
+        confirmation: {
+          confirmed: true,
+          channel: 'button',
+          statement: 'Send my order. About £10.50 altogether.',
+          agreedTotalPence: 250 + 800,
+        },
+      },
+    });
+
+    // Still refused, because this gateway always refuses — but refused cleanly, again,
+    // rather than conflicting with the order that came before it.
+    expect(second.statusCode).toBe(402);
+
+    await harness.close();
+  });
+});

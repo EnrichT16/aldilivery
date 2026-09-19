@@ -14,7 +14,7 @@ import { formatPence, type OrderStatus } from '@aldilivery/core';
 import { z } from 'zod';
 
 import { requireSession } from '../app.js';
-import { BadRequestError, ForbiddenError, NotFoundError } from '../errors.js';
+import { BadRequestError, ForbiddenError, NotFoundError, PaymentFailedError } from '../errors.js';
 import { priceLines } from '../services/basket.js';
 import {
   assertConfirmedBeforePayment,
@@ -176,14 +176,37 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     assertConfirmedBeforePayment(confirmed);
 
     // Step four, and not before: take payment.
-    const intent = await payments.createPaymentIntent({
-      amountPence: confirmed.totalEstimatePence,
-      currency: config.fees.currency,
-      paymentMethodId: paymentMethod.stripePaymentMethodId,
-      orderId: confirmed.id,
-      description: `${config.productName} order ${confirmed.id}`,
-      confirmationRecordedAt: confirmedAt.toISOString(),
-    });
+    //
+    // If the gateway refuses, the order is closed rather than left where it stands. It used
+    // to stay `confirmed` for ever — no payment, no rollback, no retry and no way for the
+    // Shopper to cancel it — so a refused card left a row that nothing would ever move
+    // again, and the Shopper saw only a bare five hundred. Cancelling says what happened:
+    // this order is not going to happen, nothing was charged, send it again if you want to.
+    // The confirmation stays written on the order either way, because it did happen and
+    // Rule One is about the record, not about the outcome.
+    let intent;
+    try {
+      intent = await payments.createPaymentIntent({
+        amountPence: confirmed.totalEstimatePence,
+        currency: config.fees.currency,
+        paymentMethodId: paymentMethod.stripePaymentMethodId,
+        orderId: confirmed.id,
+        description: `${config.productName} order ${confirmed.id}`,
+        confirmationRecordedAt: confirmedAt.toISOString(),
+      });
+    } catch (failure) {
+      await repository.orders.update(confirmed.id, {
+        status: 'cancelled',
+        cancelledAt: now(),
+      });
+      // The reason belongs in the log, where it can be acted on, and not in front of
+      // somebody who is only trying to buy their shopping.
+      request.log.error(
+        { orderId: confirmed.id, err: failure },
+        'The payment gateway refused, so the order was cancelled. Nothing was charged.',
+      );
+      throw new PaymentFailedError();
+    }
 
     /**
      * Only Stripe gets to say a payment succeeded.
