@@ -1386,6 +1386,85 @@ real signs up.
 
 ---
 
+## 2026-09-19 — Step 17: the two things Step 16 said to do next
+
+Both done, and both proved against the live site rather than only in tests.
+
+### Webhooks are verified now
+
+`STRIPE_WEBHOOK_SECRET` in production was still the live-mode one after the switch to test
+keys, so Stripe's test events failed their signature check. A card that settles at once never
+touches the webhook, which is exactly why the order in Step 16 went through with the wrong
+secret in place and why this was invisible.
+
+The thing it broke is the path that matters most and shows least: an order needing 3D Secure
+is left `confirmed` by the order route on purpose, and **only** the webhook moves it to
+`paid`. With a secret that cannot verify anything, such an order would have sat unpaid for
+ever and nobody would have found out until a real Shopper's bank asked them to authenticate.
+
+A test-mode destination now exists pointing at
+`https://lobster-app-3ilv6.ondigitalocean.app/api/webhooks/stripe`, and its signing secret is
+in production. Proved by sending a genuinely Stripe-signed event with
+`stripe trigger payment_intent.succeeded`, which came back **200**.
+
+That is the only test worth anything here, and it is worth saying why. An unsigned request is
+refused with "That request was not signed" and a forged one with "That signature did not check
+out" — but a *wrong* secret refuses everything too, so neither of those can tell a correct
+secret from an incorrect one. Only an event Stripe actually signed can, and only Stripe can
+make one.
+
+### A refused payment no longer strands the order
+
+Found the hard way in Step 16: when Stripe refused, the order stayed `confirmed` for ever. The
+row was written and the confirmation recorded, then the payment call threw and nothing ever
+moved it again. No payment, no rollback, no retry, and no way for the Shopper to cancel it —
+and what they saw was a bare five hundred. Three such rows were made in production before
+anybody noticed.
+
+A refusal now cancels the order and says what happened:
+
+> Your payment did not go through, so your order has not been sent. Nothing has been charged.
+> Your basket is still here, so you can try again.
+
+The reason Stripe gave is deliberately not in that sentence. The same refusal covers an
+expired card, a bank's fraud check and a misconfiguration at our end, and guessing which, out
+loud, to somebody trying to buy food, is worse than saying plainly that it did not work. The
+real reason goes to the log, where it can be acted on.
+
+**The confirmation stays written on the cancelled order.** Rule One is about what was recorded,
+not about whether the payment succeeded: the Shopper did confirm, and the order must still say
+so. A test holds that in place.
+
+Proved against production with `pm_card_chargeDeclined`, Stripe's test card that always
+declines — a real refusal rather than a stub:
+
+```
+POST /orders          ->  402  payment_failed
+order status          ->  cancelled
+cancelledAt           ->  2026-09-19T15:22:34.215Z
+stripePaymentIntentId ->  none
+confirmationStatement ->  kept
+```
+
+### Checked
+
+- `pnpm run verify` — lint, typecheck and tests clean. **282 tests**: 43 in `core`, 193 in
+  `api` (4 new), 46 in `web`.
+- The webhook was proved with a signed event returning 200, not with an unsigned one being
+  refused, for the reason given above.
+- The refusal was proved against production with a card Stripe really declines, and every
+  field of the resulting order was read back and checked.
+- Production is on `b0917a7`: healthy, `postgres`, Stripe in test mode throughout.
+
+### Test rows still in the production database
+
+Seven Shoppers named `ZZ TEST ROW do not use`, on `+447700900931` to `934`, `941`, `942` and
+`951`. Five orders between them: one `paid`, three stranded at `confirmed` — the bug this step
+fixes, left where they are as evidence of it — and one cleanly `cancelled` by the new
+behaviour. Delete them before anybody real signs up.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has
@@ -1529,25 +1608,19 @@ orders from real people, and moving to a proper database cluster is a two line c
 
 ### What I would do next, in order
 
-1. **A test-mode webhook secret.** `STRIPE_WEBHOOK_SECRET` in production is still the live one,
-   so a test event fails its signature check and nothing advances an order that needed the
-   bank's approval. Orders that settle at once are fine, which is why Step 16 went through and
-   why this is easy to miss. It is first on the list because it is quick and because the thing
-   it breaks is invisible until it matters.
-2. **Somewhere for a failed payment to go.** When Stripe refuses, the order stays `confirmed`
-   for ever: no rollback, no retry, no way for a Shopper to cancel it. Three such rows exist
-   from Step 16's failures. Fine for test rows, not fine for somebody's shopping.
-3. **A real browser accessibility pass**, measuring target sizes and zoom. The card screen
+1. **A real browser accessibility pass**, measuring target sizes and zoom. The card screen
    needs it most: the card fields are inside Stripe's iframe and axe cannot see into it, so the
    one screen that handles money is the one screen the automated gate cannot judge.
-4. **The journey in a real browser.** Step 16 proved it over HTTP, which proves the server and
-   not the screens. Nobody has yet typed a card number into the Stripe field on the live site.
-5. **Sending a one time code by text message**, so somebody can sign back in. Until that
+2. **The journey in a real browser.** Everything so far has been proved over HTTP, which proves
+   the server and not the screens. Nobody has yet typed a card number into the Stripe field on
+   the live site, or pressed the one button that takes a payment.
+3. **Sending a one time code by text message**, so somebody can sign back in. Until that
    exists, an account is reachable only from the device it was created on — see Step 14.
-6. Screen reader testing with real users — the people this is for, not us.
-7. Then, and only then, the voice layer.
+4. Screen reader testing with real users — the people this is for, not us.
+5. Then, and only then, the voice layer.
 
-Done since this list was written: the web shell wired to the API, and an order taken in
-production. Steps 14 to 16.
+Done since this list was written: the web shell wired to the API, an order taken in
+production, webhooks verified, and a refused payment no longer stranding an order. Steps 14
+to 17.
 
-Delete the six `ZZ TEST ROW` Shoppers and their four orders before anybody real signs up.
+Delete the seven `ZZ TEST ROW` Shoppers and their five orders before anybody real signs up.
