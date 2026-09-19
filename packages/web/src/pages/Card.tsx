@@ -166,7 +166,25 @@ export function Card(): JSX.Element {
         </>
       ) : (
         <div className="space-y-6 max-w-xl">
-          <div className="space-y-2">
+          {/*
+            A named group rather than a label.
+            
+            `label` cannot name what is inside Stripe's iframe: a label names a form control
+            in this document, and there is no control here — only an empty div Stripe mounts
+            into. An `aria-describedby` on that div does nothing either, because a plain div
+            is not in the accessibility tree as anything a screen reader would stop on.
+
+            A group with `aria-labelledby` does work: moving into it announces "Your card
+            details, group", and the description is read with it. The fields themselves carry
+            Stripe's own labels — "Credit or debit card number", and so on — which is right,
+            because Stripe owns that document and we cannot reach into it.
+          */}
+          <div
+            role="group"
+            aria-labelledby="card-label"
+            aria-describedby="card-hint"
+            className="space-y-2"
+          >
             <span id="card-label" className="block text-lead font-bold">
               Your card details
             </span>
@@ -174,14 +192,8 @@ export function Card(): JSX.Element {
               Your card number goes straight to our payment company and never reaches{' '}
               {storeConfig.productName}. We only ever see the last four digits.
             </p>
-            {/*
-              The iframe Stripe mounts here is not part of this document, so it is described
-              rather than labelled: the two ids above are what a screen reader reads out
-              when focus moves into it.
-            */}
             <div
               ref={mountPoint}
-              aria-describedby="card-label card-hint"
               className="w-full min-h-control rounded-xl border-2 border-paper bg-paper p-3"
             />
             {state === 'loading' && (
@@ -208,11 +220,9 @@ export function Card(): JSX.Element {
             {saving ? 'Saving your card…' : 'Save my card'}
           </button>
 
-          <p className="m-0">
-            <Link to="/shop" className="underline">
-              Skip this for now
-            </Link>
-          </p>
+          <Link to="/shop" className="control bg-paper/10 text-paper underline">
+            Skip this for now
+          </Link>
         </div>
       )}
     </div>

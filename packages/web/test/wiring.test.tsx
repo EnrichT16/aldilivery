@@ -6,12 +6,22 @@
  * wrong, so the assertions here are mostly on the recorded requests rather than on the text.
  */
 
+import axe from 'axe-core';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
+
+// Stripe.js is fetched from Stripe and cannot load in jsdom, so the module that loads it is
+// replaced. Every test that does not touch the card form still gets the real behaviour,
+// because the mock's default is whatever `prepareCardEntry` is told to return.
+vi.mock('../src/lib/stripe', async () => {
+  const real = await vi.importActual<typeof import('../src/lib/stripe')>('../src/lib/stripe');
+  return { ...real, prepareCardEntry: vi.fn(real.prepareCardEntry) };
+});
+
 import { FAKE_CARD, FAKE_SHOPPER, stubApi, type RecordedRequest } from './setup';
 
 // Every `userEvent.setup` below passes `delay: null`, which turns off the simulated wait
@@ -252,5 +262,88 @@ describe('the card screen', () => {
     stubApi({ paymentsMode: 'rehearsal' });
     renderAt('/card');
     expect(await screen.findByText('Set up your account first')).toBeInTheDocument();
+  });
+});
+
+/**
+ * The card form itself, judged.
+ *
+ * Until now the card screen was only ever rendered with nobody signed in, so every
+ * accessibility check saw "Set up your account first" and none of them ever saw the form.
+ * The one screen that handles money was the one screen nothing judged.
+ *
+ * It cannot be reached honestly in jsdom — Stripe.js is fetched from Stripe and draws its
+ * fields in an iframe — so Stripe is replaced here with something that mounts nothing. That
+ * is a real limit and worth naming: what follows tests **our** markup around the iframe, and
+ * says nothing about what is inside it. The fields themselves carry Stripe's own labels and
+ * can only be judged in a real browser.
+ */
+describe('the card form, once somebody is signed in', () => {
+  /** Enough of Stripe to let the screen reach its ready state. It draws nothing. */
+  function fakeStripe() {
+    const element = {
+      mount: () => undefined,
+      unmount: () => undefined,
+      clear: () => undefined,
+      on: () => undefined,
+    };
+    return { elements: () => ({ create: () => element }) };
+  }
+
+  async function renderTheForm() {
+    const { prepareCardEntry } = await import('../src/lib/stripe');
+    vi.mocked(prepareCardEntry).mockResolvedValue({
+      ready: true,
+      stripe: fakeStripe() as never,
+      supportedRegions: ['GB'],
+    });
+    stubApi({ shopper: FAKE_SHOPPER, paymentsMode: 'stripe', publishableKey: 'pk_test_x' });
+    renderAt('/card');
+    await screen.findByRole('group', { name: 'Your card details' });
+  }
+
+  it('names the card fields as a group, so entering them says what they are for', async () => {
+    await renderTheForm();
+
+    const group = screen.getByRole('group', { name: 'Your card details' });
+    // The explanation is read with the name rather than being visual decoration.
+    expect(group).toHaveAccessibleDescription(/never reaches/);
+  });
+
+  it('gives every control on it the minimum forty eight pixel size', async () => {
+    await renderTheForm();
+
+    const controls = [...screen.queryAllByRole('button'), ...screen.queryAllByRole('link')];
+    expect(controls.length).toBeGreaterThan(0);
+    for (const control of controls) {
+      if (control.classList.contains('skip-link')) continue;
+      expect(
+        /\bcontrol\b|min-h-control|\bh-\d/.test(control.className),
+        `missing its minimum size: ${control.outerHTML.slice(0, 120)}`,
+      ).toBe(true);
+    }
+  });
+
+  it('says that nothing here takes a payment, before asking for a card', async () => {
+    await renderTheForm();
+
+    // Being asked for a card is the moment somebody is most entitled to be suspicious, so
+    // the reassurance has to be on the screen rather than implied.
+    expect(screen.getByText(/Nothing on this screen takes a payment/)).toBeInTheDocument();
+  });
+
+  it('has no axe violations', async () => {
+    await renderTheForm();
+
+    const results = await axe.run(document.body, {
+      resultTypes: ['violations'],
+      // No layout engine in jsdom, so contrast is checked by hand instead — the figures are
+      // in BUILD_LOG.md and every pair on this screen passes AA at 20px.
+      rules: { 'color-contrast': { enabled: false } },
+    });
+
+    expect(
+      results.violations.map((v) => `${v.id}: ${v.help}`).join('\n'),
+    ).toBe('');
   });
 });
