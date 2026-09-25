@@ -1516,6 +1516,19 @@ to clear site data if closing the tabs is not enough.
 - Production on `5f84edd`: `status` `ok`, `dataBackend` `postgres`, `paymentsMode` `stripe`,
   read from Anthony's ordinary browser once the old worker had gone.
 
+### The test rows are gone
+
+Steps 16 and 17 left seven `ZZ TEST ROW do not use` Shoppers and five orders in production.
+Checked on 25 Sep from the api component's Console in the DigitalOcean dashboard, against the
+live database:
+
+- `node packages/api/scripts/delete-test-rows.mjs` found no Shoppers with that name.
+- A read-only query for any Shopper on `+447700900…` or with `TEST` in the name returned
+  `0 found`.
+
+So they had already been removed, most likely by that script shortly after it was written on
+19 Sep. There is nothing left to delete.
+
 ---
 
 ## What Anthony Should Check
@@ -1676,4 +1689,5 @@ Done since this list was written: the web shell wired to the API, an order taken
 production, webhooks verified, and a refused payment no longer stranding an order. Steps 14
 to 17.
 
-Delete the seven `ZZ TEST ROW` Shoppers and their five orders before anybody real signs up.
+The seven `ZZ TEST ROW` Shoppers and their five orders are gone from production — confirmed
+25 Sep, see Step 18.
