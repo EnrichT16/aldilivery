@@ -48,6 +48,11 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: '/index.html',
+        // The API shares this hostname, so without this the service worker answers a visit
+        // to /api/health with the cached app, in any browser that has opened Aldilivery
+        // before. The request never leaves the browser, which is why a redeploy, a hard
+        // refresh habit or a correct routing rule all change nothing. Found 25 Sep 2026.
+        navigateFallbackDenylist: [/^\/api(\/|$)/],
       },
       devOptions: { enabled: false },
     }),
