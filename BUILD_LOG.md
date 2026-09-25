@@ -1465,6 +1465,59 @@ behaviour. Delete them before anybody real signs up.
 
 ---
 
+## 2026-09-25 — Step 18: `/api/health` answered by the browser, not the server
+
+Anthony opened `/api/health` in his ordinary browser and got the web app's "There is nothing
+on this page" screen. A redeploy went through successfully and changed nothing. In a private
+window the same address returned the right JSON, on the right commit, first time.
+
+### The cause was the service worker
+
+`vite-plugin-pwa` generates a Workbox service worker with `navigateFallback: '/index.html'`,
+and nothing was excluded from it. Every navigation in a browser that had ever opened
+Aldilivery was answered from the precache with the app shell — `/api/health` included. The
+request never left the browser, so:
+
+- a successful redeploy could not fix it, because the server was never asked;
+- Ctrl+F5 and a `?random` query string did not fix it either, because the navigation route
+  matches any path and any query;
+- every check made with `curl`, including the ones in Steps 14 to 17, saw the right answer,
+  because `curl` has no service worker. That is why the routing looked fine every time it was
+  measured and still looked broken in a browser.
+
+It explains at least some of the "slash api gives you the web page" reports that DEPLOY.md
+had been putting down to failed deployments and drifted ingress rules.
+
+### The fix
+
+```ts
+navigateFallbackDenylist: [/^\/api(\/|$)/],
+```
+
+in `packages/web/vite.config.ts`. Checked in the generated `dist/sw.js`: the
+`NavigationRoute` now carries that denylist. Merged as PR #1 and live on `5f84edd`.
+
+Shoppers were never affected. The app calls the API with `fetch`, which is not a navigation
+and was never caught by the fallback. Only somebody typing an `/api` address into the address
+bar saw it.
+
+### Why it did not clear straight away
+
+`registerType` is `prompt` and there is no prompt in the UI, so the new service worker waits
+until every tab it controls has been closed. Anthony's browser kept showing the old page until
+the Aldilivery tab was closed, and then showed the JSON on `5f84edd`. Any other browser that has
+opened Aldilivery clears the same way. DEPLOY.md now says to try a private window first, and how
+to clear site data if closing the tabs is not enough.
+
+### Checked
+
+- `pnpm --filter @aldilivery/web build` — lint, typecheck, the web tests including the axe
+  sweep, and the bundle, all clean.
+- Production on `5f84edd`: `status` `ok`, `dataBackend` `postgres`, `paymentsMode` `stripe`,
+  read from Anthony's ordinary browser once the old worker had gone.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has
