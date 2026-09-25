@@ -17,7 +17,6 @@ export function applyBrandToDocument(config: StoreConfig = storeConfig): void {
   if (themeColour) {
     themeColour.setAttribute('content', config.brand.colours.navy);
   }
-  document.title = config.productName;
   document.documentElement.style.setProperty('--colour-ink', config.brand.colours.navy);
   document.documentElement.style.setProperty('--colour-highlight', config.brand.colours.gold);
   document.documentElement.style.setProperty('--colour-paper', config.brand.colours.white);

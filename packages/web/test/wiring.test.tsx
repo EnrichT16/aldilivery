@@ -210,7 +210,9 @@ describe('sending an order', () => {
     await user.click(screen.getByRole('link', { name: 'Basket' }));
     await user.click(screen.getByRole('link', { name: 'Check and send my order' }));
 
-    expect(screen.getByText('We need to know who you are')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'We need to know who you are' }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Send my order' })).not.toBeInTheDocument();
     expect(sent(recorded, 'POST', '/orders')).toBeUndefined();
   });
@@ -342,8 +344,6 @@ describe('the card form, once somebody is signed in', () => {
       rules: { 'color-contrast': { enabled: false } },
     });
 
-    expect(
-      results.violations.map((v) => `${v.id}: ${v.help}`).join('\n'),
-    ).toBe('');
+    expect(results.violations.map((v) => `${v.id}: ${v.help}`).join('\n')).toBe('');
   });
 });

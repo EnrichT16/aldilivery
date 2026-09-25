@@ -1531,6 +1531,66 @@ So they had already been removed, most likely by that script shortly after it wa
 
 ---
 
+## 2026-09-25 — Step 19: the first pass in a real browser
+
+Items one and two of *What I would do next*, as far as they can be done from here. Every
+screen and the whole Shopper journey were driven in Chromium against the built web app and
+the in-memory API: sign up, the card screen, searching, adding, the basket, and pressing
+Send my order through to "Your order is sent". Each screen was checked at 1280 pixels wide,
+at 640 (200% zoom) and at 320 (400% zoom, the width WCAG's reflow rule is measured at), with
+axe run on the live page every time.
+
+axe found nothing on any screen at any size. Three things were wrong anyway.
+
+### Focus skipped the skip link on arrival
+
+`RouteAnnouncer` moved focus into `main` on the very first load, not only when the page
+changed. So on arriving at any address the first Tab went to the first thing inside main —
+the microphone, or the search box — past the skip link and past Shop and Basket. A keyboard
+user could only reach the navigation by going backwards. Focus now stays where a real page
+load leaves it, and moves to main only when the page changes.
+
+### Every page was called "Aldilivery"
+
+The browser tab, the history list and a screen reader's list of windows could not tell one
+page from another, and a page change announced only "Page changed". Every page is now titled
+from its heading — "Your basket – Aldilivery" — and a page change says the heading out loud.
+The title follows the heading when it changes after loading, as it does on the card screen
+once it knows who is signed in.
+
+### The basket scrolled sideways at 400% zoom
+
+At 320 pixels the quantity box and "Remove Semi skimmed milk, 2 pints" sat on a row that was
+not allowed to wrap, and pushed the page 18 pixels wider than the screen. The row wraps now.
+jsdom has no layout, so there is no unit test for this one; it was measured in Chromium
+before and after.
+
+### What this could not check
+
+The card field itself. This environment cannot reach Stripe, so the card was saved through
+the API the way the card screen does after Stripe answers, and the order went through the
+rehearsal gateway. Typing a card into Stripe's own field on the live site, and what a screen
+reader makes of it, still needs a person. Five minutes, on the live site, in a private window:
+
+1. Set up an account on a phone number in the `07700 900xxx` range, which no real phone uses.
+2. On the card screen, press Tab into the card field. It should be announced as "Your card
+   details, group", with the explanation read alongside.
+3. Type `4242 4242 4242 4242`, any future expiry and any three digits, and save. It should
+   say the card ending 4242 is saved.
+4. Add milk and bread, go to the basket, then Send my order. It should say the order is sent.
+5. Check the payment in the Stripe dashboard, in test mode.
+
+### Checked
+
+- Four new tests: the first Tab reaches the skip link, a page change announces the heading and
+  focuses main, a page is titled from its heading, and the landing page is titled with the
+  product name alone. The first three were proved failing against the old code.
+- `pnpm --filter @aldilivery/web build` — lint, typecheck, **54 tests** and the bundle, clean.
+- The whole journey re-run in Chromium on the fixed build, at 1280 and 320: axe clean on all
+  twelve steps, no sideways scroll, every page titled.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has
