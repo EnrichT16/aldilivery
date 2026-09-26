@@ -76,6 +76,47 @@ describe('the landing page', () => {
   });
 });
 
+/**
+ * Found in a real browser on 25 Sep 2026: focus was moved into main on the very first load,
+ * so the first Tab landed past the skip link and the Shop and Basket buttons, and every page
+ * was titled plain "Aldilivery". Nothing here had checked either.
+ */
+describe('arriving at a page, and moving between pages', () => {
+  it('leaves focus at the top on arrival, so the first Tab reaches the skip link', async () => {
+    const user = userEvent.setup();
+    renderAt('/shop');
+
+    await user.tab();
+
+    expect(screen.getByRole('link', { name: 'Skip to the main part of this page' })).toHaveFocus();
+  });
+
+  it('says the new page heading out loud and moves focus to main when the page changes', async () => {
+    const user = userEvent.setup();
+    renderAt('/shop');
+
+    await user.click(screen.getByRole('link', { name: 'Basket' }));
+
+    const announcement = await screen.findByText('Your basket', { selector: '[role=status]' });
+    expect(announcement).toHaveAttribute('aria-live', 'polite');
+    expect(screen.getByRole('main')).toHaveFocus();
+  });
+
+  it('gives every page its own title, taken from its heading', async () => {
+    renderAt('/basket');
+    await waitFor(() => {
+      expect(document.title).toBe(`Your basket – ${storeConfig.productName}`);
+    });
+  });
+
+  it('titles the landing page with the product name alone', async () => {
+    renderAt('/');
+    await waitFor(() => {
+      expect(document.title).toBe(storeConfig.productName);
+    });
+  });
+});
+
 describe('the basket', () => {
   async function addTwoThings() {
     const user = userEvent.setup();

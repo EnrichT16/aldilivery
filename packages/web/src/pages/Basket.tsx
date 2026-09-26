@@ -44,7 +44,9 @@ export function Basket(): JSX.Element {
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            {/* flex-wrap: at 400% zoom the Remove button drops below the quantity rather than
+                pushing the page sideways. Measured 18px of horizontal scroll at 320px without it. */}
+            <div className="flex flex-wrap items-center gap-3">
               <label htmlFor={`quantity-${line.item.id}`} className="visually-hidden">
                 How many {line.item.name}
               </label>
@@ -106,8 +108,8 @@ export function Basket(): JSX.Element {
         </table>
 
         <p className="m-0">
-          {money(pricing.feePence)} is the only fee. There is no charge for a small order, no
-          charge for being busy, and no smallest order.
+          {money(pricing.feePence)} is the only fee. There is no charge for a small order, no charge
+          for being busy, and no smallest order.
         </p>
         <p className="m-0">
           You pay what the till says for the shopping, so the total may change a little.
