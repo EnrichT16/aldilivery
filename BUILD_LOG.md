@@ -1641,6 +1641,28 @@ why the checklist above now uses Stripe's British test card rather than `4242…
 
 ---
 
+## 2026-09-26 — Step 21: the whole journey, by a person, on the live site
+
+The first time the journey was done end to end by a person typing into Stripe's real card
+fields, rather than over HTTP or with Stripe stood in for.
+
+Anthony, in a private window on the live site, on `cc74ccb`:
+
+- `/api/health`: `status` `ok`, `commit` `cc74ccb…`, `dataBackend` `postgres`,
+  `paymentsMode` `stripe`.
+- Set up an account, and saw the card screen as Step 20 built it: separate Card number,
+  Expiry date and Security code fields, and the postcode filled in from the address.
+- Saved Stripe's British test Visa, `4000 0082 6000 0000`.
+- Added milk and bread, went to the basket, pressed Send my order, and got "Your order is
+  sent … We have taken £10.14", titled "Your order is sent – Aldilivery".
+- The Stripe sandbox shows `payment_intent.created`, `charge.succeeded` and
+  `payment_intent.succeeded` for GBP 10.14 at 15:57:53 UTC, the same minute.
+
+Items one and two of the list below are done, apart from what only a real screen reader
+user can judge, which stays as item four.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has
@@ -1784,14 +1806,11 @@ orders from real people, and moving to a proper database cluster is a two line c
 
 ### What I would do next, in order
 
-1. **A real browser accessibility pass**, measuring target sizes and zoom. The card screen
-   needs it most: the card fields are inside Stripe's iframe and axe cannot see into it, so the
-   one screen that handles money is the one screen the automated gate cannot judge.
-2. **The journey in a real browser.** Everything so far has been proved over HTTP, which proves
-   the server and not the screens. Nobody has yet typed a card number into the Stripe field on
-   the live site, or pressed the one button that takes a payment.
+1. ~~A real browser accessibility pass~~ — done, Steps 19 and 20.
+2. ~~The journey in a real browser~~ — done by Anthony on the live site, Step 21.
 3. **Sending a one time code by text message**, so somebody can sign back in. Until that
    exists, an account is reachable only from the device it was created on — see Step 14.
+   Twilio, chosen by Anthony on 26 Sep.
 4. Screen reader testing with real users — the people this is for, not us.
 5. Then, and only then, the voice layer.
 
