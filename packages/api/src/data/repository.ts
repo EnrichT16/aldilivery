@@ -119,7 +119,8 @@ export type CreateRunnerPayout = Pick<
   Partial<Pick<RunnerPayout, 'stripeTransferId'>>;
 
 export type CreateOneTimeCode = Pick<OneTimeCode, 'phone' | 'codeHash' | 'expiresAt'> &
-  Partial<Pick<OneTimeCode, 'role'>>;
+  /** `createdAt` from the route's clock, so the limits count on the same clock they check. */
+  Partial<Pick<OneTimeCode, 'role' | 'createdAt'>>;
 
 export interface CatalogueSearchOptions {
   /** Rule Six. Defaults to false and no route may set it to true in version one. */
@@ -215,6 +216,8 @@ export interface Repository {
   oneTimeCodes: {
     create(input: CreateOneTimeCode): Promise<OneTimeCode>;
     findLatestUnconsumed(phone: string, role: AccountRole): Promise<OneTimeCode | null>;
+    /** How many codes were made for this number since a moment. Limits what a text costs. */
+    countSince(phone: string, since: Date): Promise<number>;
     update(id: string, patch: Partial<OneTimeCode>): Promise<OneTimeCode>;
   };
 

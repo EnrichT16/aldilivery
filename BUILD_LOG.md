@@ -1641,6 +1641,115 @@ why the checklist above now uses Stripe's British test card rather than `4242…
 
 ---
 
+## 2026-09-26 — Step 21: the whole journey, by a person, on the live site
+
+The first time the journey was done end to end by a person typing into Stripe's real card
+fields, rather than over HTTP or with Stripe stood in for.
+
+Anthony, in a private window on the live site, on `cc74ccb`:
+
+- `/api/health`: `status` `ok`, `commit` `cc74ccb…`, `dataBackend` `postgres`,
+  `paymentsMode` `stripe`.
+- Set up an account, and saw the card screen as Step 20 built it: separate Card number,
+  Expiry date and Security code fields, and the postcode filled in from the address.
+- Saved Stripe's British test Visa, `4000 0082 6000 0000`.
+- Added milk and bread, went to the basket, pressed Send my order, and got "Your order is
+  sent … We have taken £10.14", titled "Your order is sent – Aldilivery".
+- The Stripe sandbox shows `payment_intent.created`, `charge.succeeded` and
+  `payment_intent.succeeded` for GBP 10.14 at 15:57:53 UTC, the same minute.
+
+Items one and two of the list below are done, apart from what only a real screen reader
+user can judge, which stays as item four.
+
+---
+
+## 2026-09-26 — Step 22: signing back in, by a code sent in a text
+
+Until now an account could only be reached from the device it was made on (Step 14). Anthony
+chose Twilio to send the codes. The server already had `/auth/request-code` and
+`/auth/verify-code`; what was missing was the text itself, a screen to sign in on, and
+everything that makes an open "send a text to this number" button safe to put on the internet.
+
+### Phone numbers were stored as typed
+
+"07700 900123", "07700900123" and "+44 7700 900123" were three different people, so signing in
+on a second device would only have worked if the number was typed identically. Every number is
+now kept as `+44…` (`packages/api/src/lib/phone.ts`), at sign-up and at sign-in, and a second
+account on the same number written differently is refused. Accounts made before today are still
+found if the number is typed the way it was stored. Only British numbers are accepted, with a
+sentence saying so.
+
+### Twilio
+
+`packages/api/src/lib/sms.ts` sends one form POST to Twilio's API; Twilio's own library is not
+used, because a dozen lines that can be read in full are easier to trust with the account's
+credentials than a large dependency. The text is short and ends with the line Chrome on Android
+reads to offer the code without switching apps:
+
+```
+Aldilivery: your code is 123456. It lasts 10 minutes.
+We will never phone you to ask for it.
+
+@lobster-app-3ilv6.ondigitalocean.app #123456
+```
+
+Settings: `OTP_DELIVERY=sms`, `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM`, in
+`.do/app.yaml` as placeholders. DEPLOY.md has a new section, "Signing in by text message",
+walking through Twilio and DigitalOcean.
+
+### No codes in a production log
+
+In development a code is written to the log. In production that would let anybody who can read
+the log sign in as anybody, so a production server without Twilio sends codes nowhere:
+`/config` says `signIn.byText: false`, the sign-in screen says signing in by text is not switched
+on yet, and the server still starts — this is not one of the secrets it refuses to run without.
+
+### Limits, because every text costs money
+
+The sign-in screen is open to anybody, and "SMS pumping" — getting a site to send texts to
+premium numbers — is a known fraud. So:
+
+- texts go only to British mobiles, never a landline and never abroad;
+- at most 3 codes to one number in 15 minutes, and 8 in a day (counted in the database);
+- at most 10 requests an hour from one internet address, read from DigitalOcean's
+  `do-connecting-ip` header, because behind the load balancer every request otherwise looks
+  like it comes from the same place;
+- at most 500 texts a day from the whole server, as a ceiling on the bill.
+
+DEPLOY.md also says to switch off every country but the United Kingdom in Twilio's geo
+permissions, so even a fault here could not send texts abroad.
+
+### The screen
+
+`/sign-in`: the mobile number, then the code. The code field is `autocomplete="one-time-code"`
+with a numeric keypad, and takes focus when it appears. Problems are said in words and take
+focus. It is offered from the sign-up screen and from "We need to know who you are" before an
+order, and in that case goes back to the order afterwards — only ever to a path on this site.
+
+### One thing found in the tests
+
+The web tests cleared `localStorage` between tests but not the in-memory copy of the token kept
+for browsers where storage throws, so a test that signed in left the next one signed in. No
+earlier test signed in with a token the stub accepted, which is the only reason it had not shown.
+
+### Checked
+
+- API: 21 new tests — every usual way of writing a British number, refusing foreign numbers and
+  landlines, finding the account however it is typed and for accounts made before today, each
+  limit including recovery after the window, `off` writing no code and saying so, a Twilio
+  failure becoming a sentence, and the exact request sent to Twilio.
+- Web: 10 new tests — labels and hints, the one-time-code field and its focus, signing in,
+  returning to the order, refusing to be sent off the site, a wrong code, no account, switched
+  off, the links, and axe at both steps. `/sign-in` is in the whole-app axe and control sweeps.
+- `pnpm run verify` — lint, typecheck and **332 tests** (43 core, 218 api, 71 web), clean.
+- In Chromium against the built app: set up an account on one browser as `07700 900…`, then on a
+  fresh browser signed in as `+44 7700 900…` with the code from the server log, at 1280 and 320
+  pixels. The same account, axe clean at every step, no sideways scroll, focus on the code field.
+- Not checked: a real text. This environment cannot reach Twilio. It needs the account and the
+  four settings in DEPLOY.md, and then signing in on the live site.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has
@@ -1784,14 +1893,10 @@ orders from real people, and moving to a proper database cluster is a two line c
 
 ### What I would do next, in order
 
-1. **A real browser accessibility pass**, measuring target sizes and zoom. The card screen
-   needs it most: the card fields are inside Stripe's iframe and axe cannot see into it, so the
-   one screen that handles money is the one screen the automated gate cannot judge.
-2. **The journey in a real browser.** Everything so far has been proved over HTTP, which proves
-   the server and not the screens. Nobody has yet typed a card number into the Stripe field on
-   the live site, or pressed the one button that takes a payment.
-3. **Sending a one time code by text message**, so somebody can sign back in. Until that
-   exists, an account is reachable only from the device it was created on — see Step 14.
+1. ~~A real browser accessibility pass~~ — done, Steps 19 and 20.
+2. ~~The journey in a real browser~~ — done by Anthony on the live site, Step 21.
+3. **Sending a one time code by text message** — built, Step 22. Live once the Twilio account
+   and the four settings in DEPLOY.md are in place.
 4. Screen reader testing with real users — the people this is for, not us.
 5. Then, and only then, the voice layer.
 

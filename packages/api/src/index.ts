@@ -16,6 +16,7 @@ import { seedRepository } from './data/seed-data.js';
 import { seedOnStartup, type StartupSeedOutcome } from './data/startup-seed.js';
 import { readEnv } from './env.js';
 import { rehearsalGateway, stripeGateway, type PaymentsGateway } from './lib/payments.js';
+import { codeMessage, twilioSender } from './lib/sms.js';
 
 async function main(): Promise<void> {
   const env = readEnv();
@@ -43,7 +44,41 @@ async function main(): Promise<void> {
     payments = rehearsalGateway();
   }
 
-  const app = await buildApp({ config, repository, payments, env, logger: true });
+  // Sign-in codes. Twilio when all three settings are real; the log in development; and in
+  // production without Twilio, nowhere — see `codeDelivery` in app.ts for why not the log.
+  const twilioReady =
+    env.otpDelivery === 'sms' && env.twilioAccountSid && env.twilioAuthToken && env.twilioFrom;
+  const sendText = twilioReady
+    ? twilioSender({
+        accountSid: env.twilioAccountSid as string,
+        authToken: env.twilioAuthToken as string,
+        from: env.twilioFrom as string,
+      })
+    : undefined;
+  const webOrigin = env.allowedOrigins.length === 1 ? env.allowedOrigins[0] : undefined;
+
+  const app = await buildApp({
+    config,
+    repository,
+    payments,
+    env,
+    logger: true,
+    ...(sendText
+      ? {
+          codeDelivery: 'sms' as const,
+          deliverCode: (phone: string, code: string) =>
+            sendText(
+              phone,
+              codeMessage({
+                productName: config.productName,
+                code,
+                minutes: Math.round(env.otpTtlSeconds / 60),
+                origin: webOrigin,
+              }),
+            ),
+        }
+      : {}),
+  });
 
   app.log.info(
     {
@@ -71,7 +106,11 @@ async function main(): Promise<void> {
     app.log.info(
       `The catalogue was empty, so it was filled with ${startupSeed.catalogueItems} everyday grocery items. No Shopper and no Runner was created: those are real people, and the right to work and criminal record checks behind them are done by a person, never by a seed.`,
     );
-  } else if (startupSeed && !startupSeed.seeded && startupSeed.reason === 'not-community-catalogue') {
+  } else if (
+    startupSeed &&
+    !startupSeed.seeded &&
+    startupSeed.reason === 'not-community-catalogue'
+  ) {
     app.log.warn(
       'The catalogue is empty and was not filled, because the catalogue source is not community and seeded price estimates must not be labelled as though a supermarket supplied them.',
     );
@@ -80,6 +119,14 @@ async function main(): Promise<void> {
   if (!env.stripeSecretKey || !env.stripeWebhookSecret) {
     app.log.warn(
       'Running in payments rehearsal mode. No money moves and no card is ever charged. Set STRIPE_SECRET_KEY for the real thing.',
+    );
+  }
+
+  if (!sendText) {
+    app.log.warn(
+      env.isProduction
+        ? 'Signing in by text is switched off: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and TWILIO_FROM are not all set, or OTP_DELIVERY is not sms. Nobody can sign back in on another device until they are.'
+        : 'Sign-in codes are written to this log rather than sent, because Twilio is not set up. Fine for development.',
     );
   }
 

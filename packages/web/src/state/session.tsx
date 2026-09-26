@@ -18,6 +18,8 @@ interface SessionValue {
   restoring: boolean;
   /** Called after signing up, with what the server handed back. */
   signedUp: (token: string, shopper: Shopper) => void;
+  /** Called after a code checks out: keeps the token and fetches who it belongs to. */
+  signedIn: (token: string) => Promise<void>;
   /** Local only: there is no server-side session to end. */
   signOut: () => void;
   /** Keeps the cached Shopper in step after an edit, without another round trip. */
@@ -70,14 +72,21 @@ export function SessionProvider({ children }: { children: ReactNode }): JSX.Elem
     setRestoring(false);
   }, []);
 
+  const signedIn = useCallback(async (token: string) => {
+    writeToken(token);
+    const me = await fetchMe();
+    if (me.shopper) setShopper(me.shopper);
+    setRestoring(false);
+  }, []);
+
   const signOut = useCallback(() => {
     clearToken();
     setShopper(null);
   }, []);
 
   const value = useMemo<SessionValue>(
-    () => ({ shopper, restoring, signedUp, signOut, replaceShopper: setShopper }),
-    [shopper, restoring, signedUp, signOut],
+    () => ({ shopper, restoring, signedUp, signedIn, signOut, replaceShopper: setShopper }),
+    [shopper, restoring, signedUp, signedIn, signOut],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

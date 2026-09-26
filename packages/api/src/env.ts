@@ -76,8 +76,13 @@ export interface Env {
   authTokenTtlHours: number;
   otpLength: number;
   otpTtlSeconds: number;
-  /** `log` writes the code to the server log, for development. */
+  /** `log` writes the code to the server log, for development. `sms` sends it with Twilio. */
   otpDelivery: 'log' | 'sms';
+  /** Twilio, for sending sign-in codes. All three, or none. */
+  twilioAccountSid: string | undefined;
+  twilioAuthToken: string | undefined;
+  /** A `+44…` number, a Messaging Service `MG…`, or a sender name such as `Aldilivery`. */
+  twilioFrom: string | undefined;
   /**
    * Fill an empty catalogue at startup. On by default, because a deployed Aldilivery with
    * no catalogue looks broken. Set `SEED_ON_START=false` once the catalogue comes from
@@ -179,6 +184,9 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     otpLength: integer(source['OTP_LENGTH'], 6),
     otpTtlSeconds: integer(source['OTP_TTL_SECONDS'], 600),
     otpDelivery: source['OTP_DELIVERY'] === 'sms' ? 'sms' : 'log',
+    twilioAccountSid: realValue(source['TWILIO_ACCOUNT_SID']),
+    twilioAuthToken: realValue(source['TWILIO_AUTH_TOKEN']),
+    twilioFrom: realValue(source['TWILIO_FROM']),
     seedOnStart: source['SEED_ON_START'] !== 'false',
   };
 }

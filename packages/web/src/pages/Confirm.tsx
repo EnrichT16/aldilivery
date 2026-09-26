@@ -181,6 +181,9 @@ export function Confirm(): JSX.Element {
         <Link to="/sign-up" className="control bg-highlight text-ink">
           Set up my account
         </Link>
+        <Link to="/sign-in?next=/confirm" className="control bg-paper/10 text-paper underline">
+          I already have an account: sign in
+        </Link>
         <p className="m-0">
           <Link to="/basket" className="underline">
             Go back to my basket

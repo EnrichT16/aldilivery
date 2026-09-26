@@ -511,7 +511,7 @@ export function memoryRepository(): Repository {
           expiresAt: input.expiresAt,
           consumedAt: null,
           attempts: 0,
-          createdAt: now(),
+          createdAt: input.createdAt ?? now(),
         };
         oneTimeCodes.set(code.id, code);
         return clone(code);
@@ -521,6 +521,11 @@ export function memoryRepository(): Repository {
           .filter((c) => c.phone === phone && c.role === role && c.consumedAt === null)
           .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
         return candidates.length > 0 ? clone(candidates[0] as OneTimeCode) : null;
+      },
+      async countSince(phone: string, since: Date) {
+        return [...oneTimeCodes.values()].filter(
+          (c) => c.phone === phone && c.createdAt.getTime() >= since.getTime(),
+        ).length;
       },
       async update(key, patch) {
         const existing = oneTimeCodes.get(key);

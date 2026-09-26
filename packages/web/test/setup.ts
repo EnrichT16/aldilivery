@@ -3,6 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup, configure } from '@testing-library/react';
 
+import { clearToken } from '../src/lib/session';
 import { forgetCardEntry } from '../src/lib/stripe';
 
 /**
@@ -28,6 +29,9 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   window.localStorage.clear();
+  // The token is also kept in memory, for browsers where storage throws. Without this, a test
+  // that signs in leaves the next one signed in too.
+  clearToken();
   // Stripe.js is loaded once per page and memoised. Tests must not inherit each other's.
   forgetCardEntry();
 });
@@ -87,6 +91,10 @@ export interface ApiStubOptions {
   orderError?: string;
   /** Stripe asked for the bank's approval rather than settling straight away. */
   orderRequiresAction?: boolean;
+  /** Whether the server can text a sign-in code. True unless a test says otherwise. */
+  signInByText?: boolean;
+  /** What checking a sign-in code answers: a token, no account, or a wrong code. */
+  verifyResult?: 'signed-in' | 'no-account' | 'wrong-code';
 }
 
 /**
@@ -159,7 +167,29 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
             publishableKey: options.publishableKey ?? null,
             supportedCardRegions: ['GB'],
           },
+          signIn: { byText: options.signInByText ?? true },
         });
+      }
+
+      if (path === '/auth/request-code' && method === 'POST') {
+        return reply({ sent: true, message: 'We have sent you a code. It lasts ten minutes.' });
+      }
+
+      if (path === '/auth/verify-code' && method === 'POST') {
+        const result = options.verifyResult ?? 'signed-in';
+        if (result === 'wrong-code') {
+          return reply({ error: { message: 'That code was not right. Try again.' } }, 401);
+        }
+        if (result === 'no-account') {
+          return reply({ registrationRequired: true, phone: '+447700900123', message: 'x' });
+        }
+        return reply({ registrationRequired: false, token: 'signed-in-token' });
+      }
+
+      // A token handed out by signing in belongs to the fake Shopper.
+      const authorisation = (init?.headers as Record<string, string> | undefined)?.authorization;
+      if (path === '/me' && method === 'GET' && authorisation === 'Bearer signed-in-token') {
+        return reply({ role: 'shopper', shopper: FAKE_SHOPPER });
       }
 
       if (path === '/me' && method === 'GET') {

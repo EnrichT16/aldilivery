@@ -12,9 +12,23 @@ import { z } from 'zod';
 
 import { requireSession } from '../app.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
+import { NOT_A_UK_NUMBER, ukPhone } from '../lib/phone.js';
 import { hashCode, signSession, suggestHandle } from '../lib/tokens.js';
 
-const phoneSchema = z.string().trim().min(7).max(20);
+/** Checked, and turned into `+44…`, so the same number always finds the same account. */
+const phoneSchema = z
+  .string()
+  .trim()
+  .min(7)
+  .max(20)
+  .transform((value, context) => {
+    const phone = ukPhone(value);
+    if (!phone) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: NOT_A_UK_NUMBER });
+      return z.NEVER;
+    }
+    return phone;
+  });
 
 const shopperSchema = z.object({
   displayName: z.string().trim().min(1).max(80),

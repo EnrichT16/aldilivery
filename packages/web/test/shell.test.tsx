@@ -202,6 +202,7 @@ describe('the accessibility promises axe cannot see', () => {
   const PATHS = [
     '/',
     '/sign-up',
+    '/sign-in',
     '/card',
     '/shop',
     '/basket',
