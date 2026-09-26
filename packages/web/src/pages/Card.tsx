@@ -1,10 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import { Link } from 'react-router-dom';
-import type { StripeCardElement } from '@stripe/stripe-js';
+import type {
+  StripeCardCvcElement,
+  StripeCardExpiryElement,
+  StripeCardNumberElement,
+} from '@stripe/stripe-js';
 
 import { storeConfig } from '../config';
 import { savePaymentMethod } from '../lib/api';
-import { createCardPaymentMethod, prepareCardEntry } from '../lib/stripe';
+import { createCardPaymentMethod, postcodeFrom, prepareCardEntry } from '../lib/stripe';
 import { useSession } from '../state/session';
 
 /**
@@ -16,10 +20,17 @@ import { useSession } from '../state/session';
  * ever store, is an identifier and the last four digits.
  *
  * That has one consequence worth knowing: the card fields cannot be styled or labelled from
- * out here the way an ordinary input can, because they are not in this document. So the
- * label and the explanation above them are ours and are joined to the iframe's container by
- * `aria-describedby`, and the font size and colours are handed to Stripe explicitly rather
- * than inherited, so they match the rest of the screen at the size this product sets.
+ * out here the way an ordinary input can, because they are not in this document. So each
+ * one sits inside a named group of ours with a large visible label and a line saying what to
+ * type, and the font size and colours are handed to Stripe explicitly rather than inherited,
+ * so they match the rest of the screen at the size this product sets.
+ *
+ * Three fields, not one. Stripe's single combined field squeezed the number, expiry, security
+ * code and postcode into one row with no visible labels, and the postcode could only be told
+ * apart by its placeholder, which vanishes the moment you type. On 26 Sep Anthony typed part
+ * of the card number into it. The postcode is now an ordinary field of ours, with a real
+ * label, filled in from the delivery address — it is not card data, so Rule Ten does not
+ * need it inside Stripe's iframe.
  *
  * Nothing on this screen charges anything. It says so, because a card field with a button
  * under it looks like a payment, and being asked for a card is the moment somebody is most
@@ -28,14 +39,27 @@ import { useSession } from '../state/session';
 export function Card(): JSX.Element {
   const { shopper, restoring } = useSession();
 
-  const mountPoint = useRef<HTMLDivElement>(null);
-  const element = useRef<StripeCardElement | null>(null);
+  const numberMount = useRef<HTMLDivElement>(null);
+  const expiryMount = useRef<HTMLDivElement>(null);
+  const cvcMount = useRef<HTMLDivElement>(null);
+  const fields = useRef<{
+    number: StripeCardNumberElement;
+    expiry: StripeCardExpiryElement;
+    cvc: StripeCardCvcElement;
+  } | null>(null);
 
   const [state, setState] = useState<'loading' | 'ready' | 'unavailable'>('loading');
   const [unavailableReason, setUnavailableReason] = useState<string>('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string>('');
   const [saved, setSaved] = useState<string>('');
+  const [postcode, setPostcode] = useState<string>('');
+
+  // Filled in once, from the address given at sign up. Somebody whose card is registered
+  // somewhere else can change it.
+  useEffect(() => {
+    if (shopper) setPostcode((current) => current || (postcodeFrom(shopper.deliveryAddress) ?? ''));
+  }, [shopper]);
 
   useEffect(() => {
     if (!shopper) return;
@@ -59,29 +83,34 @@ export function Card(): JSX.Element {
       }
 
       const elements = setup.stripe.elements();
-      const card = elements.create('card', {
-        // Handed over rather than inherited: the iframe cannot see our stylesheet.
-        style: {
-          base: {
-            color: storeConfig.brand.colours.navy,
-            fontSize: `${storeConfig.accessibility.baseFontSizePx}px`,
-            fontFamily: 'system-ui, sans-serif',
-            '::placeholder': { color: '#5A6B85' },
-          },
+      // Handed over rather than inherited: the iframe cannot see our stylesheet.
+      const style = {
+        base: {
+          color: storeConfig.brand.colours.navy,
+          fontSize: `${storeConfig.accessibility.baseFontSizePx}px`,
+          fontFamily: 'system-ui, sans-serif',
+          '::placeholder': { color: '#5A6B85' },
         },
-      });
+      };
+      const number = elements.create('cardNumber', { style, showIcon: true });
+      const expiry = elements.create('cardExpiry', { style });
+      const cvc = elements.create('cardCvc', { style });
 
-      if (mountPoint.current) {
-        card.mount(mountPoint.current);
-        element.current = card;
+      if (numberMount.current && expiryMount.current && cvcMount.current) {
+        number.mount(numberMount.current);
+        expiry.mount(expiryMount.current);
+        cvc.mount(cvcMount.current);
+        fields.current = { number, expiry, cvc };
         setState('ready');
       }
     })();
 
     return () => {
       cancelled = true;
-      element.current?.unmount();
-      element.current = null;
+      fields.current?.number.unmount();
+      fields.current?.expiry.unmount();
+      fields.current?.cvc.unmount();
+      fields.current = null;
     };
   }, [shopper]);
 
@@ -109,14 +138,18 @@ export function Card(): JSX.Element {
   }
 
   async function onSave(): Promise<void> {
-    const card = element.current;
+    const card = fields.current;
     const setup = await prepareCardEntry();
     if (!card || !setup.ready || saving) return;
 
     setSaving(true);
     setError('');
     try {
-      const details = await createCardPaymentMethod(setup.stripe, card);
+      const details = await createCardPaymentMethod(
+        setup.stripe,
+        card.number,
+        postcode.trim() || undefined,
+      );
       const result = await savePaymentMethod({
         stripePaymentMethodId: details.stripePaymentMethodId,
         lastFour: details.lastFour,
@@ -124,7 +157,9 @@ export function Card(): JSX.Element {
         ...(details.region ? { region: details.region.toUpperCase() } : {}),
       });
       setSaved(result.message);
-      card.clear();
+      card.number.clear();
+      card.expiry.clear();
+      card.cvc.clear();
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'That card was not accepted.');
     } finally {
@@ -183,7 +218,7 @@ export function Card(): JSX.Element {
             role="group"
             aria-labelledby="card-label"
             aria-describedby="card-hint"
-            className="space-y-2"
+            className="space-y-5"
           >
             <span id="card-label" className="block text-lead font-bold">
               Your card details
@@ -192,15 +227,53 @@ export function Card(): JSX.Element {
               Your card number goes straight to our payment company and never reaches{' '}
               {storeConfig.productName}. We only ever see the last four digits.
             </p>
-            <div
-              ref={mountPoint}
-              className="w-full min-h-control rounded-xl border-2 border-paper bg-paper p-3"
+            <StripeField
+              id="card-number"
+              label="Card number"
+              hint="The long number across the front of the card."
+              mountRef={numberMount}
+            />
+            <StripeField
+              id="card-expiry"
+              label="Expiry date"
+              hint="The month and year printed on the card, like 04 / 28."
+              mountRef={expiryMount}
+              narrow
+            />
+            <StripeField
+              id="card-cvc"
+              label="Security code"
+              hint="The three digits on the back of the card. On American Express it is the four digits on the front."
+              mountRef={cvcMount}
+              narrow
             />
             {state === 'loading' && (
               <p role="status" className="m-0">
                 Getting the card form ready.
               </p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="card-postcode" className="block text-lead font-bold">
+              Postcode for this card
+            </label>
+            <p id="card-postcode-hint" className="m-0 text-paper/90">
+              Where the bank sends this card&apos;s statements. We have put in the one from your
+              delivery address — change it if the card is registered somewhere else.
+            </p>
+            <input
+              id="card-postcode"
+              name="postcode"
+              type="text"
+              autoComplete="postal-code"
+              aria-describedby="card-postcode-hint"
+              value={postcode}
+              onChange={(event) => {
+                setPostcode(event.target.value);
+              }}
+              className="w-full max-w-xs min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+            />
           </div>
 
           {error !== '' && (
@@ -225,6 +298,47 @@ export function Card(): JSX.Element {
           </Link>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * One of Stripe's fields, with our label and hint around it.
+ *
+ * A `label` cannot name what is inside Stripe's iframe, so each field is a named group:
+ * moving into it announces the label, with the hint read alongside, and then Stripe's own
+ * field inside says what it is too.
+ */
+function StripeField({
+  id,
+  label,
+  hint,
+  mountRef,
+  narrow = false,
+}: {
+  id: string;
+  label: string;
+  hint: string;
+  mountRef: RefObject<HTMLDivElement>;
+  narrow?: boolean;
+}): JSX.Element {
+  return (
+    <div
+      role="group"
+      aria-labelledby={`${id}-label`}
+      aria-describedby={`${id}-hint`}
+      className="space-y-2"
+    >
+      <span id={`${id}-label`} className="block text-lead font-bold">
+        {label}
+      </span>
+      <p id={`${id}-hint`} className="m-0 text-paper/90">
+        {hint}
+      </p>
+      <div
+        ref={mountRef}
+        className={`${narrow ? 'w-full max-w-xs' : 'w-full'} min-h-control rounded-xl border-2 border-paper bg-paper p-3`}
+      />
     </div>
   );
 }
