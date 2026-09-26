@@ -40,6 +40,9 @@ export const testEnv: Env = {
   otpLength: 6,
   otpTtlSeconds: 600,
   otpDelivery: 'log',
+  twilioAccountSid: undefined,
+  twilioAuthToken: undefined,
+  twilioFrom: undefined,
   seedOnStart: true,
 };
 
@@ -63,6 +66,10 @@ export interface TestAppOptions {
    * because it always answers `succeeded`.
    */
   payments?: PaymentsGateway;
+  /** How sign-in codes go out. `log` unless a test says otherwise. */
+  codeDelivery?: 'sms' | 'log' | 'off';
+  /** In place of recording codes: used to make sending fail. */
+  deliverCode?: (phone: string, code: string) => Promise<void>;
 }
 
 export async function buildTestApp(
@@ -86,9 +93,12 @@ export async function buildTestApp(
     // checked out. `resolveGitCommit` itself is proved separately, in health.test.ts.
     gitCommit: null,
     now,
-    deliverCode: async (phone, code) => {
-      deliveredCodes.push({ phone, code });
-    },
+    codeDelivery: options.codeDelivery ?? 'log',
+    deliverCode:
+      options.deliverCode ??
+      (async (phone, code) => {
+        deliveredCodes.push({ phone, code });
+      }),
   });
 
   await app.ready();

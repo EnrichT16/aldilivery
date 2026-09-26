@@ -292,6 +292,9 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           orderBy: { createdAt: 'desc' },
         })) as any;
       },
+      async countSince(phone: string, since: Date) {
+        return prisma.oneTimeCode.count({ where: { phone, createdAt: { gte: since } } });
+      },
       async update(id, patch) {
         return (await prisma.oneTimeCode.update({ where: { id }, data: patch as any })) as any;
       },

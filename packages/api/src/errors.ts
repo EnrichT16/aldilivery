@@ -52,6 +52,20 @@ export class NotFoundError extends ApiError {
   }
 }
 
+/** Too many codes asked for. Says to wait, because waiting is the whole of the fix. */
+export class TooManyRequestsError extends ApiError {
+  constructor(message: string) {
+    super(429, 'too_many_requests', message);
+  }
+}
+
+/** Something this server depends on is not set up or not answering. Not the person's fault. */
+export class UnavailableError extends ApiError {
+  constructor(message: string) {
+    super(503, 'unavailable', message);
+  }
+}
+
 export class ConflictError extends ApiError {
   constructor(message: string, details?: Record<string, unknown>) {
     super(409, 'conflict', message, details);

@@ -41,9 +41,12 @@ export interface AppContext {
   /** Injected so tests can control time, and so nothing calls `new Date()` in a handler. */
   now: () => Date;
   /**
-   * Where a one time code goes. In development it is written to the log. Sending it by SMS
-   * is a later phase; this phase builds no telephony.
+   * Where a one time code goes. `sms` sends it with Twilio. `log` writes it to the server log,
+   * which is only ever right in development. `off` means neither: a production server with
+   * no Twilio account set up, where writing codes to the log would let anybody who can read
+   * the log sign in as anybody. The sign-in screen says it is not switched on yet.
    */
+  codeDelivery: 'sms' | 'log' | 'off';
   deliverCode: (phone: string, code: string) => Promise<void>;
 }
 
@@ -62,7 +65,7 @@ declare module 'fastify' {
 }
 
 export interface BuildAppOptions extends Partial<
-  Pick<AppContext, 'now' | 'deliverCode' | 'gitCommit'>
+  Pick<AppContext, 'now' | 'deliverCode' | 'gitCommit' | 'codeDelivery'>
 > {
   config: StoreConfig;
   repository: Repository;
@@ -96,6 +99,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     // commit this is", and the tests pin it to exactly that.
     gitCommit: 'gitCommit' in options ? (options.gitCommit ?? null) : gitCommit(),
     now: options.now ?? (() => new Date()),
+    codeDelivery: options.codeDelivery ?? (options.env.isProduction ? 'off' : 'log'),
     deliverCode:
       options.deliverCode ??
       (async (phone, code) => {
@@ -257,6 +261,8 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
       publishableKey: ctx.env.stripePublishableKey ?? null,
       supportedCardRegions: ctx.config.payments.supportedCardRegions,
     },
+    /** Whether a code can be sent, so the sign-in screen can say so before anybody tries. */
+    signIn: { byText: ctx.codeDelivery !== 'off' },
   }));
 
   await registerAuthRoutes(app);

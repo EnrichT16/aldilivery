@@ -163,6 +163,35 @@ export function registerShopper(
   });
 }
 
+/* ------------------------------------------------------------------------------------- *
+ * Signing back in, with a code sent by text
+ * ------------------------------------------------------------------------------------- */
+
+/** Whether the server can send a code at all. False until Twilio is set up in production. */
+export function fetchSignInAvailable(): Promise<boolean> {
+  return request<{ signIn?: { byText: boolean } }>('/config').then(
+    (body) => body.signIn?.byText ?? false,
+  );
+}
+
+export function requestSignInCode(phone: string): Promise<{ message: string }> {
+  return request<{ message: string }>('/auth/request-code', {
+    method: 'POST',
+    body: JSON.stringify({ phone, role: 'shopper' }),
+  });
+}
+
+export type SignInResult =
+  | { registrationRequired: false; token: string }
+  | { registrationRequired: true; phone: string; message: string };
+
+export function verifySignInCode(phone: string, code: string): Promise<SignInResult> {
+  return request<SignInResult>('/auth/verify-code', {
+    method: 'POST',
+    body: JSON.stringify({ phone, code, role: 'shopper' }),
+  });
+}
+
 /** Who the stored token belongs to. Used to restore a session when the app opens. */
 export function fetchMe(): Promise<{ role: string; shopper?: Shopper }> {
   return request<{ role: string; shopper?: Shopper }>('/me');

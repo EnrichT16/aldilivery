@@ -111,6 +111,10 @@ export function SignUp(): JSX.Element {
         in.
       </p>
 
+      <Link to="/sign-in" className="control bg-paper/10 text-paper underline">
+        Already set up on another phone or computer? Sign in
+      </Link>
+
       {errors.length > 0 && (
         <div
           ref={summary}

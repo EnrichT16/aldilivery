@@ -10,6 +10,7 @@ import { Confirm } from './pages/Confirm';
 import { JustLooking } from './pages/JustLooking';
 import { Landing } from './pages/Landing';
 import { RunnerDoor } from './pages/Runner';
+import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
 import { BasketProvider } from './state/basket';
 import { SessionProvider } from './state/session';
@@ -92,6 +93,7 @@ export function App(): JSX.Element {
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/sign-up" element={<SignUp />} />
+            <Route path="/sign-in" element={<SignIn />} />
             <Route path="/card" element={<Card />} />
             <Route path="/shop" element={<Catalogue />} />
             <Route path="/basket" element={<Basket />} />

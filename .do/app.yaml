@@ -139,6 +139,30 @@ services:
         type: SECRET
         value: replace_with_a_long_random_value_at_least_32_chars
 
+      # Signing back in, by a code sent in a text. DEPLOY.md, "Signing in by text message".
+      # Until all three Twilio values are real, signing in by text is switched off and the
+      # sign-in screen says so. The server still starts: this is not one of the three secrets
+      # it refuses to run without.
+      - key: OTP_DELIVERY
+        scope: RUN_TIME
+        value: sms
+
+      - key: TWILIO_ACCOUNT_SID
+        scope: RUN_TIME
+        type: SECRET
+        value: replace_with_the_account_sid_from_twilio
+
+      - key: TWILIO_AUTH_TOKEN
+        scope: RUN_TIME
+        type: SECRET
+        value: replace_with_the_auth_token_from_twilio
+
+      # A Twilio number in +44 form, a Messaging Service id beginning MG, or a sender name
+      # such as Aldilivery. Not a secret.
+      - key: TWILIO_FROM
+        scope: RUN_TIME
+        value: replace_with_the_number_or_name_texts_come_from
+
 # ---------------------------------------------------------------------------
 # The web app
 # ---------------------------------------------------------------------------

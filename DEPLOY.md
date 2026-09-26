@@ -110,6 +110,24 @@ Saving starts a new deployment. When it finishes and shows as active, visit your
 
 There is one more reassurance worth having. The API now answers on both addresses, with and without the api part in front, so even if the routing is set up to pass the whole path through rather than trimming it off, the health route still answers. That means if slash api slash health is still giving you a web page after all of the above, the cause is the routing not reaching the api component at all, rather than the path arriving in an unexpected shape.
 
+Signing in by text message
+
+Until this is set up, an account can only be used on the phone or computer it was made on, and the sign-in screen says so. Setting it up needs a Twilio account, which is the company that sends the texts. Rule Eight applies to it exactly as it does to Stripe: the Twilio account must belong to Aldilivery and be used by nothing else.
+
+Sign up at twilio dot com. When it asks what you are building, anything close to sending login codes by text is right. A new account starts as a trial. A trial account can only send texts to phone numbers you have verified in the Twilio console, and every text it sends begins with a line saying it came from a Twilio trial account. That is fine for trying it with your own phone. It is not fine for anybody else, so before real Shoppers use it, upgrade the account by adding some credit. A text to a British mobile costs a few pence.
+
+On the front page of the Twilio console there are two values. The first is the Account SID, which begins with the letters A C. The second is the Auth Token, which is hidden until you press the button to show it. The Auth Token is a password for the whole Twilio account, so treat it like one.
+
+Next, decide who the texts come from. On a trial account, use the phone number Twilio gives you, written with the plus sign and the country code at the front. Once the account is upgraded you can use the word Aldilivery instead, and British phones will show that as the sender rather than a number. Nobody can reply to a text sent from a name, which is fine, because nobody needs to.
+
+One more setting in Twilio is worth changing before anything else. Under Messaging, then Settings, then Geo permissions, switch off every country except the United Kingdom. Aldilivery already refuses to send a code to any number that is not a British mobile, and it limits how many codes one number and one internet connection can ask for, but switching the other countries off in Twilio as well means that even a fault in Aldilivery could not send texts abroad at your expense. Sending texts to expensive numbers abroad is a known fraud, and this is the setting that stops it.
+
+Now go to DigitalOcean, to Settings, then the component named api, then environment variables. Add four. OTP_DELIVERY, with the value sms, in small letters. TWILIO_ACCOUNT_SID, with the Account SID, marked encrypted. TWILIO_AUTH_TOKEN, with the Auth Token, marked encrypted. TWILIO_FROM, with the number or the word Aldilivery, not encrypted. If the app was created before these were in the repository, they will not be there yet and you add them by hand; if they are there already with placeholder text, replace the text. Save, and the app redeploys by itself.
+
+When it is active, open the app address in a private window, go to Set up your account, and choose the link that says you are already set up on another phone or computer. Type your mobile number and press Text me a code. The text should arrive within a few seconds, and on an Android phone Chrome may offer to fill the code in by itself. Type it and press Sign in, and you should arrive at the shopping signed in as yourself.
+
+If the sign-in screen says signing in by text is not switched on yet, one of the four values is missing, misspelled, or still the placeholder. The runtime log says so in a sentence when the server starts. If instead it says it could not send a text just now, Twilio refused the message, and the runtime log has Twilio's own reason, with a number. The commonest one on a trial account is that the phone you sent to has not been verified in the Twilio console.
+
 If something is wrong
 
 If the api component will not stay running, open its runtime logs from the app page. The messages are written in plain sentences and name the thing that is missing. A message about STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, AUTH_TOKEN_SECRET or DATABASE_URL means that variable is still a placeholder or still empty, and the fix is to paste the real value and save.
@@ -138,6 +156,6 @@ The api component runs on one basic-xxs instance, which is the smallest size the
 
 Sign up now saves a real Shopper, a card can be saved through Stripe, and the confirmation screen creates a real order and takes a real payment. With live Stripe keys in place, money will move. Test it with Stripe's test keys first: the card number four two four two, repeated four times, with any future expiry date and any three digit code, is the one Stripe provides for exactly this.
 
-There is one gap in that, and it is worth knowing before somebody else finds it. Signing up signs you in on the device you signed up on, and keeps you signed in. There is no way to sign back in, because signing in needs a one time code sent to a phone and there is nothing in Aldilivery yet that can send one. So a Shopper who signs up on their phone and later opens Aldilivery on a laptop cannot get into the account they already have, and the only thing they can do is set up another one on the other phone number. That is a real limitation, not a bug to be puzzled over, and it is the next thing to fix: it needs an account with a company that sends text messages, and it costs money per message. BUILD_LOG.md records the decision and why it was taken.
+Signing up signs you in on the device you signed up on, and keeps you signed in. Signing in on another phone or computer works by a code sent in a text, once Twilio is set up as described above. Until then the sign-in screen says it is not switched on yet, and an account can only be used where it was made.
 
 There is still no voice, no speech and no telephone in this phase, exactly as planned. The microphone button on the landing page says so when pressed.
