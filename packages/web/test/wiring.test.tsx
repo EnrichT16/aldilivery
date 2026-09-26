@@ -326,6 +326,33 @@ describe('the card form, once somebody is signed in', () => {
     }
   });
 
+  /**
+   * Stripe's single combined field had no visible labels, and its postcode box looked like
+   * more of the card number: on 26 Sep a card number went into it. Each part now has its own.
+   */
+  it('gives the card number, expiry date and security code a named group each', async () => {
+    await renderTheForm();
+
+    expect(screen.getByRole('group', { name: 'Card number' })).toHaveAccessibleDescription(
+      /long number across the front/,
+    );
+    expect(screen.getByRole('group', { name: 'Expiry date' })).toHaveAccessibleDescription(
+      /month and year/,
+    );
+    expect(screen.getByRole('group', { name: 'Security code' })).toHaveAccessibleDescription(
+      /three digits on the back/,
+    );
+  });
+
+  it('asks for the postcode in a labelled field of its own, filled in from the address', async () => {
+    await renderTheForm();
+
+    const postcode = screen.getByLabelText('Postcode for this card');
+    expect(postcode).toHaveValue('LS1 1AA');
+    expect(postcode).toHaveAccessibleDescription(/change it if the card is registered/);
+    expect(postcode).toHaveAttribute('autocomplete', 'postal-code');
+  });
+
   it('says that nothing here takes a payment, before asking for a card', async () => {
     await renderTheForm();
 

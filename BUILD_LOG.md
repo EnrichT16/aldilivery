@@ -1573,10 +1573,12 @@ rehearsal gateway. Typing a card into Stripe's own field on the live site, and w
 reader makes of it, still needs a person. Five minutes, on the live site, in a private window:
 
 1. Set up an account on a phone number in the `07700 900xxx` range, which no real phone uses.
-2. On the card screen, press Tab into the card field. It should be announced as "Your card
-   details, group", with the explanation read alongside.
-3. Type `4242 4242 4242 4242`, any future expiry and any three digits, and save. It should
-   say the card ending 4242 is saved.
+2. On the card screen, press Tab into the card number. It should be announced as "Card
+   number, group", with the line about the long number read alongside.
+3. Type `4000 0082 6000 0000` — Stripe's test Visa issued in the United Kingdom — any future
+   expiry and any three digits. Check the postcode has been filled in from the address, and
+   save. It should say the card ending 0000 is saved. (Not `4242…`: that one is issued in the
+   United States, and is refused, correctly, since Step 20.)
 4. Add milk and bread, go to the basket, then Send my order. It should say the order is sent.
 5. Check the payment in the Stripe dashboard, in test mode.
 
@@ -1588,6 +1590,54 @@ reader makes of it, still needs a person. Five minutes, on the live site, in a p
 - `pnpm --filter @aldilivery/web build` — lint, typecheck, **54 tests** and the bundle, clean.
 - The whole journey re-run in Chromium on the fixed build, at 1280 and 320: axe clean on all
   twelve steps, no sideways scroll, every page titled.
+
+---
+
+## 2026-09-26 — Step 20: the card screen, from Anthony trying it
+
+Anthony ran the Step 19 checklist on the live site and typed part of the card number into
+the postcode.
+
+### The postcode was hidden inside the card field
+
+Stripe's combined `card` field puts the number, expiry, security code and postcode on one
+row, with no visible labels. The postcode box can only be told apart by its placeholder, and
+a placeholder disappears the moment you type. For the people Aldilivery is for that is not a
+small thing, and a screen reader got no more help than the eye did.
+
+The card is now three of Stripe's fields — `cardNumber`, `cardExpiry`, `cardCvc` — each inside
+a named group of ours with a large visible label and a line saying what to type: "The long
+number across the front of the card", "The month and year printed on the card, like 04 / 28",
+"The three digits on the back of the card. On American Express it is the four digits on the
+front." The postcode has left Stripe's iframe altogether and is an ordinary labelled field,
+filled in from the delivery address. It is not card data, so Rule Ten does not need it inside
+the iframe; it goes to Stripe as the billing postcode when the card is saved.
+
+### Every real card was being refused
+
+Found while checking the fix. Stripe gives a card's issuing country as an ISO code — `GB`,
+`FR`, `US` — and the store configuration accepts regions — `UK`, `EU`. The two were compared
+directly, so `GB` never matched `UK` and **every real card, British ones included, was refused**
+with "We can only take cards from UK and EU at the moment". The API tests had only ever sent
+`UK` straight in, which Stripe never does.
+
+`packages/api/src/lib/card-region.ts` now turns the country into a region before the check —
+`GB`, `GG`, `JE` and `IM` to `UK`, the twenty seven member states to `EU` — and the region is
+what is stored. A `US` card is still refused, which is the configuration doing its job, and is
+why the checklist above now uses Stripe's British test card rather than `4242…`.
+
+### Checked
+
+- API: four new cases send what Stripe really sends — `GB`, `gb`, `FR`, `IE` — and all four
+  were proved failing against the old route. The existing `US` refusal still passes.
+- Web: the three fields each have a named group with its description, the postcode has a real
+  label and is filled in from the address, it goes to Stripe as the billing postcode, and no
+  billing details are sent when it is empty. Six new tests.
+- `pnpm run verify` — lint, typecheck and **300 tests** (43 core, 197 api, 60 web), clean.
+- In Chromium, with Stripe.js replaced by a stand-in that draws plain fields, at 1280 and 320
+  pixels: axe clean, no sideways scroll, postcode filled in as `LS1 1AA` from
+  "12 Made Up Street, Leeds, ls11aa", and saving a `GB` card reaches "Your card is saved".
+  Before the region fix the same run ended at "We can only take cards from UK and EU".
 
 ---
 

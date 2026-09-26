@@ -310,6 +310,40 @@ describe('Rule Ten: no card numbers, anywhere', () => {
     });
     expect(response.statusCode).toBe(400);
   });
+
+  /**
+   * What Stripe actually sends is the issuing country — `GB`, `FR` — not a region name. Until
+   * 26 Sep 2026 `GB` was compared with `UK` directly and every real card was refused. The
+   * tests above only ever sent `UK`, which Stripe never does.
+   */
+  it.each([
+    ['GB', 'UK'],
+    ['gb', 'UK'],
+    ['FR', 'EU'],
+    ['IE', 'EU'],
+  ])(
+    'accepts a card whose issuing country Stripe gives as %s, and keeps it as %s',
+    async (country, region) => {
+      const signUp = await harness.app.inject({
+        method: 'POST',
+        url: '/shoppers',
+        payload: { displayName: 'Margaret', phone: '+447700900002' },
+      });
+      const { token } = signUp.json() as { token: string };
+
+      const saved = await harness.app.inject({
+        method: 'POST',
+        url: '/payment-methods',
+        headers: { authorization: `Bearer ${token}` },
+        payload: { stripePaymentMethodId: 'pm_test_visa', lastFour: '4242', region: country },
+      });
+
+      expect(saved.statusCode).toBe(201);
+      expect((saved.json() as { paymentMethod: { region: string } }).paymentMethod.region).toBe(
+        region,
+      );
+    },
+  );
 });
 
 /**

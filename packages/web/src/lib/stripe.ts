@@ -12,7 +12,7 @@
  * it, in bandwidth or in being watched.
  */
 
-import { loadStripe, type Stripe, type StripeCardElement } from '@stripe/stripe-js';
+import { loadStripe, type Stripe, type StripeCardNumberElement } from '@stripe/stripe-js';
 
 import { fetchPaymentsConfig } from './api';
 
@@ -63,6 +63,15 @@ export interface CardDetails {
 }
 
 /**
+ * A UK postcode, if one can be found in an address somebody typed, tidied to the usual form
+ * with one space before the last three characters. Undefined rather than a guess otherwise.
+ */
+export function postcodeFrom(address: string): string | undefined {
+  const match = /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i.exec(address);
+  return match ? `${match[1]} ${match[2]}`.toUpperCase() : undefined;
+}
+
+/**
  * Turn what was typed into an identifier.
  *
  * The error message is Stripe's own where there is one, because "your card number is
@@ -71,9 +80,20 @@ export interface CardDetails {
  */
 export async function createCardPaymentMethod(
   stripe: Stripe,
-  card: StripeCardElement,
+  cardNumber: StripeCardNumberElement,
+  /**
+   * Typed into an ordinary field of ours, not Stripe's. A postcode is not card data, and in
+   * our own field it can have a real label and be filled in from the delivery address.
+   */
+  postalCode?: string,
 ): Promise<CardDetails> {
-  const result = await stripe.createPaymentMethod({ type: 'card', card });
+  // The number field is enough: Stripe collects the expiry and security code from the other
+  // fields made by the same `elements()` group.
+  const result = await stripe.createPaymentMethod({
+    type: 'card',
+    card: cardNumber,
+    ...(postalCode ? { billing_details: { address: { postal_code: postalCode } } } : {}),
+  });
 
   if (result.error) {
     throw new Error(result.error.message ?? 'That card was not accepted. Please check it.');
