@@ -22,6 +22,8 @@ Owner: Anthony Tochukwu Ibe.
   with *What Anthony Should Check*.
 - **[DEPLOY.md](DEPLOY.md)** — how to put this on DigitalOcean, written in plain prose with
   no lists or symbols, so it reads properly aloud.
+- **[TESTING_WITH_PEOPLE.md](TESTING_WITH_PEOPLE.md)** — how to run a testing session with
+  screen reader users and the other people Aldilivery is for, in the same plain prose.
 
 **This phase has no voice, speech or telephony in it.** The microphone button exists on the
 landing page and says so when pressed.

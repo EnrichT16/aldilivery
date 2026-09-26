@@ -1897,7 +1897,8 @@ orders from real people, and moving to a proper database cluster is a two line c
 2. ~~The journey in a real browser~~ — done by Anthony on the live site, Step 21.
 3. **Sending a one time code by text message** — built, Step 22. Live once the Twilio account
    and the four settings in DEPLOY.md are in place.
-4. Screen reader testing with real users — the people this is for, not us.
+4. Screen reader testing with real users — the people this is for, not us. The guide for
+   running the sessions is [TESTING_WITH_PEOPLE.md](TESTING_WITH_PEOPLE.md).
 5. Then, and only then, the voice layer.
 
 Done since this list was written: the web shell wired to the API, an order taken in
