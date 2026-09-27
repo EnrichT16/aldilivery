@@ -1992,6 +1992,65 @@ DEPLOY.md, "Paying Runners", has the steps. Nothing to add to DigitalOcean.
 - Not checked here: Stripe's real Connect pages. This environment cannot reach Stripe; the first
   real set-up, in test mode on the live site, is the check.
 
+## 2026-09-27 — Step 28: "Cannot find it", asked on the Shopper's own screen
+
+When a Runner could not find something, there was no way to ask the Shopper. Anthony chose to
+ask on the Shopper's screen (option b) rather than give the Runner the Shopper's phone number:
+many Shoppers are exactly the people who should not have to hand a stranger their number.
+
+### What the Runner sees
+
+While shopping, every item on the list has a "Cannot find it" button. Pressing it asks the
+Shopper, once per item, and the line under the item says it is waiting, how many minutes are
+left, and what happens if nobody answers. The answer appears under the item and is said out loud
+as it arrives. Answers that were already there when the page opened are not said again.
+
+### What the Shopper sees
+
+A new page, `/my-order`, "Your order": where the order has got to, in words, and what they asked
+for. It is linked from "Your order is sent" ("Follow your order") and from a "Your order" link at
+the top of every page while a Shopper is signed in. A question arrives as an alert: "Tomasz cannot
+find the bread. What would you like them to do?", with two big buttons, "Bring something similar"
+and "Leave it out". Only the question is in the alert. The countdown sits beside it, in minutes,
+so a screen reader does not read it out again every few seconds.
+
+### If the Shopper does not answer
+
+A question waits five minutes. After that the Shopper's own preference from signing up decides:
+"bring something similar" means similar, and "leave it out" or "ask me first" means it is left out.
+Nothing is bought that the Shopper did not agree to. A late answer is told plainly what happened.
+This is worked out whenever somebody looks, not on a timer, so it cannot fall behind.
+
+### Behind it
+
+A new table, `ItemQuestion`, with migration `20260927180000_item_questions`, which DigitalOcean
+runs on deploy. Four routes:
+
+- the Runner asks, only on their own order and only while shopping;
+- either side reads the questions on their own order;
+- only the Shopper answers;
+- `GET /orders/current` gives the Shopper their latest order on its way.
+
+### Checked
+
+- API: 8 new tests. They cover asking and seeing the question, asking once per item, Runner only
+  and shopping only, the answer shown to the Runner, no Runner answer and no second answer, "ask
+  me first" timing out to leave it out with the late-answer message, a "similar" preference timing
+  out to similar, and the order and its questions being the Shopper's alone.
+- Web: 10 new tests.
+  - Runner page: one button per item; asking; the waiting line; the answer said out loud; no
+    button before shopping.
+  - The new page: sign in and come back; the order in words; nothing on its way; the question as
+    an alert with its fallback; answering; too late; axe.
+  - `/my-order` is added to the axe and button-size sweeps.
+- `pnpm run verify`: lint, typecheck and **402 tests** (43 core, 259 api, 100 web), all passing.
+- In Chromium, with two browsers, a Runner on a 320-pixel phone and a Shopper:
+  - the order went through and the Runner asked about the milk;
+  - the question reached the Shopper's page within one poll;
+  - the Shopper answered using only the keyboard;
+  - the answer reached the Runner 3 seconds later;
+  - axe found no problems on every screen, and nothing scrolled sideways at 320 pixels.
+
 ---
 
 ## What Anthony Should Check

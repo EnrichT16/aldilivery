@@ -21,6 +21,7 @@ interface State {
   offered: boolean;
   status: null | 'accepted' | 'shopping' | 'receipt_submitted' | 'delivering' | 'delivered';
   pay: 'not_started' | 'incomplete' | 'ready';
+  question: null | { answer: null | 'similar' | 'leave_out'; answeredBy: null | 'shopper' };
   sent: Array<{ method: string; path: string; body: unknown }>;
 }
 
@@ -138,6 +139,20 @@ function stubRunnerApi(): void {
               : null,
         });
       }
+      if (path === '/orders/order-1/questions') {
+        if (method === 'POST') state.question = { answer: null, answeredBy: null };
+        const question = state.question && {
+          id: 'q1',
+          orderItemId: 'i2',
+          itemName: 'White sliced bread, 800g',
+          ...state.question,
+          secondsLeft: state.question.answer === null ? 290 : 0,
+          ifNoAnswer: 'similar',
+        };
+        return method === 'POST'
+          ? reply({ question }, 201)
+          : reply({ questions: question ? [question] : [] });
+      }
       if (path === '/orders/order-1/status') {
         state.status = (body as { status: State['status'] }).status;
         return reply({});
@@ -166,6 +181,7 @@ beforeEach(() => {
     offered: false,
     status: null,
     pay: 'ready',
+    question: null,
     sent: [],
   };
 });
@@ -265,6 +281,48 @@ describe('a Runner page', () => {
       'status',
     );
     expect(state.status).toBe('delivered');
+  });
+
+  it('asks the Shopper about something it cannot find, and says their answer out loud', async () => {
+    const user = userEvent.setup({ delay: null });
+    state.status = 'shopping';
+    stubRunnerApi();
+    renderHome();
+
+    const ask = await screen.findByRole('button', {
+      name: 'Cannot find it: White sliced bread, 800g',
+    });
+    // One per thing on the list.
+    expect(screen.getAllByRole('button', { name: /^Cannot find it/ })).toHaveLength(2);
+    await user.click(ask);
+    expect(
+      state.sent.find((r) => r.method === 'POST' && r.path.endsWith('/questions'))?.body,
+    ).toEqual({ orderItemId: 'i2' });
+    expect(
+      await screen.findByText(
+        'Asked Margaret. Waiting for an answer, about 5 minutes left. If there is no answer: bring something similar.',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Cannot find it: White sliced bread, 800g' }),
+    ).not.toBeInTheDocument();
+
+    // Margaret answers on her screen; the next look at the server brings it back.
+    state.question = { answer: 'leave_out', answeredBy: 'shopper' };
+    await user.type(screen.getByLabelText('What did the till say?'), '2.50');
+    await user.click(screen.getByRole('button', { name: 'Put in the till total' }));
+    expect(
+      await screen.findByText('Margaret says: leave it out, for the White sliced bread, 800g.'),
+    ).toHaveAttribute('role', 'status');
+    expect(screen.getByText('Margaret says: leave it out.')).toBeInTheDocument();
+  });
+
+  it('does not offer to ask before shopping has started', async () => {
+    state.status = 'accepted';
+    stubRunnerApi();
+    renderHome();
+    await screen.findByRole('button', { name: 'I have started shopping' });
+    expect(screen.queryByRole('button', { name: /^Cannot find it/ })).not.toBeInTheDocument();
   });
 
   it('has no axe violations with a job offered, or with a job in hand', async () => {

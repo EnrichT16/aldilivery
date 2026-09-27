@@ -97,6 +97,24 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    itemQuestions: {
+      async create(input) {
+        return (await prisma.itemQuestion.create({ data: input })) as any;
+      },
+      async findById(id) {
+        return (await prisma.itemQuestion.findUnique({ where: { id } })) as any;
+      },
+      async listForOrder(orderId) {
+        return (await prisma.itemQuestion.findMany({
+          where: { orderId },
+          orderBy: { askedAt: 'asc' },
+        })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.itemQuestion.update({ where: { id }, data: patch as any })) as any;
+      },
+    },
+
     runnerChecks: {
       async create(input) {
         return (await prisma.runnerCheck.create({ data: input as any })) as any;

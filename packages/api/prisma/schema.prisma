@@ -65,6 +65,12 @@ enum OrderStatus {
 }
 
 /// What actually happened to a single line of an order once the Runner was at the shelf.
+/// What a Shopper wants when their Runner cannot find something.
+enum ItemAnswer {
+  similar
+  leave_out
+}
+
 enum SubstitutionOutcome {
   pending
   supplied
@@ -358,6 +364,7 @@ model Order {
   @@index([status])
   @@index([shopperId])
   @@index([poolId])
+  questions ItemQuestion[]
 }
 
 model OrderItem {
@@ -378,6 +385,8 @@ model OrderItem {
   substitutedForName  String?
   actualPricePence    Int?
   note                String?
+
+  questions ItemQuestion[]
 
   createdAt DateTime @default(now())
 }
@@ -520,5 +529,26 @@ model RunnerCheck {
   checkedAt DateTime           @default(now())
 
   @@index([runnerId])
+}
+
+/// A Runner telling the Shopper they cannot find something, and what the Shopper wants instead.
+///
+/// No phone numbers change hands: the question goes to the Shopper's screen, and the answer back
+/// to the Runner's. If nobody answers within a few minutes the Shopper's own standing preference
+/// decides, and where that was "ask me first" the item is left out — nothing is ever bought that
+/// the Shopper did not agree to.
+model ItemQuestion {
+  id          String     @id @default(cuid())
+  orderId     String
+  order       Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderItemId String
+  orderItem   OrderItem  @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  askedAt     DateTime   @default(now())
+  answer      ItemAnswer?
+  /// `shopper` when they answered, `preference` when nobody did and their preference decided.
+  answeredBy  String?
+  answeredAt  DateTime?
+
+  @@index([orderId])
 }
 

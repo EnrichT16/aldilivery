@@ -227,6 +227,8 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
         return reply({ paymentMethod: FAKE_CARD, message: 'Saved. The card ending 4242.' }, 201);
       }
 
+      if (path === '/orders/current') return reply({ order: null });
+
       if (path === '/orders' && method === 'POST') {
         if (options.orderError) {
           return reply({ error: { message: options.orderError } }, 400);
