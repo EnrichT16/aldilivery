@@ -15,6 +15,7 @@ import type {
   CatalogueItem,
   HouseholdCircle,
   HouseholdCircleMember,
+  ItemQuestion,
   JobOffer,
   JobOfferOutcome,
   OneTimeCode,
@@ -71,6 +72,7 @@ export function memoryRepository(): Repository {
   const sets = new Map<string, RecurringSet>();
   const oneTimeCodes = new Map<string, OneTimeCode>();
   const runnerChecks: RunnerCheck[] = [];
+  const itemQuestions = new Map<string, ItemQuestion>();
 
   const now = (): Date => new Date();
 
@@ -175,6 +177,37 @@ export function memoryRepository(): Repository {
         return [...runners.values()]
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
           .map(clone);
+      },
+    },
+
+    itemQuestions: {
+      async create(input) {
+        const question: ItemQuestion = {
+          ...input,
+          id: id(),
+          answer: null,
+          answeredBy: null,
+          answeredAt: null,
+        };
+        itemQuestions.set(question.id, question);
+        return clone(question);
+      },
+      async findById(key) {
+        const found = itemQuestions.get(key);
+        return found ? clone(found) : null;
+      },
+      async listForOrder(orderId) {
+        return [...itemQuestions.values()]
+          .filter((q) => q.orderId === orderId)
+          .sort((a, b) => a.askedAt.getTime() - b.askedAt.getTime())
+          .map(clone);
+      },
+      async update(key, patch) {
+        const existing = itemQuestions.get(key);
+        if (!existing) throw new NotFoundError('Question', key);
+        const updated = { ...existing, ...patch, id: existing.id };
+        itemQuestions.set(key, updated);
+        return clone(updated);
       },
     },
 

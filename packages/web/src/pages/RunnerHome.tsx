@@ -5,8 +5,10 @@ import { storeConfig } from '../config';
 import {
   acceptJob,
   ApiUnavailableError,
+  askAboutItem,
   declineJob,
   fetchCurrentJob,
+  fetchJobQuestions,
   fetchOfferedJobs,
   fetchMyPay,
   fetchRunnerMe,
@@ -15,6 +17,8 @@ import {
   startPaySetup,
   submitTillTotal,
   type CurrentJob,
+  type ItemAnswer,
+  type ItemQuestion,
   type OfferedJob,
   type RunnerAccount,
   type RunnerPay,
@@ -35,6 +39,10 @@ import { clearRunnerToken, readRunnerToken } from '../lib/session';
  * The job steps are the lifecycle the server enforces, one button each: start shopping, put
  * in what the till said, set off, and delivered. The till total has to go in before setting
  * off, because that is what the Shopper is charged.
+ *
+ * While shopping, each thing on the list has a "Cannot find it" button. It asks the Shopper on
+ * their own screen, and their answer comes back here and is said out loud. Nobody's phone
+ * number is given to anybody (chosen by Anthony, 27 Sep 2026).
  */
 
 const POLL_MS = 5000;
@@ -44,6 +52,17 @@ const SUBSTITUTIONS: Record<SubstitutionChoice, string> = {
   similar_item: 'If something is not there, bring something similar.',
   no_substitutes: 'If something is not there, leave it out.',
 };
+
+const ANSWER_WORDS: Record<ItemAnswer, string> = {
+  similar: 'bring something similar',
+  leave_out: 'leave it out',
+};
+
+function minutesLeft(seconds: number): string {
+  if (seconds < 60) return 'less than a minute';
+  const minutes = Math.ceil(seconds / 60);
+  return minutes === 1 ? 'about a minute' : `about ${minutes} minutes`;
+}
 
 /** "12.34", "£12.34" or "12" in, pence out. Null for anything that is not an amount. */
 export function penceFrom(typed: string): number | null {
@@ -57,6 +76,8 @@ export function RunnerHome(): JSX.Element {
   const [runner, setRunner] = useState<RunnerAccount | null>(null);
   const [offers, setOffers] = useState<OfferedJob[]>([]);
   const [job, setJob] = useState<CurrentJob | null>(null);
+  const [questions, setQuestions] = useState<ItemQuestion[]>([]);
+  const heardAnswers = useRef<Set<string> | null>(null);
   const [loading, setLoading] = useState(signedIn);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
@@ -73,6 +94,27 @@ export function RunnerHome(): JSX.Element {
       setRunner(me.runner);
       const current = await fetchCurrentJob();
       setJob(current.job);
+      if (current.job && current.job.status !== 'accepted') {
+        const asked = (await fetchJobQuestions(current.job.orderId)).questions;
+        setQuestions(asked);
+        // An answer arriving while the Runner is at the shelf is said out loud, once. Answers
+        // already there when the page opened are not news.
+        const shopperName = current.job.shopperName;
+        const opening = heardAnswers.current === null;
+        heardAnswers.current ??= new Set();
+        for (const question of asked) {
+          if (question.answer === null || heardAnswers.current.has(question.id)) continue;
+          heardAnswers.current.add(question.id);
+          if (opening) continue;
+          setNews(
+            question.answeredBy === 'shopper'
+              ? `${shopperName} says: ${ANSWER_WORDS[question.answer]}, for the ${question.itemName}.`
+              : `No answer in time about the ${question.itemName}, so ${ANSWER_WORDS[question.answer]}, as ${shopperName} asked when they signed up.`,
+          );
+        }
+      } else {
+        setQuestions([]);
+      }
       if (!current.job && me.runner.available) {
         setOffers((await fetchOfferedJobs()).offers);
       } else {
@@ -188,7 +230,7 @@ export function RunnerHome(): JSX.Element {
           </ul>
         </section>
       ) : job ? (
-        <JobInHand job={job} busy={busy} act={act} />
+        <JobInHand job={job} questions={questions} busy={busy} act={act} />
       ) : (
         <>
           <section aria-labelledby="shift-heading" className="space-y-3 max-w-xl">
@@ -269,10 +311,12 @@ export function RunnerHome(): JSX.Element {
 
 function JobInHand({
   job,
+  questions,
   busy,
   act,
 }: {
   job: CurrentJob;
+  questions: ItemQuestion[];
   busy: boolean;
   act: (action: () => Promise<unknown>, done: string) => Promise<void>;
 }): JSX.Element {
@@ -301,12 +345,34 @@ function JobInHand({
 
       <div className="space-y-2">
         <h3 className="text-lead font-bold m-0">The list</h3>
-        <ul className="m-0 ps-6 space-y-1">
-          {job.items.map((item) => (
-            <li key={item.id}>
-              {item.quantity} × {item.name}
-            </li>
-          ))}
+        <ul className="m-0 ps-6 space-y-3">
+          {job.items.map((item) => {
+            const question = questions.find((asked) => asked.orderItemId === item.id);
+            return (
+              <li key={item.id} className="space-y-2">
+                <span>
+                  {item.quantity} × {item.name}
+                </span>
+                {question && <p className="m-0">{questionWords(question, job.shopperName)}</p>}
+                {job.status === 'shopping' && !question && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      void act(
+                        () => askAboutItem(job.orderId, item.id),
+                        `We have asked ${job.shopperName} about the ${item.name}. Their answer will appear here.`,
+                      );
+                    }}
+                    aria-label={`Cannot find it: ${item.name}`}
+                    className="control bg-paper/10 text-paper underline disabled:opacity-70"
+                  >
+                    Cannot find it
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
         <p className="m-0">{SUBSTITUTIONS[job.substitutionDefault]}</p>
       </div>
@@ -399,6 +465,15 @@ function JobInHand({
       </div>
     </section>
   );
+}
+
+function questionWords(question: ItemQuestion, shopperName: string): string {
+  if (question.answer === null) {
+    return `Asked ${shopperName}. Waiting for an answer, ${minutesLeft(question.secondsLeft)} left. If there is no answer: ${ANSWER_WORDS[question.ifNoAnswer]}.`;
+  }
+  return question.answeredBy === 'shopper'
+    ? `${shopperName} says: ${ANSWER_WORDS[question.answer]}.`
+    : `No answer in time, so ${ANSWER_WORDS[question.answer]}, as they asked when they signed up.`;
 }
 
 /**

@@ -61,6 +61,19 @@ export interface Runner {
   updatedAt: Date;
 }
 
+export type ItemAnswer = 'similar' | 'leave_out';
+
+/** A Runner telling the Shopper they cannot find one thing, and what the Shopper wants instead. */
+export interface ItemQuestion {
+  id: string;
+  orderId: string;
+  orderItemId: string;
+  askedAt: Date;
+  answer: ItemAnswer | null;
+  answeredBy: 'shopper' | 'preference' | null;
+  answeredAt: Date | null;
+}
+
 export type RunnerCheckKind = 'right_to_work' | 'criminal_record';
 
 /** One time a person checked a Runner's documents, or took an approval back. */

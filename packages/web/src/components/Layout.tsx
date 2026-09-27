@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 
 import { storeConfig } from '../config';
+import { useSession } from '../state/session';
 
 /**
  * The page frame.
@@ -15,6 +16,7 @@ import { storeConfig } from '../config';
 export function Layout({ children }: { children: ReactNode }): JSX.Element {
   const location = useLocation();
   const onLanding = location.pathname === '/';
+  const { shopper } = useSession();
 
   return (
     <div className="min-h-screen flex flex-col bg-ink text-paper">
@@ -41,6 +43,13 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
                     Basket
                   </Link>
                 </li>
+                {shopper && (
+                  <li>
+                    <Link to="/my-order" className="control bg-paper/10 text-paper">
+                      Your order
+                    </Link>
+                  </li>
+                )}
               </ul>
             </nav>
           )}
@@ -54,8 +63,8 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
       <footer className="px-5 py-6 border-t-2 border-paper/25">
         <div className="mx-auto w-full max-w-3xl space-y-2">
           <p className="m-0">
-            {storeConfig.productName} shops at {storeConfig.store.displayName}. Your Runner pays
-            the shelf price and you are charged what the till says.
+            {storeConfig.productName} shops at {storeConfig.store.displayName}. Your Runner pays the
+            shelf price and you are charged what the till says.
           </p>
           <p className="m-0 text-paper/80">{storeConfig.store.catalogueSource.attribution}</p>
           <p className="m-0 text-paper/80">

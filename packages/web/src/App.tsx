@@ -9,6 +9,7 @@ import { Catalogue } from './pages/Catalogue';
 import { Confirm } from './pages/Confirm';
 import { JustLooking } from './pages/JustLooking';
 import { Landing } from './pages/Landing';
+import { MyOrder } from './pages/MyOrder';
 import { RunnerDoor } from './pages/Runner';
 import { RunnerHome } from './pages/RunnerHome';
 import { RunnerSignUp } from './pages/RunnerSignUp';
@@ -100,6 +101,7 @@ export function App(): JSX.Element {
             <Route path="/shop" element={<Catalogue />} />
             <Route path="/basket" element={<Basket />} />
             <Route path="/confirm" element={<Confirm />} />
+            <Route path="/my-order" element={<MyOrder />} />
             <Route path="/runner" element={<RunnerDoor />} />
             <Route path="/runner/sign-up" element={<RunnerSignUp />} />
             <Route path="/runner/home" element={<RunnerHome />} />

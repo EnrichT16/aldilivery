@@ -142,8 +142,15 @@ export function Confirm(): JSX.Element {
           We are finding you a Runner now. They will have your doorstep instructions exactly as you
           wrote them.
         </p>
+        <p className="m-0 max-w-xl">
+          If your Runner cannot find something, they will ask you on your order page, and you choose
+          what they do. Nobody is given your phone number.
+        </p>
         <p className="m-0 text-paper/80">Your order number is {placed.order.id}.</p>
-        <Link to="/" className="control bg-highlight text-ink">
+        <Link to="/my-order" className="control bg-highlight text-ink">
+          Follow your order
+        </Link>
+        <Link to="/" className="control bg-paper/10 text-paper underline">
           Back to the start
         </Link>
       </div>

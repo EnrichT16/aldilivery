@@ -15,6 +15,7 @@ import type {
   CatalogueItem,
   HouseholdCircle,
   HouseholdCircleMember,
+  ItemQuestion,
   JobOffer,
   JobOfferOutcome,
   OneTimeCode,
@@ -150,6 +151,15 @@ export interface Repository {
     listAll(): Promise<Runner[]>;
     /** Removes a Runner and their checks and offers. Only for one who has never had an order. */
     delete(id: string): Promise<void>;
+  };
+
+  /** A Runner's questions to a Shopper about things they cannot find. */
+  itemQuestions: {
+    create(input: Pick<ItemQuestion, 'orderId' | 'orderItemId' | 'askedAt'>): Promise<ItemQuestion>;
+    findById(id: string): Promise<ItemQuestion | null>;
+    /** Oldest first. */
+    listForOrder(orderId: string): Promise<ItemQuestion[]>;
+    update(id: string, patch: Partial<ItemQuestion>): Promise<ItemQuestion>;
   };
 
   /** The record of checks made on Runners. Only ever added to. */

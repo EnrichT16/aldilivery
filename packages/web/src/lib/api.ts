@@ -321,6 +321,70 @@ export function submitTillTotal(
   );
 }
 
+/** "I cannot find this": a question from the Runner, and the Shopper's answer. */
+export type ItemAnswer = 'similar' | 'leave_out';
+
+export interface ItemQuestion {
+  id: string;
+  orderItemId: string;
+  itemName: string;
+  answer: ItemAnswer | null;
+  answeredBy: 'shopper' | 'preference' | null;
+  secondsLeft: number;
+  ifNoAnswer: ItemAnswer;
+}
+
+export function fetchJobQuestions(orderId: string): Promise<{ questions: ItemQuestion[] }> {
+  return request<{ questions: ItemQuestion[] }>(
+    `/orders/${encodeURIComponent(orderId)}/questions`,
+    undefined,
+    'runner',
+  );
+}
+
+export function askAboutItem(
+  orderId: string,
+  orderItemId: string,
+): Promise<{ question: ItemQuestion }> {
+  return request<{ question: ItemQuestion }>(
+    `/orders/${encodeURIComponent(orderId)}/questions`,
+    { method: 'POST', body: JSON.stringify({ orderItemId }) },
+    'runner',
+  );
+}
+
+export interface MyOrder {
+  id: string;
+  status:
+    | 'paid'
+    | 'offered'
+    | 'accepted'
+    | 'shopping'
+    | 'receipt_submitted'
+    | 'delivering'
+    | 'delivered'
+    | 'completed';
+  runnerName: string | null;
+  items: Array<{ id: string; name: string; quantity: number }>;
+  totalEstimatePence: number;
+  deliveredAt: string | null;
+}
+
+export function fetchMyOrder(): Promise<{ order: MyOrder | null; questions?: ItemQuestion[] }> {
+  return request<{ order: MyOrder | null; questions?: ItemQuestion[] }>('/orders/current');
+}
+
+export function answerQuestion(
+  orderId: string,
+  questionId: string,
+  answer: ItemAnswer,
+): Promise<{ message: string }> {
+  return request<{ message: string }>(
+    `/orders/${encodeURIComponent(orderId)}/questions/${encodeURIComponent(questionId)}/answer`,
+    { method: 'POST', body: JSON.stringify({ answer }) },
+  );
+}
+
 /** Who the stored token belongs to. Used to restore a session when the app opens. */
 export function fetchMe(): Promise<{ role: string; shopper?: Shopper }> {
   return request<{ role: string; shopper?: Shopper }>('/me');
