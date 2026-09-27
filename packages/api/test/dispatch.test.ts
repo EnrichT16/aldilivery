@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { sweepOffers } from '../src/services/dispatch.js';
 import {
   buildTestApp,
+  STAFF,
   seedCatalogue,
   signUpRunner,
   signUpShopper,
@@ -169,7 +170,11 @@ describe('offering without anybody pressing anything', () => {
     const orderId = await placeOrder();
     await harness.repository.orders.update(orderId, { status: 'cancelled', runnerId: null });
 
-    const response = await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer` });
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${orderId}/offer`,
+      headers: STAFF,
+    });
     expect(response.statusCode).toBe(409);
     expect(response.json().error.message).toMatch(/not paid for/);
   });

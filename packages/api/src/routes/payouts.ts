@@ -14,6 +14,7 @@ import type { FastifyInstance } from 'fastify';
 import { formatPence, RUNNER_PAYMENT_PENCE } from '@aldilivery/core';
 import { z } from 'zod';
 
+import { requireStaff } from '../app.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
 import { planPayout } from '../services/payouts.js';
 
@@ -22,6 +23,7 @@ export async function registerPayoutRoutes(app: FastifyInstance): Promise<void> 
   const symbol = config.store.currencySymbol;
 
   app.post('/orders/:id/payout', async (request) => {
+    requireStaff(request, app.ctx.env.staffKey);
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
 
     const order = await repository.orders.findById(id);

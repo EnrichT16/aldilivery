@@ -9,8 +9,11 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { RUNNER_PAYMENT_PENCE } from '@aldilivery/core';
 
+import { requireStaff } from '../src/app.js';
+
 import {
   buildTestApp,
+  STAFF,
   seedCatalogue,
   signUpRunner,
   signUpShopper,
@@ -67,10 +70,17 @@ describe('offering a job', () => {
     });
 
     const orderId = await placeOrder();
-    const response = await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer` });
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${orderId}/offer`,
+      headers: STAFF,
+    });
 
     expect(response.statusCode).toBe(200);
-    const body = response.json() as { offer: { runnerId: string; queuePosition: number }; holdSeconds: number };
+    const body = response.json() as {
+      offer: { runnerId: string; queuePosition: number };
+      holdSeconds: number;
+    };
     expect(body.offer.runnerId).toBe(waitingLongest.runnerId);
     expect(body.offer.queuePosition).toBe(0);
     expect(body.holdSeconds).toBe(60);
@@ -78,7 +88,11 @@ describe('offering a job', () => {
 
   it('says plainly when no Runner is free, rather than failing', async () => {
     const orderId = await placeOrder();
-    const response = await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer` });
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${orderId}/offer`,
+      headers: STAFF,
+    });
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ offer: null });
   });
@@ -91,7 +105,11 @@ describe('offering a job', () => {
     );
 
     const orderId = await placeOrder();
-    const response = await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer` });
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${orderId}/offer`,
+      headers: STAFF,
+    });
     expect(response.json()).toMatchObject({ offer: null });
   });
 
@@ -99,8 +117,16 @@ describe('offering a job', () => {
     await signUpRunner(harness, { phone: '+447700900201' });
     const orderId = await placeOrder();
 
-    const first = await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer` });
-    const second = await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer` });
+    const first = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${orderId}/offer`,
+      headers: STAFF,
+    });
+    const second = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${orderId}/offer`,
+      headers: STAFF,
+    });
 
     expect(second.json()).toMatchObject({ alreadyOffered: true });
     expect((second.json() as { offer: { id: string } }).offer.id).toBe(
@@ -127,7 +153,11 @@ describe('the sixty second hold', () => {
   });
 
   it('lets the Runner accept within the minute', async () => {
-    const offered = await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer` });
+    const offered = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${orderId}/offer`,
+      headers: STAFF,
+    });
     const offerId = (offered.json() as { offer: { id: string } }).offer.id;
 
     harness.setNow(new Date(START.getTime() + 45_000));
@@ -138,14 +168,21 @@ describe('the sixty second hold', () => {
     });
 
     expect(accepted.statusCode).toBe(200);
-    const body = accepted.json() as { order: { runnerId: string; status: string }; youWillEarnPence: number };
+    const body = accepted.json() as {
+      order: { runnerId: string; status: string };
+      youWillEarnPence: number;
+    };
     expect(body.order.runnerId).toBe(runnerOne.runnerId);
     expect(body.order.status).toBe('accepted');
     expect(body.youWillEarnPence).toBe(RUNNER_PAYMENT_PENCE);
   });
 
   it('refuses an acceptance after the minute has passed, and says another job will come', async () => {
-    const offered = await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer` });
+    const offered = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${orderId}/offer`,
+      headers: STAFF,
+    });
     const offerId = (offered.json() as { offer: { id: string } }).offer.id;
 
     harness.setNow(new Date(START.getTime() + 61_000));
@@ -156,20 +193,32 @@ describe('the sixty second hold', () => {
     });
 
     expect(accepted.statusCode).toBe(409);
-    expect((accepted.json() as { error: { message: string } }).error.message).toContain('Another will come');
+    expect((accepted.json() as { error: { message: string } }).error.message).toContain(
+      'Another will come',
+    );
   });
 
   it('passes the job to the next Runner once the hold has lapsed', async () => {
-    await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer` });
+    await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer`, headers: STAFF });
 
     harness.setNow(new Date(START.getTime() + 61_000));
-    const second = await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer` });
+    const second = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${orderId}/offer`,
+      headers: STAFF,
+    });
 
-    expect((second.json() as { offer: { runnerId: string } }).offer.runnerId).toBe(runnerTwo.runnerId);
+    expect((second.json() as { offer: { runnerId: string } }).offer.runnerId).toBe(
+      runnerTwo.runnerId,
+    );
   });
 
   it('passes it on when a Runner declines, without waiting the full minute', async () => {
-    const offered = await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer` });
+    const offered = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${orderId}/offer`,
+      headers: STAFF,
+    });
     const offerId = (offered.json() as { offer: { id: string } }).offer.id;
 
     await harness.app.inject({
@@ -178,12 +227,22 @@ describe('the sixty second hold', () => {
       headers: runnerOne.authHeader,
     });
 
-    const second = await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer` });
-    expect((second.json() as { offer: { runnerId: string } }).offer.runnerId).toBe(runnerTwo.runnerId);
+    const second = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${orderId}/offer`,
+      headers: STAFF,
+    });
+    expect((second.json() as { offer: { runnerId: string } }).offer.runnerId).toBe(
+      runnerTwo.runnerId,
+    );
   });
 
   it('will not let one Runner accept a job offered to another', async () => {
-    const offered = await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer` });
+    const offered = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${orderId}/offer`,
+      headers: STAFF,
+    });
     const offerId = (offered.json() as { offer: { id: string } }).offer.id;
 
     const response = await harness.app.inject({
@@ -195,7 +254,7 @@ describe('the sixty second hold', () => {
   });
 
   it('tells a Runner how many seconds are left on their offer', async () => {
-    await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer` });
+    await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer`, headers: STAFF });
     harness.setNow(new Date(START.getTime() + 20_000));
 
     const mine = await harness.app.inject({
@@ -214,7 +273,11 @@ describe('Rule Two, through the payout route', () => {
     const runner = await signUpRunner(harness, { phone: '+447700900201' });
     const orderId = await placeOrder();
 
-    const offered = await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer` });
+    const offered = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${orderId}/offer`,
+      headers: STAFF,
+    });
     const offerId = (offered.json() as { offer: { id: string } }).offer.id;
     await harness.app.inject({
       method: 'POST',
@@ -224,7 +287,11 @@ describe('Rule Two, through the payout route', () => {
 
     await harness.repository.orders.update(orderId, { status: 'delivered' });
 
-    const payout = await harness.app.inject({ method: 'POST', url: `/orders/${orderId}/payout` });
+    const payout = await harness.app.inject({
+      method: 'POST',
+      url: `/orders/${orderId}/payout`,
+      headers: STAFF,
+    });
     expect(payout.statusCode).toBe(200);
 
     const body = payout.json() as {
@@ -250,8 +317,12 @@ describe('Rule Two, through the payout route', () => {
       status: 'delivered',
     });
 
-    await harness.app.inject({ method: 'POST', url: `/orders/${orderId}/payout` });
-    const second = await harness.app.inject({ method: 'POST', url: `/orders/${orderId}/payout` });
+    await harness.app.inject({ method: 'POST', url: `/orders/${orderId}/payout`, headers: STAFF });
+    const second = await harness.app.inject({
+      method: 'POST',
+      url: `/orders/${orderId}/payout`,
+      headers: STAFF,
+    });
     expect(second.statusCode).toBe(409);
   });
 
@@ -263,7 +334,11 @@ describe('Rule Two, through the payout route', () => {
       status: 'shopping',
     });
 
-    const response = await harness.app.inject({ method: 'POST', url: `/orders/${orderId}/payout` });
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: `/orders/${orderId}/payout`,
+      headers: STAFF,
+    });
     expect(response.statusCode).toBe(409);
   });
 });
@@ -288,5 +363,50 @@ describe('pooling, through the route', () => {
     expect(body.radiusMiles).toBe(1);
     expect(body.pools).toHaveLength(1);
     expect(body.pools[0]?.runnerPaymentPence).toBe(1000);
+  });
+});
+
+/**
+ * Until 27 Sep 2026 these two answered anybody at all. They belong to the server: offers now
+ * happen by themselves, and payouts wait for Stripe Connect.
+ */
+describe('the routes that belong to the server itself', () => {
+  it('refuses to offer an order without the staff key, or with the wrong one', async () => {
+    await signUpRunner(harness, { phone: '+447700900201' });
+    const orderId = await placeOrder();
+
+    const none = await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer` });
+    expect(none.statusCode).toBe(403);
+    const wrong = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${orderId}/offer`,
+      headers: { 'x-staff-key': 'guess' },
+    });
+    expect(wrong.statusCode).toBe(403);
+    expect(await harness.repository.offers.listForOrder(orderId)).toHaveLength(0);
+  });
+
+  it('refuses to pay out without the staff key, even as the Runner who delivered it', async () => {
+    const runner = await signUpRunner(harness, { phone: '+447700900201' });
+    const orderId = await placeOrder();
+    await harness.repository.orders.update(orderId, {
+      status: 'delivered',
+      runnerId: runner.runnerId,
+    });
+
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: `/orders/${orderId}/payout`,
+      headers: runner.authHeader,
+    });
+    expect(response.statusCode).toBe(403);
+    expect(await harness.repository.payouts.findByOrderId(orderId)).toBeNull();
+  });
+
+  it('refuses everybody when no staff key is set, which is how production runs', () => {
+    const request = { headers: { 'x-staff-key': 'anything' } } as never;
+    expect(() => requireStaff(request, undefined)).toThrow('That is only for Aldilivery itself.');
+    expect(() => requireStaff({ headers: {} } as never, 'k')).toThrow();
+    expect(() => requireStaff({ headers: { 'x-staff-key': 'k' } } as never, 'k')).not.toThrow();
   });
 });

@@ -1919,12 +1919,31 @@ named `ZZ TEST ROW do not use`.
   to go to. The payout route exists; it has nowhere to send the money.
 - **Reaching the Shopper.** The job says "ask them before swapping it", but a Runner has no way to
   contact the Shopper from the app yet.
-- **The open offer and payout routes.** `POST /jobs/:orderId/offer` and `POST /orders/:id/payout`
-  still need no sign-in. Both only ever do what should happen anyway — the offer route cannot skip
-  the queue and now refuses unpaid orders, and a payout needs a delivered order and cannot be paid
-  twice — but they should be for the server alone.
+- ~~The open offer and payout routes~~ — they need a key since Step 26.
 - **Location.** Runners do not share where they are yet, so every Runner counts as "position
   unknown" and the rotation alone decides who is asked first.
+
+---
+
+## 2026-09-27 — Step 26: the server's own routes need a key
+
+`POST /jobs/:orderId/offer` and `POST /orders/:id/payout` answered anybody, signed in or not
+(recorded as still missing in Step 25). Neither could do more than should happen anyway, but
+they belong to the server. Both now need the `STAFF_API_KEY` sent in an `x-staff-key` header,
+compared in constant time. The key is optional and is not set in production, so there they
+refuse everybody — and nothing needs them: offers happen by themselves since Step 25, and
+payouts wait for Stripe Connect.
+
+Also checked live the same day: on `30062c1` Anthony signed up a test Runner, approved both
+checks from the console, and a test Shopper's order reached that Runner — the clean-up list
+showed one order each.
+
+### Checked
+
+- Three new tests: an offer refused with no key and with a wrong one (and no offer made), a
+  payout refused even for the Runner who delivered it (and no payout made), and `requireStaff`
+  refusing everybody when no key is set. The existing job tests now send the key.
+- `pnpm run verify` — lint, typecheck and **374 tests** (43 core, 245 api, 86 web), clean.
 
 ---
 

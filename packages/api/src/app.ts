@@ -7,6 +7,8 @@
  * clock it controls, and prove the rules against it.
  */
 
+import { timingSafeEqual } from 'node:crypto';
+
 import cors from '@fastify/cors';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import { ZodError } from 'zod';
@@ -15,7 +17,7 @@ import type { StoreConfig } from '@aldilivery/core';
 
 import type { Repository } from './data/repository.js';
 import type { AccountRole } from './domain.js';
-import { ApiError, UnauthorisedError } from './errors.js';
+import { ApiError, ForbiddenError, UnauthorisedError } from './errors.js';
 import type { Env } from './env.js';
 import type { PaymentsGateway } from './lib/payments.js';
 import { verifySession } from './lib/tokens.js';
@@ -282,6 +284,28 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerPayoutRoutes(app);
   await registerSetRoutes(app);
   await registerWebhookRoutes(app);
+}
+
+/**
+ * For the few routes that belong to the server itself rather than to anybody signed in:
+ * offering an order to a Runner, and paying a Runner out.
+ *
+ * Until 27 Sep 2026 both answered anybody at all. Neither could do more than should happen
+ * anyway — the offer follows the queue and refuses unpaid orders, and a payout needs a
+ * delivered order and cannot be paid twice — but they are the server's to call, not the
+ * internet's. They now need the `STAFF_API_KEY` in an `x-staff-key` header. With no key set,
+ * which is how production runs today, they refuse everybody: offers happen by themselves
+ * now, and payouts wait for Stripe Connect.
+ */
+export function requireStaff(request: FastifyRequest, staffKey: string | undefined): void {
+  const given = request.headers['x-staff-key'];
+  const value = Array.isArray(given) ? given[0] : given;
+  const ok =
+    staffKey !== undefined &&
+    value !== undefined &&
+    value.length === staffKey.length &&
+    timingSafeEqual(Buffer.from(value), Buffer.from(staffKey));
+  if (!ok) throw new ForbiddenError('That is only for Aldilivery itself.');
 }
 
 /** Require a signed-in account, optionally of a particular kind. */

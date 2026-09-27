@@ -40,11 +40,15 @@ export const testEnv: Env = {
   otpLength: 6,
   otpTtlSeconds: 600,
   otpDelivery: 'log',
+  staffKey: 'test-staff-key',
   twilioAccountSid: undefined,
   twilioAuthToken: undefined,
   twilioFrom: undefined,
   seedOnStart: true,
 };
+
+/** What the server's own routes need — offering and paying out. See `requireStaff`. */
+export const STAFF = { 'x-staff-key': 'test-staff-key' };
 
 export interface TestHarness {
   app: FastifyInstance;

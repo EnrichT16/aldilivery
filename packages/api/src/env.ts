@@ -78,6 +78,11 @@ export interface Env {
   otpTtlSeconds: number;
   /** `log` writes the code to the server log, for development. `sms` sends it with Twilio. */
   otpDelivery: 'log' | 'sms';
+  /**
+   * Lets a person or a script call the routes that belong to the server itself. Optional:
+   * without it those routes refuse everybody. See `requireStaff` in app.ts.
+   */
+  staffKey: string | undefined;
   /** Twilio, for sending sign-in codes. All three, or none. */
   twilioAccountSid: string | undefined;
   twilioAuthToken: string | undefined;
@@ -184,6 +189,7 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     otpLength: integer(source['OTP_LENGTH'], 6),
     otpTtlSeconds: integer(source['OTP_TTL_SECONDS'], 600),
     otpDelivery: source['OTP_DELIVERY'] === 'sms' ? 'sms' : 'log',
+    staffKey: realValue(source['STAFF_API_KEY']),
     twilioAccountSid: realValue(source['TWILIO_ACCOUNT_SID']),
     twilioAuthToken: realValue(source['TWILIO_AUTH_TOKEN']),
     twilioFrom: realValue(source['TWILIO_FROM']),
