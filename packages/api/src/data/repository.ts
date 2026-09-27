@@ -24,6 +24,7 @@ import type {
   PaymentMethod,
   RecurringSet,
   Runner,
+  RunnerCheck,
   RunnerPayout,
   SetItem,
   Shopper,
@@ -145,6 +146,15 @@ export interface Repository {
     update(id: string, patch: Partial<Runner>): Promise<Runner>;
     /** Every Runner who is on shift, verified, and not already holding an offer. */
     listAvailable(): Promise<Runner[]>;
+    /** Every Runner, oldest first. For the approval tool, not for offering jobs. */
+    listAll(): Promise<Runner[]>;
+  };
+
+  /** The record of checks made on Runners. Only ever added to. */
+  runnerChecks: {
+    create(input: Omit<RunnerCheck, 'id'>): Promise<RunnerCheck>;
+    /** Oldest first. */
+    listForRunner(runnerId: string): Promise<RunnerCheck[]>;
   };
 
   organisations: {

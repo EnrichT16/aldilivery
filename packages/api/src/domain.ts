@@ -61,6 +61,20 @@ export interface Runner {
   updatedAt: Date;
 }
 
+export type RunnerCheckKind = 'right_to_work' | 'criminal_record';
+
+/** One time a person checked a Runner's documents, or took an approval back. */
+export interface RunnerCheck {
+  id: string;
+  runnerId: string;
+  kind: RunnerCheckKind;
+  outcome: 'verified' | 'withdrawn';
+  evidence: string;
+  checkedBy: string;
+  note: string;
+  checkedAt: Date;
+}
+
 export interface Organisation {
   id: string;
   name: string;

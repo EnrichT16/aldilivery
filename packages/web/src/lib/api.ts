@@ -192,6 +192,32 @@ export function verifySignInCode(phone: string, code: string): Promise<SignInRes
   });
 }
 
+/* ------------------------------------------------------------------------------------- *
+ * Runners
+ * ------------------------------------------------------------------------------------- */
+
+export type VehicleType = 'on_foot' | 'bicycle' | 'motorbike' | 'car' | 'van';
+
+export interface RegisterRunnerInput {
+  name: string;
+  phone: string;
+  vehicleType: VehicleType;
+}
+
+/**
+ * Signing up to run. The server hands back a token as it does for a Shopper, but the web app
+ * does not keep it: there is nothing a Runner can do here yet until a person has checked their
+ * documents, and keeping it would sign out a Shopper who happened to use the same browser.
+ */
+export function registerRunner(
+  input: RegisterRunnerInput,
+): Promise<{ runner: { name: string; phone: string } }> {
+  return request<{ runner: { name: string; phone: string } }>('/runners', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
 /** Who the stored token belongs to. Used to restore a session when the app opens. */
 export function fetchMe(): Promise<{ role: string; shopper?: Shopper }> {
   return request<{ role: string; shopper?: Shopper }>('/me');

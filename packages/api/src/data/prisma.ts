@@ -86,6 +86,23 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           orderBy: [{ lastJobCompletedAt: 'asc' }, { createdAt: 'asc' }],
         })) as unknown as Runner[];
       },
+      async listAll() {
+        return (await prisma.runner.findMany({
+          orderBy: { createdAt: 'asc' },
+        })) as unknown as Runner[];
+      },
+    },
+
+    runnerChecks: {
+      async create(input) {
+        return (await prisma.runnerCheck.create({ data: input as any })) as any;
+      },
+      async listForRunner(runnerId) {
+        return (await prisma.runnerCheck.findMany({
+          where: { runnerId },
+          orderBy: { checkedAt: 'asc' },
+        })) as any;
+      },
     },
 
     organisations: {

@@ -208,6 +208,7 @@ describe('the accessibility promises axe cannot see', () => {
     '/basket',
     '/confirm',
     '/runner',
+    '/runner/sign-up',
     '/just-looking',
   ];
 

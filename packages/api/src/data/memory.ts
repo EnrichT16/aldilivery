@@ -24,6 +24,7 @@ import type {
   PaymentMethod,
   RecurringSet,
   Runner,
+  RunnerCheck,
   RunnerPayout,
   SetItem,
   Shopper,
@@ -69,6 +70,7 @@ export function memoryRepository(): Repository {
   const payouts = new Map<string, RunnerPayout>();
   const sets = new Map<string, RecurringSet>();
   const oneTimeCodes = new Map<string, OneTimeCode>();
+  const runnerChecks: RunnerCheck[] = [];
 
   const now = (): Date => new Date();
 
@@ -161,6 +163,22 @@ export function memoryRepository(): Repository {
       },
       async listAvailable() {
         return [...runners.values()].filter((r) => r.available).map(clone);
+      },
+      async listAll() {
+        return [...runners.values()]
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+    },
+
+    runnerChecks: {
+      async create(input) {
+        const check: RunnerCheck = { ...input, id: id() };
+        runnerChecks.push(check);
+        return clone(check);
+      },
+      async listForRunner(runnerId) {
+        return runnerChecks.filter((c) => c.runnerId === runnerId).map(clone);
       },
     },
 

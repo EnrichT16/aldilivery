@@ -23,6 +23,17 @@ datasource db {
 // Enumerations
 // ---------------------------------------------------------------------------
 
+/// The two checks a person must make before a Runner is offered any job.
+enum RunnerCheckKind {
+  right_to_work
+  criminal_record
+}
+
+enum RunnerCheckOutcome {
+  verified
+  withdrawn
+}
+
 enum VehicleType {
   on_foot
   bicycle
@@ -167,6 +178,7 @@ model Runner {
   orders  Order[]
   offers  JobOffer[]
   payouts RunnerPayout[]
+  checks  RunnerCheck[]
 
   @@index([available, lastJobCompletedAt])
 }
@@ -487,3 +499,26 @@ model OneTimeCode {
 
   @@index([phone, consumedAt])
 }
+
+/// Every time a person checked a Runner's documents, or took an approval back.
+///
+/// Only ever added to. The two flags on Runner are what job offers read; this is the record of
+/// who set them, when, and on the strength of what, so the question "why was this person
+/// allowed to deliver to somebody vulnerable" always has an answer. Copies of documents are
+/// never kept here: only what kind of document was seen and a reference to it.
+model RunnerCheck {
+  id        String             @id @default(cuid())
+  runnerId  String
+  runner    Runner             @relation(fields: [runnerId], references: [id], onDelete: Cascade)
+  kind      RunnerCheckKind
+  outcome   RunnerCheckOutcome
+  /// What was seen, e.g. "Home Office share code checked on GOV.UK" or "Basic DBS certificate".
+  evidence  String
+  /// The name of the person who made the check.
+  checkedBy String
+  note      String             @default("")
+  checkedAt DateTime           @default(now())
+
+  @@index([runnerId])
+}
+
