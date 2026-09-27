@@ -203,6 +203,17 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
         return reply({ shopper: { ...FAKE_SHOPPER, ...patch } });
       }
 
+      if (path === '/runners' && method === 'POST') {
+        const input = (body ?? {}) as { name?: string; phone?: string };
+        return reply(
+          {
+            runner: { id: 'runner-1', name: input.name, phone: '+447700900101' },
+            token: 'runner-token',
+          },
+          201,
+        );
+      }
+
       if (path === '/shoppers') {
         return reply({ shopper: FAKE_SHOPPER, token: 'new-token' }, 201);
       }

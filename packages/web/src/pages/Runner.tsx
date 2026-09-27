@@ -70,7 +70,7 @@ export function RunnerDoor(): JSX.Element {
         </ul>
       </section>
 
-      <Link to="/sign-up" className="control bg-highlight text-ink text-lead">
+      <Link to="/runner/sign-up" className="control bg-highlight text-ink text-lead">
         Start signing up as a Runner
       </Link>
     </div>

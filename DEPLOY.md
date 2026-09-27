@@ -128,6 +128,26 @@ When it is active, open the app address in a private window, go to Set up your a
 
 If the sign-in screen says signing in by text is not switched on yet, one of the four values is missing, misspelled, or still the placeholder. The runtime log says so in a sentence when the server starts. If instead it says it could not send a text just now, Twilio refused the message, and the runtime log has Twilio's own reason, with a number. The commonest one on a trial account is that the phone you sent to has not been verified in the Twilio console.
 
+Approving a Runner
+
+Somebody signs up to run from the Runner page on the site. That makes their account, but they cannot be offered any job until a person has seen two things: their right to work in the United Kingdom, and a criminal record check. Nothing in Aldilivery decides that for you. The approval tool only writes down what you decided, who you are, when, and what you saw, and then lets the job queue include them.
+
+Look at the documents first, in whatever way you have arranged with the Runner. For the right to work that is usually a share code checked on the GOV.UK website, or a passport. For the criminal record check it is usually a basic DBS certificate. Do not keep copies of anybody's documents anywhere in Aldilivery. Write down only what kind of document it was and enough of a reference to find it again, such as the last four characters of a certificate number.
+
+Then, in the DigitalOcean dashboard, open the app, go to the Console tab, and choose the api component, exactly as for removing test rows.
+
+To see every Runner and which checks each one has passed, type node packages/api/scripts/runners.mjs and press enter.
+
+To record that you have seen somebody's right to work, type node packages/api/scripts/runners.mjs approve, then a space, dash dash phone, and their phone number, then dash dash check right-to-work, then dash dash evidence, and what you saw in double quotation marks, then dash dash by, and your name in double quotation marks. It shows you exactly what it would record and records nothing. If that is right, press the up arrow to bring the same line back, add a space and dash dash yes on the end, and press enter. Do the same again with dash dash check criminal-record for the other check. Each check is recorded separately, because each has its own evidence.
+
+For example, all on one line: node packages/api/scripts/runners.mjs approve --phone 07700900123 --check right-to-work --evidence "Share code checked on GOV.UK" --by "Anthony Ibe" --yes
+
+When both checks are recorded it says the Runner can now be offered jobs when they are on shift.
+
+If you ever need to take an approval back, because a document turns out to be wrong or a certificate has changed, use withdraw instead of approve, and dash dash reason instead of dash dash evidence. The Runner is taken off shift at once and cannot be offered another job until the check is recorded again. Nothing is ever deleted: to see every check ever made for one Runner, type the tool's name followed by history and dash dash phone and their number.
+
+If you type the command with nothing after it but the word help, it lists everything it can do.
+
 If something is wrong
 
 If the api component will not stay running, open its runtime logs from the app page. The messages are written in plain sentences and name the thing that is missing. A message about STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, AUTH_TOKEN_SECRET or DATABASE_URL means that variable is still a placeholder or still empty, and the fix is to paste the real value and save.

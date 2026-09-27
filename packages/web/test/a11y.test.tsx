@@ -28,6 +28,7 @@ const SCREENS: Array<{ name: string; path: string }> = [
   { name: 'the basket', path: '/basket' },
   { name: 'the confirmation screen', path: '/confirm' },
   { name: 'the Runner door', path: '/runner' },
+  { name: 'signing up to run', path: '/runner/sign-up' },
   { name: 'just looking', path: '/just-looking' },
   { name: 'a page that does not exist', path: '/nowhere' },
 ];
