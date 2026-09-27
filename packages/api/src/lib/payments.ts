@@ -35,6 +35,20 @@ export interface CreateTransferInput {
   destinationAccountId: string;
   orderId: string;
   description: string;
+  /**
+   * The Shopper's payment this money came from. Tying the transfer to it means the Runner can
+   * be paid as soon as the order is delivered, from money Stripe is still settling, instead of
+   * failing for "insufficient funds" until the platform balance catches up.
+   */
+  sourcePaymentIntentId?: string | undefined;
+}
+
+/** Where a Runner is with setting up how they are paid. */
+export interface ConnectedAccountStatus {
+  /** They have finished Stripe's form. */
+  detailsSubmitted: boolean;
+  /** Money can be sent to them. */
+  transfersActive: boolean;
 }
 
 export interface TransferResult {
@@ -62,12 +76,27 @@ export interface PaymentsGateway {
   readonly mode: 'stripe' | 'rehearsal';
   createPaymentIntent(input: CreatePaymentIntentInput): Promise<PaymentIntentResult>;
   createTransfer(input: CreateTransferInput): Promise<TransferResult>;
+  /**
+   * A Stripe account of the Runner's own, for their pay to go to (Rule Ten: Aldilivery never
+   * holds a Runner's money). Stripe collects their bank details on its own pages; they never
+   * pass through Aldilivery.
+   */
+  createConnectedAccount(input: { runnerId: string }): Promise<{ id: string }>;
+  /** A one-time link to Stripe's form for that account. Expires after a few minutes. */
+  createOnboardingLink(input: {
+    accountId: string;
+    returnUrl: string;
+    refreshUrl: string;
+  }): Promise<{ url: string }>;
+  getConnectedAccount(accountId: string): Promise<ConnectedAccountStatus>;
   /** Verifies the signature. A webhook that does not verify is not an event, it is noise. */
   constructWebhookEvent(rawBody: Buffer | string, signature: string): WebhookEvent;
 }
 
 export function stripeGateway(secretKey: string, webhookSecret: string): PaymentsGateway {
-  const stripe = new Stripe(secretKey, { apiVersion: '2024-12-18.acacia' as Stripe.LatestApiVersion });
+  const stripe = new Stripe(secretKey, {
+    apiVersion: '2024-12-18.acacia' as Stripe.LatestApiVersion,
+  });
 
   return {
     mode: 'stripe',
@@ -90,14 +119,50 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
     },
 
     async createTransfer(input) {
+      let sourceTransaction: string | undefined;
+      if (input.sourcePaymentIntentId) {
+        const intent = await stripe.paymentIntents.retrieve(input.sourcePaymentIntentId);
+        const charge = intent.latest_charge;
+        sourceTransaction = typeof charge === 'string' ? charge : charge?.id;
+      }
       const transfer = await stripe.transfers.create({
         amount: input.amountPence,
         currency: input.currency.toLowerCase(),
         destination: input.destinationAccountId,
         description: input.description,
         metadata: { orderId: input.orderId },
+        ...(sourceTransaction ? { source_transaction: sourceTransaction } : {}),
       });
       return { id: transfer.id, amountPence: transfer.amount };
+    },
+
+    async createConnectedAccount(input) {
+      const account = await stripe.accounts.create({
+        type: 'express',
+        country: 'GB',
+        business_type: 'individual',
+        capabilities: { transfers: { requested: true } },
+        metadata: { runnerId: input.runnerId },
+      });
+      return { id: account.id };
+    },
+
+    async createOnboardingLink(input) {
+      const link = await stripe.accountLinks.create({
+        account: input.accountId,
+        return_url: input.returnUrl,
+        refresh_url: input.refreshUrl,
+        type: 'account_onboarding',
+      });
+      return { url: link.url };
+    },
+
+    async getConnectedAccount(accountId) {
+      const account = await stripe.accounts.retrieve(accountId);
+      return {
+        detailsSubmitted: account.details_submitted ?? false,
+        transfersActive: account.capabilities?.transfers === 'active',
+      };
     },
 
     constructWebhookEvent(rawBody, signature) {
@@ -116,8 +181,8 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
  * `mode` above carries the same fact to `/health` and `/config` so nothing has to guess.
  */
 export interface RecordedCall {
-  kind: 'payment_intent' | 'transfer';
-  input: CreatePaymentIntentInput | CreateTransferInput;
+  kind: 'payment_intent' | 'transfer' | 'connected_account';
+  input: CreatePaymentIntentInput | CreateTransferInput | { runnerId: string };
 }
 
 export interface RehearsalGateway extends PaymentsGateway {
@@ -145,8 +210,22 @@ export function rehearsalGateway(): RehearsalGateway {
       calls.push({ kind: 'transfer', input });
       return { id: `tr_rehearsal_${counter}`, amountPence: input.amountPence };
     },
+    async createConnectedAccount(input) {
+      counter += 1;
+      calls.push({ kind: 'connected_account', input });
+      return { id: `acct_rehearsal_${counter}` };
+    },
+    async createOnboardingLink(input) {
+      // No Stripe to visit: straight back, as if the form had been filled in.
+      return { url: input.returnUrl };
+    },
+    async getConnectedAccount() {
+      return { detailsSubmitted: true, transfersActive: true };
+    },
     constructWebhookEvent(rawBody) {
-      const parsed = JSON.parse(typeof rawBody === 'string' ? rawBody : rawBody.toString('utf8')) as {
+      const parsed = JSON.parse(
+        typeof rawBody === 'string' ? rawBody : rawBody.toString('utf8'),
+      ) as {
         id?: string;
         type?: string;
         data?: unknown;

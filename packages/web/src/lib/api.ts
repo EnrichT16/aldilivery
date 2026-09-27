@@ -242,6 +242,23 @@ export function setRunnerAvailability(available: boolean): Promise<{ runner: Run
   );
 }
 
+export interface RunnerPay {
+  setup: 'not_started' | 'incomplete' | 'ready';
+  totalEarnedPence: number;
+  owedPence: number;
+  owedDeliveries: number;
+  completedDeliveryCount: number;
+}
+
+export function fetchMyPay(): Promise<RunnerPay> {
+  return request<RunnerPay>('/runners/me/payouts', undefined, 'runner');
+}
+
+/** A one-time link to Stripe's own form, where the Runner's bank details go. */
+export function startPaySetup(): Promise<{ url: string }> {
+  return request<{ url: string }>('/runners/me/payouts/setup', { method: 'POST' }, 'runner');
+}
+
 export interface OfferedJob {
   offer: { id: string };
   secondsLeft: number;

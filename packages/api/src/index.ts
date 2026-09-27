@@ -18,6 +18,7 @@ import { readEnv } from './env.js';
 import { rehearsalGateway, stripeGateway, type PaymentsGateway } from './lib/payments.js';
 import { codeMessage, twilioSender } from './lib/sms.js';
 import { sweepOffers } from './services/dispatch.js';
+import { sweepPayouts } from './services/pay-runner.js';
 
 async function main(): Promise<void> {
   const env = readEnv();
@@ -142,8 +143,20 @@ async function main(): Promise<void> {
   }, 10_000);
   sweep.unref();
 
+  // Every minute: pay any delivered order whose Runner can now be paid — somebody who finished
+  // setting up their account after delivering, or a transfer Stripe refused the first time.
+  const paySweep = setInterval(() => {
+    sweepPayouts(app.ctx, (orderId, failure) => {
+      app.log.warn({ orderId, err: failure }, 'Could not pay a Runner yet');
+    }).catch((failure: unknown) => {
+      app.log.error({ err: failure }, 'The payout sweep failed');
+    });
+  }, 60_000);
+  paySweep.unref();
+
   const shutdown = async (signal: string): Promise<void> => {
     clearInterval(sweep);
+    clearInterval(paySweep);
     app.log.info(`${signal} received, shutting down`);
     await app.close();
     await repository.disconnect();

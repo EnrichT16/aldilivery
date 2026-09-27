@@ -55,6 +55,8 @@ export interface AppContext {
    * drive offers by hand so that each step can be checked.
    */
   autoOffer: boolean;
+  /** Pay the Runner the moment an order is delivered. On in the real server, off in tests. */
+  autoPayout: boolean;
   deliverCode: (phone: string, code: string) => Promise<void>;
 }
 
@@ -73,7 +75,7 @@ declare module 'fastify' {
 }
 
 export interface BuildAppOptions extends Partial<
-  Pick<AppContext, 'now' | 'deliverCode' | 'gitCommit' | 'codeDelivery' | 'autoOffer'>
+  Pick<AppContext, 'now' | 'deliverCode' | 'gitCommit' | 'codeDelivery' | 'autoOffer' | 'autoPayout'>
 > {
   config: StoreConfig;
   repository: Repository;
@@ -109,6 +111,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     now: options.now ?? (() => new Date()),
     codeDelivery: options.codeDelivery ?? (options.env.isProduction ? 'off' : 'log'),
     autoOffer: options.autoOffer ?? true,
+    autoPayout: options.autoPayout ?? true,
     deliverCode:
       options.deliverCode ??
       (async (phone, code) => {

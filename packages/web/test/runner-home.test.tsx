@@ -20,6 +20,7 @@ interface State {
   available: boolean;
   offered: boolean;
   status: null | 'accepted' | 'shopping' | 'receipt_submitted' | 'delivering' | 'delivered';
+  pay: 'not_started' | 'incomplete' | 'ready';
   sent: Array<{ method: string; path: string; body: unknown }>;
 }
 
@@ -61,6 +62,18 @@ function stubRunnerApi(): void {
             available: state.available,
           },
         });
+      }
+      if (path === '/runners/me/payouts') {
+        return reply({
+          setup: state.pay,
+          totalEarnedPence: 1000,
+          owedPence: state.pay === 'ready' ? 0 : 500,
+          owedDeliveries: state.pay === 'ready' ? 0 : 1,
+          completedDeliveryCount: 2,
+        });
+      }
+      if (path === '/runners/me/payouts/setup') {
+        return reply({ url: 'https://connect.stripe.example/setup/abc' });
       }
       if (path === '/runners/me/availability') {
         state.available = (body as { available: boolean }).available;
@@ -147,7 +160,14 @@ function renderHome() {
 }
 
 beforeEach(() => {
-  state = { approved: true, available: false, offered: false, status: null, sent: [] };
+  state = {
+    approved: true,
+    available: false,
+    offered: false,
+    status: null,
+    pay: 'ready',
+    sent: [],
+  };
 });
 
 describe('reading a till total', () => {
@@ -266,5 +286,45 @@ describe('a Runner page', () => {
     await screen.findByLabelText('What did the till say?');
     results = await axe.run(document.body, options as axe.RunOptions);
     expect(results.violations.map((v) => v.id)).toEqual([]);
+  });
+});
+
+describe('how a Runner gets paid', () => {
+  it('shows what has been earned, and that pay goes straight to their own bank', async () => {
+    stubRunnerApi();
+    renderHome();
+    expect(await screen.findByText(/You have earned £10.00 from 2 deliveries/)).toBeInTheDocument();
+    expect(screen.getByText(/straight to your own bank account/)).toBeInTheDocument();
+  });
+
+  it('says what is owed and sends them to Stripe to set up, saying Aldilivery never sees the details', async () => {
+    const user = userEvent.setup({ delay: null });
+    state.pay = 'not_started';
+    const assign = vi.fn();
+    vi.stubGlobal('location', { ...window.location, assign, search: '' });
+    stubRunnerApi();
+    renderHome();
+
+    expect(await screen.findByText(/£5.00 more is owed to you/)).toBeInTheDocument();
+    expect(screen.getByText(/Aldilivery never sees them/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Set up how you get paid' }));
+    expect(assign).toHaveBeenCalledWith('https://connect.stripe.example/setup/abc');
+  });
+
+  it('offers to finish when they started but Stripe needs more', async () => {
+    state.pay = 'incomplete';
+    stubRunnerApi();
+    renderHome();
+    expect(
+      await screen.findByRole('button', { name: 'Finish setting up how you get paid' }),
+    ).toBeInTheDocument();
+  });
+
+  it('is not shown before the checks are done', async () => {
+    state.approved = false;
+    stubRunnerApi();
+    renderHome();
+    await screen.findByRole('heading', { name: 'Waiting for your checks' });
+    expect(screen.queryByRole('heading', { name: 'How you get paid' })).not.toBeInTheDocument();
   });
 });

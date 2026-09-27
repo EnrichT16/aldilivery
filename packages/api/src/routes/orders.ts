@@ -17,6 +17,7 @@ import { requireSession } from '../app.js';
 import { BadRequestError, ForbiddenError, NotFoundError, PaymentFailedError } from '../errors.js';
 import { priceLines } from '../services/basket.js';
 import { offerOrder } from '../services/dispatch.js';
+import { payOutOrder } from '../services/pay-runner.js';
 import {
   assertConfirmedBeforePayment,
   assertNotAlreadyConfirmed,
@@ -340,6 +341,16 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     // moves on. Waiting for the payout would leave it stuck until Stripe Connect exists.
     if (status === 'delivered' && order.runnerId) {
       await repository.runners.update(order.runnerId, { lastJobCompletedAt: at });
+      // Straight to the Runner's own account. If it is not set up yet, nothing is lost: the
+      // money is owed, and the payout sweep sends it as soon as it is.
+      if (app.ctx.autoPayout) {
+        try {
+          const paid = await payOutOrder(app.ctx, order.id);
+          return { order: paid.order, payout: paid.payout, notes: paid.notes };
+        } catch (failure) {
+          request.log.info({ orderId: order.id, err: failure }, 'Runner not paid yet');
+        }
+      }
     }
 
     return { order: updated };

@@ -11,123 +11,95 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import { formatPence, RUNNER_PAYMENT_PENCE } from '@aldilivery/core';
+import { RUNNER_PAYMENT_PENCE } from '@aldilivery/core';
 import { z } from 'zod';
 
-import { requireStaff } from '../app.js';
-import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
-import { planPayout } from '../services/payouts.js';
+import { requireSession, requireStaff } from '../app.js';
+import { BadRequestError, NotFoundError } from '../errors.js';
+import { payOutOrder } from '../services/pay-runner.js';
 
 export async function registerPayoutRoutes(app: FastifyInstance): Promise<void> {
-  const { repository, config, payments, now } = app.ctx;
-  const symbol = config.store.currencySymbol;
+  const { repository, payments, env } = app.ctx;
 
+  /** Paying out one order by hand. For the server and staff only; it normally happens by itself. */
   app.post('/orders/:id/payout', async (request) => {
     requireStaff(request, app.ctx.env.staffKey);
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
-
-    const order = await repository.orders.findById(id);
-    if (!order) throw new NotFoundError('order');
-    if (!order.runnerId) throw new BadRequestError('That order has no Runner yet.');
-
-    if (order.status !== 'delivered' && order.status !== 'completed') {
-      throw new ConflictError('A Runner is paid once the order is delivered.');
-    }
-
-    const alreadyPaid = await repository.payouts.findByOrderId(order.id);
-    if (alreadyPaid) {
-      throw new ConflictError('That order has already been paid out.', {
-        payoutId: alreadyPaid.id,
-      });
-    }
-
-    const runner = await repository.runners.findById(order.runnerId);
-    if (!runner) throw new NotFoundError('Runner');
-
-    const plan = planPayout(
-      {
-        coolBagDepositStatus: runner.coolBagDepositStatus,
-        coolBagWithheldPence: runner.coolBagWithheldPence,
-        completedDeliveryCount: runner.completedDeliveryCount,
-      },
-      config.fees.coolBag,
-    );
-
-    // Rule Two, checked rather than assumed.
-    if (plan.earnedPence !== RUNNER_PAYMENT_PENCE) {
-      throw new Error('Rule Two: a Runner earns five pounds on every completed order.');
-    }
-
-    let transferId: string | null = null;
-    if (plan.transferredPence > 0) {
-      if (!runner.stripeConnectedAccountId) {
-        throw new BadRequestError(
-          'We cannot pay you until your bank details are set up. Nothing is lost; the money is owed to you.',
-        );
-      }
-      const transfer = await payments.createTransfer({
-        amountPence: plan.transferredPence,
-        currency: config.fees.currency,
-        destinationAccountId: runner.stripeConnectedAccountId,
-        orderId: order.id,
-        description: `${config.productName} delivery ${order.id}`,
-      });
-      transferId = transfer.id;
-    }
-
-    const payout = await repository.payouts.create({
-      orderId: order.id,
-      runnerId: runner.id,
-      earnedPence: plan.earnedPence,
-      coolBagWithheldPence: plan.coolBagWithheldPence,
-      transferredPence: plan.transferredPence,
-      stripeTransferId: transferId,
-    });
-
-    await repository.runners.update(runner.id, {
-      coolBagDepositStatus: plan.coolBagDepositStatusAfter,
-      coolBagWithheldPence: plan.coolBagWithheldTotalAfter,
-      completedDeliveryCount: plan.completedDeliveryCountAfter,
-      lastJobCompletedAt: now(),
-    });
-
-    const updatedOrder = await repository.orders.update(order.id, {
-      status: 'completed',
-      completedAt: order.completedAt ?? now(),
-      runnerTransferId: transferId,
-    });
-
-    const notes = [`You earned ${formatPence(plan.earnedPence, symbol)} for this delivery.`];
-    if (plan.coolBagWithheldPence > 0) {
-      notes.push(
-        `${formatPence(plan.coolBagWithheldPence, symbol)} is held towards your cool bag deposit. You get it back after ${config.fees.coolBag.releaseAfterCompletedDeliveries} deliveries.`,
-      );
-    }
-    if (plan.coolBagReleasedPence > 0) {
-      notes.push(
-        `Your cool bag deposit of ${formatPence(plan.coolBagReleasedPence, symbol)} has been paid back to you.`,
-      );
-    }
-    notes.push(`${formatPence(plan.transferredPence, symbol)} is on its way to your account.`);
-
-    return { payout, plan, order: updatedOrder, notes };
+    return payOutOrder(app.ctx, id);
   });
 
-  /** A Runner's own record of what they have earned. */
-  app.get('/runners/:id/payouts', async (request) => {
-    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
-    const runner = await repository.runners.findById(id);
-    if (!runner) throw new NotFoundError('Runner');
+  /**
+   * A Runner's own record of what they have earned, and whether their pay can reach them.
+   *
+   * Until 27 Sep 2026 this was `/runners/:id/payouts` and answered anybody who knew a Runner's
+   * id, signed in or not. It is now only ever the signed-in Runner's own.
+   */
+  app.get('/runners/me/payouts', async (request) => {
+    const session = requireSession(request, 'runner');
+    const runner = await repository.runners.findById(session.accountId);
+    if (!runner) throw new NotFoundError('account');
 
-    const payouts = await repository.payouts.listForRunner(id);
+    const payouts = await repository.payouts.listForRunner(runner.id);
+    const status = runner.stripeConnectedAccountId
+      ? await payments.getConnectedAccount(runner.stripeConnectedAccountId)
+      : null;
+
+    // Delivered and not yet paid: owed, and paid by the sweep once their account is ready.
+    const delivered = (await repository.orders.listByStatus('delivered')).filter(
+      (order) => order.runnerId === runner.id,
+    );
+    const owed = [];
+    for (const order of delivered) {
+      if (!(await repository.payouts.findByOrderId(order.id))) owed.push(order);
+    }
+
     return {
+      setup: !status ? 'not_started' : status.transfersActive ? 'ready' : 'incomplete',
       payouts,
       totalEarnedPence: payouts.reduce((sum, payout) => sum + payout.earnedPence, 0),
       totalTransferredPence: payouts.reduce((sum, payout) => sum + payout.transferredPence, 0),
+      owedPence: owed.length * RUNNER_PAYMENT_PENCE,
+      owedDeliveries: owed.length,
       coolBagHeldPence: runner.coolBagWithheldPence,
       coolBagDepositStatus: runner.coolBagDepositStatus,
       completedDeliveryCount: runner.completedDeliveryCount,
       perOrderPence: RUNNER_PAYMENT_PENCE,
     };
+  });
+
+  /**
+   * Start, or carry on with, setting up where a Runner's pay goes. Makes their Stripe account the
+   * first time, and always hands back a fresh one-time link to Stripe's own form, where their
+   * bank details go straight to Stripe and never through Aldilivery.
+   */
+  app.post('/runners/me/payouts/setup', async (request) => {
+    const session = requireSession(request, 'runner');
+    const runner = await repository.runners.findById(session.accountId);
+    if (!runner) throw new NotFoundError('account');
+
+    // Back to the web app when Stripe is done: the one origin this API serves, or the one the
+    // request came from if that is an allowed one.
+    const origin = request.headers.origin;
+    const allowed = env.allowedOrigins.filter((o) => o !== '*');
+    const webOrigin =
+      typeof origin === 'string' && (env.allowedOrigins.includes('*') || allowed.includes(origin))
+        ? origin
+        : allowed[0];
+    if (!webOrigin) {
+      throw new BadRequestError('We do not know where to send you back to. Please tell us.');
+    }
+
+    let accountId = runner.stripeConnectedAccountId;
+    if (!accountId) {
+      accountId = (await payments.createConnectedAccount({ runnerId: runner.id })).id;
+      await repository.runners.update(runner.id, { stripeConnectedAccountId: accountId });
+    }
+
+    const link = await payments.createOnboardingLink({
+      accountId,
+      returnUrl: `${webOrigin}/runner/home?pay=back`,
+      refreshUrl: `${webOrigin}/runner/home?pay=again`,
+    });
+    return { url: link.url };
   });
 }
