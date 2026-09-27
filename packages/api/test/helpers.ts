@@ -68,6 +68,8 @@ export interface TestAppOptions {
   payments?: PaymentsGateway;
   /** How sign-in codes go out. `log` unless a test says otherwise. */
   codeDelivery?: 'sms' | 'log' | 'off';
+  /** Offer orders to Runners automatically, as the real server does. Off unless asked for. */
+  autoOffer?: boolean;
   /** In place of recording codes: used to make sending fail. */
   deliverCode?: (phone: string, code: string) => Promise<void>;
 }
@@ -94,6 +96,7 @@ export async function buildTestApp(
     gitCommit: null,
     now,
     codeDelivery: options.codeDelivery ?? 'log',
+    autoOffer: options.autoOffer ?? false,
     deliverCode:
       options.deliverCode ??
       (async (phone, code) => {

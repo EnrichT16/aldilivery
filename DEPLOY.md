@@ -148,6 +148,12 @@ If you ever need to take an approval back, because a document turns out to be wr
 
 If you type the command with nothing after it but the word help, it lists everything it can do.
 
+To remove a Runner completely, such as a test sign-up or somebody who changed their mind before doing any work, use remove, with dash dash phone, dash dash reason and dash dash by, exactly like withdraw. It shows what it would remove and removes nothing until you add dash dash yes. It refuses for anybody who has ever had an order, because their deliveries and pay are a record that has to stay; for them, use withdraw.
+
+The test-row clean-up script now also removes Runners whose name is the test name, ZZ TEST ROW do not use, alongside the test Shoppers.
+
+Once a Runner is approved, they go to their Runner page on the site, which is the app address with slash runner slash home on the end. There they go on shift, and a job appears on its own when an order is paid for, with sixty seconds to take it. If they do not answer it passes to the next Runner, and if nobody is on shift the order waits and is offered as soon as somebody comes on. For now a Runner stays signed in on the phone they signed up on, the same as a Shopper, until signing in by text is switched on.
+
 If something is wrong
 
 If the api component will not stay running, open its runtime logs from the app page. The messages are written in plain sentences and name the thing that is missing. A message about STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, AUTH_TOKEN_SECRET or DATABASE_URL means that variable is still a placeholder or still empty, and the fix is to paste the real value and save.

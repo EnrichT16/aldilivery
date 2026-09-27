@@ -164,6 +164,13 @@ export function memoryRepository(): Repository {
       async listAvailable() {
         return [...runners.values()].filter((r) => r.available).map(clone);
       },
+      async delete(key) {
+        runners.delete(key);
+        for (const [offerId, offer] of offers) if (offer.runnerId === key) offers.delete(offerId);
+        for (let i = runnerChecks.length - 1; i >= 0; i -= 1) {
+          if (runnerChecks[i]!.runnerId === key) runnerChecks.splice(i, 1);
+        }
+      },
       async listAll() {
         return [...runners.values()]
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
@@ -390,6 +397,9 @@ export function memoryRepository(): Repository {
       },
       async listByPool(poolId) {
         return [...orders.values()].filter((o) => o.poolId === poolId).map(clone);
+      },
+      async countForRunner(runnerId) {
+        return [...orders.values()].filter((o) => o.runnerId === runnerId).length;
       },
     },
 

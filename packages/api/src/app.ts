@@ -47,6 +47,12 @@ export interface AppContext {
    * the log sign in as anybody. The sign-in screen says it is not switched on yet.
    */
   codeDelivery: 'sms' | 'log' | 'off';
+  /**
+   * Offer an order to a Runner the moment it is paid for, and sweep for lapsed offers every
+   * `offerSweepSeconds`. On in the real server. Off unless asked for in the tests, which
+   * drive offers by hand so that each step can be checked.
+   */
+  autoOffer: boolean;
   deliverCode: (phone: string, code: string) => Promise<void>;
 }
 
@@ -65,7 +71,7 @@ declare module 'fastify' {
 }
 
 export interface BuildAppOptions extends Partial<
-  Pick<AppContext, 'now' | 'deliverCode' | 'gitCommit' | 'codeDelivery'>
+  Pick<AppContext, 'now' | 'deliverCode' | 'gitCommit' | 'codeDelivery' | 'autoOffer'>
 > {
   config: StoreConfig;
   repository: Repository;
@@ -100,6 +106,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     gitCommit: 'gitCommit' in options ? (options.gitCommit ?? null) : gitCommit(),
     now: options.now ?? (() => new Date()),
     codeDelivery: options.codeDelivery ?? (options.env.isProduction ? 'off' : 'log'),
+    autoOffer: options.autoOffer ?? true,
     deliverCode:
       options.deliverCode ??
       (async (phone, code) => {

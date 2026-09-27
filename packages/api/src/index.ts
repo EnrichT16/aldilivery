@@ -17,6 +17,7 @@ import { seedOnStartup, type StartupSeedOutcome } from './data/startup-seed.js';
 import { readEnv } from './env.js';
 import { rehearsalGateway, stripeGateway, type PaymentsGateway } from './lib/payments.js';
 import { codeMessage, twilioSender } from './lib/sms.js';
+import { sweepOffers } from './services/dispatch.js';
 
 async function main(): Promise<void> {
   const env = readEnv();
@@ -130,7 +131,19 @@ async function main(): Promise<void> {
     );
   }
 
+  // Every few seconds: move offers whose sixty seconds have run out on to the next Runner, and
+  // offer any paid order that nobody has yet. A sweep that fails is logged and tried again.
+  const sweep = setInterval(() => {
+    sweepOffers(app.ctx, (orderId, failure) => {
+      app.log.warn({ orderId, err: failure }, 'Could not offer a waiting order');
+    }).catch((failure: unknown) => {
+      app.log.error({ err: failure }, 'The offer sweep failed');
+    });
+  }, 10_000);
+  sweep.unref();
+
   const shutdown = async (signal: string): Promise<void> => {
+    clearInterval(sweep);
     app.log.info(`${signal} received, shutting down`);
     await app.close();
     await repository.disconnect();

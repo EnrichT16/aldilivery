@@ -8,7 +8,8 @@
  * wrong tool for clearing up after a test, so this exists separately, outside the server, and
  * has to be run by hand with the database address given to it.
  *
- * What it will delete: Shoppers whose display name is exactly the marker below. Nothing else.
+ * What it will delete: Shoppers whose display name, and Runners whose name, is exactly the
+ * marker below. Nothing else.
  * There is no argument for deleting anybody else, no pattern matching on anything a real
  * person might be called, and no way to ask it to delete everything.
  *
@@ -54,9 +55,24 @@ try {
     orderBy: { createdAt: 'asc' },
   });
 
-  if (shoppers.length === 0) {
-    console.log(`No Shoppers named "${TEST_MARKER}". Nothing to do.`);
+  // Runners given the same test name, for the Runner sign-up. Their checks and offers go with
+  // them by cascade; an order they carried keeps its record, with the Runner left empty.
+  const runners = await prisma.runner.findMany({
+    where: { name: TEST_MARKER },
+    select: { id: true, phone: true, createdAt: true, _count: { select: { orders: true } } },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  if (shoppers.length === 0 && runners.length === 0) {
+    console.log(`No Shoppers or Runners named "${TEST_MARKER}". Nothing to do.`);
     process.exit(0);
+  }
+
+  for (const runner of runners) {
+    console.log(
+      `Test Runner ${runner.phone}  created ${runner.createdAt.toISOString().slice(0, 16).replace('T', ' ')}  ` +
+        `${runner._count.orders} order(s)`,
+    );
   }
 
   console.log(`Found ${shoppers.length} test Shopper${shoppers.length === 1 ? '' : 's'}:`);
@@ -75,6 +91,11 @@ try {
     console.log('\nNothing has been deleted. Run it again with --yes to go ahead.');
     process.exit(0);
   }
+
+  const removedRunners = await prisma.runner.deleteMany({ where: { name: TEST_MARKER } });
+  console.log(
+    `\nDeleted ${removedRunners.count} test Runner${removedRunners.count === 1 ? '' : 's'}.`,
+  );
 
   const { count } = await prisma.shopper.deleteMany({ where: { displayName: TEST_MARKER } });
   console.log(`\nDeleted ${count} Shopper${count === 1 ? '' : 's'}.`);

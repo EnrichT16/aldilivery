@@ -14,6 +14,7 @@ import { requireSession } from '../app.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
 import { NOT_A_UK_NUMBER, ukPhone } from '../lib/phone.js';
 import { hashCode, signSession, suggestHandle } from '../lib/tokens.js';
+import { sweepOffers } from '../services/dispatch.js';
 
 /** Checked, and turned into `+44…`, so the same number always finds the same account. */
 const phoneSchema = z
@@ -178,6 +179,12 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       ...(body.latitude !== undefined ? { latitude: body.latitude } : {}),
       ...(body.longitude !== undefined ? { longitude: body.longitude } : {}),
     });
+    // Somebody may have been waiting for a Runner. Look now rather than at the next sweep.
+    if (body.available && app.ctx.autoOffer) {
+      await sweepOffers(app.ctx, (orderId, failure) => {
+        request.log.warn({ orderId, err: failure }, 'Could not offer a waiting order');
+      });
+    }
     return { runner: publicRunner(runner) };
   });
 
