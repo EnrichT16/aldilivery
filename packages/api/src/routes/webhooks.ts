@@ -12,6 +12,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 
 import { BadRequestError } from '../errors.js';
+import { offerOrder } from '../services/dispatch.js';
 
 interface PaymentIntentLike {
   id?: string;
@@ -49,6 +50,11 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           // Only ever confirms a payment for an order that was already confirmed and sent.
           if (order && order.status === 'confirmed') {
             await repository.orders.update(order.id, { status: 'paid' });
+            // The bank has approved it: now it can go to a Runner. The sweep catches it if
+            // nobody is free right now.
+            if (app.ctx.autoOffer) {
+              await offerOrder(app.ctx, order.id).catch(() => undefined);
+            }
           }
         }
         break;

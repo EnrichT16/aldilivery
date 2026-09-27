@@ -14,18 +14,12 @@ import { z } from 'zod';
 
 import { requireSession } from '../app.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
-import {
-  buildOfferQueue,
-  isOfferExpired,
-  nextRunnerToOffer,
-  offerExpiryAt,
-  poolOrders,
-} from '../services/allocation.js';
+import { isOfferExpired, poolOrders } from '../services/allocation.js';
+import { offerOrder } from '../services/dispatch.js';
 import { assertTransitionAllowed } from '../services/orders.js';
 
 export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
   const { repository, config, now } = app.ctx;
-  const holdSeconds = config.allocation.offerHoldSeconds;
 
   /**
    * Offer an order to the next Runner in the rotation.
@@ -35,67 +29,7 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post('/jobs/:orderId/offer', async (request) => {
     const { orderId } = z.object({ orderId: z.string().min(1) }).parse(request.params);
-
-    const order = await repository.orders.findById(orderId);
-    if (!order) throw new NotFoundError('order');
-    if (order.runnerId) {
-      throw new ConflictError('That order already has a Runner.');
-    }
-
-    const at = now();
-    const existing = await repository.offers.listForOrder(order.id);
-
-    const live = existing.find((offer) => offer.outcome === 'pending' && !isOfferExpired(offer, at));
-    if (live) {
-      return { offer: live, alreadyOffered: true };
-    }
-
-    // Anything still pending has run out of time. Say so before moving on.
-    for (const lapsed of existing.filter((offer) => offer.outcome === 'pending')) {
-      await repository.offers.update(lapsed.id, { outcome: 'expired', respondedAt: at });
-    }
-
-    const runners = await repository.runners.listAvailable();
-    const queue = buildOfferQueue(
-      { latitude: order.latitude, longitude: order.longitude },
-      runners.map((runner) => ({
-        id: runner.id,
-        latitude: runner.latitude,
-        longitude: runner.longitude,
-        rightToWorkVerified: runner.rightToWorkVerified,
-        criminalRecordCheckVerified: runner.criminalRecordCheckVerified,
-        available: runner.available,
-        lastJobCompletedAt: runner.lastJobCompletedAt,
-      })),
-      at,
-    );
-
-    const next = nextRunnerToOffer(
-      queue,
-      existing.map((offer) => offer.runnerId),
-    );
-
-    if (!next) {
-      return {
-        offer: null,
-        alreadyOffered: false,
-        message: 'No Runner is free for this order yet. We will keep looking.',
-      };
-    }
-
-    const offer = await repository.offers.create({
-      orderId: order.id,
-      runnerId: next.runnerId,
-      expiresAt: offerExpiryAt(at, holdSeconds),
-      queuePosition: next.queuePosition,
-      distanceMiles: next.distanceMiles,
-    });
-
-    if (order.status === 'paid') {
-      await repository.orders.update(order.id, { status: 'offered' });
-    }
-
-    return { offer, holdSeconds, queueLength: queue.length };
+    return offerOrder(app.ctx, orderId);
   });
 
   /** What is being offered to me right now. */
@@ -108,18 +42,63 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
       (offer) => offer.runnerId === session.accountId && !isOfferExpired(offer, at),
     );
 
+    // Enough to decide whether to take it, and no more. The address, the doorstep
+    // instructions and who the Shopper is only reach the Runner who accepts.
     const withOrders = await Promise.all(
-      mine.map(async (offer) => ({
-        offer,
-        secondsLeft: Math.max(
-          0,
-          Math.round((offer.expiresAt.getTime() - at.getTime()) / 1000),
-        ),
-        order: await repository.orders.findById(offer.orderId),
-      })),
+      mine.map(async (offer) => {
+        const order = await repository.orders.findById(offer.orderId);
+        return {
+          offer,
+          secondsLeft: Math.max(0, Math.round((offer.expiresAt.getTime() - at.getTime()) / 1000)),
+          job: order
+            ? {
+                itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
+                goodsEstimatePence: order.goodsEstimatePence,
+                runnerPaymentPence: order.runnerPaymentPence,
+                distanceMiles: offer.distanceMiles,
+              }
+            : null,
+        };
+      }),
     );
 
     return { offers: withOrders };
+  });
+
+  /**
+   * The job I am doing now, with everything needed to do it: the list, where it goes, and the
+   * doorstep instructions exactly as the Shopper wrote them. Null when there is none.
+   */
+  app.get('/jobs/current', async (request) => {
+    const session = requireSession(request, 'runner');
+    for (const status of ['accepted', 'shopping', 'receipt_submitted', 'delivering'] as const) {
+      const order = (await repository.orders.listByStatus(status)).find(
+        (candidate) => candidate.runnerId === session.accountId,
+      );
+      if (order) {
+        const shopper = await repository.shoppers.findById(order.shopperId);
+        return {
+          job: {
+            orderId: order.id,
+            status: order.status,
+            shopperName: shopper?.displayName ?? 'the Shopper',
+            deliveryAddress: order.deliveryAddress,
+            doorstepProtocol: order.doorstepProtocolSnapshot,
+            substitutionDefault: shopper?.substitutionDefault ?? 'ask_me',
+            goodsEstimatePence: order.goodsEstimatePence,
+            receiptTotalPence: order.receiptTotalPence,
+            runnerPaymentPence: order.runnerPaymentPence,
+            items: order.items.map((item) => ({
+              id: item.id,
+              name: item.name,
+              quantity: item.quantity,
+              estimatedPricePence: item.estimatedPricePence,
+            })),
+          },
+        };
+      }
+    }
+    return { job: null };
   });
 
   app.post('/jobs/:offerId/accept', async (request) => {
@@ -186,6 +165,9 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
     }
 
     await repository.offers.update(offer.id, { outcome: 'declined', respondedAt: now() });
+    if (app.ctx.autoOffer) {
+      await offerOrder(app.ctx, offer.orderId).catch(() => undefined);
+    }
     return { declined: true, message: 'No problem. We will offer it to somebody else.' };
   });
 

@@ -66,10 +66,10 @@ describe('signing up to run', () => {
       vehicleType: 'bicycle',
     });
     expect(screen.getByText(/We will contact you on 07700 900101/)).toBeInTheDocument();
-    expect(screen.getByText(/not ready yet/)).toBeInTheDocument();
+    expect(screen.getByText(/your Runner page is where you go on shift/)).toBeInTheDocument();
   });
 
-  it('does not keep the Runner token, so a Shopper in the same browser stays signed in', async () => {
+  it('keeps the Runner signed in on this device, without touching a Shopper signed in here', async () => {
     const user = userEvent.setup({ delay: null });
     renderAt('/runner/sign-up');
     await user.type(screen.getByLabelText('Your name'), 'Tomasz');
@@ -77,7 +77,12 @@ describe('signing up to run', () => {
     await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
     await screen.findByRole('heading', { level: 1, name: 'Thank you, Tomasz' });
 
+    expect(window.localStorage.getItem('aldilivery.runner.token')).toBe('runner-token');
     expect(window.localStorage.getItem('aldilivery.session.token')).toBeNull();
+    expect(screen.getByRole('link', { name: 'Go to your Runner page' })).toHaveAttribute(
+      'href',
+      '/runner/home',
+    );
   });
 
   it('lists what is missing in words, and puts focus on the list', async () => {

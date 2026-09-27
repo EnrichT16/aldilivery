@@ -148,6 +148,8 @@ export interface Repository {
     listAvailable(): Promise<Runner[]>;
     /** Every Runner, oldest first. For the approval tool, not for offering jobs. */
     listAll(): Promise<Runner[]>;
+    /** Removes a Runner and their checks and offers. Only for one who has never had an order. */
+    delete(id: string): Promise<void>;
   };
 
   /** The record of checks made on Runners. Only ever added to. */
@@ -199,6 +201,8 @@ export interface Repository {
     listForShopper(shopperId: string): Promise<Order[]>;
     listByStatus(status: OrderStatus): Promise<Order[]>;
     listByPool(poolId: string): Promise<Order[]>;
+    /** How many orders a Runner has ever been given, of any status. */
+    countForRunner(runnerId: string): Promise<number>;
   };
 
   offers: {

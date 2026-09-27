@@ -72,6 +72,8 @@ export async function runRunnersCommand(argv: string[], deps: CommandDeps): Prom
         return await decide('verified', options, deps);
       case 'withdraw':
         return await decide('withdrawn', options, deps);
+      case 'remove':
+        return await remove(options, deps);
       default:
         write(`There is no command called "${command}".`);
         write(USAGE);
@@ -93,6 +95,8 @@ export const USAGE = [
   '      records that you have seen a document. Use --check criminal-record for the other one.',
   '  node packages/api/scripts/runners.mjs withdraw --phone 07700900123 --check criminal-record --reason "Why" --by "Your name"',
   '      takes an approval back, and takes the Runner off shift.',
+  '  node packages/api/scripts/runners.mjs remove --phone 07700900123 --reason "Signed up by mistake" --by "Your name"',
+  '      removes a Runner who has never had an order, such as a test one. Refused otherwise.',
   'Nothing is recorded until you add --yes to the end.',
 ].join('\n');
 
@@ -239,5 +243,36 @@ async function decide(
     const missing = updated.rightToWorkVerified ? 'criminal record check' : 'right to work';
     deps.write(`${runner.name} still needs the ${missing} before they can be offered any job.`);
   }
+  return 0;
+}
+
+/**
+ * Removing a Runner entirely: a test sign-up, or somebody who changed their mind before doing
+ * any work. Refused for anybody who has ever had an order, because their deliveries, their
+ * pay and the checks behind them are a record that has to stay.
+ */
+async function remove(options: Record<string, string | true>, deps: CommandDeps): Promise<number> {
+  const runner = await findRunner(options, deps);
+  const checkedBy = text(options, 'by');
+  if (!checkedBy) throw new Error('Say who is removing them with --by and your name.');
+  const reason = text(options, 'reason');
+  if (!reason) throw new Error('Say why with --reason.');
+
+  const orders = await deps.repository.orders.countForRunner(runner.id);
+  if (orders > 0) {
+    throw new Error(
+      `${runner.name} has had ${orders} order${orders === 1 ? '' : 's'}, so their record has to stay. Use withdraw instead to stop them being offered jobs.`,
+    );
+  }
+
+  const summary = `${runner.name} (${runner.phone}), removed by ${checkedBy}: ${reason}.`;
+  if (options['yes'] !== true) {
+    deps.write(`This would remove: ${summary}`);
+    deps.write('Nothing has been removed. Run it again with --yes on the end to go ahead.');
+    return 0;
+  }
+
+  await deps.repository.runners.delete(runner.id);
+  deps.write(`Removed: ${summary}`);
   return 0;
 }

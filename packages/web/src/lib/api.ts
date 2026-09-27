@@ -6,7 +6,7 @@
  * stack trace.
  */
 
-import { readToken } from './session';
+import { readRunnerToken, readToken } from './session';
 
 export interface CatalogueItem {
   id: string;
@@ -62,10 +62,14 @@ function isNotJson(response: Response): boolean {
   return typeof contentType === 'string' && !contentType.includes('json');
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(
+  path: string,
+  init?: RequestInit,
+  as: 'shopper' | 'runner' = 'shopper',
+): Promise<T> {
   let response: Response;
   try {
-    const token = readToken();
+    const token = as === 'runner' ? readRunnerToken() : readToken();
     response = await fetch(`${BASE_URL}${path}`, {
       ...init,
       headers: {
@@ -205,17 +209,99 @@ export interface RegisterRunnerInput {
 }
 
 /**
- * Signing up to run. The server hands back a token as it does for a Shopper, but the web app
- * does not keep it: there is nothing a Runner can do here yet until a person has checked their
- * documents, and keeping it would sign out a Shopper who happened to use the same browser.
+ * Signing up to run. The token that comes back is kept as the Runner's, separately from any
+ * Shopper signed in on the same browser — see `readRunnerToken`.
  */
 export function registerRunner(
   input: RegisterRunnerInput,
-): Promise<{ runner: { name: string; phone: string } }> {
-  return request<{ runner: { name: string; phone: string } }>('/runners', {
+): Promise<{ runner: { name: string; phone: string }; token: string }> {
+  return request<{ runner: { name: string; phone: string }; token: string }>('/runners', {
     method: 'POST',
     body: JSON.stringify(input),
   });
+}
+
+export interface RunnerAccount {
+  id: string;
+  name: string;
+  phone: string;
+  rightToWorkVerified: boolean;
+  criminalRecordCheckVerified: boolean;
+  available: boolean;
+}
+
+export function fetchRunnerMe(): Promise<{ runner: RunnerAccount }> {
+  return request<{ runner: RunnerAccount }>('/me', undefined, 'runner');
+}
+
+export function setRunnerAvailability(available: boolean): Promise<{ runner: RunnerAccount }> {
+  return request<{ runner: RunnerAccount }>(
+    '/runners/me/availability',
+    { method: 'POST', body: JSON.stringify({ available }) },
+    'runner',
+  );
+}
+
+export interface OfferedJob {
+  offer: { id: string };
+  secondsLeft: number;
+  job: {
+    itemCount: number;
+    goodsEstimatePence: number;
+    runnerPaymentPence: number;
+    distanceMiles: number | null;
+  } | null;
+}
+
+export function fetchOfferedJobs(): Promise<{ offers: OfferedJob[] }> {
+  return request<{ offers: OfferedJob[] }>('/jobs/mine', undefined, 'runner');
+}
+
+export function acceptJob(offerId: string): Promise<unknown> {
+  return request(`/jobs/${encodeURIComponent(offerId)}/accept`, { method: 'POST' }, 'runner');
+}
+
+export function declineJob(offerId: string): Promise<unknown> {
+  return request(`/jobs/${encodeURIComponent(offerId)}/decline`, { method: 'POST' }, 'runner');
+}
+
+export interface CurrentJob {
+  orderId: string;
+  status: 'accepted' | 'shopping' | 'receipt_submitted' | 'delivering';
+  shopperName: string;
+  deliveryAddress: string;
+  doorstepProtocol: string;
+  substitutionDefault: SubstitutionChoice;
+  goodsEstimatePence: number;
+  receiptTotalPence: number | null;
+  runnerPaymentPence: number;
+  items: Array<{ id: string; name: string; quantity: number; estimatedPricePence: number }>;
+}
+
+export function fetchCurrentJob(): Promise<{ job: CurrentJob | null }> {
+  return request<{ job: CurrentJob | null }>('/jobs/current', undefined, 'runner');
+}
+
+export function moveJobOn(
+  orderId: string,
+  status: 'shopping' | 'delivering' | 'delivered',
+): Promise<unknown> {
+  return request(
+    `/orders/${encodeURIComponent(orderId)}/status`,
+    { method: 'POST', body: JSON.stringify({ status }) },
+    'runner',
+  );
+}
+
+export function submitTillTotal(
+  orderId: string,
+  receiptTotalPence: number,
+): Promise<{ message: string }> {
+  return request<{ message: string }>(
+    `/orders/${encodeURIComponent(orderId)}/receipt`,
+    { method: 'POST', body: JSON.stringify({ receiptTotalPence }) },
+    'runner',
+  );
 }
 
 /** Who the stored token belongs to. Used to restore a session when the app opens. */

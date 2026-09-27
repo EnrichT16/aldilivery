@@ -196,3 +196,60 @@ describe('withdrawing', () => {
     );
   });
 });
+
+describe('removing', () => {
+  it('removes a Runner who has never had an order, after showing what it would do', async () => {
+    const id = await newRunner();
+    const args = [
+      'remove',
+      '--phone',
+      '07700 900101',
+      '--reason',
+      'Test sign-up',
+      '--by',
+      'Anthony Ibe',
+    ];
+
+    expect(await run(...args)).toBe(0);
+    expect(output.at(-1)).toMatch(/Nothing has been removed/);
+    expect(await harness.repository.runners.findById(id)).not.toBeNull();
+
+    expect(await run(...args, '--yes')).toBe(0);
+    expect(output.at(-1)).toBe(
+      'Removed: Tomasz (+447700900101), removed by Anthony Ibe: Test sign-up.',
+    );
+    expect(await harness.repository.runners.findById(id)).toBeNull();
+  });
+
+  it('refuses to remove a Runner who has had an order, because that record has to stay', async () => {
+    const id = await newRunner();
+    const shopper = await harness.repository.shoppers.create({
+      displayName: 'Margaret',
+      handle: 'margaret',
+      phone: '+447700900555',
+      spokenCodeHash: null,
+      preferredLanguage: 'en-GB',
+      doorstepProtocol: '',
+      deliveryAddress: '',
+      substitutionDefault: 'ask_me',
+      budgetCapPence: null,
+    });
+    const order = await harness.repository.orders.create({
+      shopperId: shopper.id,
+      goodsEstimatePence: 100,
+      feePence: 800,
+      totalEstimatePence: 900,
+      doorstepProtocolSnapshot: '',
+      deliveryAddress: 'x',
+      runnerPaymentPence: 500,
+      items: [],
+    } as never);
+    await harness.repository.orders.update(order.id, { runnerId: id });
+
+    expect(
+      await run('remove', '--phone', '07700 900101', '--reason', 'x', '--by', 'A', '--yes'),
+    ).toBe(1);
+    expect(output.at(-1)).toMatch(/has had 1 order, so their record has to stay/);
+    expect(await harness.repository.runners.findById(id)).not.toBeNull();
+  });
+});

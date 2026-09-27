@@ -86,6 +86,10 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           orderBy: [{ lastJobCompletedAt: 'asc' }, { createdAt: 'asc' }],
         })) as unknown as Runner[];
       },
+      async delete(id) {
+        // Checks, offers and payouts go with the Runner, by cascade in the schema.
+        await prisma.runner.delete({ where: { id } });
+      },
       async listAll() {
         return (await prisma.runner.findMany({
           orderBy: { createdAt: 'asc' },
@@ -227,6 +231,9 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       async listByPool(poolId) {
         const rows = await prisma.order.findMany({ where: { poolId }, include: { items: true } });
         return rows.map(toOrder);
+      },
+      async countForRunner(runnerId) {
+        return prisma.order.count({ where: { runnerId } });
       },
     },
 

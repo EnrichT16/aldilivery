@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { cleanup, configure } from '@testing-library/react';
 
-import { clearToken } from '../src/lib/session';
+import { clearRunnerToken, clearToken } from '../src/lib/session';
 import { forgetCardEntry } from '../src/lib/stripe';
 
 /**
@@ -32,6 +32,7 @@ afterEach(() => {
   // The token is also kept in memory, for browsers where storage throws. Without this, a test
   // that signs in leaves the next one signed in too.
   clearToken();
+  clearRunnerToken();
   // Stripe.js is loaded once per page and memoised. Tests must not inherit each other's.
   forgetCardEntry();
 });

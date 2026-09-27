@@ -46,3 +46,41 @@ export function clearToken(): void {
     // Nothing to do. The in-memory copy is already gone, which is the part that matters.
   }
 }
+
+/**
+ * A Runner's sign-in, kept under its own key.
+ *
+ * A Runner may also shop, and one browser may be shared in a household, so a Runner signing
+ * up must never sign out the Shopper already signed in here, or the other way round. Same
+ * rules as above: storage when it works, memory when it does not.
+ */
+const RUNNER_TOKEN_KEY = 'aldilivery.runner.token';
+let inMemoryRunnerToken: string | null = null;
+
+export function readRunnerToken(): string | null {
+  try {
+    const stored = window.localStorage.getItem(RUNNER_TOKEN_KEY);
+    if (stored !== null && stored !== '') return stored;
+  } catch {
+    // Storage is unavailable.
+  }
+  return inMemoryRunnerToken;
+}
+
+export function writeRunnerToken(token: string): void {
+  inMemoryRunnerToken = token;
+  try {
+    window.localStorage.setItem(RUNNER_TOKEN_KEY, token);
+  } catch {
+    // Kept in memory instead.
+  }
+}
+
+export function clearRunnerToken(): void {
+  inMemoryRunnerToken = null;
+  try {
+    window.localStorage.removeItem(RUNNER_TOKEN_KEY);
+  } catch {
+    // Nothing to do.
+  }
+}

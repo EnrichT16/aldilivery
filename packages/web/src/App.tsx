@@ -10,6 +10,7 @@ import { Confirm } from './pages/Confirm';
 import { JustLooking } from './pages/JustLooking';
 import { Landing } from './pages/Landing';
 import { RunnerDoor } from './pages/Runner';
+import { RunnerHome } from './pages/RunnerHome';
 import { RunnerSignUp } from './pages/RunnerSignUp';
 import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
@@ -101,6 +102,7 @@ export function App(): JSX.Element {
             <Route path="/confirm" element={<Confirm />} />
             <Route path="/runner" element={<RunnerDoor />} />
             <Route path="/runner/sign-up" element={<RunnerSignUp />} />
+            <Route path="/runner/home" element={<RunnerHome />} />
             <Route path="/just-looking" element={<JustLooking />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

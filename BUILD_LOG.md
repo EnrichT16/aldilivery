@@ -1816,6 +1816,118 @@ the Runner's own account. The server routes for offers exist; the screens do not
 
 ---
 
+## 2026-09-27 — Step 24: Runner sign-up and the approval tool, checked live
+
+On `726cd03`, from Anthony's browser and the DigitalOcean console. The new `RunnerCheck`
+migration ran on deployment: the server only starts once its migrations have gone through, and
+`/api/health` answered `ok` on `726cd03` with `postgres`. A test Runner signed up at
+`/runner/sign-up` and got "Thank you, Test runner" with their number read back.
+`node packages/api/scripts/runners.mjs` on the live console — the first time it had run against
+PostgreSQL — printed:
+
+```
+1 Runner: 0 approved, 1 waiting.
+
+Test runner, +447700900456, on foot, signed up 2026-09-27. Waiting.
+  Right to work: not yet.
+  Criminal record check: not yet.
+```
+
+The number stored as `+447700900456` shows the phone tidying from Step 22 working in production
+too.
+
+---
+
+## 2026-09-27 — Step 25: an order can reach a Runner, and a Runner can deliver it
+
+The Runner's own screens, and — found while building them — the reasons no paid order could
+ever have reached a Runner, even an approved one on shift.
+
+### Nothing ever offered an order
+
+The offer logic lived only inside `POST /jobs/:orderId/offer`, and nothing called it: not the
+order route when a payment succeeded, not the webhook, and nothing when an offer's sixty seconds
+ran out. It is now `services/dispatch.ts`, called straight after a payment succeeds (in the order
+route and the webhook), straight after a Runner declines, when a Runner comes on shift, and by a
+sweep every ten seconds in the running server that moves lapsed offers on and picks up waiting
+orders. Along the way:
+
+- an order that is not paid for is never offered, so no Runner spends their own money on a
+  cancelled or unpaid order;
+- a Runner holding an offer or doing a job is not offered a second one;
+- once everybody nearby has been asked, a Runner who only missed the sixty seconds is asked
+  again, and one who said no is not — so one inattentive minute cannot strand an order for ever.
+
+Automatic offering is on in the real server and off by default in the tests, which drive offers
+by hand; the new tests switch it on.
+
+### A Shopper could mark their own order paid
+
+`POST /orders/:id/status` let either side move an order to any status the lifecycle allowed next.
+Now a Runner may only mark their own order shopping, on its way, or delivered — and on its way
+only after the till total is in — and a Shopper may only mark it completed, or cancel it before
+payment. Paid, offered, accepted, receipt submitted and refunded only ever happen through the
+routes that do the real work. Nothing had tested this route at all.
+
+### An offered Runner saw everything
+
+`GET /jobs/mine` returned the whole order — address, doorstep instructions, payment ids — to a
+Runner who had not yet said yes. It now returns a summary: how many things, roughly how much, how
+far, and the five pounds. `GET /jobs/current`, new, gives the Runner who accepted the list, the
+address, the doorstep words and the Shopper's substitution preference.
+
+### The rotation moves at the door
+
+A Runner's place in the rotation only moved on when they were paid, and paying needs Stripe
+Connect, which does not exist yet. It now moves on when they mark the order delivered.
+
+### The Runner page
+
+`/runner/home`: which checks are still to do; going on and off shift; a job offered, arriving
+as an alert with a summary and the seconds left, to take or turn down; then the job in hand with
+one button for each step — started shopping, the till total (checked, in pounds and pence), on my
+way, delivered. It asks the server every five seconds while it is open, so nobody has to keep
+refreshing. The Runner's sign-in is kept under its own key, so a Runner signing up never signs out
+a Shopper using the same browser; sign-up now keeps them signed in and links to the page.
+
+### Removing test Runners
+
+`runners.mjs remove` removes a Runner who has never had an order, showing what it would do until
+`--yes`, and refuses for anybody with deliveries. `delete-test-rows.mjs` now also removes Runners
+named `ZZ TEST ROW do not use`.
+
+### Checked
+
+- API: 12 new tests in `dispatch.test.ts` — offered the moment it is paid, when a Runner comes on
+  shift, moved on at the next sweep, asked again after a timeout but not after a no, the next
+  Runner straight after a decline, no second job, never an unpaid order, a summary without the
+  address, the full job after accepting, a Shopper refused every status that is not theirs, cancel
+  only before payment, and one order walked from offer to the door with the receipt before the
+  road. The three status tests were proved failing against the old route. Two more for `remove`.
+- Web: 7 new tests for the Runner page, including a whole job through a stand-in server, and axe
+  with a job offered and in hand; the sign-up test now checks the Runner token is kept separately.
+- `pnpm run verify` — lint, typecheck and **371 tests** (43 core, 242 api, 86 web), clean.
+- In Chromium, the whole journey with two browsers against the built app: a Runner on a 320 pixel
+  screen signed up, was approved, went on shift; a Shopper ordered milk; the offer reached the
+  Runner within about a second, without refreshing; the Runner took it, started shopping, put in
+  £1.19, set off and delivered. axe clean and no sideways scroll at every step. (The approval in
+  that run was made in-process by a scratch launcher, because the console tool needs PostgreSQL.)
+
+### Still missing
+
+- **Paying the Runner.** The five pounds needs Stripe Connect, so each Runner has an account for it
+  to go to. The payout route exists; it has nowhere to send the money.
+- **Reaching the Shopper.** The job says "ask them before swapping it", but a Runner has no way to
+  contact the Shopper from the app yet.
+- **The open offer and payout routes.** `POST /jobs/:orderId/offer` and `POST /orders/:id/payout`
+  still need no sign-in. Both only ever do what should happen anyway — the offer route cannot skip
+  the queue and now refuses unpaid orders, and a payout needs a delivered order and cannot be paid
+  twice — but they should be for the server alone.
+- **Location.** Runners do not share where they are yet, so every Runner counts as "position
+  unknown" and the rotation alone decides who is asked first.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has

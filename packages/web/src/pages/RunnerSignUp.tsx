@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Field, Radio } from '../components/FormFields';
 import { storeConfig } from '../config';
 import { registerRunner, type VehicleType } from '../lib/api';
+import { writeRunnerToken } from '../lib/session';
 
 /**
  * Signing up to run.
@@ -49,6 +50,8 @@ export function RunnerSignUp(): JSX.Element {
     setSaving(true);
     try {
       const result = await registerRunner({ name, phone, vehicleType });
+      // Kept as the Runner's own sign-in, so any Shopper signed in here stays signed in.
+      writeRunnerToken(result.token);
       setDone({ name: result.runner.name, phone });
     } catch (error) {
       setErrors([
@@ -82,12 +85,12 @@ export function RunnerSignUp(): JSX.Element {
             <li>a criminal record check.</li>
           </ul>
           <p className="m-0">
-            Taking jobs in the app is not ready yet. We will tell you when it is, and when your
-            checks are done.
+            Once your checks are done, your Runner page is where you go on shift and take jobs. You
+            are signed in to it on this device.
           </p>
         </section>
-        <Link to="/" className="control bg-highlight text-ink">
-          Back to the start
+        <Link to="/runner/home" className="control bg-highlight text-ink">
+          Go to your Runner page
         </Link>
       </div>
     );

@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { requireSession } from '../app.js';
 import { BadRequestError, ForbiddenError, NotFoundError, PaymentFailedError } from '../errors.js';
 import { priceLines } from '../services/basket.js';
+import { offerOrder } from '../services/dispatch.js';
 import {
   assertConfirmedBeforePayment,
   assertNotAlreadyConfirmed,
@@ -71,6 +72,14 @@ const statusSchema = z.object({
     'refunded',
   ]),
 });
+
+/** What a Runner may do by hand, to an order they have accepted. */
+const RUNNER_STEPS: readonly OrderStatus[] = ['shopping', 'delivering', 'delivered'];
+/**
+ * What a Shopper may do by hand. Cancelling is only possible before payment, because
+ * afterwards the money has to go back, and there is no refund route yet: a person does that.
+ */
+const SHOPPER_STEPS: readonly OrderStatus[] = ['completed', 'cancelled'];
 
 const receiptSchema = z.object({
   receiptTotalPence: z.number().int().min(0),
@@ -228,6 +237,14 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       stripePaymentIntentId: intent.id,
     });
 
+    // Straight to a Runner, rather than waiting for the next sweep. A failure to find one is
+    // not a failure of the order: the sweep keeps trying, and the Shopper has paid.
+    if (succeeded && app.ctx.autoOffer) {
+      await offerOrder(app.ctx, placed.id).catch((failure: unknown) => {
+        request.log.warn({ orderId: placed.id, err: failure }, 'Could not offer the order yet');
+      });
+    }
+
     void reply.status(201);
     return {
       order: placed,
@@ -266,6 +283,15 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     return { order };
   });
 
+  /**
+   * Moving an order on, by the people allowed to.
+   *
+   * Until 27 Sep 2026 this let either side move an order to any status the lifecycle allowed
+   * next, so a Shopper could mark their own order `paid` without paying, and a Runner could
+   * skip the receipt. Now each side has the few steps that are genuinely theirs, and every
+   * other step — paid, offered, accepted, receipt submitted, refunded — only ever happens
+   * through the route that does the real work behind it.
+   */
   app.post('/orders/:id/status', async (request) => {
     const session = requireSession(request);
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
@@ -280,14 +306,42 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         : order.runnerId === session.accountId;
     if (!mine) throw new ForbiddenError('That order is not yours.');
 
+    const allowed = session.role === 'runner' ? RUNNER_STEPS : SHOPPER_STEPS;
+    if (!allowed.includes(status as OrderStatus)) {
+      throw new ForbiddenError(
+        session.role === 'runner'
+          ? 'A Runner can mark an order as being shopped, on its way, or delivered. The till total goes in with the receipt.'
+          : 'That is not something you can change yourself. If something is wrong with your order, phone us.',
+      );
+    }
+
+    if (
+      session.role === 'shopper' &&
+      status === 'cancelled' &&
+      order.status !== 'draft' &&
+      order.status !== 'confirmed'
+    ) {
+      throw new ForbiddenError(
+        'Your order has been paid for, so we need to cancel it and send the money back for you. Please phone us.',
+      );
+    }
+
     assertTransitionAllowed(order.status, status as OrderStatus);
 
+    const at = now();
     const patch: Record<string, unknown> = { status };
-    if (status === 'delivered') patch['deliveredAt'] = now();
-    if (status === 'completed') patch['completedAt'] = now();
-    if (status === 'cancelled') patch['cancelledAt'] = now();
+    if (status === 'delivered') patch['deliveredAt'] = at;
+    if (status === 'completed') patch['completedAt'] = at;
+    if (status === 'cancelled') patch['cancelledAt'] = at;
 
     const updated = await repository.orders.update(order.id, patch);
+
+    // Delivered is the end of the Runner's job, so it is where their place in the rotation
+    // moves on. Waiting for the payout would leave it stuck until Stripe Connect exists.
+    if (status === 'delivered' && order.runnerId) {
+      await repository.runners.update(order.runnerId, { lastJobCompletedAt: at });
+    }
+
     return { order: updated };
   });
 
