@@ -128,6 +128,18 @@ When it is active, open the app address in a private window, go to Set up your a
 
 If the sign-in screen says signing in by text is not switched on yet, one of the four values is missing, misspelled, or still the placeholder. The runtime log says so in a sentence when the server starts. If instead it says it could not send a text just now, Twilio refused the message, and the runtime log has Twilio's own reason, with a number. The commonest one on a trial account is that the phone you sent to has not been verified in the Twilio console.
 
+Paying Runners
+
+Each Runner is paid their five pounds into a Stripe account of their own, which Stripe calls a connected account. Aldilivery never holds the money and never sees a Runner's bank details: the Runner types those into Stripe's own pages. For that to work, Stripe Connect has to be switched on for the Aldilivery Stripe account once.
+
+In the Stripe dashboard, make sure you are in test mode, which the sandbox banner at the top shows. Open Connect from the menu and press the button to get started. When it asks what you are building, choose a platform or marketplace that pays other people, and when it asks what kind of accounts, choose Express. Stripe will ask you to fill in a platform profile, which says what Aldilivery is and why it pays people. Say that it is a grocery delivery service that pays independent Runners a fixed fee for each delivery. Then under Connect settings, in branding, give it the name Aldilivery, so the Runner sees that name on Stripe's pages rather than a blank one.
+
+That is all. There is nothing to add to DigitalOcean: the same Stripe keys that take a Shopper's payment are the ones that pay a Runner.
+
+Once it is on, an approved Runner sees a part of their Runner page headed How you get paid, with a button to set it up. It takes them to Stripe, and brings them back when they are done. In test mode Stripe offers test answers for every question, including a test bank account, so you can go all the way through without any real details. From then on, the moment they mark an order delivered, their pay is sent. If they delivered before finishing the set up, nothing is lost: the page says what is owed, and it is sent within a minute of their account being ready.
+
+Going live later needs the same switch in live mode, and Stripe will ask for Aldilivery's registered company details before it lets live money move.
+
 Approving a Runner
 
 Somebody signs up to run from the Runner page on the site. That makes their account, but they cannot be offered any job until a person has seen two things: their right to work in the United Kingdom, and a criminal record check. Nothing in Aldilivery decides that for you. The approval tool only writes down what you decided, who you are, when, and what you saw, and then lets the job queue include them.

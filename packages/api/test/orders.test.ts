@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 import { assertConfirmedBeforePayment } from '../src/services/orders.js';
 import { ConfirmationRequiredError } from '../src/errors.js';
+import { rehearsalGateway } from '../src/lib/payments.js';
 import {
   buildTestApp,
   seedCatalogue,
@@ -250,6 +251,8 @@ describe('a payment the bank has not approved yet', () => {
   /** Stripe's answer when the Shopper has to authenticate. Nothing has been taken. */
   function gatewayNeedingAuthentication() {
     return {
+      // The Runner-account parts are not what these tests are about.
+      ...rehearsalGateway(),
       mode: 'stripe' as const,
       async createPaymentIntent() {
         return {
@@ -354,6 +357,8 @@ describe('a payment the gateway refuses', () => {
   /** A gateway that always refuses, the way Stripe does when it will not take the card. */
   function refusingGateway() {
     return {
+      // The Runner-account parts are not what these tests are about.
+      ...rehearsalGateway(),
       mode: 'stripe' as const,
       async createPaymentIntent(): Promise<never> {
         throw new Error('No such payment_method: pm_card_visa');

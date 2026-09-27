@@ -1915,8 +1915,7 @@ named `ZZ TEST ROW do not use`.
 
 ### Still missing
 
-- **Paying the Runner.** The five pounds needs Stripe Connect, so each Runner has an account for it
-  to go to. The payout route exists; it has nowhere to send the money.
+- ~~Paying the Runner~~ — Stripe Connect, Step 27.
 - **Reaching the Shopper.** The job says "ask them before swapping it", but a Runner has no way to
   contact the Shopper from the app yet.
 - ~~The open offer and payout routes~~ — they need a key since Step 26.
@@ -1944,6 +1943,54 @@ showed one order each.
   payout refused even for the Runner who delivered it (and no payout made), and `requireStaff`
   refusing everybody when no key is set. The existing job tests now send the key.
 - `pnpm run verify` — lint, typecheck and **374 tests** (43 core, 245 api, 86 web), clean.
+
+---
+
+## 2026-09-27 — Step 27: paying Runners, through Stripe Connect
+
+Rule Two says a Runner earns five pounds on every order. Until now nothing could pay it: no
+Runner had anywhere for the money to go, and the payout ran only if somebody called a staff
+route by hand.
+
+### Where the pay goes
+
+A Runner's page has a new part, "How you get paid". The first press makes them a Stripe Express
+account of their own and sends them to Stripe's form with a one-time link; Stripe collects their
+bank details on its own pages, so they never touch Aldilivery, and sends them back to
+`/runner/home`. Pressing again later hands out a fresh link to the same account, never a second
+account. The page says whether they have not started, have not finished, or are ready.
+
+### The five pounds
+
+The payout logic moved from the staff route into `services/pay-runner.ts`, and now runs the
+moment a Runner marks an order delivered. The transfer is tied to the Shopper's own payment
+(`source_transaction`), so it can go out straight away rather than failing until Stripe has
+settled the Shopper's money into the platform balance. If the Runner's account is not ready,
+nothing is lost: the order stays delivered, the page says what is owed, and a sweep every minute
+pays it as soon as the account can take it. Rule Two is still checked on every payout, and an
+order can never be paid twice.
+
+### Another open route
+
+`GET /runners/:id/payouts` answered anybody who knew a Runner's id, signed in or not, with their
+earnings. It is now `GET /runners/me/payouts`, for the signed-in Runner only.
+
+### What Anthony has to do
+
+Switch Stripe Connect on once, in test mode, with Express accounts and a platform profile.
+DEPLOY.md, "Paying Runners", has the steps. Nothing to add to DigitalOcean.
+
+### Checked
+
+- API: 5 new tests with a gateway that behaves like Connect — one account made and reused, the
+  set-up status in all three states, the pay record only ever the Runner's own, paid at delivery
+  from the Shopper's payment with the Rule Two split, and owed-then-paid-once when the Runner sets
+  up after delivering. The test gateways elsewhere gained the new methods.
+- Web: 4 new tests — earnings and "straight to your own bank", owed money and the button to
+  Stripe, "finish setting up", and not shown before the checks are done.
+- `pnpm run verify` — lint, typecheck and **383 tests** (43 core, 250 api, 90 web), clean.
+- Not checked here: Stripe's real Connect pages. This environment cannot reach Stripe; the first
+  real set-up, in test mode on the live site, is the check.
 
 ---
 

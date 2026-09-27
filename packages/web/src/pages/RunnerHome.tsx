@@ -8,13 +8,16 @@ import {
   declineJob,
   fetchCurrentJob,
   fetchOfferedJobs,
+  fetchMyPay,
   fetchRunnerMe,
   moveJobOn,
   setRunnerAvailability,
+  startPaySetup,
   submitTillTotal,
   type CurrentJob,
   type OfferedJob,
   type RunnerAccount,
+  type RunnerPay,
   type SubstitutionChoice,
 } from '../lib/api';
 import { money } from '../lib/money';
@@ -258,6 +261,8 @@ export function RunnerHome(): JSX.Element {
           )}
         </>
       )}
+
+      {approved && <HowYouGetPaid />}
     </div>
   );
 }
@@ -392,6 +397,89 @@ function JobInHand({
           </button>
         )}
       </div>
+    </section>
+  );
+}
+
+/**
+ * Where a Runner's pay goes. Their bank details go into Stripe's own form, never into
+ * Aldilivery: this only starts that, and says plainly what has been earned and what is waiting.
+ */
+function HowYouGetPaid(): JSX.Element {
+  const [pay, setPay] = useState<RunnerPay | null>(null);
+  const [problem, setProblem] = useState('');
+  const [going, setGoing] = useState(false);
+  const back = new URLSearchParams(window.location.search).get('pay');
+
+  useEffect(() => {
+    fetchMyPay()
+      .then(setPay)
+      .catch((failure: unknown) => {
+        setProblem(failure instanceof Error ? failure.message : 'We could not check your pay.');
+      });
+  }, []);
+
+  async function setUp(): Promise<void> {
+    setGoing(true);
+    setProblem('');
+    try {
+      const { url } = await startPaySetup();
+      window.location.assign(url);
+    } catch (failure) {
+      setProblem(failure instanceof Error ? failure.message : 'We could not open the form.');
+      setGoing(false);
+    }
+  }
+
+  return (
+    <section aria-labelledby="pay-heading" className="space-y-3 max-w-xl">
+      <h2 id="pay-heading" className="text-lead font-bold">
+        How you get paid
+      </h2>
+      {problem !== '' && (
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+          {problem}
+        </p>
+      )}
+      {pay === null ? (
+        problem === '' && <p className="m-0">Checking.</p>
+      ) : (
+        <>
+          <p className="m-0">
+            You have earned {money(pay.totalEarnedPence)} from {pay.completedDeliveryCount}{' '}
+            {pay.completedDeliveryCount === 1 ? 'delivery' : 'deliveries'}.
+            {pay.owedPence > 0 &&
+              ` ${money(pay.owedPence)} more is owed to you and is sent as soon as your bank details are set up.`}
+          </p>
+          {pay.setup === 'ready' ? (
+            <p role={back ? 'status' : undefined} className="m-0">
+              Your pay goes straight to your own bank account, through our payment company, Stripe.
+            </p>
+          ) : (
+            <>
+              <p role={back ? 'status' : undefined} className="m-0">
+                {pay.setup === 'not_started'
+                  ? 'Before we can pay you, we need to know where to send the money. You give your bank details to our payment company, Stripe, on their own page. Aldilivery never sees them.'
+                  : 'You have started setting up where your pay goes, but Stripe needs a little more from you before it can send money.'}
+              </p>
+              <button
+                type="button"
+                disabled={going}
+                onClick={() => {
+                  void setUp();
+                }}
+                className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+              >
+                {going
+                  ? 'Opening Stripe…'
+                  : pay.setup === 'not_started'
+                    ? 'Set up how you get paid'
+                    : 'Finish setting up how you get paid'}
+              </button>
+            </>
+          )}
+        </>
+      )}
     </section>
   );
 }

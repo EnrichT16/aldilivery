@@ -74,6 +74,8 @@ export interface TestAppOptions {
   codeDelivery?: 'sms' | 'log' | 'off';
   /** Offer orders to Runners automatically, as the real server does. Off unless asked for. */
   autoOffer?: boolean;
+  /** Pay Runners at delivery, as the real server does. Off unless asked for. */
+  autoPayout?: boolean;
   /** In place of recording codes: used to make sending fail. */
   deliverCode?: (phone: string, code: string) => Promise<void>;
 }
@@ -101,6 +103,7 @@ export async function buildTestApp(
     now,
     codeDelivery: options.codeDelivery ?? 'log',
     autoOffer: options.autoOffer ?? false,
+    autoPayout: options.autoPayout ?? false,
     deliverCode:
       options.deliverCode ??
       (async (phone, code) => {
