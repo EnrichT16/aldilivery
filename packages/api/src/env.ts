@@ -89,6 +89,15 @@ export interface Env {
   /** A `+44…` number, a Messaging Service `MG…`, or a sender name such as `Aldilivery`. */
   twilioFrom: string | undefined;
   /**
+   * Web Push, for telling a Shopper their Runner has a question when the page is closed. A key
+   * pair made once with `npx web-push generate-vapid-keys`; both, or none. The public half is
+   * served from `/config`, as it must be: the browser needs it to subscribe.
+   */
+  vapidPublicKey: string | undefined;
+  vapidPrivateKey: string | undefined;
+  /** Who the push services can contact about our messages: `mailto:` or an `https:` address. */
+  vapidSubject: string | undefined;
+  /**
    * Fill an empty catalogue at startup. On by default, because a deployed Aldilivery with
    * no catalogue looks broken. Set `SEED_ON_START=false` once the catalogue comes from
    * somewhere else.
@@ -193,6 +202,9 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     twilioAccountSid: realValue(source['TWILIO_ACCOUNT_SID']),
     twilioAuthToken: realValue(source['TWILIO_AUTH_TOKEN']),
     twilioFrom: realValue(source['TWILIO_FROM']),
+    vapidPublicKey: realValue(source['VAPID_PUBLIC_KEY']),
+    vapidPrivateKey: realValue(source['VAPID_PRIVATE_KEY']),
+    vapidSubject: realValue(source['VAPID_SUBJECT']),
     seedOnStart: source['SEED_ON_START'] !== 'false',
   };
 }

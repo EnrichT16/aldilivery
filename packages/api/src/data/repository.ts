@@ -23,6 +23,7 @@ import type {
   OrderItem,
   Organisation,
   PaymentMethod,
+  PushSubscription,
   RecurringSet,
   Runner,
   RunnerCheck,
@@ -151,6 +152,14 @@ export interface Repository {
     listAll(): Promise<Runner[]>;
     /** Removes a Runner and their checks and offers. Only for one who has never had an order. */
     delete(id: string): Promise<void>;
+  };
+
+  /** The devices a Shopper has allowed to show notifications. */
+  pushSubscriptions: {
+    /** One row per device address: saving an address again moves it to this Shopper. */
+    save(input: Omit<PushSubscription, 'id'>): Promise<PushSubscription>;
+    listForShopper(shopperId: string): Promise<PushSubscription[]>;
+    deleteByEndpoint(endpoint: string): Promise<void>;
   };
 
   /** A Runner's questions to a Shopper about things they cannot find. */

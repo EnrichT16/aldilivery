@@ -53,6 +53,8 @@ export default defineConfig({
         // before. The request never leaves the browser, which is why a redeploy, a hard
         // refresh habit or a correct routing rule all change nothing. Found 25 Sep 2026.
         navigateFallbackDenylist: [/^\/api(\/|$)/],
+        // Shows a Runner's question as a notification when no page is open. See the file.
+        importScripts: ['/push-sw.js'],
       },
       devOptions: { enabled: false },
     }),

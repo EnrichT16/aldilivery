@@ -163,6 +163,19 @@ services:
         scope: RUN_TIME
         value: replace_with_the_number_or_name_texts_come_from
 
+      # Notifications on a Shopper's phone when their Runner has a question. A key pair made
+      # once with `node packages/api/scripts/push-keys.mjs` in the Console; DEPLOY.md,
+      # "Telling a Shopper about a question", has the steps. Without both, notifications are
+      # simply not offered and the question still appears on the Your order page.
+      - key: VAPID_PUBLIC_KEY
+        scope: RUN_TIME
+        value: replace_with_the_public_key
+
+      - key: VAPID_PRIVATE_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: replace_with_the_private_key
+
 # ---------------------------------------------------------------------------
 # The web app
 # ---------------------------------------------------------------------------

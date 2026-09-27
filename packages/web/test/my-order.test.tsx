@@ -12,6 +12,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { FAKE_SHOPPER } from './setup';
 
+const alert = vi.hoisted(() => ({ chime: vi.fn(), buzz: vi.fn() }));
+vi.mock('../src/lib/alert', () => alert);
+
+const notifications = vi.hoisted(() => ({
+  state: 'off' as string,
+  notificationState: vi.fn(async () => Promise.resolve(notifications.state)),
+  turnOn: vi.fn(async () => Promise.resolve('on')),
+  turnOff: vi.fn(async () => Promise.resolve('off')),
+}));
+vi.mock('../src/lib/notifications', () => notifications);
+
 interface State {
   order: boolean;
   status: string;
@@ -20,13 +31,23 @@ interface State {
     answeredBy: null | 'shopper' | 'preference';
   };
   answerError: string | null;
+  pushKey: string | null;
   sent: Array<{ method: string; path: string; body: unknown }>;
 }
 
 let state: State;
 
 beforeEach(() => {
-  state = { order: true, status: 'shopping', question: null, answerError: null, sent: [] };
+  state = {
+    order: true,
+    status: 'shopping',
+    question: null,
+    answerError: null,
+    pushKey: null,
+    sent: [],
+  };
+  notifications.state = 'off';
+  vi.clearAllMocks();
 });
 
 function stubShopperApi(): void {
@@ -50,6 +71,7 @@ function stubShopperApi(): void {
       state.sent.push({ method, path, body });
 
       if (path === '/me') return reply({ role: 'shopper', shopper: FAKE_SHOPPER });
+      if (path === '/config') return reply({ push: { publicKey: state.pushKey } });
       if (path === '/orders/current') {
         if (!state.order) return reply({ order: null });
         return reply({
@@ -185,6 +207,90 @@ describe('a question from the Runner', () => {
     stubShopperApi();
     renderOrder();
     await screen.findByRole('button', { name: 'Leave it out' });
+    const results = await axe.run(document.body, {
+      resultTypes: ['violations'],
+      rules: { 'color-contrast': { enabled: false } },
+    } as axe.RunOptions);
+    expect(results.violations.map((v) => v.id)).toEqual([]);
+  });
+});
+
+describe('getting the Shopper’s attention', () => {
+  it('chimes and buzzes once when a question arrives, not on every look', async () => {
+    const user = userEvent.setup({ delay: null });
+    state.question = { answer: null, answeredBy: null };
+    stubShopperApi();
+    renderOrder();
+    await screen.findByRole('alert');
+    expect(alert.chime).toHaveBeenCalledTimes(1);
+    expect(alert.buzz).toHaveBeenCalledTimes(1);
+
+    // Answering looks again; the same question is not news.
+    await user.click(screen.getByRole('button', { name: 'Leave it out' }));
+    await screen.findByText(/you asked them to leave it out/);
+    expect(alert.chime).toHaveBeenCalledTimes(1);
+  });
+
+  it('is silent when there is no question', async () => {
+    stubShopperApi();
+    renderOrder();
+    await screen.findByText('Tomasz is doing your shopping now.');
+    expect(alert.chime).not.toHaveBeenCalled();
+  });
+});
+
+describe('notifications on this device', () => {
+  it('are not offered when the site has not switched them on', async () => {
+    stubShopperApi();
+    renderOrder();
+    await screen.findByText('Tomasz is doing your shopping now.');
+    expect(
+      screen.queryByRole('heading', { name: 'If your Runner has a question' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('can be turned on, and says so', async () => {
+    const user = userEvent.setup({ delay: null });
+    state.pushKey = 'BPublicKey';
+    stubShopperApi();
+    renderOrder();
+    await user.click(
+      await screen.findByRole('button', { name: 'Tell me when my Runner has a question' }),
+    );
+    expect(notifications.turnOn).toHaveBeenCalledWith('BPublicKey');
+    expect(
+      await screen.findByText(
+        'Done. We will tell you on this device when your Runner has a question.',
+      ),
+    ).toHaveAttribute('role', 'status');
+    expect(
+      screen.getByRole('button', { name: 'Stop telling me on this device' }),
+    ).toBeInTheDocument();
+  });
+
+  it('says in plain words what to do when the browser has blocked them', async () => {
+    state.pushKey = 'BPublicKey';
+    notifications.state = 'blocked';
+    stubShopperApi();
+    renderOrder();
+    expect(await screen.findByText(/Notifications are blocked for this site/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Tell me/ })).not.toBeInTheDocument();
+  });
+
+  it('tells an iPhone user to add it to the Home Screen first', async () => {
+    state.pushKey = 'BPublicKey';
+    notifications.state = 'needs-home-screen';
+    stubShopperApi();
+    renderOrder();
+    expect(await screen.findByText(/Add to Home Screen/)).toBeInTheDocument();
+  });
+
+  it('has no axe violations with the offer showing', async () => {
+    state.pushKey = 'BPublicKey';
+    state.question = { answer: null, answeredBy: null };
+    stubShopperApi();
+    renderOrder();
+    await screen.findByRole('button', { name: 'Tell me when my Runner has a question' });
     const results = await axe.run(document.body, {
       resultTypes: ['violations'],
       rules: { 'color-contrast': { enabled: false } },

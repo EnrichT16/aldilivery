@@ -61,6 +61,19 @@ export interface Runner {
   updatedAt: Date;
 }
 
+/**
+ * A device a Shopper has allowed to show notifications: the browser's own push address and the
+ * keys it gave for encrypting what is sent there. Holds no message and nothing about the person.
+ */
+export interface PushSubscription {
+  id: string;
+  shopperId: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  createdAt: Date;
+}
+
 export type ItemAnswer = 'similar' | 'leave_out';
 
 /** A Runner telling the Shopper they cannot find one thing, and what the Shopper wants instead. */

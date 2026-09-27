@@ -16,6 +16,7 @@ import { seedRepository } from './data/seed-data.js';
 import { seedOnStartup, type StartupSeedOutcome } from './data/startup-seed.js';
 import { readEnv } from './env.js';
 import { rehearsalGateway, stripeGateway, type PaymentsGateway } from './lib/payments.js';
+import { webPushSender } from './lib/push.js';
 import { codeMessage, twilioSender } from './lib/sms.js';
 import { sweepOffers } from './services/dispatch.js';
 import { sweepPayouts } from './services/pay-runner.js';
@@ -59,12 +60,29 @@ async function main(): Promise<void> {
     : undefined;
   const webOrigin = env.allowedOrigins.length === 1 ? env.allowedOrigins[0] : undefined;
 
+  // Notifications. The push services want somebody to contact about our messages: the
+  // address given, or else the site itself when it is served over https.
+  const vapidSubject =
+    env.vapidSubject ?? (webOrigin?.startsWith('https://') ? webOrigin : undefined);
+  const pushReady = env.vapidPublicKey && env.vapidPrivateKey && vapidSubject;
+  const push = pushReady
+    ? {
+        sendPush: webPushSender({
+          publicKey: env.vapidPublicKey as string,
+          privateKey: env.vapidPrivateKey as string,
+          subject: vapidSubject,
+        }),
+        pushPublicKey: env.vapidPublicKey as string,
+      }
+    : {};
+
   const app = await buildApp({
     config,
     repository,
     payments,
     env,
     logger: true,
+    ...push,
     ...(sendText
       ? {
           codeDelivery: 'sms' as const,
@@ -97,6 +115,12 @@ async function main(): Promise<void> {
     },
     'Configuration loaded',
   );
+
+  if (!pushReady) {
+    app.log.info(
+      'Notifications are off: VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are not both set. A Runner\'s question still appears on the Your order page.',
+    );
+  }
 
   if (env.dataBackend === 'memory') {
     app.log.warn(

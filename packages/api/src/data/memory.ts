@@ -23,6 +23,7 @@ import type {
   OrderItem,
   Organisation,
   PaymentMethod,
+  PushSubscription,
   RecurringSet,
   Runner,
   RunnerCheck,
@@ -73,6 +74,7 @@ export function memoryRepository(): Repository {
   const oneTimeCodes = new Map<string, OneTimeCode>();
   const runnerChecks: RunnerCheck[] = [];
   const itemQuestions = new Map<string, ItemQuestion>();
+  const pushSubscriptions = new Map<string, PushSubscription>();
 
   const now = (): Date => new Date();
 
@@ -177,6 +179,23 @@ export function memoryRepository(): Repository {
         return [...runners.values()]
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
           .map(clone);
+      },
+    },
+
+    pushSubscriptions: {
+      async save(input) {
+        const existing = pushSubscriptions.get(input.endpoint);
+        const row: PushSubscription = { ...input, id: existing?.id ?? id() };
+        pushSubscriptions.set(input.endpoint, row);
+        return clone(row);
+      },
+      async listForShopper(shopperId) {
+        return [...pushSubscriptions.values()]
+          .filter((row) => row.shopperId === shopperId)
+          .map(clone);
+      },
+      async deleteByEndpoint(endpoint) {
+        pushSubscriptions.delete(endpoint);
       },
     },
 
