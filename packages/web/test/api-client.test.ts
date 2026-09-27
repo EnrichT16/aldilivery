@@ -12,6 +12,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { storeConfig } from '../src/config';
 import { ApiUnavailableError, searchCatalogue } from '../src/lib/api';
 
 function respondWith(body: string, contentType: string, ok = true, status = 200): void {
@@ -35,7 +36,7 @@ afterEach(() => {
 describe('when the web app’s own HTML answers instead of the API', () => {
   const HTML = '<!doctype html><html lang="en-GB"><body><div id="root"></div></body></html>';
 
-  it('says we cannot reach Aldilivery, rather than showing an empty shop', async () => {
+  it('says we cannot reach the service, rather than showing an empty shop', async () => {
     respondWith('{}', 'text/html; charset=utf-8');
 
     await expect(searchCatalogue('milk')).rejects.toBeInstanceOf(ApiUnavailableError);
@@ -45,7 +46,7 @@ describe('when the web app’s own HTML answers instead of the API', () => {
     respondWith('{}', 'text/html; charset=utf-8');
 
     await expect(searchCatalogue('milk')).rejects.toThrow(
-      'We cannot reach Aldilivery at the moment.',
+      `We cannot reach ${storeConfig.productName} at the moment.`,
     );
   });
 

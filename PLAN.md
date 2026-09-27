@@ -1,5 +1,8 @@
 # Aldilivery — Foundation Build Plan
 
+> This is the original plan, kept as it was written. The product was renamed **Ozi Delivery** on
+> 28 September 2026; see README.md and BUILD_LOG Step 30. Names below are as they were then.
+
 **Owner:** Anthony Tochukwu Ibe
 **Phase:** Foundation only. No voice, speech or telephony features are built in this phase.
 **Date started:** 2026-09-09

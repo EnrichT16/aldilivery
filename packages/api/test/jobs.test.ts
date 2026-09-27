@@ -405,7 +405,7 @@ describe('the routes that belong to the server itself', () => {
 
   it('refuses everybody when no staff key is set, which is how production runs', () => {
     const request = { headers: { 'x-staff-key': 'anything' } } as never;
-    expect(() => requireStaff(request, undefined)).toThrow('That is only for Aldilivery itself.');
+    expect(() => requireStaff(request, undefined)).toThrow('That is only for the server itself.');
     expect(() => requireStaff({ headers: {} } as never, 'k')).toThrow();
     expect(() => requireStaff({ headers: { 'x-staff-key': 'k' } } as never, 'k')).not.toThrow();
   });

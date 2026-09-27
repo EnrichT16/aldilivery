@@ -1,6 +1,6 @@
-Deploying Aldilivery to DigitalOcean
+Deploying Ozi Delivery to DigitalOcean
 
-This file is for Anthony. It describes, in order, everything that happens in the DigitalOcean dashboard once this repository has been pushed to GitHub. It assumes you have a DigitalOcean account and that you can sign in to it, and that you have a Stripe account that belongs to Aldilivery and to nothing else. Rule Eight means that Stripe account must not be shared with any other product of yours.
+This file is for Anthony. It describes, in order, everything that happens in the DigitalOcean dashboard once this repository has been pushed to GitHub. It assumes you have a DigitalOcean account and that you can sign in to it, and that you have a Stripe account that belongs to Ozi Delivery and to nothing else. Rule Eight means that Stripe account must not be shared with any other product of yours.
 
 Nothing in this file needs a terminal. Everything is done in a web browser.
 
@@ -10,13 +10,13 @@ There is a file at .do/app.yaml which describes the whole application: a service
 
 Creating the app
 
-Sign in to DigitalOcean and go to the Apps section, then choose Create App. When it asks where the code is, choose GitHub, and authorise DigitalOcean to read your account if it has not already been authorised. Choose the repository called aldilivery, owned by EnrichT16. Choose the branch called main. Leave autodeploy switched on, which means every future push to main deploys itself.
+Sign in to DigitalOcean and go to the Apps section, then choose Create App. When it asks where the code is, choose GitHub, and authorise DigitalOcean to read your account if it has not already been authorised. Choose the repository called aldilivery, owned by EnrichT16. The repository kept its old name when the product was renamed Ozi Delivery, so that is still the right one. Choose the branch called main. Leave autodeploy switched on, which means every future push to main deploys itself.
 
 DigitalOcean will then read the app spec out of the repository and show you three things it intends to create: a service named api, a static site named web, and a database named aldilivery-db. If it shows you those three, it has found the spec and you do not need to change any of the build settings. If instead it offers to detect the components itself and shows you only one, stop and check that the file .do/app.yaml really was pushed, because everything below assumes it is there. You can also paste the contents of that file into the dashboard yourself, under Settings and then App Spec.
 
 The secrets to paste before the first deploy
 
-On the review screen, before you press the button that creates the app, open the environment variables for the component named api. Four of them are filled with obvious placeholder text. Three of those four are secrets, and Aldilivery refuses to start in production while any of the three is still a placeholder. That refusal is deliberate. A server that started without them would take an order it cannot charge for, or accept a webhook it cannot prove came from Stripe. The fourth is not a secret and does not stop the server starting; it is described after the three.
+On the review screen, before you press the button that creates the app, open the environment variables for the component named api. Four of them are filled with obvious placeholder text. Three of those four are secrets, and Ozi Delivery refuses to start in production while any of the three is still a placeholder. That refusal is deliberate. A server that started without them would take an order it cannot charge for, or accept a webhook it cannot prove came from Stripe. The fourth is not a secret and does not stop the server starting; it is described after the three.
 
 The first is STRIPE_SECRET_KEY. Get it from the Stripe dashboard, under Developers and then API keys. It is the secret key, not the publishable one. Paste it in place of the placeholder text, and make sure the value is marked as encrypted.
 
@@ -26,7 +26,7 @@ The third is AUTH_TOKEN_SECRET. This signs the tokens that keep a Shopper signed
 
 The one value that is not a secret
 
-STRIPE_PUBLISHABLE_KEY is the fourth placeholder, and it is the odd one out. Fill it in, but do not mark it encrypted, because there is nothing to keep private: a publishable key sits in the page source of every website that takes a card, and is meant to. Aldilivery serves it to the web app so that the card form can work at all.
+STRIPE_PUBLISHABLE_KEY is the fourth placeholder, and it is the odd one out. Fill it in, but do not mark it encrypted, because there is nothing to keep private: a publishable key sits in the page source of every website that takes a card, and is meant to. Ozi Delivery serves it to the web app so that the card form can work at all.
 
 Get it from the same place as the secret key, in the Stripe dashboard under Developers and then API keys. The two sit next to each other, which is exactly why this paragraph exists. The publishable key begins with the letters p k. The secret key begins with s k. Putting the secret key in this box would publish it to every visitor, so check the first two letters before you save.
 
@@ -68,7 +68,7 @@ The third is a field called dataBackend, whose value must be the word postgres. 
 
 The fourth is a field called paymentsMode, whose value must be the word stripe. If it says rehearsal, the Stripe key has not been picked up and no money can move.
 
-If all four are right, the API is live and talking to its database. Now visit the app address on its own, with nothing after it, and you should see the Aldilivery landing page: deep navy, a large gold microphone in the middle, and the line about Ozi shopping for you. Press the Tab key once and a skip link should appear with a thick focus ring around it. That is the accessible shell, running in production.
+If all four are right, the API is live and talking to its database. Now visit the app address on its own, with nothing after it, and you should see the Ozi Delivery landing page: deep navy, a large gold microphone in the middle, and the line about Ozi shopping for you. Press the Tab key once and a skip link should appear with a thick focus ring around it. That is the accessible shell, running in production.
 
 Then go to the shopping screen and search for something ordinary, like milk or bread, and you should get results. A brand new database has no rows in it, only empty tables, so the server fills the catalogue by itself the first time it starts, with the same everyday grocery list you see when running it on your own machine. You do not have to do anything to make that happen, and it only happens once: restarting the app will not duplicate anything.
 
@@ -76,7 +76,7 @@ Two things about that catalogue are worth knowing. The first is that it writes g
 
 If the web address works but the api part of it does not
 
-This is worth reading if you ever visit your app address with slash api slash health on the end and get the Aldilivery page back, or a not found page, instead of the short piece of JSON.
+This is worth reading if you ever visit your app address with slash api slash health on the end and get the Ozi Delivery page back, or a not found page, instead of the short piece of JSON.
 
 The first thing to check is whether the most recent deployment failed. This is by far the commonest cause, and it does not look like what it is. When the api component has no successfully deployed version running, either because its last deployment ended in an error or because it has never once started successfully, it is serving nothing at all. Every request to anything under slash api is then answered by the static site instead, because the static site is set up to answer any address it does not recognise with the app itself. That answer comes back with a success code on it, which is exactly why a component that is simply not running reads as a routing fault.
 
@@ -86,9 +86,9 @@ A deployment that is merely in progress does not cause this. That is worth stati
 
 The second thing to check is your own browser, which may have kept the wrong answer for several minutes after the real fault was fixed. Do a hard refresh, which on Windows is Control and F5 together. If you want to be certain that what you are looking at is fresh rather than remembered, add a question mark and a few random characters to the end of the address, which no cache will have seen before.
 
-The third thing to check is also your own browser, and it is the one that fooled everybody on the twenty fifth of September. Aldilivery installs a small helper in the browser, called a service worker, so that the app loads quickly and works without a signal. Until that day the helper answered every address typed into the address bar with its own saved copy of the app, including addresses under slash api. So a browser that had ever opened Aldilivery showed the page saying there is nothing on this page for slash api slash health, without sending the request anywhere at all. A successful redeploy changed nothing, a hard refresh changed nothing, and a question mark on the end changed nothing, because none of them reached the helper. The helper has been told since then to leave slash api alone, but a browser keeps its old helper until every Aldilivery tab in it has been closed.
+The third thing to check is also your own browser, and it is the one that fooled everybody on the twenty fifth of September. Ozi Delivery installs a small helper in the browser, called a service worker, so that the app loads quickly and works without a signal. Until that day the helper answered every address typed into the address bar with its own saved copy of the app, including addresses under slash api. So a browser that had ever opened Ozi Delivery showed the page saying there is nothing on this page for slash api slash health, without sending the request anywhere at all. A successful redeploy changed nothing, a hard refresh changed nothing, and a question mark on the end changed nothing, because none of them reached the helper. The helper has been told since then to leave slash api alone, but a browser keeps its old helper until every Ozi Delivery tab in it has been closed.
 
-The quickest way to tell whether this is what you are seeing is to open the same address in a private window, which in Edge is Control, Shift and N together. A private window has no saved helper. If the private window shows the short piece of JSON and your ordinary window shows the web page, the server is fine and only your browser is out of date. Close every Aldilivery tab and try again. If it still shows the web page, go to the Aldilivery tab, press F12, choose Application along the top of the panel that opens, then Storage on the left, then the button called Clear site data, and reload.
+The quickest way to tell whether this is what you are seeing is to open the same address in a private window, which in Edge is Control, Shift and N together. A private window has no saved helper. If the private window shows the short piece of JSON and your ordinary window shows the web page, the server is fine and only your browser is out of date. Close every Ozi Delivery tab and try again. If it still shows the web page, go to the Ozi Delivery tab, press F12, choose Application along the top of the panel that opens, then Storage on the left, then the button called Clear site data, and reload.
 
 Only when the most recent deployment shows as active, and a request from a private window still gives you a web page, is it worth suspecting the routing rules themselves. This is rarer than it sounds, so do not start here.
 
@@ -98,7 +98,7 @@ It is worth knowing that this was checked properly on the eighteenth of Septembe
 
 If you do need to put them right, it means uploading the spec again. Here is exactly what to do.
 
-Sign in to DigitalOcean and open the Apps section, then open the app called aldilivery. Go to the Settings tab. Near the top of that page, in the section headed App Spec, there is an Edit button. Press it and you will see the whole spec as text, in the same shape as the file in the repository.
+Sign in to DigitalOcean and open the Apps section, then open the app called aldilivery, which kept its old name inside DigitalOcean when the product was renamed. Go to the Settings tab. Near the top of that page, in the section headed App Spec, there is an Edit button. Press it and you will see the whole spec as text, in the same shape as the file in the repository.
 
 Before you change anything, select all of that text and copy it somewhere safe, so you can put it back if you need to. Then open the file dot do slash app dot yaml from the repository on GitHub, select all of it, and copy it. Go back to the dashboard, select all of the text in the box, delete it, and paste the file in its place.
 
@@ -112,17 +112,17 @@ There is one more reassurance worth having. The API now answers on both addresse
 
 Signing in by text message
 
-Until this is set up, an account can only be used on the phone or computer it was made on, and the sign-in screen says so. Setting it up needs a Twilio account, which is the company that sends the texts. Rule Eight applies to it exactly as it does to Stripe: the Twilio account must belong to Aldilivery and be used by nothing else.
+Until this is set up, an account can only be used on the phone or computer it was made on, and the sign-in screen says so. Setting it up needs a Twilio account, which is the company that sends the texts. Rule Eight applies to it exactly as it does to Stripe: the Twilio account must belong to Ozi Delivery and be used by nothing else.
 
 Sign up at twilio dot com. When it asks what you are building, anything close to sending login codes by text is right. A new account starts as a trial. A trial account can only send texts to phone numbers you have verified in the Twilio console, and every text it sends begins with a line saying it came from a Twilio trial account. That is fine for trying it with your own phone. It is not fine for anybody else, so before real Shoppers use it, upgrade the account by adding some credit. A text to a British mobile costs a few pence.
 
 On the front page of the Twilio console there are two values. The first is the Account SID, which begins with the letters A C. The second is the Auth Token, which is hidden until you press the button to show it. The Auth Token is a password for the whole Twilio account, so treat it like one.
 
-Next, decide who the texts come from. On a trial account, use the phone number Twilio gives you, written with the plus sign and the country code at the front. Once the account is upgraded you can use the word Aldilivery instead, and British phones will show that as the sender rather than a number. Nobody can reply to a text sent from a name, which is fine, because nobody needs to.
+Next, decide who the texts come from. On a trial account, use the phone number Twilio gives you, written with the plus sign and the country code at the front. Once the account is upgraded you can use the name OziDelivery instead, written as one word with no space, because a sender name can be at most eleven characters, and British phones will show that as the sender rather than a number. Nobody can reply to a text sent from a name, which is fine, because nobody needs to.
 
-One more setting in Twilio is worth changing before anything else. Under Messaging, then Settings, then Geo permissions, switch off every country except the United Kingdom. Aldilivery already refuses to send a code to any number that is not a British mobile, and it limits how many codes one number and one internet connection can ask for, but switching the other countries off in Twilio as well means that even a fault in Aldilivery could not send texts abroad at your expense. Sending texts to expensive numbers abroad is a known fraud, and this is the setting that stops it.
+One more setting in Twilio is worth changing before anything else. Under Messaging, then Settings, then Geo permissions, switch off every country except the United Kingdom. Ozi Delivery already refuses to send a code to any number that is not a British mobile, and it limits how many codes one number and one internet connection can ask for, but switching the other countries off in Twilio as well means that even a fault in Ozi Delivery could not send texts abroad at your expense. Sending texts to expensive numbers abroad is a known fraud, and this is the setting that stops it.
 
-Now go to DigitalOcean, to Settings, then the component named api, then environment variables. Add four. OTP_DELIVERY, with the value sms, in small letters. TWILIO_ACCOUNT_SID, with the Account SID, marked encrypted. TWILIO_AUTH_TOKEN, with the Auth Token, marked encrypted. TWILIO_FROM, with the number or the word Aldilivery, not encrypted. If the app was created before these were in the repository, they will not be there yet and you add them by hand; if they are there already with placeholder text, replace the text. Save, and the app redeploys by itself.
+Now go to DigitalOcean, to Settings, then the component named api, then environment variables. Add four. OTP_DELIVERY, with the value sms, in small letters. TWILIO_ACCOUNT_SID, with the Account SID, marked encrypted. TWILIO_AUTH_TOKEN, with the Auth Token, marked encrypted. TWILIO_FROM, with the number or the word Ozi Delivery, not encrypted. If the app was created before these were in the repository, they will not be there yet and you add them by hand; if they are there already with placeholder text, replace the text. Save, and the app redeploys by itself.
 
 When it is active, open the app address in a private window, go to Set up your account, and choose the link that says you are already set up on another phone or computer. Type your mobile number and press Text me a code. The text should arrive within a few seconds, and on an Android phone Chrome may offer to fill the code in by itself. Type it and press Sign in, and you should arrive at the shopping signed in as yourself.
 
@@ -130,15 +130,29 @@ If the sign-in screen says signing in by text is not switched on yet, one of the
 
 Paying Runners
 
-Each Runner is paid their five pounds into a Stripe account of their own, which Stripe calls a connected account. Aldilivery never holds the money and never sees a Runner's bank details: the Runner types those into Stripe's own pages. For that to work, Stripe Connect has to be switched on for the Aldilivery Stripe account once.
+Each Runner is paid their five pounds into a Stripe account of their own, which Stripe calls a connected account. Ozi Delivery never holds the money and never sees a Runner's bank details: the Runner types those into Stripe's own pages. For that to work, Stripe Connect has to be switched on for the Ozi Delivery Stripe account once.
 
-In the Stripe dashboard, make sure you are in test mode, which the sandbox banner at the top shows. Open Connect from the menu and press the button to get started. When it asks what you are building, choose a platform or marketplace that pays other people, and when it asks what kind of accounts, choose Express. Stripe will ask you to fill in a platform profile, which says what Aldilivery is and why it pays people. Say that it is a grocery delivery service that pays independent Runners a fixed fee for each delivery. Then under Connect settings, in branding, give it the name Aldilivery, so the Runner sees that name on Stripe's pages rather than a blank one.
+In the Stripe dashboard, make sure you are in test mode, which the sandbox banner at the top shows. Open Connect from the menu and press the button to get started. When it asks what you are building, choose a platform or marketplace that pays other people, and when it asks what kind of accounts, choose Express. Stripe will ask you to fill in a platform profile, which says what Ozi Delivery is and why it pays people. Say that it is a grocery delivery service that pays independent Runners a fixed fee for each delivery. Then under Connect settings, in branding, give it the name Ozi Delivery, so the Runner sees that name on Stripe's pages rather than a blank one.
 
 That is all. There is nothing to add to DigitalOcean: the same Stripe keys that take a Shopper's payment are the ones that pay a Runner.
 
 Once it is on, an approved Runner sees a part of their Runner page headed How you get paid, with a button to set it up. It takes them to Stripe, and brings them back when they are done. In test mode Stripe offers test answers for every question, including a test bank account, so you can go all the way through without any real details. From then on, the moment they mark an order delivered, their pay is sent. If they delivered before finishing the set up, nothing is lost: the page says what is owed, and it is sent within a minute of their account being ready.
 
-Going live later needs the same switch in live mode, and Stripe will ask for Aldilivery's registered company details before it lets live money move.
+Going live later needs the same switch in live mode, and Stripe will ask for Ozi Delivery's registered company details before it lets live money move.
+
+Moving to the new domain
+
+The product was renamed Ozi Delivery on the twenty eighth of September 2026, and its address is now ozidelivery.co.uk. The old address, the one ending in ondigitalocean dot app, keeps working throughout, so nothing breaks while the new one is set up, and you can take as long as you like over it.
+
+First, tell DigitalOcean about the domain. Open the app, go to the Settings tab, and find the section headed Domains. Press Add Domain, type ozidelivery.co.uk, and when it asks whether DigitalOcean should manage the domain, choose the option to let it do so. It then shows you three nameserver addresses, each beginning ns and ending digitalocean dot com. Add the domain a second time as www dot ozidelivery dot co dot uk, so that people who type the www in front arrive in the same place.
+
+Next, go to the company you bought the domain from, sign in, and find the nameserver settings for ozidelivery.co.uk. Replace whatever is there with the three DigitalOcean nameservers, exactly as DigitalOcean showed them, and save. This is the step that points the name at the app. It can take anything from a few minutes to a day to reach everybody, and DigitalOcean shows the domain as pending until it has. Once it has, DigitalOcean gets the padlock certificate for it by itself. There is nothing to buy.
+
+Then tell the server that the new address is allowed to use it. In the Settings tab, choose the component named api, open Environment Variables, and edit ALLOWED_ORIGIN. It currently holds the old address. Change it to hold three addresses separated by commas, with no spaces, in this order: https colon slash slash ozidelivery dot co dot uk, then the same with www dot in front of ozidelivery, then the old address exactly as it is now. The order matters. The first address is the one the server treats as its own: it goes at the end of every sign-in text so that phones can fill the code in, and it is the contact given to the notification services. The others are simply allowed. Save, and the app redeploys by itself.
+
+To check it, visit ozidelivery.co.uk with slash api slash health on the end. You should see the same short piece of JSON as on the old address. Then visit ozidelivery.co.uk on its own and you should see the landing page, headed Ozi Delivery.
+
+Four smaller things follow from the change, and none of them is urgent. The Stripe webhook can stay on the old address, which still works; if you later move it, edit the existing endpoint in Stripe and change only its address, rather than adding a second one, because a second endpoint would come with a different signing secret. In Stripe, under Connect settings and then branding, change the name to Ozi Delivery, so Runners see the new name on Stripe's pages. When Twilio is upgraded, use OziDelivery as the sender name, as described above. And anybody signed in on the old address, which today means only test accounts, will need to sign in again on the new one, because a browser keeps each address's sign-in separately. Notifications allowed on the old address are likewise separate, and need allowing again on the new one.
 
 Telling a Shopper about a question
 
@@ -150,13 +164,13 @@ Then go to the Settings tab, choose the api component, and open Environment Vari
 
 Make the keys once only. Making new ones later means every Shopper who allowed notifications would have to allow them again.
 
-Once it is redeployed, the Your order page shows a part headed If your Runner has a question, with a button saying Tell me when my Runner has a question. The phone asks for permission first. On an Android phone, or in Chrome, Edge or Firefox on a computer, that is all. On an iPhone or iPad, Apple only allows it once Aldilivery has been added to the Home Screen, using Share and then Add to Home Screen, and opened from there; the page says so. Until the keys are set, that part simply does not appear, and questions still show on the page.
+Once it is redeployed, the Your order page shows a part headed If your Runner has a question, with a button saying Tell me when my Runner has a question. The phone asks for permission first. On an Android phone, or in Chrome, Edge or Firefox on a computer, that is all. On an iPhone or iPad, Apple only allows it once Ozi Delivery has been added to the Home Screen, using Share and then Add to Home Screen, and opened from there; the page says so. Until the keys are set, that part simply does not appear, and questions still show on the page.
 
 Approving a Runner
 
-Somebody signs up to run from the Runner page on the site. That makes their account, but they cannot be offered any job until a person has seen two things: their right to work in the United Kingdom, and a criminal record check. Nothing in Aldilivery decides that for you. The approval tool only writes down what you decided, who you are, when, and what you saw, and then lets the job queue include them.
+Somebody signs up to run from the Runner page on the site. That makes their account, but they cannot be offered any job until a person has seen two things: their right to work in the United Kingdom, and a criminal record check. Nothing in Ozi Delivery decides that for you. The approval tool only writes down what you decided, who you are, when, and what you saw, and then lets the job queue include them.
 
-Look at the documents first, in whatever way you have arranged with the Runner. For the right to work that is usually a share code checked on the GOV.UK website, or a passport. For the criminal record check it is usually a basic DBS certificate. Do not keep copies of anybody's documents anywhere in Aldilivery. Write down only what kind of document it was and enough of a reference to find it again, such as the last four characters of a certificate number.
+Look at the documents first, in whatever way you have arranged with the Runner. For the right to work that is usually a share code checked on the GOV.UK website, or a passport. For the criminal record check it is usually a basic DBS certificate. Do not keep copies of anybody's documents anywhere in Ozi Delivery. Write down only what kind of document it was and enough of a reference to find it again, such as the last four characters of a certificate number.
 
 Then, in the DigitalOcean dashboard, open the app, go to the Console tab, and choose the api component, exactly as for removing test rows.
 
@@ -184,7 +198,7 @@ If the api component will not stay running, open its runtime logs from the app p
 
 If the health route says dataBackend is memory, then DATABASE_URL has been overwritten with something that is not a real connection string. Put it back to the name in curly brackets that refers to the database, and save.
 
-If the api component will not start and the log mentions a code that reads P three thousand and nine, or says that migrate found failed migrations in the target database, then an earlier attempt to set up the database was interrupted part way through, most likely because the database was still being created at the time. Prisma has written down that the setup failed and will refuse to touch the database again until that record is cleared, which is the right thing for it to do rather than guess about your data. The server now clears that record by itself on the next start and then tries again, up to five times, waiting ten seconds between tries, so the usual fix is simply to redeploy from the Actions menu and let it sort itself out. It clears only Prisma's own note of what has run. It deletes nothing, and there is no command anywhere in Aldilivery that would drop a table or reset the database.
+If the api component will not start and the log mentions a code that reads P three thousand and nine, or says that migrate found failed migrations in the target database, then an earlier attempt to set up the database was interrupted part way through, most likely because the database was still being created at the time. Prisma has written down that the setup failed and will refuse to touch the database again until that record is cleared, which is the right thing for it to do rather than guess about your data. The server now clears that record by itself on the next start and then tries again, up to five times, waiting ten seconds between tries, so the usual fix is simply to redeploy from the Actions menu and let it sort itself out. It clears only Prisma's own note of what has run. It deletes nothing, and there is no command anywhere in Ozi Delivery that would drop a table or reset the database.
 
 If it still will not start after that, and the log now says something about a table or a type that already exists, then the interrupted attempt had got far enough to create part of the schema before it stopped. That one does need a person. Say the word and I will write the migration that tidies it up. Do not be tempted by anything in the Prisma documentation that mentions resetting the database, because on a database with real orders in it that throws them away.
 
@@ -200,7 +214,7 @@ If the build fails saying that the version of Node is not available, open packag
 
 What this deployment is and is not
 
-The database created here is a development database, which is the smallest managed PostgreSQL that App Platform offers. It is not backed up. It is fine for looking at Aldilivery running on the internet, and it is not fine for holding real orders from real people. Before there are real Shoppers, move to a production database cluster, which is a change of two lines in .do/app.yaml.
+The database created here is a development database, which is the smallest managed PostgreSQL that App Platform offers. It is not backed up. It is fine for looking at Ozi Delivery running on the internet, and it is not fine for holding real orders from real people. Before there are real Shoppers, move to a production database cluster, which is a change of two lines in .do/app.yaml.
 
 The api component runs on one basic-xxs instance, which is the smallest size there is. It will be slow to answer the first request after a quiet period.
 

@@ -534,7 +534,7 @@ function HowYouGetPaid(): JSX.Element {
             <>
               <p role={back ? 'status' : undefined} className="m-0">
                 {pay.setup === 'not_started'
-                  ? 'Before we can pay you, we need to know where to send the money. You give your bank details to our payment company, Stripe, on their own page. Aldilivery never sees them.'
+                  ? `Before we can pay you, we need to know where to send the money. You give your bank details to our payment company, Stripe, on their own page. ${storeConfig.productName} never sees them.`
                   : 'You have started setting up where your pay goes, but Stripe needs a little more from you before it can send money.'}
               </p>
               <button

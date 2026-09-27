@@ -144,6 +144,23 @@ describe('the environment reader', () => {
     expect(env.allowedOrigins).toEqual(['https://a.example.com', 'https://b.example.com']);
   });
 
+  it('keeps the old address working during a change of domain, and calls the first one its own', () => {
+    const env = readEnv({
+      ALLOWED_ORIGIN:
+        'https://ozidelivery.co.uk, https://www.ozidelivery.co.uk, https://lobster-app-3ilv6.ondigitalocean.app',
+    } as NodeJS.ProcessEnv);
+    expect(env.allowedOrigins).toEqual([
+      'https://ozidelivery.co.uk',
+      'https://www.ozidelivery.co.uk',
+      'https://lobster-app-3ilv6.ondigitalocean.app',
+    ]);
+    expect(env.primaryOrigin).toBe('https://ozidelivery.co.uk');
+  });
+
+  it('has no address of its own when any origin is allowed', () => {
+    expect(readEnv({ ALLOWED_ORIGIN: '*' } as NodeJS.ProcessEnv).primaryOrigin).toBeUndefined();
+  });
+
   it('falls back to the local web address in development', () => {
     const env = readEnv({ NODE_ENV: 'development' } as NodeJS.ProcessEnv);
     expect(env.allowedOrigins).toEqual(['http://localhost:5173']);

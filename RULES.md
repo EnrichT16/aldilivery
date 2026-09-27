@@ -1,4 +1,4 @@
-# Aldilivery — Inviolable Rules
+# Ozi Delivery — Inviolable Rules
 
 These rules are not guidance. They are the product. Every line of code in this repository
 obeys them. A change that breaks one of these rules must break a test.
@@ -11,7 +11,7 @@ obeys them. A change that breaks one of these rules must break a test.
 
 **Two.** The Runner receives five pounds on every completed order, without exception.
 
-**Three.** Aldilivery never nets below two pounds on any order after payment processing costs.
+**Three.** Ozi Delivery never nets below two pounds on any order after payment processing costs.
 
 **Four.** No surge pricing, no small order fee, no minimum spend.
 
@@ -21,11 +21,11 @@ obeys them. A change that breaks one of these rules must break a test.
 
 **Seven.** Every screen meets WCAG two point two level double A.
 
-**Eight.** Aldilivery shares no code, database, login or payment account with any other product.
+**Eight.** Ozi Delivery shares no code, database, login or payment account with any other product.
 
 **Nine.** Store identity, name, colours, catalogue source and legal entity are configuration, never code.
 
-**Ten.** Aldilivery never stores card numbers and never holds Runner money.
+**Ten.** Ozi Delivery never stores card numbers and never holds Runner money.
 
 ---
 
@@ -41,5 +41,5 @@ obeys them. A change that breaks one of these rules must break a test.
 | Six | `CatalogueItem.ageRestricted` is rejected at basket time in `POST /basket/price` and again at order creation. Proved in `packages/api/test/basket.test.ts`. |
 | Seven | `eslint-plugin-jsx-a11y` in `eslint.config.js`, and `axe-core` run against every screen in `packages/web/test`. Any violation fails the build. Minimum control height, base font size and focus visibility are enforced in `packages/web/src/styles/index.css`. |
 | Eight | This repository contains one product. `docker-compose.yml` starts a database named for this product alone, on its own port and volume. There is no shared authentication provider, no shared Stripe account, and no imported code from any other product of Anthony. |
-| Nine | Everything about the store lives in `config/store.json`. The string *Aldi* appears in that file, in documentation, and nowhere else in any source file. Proved by a repository scan test in `packages/core/test/config.test.ts`. |
-| Ten | `PaymentMethod` in `packages/api/prisma/schema.prisma` has a Stripe payment method identifier and last four digits, and no field capable of holding a card number. Runner money moves by Stripe Connect transfer to the Runner own connected account; Aldilivery never takes custody. |
+| Nine | Everything about the store and the product lives in `config/store.json`. The store name, the product name and the legal entity each appear in that file, in documentation, and nowhere else in any source file, and the product's former name, Aldilivery, appears in no line of source outside a comment. The web page shown before JavaScript runs is filled in from the same file at build time, and the three rules above that name the product take the name from it too (`inviolableRules` in `packages/core/src/rules.ts`). Proved by repository scan tests in `packages/core/test/config.test.ts`. |
+| Ten | `PaymentMethod` in `packages/api/prisma/schema.prisma` has a Stripe payment method identifier and last four digits, and no field capable of holding a card number. Runner money moves by Stripe Connect transfer to the Runner own connected account; Ozi Delivery never takes custody. |

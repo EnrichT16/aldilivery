@@ -1,12 +1,12 @@
-Testing Aldilivery with the people it is for
+Testing Ozi Delivery with the people it is for
 
 This file is for Anthony, and for anybody who helps him run a session. It is written the same way as DEPLOY.md, in plain prose with no lists or symbols, so that it reads properly aloud.
 
-Aldilivery is built for blind and partially sighted people, disabled people, older people, and people who find reading hard. Every screen already passes the automated accessibility checks, at normal size and at four hundred percent zoom, and it has been driven end to end in a real browser. None of that tells us whether a real person, using their own screen reader in their own way, can actually shop with it. Only they can tell us that. This guide is how to find out.
+Ozi Delivery is built for blind and partially sighted people, disabled people, older people, and people who find reading hard. Every screen already passes the automated accessibility checks, at normal size and at four hundred percent zoom, and it has been driven end to end in a real browser. None of that tells us whether a real person, using their own screen reader in their own way, can actually shop with it. Only they can tell us that. This guide is how to find out.
 
 What a session is
 
-A session is one person, one facilitator, and about an hour. The person uses Aldilivery on their own phone or computer, with their own screen reader or magnifier, set up the way they always have it. The facilitator gives them a few everyday things to do, one at a time, watches and listens, and writes down what happens. The facilitator does not help unless the person asks, or is stuck and upset.
+A session is one person, one facilitator, and about an hour. The person uses Ozi Delivery on their own phone or computer, with their own screen reader or magnifier, set up the way they always have it. The facilitator gives them a few everyday things to do, one at a time, watches and listens, and writes down what happens. The facilitator does not help unless the person asks, or is stuck and upset.
 
 Five or six sessions will find most of the problems that matter. It is better to run three, fix what they find, and run three more, than to run six all at once and find the same problem six times.
 
@@ -20,13 +20,13 @@ Pay people for their time. They are doing skilled work, and testing with disable
 
 Before the session, for the person taking part
 
-Send the invitation in a form they can read, which means plain text in the body of an email, not a scanned letter, a picture or a complicated attachment. Tell them what will happen, that it is Aldilivery being tested and not them, that they can stop at any time, and whether you would like to record the session. Ask whether they have any access needs for the session itself, such as extra time, breaks, or a particular way of joining a video call.
+Send the invitation in a form they can read, which means plain text in the body of an email, not a scanned letter, a picture or a complicated attachment. Tell them what will happen, that it is Ozi Delivery being tested and not them, that they can stop at any time, and whether you would like to record the session. Ask whether they have any access needs for the session itself, such as extra time, breaks, or a particular way of joining a video call.
 
 Ask for their agreement to take part, and separately to any recording. Recording is optional. If they say no, take written notes instead. Write down only what you need: what happened on each task, and what they said about it. Do not keep their real phone number, address or card details anywhere, because the session does not need them.
 
 Before the session, for the facilitator
 
-On the day, check that the live site is working. Visit the app address with slash api slash health on the end, and check that status says o k and paymentsMode says stripe. Stripe is in test mode, so no real money can move. Tell the person that, because being asked for a card and then told money has been taken is alarming if nobody has explained.
+On the day, check that the live site is working. Visit the app address, which is ozidelivery.co.uk once the new domain is set up, with slash api slash health on the end, and check that status says o k and paymentsMode says stripe. Stripe is in test mode, so no real money can move. Tell the person that, because being asked for a card and then told money has been taken is alarming if nobody has explained.
 
 Go through every task below yourself first, on the same kind of device and screen reader the person will use if you can. NVDA is free for Windows, and VoiceOver is already on every iPhone and Mac. If you have never listened to a screen reader before, spend ten minutes with it before the session, so that you can follow what the person hears.
 
@@ -42,7 +42,7 @@ The card number to use is 4000 0082 6000 0000, which is a test card that Stripe 
 
 Starting the session
 
-Thank them. Explain that you are testing Aldilivery and not them, that nothing they do can be wrong, and that finding problems is the whole point, so a task that goes badly is useful. Ask them to think aloud as they go, saying what they are looking for, what they expected, and what surprised them. Tell them they can stop, take a break, or skip a task whenever they like.
+Thank them. Explain that you are testing Ozi Delivery and not them, that nothing they do can be wrong, and that finding problems is the whole point, so a task that goes badly is useful. Ask them to think aloud as they go, saying what they are looking for, what they expected, and what surprised them. Tell them they can stop, take a break, or skip a task whenever they like.
 
 Ask a few questions first, and write down the answers. What device and screen reader or magnifier they are using. How often they shop online, and what they use. What usually goes wrong for them on shopping websites.
 
@@ -94,4 +94,4 @@ Delete any recordings once the notes are written, unless the person agreed to th
 
 What this does not replace
 
-A session like this finds whether people can use Aldilivery. It is not a formal accessibility audit against the Web Content Accessibility Guidelines, and it is not legal advice. Before real customers use it, it is worth having an independent accessibility audit as well, from an organisation that does them.
+A session like this finds whether people can use Ozi Delivery. It is not a formal accessibility audit against the Web Content Accessibility Guidelines, and it is not legal advice. Before real customers use it, it is worth having an independent accessibility audit as well, from an organisation that does them.

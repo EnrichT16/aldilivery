@@ -10,19 +10,25 @@
  * See RULES.md at the repository root.
  */
 
-/** The ten rules, word for word, for display and for tests. */
-export const INVIOLABLE_RULES: readonly string[] = [
-  'A single explicit confirmation from the Shopper is required before any payment is taken.',
-  'The Runner receives five pounds on every completed order, without exception.',
-  'Aldilivery never nets below two pounds on any order after payment processing costs.',
-  'No surge pricing, no small order fee, no minimum spend.',
-  'A notice is sent thirty minutes before any recurring Set order fires, with a one word skip.',
-  'No age restricted goods in version one.',
-  'Every screen meets WCAG two point two level double A.',
-  'Aldilivery shares no code, database, login or payment account with any other product.',
-  'Store identity, name, colours, catalogue source and legal entity are configuration, never code.',
-  'Aldilivery never stores card numbers and never holds Runner money.',
-] as const;
+/**
+ * The ten rules, word for word, for display and for tests. Three of them name the product, and
+ * the product's name is configuration (Rule Nine), so it is filled in from `productName` in
+ * config/store.json rather than written here.
+ */
+export function inviolableRules(productName: string): readonly string[] {
+  return [
+    'A single explicit confirmation from the Shopper is required before any payment is taken.',
+    'The Runner receives five pounds on every completed order, without exception.',
+    `${productName} never nets below two pounds on any order after payment processing costs.`,
+    'No surge pricing, no small order fee, no minimum spend.',
+    'A notice is sent thirty minutes before any recurring Set order fires, with a one word skip.',
+    'No age restricted goods in version one.',
+    'Every screen meets WCAG two point two level double A.',
+    `${productName} shares no code, database, login or payment account with any other product.`,
+    'Store identity, name, colours, catalogue source and legal entity are configuration, never code.',
+    `${productName} never stores card numbers and never holds Runner money.`,
+  ];
+}
 
 /**
  * Rule Two. Five pounds, in pence, to the Runner on every completed order.

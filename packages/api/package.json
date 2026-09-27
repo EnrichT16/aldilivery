@@ -2,7 +2,7 @@
   "name": "@aldilivery/api",
   "version": "0.1.0",
   "private": true,
-  "description": "Aldilivery API — Fastify, PostgreSQL through Prisma, and Stripe.",
+  "description": "The API — Fastify, PostgreSQL through Prisma, and Stripe.",
   "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",

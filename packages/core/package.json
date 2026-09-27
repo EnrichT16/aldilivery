@@ -2,7 +2,7 @@
   "name": "@aldilivery/core",
   "version": "0.1.0",
   "private": true,
-  "description": "Aldilivery shared logic: the fee engine, the inviolable rule constants, and the store configuration contract.",
+  "description": "Shared logic: the fee engine, the inviolable rule constants, and the store configuration contract.",
   "license": "UNLICENSED",
   "type": "module",
   "main": "./dist/index.js",

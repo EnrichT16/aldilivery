@@ -1,6 +1,9 @@
 /* global self */
 /*
- * Notifications, inside the service worker, so they arrive when no Aldilivery page is open.
+ * Notifications, inside the service worker, so they arrive when no page of ours is open.
+ *
+ * This file is copied as it is, not built, so it cannot read config/store.json. It names no
+ * product: the server always sends the title and text, and the fallbacks below are plain.
  *
  * Loaded into the generated service worker by `workbox.importScripts` in vite.config.ts. The
  * server sends { title, body, url, tag }; see packages/api/src/lib/push.ts. A notification stays
@@ -15,10 +18,10 @@ self.addEventListener('push', (event) => {
   } catch {
     message = {};
   }
-  const title = message.title || 'Aldilivery';
+  const title = message.title || 'A new message';
   event.waitUntil(
     self.registration.showNotification(title, {
-      body: message.body || 'Open Aldilivery to see what is new.',
+      body: message.body || 'Open the app to see what is new.',
       tag: message.tag,
       renotify: Boolean(message.tag),
       requireInteraction: true,

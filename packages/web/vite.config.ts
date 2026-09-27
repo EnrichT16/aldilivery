@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import react from '@vitejs/plugin-react';
+import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { VitePWA } from 'vite-plugin-pwa';
 
@@ -16,8 +17,38 @@ const storeConfig = JSON.parse(readFileSync(storeConfigUrl, 'utf8')) as {
   brand: { colours: { navy: string; gold: string; white: string } };
 };
 
+/**
+ * The page the browser loads before any JavaScript runs — its title, the line shown when
+ * JavaScript is off, the description and the theme colour — is filled in from the same file,
+ * so that none of it is written into index.html (Rule Nine). Each `%STORE_…%` token there is
+ * replaced here, and the build fails if one is left over.
+ */
+function storeIdentityInHtml(): Plugin {
+  const escape = (text: string): string =>
+    text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const tokens: Record<string, string> = {
+    '%STORE_PRODUCT_NAME%': storeConfig.productName,
+    '%STORE_TAGLINE%': storeConfig.tagline,
+    '%STORE_NAVY%': storeConfig.brand.colours.navy,
+  };
+  return {
+    name: 'store-identity-in-html',
+    transformIndexHtml(html) {
+      let filled = html;
+      for (const [token, value] of Object.entries(tokens)) {
+        filled = filled.split(token).join(escape(value));
+      }
+      const leftOver = filled.match(/%STORE_[A-Z_]+%/);
+      if (leftOver)
+        throw new Error(`index.html uses ${leftOver[0]}, which vite.config.ts does not fill in.`);
+      return filled;
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
+    storeIdentityInHtml(),
     react(),
     VitePWA({
       registerType: 'prompt',
@@ -49,7 +80,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: '/index.html',
         // The API shares this hostname, so without this the service worker answers a visit
-        // to /api/health with the cached app, in any browser that has opened Aldilivery
+        // to /api/health with the cached app, in any browser that has opened the app
         // before. The request never leaves the browser, which is why a redeploy, a hard
         // refresh habit or a correct routing rule all change nothing. Found 25 Sep 2026.
         navigateFallbackDenylist: [/^\/api(\/|$)/],

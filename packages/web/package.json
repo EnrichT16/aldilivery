@@ -2,7 +2,7 @@
   "name": "@aldilivery/web",
   "version": "0.1.0",
   "private": true,
-  "description": "Aldilivery — the installable web app. Accessible first, voice later.",
+  "description": "The installable web app. Accessible first, voice later.",
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {

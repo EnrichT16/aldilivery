@@ -334,7 +334,7 @@ export function requireStaff(request: FastifyRequest, staffKey: string | undefin
     value !== undefined &&
     value.length === staffKey.length &&
     timingSafeEqual(Buffer.from(value), Buffer.from(staffKey));
-  if (!ok) throw new ForbiddenError('That is only for Aldilivery itself.');
+  if (!ok) throw new ForbiddenError('That is only for the server itself.');
 }
 
 /** Require a signed-in account, optionally of a particular kind. */

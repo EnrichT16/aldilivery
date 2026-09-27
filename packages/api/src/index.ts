@@ -58,7 +58,7 @@ async function main(): Promise<void> {
         from: env.twilioFrom as string,
       })
     : undefined;
-  const webOrigin = env.allowedOrigins.length === 1 ? env.allowedOrigins[0] : undefined;
+  const webOrigin = env.primaryOrigin;
 
   // Notifications. The push services want somebody to contact about our messages: the
   // address given, or else the site itself when it is served over https.
