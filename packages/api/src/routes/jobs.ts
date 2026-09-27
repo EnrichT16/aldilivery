@@ -12,7 +12,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
-import { requireSession } from '../app.js';
+import { requireSession, requireStaff } from '../app.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 import { isOfferExpired, poolOrders } from '../services/allocation.js';
 import { offerOrder } from '../services/dispatch.js';
@@ -28,6 +28,7 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
    * sense that a live, unexpired offer is returned rather than a second one being made.
    */
   app.post('/jobs/:orderId/offer', async (request) => {
+    requireStaff(request, app.ctx.env.staffKey);
     const { orderId } = z.object({ orderId: z.string().min(1) }).parse(request.params);
     return offerOrder(app.ctx, orderId);
   });
@@ -191,7 +192,11 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const pools = poolOrders(
-      found.map((order) => ({ id: order.id, latitude: order.latitude, longitude: order.longitude })),
+      found.map((order) => ({
+        id: order.id,
+        latitude: order.latitude,
+        longitude: order.longitude,
+      })),
       config.allocation.poolingRadiusMiles,
     );
 
