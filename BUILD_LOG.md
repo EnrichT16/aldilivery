@@ -2051,6 +2051,86 @@ runs on deploy. Four routes:
   - the answer reached the Runner 3 seconds later;
   - axe found no problems on every screen, and nothing scrolled sideways at 320 pixels.
 
+## 2026-09-28 — Step 29: making sure the Shopper hears the question
+
+After Step 28, a Runner's question only reached a Shopper who happened to be looking at the Your
+order page. After five minutes their sign-up preference decided, so most questions would have been
+settled without them. Twilio cannot text anybody yet, so this uses what the phone and browser
+already have.
+
+### On the open page
+
+A new question plays a two-note chime and buzzes the phone, once per question. The sound is made
+in the page, so there is no file to download. Either may be refused by the browser or the device.
+That is fine: the question is still an alert a screen reader says, and it is on the screen.
+
+### When the page is closed
+
+The Your order page, and "Your order is sent", now have a part headed "If your Runner has a
+question", with a button: "Tell me when my Runner has a question". The phone asks for permission.
+After that, a question arrives as a notification that stays until it is dealt with, and pressing it
+opens Your order.
+
+This is Web Push, the notification service built into every browser. It needs no account with
+anybody, only a key pair of our own. The page says in plain words:
+
+- when the browser has blocked notifications, and where to allow them;
+- on an iPhone or iPad, that Apple requires Aldilivery to be on the Home Screen first.
+
+Where notifications are not switched on, or the browser cannot do them, nothing is offered.
+
+### Behind it
+
+- A new table, `PushSubscription`, with migration `20260928090000_push_subscriptions`, which runs
+  on deploy. It holds only the browser's push address and its encryption keys, never a message.
+- `POST` and `DELETE /push-subscriptions`, for Shoppers.
+- `/config` now includes `push.publicKey`, or null when notifications are off.
+- Asking a question sends a notification to each of the Shopper's devices. The Runner does not
+  wait for it, and a failure never stops the question. A device the push service says has gone is
+  forgotten.
+- The server sends a request to whatever push address a browser gives it. So only the browsers'
+  own push services are accepted (Google, Mozilla, Apple, Microsoft), over https. Otherwise anybody
+  signed in could make the server call any address they liked.
+- The one new dependency is `web-push`, the standard library for this. It does the encryption and
+  signing, which are too easy to get subtly wrong by hand.
+- `scripts/push-keys.mjs` makes the key pair in the Console. DEPLOY.md, "Telling a Shopper about a
+  question", has the steps.
+
+### What Anthony has to do
+
+Make the key pair once, in the Console, and paste the two values into the api component's
+settings. Until then everything else works and the notifications offer simply does not appear.
+
+### Checked
+
+- API: 11 new tests.
+  - Which push addresses are accepted, and which are refused.
+  - `/config` saying whether notifications are on.
+  - Saving a device once however often it is sent.
+  - Refusing a bad address, a Runner, and nobody signed in.
+  - A plain message when notifications are not switched on.
+  - Turning off only your own device.
+  - A question notifying each device once, opening Your order.
+  - Forgetting a device the push service says has gone.
+  - The question still being asked when the push service fails.
+- A check that `web-push` produces an encrypted, signed request with real keys.
+- Web: 7 new tests.
+  - A chime and buzz once per question, not on every look, and silence with no question.
+  - No offer when notifications are off.
+  - Turning them on, and saying so.
+  - The blocked message, and the iPhone Home Screen message.
+  - axe, with the offer showing.
+- `pnpm run verify`: lint, typecheck and **420 tests** (43 core, 270 api, 107 web), all passing.
+- In Chromium, with two browsers and the real service worker:
+  - a new question played both notes of the chime and buzzed once, and did not repeat on the next
+    look;
+  - a push handed straight to the service worker showed "A question from your Runner", set to stay
+    until dealt with and to open Your order;
+  - axe was clean and nothing scrolled sideways.
+- Not checked here: turning notifications on. Headless Chromium refuses every push subscription,
+  whatever permission it is given, so the first real check is on a phone, on the live site, once
+  the keys are set.
+
 ---
 
 ## What Anthony Should Check

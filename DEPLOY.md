@@ -140,6 +140,18 @@ Once it is on, an approved Runner sees a part of their Runner page headed How yo
 
 Going live later needs the same switch in live mode, and Stripe will ask for Aldilivery's registered company details before it lets live money move.
 
+Telling a Shopper about a question
+
+When a Runner cannot find something, the question appears on the Shopper's Your order page, which chimes and buzzes when it arrives. If the Shopper allows it, their phone also shows a notification even when the page is closed, and pressing it opens the question. This uses the notification service built into every browser, so there is no account to open with anybody, but the server needs a key pair of its own, made once.
+
+In the DigitalOcean dashboard, open the app, go to the Console tab, and choose the api component, exactly as for approving a Runner. Type node packages/api/scripts/push-keys.mjs and press enter. It prints two lines: one starting VAPID_PUBLIC_KEY and one starting VAPID_PRIVATE_KEY, each followed by a long string of letters and numbers. It saves nothing, so keep the Console open until both are pasted.
+
+Then go to the Settings tab, choose the api component, and open Environment Variables. Press edit, and add a variable called VAPID_PUBLIC_KEY with the first long string as its value. Add another called VAPID_PRIVATE_KEY with the second long string, and tick Encrypt for that one, because it is a secret. Treat it like a password and cover it in any screenshot. Save. The app redeploys by itself.
+
+Make the keys once only. Making new ones later means every Shopper who allowed notifications would have to allow them again.
+
+Once it is redeployed, the Your order page shows a part headed If your Runner has a question, with a button saying Tell me when my Runner has a question. The phone asks for permission first. On an Android phone, or in Chrome, Edge or Firefox on a computer, that is all. On an iPhone or iPad, Apple only allows it once Aldilivery has been added to the Home Screen, using Share and then Add to Home Screen, and opened from there; the page says so. Until the keys are set, that part simply does not appear, and questions still show on the page.
+
 Approving a Runner
 
 Somebody signs up to run from the Runner page on the site. That makes their account, but they cannot be offered any job until a person has seen two things: their right to work in the United Kingdom, and a criminal record check. Nothing in Aldilivery decides that for you. The approval tool only writes down what you decided, who you are, when, and what you saw, and then lets the job queue include them.

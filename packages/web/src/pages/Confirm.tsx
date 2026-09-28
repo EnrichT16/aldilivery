@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { NotifyMe } from '../components/NotifyMe';
 import { storeConfig } from '../config';
 import {
   createOrder,
@@ -146,6 +147,7 @@ export function Confirm(): JSX.Element {
           If your Runner cannot find something, they will ask you on your order page, and you choose
           what they do. Nobody is given your phone number.
         </p>
+        <NotifyMe />
         <p className="m-0 text-paper/80">Your order number is {placed.order.id}.</p>
         <Link to="/my-order" className="control bg-highlight text-ink">
           Follow your order

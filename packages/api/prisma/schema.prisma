@@ -149,6 +149,7 @@ model Shopper {
   sets              Set[]
   paymentMethods    PaymentMethod[]
   circleMemberships HouseholdCircleMember[]
+  pushSubscriptions PushSubscription[]
 
   @@index([deletionScheduledFor])
 }
@@ -552,3 +553,17 @@ model ItemQuestion {
   @@index([orderId])
 }
 
+
+/// A device a Shopper has allowed to show notifications. The browser's push address and the
+/// keys for encrypting what is sent to it; no message is ever stored.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  shopperId String
+  shopper   Shopper  @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([shopperId])
+}

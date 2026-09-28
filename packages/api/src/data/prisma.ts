@@ -97,6 +97,22 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    pushSubscriptions: {
+      async save(input) {
+        return (await prisma.pushSubscription.upsert({
+          where: { endpoint: input.endpoint },
+          create: input,
+          update: { shopperId: input.shopperId, p256dh: input.p256dh, auth: input.auth },
+        })) as any;
+      },
+      async listForShopper(shopperId) {
+        return (await prisma.pushSubscription.findMany({ where: { shopperId } })) as any;
+      },
+      async deleteByEndpoint(endpoint) {
+        await prisma.pushSubscription.deleteMany({ where: { endpoint } });
+      },
+    },
+
     itemQuestions: {
       async create(input) {
         return (await prisma.itemQuestion.create({ data: input })) as any;

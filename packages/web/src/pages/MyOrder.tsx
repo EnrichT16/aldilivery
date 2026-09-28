@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { NotifyMe } from '../components/NotifyMe';
+
 import {
   answerQuestion,
   fetchMyOrder,
@@ -8,6 +10,7 @@ import {
   type ItemQuestion,
   type MyOrder as Order,
 } from '../lib/api';
+import { buzz, chime } from '../lib/alert';
 import { money } from '../lib/money';
 import { useSession } from '../state/session';
 
@@ -21,6 +24,9 @@ import { useSession } from '../state/session';
  * Only the question itself is in the alert, and its words do not change while it waits: a
  * live region whose countdown ticked would be read out again every few seconds. The time
  * left is in minutes, next to the buttons, and says what happens if nobody answers.
+ *
+ * A new question also chimes and buzzes, once, for somebody who has put the phone down with the
+ * page open. For a closed page, the Shopper can allow notifications here (`NotifyMe`).
  */
 
 const POLL_MS = 5000;
@@ -65,12 +71,22 @@ export function MyOrder(): JSX.Element {
   const [problem, setProblem] = useState('');
   const [news, setNews] = useState('');
   const problemRef = useRef<HTMLParagraphElement>(null);
+  const heard = useRef(new Set<string>());
 
   const refresh = useCallback(async () => {
     try {
       const result = await fetchMyOrder();
       setOrder(result.order);
-      setQuestions(result.questions ?? []);
+      const questions = result.questions ?? [];
+      setQuestions(questions);
+      const fresh = questions.filter(
+        (question) => question.answer === null && !heard.current.has(question.id),
+      );
+      fresh.forEach((question) => heard.current.add(question.id));
+      if (fresh.length > 0) {
+        chime();
+        buzz();
+      }
     } catch (failure) {
       setProblem(failure instanceof Error ? failure.message : 'We could not check your order.');
     } finally {
@@ -207,6 +223,8 @@ export function MyOrder(): JSX.Element {
               </p>
             </section>
           ))}
+
+          <NotifyMe />
 
           <section aria-labelledby="where-heading" className="space-y-3 max-w-xl">
             <h2 id="where-heading" className="text-lead font-bold">

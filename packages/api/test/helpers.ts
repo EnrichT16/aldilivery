@@ -19,6 +19,7 @@ import {
   type PaymentsGateway,
   type RehearsalGateway,
 } from '../src/lib/payments.js';
+import type { SendPush } from '../src/lib/push.js';
 
 export const TEST_SECRET = 'test-secret-that-is-long-enough-for-hmac';
 
@@ -44,6 +45,9 @@ export const testEnv: Env = {
   twilioAccountSid: undefined,
   twilioAuthToken: undefined,
   twilioFrom: undefined,
+  vapidPublicKey: undefined,
+  vapidPrivateKey: undefined,
+  vapidSubject: undefined,
   seedOnStart: true,
 };
 
@@ -78,6 +82,8 @@ export interface TestAppOptions {
   autoPayout?: boolean;
   /** In place of recording codes: used to make sending fail. */
   deliverCode?: (phone: string, code: string) => Promise<void>;
+  /** Web Push. Off unless a test hands in a stand-in sender. */
+  sendPush?: SendPush;
 }
 
 export async function buildTestApp(
@@ -104,6 +110,7 @@ export async function buildTestApp(
     codeDelivery: options.codeDelivery ?? 'log',
     autoOffer: options.autoOffer ?? false,
     autoPayout: options.autoPayout ?? false,
+    ...(options.sendPush ? { sendPush: options.sendPush, pushPublicKey: 'test-public-key' } : {}),
     deliverCode:
       options.deliverCode ??
       (async (phone, code) => {

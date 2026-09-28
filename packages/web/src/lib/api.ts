@@ -410,6 +410,30 @@ export interface PublicPaymentsConfig {
   supportedCardRegions: string[];
 }
 
+/** The key a browser needs to allow notifications, or null when they are not switched on. */
+export function fetchPushPublicKey(): Promise<string | null> {
+  return request<{ push?: { publicKey: string | null } }>('/config').then(
+    (body) => body.push?.publicKey ?? null,
+  );
+}
+
+export function savePushSubscription(subscription: {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}): Promise<{ message: string }> {
+  return request<{ message: string }>('/push-subscriptions', {
+    method: 'POST',
+    body: JSON.stringify(subscription),
+  });
+}
+
+export function removePushSubscription(endpoint: string): Promise<{ message: string }> {
+  return request<{ message: string }>('/push-subscriptions', {
+    method: 'DELETE',
+    body: JSON.stringify({ endpoint }),
+  });
+}
+
 export function fetchPaymentsConfig(): Promise<PublicPaymentsConfig> {
   return request<{ payments: PublicPaymentsConfig }>('/config').then((body) => body.payments);
 }

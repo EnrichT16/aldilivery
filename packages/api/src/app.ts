@@ -20,6 +20,7 @@ import type { AccountRole } from './domain.js';
 import { ApiError, ForbiddenError, UnauthorisedError } from './errors.js';
 import type { Env } from './env.js';
 import type { PaymentsGateway } from './lib/payments.js';
+import type { SendPush } from './lib/push.js';
 import { verifySession } from './lib/tokens.js';
 import { gitCommit } from './lib/version.js';
 import { registerAuthRoutes } from './routes/auth.js';
@@ -31,6 +32,7 @@ import { registerQuestionRoutes } from './routes/questions.js';
 import { registerOrderRoutes } from './routes/orders.js';
 import { registerPaymentMethodRoutes } from './routes/payment-methods.js';
 import { registerPayoutRoutes } from './routes/payouts.js';
+import { registerPushRoutes } from './routes/push.js';
 import { registerSetRoutes } from './routes/sets.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
 
@@ -59,6 +61,13 @@ export interface AppContext {
   /** Pay the Runner the moment an order is delivered. On in the real server, off in tests. */
   autoPayout: boolean;
   deliverCode: (phone: string, code: string) => Promise<void>;
+  /**
+   * Web Push, for notifications on a Shopper's devices. Null when no key pair is set up: the
+   * Your order page still shows everything, it just cannot reach a closed page.
+   */
+  sendPush: SendPush | null;
+  /** The public half of the key pair, which a browser needs in order to subscribe. */
+  pushPublicKey: string | null;
 }
 
 export interface Session {
@@ -76,7 +85,17 @@ declare module 'fastify' {
 }
 
 export interface BuildAppOptions extends Partial<
-  Pick<AppContext, 'now' | 'deliverCode' | 'gitCommit' | 'codeDelivery' | 'autoOffer' | 'autoPayout'>
+  Pick<
+    AppContext,
+    | 'now'
+    | 'deliverCode'
+    | 'gitCommit'
+    | 'codeDelivery'
+    | 'autoOffer'
+    | 'autoPayout'
+    | 'sendPush'
+    | 'pushPublicKey'
+  >
 > {
   config: StoreConfig;
   repository: Repository;
@@ -118,6 +137,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       (async (phone, code) => {
         app.log.info({ phone }, `One time code for ${phone} is ${code}`);
       }),
+    sendPush: options.sendPush ?? null,
+    pushPublicKey: options.sendPush ? (options.pushPublicKey ?? null) : null,
   };
 
   app.decorate('ctx', ctx);
@@ -276,6 +297,8 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
     },
     /** Whether a code can be sent, so the sign-in screen can say so before anybody tries. */
     signIn: { byText: ctx.codeDelivery !== 'off' },
+    /** Null when notifications are not set up, so the page does not offer them. */
+    push: { publicKey: ctx.pushPublicKey },
   }));
 
   await registerAuthRoutes(app);
@@ -283,6 +306,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerCatalogueRoutes(app);
   await registerBasketRoutes(app);
   await registerPaymentMethodRoutes(app);
+  await registerPushRoutes(app);
   await registerQuestionRoutes(app);
   await registerOrderRoutes(app);
   await registerJobRoutes(app);

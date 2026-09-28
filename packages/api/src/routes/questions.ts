@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { requireSession } from '../app.js';
 import type { Order } from '../domain.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
+import { notifyShopper } from '../services/notify.js';
 import { questionsForOrder, settle, preferenceAnswer } from '../services/questions.js';
 
 const ANSWER_WORDS = {
@@ -57,8 +58,25 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
       (question) => question.orderItemId === orderItemId,
     );
     if (!existing) {
-      await repository.itemQuestions.create({ orderId: order.id, orderItemId, askedAt: now() });
+      const question = await repository.itemQuestions.create({
+        orderId: order.id,
+        orderItemId,
+        askedAt: now(),
+      });
       void reply.status(201);
+      // Not waited for: the Runner should not stand at the shelf while a push service answers.
+      const runner = order.runnerId ? await repository.runners.findById(order.runnerId) : null;
+      const itemName = order.items.find((item) => item.id === orderItemId)?.name ?? 'something';
+      void notifyShopper(
+        { repository, sendPush: app.ctx.sendPush, log: request.log },
+        order.shopperId,
+        {
+          title: 'A question from your Runner',
+          body: `${runner ? runner.name.split(' ')[0] : 'Your Runner'} cannot find ${itemName}. Open this to choose what they do.`,
+          url: '/my-order',
+          tag: `question-${question.id}`,
+        },
+      );
     }
     const views = await questionsForOrder(repository, order.id, await preferenceOf(order), now());
     return { question: views.find((view) => view.orderItemId === orderItemId) };
