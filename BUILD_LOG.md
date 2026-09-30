@@ -2131,6 +2131,147 @@ settings. Until then everything else works and the notifications offer simply do
   whatever permission it is given, so the first real check is on a phone, on the live site, once
   the keys are set.
 
+## 2026-09-28 — Step 30: renamed Ozi Delivery, at ozidelivery.co.uk
+
+Aldi announced an exclusive delivery partnership with Deliveroo on 24 September 2026, and the
+name Aldilivery is blocked at domain registrars, which points to active trademark protection.
+Anthony bought ozidelivery.co.uk and renamed the product **Ozi Delivery**. The assistant is
+still Ozi. The store display name stays Aldi, because the catalogue is still community sourced
+Aldi prices.
+
+### Was Rule Nine true?
+
+Partly. The product name was read from `config/store.json` wherever the app was built properly:
+
+- the header, footer and every page title;
+- the web app manifest, which sets the installed app's name;
+- sign-in texts, and the Stripe payment and transfer descriptions.
+
+Notification text named no product. There is no email anywhere, and the seed has no product name
+in it.
+
+But the automated Rule Nine scan only ever checked the store name and the legal entity, never the
+product name. So the old name had been written into eight places a person could see:
+
+1. `packages/web/index.html`: the page title before JavaScript loads, and the line shown when
+   JavaScript is off. The description and theme colour there were also written in, not read
+   from config.
+2. `packages/web/src/lib/api.ts`: "We cannot reach Aldilivery at the moment."
+3. `packages/web/src/pages/Card.tsx`: "not switched on for this Aldilivery yet".
+4. `packages/web/src/pages/RunnerHome.tsx`: "Aldilivery never sees them."
+5. `packages/web/public/push-sw.js`: the fallback title and text of a notification.
+6. `packages/web/public/favicon.svg`: its label.
+7. `packages/web/capacitor.config.ts`: the native app name and identifier.
+8. `packages/core/src/rules.ts`: three of the ten rules, word for word.
+
+Some places a person does not normally see, but that could reach one, also had it:
+
+- three server start-up errors in `env.ts`;
+- the "only for Aldilivery itself" refusal in `app.ts`;
+- two fee engine errors in `fees.ts`;
+- four package descriptions.
+
+The tests pinned several of those strings, so the tests had the name written into them as well.
+
+### What changed
+
+- `productName` in `config/store.json` is now Ozi Delivery. That is the only place the name is
+  set.
+- `index.html` now has `%STORE_PRODUCT_NAME%`, `%STORE_TAGLINE%` and `%STORE_NAVY%`. A small
+  plugin in `vite.config.ts` fills them in from `store.json` at build time, and the build fails
+  if one is left unfilled.
+- The Capacitor name and identifier are read from `store.json`. The identifier is the name as
+  one lower case word, `uk.co.ozidelivery.app`; no app has been published, so nothing depended
+  on the old one.
+- The three screens read the name from config. The service worker file is copied as it is and
+  cannot read config, so its fallbacks no longer name the product; the server always sends the
+  real title.
+- The favicon no longer has a label.
+- The server and fee engine messages no longer name the product. The rules are filled in from
+  config by `inviolableRules(productName)`, which keeps their wording exact.
+- Two new scans in `packages/core/test/config.test.ts`, next to the existing ones:
+  - the product name from config must not appear in any source file;
+  - the old name, Aldilivery, must not appear in any line of source except a comment.
+
+  Both failed on their first run on real cases: a comment I had just written with the new name,
+  and a migration's comment line starting `--`. That line is now counted as a comment, since an
+  applied migration must never be edited.
+
+### The domain, and keeping the old address working
+
+`ALLOWED_ORIGIN` already took a comma separated list. However, the server only picked a main
+address of its own when the list had exactly one entry. It uses that address for the line in a
+sign-in text that lets a phone fill the code in, and for the notification services' contact. So
+listing the new domain alongside the old one would quietly have switched both off.
+
+There is now `primaryOrigin`: the first address in the list. Every address in the list keeps
+working, and the Stripe Connect return address already follows whichever address the Runner
+came from.
+
+- `.do/app.yaml` gains a `domains` block for ozidelivery.co.uk (primary) and
+  www.ozidelivery.co.uk. Its comments now give the three-address value for `ALLOWED_ORIGIN`.
+- `.env.example` says the same, and gains the three VAPID settings that Step 29 left out of it.
+- The only hard coded ondigitalocean address in source was a test fixture for the sign-in text.
+  It now uses ozidelivery.co.uk. No domain is written into application code: it is deployment
+  configuration.
+
+### Kept as they were, on purpose
+
+None of these is ever shown to a Shopper or a Runner:
+
+- the GitHub repository (`EnrichT16/aldilivery`);
+- the DigitalOcean app name and database name (`aldilivery`, `aldilivery-db`). Renaming the app
+  in the spec would make DigitalOcean create a second app;
+- the package names (`@aldilivery/core`, `api`, `web`);
+- the browser storage keys (`aldilivery.session.token`, `aldilivery.runner.token`). Changing them
+  would sign everybody out;
+- the local Docker database name;
+- the function `aldiliveryNetPence`;
+- code comments, which still say Aldilivery as history.
+
+These can be renamed later as a separate, mechanical change if wanted.
+
+### Documentation
+
+- README and RULES now say Ozi Delivery, and the README explains the rename.
+- TESTING_WITH_PEOPLE now says Ozi Delivery.
+- DEPLOY.md now says Ozi Delivery throughout, and has a new section, "Moving to the new domain".
+- Where DEPLOY.md tells Anthony to pick the repository or the DigitalOcean app by name, it keeps
+  the real name, `aldilivery`, and says why.
+- PLAN.md keeps its original wording with a note at the top. This log is not rewritten.
+
+### What Anthony has to do
+
+Follow "Moving to the new domain" in DEPLOY.md:
+
+1. Add the domain in DigitalOcean.
+2. Point its nameservers there at the registrar.
+3. Put the three addresses in `ALLOWED_ORIGIN`, new domain first.
+
+Then, when convenient:
+
+- change the Connect branding name in Stripe;
+- use `OziDelivery` as the Twilio sender name. A sender name has at most eleven characters, so
+  "Ozi Delivery" with its space is too long.
+
+### Checked
+
+- `pnpm run preflight` does not exist, so it was not run.
+- `pnpm run verify`: lint, typecheck and **425 tests** (46 core, 272 api, 107 web), all passing.
+  5 of them are new:
+  - the product name scan;
+  - the old name scan;
+  - the rules filled in from config;
+  - the old and new domains both allowed, with the first as the main address;
+  - no main address when anything is allowed.
+- The production API build compiles.
+- The production web build has no "Aldilivery" in the page, the manifest, the service worker, the
+  favicon or the JavaScript. The page title and the installed app name are "Ozi Delivery".
+- In Chromium, the landing page heading and title read Ozi Delivery. "How Ozi Delivery works – Ozi
+  Delivery" is the page title on Just looking. The footer reads "Ozi Delivery shops at Aldi."
+- Not checked here: the domain itself. It is not pointed at the app yet. The first check is
+  ozidelivery.co.uk/api/health once the nameservers have moved.
+
 ---
 
 ## What Anthony Should Check

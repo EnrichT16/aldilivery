@@ -34,7 +34,7 @@ describe('the inviolable figures', () => {
     expect(RUNNER_PAYMENT_PENCE).toBe(500);
   });
 
-  it('holds the Aldilivery floor at exactly two pounds (Rule Three)', () => {
+  it('holds the net floor at exactly two pounds (Rule Three)', () => {
     expect(MINIMUM_NET_PENCE).toBe(200);
   });
 
@@ -121,7 +121,7 @@ describe('processorCostPence', () => {
   });
 });
 
-describe('Rule Three: Aldilivery never nets below two pounds on any order', () => {
+describe('Rule Three: the service never nets below two pounds on any order', () => {
   it('holds for every goods total from 1p to 30000p, one penny at a time', () => {
     const failures: Array<{ goodsPence: number; netPence: number }> = [];
 

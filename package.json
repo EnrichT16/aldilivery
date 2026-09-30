@@ -2,7 +2,7 @@
   "name": "aldilivery",
   "version": "0.1.0",
   "private": true,
-  "description": "Aldilivery — a voice-first grocery messenger service for the United Kingdom.",
+  "description": "A voice-first grocery messenger service for the United Kingdom. The product name is configuration: see config/store.json.",
   "license": "UNLICENSED",
   "author": "Anthony Tochukwu Ibe",
   "type": "module",

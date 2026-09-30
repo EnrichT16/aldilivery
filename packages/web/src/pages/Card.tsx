@@ -74,7 +74,7 @@ export function Card(): JSX.Element {
         setState('unavailable');
         setUnavailableReason(
           setup.reason === 'rehearsal'
-            ? 'Card payments are not switched on for this Aldilivery yet, so there is nothing to save a card to. Nothing you do here would be charged.'
+            ? 'Card payments are not switched on yet, so there is nothing to save a card to. Nothing you do here would be charged.'
             : setup.reason === 'no-key'
               ? 'Card payments are not finished being set up. We have not been given the key the browser needs, so we cannot take a card yet.'
               : 'The card form could not load. Something in the browser blocked it, or the connection dropped.',

@@ -7,7 +7,7 @@
  */
 
 export {
-  INVIOLABLE_RULES,
+  inviolableRules,
   RUNNER_PAYMENT_PENCE,
   MINIMUM_NET_PENCE,
   MINIMUM_SPEND_PENCE,

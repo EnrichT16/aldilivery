@@ -1,11 +1,12 @@
 /**
- * Talking to the Aldilivery API.
+ * Talking to the API.
  *
  * The shell works without it: every screen has something sensible to show when the server
  * is not running, and says so in plain words rather than spinning forever or showing a
  * stack trace.
  */
 
+import { storeConfig } from '../config';
 import { readRunnerToken, readToken } from './session';
 
 export interface CatalogueItem {
@@ -42,7 +43,7 @@ export class ApiUnavailableError extends Error {
    * what a Shopper needs to know.
    */
   constructor(readonly reason = 'no answer') {
-    super('We cannot reach Aldilivery at the moment.');
+    super(`We cannot reach ${storeConfig.productName} at the moment.`);
     this.name = 'ApiUnavailableError';
   }
 }

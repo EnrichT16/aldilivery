@@ -13,6 +13,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
+import { storeConfig } from '../src/config';
 import { penceFrom } from '../src/pages/RunnerHome';
 
 interface State {
@@ -355,7 +356,7 @@ describe('how a Runner gets paid', () => {
     expect(screen.getByText(/straight to your own bank account/)).toBeInTheDocument();
   });
 
-  it('says what is owed and sends them to Stripe to set up, saying Aldilivery never sees the details', async () => {
+  it('says what is owed and sends them to Stripe to set up, saying the service never sees the details', async () => {
     const user = userEvent.setup({ delay: null });
     state.pay = 'not_started';
     const assign = vi.fn();
@@ -364,7 +365,9 @@ describe('how a Runner gets paid', () => {
     renderHome();
 
     expect(await screen.findByText(/£5.00 more is owed to you/)).toBeInTheDocument();
-    expect(screen.getByText(/Aldilivery never sees them/)).toBeInTheDocument();
+    expect(
+      screen.getByText(`${storeConfig.productName} never sees them.`, { exact: false }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Set up how you get paid' }));
     expect(assign).toHaveBeenCalledWith('https://connect.stripe.example/setup/abc');
   });

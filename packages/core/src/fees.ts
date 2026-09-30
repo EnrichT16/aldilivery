@@ -55,7 +55,7 @@ export class GoodsTotalOutOfRangeError extends Error {
   ) {
     super(
       `Goods total of ${goodsPence}p is above the largest configured fee band, which ends at ${maximumPence}p. ` +
-        `Aldilivery cannot price this basket without breaking the ${MINIMUM_NET_PENCE}p net floor, so it is refused rather than mispriced.`,
+        `This basket cannot be priced without breaking the ${MINIMUM_NET_PENCE}p net floor, so it is refused rather than mispriced.`,
     );
     this.name = 'GoodsTotalOutOfRangeError';
   }
@@ -214,7 +214,7 @@ export function assertBandsHonourNetFloor(
       )
       .join('; ');
     throw new Error(
-      `Rule Three: Aldilivery never nets below ${minimumNetPence}p on any order after payment processing costs. ` +
+      `Rule Three: the service never nets below ${minimumNetPence}p on any order after payment processing costs. ` +
         `The configured fee bands breach that floor — ${detail}. ` +
         `Adjust the band boundaries or the fee. Never lower the floor.`,
     );

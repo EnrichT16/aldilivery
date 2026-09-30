@@ -58,8 +58,19 @@ export interface Env {
   /**
    * Which browser origins may call this API. A single origin, a comma separated list, or
    * `*` for anything, which is only ever sensible in development and in the tests.
+   *
+   * During a change of address, list both: the new one first, then the old. Every origin in
+   * the list works; see `primaryOrigin` for which one the server calls its own.
    */
   allowedOrigins: string[];
+  /**
+   * The site's own address, where the server has to name one: the line in a sign-in text
+   * that lets a phone fill the code in, and the contact given to the push services. The first
+   * origin in `ALLOWED_ORIGIN`, other than `*`. Until 28 Sep 2026 this was only set when there
+   * was exactly one origin, so listing the new domain alongside the old one would quietly
+   * have switched both of those off.
+   */
+  primaryOrigin: string | undefined;
   storeConfigPath: string | undefined;
   dataBackend: DataBackend;
   databaseUrl: string | undefined;
@@ -159,19 +170,24 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
   // an order it cannot charge for, or accept a webhook it cannot prove came from Stripe.
   if (isProduction && !stripeSecretKey) {
     throw new Error(
-      'STRIPE_SECRET_KEY is missing. Aldilivery will not run in production without it.',
+      'STRIPE_SECRET_KEY is missing. The server will not run in production without it.',
     );
   }
   if (isProduction && !stripeWebhookSecret) {
     throw new Error(
-      'STRIPE_WEBHOOK_SECRET is missing. Aldilivery will not run in production without it, because an unverified webhook is not an event.',
+      'STRIPE_WEBHOOK_SECRET is missing. The server will not run in production without it, because an unverified webhook is not an event.',
     );
   }
   if (isProduction && !databaseUrl) {
     throw new Error(
-      'DATABASE_URL is missing. Aldilivery will not run in production on the in-memory store, because everything in it is lost when the process stops.',
+      'DATABASE_URL is missing. The server will not run in production on the in-memory store, because everything in it is lost when the process stops.',
     );
   }
+
+  const allowedOrigins = originList(
+    source['ALLOWED_ORIGIN'] ?? source['WEB_ORIGIN'],
+    'http://localhost:5173',
+  );
 
   const requestedBackend = source['DATA_BACKEND'];
   const dataBackend: DataBackend =
@@ -183,10 +199,8 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     host: source['HOST'] ?? source['API_HOST'] ?? '0.0.0.0',
     // `PORT` is what a platform sets. `API_PORT` is kept for anyone whose .env still has it.
     port: integer(source['PORT'] ?? source['API_PORT'], DEFAULT_PORT),
-    allowedOrigins: originList(
-      source['ALLOWED_ORIGIN'] ?? source['WEB_ORIGIN'],
-      'http://localhost:5173',
-    ),
+    allowedOrigins,
+    primaryOrigin: allowedOrigins.find((origin) => origin !== '*'),
     storeConfigPath: source['STORE_CONFIG_PATH'],
     dataBackend,
     databaseUrl,

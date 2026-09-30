@@ -29,6 +29,7 @@ export const testEnv: Env = {
   host: '127.0.0.1',
   port: 0,
   allowedOrigins: ['*'],
+  primaryOrigin: undefined,
   storeConfigPath: undefined,
   dataBackend: 'memory',
   databaseUrl: undefined,

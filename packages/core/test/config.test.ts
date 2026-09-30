@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { parseStoreConfig, StoreConfigError } from '../src/index.js';
+import { inviolableRules, parseStoreConfig, StoreConfigError } from '../src/index.js';
 import { findWorkspaceRoot, loadStoreConfig, storeConfigPath } from '../src/node.js';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -29,7 +29,7 @@ function withFees(overrides: Record<string, unknown>): Record<string, unknown> {
 
 describe('the live configuration file', () => {
   it('loads and validates', () => {
-    expect(config.productName).toBe('Aldilivery');
+    expect(config.productName).toBe('Ozi Delivery');
     expect(config.assistantName).toBe('Ozi');
     expect(config.store.displayName.length).toBeGreaterThan(0);
   });
@@ -239,5 +239,60 @@ describe('Rule Nine: nothing about the store is hard coded', () => {
     }
 
     expect(offenders).toEqual([]);
+  });
+
+  /**
+   * The product's own name is store identity too. Until 28 Sep 2026 nothing checked it, and the
+   * old name had been written into eight places a person could see: the page title before
+   * JavaScript loads, the line shown without JavaScript, the "cannot reach" message, two screens,
+   * the notification fallback, the native app name and the favicon's label. The rename to Ozi
+   * Delivery found them. This keeps the new name from going the same way.
+   */
+  it('does not write the product name into any source file', () => {
+    const productName = new RegExp(`\\b${config.productName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    const offenders = sourceFiles(workspaceRoot).filter((file) =>
+      productName.test(readFileSync(file, 'utf8')),
+    );
+    expect(
+      offenders.map((file) => relative(workspaceRoot, file)),
+      'the product name belongs in config/store.json alone (Rule Nine)',
+    ).toEqual([]);
+  });
+
+  /**
+   * The name the product had before, which must not come back into anything a person sees.
+   * Comments may still use it as history, and lower case identifiers — package names, storage
+   * keys, the database name — are left alone on purpose: they are never shown, and changing
+   * them would sign everybody out or rename the live database. See BUILD_LOG Step 30.
+   */
+  it('does not show the retired product name anywhere outside comments', () => {
+    const RETIRED = /\bAldilivery\b/;
+    const COMMENT = /^\s*(\/\/|\/\*|\*|#|<!--|--)/;
+    const files = [
+      ...sourceFiles(workspaceRoot),
+      join(workspaceRoot, 'packages', 'web', 'public', 'favicon.svg'),
+    ];
+    const offenders: string[] = [];
+    for (const file of files) {
+      readFileSync(file, 'utf8')
+        .split('\n')
+        .forEach((line, index) => {
+          if (RETIRED.test(line) && !COMMENT.test(line)) {
+            offenders.push(`${relative(workspaceRoot, file)}:${index + 1}`);
+          }
+        });
+    }
+    expect(offenders).toEqual([]);
+  });
+});
+
+describe('the ten rules', () => {
+  it('are filled in with the product name from configuration', () => {
+    const rules = inviolableRules(config.productName);
+    expect(rules).toHaveLength(10);
+    expect(rules[2]).toBe(
+      `${config.productName} never nets below two pounds on any order after payment processing costs.`,
+    );
+    expect(rules.filter((rule) => rule.includes(config.productName))).toHaveLength(3);
   });
 });

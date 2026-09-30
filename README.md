@@ -1,11 +1,19 @@
-# Aldilivery
+# Ozi Delivery
 
-A voice-first grocery messenger service for the United Kingdom.
+A voice-first grocery messenger service for the United Kingdom, at
+**[ozidelivery.co.uk](https://ozidelivery.co.uk)**.
+
+Until 28 September 2026 it was called Aldilivery. The name changed because Aldi announced an
+exclusive delivery partnership with Deliveroo on 24 September 2026, and the old name is
+blocked at domain registrars, which points to active trademark protection. The GitHub
+repository, the DigitalOcean app and database, the package names (`@aldilivery/...`) and a
+few internal identifiers keep the old name: nobody using the service sees them, and changing
+them would break the live deployment or sign everybody out. BUILD_LOG Step 30 lists them.
 
 A **Shopper** orders groceries from a configured supermarket. An independent **Runner** buys
 them at the shelf price and delivers them for one flat fee. The assistant is called **Ozi**.
 
-Aldilivery is built for blind, visually impaired, disabled, elderly and low-literacy users
+Ozi Delivery is built for blind, visually impaired, disabled, elderly and low-literacy users
 first. Accessibility is a build gate here, not a later pass: any axe violation fails the
 build.
 
@@ -23,7 +31,7 @@ Owner: Anthony Tochukwu Ibe.
 - **[DEPLOY.md](DEPLOY.md)** — how to put this on DigitalOcean, written in plain prose with
   no lists or symbols, so it reads properly aloud.
 - **[TESTING_WITH_PEOPLE.md](TESTING_WITH_PEOPLE.md)** — how to run a testing session with
-  screen reader users and the other people Aldilivery is for, in the same plain prose.
+  screen reader users and the other people Ozi Delivery is for, in the same plain prose.
 
 **This phase has no voice, speech or telephony in it.** The microphone button exists on the
 landing page and says so when pressed.
@@ -58,7 +66,7 @@ pnpm run db:seed
 pnpm run verify         # lint, typecheck, and every test
 ```
 
-- `pnpm test` — 249 tests across the three packages.
+- `pnpm test` — every test across the three packages.
 - `pnpm lint` — includes `eslint-plugin-jsx-a11y` in its strict configuration.
 - `pnpm --filter @aldilivery/web build` — runs the axe accessibility tests and refuses to
   produce a bundle if any screen has a violation.
@@ -69,7 +77,7 @@ pnpm run verify         # lint, typecheck, and every test
 
 | Path | What it is |
 | --- | --- |
-| `config/store.json` | Everything about the store: name, colours, legal entity, catalogue source, fee bands, card regions. Rule Nine means nothing about the supermarket is anywhere else. |
+| `config/store.json` | Everything about the store and the product: the product name, the store name, colours, legal entity, catalogue source, fee bands, card regions. Rule Nine means nothing about the supermarket is anywhere else. |
 | `packages/core` | The fee engine, the rule constants, and the configuration contract. No framework, no I/O. |
 | `packages/api` | Fastify, PostgreSQL through Prisma, Stripe. |
 | `packages/web` | React, TypeScript, Vite, Tailwind. An installable Progressive Web App, ready for Capacitor later. |
@@ -81,8 +89,10 @@ pnpm run verify         # lint, typecheck, and every test
 `.do/app.yaml` describes the whole app: an `api` service on port 8080 with a `/health`
 check, a `web` static site built to `packages/web/dist`, and a managed PostgreSQL database.
 DigitalOcean reads it straight out of the repository. The four values that cannot live here
-— the two Stripe secrets, the session signing secret, and the app's own address for
-`ALLOWED_ORIGIN` — are pasted into the dashboard. **[DEPLOY.md](DEPLOY.md)** walks through
+— the two Stripe secrets, the session signing secret, and the app's own addresses for
+`ALLOWED_ORIGIN` — are pasted into the dashboard. `ALLOWED_ORIGIN` takes a comma separated
+list with the main address first, which is how `ozidelivery.co.uk` and the older
+`ondigitalocean.app` address both keep working. **[DEPLOY.md](DEPLOY.md)** walks through
 every screen.
 
 The API reads `PORT` (8080 by default) and binds `0.0.0.0`. With `DATABASE_URL` set it uses
@@ -96,6 +106,6 @@ than run without a database or without its Stripe keys.
 
 One flat fee, decided only by how much the shopping comes to. No surge pricing, no small
 order fee, no minimum spend. The Runner gets £5 of it on every completed order, without
-exception, and Aldilivery never nets below £2 after payment processing. That last promise is
+exception, and Ozi Delivery never nets below £2 after payment processing. That last promise is
 proved for every possible order total, one penny at a time, in
 `packages/core/test/fees.test.ts`.

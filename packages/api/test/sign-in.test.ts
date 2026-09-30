@@ -264,7 +264,7 @@ describe('Twilio', () => {
 
   it("fails with Twilio's own reason, for the log", async () => {
     const send = twilioSender(
-      { accountSid: 'AC123', authToken: 'secret', from: 'Aldilivery' },
+      { accountSid: 'AC123', authToken: 'secret', from: 'OziDelivery' },
       fakeFetch(400, {
         code: 21608,
         message: 'The number is unverified',
@@ -277,22 +277,22 @@ describe('Twilio', () => {
 
   it('writes a short text, with the line that lets a phone fill the code in', () => {
     const text = codeMessage({
-      productName: 'Aldilivery',
+      productName: 'Example Shop',
       code: '123456',
       minutes: 10,
-      origin: 'https://lobster-app-3ilv6.ondigitalocean.app',
+      origin: 'https://ozidelivery.co.uk',
     });
     expect(text).toBe(
-      'Aldilivery: your code is 123456. It lasts 10 minutes.\n' +
+      'Example Shop: your code is 123456. It lasts 10 minutes.\n' +
         'We will never phone you to ask for it.\n' +
         '\n' +
-        '@lobster-app-3ilv6.ondigitalocean.app #123456',
+        '@ozidelivery.co.uk #123456',
     );
   });
 
   it('leaves that line off when the site is not on https', () => {
     const text = codeMessage({
-      productName: 'Aldilivery',
+      productName: 'Example Shop',
       code: '123456',
       minutes: 10,
       origin: 'http://localhost:5173',
