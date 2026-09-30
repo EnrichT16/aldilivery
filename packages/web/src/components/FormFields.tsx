@@ -1,5 +1,5 @@
 /**
- * The form fields every form in Aldilivery uses, so every one behaves the same.
+ * The form fields every form in the app uses, so every one behaves the same.
  *
  * Every field has a real `label` joined to a real `input`, and a hint underneath joined with
  * `aria-describedby`, because a hint that only appears on hover or in a placeholder is a hint

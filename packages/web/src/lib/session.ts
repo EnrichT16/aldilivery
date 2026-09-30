@@ -5,7 +5,7 @@
  * survive changing device. That is the whole of the sign-in story in this phase, and it is
  * worth being plain about why: signing back in needs a one time code sent to a phone, and
  * there is no way to send one yet. So signing up issues a session and that session is what
- * keeps a Shopper signed in. Somebody who signs up on a phone and then opens Aldilivery on
+ * keeps a Shopper signed in. Somebody who signs up on a phone and then opens the app on
  * a laptop cannot get in, and no screen pretends otherwise.
  *
  * Every read and write is wrapped, because `localStorage` is not always there. A private
@@ -14,7 +14,7 @@
  * token is a worse shop than one that forgets you.
  */
 
-const TOKEN_KEY = 'aldilivery.session.token';
+const TOKEN_KEY = 'ozidelivery.session.token';
 
 /** In-memory fallback for when storage throws. Lasts as long as the page does. */
 let inMemoryToken: string | null = null;
@@ -54,7 +54,7 @@ export function clearToken(): void {
  * up must never sign out the Shopper already signed in here, or the other way round. Same
  * rules as above: storage when it works, memory when it does not.
  */
-const RUNNER_TOKEN_KEY = 'aldilivery.runner.token';
+const RUNNER_TOKEN_KEY = 'ozidelivery.runner.token';
 let inMemoryRunnerToken: string | null = null;
 
 export function readRunnerToken(): string | null {

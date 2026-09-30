@@ -37,7 +37,7 @@ const SessionContext = createContext<SessionValue | null>(null);
  * token is thrown away quietly.
  *
  * A server that cannot be reached is treated differently from a server that says no. If
- * Aldilivery is simply down we keep the token, because it is probably still good, and the
+ * the service is simply down we keep the token, because it is probably still good, and the
  * screens have their own plain sentence for not being able to reach us. Throwing a session
  * away because the network hiccupped would sign people out for no reason.
  */

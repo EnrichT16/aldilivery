@@ -11,15 +11,15 @@
  */
 
 /**
- * The ten rules, word for word, for display and for tests. Three of them name the product, and
+ * The ten rules, word for word, for display and for tests. Two of them name the product, and
  * the product's name is configuration (Rule Nine), so it is filled in from `productName` in
  * config/store.json rather than written here.
  */
 export function inviolableRules(productName: string): readonly string[] {
   return [
     'A single explicit confirmation from the Shopper is required before any payment is taken.',
-    'The Runner receives five pounds on every completed order, without exception.',
-    `${productName} never nets below two pounds on any order after payment processing costs.`,
+    'The Runner receives five pounds on every standard delivery, untouched, whatever the basket.',
+    'Standard delivery is thirteen pounds fifty, flat, and one delivery carries at most sixty pounds of shopping.',
     'No surge pricing, no small order fee, no minimum spend.',
     'A notice is sent thirty minutes before any recurring Set order fires, with a one word skip.',
     'No age restricted goods in version one.',
@@ -31,18 +31,14 @@ export function inviolableRules(productName: string): readonly string[] {
 }
 
 /**
- * Rule Two. Five pounds, in pence, to the Runner on every completed order.
+ * Rule Two. Five pounds, in pence, to the Runner on every standard delivery, untouched,
+ * whatever the basket (docs/BUILD_PROMPT.md, Section B). Extras — another shop, handing to the
+ * person, a tip — are paid on top and never taken out of it.
  *
- * This figure is deliberately a constant and not a setting. Every payout in the system
- * reads it from here. Pooled orders each pay it in full.
+ * This figure is deliberately a constant and not a setting. Every payout in the system reads
+ * it from here. Pooled orders each pay it in full.
  */
 export const RUNNER_PAYMENT_PENCE = 500;
-
-/**
- * Rule Three. Two pounds, in pence. Aldilivery net, after the Runner is paid and after
- * modelled payment processing costs, is never below this on any order.
- */
-export const MINIMUM_NET_PENCE = 200;
 
 /** Rule Five. Minutes of notice before a recurring Set order fires. */
 export const SET_NOTICE_MINUTES_BEFORE = 30;
@@ -54,9 +50,8 @@ export const AGE_RESTRICTED_GOODS_ALLOWED = false;
  * Rule Four, expressed as an absence.
  *
  * There is no surge multiplier, no small order fee and no minimum spend anywhere in this
- * codebase. The fee is a function of the goods band and nothing else — see
- * `feeForGoodsPence`, whose signature accepts no time, no distance, no demand and no
- * order history, which is what makes surge pricing unrepresentable rather than merely
+ * codebase. Standard delivery is one flat fee — see `feeForGoodsPence`, whose signature
+ * accepts no time, no distance, no demand and no order history, which is what makes surge pricing unrepresentable rather than merely
  * forbidden.
  */
 export const MINIMUM_SPEND_PENCE = 0;

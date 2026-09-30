@@ -3,7 +3,7 @@
  *
  * Rule Ten is kept by where the code runs, not by being careful. Stripe.js draws the card
  * fields inside an iframe served by Stripe, so the digits a Shopper types are never in a
- * variable belonging to Aldilivery, never in our JavaScript, and never in a request to our
+ * variable belonging to the service, never in our JavaScript, and never in a request to our
  * server. What comes back is an identifier — `pm_...` — and the last four digits, which is
  * all that is ever sent on.
  *

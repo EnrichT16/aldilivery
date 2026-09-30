@@ -2,7 +2,7 @@
  * The API answers on both `/` and `/api`.
  *
  * On App Platform the API is served at `/api` and the platform strips that prefix before the
- * request arrives, so the server sees `/health`. That is how Aldilivery is deployed and it
+ * request arrives, so the server sees `/health`. That is how the service is deployed and it
  * works. But whether the prefix is stripped is a setting on a dashboard, and the failure when
  * it is not stripped is silent in the worst way: `/api/health` falls past the API, lands on
  * the web app's catch-all, and comes back 200 with an HTML page. The API then looks missing
@@ -68,7 +68,7 @@ describe('every route answers with and without the /api prefix', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ feePence: 800 });
+    expect(response.json()).toMatchObject({ feePence: 1350 });
   });
 
   it('keeps Rule Six on the prefixed path: the prefix is not a way round a rule', async () => {

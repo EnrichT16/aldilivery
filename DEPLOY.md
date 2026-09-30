@@ -154,6 +154,20 @@ To check it, visit ozidelivery.co.uk with slash api slash health on the end. You
 
 Four smaller things follow from the change, and none of them is urgent. The Stripe webhook can stay on the old address, which still works; if you later move it, edit the existing endpoint in Stripe and change only its address, rather than adding a second one, because a second endpoint would come with a different signing secret. In Stripe, under Connect settings and then branding, change the name to Ozi Delivery, so Runners see the new name on Stripe's pages. When Twilio is upgraded, use OziDelivery as the sender name, as described above. And anybody signed in on the old address, which today means only test accounts, will need to sign in again on the new one, because a browser keeps each address's sign-in separately. Notifications allowed on the old address are likewise separate, and need allowing again on the new one.
 
+Finishing the rename
+
+The product's retired name is gone from the code, the comments and the documents. It is still attached to four things that live outside the repository, and each of those needs you, because changing them touches the live site. None of them is urgent: nobody using the service sees any of them. Do them in this order, and the site keeps working throughout.
+
+The first is the build and start commands in DigitalOcean. At the moment they find the code by its package name, which still carries the old name. Changing them to find the code by its folder instead means the package names can be changed later without the site noticing. In DigitalOcean, open the app, go to Settings, and under App Spec press Edit. Find the line that reads pnpm dash dash filter at aldilivery slash api build, and change the part after dash dash filter to read dot slash packages slash api, so the line becomes pnpm dash dash filter dot slash packages slash api build. Do the same on the line that ends start, and on the line in the web section that ends build, which becomes dot slash packages slash web. Save. The app redeploys, and should come back exactly as before. Tell me when it has, and I will then rename the packages in the code.
+
+The second is the GitHub repository. On GitHub, open the repository, go to Settings, and change the repository name to ozidelivery. GitHub keeps the old address working as a redirect. Then, back in the DigitalOcean App Spec editor, change the two lines that read repo colon EnrichT16 slash aldilivery so they end in ozidelivery instead, and save.
+
+The third is the DigitalOcean app's own name, which you can change under Settings, in the section for the app's name. It is only a label in the dashboard.
+
+The fourth is the database. The development database is called aldilivery dash db inside DigitalOcean. A database cannot be renamed; it can only be replaced. Because it holds only test data at the moment, replacing it costs nothing but the test accounts. Leave this until you are ready, and I will write the exact steps then.
+
+One thing cannot be changed without harm, and I recommend leaving it: the old name appears in the messages of past commits in the project's history. Removing it would mean rewriting every past commit and forcing the rewritten history onto the main branch, which breaks the links in every past pull request and any copy of the code anywhere else. I have not done it and will not without your say-so. New commits never use the name.
+
 Telling a Shopper about a question
 
 When a Runner cannot find something, the question appears on the Shopper's Your order page, which chimes and buzzes when it arrives. If the Shopper allows it, their phone also shows a notification even when the page is closed, and pressing it opens the question. This uses the notification service built into every browser, so there is no account to open with anybody, but the server needs a key pair of its own, made once.

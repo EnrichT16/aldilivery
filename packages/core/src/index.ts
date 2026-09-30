@@ -9,7 +9,6 @@
 export {
   inviolableRules,
   RUNNER_PAYMENT_PENCE,
-  MINIMUM_NET_PENCE,
   MINIMUM_SPEND_PENCE,
   SET_NOTICE_MINUTES_BEFORE,
   AGE_RESTRICTED_GOODS_ALLOWED,
@@ -23,18 +22,14 @@ export {
 export {
   feeForGoodsPence,
   processorCostPence,
-  aldiliveryNetPence,
+  platformNetPence,
   priceBasket,
   orderEconomics,
-  worstCaseNetPenceForBand,
-  findNetFloorBreaches,
-  assertBandsHonourNetFloor,
-  GoodsTotalOutOfRangeError,
-  type FeeBand,
+  BasketOverMaximumError,
+  type DeliveryFees,
   type ProcessorModel,
   type BasketPricing,
   type OrderEconomics,
-  type NetFloorBreach,
 } from './fees.js';
 
 export {

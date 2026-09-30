@@ -1,5 +1,5 @@
 /**
- * Starting the Aldilivery API.
+ * Starting the API.
  *
  * Configuration is loaded and validated before the server binds a port. If `store.json`
  * contradicts an inviolable rule, the process exits here with a message naming the rule,

@@ -64,7 +64,7 @@ async function deliverAnOrder(): Promise<string> {
         confirmed: true,
         channel: 'button',
         statement: 'Send my order.',
-        agreedTotalPence: 1050,
+        agreedTotalPence: 1600,
       },
     },
   });
@@ -97,7 +97,7 @@ function setUpPay() {
   return harness.app.inject({
     method: 'POST',
     url: '/runners/me/payouts/setup',
-    headers: { ...runner.authHeader, origin: 'https://aldilivery.example' },
+    headers: { ...runner.authHeader, origin: 'https://ozidelivery.example' },
   });
 }
 
@@ -114,10 +114,10 @@ describe('setting up where the pay goes', () => {
     const first = await harness.app.inject({
       method: 'POST',
       url: '/runners/me/payouts/setup',
-      headers: { ...runner.authHeader, origin: 'https://aldilivery.example' },
+      headers: { ...runner.authHeader, origin: 'https://ozidelivery.example' },
     });
     expect(first.statusCode, first.body).toBe(200);
-    expect(first.json().url).toBe('https://aldilivery.example/runner/home?pay=back');
+    expect(first.json().url).toBe('https://ozidelivery.example/runner/home?pay=back');
 
     const account = (await harness.repository.runners.findById(runner.runnerId))!
       .stripeConnectedAccountId;
@@ -126,7 +126,7 @@ describe('setting up where the pay goes', () => {
     await harness.app.inject({
       method: 'POST',
       url: '/runners/me/payouts/setup',
-      headers: { ...runner.authHeader, origin: 'https://aldilivery.example' },
+      headers: { ...runner.authHeader, origin: 'https://ozidelivery.example' },
     });
     expect(gateway.calls.filter((c) => c.kind === 'connected_account')).toHaveLength(1);
     expect(

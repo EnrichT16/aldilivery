@@ -3,12 +3,13 @@
 A voice-first grocery messenger service for the United Kingdom, at
 **[ozidelivery.co.uk](https://ozidelivery.co.uk)**.
 
-Until 28 September 2026 it was called Aldilivery. The name changed because Aldi announced an
-exclusive delivery partnership with Deliveroo on 24 September 2026, and the old name is
-blocked at domain registrars, which points to active trademark protection. The GitHub
-repository, the DigitalOcean app and database, the package names (`@aldilivery/...`) and a
-few internal identifiers keep the old name: nobody using the service sees them, and changing
-them would break the live deployment or sign everybody out. BUILD_LOG Step 30 lists them.
+The product was renamed on 28 September 2026, because Aldi announced an exclusive delivery
+partnership with Deliveroo on 24 September 2026 and the earlier name is blocked at domain
+registrars. That earlier name is retired and appears nowhere in this repository except inside
+database migrations that have already run on the live database, which must never be edited.
+The GitHub repository, the DigitalOcean app and database, and the code package names still
+carry it until the coordinated rename in BUILD_LOG Step 31 is done. The governing document for
+everything built from 30 September 2026 is **[docs/BUILD_PROMPT.md](docs/BUILD_PROMPT.md)**.
 
 A **Shopper** orders groceries from a configured supermarket. An independent **Runner** buys
 them at the shelf price and delivers them for one flat fee. The assistant is called **Ozi**.
@@ -77,7 +78,7 @@ pnpm run verify         # lint, typecheck, and every test
 
 | Path | What it is |
 | --- | --- |
-| `config/store.json` | Everything about the store and the product: the product name, the store name, colours, legal entity, catalogue source, fee bands, card regions. Rule Nine means nothing about the supermarket is anywhere else. |
+| `config/store.json` | Everything about the store and the product: the product name, the store name, colours, legal entity, catalogue source, delivery fee and maximum basket, card regions. Rule Nine means nothing about the supermarket is anywhere else. |
 | `packages/core` | The fee engine, the rule constants, and the configuration contract. No framework, no I/O. |
 | `packages/api` | Fastify, PostgreSQL through Prisma, Stripe. |
 | `packages/web` | React, TypeScript, Vite, Tailwind. An installable Progressive Web App, ready for Capacitor later. |
@@ -104,8 +105,9 @@ than run without a database or without its Stripe keys.
 
 ## The fee
 
-One flat fee, decided only by how much the shopping comes to. No surge pricing, no small
-order fee, no minimum spend. The Runner gets £5 of it on every completed order, without
-exception, and Ozi Delivery never nets below £2 after payment processing. That last promise is
-proved for every possible order total, one penny at a time, in
-`packages/core/test/fees.test.ts`.
+Standard delivery is £13.50, flat, whatever the shopping comes to, and one delivery carries at
+most £60 of shopping, which is what one Runner can carry safely; above that it goes as two
+deliveries. No surge pricing, no small order fee, no minimum spend. The Runner gets £5 of every
+standard delivery, untouched. Ruled on 29 September 2026 (docs/BUILD_PROMPT.md, Section B) and
+proved one penny at a time in `packages/core/test/fees.test.ts`. The other services' prices in
+Section B are still to be built.

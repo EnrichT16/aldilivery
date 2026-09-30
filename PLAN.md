@@ -1,7 +1,7 @@
-# Aldilivery — Foundation Build Plan
+# Foundation Build Plan
 
-> This is the original plan, kept as it was written. The product was renamed **Ozi Delivery** on
-> 28 September 2026; see README.md and BUILD_LOG Step 30. Names below are as they were then.
+> This is the original plan. The product is now **Ozi Delivery**, and docs/BUILD_PROMPT.md
+> (30 September 2026) supersedes everything below, including every figure.
 
 **Owner:** Anthony Tochukwu Ibe
 **Phase:** Foundation only. No voice, speech or telephony features are built in this phase.
@@ -9,9 +9,9 @@
 
 ---
 
-## 1. What Aldilivery is
+## 1. What Ozi Delivery is
 
-Aldilivery is a voice-first grocery messenger service for the United Kingdom. A **Shopper**
+Ozi Delivery is a voice-first grocery messenger service for the United Kingdom. A **Shopper**
 orders groceries from a configured supermarket (currently Aldi). An independent **Runner**
 buys those groceries at the shelf price and delivers them for one flat fee. The assistant is
 named **Ozi**.
@@ -65,7 +65,7 @@ Three packages, one shared `core`, wired with pnpm workspaces.
 
 Nothing about Aldi is hard coded anywhere. The file holds:
 
-- `productName` — currently `Aldilivery`
+- `productName` — the product's name
 - `assistantName` — currently `Ozi`
 - `store.displayName` — currently `Aldi`
 - `store.legalEntityName` — placeholder pending incorporation
@@ -73,7 +73,7 @@ Nothing about Aldi is hard coded anywhere. The file holds:
 - `brand.colours` — navy `#0B1F3A`, gold `#D4AF37`, white `#FFFFFF`
 - `fees.bands` — the flat fee bands in pence
 - `fees.runnerPaymentPence` — 500, the Runner share of every completed order
-- `fees.minimumNetPence` — 200, the floor Aldilivery never goes below
+- `fees.minimumNetPence` — 200, the floor Ozi Delivery never goes below
 - `payments.supportedCardRegions` — currently `["UK", "EU"]`
 - `accessibility` — base font size, minimum control height
 - `recurringOrders.noticeMinutesBefore` — 30, and the one-word skip token
@@ -94,14 +94,14 @@ Pure TypeScript, no framework, no file system access on the browser path. Export
 2. `processorCostPence(totalTransactionPence)` — models the payment processor at 1.5 percent
    of the total transaction plus 20 pence, rounded up to the nearest penny. Rounding up is
    the conservative direction: it can only make our modelled net smaller, never larger.
-3. `aldiliveryNetPence(goodsPence, bands)` — fee minus 500 for the Runner minus processor
+3. `platformNetPence(goodsPence, bands)` — fee minus 500 for the Runner minus processor
    cost.
 4. `priceBasket(goodsPence, bands)` — returns goods estimate, fee and total together, so the
    API and the web never compute money independently.
 5. Config types and a validator, so a malformed `store.json` fails loudly at startup.
 
 **The proving test.** For every goods total from 1 pence to 30000 pence inclusive, in steps
-of one penny, `aldiliveryNetPence` must be at least 200 pence. If the bands as specified fail
+of one penny, `platformNetPence` must be at least 200 pence. If the bands as specified fail
 that test, the band boundaries are adjusted — never the 200 pence floor — and the change is
 reported in `BUILD_LOG.md` with the arithmetic.
 
@@ -161,7 +161,7 @@ longest since their last job. The offer is held for sixty seconds, then passes t
 Runner. Orders within one mile of each other can be pooled into a single trip, and each
 pooled order still pays the Runner 500 pence.
 
-Aldilivery never holds Runner money: Stripe Connect transfers move the Runner 500 pence to
+Ozi Delivery never holds Runner money: Stripe Connect transfers move the Runner 500 pence to
 their own connected account.
 
 ---

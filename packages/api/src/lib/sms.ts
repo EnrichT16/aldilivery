@@ -5,7 +5,7 @@
  * and a dependency that size, holding the account's credentials, is more to trust than a
  * dozen lines that can be read in full here.
  *
- * Rule Eight: the Twilio account behind these credentials belongs to Aldilivery and nothing
+ * Rule Eight: the Twilio account behind these credentials belongs to the service and nothing
  * else.
  */
 
@@ -15,7 +15,7 @@ export interface TwilioSettings {
   /**
    * Who the text comes from. One of: a Twilio phone number in `+44…` form; a Messaging
    * Service identifier, which begins `MG`; or an alphanumeric sender name such as
-   * `Aldilivery`, which UK phones show instead of a number.
+   * `OziDelivery`, which UK phones show instead of a number.
    */
   from: string;
 }

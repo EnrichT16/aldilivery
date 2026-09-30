@@ -1,5 +1,5 @@
 {
-  "name": "aldilivery",
+  "name": "ozidelivery",
   "version": "0.1.0",
   "private": true,
   "description": "A voice-first grocery messenger service for the United Kingdom. The product name is configuration: see config/store.json.",

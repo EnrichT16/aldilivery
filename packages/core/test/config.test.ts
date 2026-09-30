@@ -87,33 +87,19 @@ describe('the configuration parser refuses to contradict a rule', () => {
     expect(() => parseStoreConfig(withFees({ runnerPaymentPence: 450 }))).toThrow(StoreConfigError);
   });
 
-  it('rejects a lowered net floor (Rule Three)', () => {
-    expect(() => parseStoreConfig(withFees({ minimumNetPence: 100 }))).toThrow(StoreConfigError);
+  it('rejects a standard delivery fee that would not cover the Runner (Rule Two)', () => {
+    expect(() => parseStoreConfig(withFees({ standardDeliveryPence: 500 }))).toThrow(
+      /does not cover the Runner/,
+    );
   });
 
-  it('rejects fee bands that would lose money (Rule Three)', () => {
-    const raw = withFees({
-      maximumGoodsPence: 30_000,
-      bands: [
-        { uptoPence: 3_500, feePence: 800 },
-        { uptoPence: 30_000, feePence: 900 },
-      ],
-    });
-    expect(() => parseStoreConfig(raw)).toThrow(/never nets below 200p/);
-  });
-
-  it('rejects bands that are not in ascending order', () => {
-    const raw = withFees({
-      bands: [
-        { uptoPence: 10_000, feePence: 900 },
-        { uptoPence: 3_500, feePence: 800 },
-      ],
-    });
-    expect(() => parseStoreConfig(raw)).toThrow(/ascending order/);
-  });
-
-  it('rejects a maximum basket that no band can price', () => {
-    expect(() => parseStoreConfig(withFees({ maximumGoodsPence: 99_999 }))).toThrow(/must agree/);
+  it('requires a maximum basket and a standard delivery fee', () => {
+    expect(() => parseStoreConfig(withFees({ maximumGoodsPence: undefined }))).toThrow(
+      StoreConfigError,
+    );
+    expect(() => parseStoreConfig(withFees({ standardDeliveryPence: undefined }))).toThrow(
+      StoreConfigError,
+    );
   });
 
   it('rejects a notice period that is not thirty minutes (Rule Five)', () => {
@@ -211,7 +197,7 @@ describe('Rule Nine: nothing about the store is hard coded', () => {
   }
 
   it('does not mention the store display name anywhere outside configuration and documentation', () => {
-    // Word boundaries mean the product's own name, Aldilivery, does not match.
+    // Word boundaries mean a longer word that merely begins with the store's name does not match.
     const storeName = new RegExp(`\\b${config.store.displayName}\\b`, 'i');
     const offenders: string[] = [];
 
@@ -260,26 +246,42 @@ describe('Rule Nine: nothing about the store is hard coded', () => {
   });
 
   /**
-   * The name the product had before, which must not come back into anything a person sees.
-   * Comments may still use it as history, and lower case identifiers — package names, storage
-   * keys, the database name — are left alone on purpose: they are never shown, and changing
-   * them would sign everybody out or rename the live database. See BUILD_LOG Step 30.
+   * The name the product had before 28 Sep 2026 is retired (docs/BUILD_PROMPT.md, Section A),
+   * and must not come back anywhere: not in code, not in comments, not in documentation. It is
+   * held here encoded, so that this file does not spell it either.
+   *
+   * Two things are exempt, and each says why. Database migrations that have already run on the
+   * live database are never edited, because changing one risks the server refusing to start.
+   * And the lower case form still names things outside this repository's control until they are
+   * renamed together — the code packages, the GitHub repository, and the DigitalOcean app and
+   * database (BUILD_LOG Step 31) — so this looks for the name as a word, capitalised, which is
+   * how it was ever shown to anybody.
    */
-  it('does not show the retired product name anywhere outside comments', () => {
-    const RETIRED = /\bAldilivery\b/;
-    const COMMENT = /^\s*(\/\/|\/\*|\*|#|<!--|--)/;
-    const files = [
-      ...sourceFiles(workspaceRoot),
-      join(workspaceRoot, 'packages', 'web', 'public', 'favicon.svg'),
-    ];
+  it('does not use the retired product name anywhere', () => {
+    const retired = Buffer.from('QWxkaWxpdmVyeQ==', 'base64').toString('utf8');
+    const pattern = new RegExp(`\\b${retired}\\b`);
+    const binary = new Set(['.png', '.jpg', '.jpeg', '.ico', '.webp', '.woff2', '.lock']);
+    const skipDirectories = new Set([...SKIP_DIRECTORIES, 'migrations']);
+
+    function everyFile(dir: string, found: string[] = []): string[] {
+      for (const entry of readdirSync(dir)) {
+        const absolute = join(dir, entry);
+        if (statSync(absolute).isDirectory()) {
+          if (!skipDirectories.has(entry)) everyFile(absolute, found);
+          continue;
+        }
+        if (binary.has(extname(entry)) || entry === 'pnpm-lock.yaml') continue;
+        found.push(absolute);
+      }
+      return found;
+    }
+
     const offenders: string[] = [];
-    for (const file of files) {
+    for (const file of everyFile(workspaceRoot)) {
       readFileSync(file, 'utf8')
         .split('\n')
         .forEach((line, index) => {
-          if (RETIRED.test(line) && !COMMENT.test(line)) {
-            offenders.push(`${relative(workspaceRoot, file)}:${index + 1}`);
-          }
+          if (pattern.test(line)) offenders.push(`${relative(workspaceRoot, file)}:${index + 1}`);
         });
     }
     expect(offenders).toEqual([]);
@@ -290,9 +292,12 @@ describe('the ten rules', () => {
   it('are filled in with the product name from configuration', () => {
     const rules = inviolableRules(config.productName);
     expect(rules).toHaveLength(10);
-    expect(rules[2]).toBe(
-      `${config.productName} never nets below two pounds on any order after payment processing costs.`,
+    expect(rules[1]).toBe(
+      'The Runner receives five pounds on every standard delivery, untouched, whatever the basket.',
     );
-    expect(rules.filter((rule) => rule.includes(config.productName))).toHaveLength(3);
+    expect(rules[7]).toBe(
+      `${config.productName} shares no code, database, login or payment account with any other product.`,
+    );
+    expect(rules.filter((rule) => rule.includes(config.productName))).toHaveLength(2);
   });
 });

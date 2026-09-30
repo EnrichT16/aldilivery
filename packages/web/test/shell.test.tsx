@@ -3,7 +3,7 @@
  * check on its own.
  */
 
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -79,7 +79,7 @@ describe('the landing page', () => {
 /**
  * Found in a real browser on 25 Sep 2026: focus was moved into main on the very first load,
  * so the first Tab landed past the skip link and the Shop and Basket buttons, and every page
- * was titled plain "Aldilivery". Nothing here had checked either.
+ * was titled plain with the product name. Nothing here had checked either.
  */
 describe('arriving at a page, and moving between pages', () => {
   it('leaves focus at the top on arrival, so the first Tab reaches the skip link', async () => {
@@ -139,9 +139,21 @@ describe('the basket', () => {
     const feeRow = within(table).getByRole('rowheader', { name: 'Our fee' });
     expect(feeRow).toBeInTheDocument();
 
-    // 125 + 89 = 214p of shopping, which falls in the first band.
-    const expectedFee = storeConfig.fees.bands[0]!.feePence;
+    // 125 + 89 = 214p of shopping, and the flat standard delivery fee.
+    const expectedFee = storeConfig.fees.standardDeliveryPence;
     expect(within(table).getByText(`£${(expectedFee / 100).toFixed(2)}`)).toBeInTheDocument();
+  });
+
+  it('says plainly when the basket is more than one delivery carries, and offers no way to send it', async () => {
+    await addTwoThings();
+    const milk = screen.getByLabelText(/How many Semi skimmed milk/);
+    // 49 pints at £1.25, plus the bread, is £62.14: over the £60 one delivery carries.
+    fireEvent.change(milk, { target: { value: '49' } });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /one delivery carries up to £60\.00: about as much as one Runner can carry safely/,
+    );
+    expect(screen.queryByRole('link', { name: 'Check and send my order' })).not.toBeInTheDocument();
   });
 
   it('says the fee is the only one, and that there is no smallest order', async () => {
@@ -194,7 +206,7 @@ describe('the confirmation screen', () => {
     await user.click(screen.getByRole('link', { name: 'Check and send my order' }));
 
     expect(screen.getByText(/the only thing that will ever take a payment/i)).toBeInTheDocument();
-    expect(screen.getByText(/Our fee, £8\.00\. That is the only fee\./)).toBeInTheDocument();
+    expect(screen.getByText(/Our fee, £13\.50\. That is the only fee\./)).toBeInTheDocument();
   });
 });
 
@@ -295,7 +307,7 @@ describe('the accessibility promises axe cannot see', () => {
 describe('Rule Nine, on the screen', () => {
   /**
    * The product's own name contains the store's name, so a plain search for the store name
-   * would match "Aldilivery" and prove nothing. This looks for the store name followed by
+   * would match the product name and prove nothing. This looks for the store name followed by
    * something that is not a letter, which is a word boundary without needing an escape.
    */
   function mentionsStoreName(text: string): boolean {

@@ -1,5 +1,5 @@
 /**
- * Building a whole, real Aldilivery API for a test.
+ * Building a whole, real API for a test.
  *
  * No database, no network, no Stripe account and no wall clock. Everything the application
  * needs is injected, so the tests below prove the rules against the same code that runs in

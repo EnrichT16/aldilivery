@@ -55,7 +55,7 @@ function RouteAnnouncer(): JSX.Element {
 /**
  * Every page gets its own title, taken from its heading, so a browser tab, the history list
  * and a screen reader's list of windows all say which page this is rather than all saying
- * "Aldilivery". Some pages change their heading once they know who is signed in, so this
+ * the product name. Some pages change their heading once they know who is signed in, so this
  * watches for that rather than reading it once.
  */
 function PageTitle(): null {

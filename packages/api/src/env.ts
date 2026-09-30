@@ -97,7 +97,7 @@ export interface Env {
   /** Twilio, for sending sign-in codes. All three, or none. */
   twilioAccountSid: string | undefined;
   twilioAuthToken: string | undefined;
-  /** A `+44…` number, a Messaging Service `MG…`, or a sender name such as `Aldilivery`. */
+  /** A `+44…` number, a Messaging Service `MG…`, or a sender name of at most eleven characters, such as `OziDelivery`. */
   twilioFrom: string | undefined;
   /**
    * Web Push, for telling a Shopper their Runner has a question when the page is closed. A key
@@ -109,7 +109,7 @@ export interface Env {
   /** Who the push services can contact about our messages: `mailto:` or an `https:` address. */
   vapidSubject: string | undefined;
   /**
-   * Fill an empty catalogue at startup. On by default, because a deployed Aldilivery with
+   * Fill an empty catalogue at startup. On by default, because a deployed service with
    * no catalogue looks broken. Set `SEED_ON_START=false` once the catalogue comes from
    * somewhere else.
    */

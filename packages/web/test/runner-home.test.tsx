@@ -29,7 +29,7 @@ interface State {
 let state: State;
 
 function stubRunnerApi(): void {
-  window.localStorage.setItem('aldilivery.runner.token', 'runner-token');
+  window.localStorage.setItem('ozidelivery.runner.token', 'runner-token');
   const reply = (body: unknown, status = 200): Response =>
     ({
       ok: status < 300,
@@ -148,7 +148,7 @@ function stubRunnerApi(): void {
           itemName: 'White sliced bread, 800g',
           ...state.question,
           secondsLeft: state.question.answer === null ? 290 : 0,
-          ifNoAnswer: 'similar',
+          ifNoAnswer: 'leave_out',
         };
         return method === 'POST'
           ? reply({ question }, 201)
@@ -253,7 +253,7 @@ describe('a Runner page', () => {
       await screen.findByRole('heading', { name: 'Your job: shopping for Margaret' }),
     ).toBeInTheDocument();
     expect(screen.getByText('2 × Semi skimmed milk, 2 pints')).toBeInTheDocument();
-    expect(screen.getByText(/bring something similar/)).toBeInTheDocument();
+    expect(screen.getByText(/Never swap anything they have not agreed to/)).toBeInTheDocument();
     expect(
       screen.getByText('At the door, in their words: Knock twice, I am slow to the door.'),
     ).toBeInTheDocument();
@@ -301,7 +301,7 @@ describe('a Runner page', () => {
     ).toEqual({ orderItemId: 'i2' });
     expect(
       await screen.findByText(
-        'Asked Margaret. Waiting for an answer, about 5 minutes left. If there is no answer: bring something similar.',
+        'Asked Margaret. Waiting for an answer, about 5 minutes left. If there is no answer: leave it out.',
       ),
     ).toBeInTheDocument();
     expect(

@@ -31,7 +31,7 @@ function productionEnv(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
     STRIPE_SECRET_KEY: 'sk_live_realish',
     STRIPE_WEBHOOK_SECRET: 'whsec_realish',
     AUTH_TOKEN_SECRET: 'a-long-random-value-fit-for-signing-sessions',
-    ALLOWED_ORIGIN: 'https://aldilivery.example.com',
+    ALLOWED_ORIGIN: 'https://ozidelivery.example.com',
     ...overrides,
   };
 }
@@ -127,14 +127,14 @@ describe('the environment reader', () => {
   it('treats a placeholder DATABASE_URL as no database at all', () => {
     const env = readEnv({
       NODE_ENV: 'development',
-      DATABASE_URL: 'postgresql://aldilivery:change_me_locally@localhost:5433/aldilivery',
+      DATABASE_URL: 'postgresql://ozidelivery:change_me_locally@localhost:5433/ozidelivery',
     } as NodeJS.ProcessEnv);
     expect(env.dataBackend).toBe('memory');
   });
 
   it('restricts CORS to ALLOWED_ORIGIN', () => {
-    const env = readEnv({ ALLOWED_ORIGIN: 'https://aldilivery.example.com' } as NodeJS.ProcessEnv);
-    expect(env.allowedOrigins).toEqual(['https://aldilivery.example.com']);
+    const env = readEnv({ ALLOWED_ORIGIN: 'https://ozidelivery.example.com' } as NodeJS.ProcessEnv);
+    expect(env.allowedOrigins).toEqual(['https://ozidelivery.example.com']);
   });
 
   it('accepts more than one allowed origin, and forgives a trailing slash', () => {
@@ -275,7 +275,7 @@ describe('finding the .env file', () => {
   let root: string;
 
   beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), 'aldilivery-env-'));
+    root = mkdtempSync(join(tmpdir(), 'ozidelivery-env-'));
     // A miniature of the real layout: a workspace root with a package inside it.
     mkdirSync(join(root, 'packages', 'api', 'dist'), { recursive: true });
     writeFileSync(join(root, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*\n');

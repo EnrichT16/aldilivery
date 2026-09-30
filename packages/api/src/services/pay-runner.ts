@@ -8,7 +8,7 @@
  * what is owed as soon as it is.
  *
  * Rule Two is checked on every payout, not assumed. Rule Ten holds because the money goes from
- * the Shopper's payment straight to the Runner's own account: Aldilivery never holds it.
+ * the Shopper's payment straight to the Runner's own account: The service never holds it.
  */
 
 import { formatPence, RUNNER_PAYMENT_PENCE } from '@aldilivery/core';

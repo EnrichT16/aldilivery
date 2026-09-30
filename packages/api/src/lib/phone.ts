@@ -7,7 +7,7 @@
  * on another device, and be found. Every number is now kept in the international form a
  * text message is sent to: `+44` and the number without its leading nought.
  *
- * Aldilivery is United Kingdom only, so this only understands United Kingdom numbers. That
+ * The service is United Kingdom only, so this only understands United Kingdom numbers. That
  * is also the first defence against somebody using the sign-in screen to send texts
  * abroad at our expense: a number that is not British never becomes a destination.
  */

@@ -66,7 +66,7 @@ describe('signing in', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Your shopping' }),
     ).toBeInTheDocument();
-    expect(window.localStorage.getItem('aldilivery.session.token')).toBe('signed-in-token');
+    expect(window.localStorage.getItem('ozidelivery.session.token')).toBe('signed-in-token');
   });
 
   it('goes back to the order afterwards, if that is where they came from', async () => {

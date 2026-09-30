@@ -8,7 +8,7 @@ import { removePushSubscription, savePushSubscription } from './api';
 export type NotificationState =
   /** This browser cannot do it at all. */
   | 'unsupported'
-  /** An iPhone or iPad, where it only works once Aldilivery is on the Home Screen. */
+  /** An iPhone or iPad, where it only works once the app is on the Home Screen. */
   | 'needs-home-screen'
   /** The person, or their browser settings, said no. Only they can change it. */
   | 'blocked'

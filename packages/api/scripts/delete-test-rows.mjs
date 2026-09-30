@@ -1,7 +1,7 @@
 /**
  * Remove the test Shoppers left in a database by an end to end check.
  *
- * This is a maintenance script and deliberately not a route. Aldilivery has no way to delete
+ * This is a maintenance script and deliberately not a route. The service has no way to delete
  * somebody's account for real — `POST /account/delete` sets a date seven days out and the
  * account sits in a recycle bin until then, because people change their minds and people are
  * sometimes talked into pressing things. That is the right behaviour for a Shopper and the

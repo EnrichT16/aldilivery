@@ -3,7 +3,7 @@
  *
  * The same JSON file the API reads, validated by the same parser from `@aldilivery/core`.
  * There are no strings about the supermarket anywhere else in this package: the name on the
- * screen, the colours, the fee bands and the catalogue attribution all come from here.
+ * screen, the colours, the fees and the catalogue attribution all come from here.
  */
 
 import { parseStoreConfig, type StoreConfig } from '@aldilivery/core';

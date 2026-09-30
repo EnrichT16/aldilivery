@@ -1,5 +1,5 @@
 /**
- * Starting Aldilivery in production.
+ * Starting the server in production.
  *
  * Two steps, in this order and no other: bring the database schema up to date, then start
  * the server. A server that starts before its migrations have run answers requests against

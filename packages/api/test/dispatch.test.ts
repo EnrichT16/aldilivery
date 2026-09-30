@@ -51,7 +51,7 @@ async function placeOrder(): Promise<string> {
         confirmed: true,
         channel: 'button',
         statement: 'Send my order.',
-        agreedTotalPence: 1139,
+        agreedTotalPence: 1689,
       },
     },
   });

@@ -31,7 +31,7 @@ import { useSession } from '../state/session';
  * again, not a reason to charge a different amount.
  */
 export function Confirm(): JSX.Element {
-  const { lines, pricing, clear } = useBasket();
+  const { lines, pricing, overMaximum, clear } = useBasket();
   const { shopper, restoring, replaceShopper } = useSession();
 
   const [cards, setCards] = useState<PaymentMethod[] | null>(null);
@@ -68,7 +68,7 @@ export function Confirm(): JSX.Element {
 
   async function onSend(): Promise<void> {
     const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
-    if (!card || sending || address.trim() === '') return;
+    if (!card || sending || address.trim() === '' || overMaximum) return;
 
     setSending(true);
     setError('');
@@ -203,7 +203,7 @@ export function Confirm(): JSX.Element {
   }
 
   const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
-  const ready = card !== undefined && address.trim() !== '';
+  const ready = card !== undefined && address.trim() !== '' && !overMaximum;
 
   return (
     <div className="space-y-8">
@@ -313,6 +313,14 @@ export function Confirm(): JSX.Element {
       {error !== '' && (
         <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
           {error}
+        </p>
+      )}
+
+      {overMaximum && (
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+          This comes to about {money(pricing.goodsPence)} of shopping, and one delivery carries up
+          to {money(storeConfig.fees.maximumGoodsPence)}. Go back to your basket, take some things
+          out to send as one delivery, and order the rest as a second delivery.
         </p>
       )}
 

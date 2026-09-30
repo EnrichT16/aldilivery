@@ -7,7 +7,7 @@
  * test, and every path to a payment goes through it.
  */
 
-import { feeForGoodsPence, canTransition, type FeeBand, type OrderStatus } from '@aldilivery/core';
+import { canTransition, type DeliveryFees, type OrderStatus } from '@aldilivery/core';
 
 import { BadRequestError, ConfirmationRequiredError, ConflictError } from '../errors.js';
 
@@ -69,20 +69,21 @@ export interface Repricing {
 /**
  * Reprice an order to the receipt the Runner actually got at the till.
  *
- * The Shopper is charged the shelf price, so the estimate never binds them. The fee is
- * recalculated against the receipt total rather than carried over from the estimate, which
- * keeps Rule Three true of the amount really charged and not merely of the amount quoted.
+ * The Shopper is charged the shelf price, so the estimate never binds them. The fee is the
+ * same flat standard delivery fee whatever the till says. The maximum basket is not applied
+ * here: it was checked when the order was placed, and a shelf price a few pence above the
+ * estimate must never stop an order that is already in the Runner's hands.
  */
 export function repriceToReceipt(
   receiptTotalPence: number,
   goodsEstimatePence: number,
-  bands: readonly FeeBand[],
+  fees: DeliveryFees,
 ): Repricing {
   if (!Number.isInteger(receiptTotalPence) || receiptTotalPence < 0) {
     throw new BadRequestError('A receipt total must be a whole number of pence.');
   }
 
-  const receiptFeePence = feeForGoodsPence(receiptTotalPence, bands);
+  const receiptFeePence = fees.standardDeliveryPence;
   return {
     receiptTotalPence,
     receiptFeePence,

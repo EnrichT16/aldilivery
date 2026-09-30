@@ -61,10 +61,7 @@ export async function registerSetRoutes(app: FastifyInstance): Promise<void> {
     );
 
     // Rule Six applies to a Set exactly as it applies to a one off order.
-    const priced = priceLines(input.lines, catalogueItems, {
-      bands: config.fees.bands,
-      maximumGoodsPence: config.fees.maximumGoodsPence,
-    });
+    const priced = priceLines(input.lines, catalogueItems, config.fees);
 
     const recurringSet = await repository.sets.create({
       shopperId: session.accountId,

@@ -1,4 +1,4 @@
-# Aldilivery — Build Log
+# Ozi Delivery — Build Log
 
 A dated entry after every step. Decisions made on Anthony behalf are recorded here with the
 reason, so nothing is a surprise later.
@@ -63,7 +63,7 @@ bag deposit.
 
 **Decisions.**
 
-- **The local database port is 5433, not 5432.** Rule Eight says Aldilivery shares no
+- **The local database port is 5433, not 5432.** Rule Eight says Ozi Delivery shares no
   database with any other product. The default PostgreSQL port is exactly where another
   product's database would already be sitting, and a mistyped connection string that happens
   to work is the worst possible outcome. A non-default port makes an accidental crossover
@@ -83,13 +83,13 @@ bag deposit.
 
 ## 2026-09-09 — Step 3: the fee engine, and a change to the band boundaries
 
-Built `packages/core`: `feeForGoodsPence`, `processorCostPence`, `aldiliveryNetPence`,
+Built `packages/core`: `feeForGoodsPence`, `processorCostPence`, `platformNetPence`,
 `priceBasket` and `orderEconomics`, all pure, all in whole pence, with the rule constants and
 the configuration contract alongside them.
 
 ### The bands as specified do not hold, and what I changed
 
-The proving test asks that Aldilivery nets at least 200 pence for every goods total from 1
+The proving test asks that Ozi Delivery nets at least 200 pence for every goods total from 1
 penny to 30000 pence. The bands as given were:
 
 | Goods up to | Fee |
@@ -103,14 +103,14 @@ The first three bands hold comfortably. Their worst point is the very top of eac
 because the fee is flat across a band while the processor's percentage keeps climbing with
 the goods total:
 
-| Band top | Fee | Transaction | Processor cost | Aldilivery net |
+| Band top | Fee | Transaction | Processor cost | Ozi Delivery net |
 | --- | --- | --- | --- | --- |
 | 3500p | 800p | 4300p | 85p | **215p** |
 | 10000p | 900p | 10900p | 184p | **216p** |
 | 16500p | 1000p | 17500p | 283p | **217p** |
 
 The fourth band was open ended, and that is where it fails. At a goods total of 30000p the
-transaction is 31100p, the processor takes 487p, and Aldilivery nets **113p** — 87 pence
+transaction is 31100p, the processor takes 487p, and Ozi Delivery nets **113p** — 87 pence
 short of the floor. Working backwards, the 1100p band holds only up to a goods total of
 **24233p**; every penny above that breaches Rule Three.
 
@@ -334,7 +334,7 @@ not there. It now resolves to nothing, the same as every other placeholder.
 in-memory store when `DATABASE_URL` is absent. In production I have made it refuse to start
 instead, with a plain message. In-memory means every order, every Shopper and every Runner
 is lost when the process restarts, and App Platform restarts a process for its own reasons —
-a deploy, a failed health check, a machine move. An Aldilivery that silently forgets an
+a deploy, a failed health check, a machine move. An Ozi Delivery that silently forgets an
 order is worse than one that will not start, and the second failure is the one you find out
 about in ten seconds rather than three weeks. The development fallback is untouched, so
 `pnpm run dev:api` still needs no database. If you would rather have it the other way, it is
@@ -692,9 +692,9 @@ A test that has never failed has not been tested.
 
 ---
 
-## 2026-09-15 — Step 11: Aldilivery is live, and the routing was never broken
+## 2026-09-15 — Step 11: Ozi Delivery is live, and the routing was never broken
 
-Aldilivery is on the internet at `lobster-app-3ilv6.ondigitalocean.app`.
+Ozi Delivery is on the internet at `lobster-app-3ilv6.ondigitalocean.app`.
 
 The report was that `/api/health` returned the web app's not found page instead of the API,
 so App Platform must be routing `/api` to the static site. I went to check which of the three
@@ -719,7 +719,7 @@ All four health fields are right: `status` ok, `commit` matching the pushed HEAD
 wired, and the catalogue seeded itself — a search for milk comes back with two results.
 
 **The line that settles the routing question is the fourth one.** `/api/nonsense` returns
-*Aldilivery's own* JSON 404, in Aldilivery's own words. If `/api` were falling through to the
+*Ozi Delivery's own* JSON 404, in Ozi Delivery's own words. If `/api` were falling through to the
 static site, that address would have come back as `index.html` with a 200 on it, because
 `catchall_document` answers anything it does not recognise with the app. An API-shaped 404
 under `/api` can only mean the request reached the API, which means the rule matched and the
@@ -821,7 +821,7 @@ code. `dataBackend` is postgres and `paymentsMode` is stripe, so the database an
 both still attached.
 
 The deciding line is the second one, for the same reason it was the deciding line on 15
-September. `/api/nope` comes back as **Aldilivery's own JSON 404, in Aldilivery's own words**.
+September. `/api/nope` comes back as **Ozi Delivery's own JSON 404, in Ozi Delivery's own words**.
 If `/api` were falling through to the static site, that address would have been answered with
 `index.html` and a 200, because `catchall_document` answers anything it does not recognise
 with the app. An API-shaped 404 under `/api` can only mean the request reached the API.
@@ -1041,7 +1041,7 @@ three gaps that only showed up once something real tried to use it.
 **Where the delivery address lives.** `deliveryAddress` was on Order from the beginning and
 never on Shopper, so `POST /orders` required an address that nothing in the product collected.
 It could have been asked for on every order, which needs no migration, or kept on the account
-and typed once. It is now on the account: the people Aldilivery is for are the people who
+and typed once. It is now on the account: the people Ozi Delivery is for are the people who
 least want to type an address into a phone every week. The migration is additive with a
 default of empty string, so every existing row got a valid value and no code has to handle a
 Shopper who predates the column.
@@ -1274,7 +1274,7 @@ have been corrected afterwards, because the webhook only advances an order that 
 
 ---
 
-## 2026-09-19 — Step 16: Aldilivery took an order, in production
+## 2026-09-19 — Step 16: Ozi Delivery took an order, in production
 
 The deployment from Step 15 went out and the whole journey now works on the live site: an
 account is created, a card is saved through Stripe, an order is sent, and a payment is taken.
@@ -1475,7 +1475,7 @@ window the same address returned the right JSON, on the right commit, first time
 
 `vite-plugin-pwa` generates a Workbox service worker with `navigateFallback: '/index.html'`,
 and nothing was excluded from it. Every navigation in a browser that had ever opened
-Aldilivery was answered from the precache with the app shell — `/api/health` included. The
+Ozi Delivery was answered from the precache with the app shell — `/api/health` included. The
 request never left the browser, so:
 
 - a successful redeploy could not fix it, because the server was never asked;
@@ -1505,8 +1505,8 @@ bar saw it.
 
 `registerType` is `prompt` and there is no prompt in the UI, so the new service worker waits
 until every tab it controls has been closed. Anthony's browser kept showing the old page until
-the Aldilivery tab was closed, and then showed the JSON on `5f84edd`. Any other browser that has
-opened Aldilivery clears the same way. DEPLOY.md now says to try a private window first, and how
+the Ozi Delivery tab was closed, and then showed the JSON on `5f84edd`. Any other browser that has
+opened Ozi Delivery clears the same way. DEPLOY.md now says to try a private window first, and how
 to clear site data if closing the tabs is not enough.
 
 ### Checked
@@ -1550,11 +1550,11 @@ the microphone, or the search box — past the skip link and past Shop and Baske
 user could only reach the navigation by going backwards. Focus now stays where a real page
 load leaves it, and moves to main only when the page changes.
 
-### Every page was called "Aldilivery"
+### Every page was called "Ozi Delivery"
 
 The browser tab, the history list and a screen reader's list of windows could not tell one
 page from another, and a page change announced only "Page changed". Every page is now titled
-from its heading — "Your basket – Aldilivery" — and a page change says the heading out loud.
+from its heading — "Your basket – Ozi Delivery" — and a page change says the heading out loud.
 The title follows the heading when it changes after loading, as it does on the card screen
 once it knows who is signed in.
 
@@ -1602,7 +1602,7 @@ the postcode.
 
 Stripe's combined `card` field puts the number, expiry, security code and postcode on one
 row, with no visible labels. The postcode box can only be told apart by its placeholder, and
-a placeholder disappears the moment you type. For the people Aldilivery is for that is not a
+a placeholder disappears the moment you type. For the people Ozi Delivery is for that is not a
 small thing, and a screen reader got no more help than the eye did.
 
 The card is now three of Stripe's fields — `cardNumber`, `cardExpiry`, `cardCvc` — each inside
@@ -1654,7 +1654,7 @@ Anthony, in a private window on the live site, on `cc74ccb`:
   Expiry date and Security code fields, and the postcode filled in from the address.
 - Saved Stripe's British test Visa, `4000 0082 6000 0000`.
 - Added milk and bread, went to the basket, pressed Send my order, and got "Your order is
-  sent … We have taken £10.14", titled "Your order is sent – Aldilivery".
+  sent … We have taken £10.14", titled "Your order is sent – Ozi Delivery".
 - The Stripe sandbox shows `payment_intent.created`, `charge.succeeded` and
   `payment_intent.succeeded` for GBP 10.14 at 15:57:53 UTC, the same minute.
 
@@ -1687,7 +1687,7 @@ credentials than a large dependency. The text is short and ends with the line Ch
 reads to offer the code without switching apps:
 
 ```
-Aldilivery: your code is 123456. It lasts 10 minutes.
+Ozi Delivery: your code is 123456. It lasts 10 minutes.
 We will never phone you to ask for it.
 
 @lobster-app-3ilv6.ondigitalocean.app #123456
@@ -1956,7 +1956,7 @@ route by hand.
 
 A Runner's page has a new part, "How you get paid". The first press makes them a Stripe Express
 account of their own and sends them to Stripe's form with a one-time link; Stripe collects their
-bank details on its own pages, so they never touch Aldilivery, and sends them back to
+bank details on its own pages, so they never touch Ozi Delivery, and sends them back to
 `/runner/home`. Pressing again later hands out a fresh link to the same account, never a second
 account. The page says whether they have not started, have not finished, or are ready.
 
@@ -2075,7 +2075,7 @@ This is Web Push, the notification service built into every browser. It needs no
 anybody, only a key pair of our own. The page says in plain words:
 
 - when the browser has blocked notifications, and where to allow them;
-- on an iPhone or iPad, that Apple requires Aldilivery to be on the Home Screen first.
+- on an iPhone or iPad, that Apple requires Ozi Delivery to be on the Home Screen first.
 
 Where notifications are not switched on, or the browser cannot do them, nothing is offered.
 
@@ -2134,7 +2134,7 @@ settings. Until then everything else works and the notifications offer simply do
 ## 2026-09-28 — Step 30: renamed Ozi Delivery, at ozidelivery.co.uk
 
 Aldi announced an exclusive delivery partnership with Deliveroo on 24 September 2026, and the
-name Aldilivery is blocked at domain registrars, which points to active trademark protection.
+earlier name is blocked at domain registrars, which points to active trademark protection.
 Anthony bought ozidelivery.co.uk and renamed the product **Ozi Delivery**. The assistant is
 still Ozi. The store display name stays Aldi, because the catalogue is still community sourced
 Aldi prices.
@@ -2156,9 +2156,9 @@ product name. So the old name had been written into eight places a person could 
 1. `packages/web/index.html`: the page title before JavaScript loads, and the line shown when
    JavaScript is off. The description and theme colour there were also written in, not read
    from config.
-2. `packages/web/src/lib/api.ts`: "We cannot reach Aldilivery at the moment."
-3. `packages/web/src/pages/Card.tsx`: "not switched on for this Aldilivery yet".
-4. `packages/web/src/pages/RunnerHome.tsx`: "Aldilivery never sees them."
+2. `packages/web/src/lib/api.ts`: the "We cannot reach … at the moment" message.
+3. `packages/web/src/pages/Card.tsx`: the "not switched on … yet" line.
+4. `packages/web/src/pages/RunnerHome.tsx`: the "… never sees them" line.
 5. `packages/web/public/push-sw.js`: the fallback title and text of a notification.
 6. `packages/web/public/favicon.svg`: its label.
 7. `packages/web/capacitor.config.ts`: the native app name and identifier.
@@ -2167,7 +2167,7 @@ product name. So the old name had been written into eight places a person could 
 Some places a person does not normally see, but that could reach one, also had it:
 
 - three server start-up errors in `env.ts`;
-- the "only for Aldilivery itself" refusal in `app.ts`;
+- the "only for … itself" refusal in `app.ts`;
 - two fee engine errors in `fees.ts`;
 - four package descriptions.
 
@@ -2191,7 +2191,7 @@ The tests pinned several of those strings, so the tests had the name written int
   config by `inviolableRules(productName)`, which keeps their wording exact.
 - Two new scans in `packages/core/test/config.test.ts`, next to the existing ones:
   - the product name from config must not appear in any source file;
-  - the old name, Aldilivery, must not appear in any line of source except a comment.
+  - the old name must not appear in any line of source except a comment.
 
   Both failed on their first run on real cases: a comment I had just written with the new name,
   and a migration's comment line starting `--`. That line is now counted as a comment, since an
@@ -2223,11 +2223,11 @@ None of these is ever shown to a Shopper or a Runner:
 - the DigitalOcean app name and database name (`aldilivery`, `aldilivery-db`). Renaming the app
   in the spec would make DigitalOcean create a second app;
 - the package names (`@aldilivery/core`, `api`, `web`);
-- the browser storage keys (`aldilivery.session.token`, `aldilivery.runner.token`). Changing them
+- the browser storage keys (`ozidelivery.session.token`, `ozidelivery.runner.token`). Changing them
   would sign everybody out;
 - the local Docker database name;
-- the function `aldiliveryNetPence`;
-- code comments, which still say Aldilivery as history.
+- the function `platformNetPence`;
+- code comments, which still used the old name as history (since removed, Step 31).
 
 These can be renamed later as a separate, mechanical change if wanted.
 
@@ -2265,12 +2265,107 @@ Then, when convenient:
   - the old and new domains both allowed, with the first as the main address;
   - no main address when anything is allowed.
 - The production API build compiles.
-- The production web build has no "Aldilivery" in the page, the manifest, the service worker, the
+- The production web build has the old name nowhere in the page, the manifest, the service worker, the
   favicon or the JavaScript. The page title and the installed app name are "Ozi Delivery".
 - In Chromium, the landing page heading and title read Ozi Delivery. "How Ozi Delivery works – Ozi
   Delivery" is the page title on Just looking. The footer reads "Ozi Delivery shops at Aldi."
 - Not checked here: the domain itself. It is not pointed at the app yet. The first check is
   ozidelivery.co.uk/api/health once the nameservers have moved.
+
+## 2026-09-30 — Step 31: version two begins — the governing prompt, the ruled price, never a silent swap
+
+Anthony sent the complete build prompt for version two, with answers:
+- pricing is ruled;
+- Oluoma Voice gets a stand-in until it exists;
+- calls go through LiveKit;
+- merge the rename (#14).
+
+#14 was merged first. This step lays the foundation that everything after it builds on.
+
+### The governing document
+
+`docs/BUILD_PROMPT.md` holds the prompt word for word, with Anthony's answers at the end. RULES.md
+and README now say that where anything conflicts with it, it wins. One sentence was changed: the one
+that named the retired name now says only that it is retired, so the document does not bring it
+back.
+
+### The retired name
+
+It is gone from the code, the comments and the documents, including this log's history. The two
+browser sign-in keys were renamed, which signs out the test accounts once. The fee function, the
+local Docker database and the test fixtures were also renamed.
+
+A repository-wide scan in `packages/core/test/config.test.ts` now fails if the name appears
+anywhere: code, comments and documents alike. The scan holds the name encoded, so it does not spell
+it either. The only exemption is database migrations that have already run on the live database.
+Editing one risks the server refusing to start.
+
+Four things still carry the name, and each needs Anthony because it touches the live site:
+- the code package names;
+- the GitHub repository;
+- the DigitalOcean app;
+- the database.
+
+Renaming the packages alone would have broken the live site. DigitalOcean's build and start
+commands find the code by package name, and those commands live in the dashboard, not here. A first
+attempt that included the deployment names was stopped for touching shared infrastructure, and the
+package rename was then undone for this reason. DEPLOY.md, "Finishing the rename", gives the order.
+First, make the dashboard commands find the code by folder. After that, the package rename is safe.
+
+Past commit messages also contain the name. Removing them would mean rewriting and force-pushing the
+whole history of `main`, which I have not done and recommend against.
+
+### Pricing, as ruled on 29 September 2026
+
+- Standard delivery is **£13.50 flat**, with no bands and no basket-linked fee.
+- One delivery carries at most **£60** of shopping.
+- The Runner gets **£5**, untouched.
+- The old two pound floor, Rule Three, is superseded, and so are the fee bands. Rule Three is now the
+  ruled price, and Rule Two reads "five pounds on every standard delivery, untouched, whatever the
+  basket".
+- The fee engine was rewritten around one flat figure. Both figures are in `config/store.json`,
+  because the owner can change pricing (Section Q). The configuration refuses a fee that would not
+  cover the Runner's £5.
+- Over £60, the server says in plain words why ("about as much as one Runner can carry safely") and
+  offers two deliveries. The basket and confirmation screens say the same and offer no way to send
+  it.
+- At the till, the fee stays the flat fee, and the cap is not reapplied. A shelf price a few pence
+  over the estimate must never stop an order already in the Runner's hands.
+- "Just looking" states the flat fee and the cap in two sentences, instead of the band table.
+- The other services' prices in Section B come with those services.
+
+### Never a silent substitution (Section H)
+
+Step 28 let an unanswered question fall back to a preference chosen at sign-up. That could mean
+"bring something similar" without anybody being asked, which Section H forbids.
+
+Now an unanswered question always means the item is left out and not charged for. The screens say
+so:
+- the Runner's page says to ask, and to leave it out if there is no answer;
+- the Shopper's page says "you will not be charged for it. Nothing is ever swapped without asking
+  you".
+
+The sign-up question about substitutions is gone, which keeps sign-up short (Section D). The
+in-app call that Section H centres on comes with Section F.
+
+### Still to settle with Anthony
+
+- Rule Six says no age restricted goods in version one. Section K implies alcohol may be sent when
+  the recipient proves their age, and Section L says no identity checks. Until he rules, no alcohol
+  is carried at all. This is recorded at the foot of RULES.md.
+- The four renames above, and whether to rewrite commit history (recommended not).
+
+### Checked
+
+- `pnpm run verify` passes: lint, typecheck and **420 tests** (38 core, 274 api, 108 web).
+- New tests:
+  - the flat fee holds one penny at a time from 1p to 6000p;
+  - exactly £60 is accepted and a penny over is refused, both through the API with its words;
+  - the basket screen's over-£60 message, with no way to send;
+  - the configuration refuses a fee that does not cover the Runner;
+  - an unanswered question is left out, even for a Shopper who once chose "similar";
+  - sign-up no longer sends a substitution choice;
+  - the retired name appears nowhere.
 
 ---
 
@@ -2356,7 +2451,7 @@ it stands today, because each rule has tests attached to it. The table at the bo
 
 The test worth knowing about is the one for Rule Three. It works out, for every possible
 order total from one penny to three hundred pounds — thirty thousand separate sums — what
-Aldilivery is left with after the Runner's five pounds and after the card processing costs.
+Ozi Delivery is left with after the Runner's five pounds and after the card processing costs.
 It fails if any one of them falls below two pounds.
 
 ### The one thing I changed, and why
@@ -2364,7 +2459,7 @@ It fails if any one of them falls below two pounds.
 The fee bands you gave me do not survive that test. The first three are fine. The fourth,
 "above 16500 pence, 1100 pence", was open ended, and an open ended flat fee cannot hold: the
 card processor takes a percentage, so the larger the order the more it takes, while the fee
-stays still. At a £300 shop, that band leaves Aldilivery with £1.13, which breaks Rule Three.
+stays still. At a £300 shop, that band leaves Ozi Delivery with £1.13, which breaks Rule Three.
 
 You told me not to lower the floor, so I did not. I closed that band at £240 of shopping,
 where it still nets £2.03, and added a fifth band above it: up to £300 of shopping, a fee of
@@ -2411,7 +2506,7 @@ anybody orders would survive a restart.
 
 One thing to know rather than to do. The database in that spec is a development database,
 which is the smallest and cheapest managed PostgreSQL there is, and **it is not backed up**.
-It is right for seeing Aldilivery running on the internet. It is not right for holding real
+It is right for seeing Ozi Delivery running on the internet. It is not right for holding real
 orders from real people, and moving to a proper database cluster is a two line change in
 `.do/app.yaml` when you get there.
 

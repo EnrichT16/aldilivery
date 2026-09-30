@@ -7,7 +7,7 @@ import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
 /**
- * Aldilivery lint rules.
+ * Lint rules.
  *
  * The accessibility rules are not advisory. `eslint-plugin-jsx-a11y` runs in its strict
  * configuration over every screen, and the web package's build fails on any warning, so an
