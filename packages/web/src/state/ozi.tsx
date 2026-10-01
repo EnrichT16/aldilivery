@@ -11,6 +11,7 @@ import {
 
 import { storeConfig } from '../config';
 import type { SpeakOutcome } from '../voice';
+import { useVoiceOrdering } from './voice-order';
 import { useVoice } from './voice';
 
 /**
@@ -29,7 +30,7 @@ import { useVoice } from './voice';
  * hears the wake word on the device and nothing else (`wakeWordOnDevice`). The browser
  * stand-in cannot, so with it the button brings Ozi back, and Ozi says so.
  *
- * Until voice ordering is built, what Ozi hears is answered with a holding sentence.
+ * What Ozi hears goes to the voice ordering conversation (`voice-order.ts`).
  */
 
 export type Presence =
@@ -54,6 +55,8 @@ interface OziValue {
   announce: boolean;
   /** The last thing Ozi heard. */
   heard: string;
+  /** Say something as Ozi: shown, spoken unless muted, announced when not spoken. */
+  say: (text: string) => Promise<SpeakOutcome>;
   /** Press of the button: mute when listening, listen when muted, stop when talking. */
   press: () => void;
   mute: () => void;
@@ -195,11 +198,14 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     scheduleReminder();
   }, [setPresence, stopListening, clearReminders, scheduleReminder, wakeHint]);
 
+  const ordering = useVoiceOrdering(useCallback((text: string) => sayRef.current(text), []));
+
   const wake = useCallback(() => {
     clearReminders();
     setPresence('listening');
+    ordering.expectOrder();
     void sayRef.current("I'm listening. What would you like?");
-  }, [clearReminders, setPresence]);
+  }, [clearReminders, setPresence, ordering]);
 
   /* ------------------------------------------------------------------ what Ozi hears */
 
@@ -210,9 +216,16 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       mute();
       return;
     }
-    void sayRef.current(
-      `You said: ${text}. Ordering by voice is the next thing being built. For now, please use the buttons on the screen.`,
-    );
+    void (async () => {
+      if (await ordering.handle(text)) return;
+      // Words not about an order are not answered unless they were said to Ozi: Ozi does not
+      // talk back to the television.
+      if (new RegExp(`\\b${assistant}\\b`, 'i').test(text)) {
+        await sayRef.current(
+          "I can take a shopping order for you. Say, for example, I'd like bananas and milk.",
+        );
+      }
+    })();
   };
 
   const press = useCallback(() => {
@@ -293,7 +306,17 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   }, [stopListening, clearReminders]);
 
   const value = useMemo<OziValue>(
-    () => ({ presence, talking, said, announce, heard, press, mute, wake }),
+    () => ({
+      presence,
+      talking,
+      said,
+      announce,
+      heard,
+      say: (text: string) => sayRef.current(text),
+      press,
+      mute,
+      wake,
+    }),
     [presence, talking, said, announce, heard, press, mute, wake],
   );
 

@@ -93,8 +93,8 @@ export function App(): JSX.Element {
   return (
     <SessionProvider>
       <VoiceProvider>
-        <OziProvider>
-          <BasketProvider>
+        <BasketProvider>
+          <OziProvider>
             <Layout>
               <RouteAnnouncer />
               <PageTitle />
@@ -115,8 +115,8 @@ export function App(): JSX.Element {
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Layout>
-          </BasketProvider>
-        </OziProvider>
+          </OziProvider>
+        </BasketProvider>
       </VoiceProvider>
     </SessionProvider>
   );

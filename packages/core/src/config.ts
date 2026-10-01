@@ -88,6 +88,15 @@ export interface StoreConfig {
     readonly baseFontSizePx: number;
     readonly minimumControlHeightPx: number;
   };
+  /** Ordering by voice (docs/BUILD_PROMPT.md, Sections D and E). */
+  readonly voice: {
+    /**
+     * The most a payment confirmed by voice alone may be, in pence. Above it, a touch
+     * confirmation is needed: a voice can be copied, so what a copied voice could spend is
+     * bounded. Eighty pounds by default, and a setting.
+     */
+    readonly paymentCeilingPence: number;
+  };
   readonly versionOneRestrictions: {
     readonly ageRestrictedGoodsAllowed: boolean;
   };
@@ -195,6 +204,7 @@ export function parseStoreConfig(input: unknown): StoreConfig {
   const accountDeletion = object(root['accountDeletion'], 'accountDeletion');
   const accessibility = object(root['accessibility'], 'accessibility');
   const versionOneRestrictions = object(root['versionOneRestrictions'], 'versionOneRestrictions');
+  const voice = object(root['voice'], 'voice');
 
   const allowedModes = array(catalogueSource['allowedModes'], 'store.catalogueSource.allowedModes').map(
     (entry, index) => str(entry, `store.catalogueSource.allowedModes[${index}]`),
@@ -365,6 +375,9 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       targetStandard: str(accessibility['targetStandard'], 'accessibility.targetStandard'),
       baseFontSizePx,
       minimumControlHeightPx,
+    },
+    voice: {
+      paymentCeilingPence: wholeNumber(voice['paymentCeilingPence'], 'voice.paymentCeilingPence', 1),
     },
     versionOneRestrictions: {
       ageRestrictedGoodsAllowed,

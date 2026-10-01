@@ -130,6 +130,9 @@ describe('sending an order', () => {
     await waitFor(() => {
       expect(sent(recorded, 'GET', '/payment-methods')).toBeDefined();
     });
+    // Section D: the address is put to the Shopper, and they say it is right, every time.
+    const yes = screen.queryByRole('button', { name: 'Yes, this is the right address' });
+    if (yes) await user.click(yes);
     return user;
   }
 
@@ -163,6 +166,34 @@ describe('sending an order', () => {
     expect(body.confirmation.agreedTotalPence).toBeGreaterThan(0);
     expect(body.deliveryAddress).toBe(FAKE_SHOPPER.deliveryAddress);
     expect(body.paymentMethodId).toBe(FAKE_CARD.id);
+  });
+
+  it('will not send until the Shopper has said the address is right, and says so on the order', async () => {
+    const recorded = stubApi({ shopper: FAKE_SHOPPER, paymentMethods: [FAKE_CARD] });
+    const user = userEvent.setup({ delay: null });
+    renderAt('/shop');
+    await user.click(await screen.findByRole('button', { name: /Add Semi skimmed milk/ }));
+    await user.click(screen.getByRole('link', { name: 'Basket' }));
+    await user.click(screen.getByRole('link', { name: 'Check and send my order' }));
+    await waitFor(() => {
+      expect(sent(recorded, 'GET', '/payment-methods')).toBeDefined();
+    });
+
+    expect(screen.getByText(FAKE_SHOPPER.deliveryAddress)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send my order' })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Yes, this is the right address' }));
+    expect(screen.getByText('You said this is the right address.')).toHaveAttribute(
+      'role',
+      'status',
+    );
+    await user.click(screen.getByRole('button', { name: 'Send my order' }));
+    await waitFor(() => {
+      expect(sent(recorded, 'POST', '/orders')).toBeDefined();
+    });
+    expect(sent(recorded, 'POST', '/orders')?.body).toMatchObject({
+      confirmation: { addressConfirmed: true, channel: 'button' },
+    });
   });
 
   it('says the order is sent, and gives the order number', async () => {
@@ -234,6 +265,7 @@ describe('Rule Ten, on the wire', () => {
     await waitFor(() => {
       expect(sent(recorded, 'GET', '/payment-methods')).toBeDefined();
     });
+    await user.click(await screen.findByRole('button', { name: 'Yes, this is the right address' }));
     await user.click(screen.getByRole('button', { name: 'Send my order' }));
 
     await waitFor(() => {
