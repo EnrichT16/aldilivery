@@ -24,7 +24,8 @@
     "colours": {
       "navy": "#0B1F3A",
       "gold": "#D4AF37",
-      "white": "#FFFFFF"
+      "white": "#FFFFFF",
+      "listening": "#2FBF71"
     }
   },
   "fees": {

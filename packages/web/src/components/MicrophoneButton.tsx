@@ -1,50 +1,45 @@
-import { useId, useState } from 'react';
-
 import { storeConfig } from '../config';
+import { useOzi } from '../state/ozi';
 
 /**
- * The microphone.
+ * The big microphone on the landing page: the same Ozi as the round button on every screen,
+ * only larger, because for the people this is for it may be the only thing they touch.
  *
- * It is the largest thing on the landing page because, for the people this product is for,
- * it will one day be the only thing they need to touch. In this phase it does not listen.
- * Pressing it says so, plainly, in text that a screen reader announces and a sighted user
- * reads in the same words.
+ * Pressed while Ozi is talking, it stops Ozi mid-sentence. Pressed while Ozi is muted, it
+ * brings Ozi back, listening. Pressed while Ozi is listening, it mutes Ozi. What Ozi said and
+ * heard is written underneath; the round button's own words are what a screen reader is told,
+ * so they are not announced twice.
  *
  * There is no `aria-label`. The button's accessible name is its own visible text, which is
  * exactly what a voice control user will say to press it.
  */
 export function MicrophoneButton(): JSX.Element {
-  const [pressed, setPressed] = useState(false);
-  const messageId = useId();
+  const ozi = useOzi();
+  const assistant = storeConfig.assistantName;
+
+  const label = ozi.talking
+    ? `Stop ${assistant} talking`
+    : ozi.presence === 'listening'
+      ? 'Listening. Press to mute'
+      : 'Say what you need';
 
   return (
     <div className="flex flex-col items-center gap-5">
       <button
         type="button"
         className="control h-48 w-48 rounded-full bg-highlight text-ink flex-col text-lead font-bold shadow-lg"
-        aria-describedby={pressed ? messageId : undefined}
         onClick={() => {
-          setPressed(true);
+          ozi.press();
         }}
       >
         <MicrophoneGlyph />
-        <span>Say what you need</span>
+        <span>{label}</span>
       </button>
 
-      {/*
-        The message appears in a live region so it is announced when it arrives, and it is
-        also plainly visible. Nothing here is carried by colour alone.
-      */}
-      <p
-        id={messageId}
-        role="status"
-        aria-live="polite"
-        className="m-0 min-h-control max-w-md text-center"
-      >
-        {pressed
-          ? `Talking to ${storeConfig.assistantName} is not ready yet. For now, please use the buttons below, or ring us.`
-          : ''}
-      </p>
+      <div className="m-0 min-h-control max-w-md text-center space-y-2" aria-hidden="true">
+        {ozi.heard !== '' && <p className="m-0">You said: {ozi.heard}</p>}
+        {ozi.said !== '' && <p className="m-0">{ozi.said}</p>}
+      </div>
     </div>
   );
 }

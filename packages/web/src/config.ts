@@ -20,6 +20,7 @@ export function applyBrandToDocument(config: StoreConfig = storeConfig): void {
   document.documentElement.style.setProperty('--colour-ink', config.brand.colours.navy);
   document.documentElement.style.setProperty('--colour-highlight', config.brand.colours.gold);
   document.documentElement.style.setProperty('--colour-paper', config.brand.colours.white);
+  document.documentElement.style.setProperty('--colour-listening', config.brand.colours.listening);
   document.documentElement.style.setProperty(
     '--base-font-size',
     `${config.accessibility.baseFontSizePx}px`,

@@ -32,6 +32,7 @@ const SCREENS: Array<{ name: string; path: string }> = [
   { name: 'signing up to run', path: '/runner/sign-up' },
   { name: 'the Runner page, signed out', path: '/runner/home' },
   { name: 'just looking', path: '/just-looking' },
+  { name: 'settings', path: '/settings' },
   { name: 'a page that does not exist', path: '/nowhere' },
 ];
 

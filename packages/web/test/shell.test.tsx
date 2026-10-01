@@ -36,16 +36,18 @@ describe('the landing page', () => {
     expect(microphone).toBeInTheDocument();
   });
 
-  it('tells you plainly that talking is not ready yet, rather than doing nothing', async () => {
+  it('says plainly when this browser cannot listen, rather than doing nothing', async () => {
+    // jsdom has neither speech recognition nor speech synthesis, like a browser without them.
     const user = userEvent.setup();
     renderAt('/');
 
     await user.click(screen.getByRole('button', { name: 'Say what you need' }));
 
-    const message = await screen.findByText(
-      new RegExp(`Talking to ${storeConfig.assistantName} is not ready yet`),
-    );
-    expect(message).toHaveAttribute('role', 'status');
+    // Shown under the microphone, and announced once, beside Ozi's round button.
+    const shown = await screen.findAllByText(/I can't listen on this phone or browser yet/);
+    const message = shown.find((element) => element.getAttribute('role') === 'status');
+    expect(message).toBeDefined();
+    // Nothing can be spoken here, so the words are announced instead.
     expect(message).toHaveAttribute('aria-live', 'polite');
   });
 
@@ -224,6 +226,7 @@ describe('the accessibility promises axe cannot see', () => {
     '/runner/sign-up',
     '/runner/home',
     '/just-looking',
+    '/settings',
   ];
 
   it('gives every control a name that a person could read out, on every screen', async () => {

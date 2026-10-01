@@ -19,6 +19,7 @@
   --colour-ink: #0b1f3a;
   --colour-highlight: #d4af37;
   --colour-paper: #ffffff;
+  --colour-listening: #2fbf71;
   --base-font-size: 20px;
   --control-height: 48px;
 }
@@ -104,6 +105,33 @@ body {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/*
+ * Ozi's button while it is listening: it glows outward, slowly, so that someone with a little
+ * sight can tell at a glance that Ozi is listening. Movement is never the only sign: the button
+ * also says "Listening" in words, and changes colour, shape and words when muted. With reduced
+ * motion asked for, the glow holds still as a solid ring instead.
+ */
+.ozi-beaming {
+  animation: ozi-beam 1.8s ease-out infinite;
+  box-shadow: 0 0 0 0 var(--colour-listening);
+}
+
+@keyframes ozi-beam {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--colour-listening) 80%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 28px color-mix(in srgb, var(--colour-listening) 0%, transparent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ozi-beaming {
+    animation: none;
+    box-shadow: 0 0 0 8px var(--colour-listening);
+  }
 }
 
 /* Respect a person who has asked their computer for less movement. */

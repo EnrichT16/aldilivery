@@ -2367,6 +2367,220 @@ in-app call that Section H centres on comes with Section F.
   - sign-up no longer sends a substitution choice;
   - the retired name appears nowhere.
 
+## 2026-10-01 — Step 32: Ozi speaks — the Oluoma Voice interface, with the phone's own speech behind it
+
+Anthony merged #15 and ruled on alcohol: none in version one. Section K's "unless the recipient
+proves their age" clause is removed, and alcohol joins the absolute prohibited list. Section L
+stands: no identity checks, ever. The ruling is recorded in docs/BUILD_PROMPT.md, and Rule Six
+notes it. The working branch keeps its name.
+
+Then the first part of Section E.
+
+### The interface
+
+`packages/web/src/voice/engine.ts` is the only way Ozi reaches speech. It has seven methods:
+- `readiness`;
+- `startListening`, which returns recognised text through a callback;
+- `stopListening`;
+- `speak`;
+- `interrupt`;
+- `voices`, which lists the output voices for a language;
+- a `listenOnce` helper.
+
+Every call takes a language tag. `docs/OLUOMA_VOICE.md` writes the same contract out for the
+Oluoma Voice team, including the voice character Anthony specified: mid to high pitch, newsreader
+delivery, even pacing, and no cloned commercial voice. It also says that recognition never has an
+accent switch, while output offers two or three voices per language. Swapping in Oluoma Voice is a
+change to one file, `voice/index.ts`.
+
+### The stand-in
+
+`voice/browser-engine.ts` uses the phone's own speech, through the Web Speech API. Recognition works
+in Chrome, Edge and Safari. Firefox cannot listen, and the engine says so rather than failing.
+Nothing in Ozi is tuned to the stand-in's mistakes.
+
+### Speaking by default
+
+Ozi speaks aloud from the first launch. A new Settings page, linked in the header, has the "Ozi
+speaks aloud" switch. It is on unless turned off, and found, not offered. The page also has the
+voice choice for the language, and choosing a voice says a sentence in it. Settings are kept on
+the device for now. They move to the account with the language module.
+
+### The microphone is now a conversation
+
+1. Ozi greets the Shopper aloud and listens.
+2. It shows what it heard and answers aloud.
+3. Pressing the button while Ozi is talking stops it mid-sentence. Pressing it while Ozi is
+   listening stops the listening.
+
+Until voice ordering is built, which comes next, Ozi says plainly that ordering by voice is coming.
+
+### A screen reader and Ozi must not talk over each other, and nobody may be left in silence
+
+Everything Ozi says is written on the screen:
+- While Ozi is speaking aloud, those words are shown but not announced.
+- When Ozi is muted, or cannot speak, they are announced instead.
+
+The browser check found a device that cannot speak at all. The test browser has no voices, and
+every sentence fails at once. The first version reported that as an interruption. The conversation
+hung, and a screen reader user would have heard nothing, because the screen was holding back while
+Ozi was meant to be speaking.
+
+Now the engine reports `not-spoken`. The screen announces the words, the engine stops claiming it
+can speak, and the conversation carries on. A safety timer also covers a device that never says
+when it has finished speaking. Both are written into the Oluoma contract, so the real engine has to
+be honest about it too.
+
+### What is next in Section E
+
+1. Full voice ordering: the order by speech alone, the spoken address confirmation, and the £80
+   voice ceiling with touch above it.
+2. The language module: English and Welsh first.
+3. Ozi explaining itself.
+
+"Hey Ozi" as a wake word with the phone locked needs the native apps (Section F) and Oluoma Voice.
+
+### Checked
+
+- `pnpm run verify` passes: lint, typecheck and **434 tests** (38 core, 274 api, 122 web).
+- 13 new voice tests:
+  - Ozi greets, listens and answers;
+  - pressing interrupts it at once;
+  - "nothing heard" gets an answer;
+  - a phone that cannot speak gets its words announced, and the conversation carries on;
+  - Ozi speaks by default;
+  - muting keeps Ozi quiet, announces on the screen and is remembered;
+  - voices are listed, and choosing one speaks in it;
+  - axe finds nothing on Settings;
+  - the stand-in reports a browser without recognition;
+  - it listens in the language asked for, here Welsh;
+  - it speaks in the chosen voice, and can be interrupted;
+  - a failed voice is reported as not spoken;
+  - it never hangs on a device that does not report the end of speech.
+- Settings is in the axe and button-size sweeps.
+- In Chromium:
+  - the greeting is announced on the screen when the device cannot speak;
+  - Ozi tries to listen, says plainly that the microphone is not allowed, and resets;
+  - Settings passes axe, and nothing scrolls sideways at 390 pixels.
+- Not checked here: hearing a real voice, and Ozi's voice on a real phone. This environment has
+  no speakers, no microphone and no speech service. The first real check is on Anthony's phone.
+
+## 2026-10-01 — Step 33: Ozi introduces itself, and Ozi's round button
+
+Anthony described this by voice. It is written into docs/BUILD_PROMPT.md, under the rulings of 1
+October, so the master blueprint can pick it up.
+
+### First launch
+
+Ozi speaks straight away, with no notification. It introduces itself as made to speak with the
+Shopper and have a conversation. It then says four things:
+- while its round green button glows, it is listening;
+- to pause it, press the button or say "Ozi, mute", and press again to bring it back;
+- its voice can be turned off in Settings;
+- the button can be moved by holding and dragging it, or with the arrow keys.
+
+The introduction is said once per device.
+
+One limit of the web: a browser will not speak until the page has been touched once. On the web,
+the introduction is shown and announced at once, and spoken at the first touch. The native apps
+have no such rule.
+
+### The round button, on every screen
+
+- It is in its own landmark, named "Ozi", so a screen reader user can jump straight to it.
+- It starts at the middle of the right-hand edge, is 124 pixels across, and is always kept wholly on
+  the screen.
+- **Listening:** bright green, glowing outward, with "Listening" written under the microphone. The
+  green is in config/store.json (Rule Nine). Navy words on it have a contrast ratio of 6.9 to 1.
+- **Muted:** white, with a dashed edge, a line through the microphone, the word "Muted", and no
+  glow. It changes in brightness, shape, words and movement, so the difference never rests on
+  colour. Red was not used, because red and green are the pair colour-blind people confuse most.
+- With reduced motion asked for, the glow holds still as a solid ring.
+- **Moving it:** hold and drag, or the arrow keys. A single press never moves it, so moving is never
+  needed to use it (WCAG 2.5.7), and a drag is never taken for a press. Settings has "Put Ozi's
+  button back in its usual place".
+- The button's name is exactly its visible word, so a voice control user says what they see. What
+  a press does is read after the name.
+- Ozi's words appear in a panel beside the button while they are said, and for a little while
+  after, on whichever side has more room.
+
+### Listening, muting and reminders
+
+- Ozi listens while the button is green. It stops while it is talking, so it never hears itself,
+  and stops while the page is hidden.
+- Pressing the button, or saying "mute", "stop listening" or "be quiet", mutes Ozi.
+- Muted, Ozi gives gentle reminders: after two minutes, then every three minutes. It never listens
+  in the meantime.
+- If speech recognition loses its connection, Ozi says so once, then retries quietly, waiting longer
+  each time, up to a minute. It does not hammer the network.
+- **"Hey Ozi" while muted:**
+  - It needs an engine that hears the wake word on the phone and nothing else.
+  - The browser stand-in streams whatever it hears to the browser maker. Letting it listen while
+    muted would break Anthony's own rule that a muted Ozi does not listen to conversations.
+  - So with the stand-in, the button brings Ozi back, and Ozi only promises what works.
+  - The interface now has `wakeWordOnDevice`. When Oluoma Voice reports it, Ozi listens for the wake
+    word alone while muted, and every sentence offers "or say Hey Ozi" by itself.
+- The landing page's big microphone is the same Ozi, only larger.
+
+### Found in the browser and fixed
+
+- **The button was not round, and spilled off the edge of a phone.** A general button style
+  overrode its shape, and its starting place did not allow for its own size.
+- **Ozi's words covered half the screen** during the long introduction. They are now a narrow panel
+  beside the button, which scrolls if needed.
+- **The first press on the button was taken over.** The introduction replayed at the first touch,
+  which turned the press into "stop talking" instead of "mute". A first press on Ozi's own button now
+  does what it says.
+- **"Listening" was clipped** inside the circle. The button grew from 104 to 124 pixels.
+
+### Checked
+
+- `pnpm run verify` passes: lint, typecheck and **442 tests** (38 core, 274 api, 130 web).
+- Voice tests now cover:
+  - the introduction: said once, aloud, with no notification, then listening;
+  - an introduction that cannot be spoken, shown and announced instead;
+  - the button glowing while listening, and changing in more than colour when muted;
+  - "Ozi, mute yourself" muting it;
+  - answering what it heard;
+  - stopping talking at a press;
+  - reminders at two minutes and then three minutes later, while still not listening;
+  - the arrow keys moving the button, which stays put until Settings puts it back;
+  - a drag moving it without counting as a press;
+  - axe finding nothing on Settings and the landing page with the button showing;
+  - the stand-in never claiming a wake word, and a browser that wants a touch first not being
+    given up on.
+- In Chromium at 390 pixels:
+  - the button listening and muted, both with no axe problems and nothing scrolling sideways;
+  - dragging it to the left half of the screen, where it stays muted.
+- Not checked here: a real voice, and a real "Hey Ozi". Both wait for a real phone, and the second
+  for Oluoma Voice.
+
+## 2026-10-01 — Step 34: ten ideas approved, Runner training, and the landline from day one
+
+Anthony asked Claude Code for its own ideas, and approved all ten. He added Runner training, which
+he had been planning anyway, and a dedicated landline integrated with dispatch from launch.
+
+They are written into docs/BUILD_PROMPT.md as **Section T**, eleven items. Each one says what it
+does, the rules it keeps, what needs Anthony, and where it sits in the build order:
+
+1. T1, the family and carer plan.
+2. T2, councils and social care.
+3. T3, delivery bundles.
+4. T4, grants.
+5. T5, sheltered housing rounds.
+6. T6, the door safe word.
+7. T7, the weekly spoken summary.
+8. T8, the optional wellbeing check.
+9. T9, the landline.
+10. T10, receipts read aloud.
+11. T11, Runner training.
+
+Prices given there (£3.99 a month for the carer plan, four deliveries for £48) are proposals for
+Anthony to confirm. Nothing is charged until he does.
+
+Anthony asked for a proposal on how Runners should be offered jobs, for app and phone orders alike.
+That comes once the current work is done, as he asked. Nothing in this step changes code.
+
 ---
 
 ## What Anthony Should Check
