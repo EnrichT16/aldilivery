@@ -31,6 +31,8 @@ Owner: Anthony Tochukwu Ibe.
   with *What Anthony Should Check*.
 - **[DEPLOY.md](DEPLOY.md)** — how to put this on DigitalOcean, written in plain prose with
   no lists or symbols, so it reads properly aloud.
+- **[docs/OLUOMA_VOICE.md](docs/OLUOMA_VOICE.md)** — the voice interface Ozi calls, written for
+  the team building Oluoma Voice, the separate voice product.
 - **[TESTING_WITH_PEOPLE.md](TESTING_WITH_PEOPLE.md)** — how to run a testing session with
   screen reader users and the other people Ozi Delivery is for, in the same plain prose.
 

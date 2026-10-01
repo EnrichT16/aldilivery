@@ -13,10 +13,12 @@ import { MyOrder } from './pages/MyOrder';
 import { RunnerDoor } from './pages/Runner';
 import { RunnerHome } from './pages/RunnerHome';
 import { RunnerSignUp } from './pages/RunnerSignUp';
+import { Settings } from './pages/Settings';
 import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
 import { BasketProvider } from './state/basket';
 import { SessionProvider } from './state/session';
+import { VoiceProvider } from './state/voice';
 
 /**
  * Moving between pages in a single page application is silent for a screen reader unless
@@ -89,27 +91,30 @@ export function App(): JSX.Element {
 
   return (
     <SessionProvider>
-      <BasketProvider>
-        <Layout>
-          <RouteAnnouncer />
-          <PageTitle />
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/sign-up" element={<SignUp />} />
-            <Route path="/sign-in" element={<SignIn />} />
-            <Route path="/card" element={<Card />} />
-            <Route path="/shop" element={<Catalogue />} />
-            <Route path="/basket" element={<Basket />} />
-            <Route path="/confirm" element={<Confirm />} />
-            <Route path="/my-order" element={<MyOrder />} />
-            <Route path="/runner" element={<RunnerDoor />} />
-            <Route path="/runner/sign-up" element={<RunnerSignUp />} />
-            <Route path="/runner/home" element={<RunnerHome />} />
-            <Route path="/just-looking" element={<JustLooking />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Layout>
-      </BasketProvider>
+      <VoiceProvider>
+        <BasketProvider>
+          <Layout>
+            <RouteAnnouncer />
+            <PageTitle />
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/sign-up" element={<SignUp />} />
+              <Route path="/sign-in" element={<SignIn />} />
+              <Route path="/card" element={<Card />} />
+              <Route path="/shop" element={<Catalogue />} />
+              <Route path="/basket" element={<Basket />} />
+              <Route path="/confirm" element={<Confirm />} />
+              <Route path="/my-order" element={<MyOrder />} />
+              <Route path="/runner" element={<RunnerDoor />} />
+              <Route path="/runner/sign-up" element={<RunnerSignUp />} />
+              <Route path="/runner/home" element={<RunnerHome />} />
+              <Route path="/just-looking" element={<JustLooking />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Layout>
+        </BasketProvider>
+      </VoiceProvider>
     </SessionProvider>
   );
 }

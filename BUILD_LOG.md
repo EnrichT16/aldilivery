@@ -2367,6 +2367,104 @@ in-app call that Section H centres on comes with Section F.
   - sign-up no longer sends a substitution choice;
   - the retired name appears nowhere.
 
+## 2026-10-01 — Step 32: Ozi speaks — the Oluoma Voice interface, with the phone's own speech behind it
+
+Anthony merged #15 and ruled on alcohol: none in version one. Section K's "unless the recipient
+proves their age" clause is removed, and alcohol joins the absolute prohibited list. Section L
+stands: no identity checks, ever. The ruling is recorded in docs/BUILD_PROMPT.md, and Rule Six
+notes it. The working branch keeps its name.
+
+Then the first part of Section E.
+
+### The interface
+
+`packages/web/src/voice/engine.ts` is the only way Ozi reaches speech. It has seven methods:
+- `readiness`;
+- `startListening`, which returns recognised text through a callback;
+- `stopListening`;
+- `speak`;
+- `interrupt`;
+- `voices`, which lists the output voices for a language;
+- a `listenOnce` helper.
+
+Every call takes a language tag. `docs/OLUOMA_VOICE.md` writes the same contract out for the
+Oluoma Voice team, including the voice character Anthony specified: mid to high pitch, newsreader
+delivery, even pacing, and no cloned commercial voice. It also says that recognition never has an
+accent switch, while output offers two or three voices per language. Swapping in Oluoma Voice is a
+change to one file, `voice/index.ts`.
+
+### The stand-in
+
+`voice/browser-engine.ts` uses the phone's own speech, through the Web Speech API. Recognition works
+in Chrome, Edge and Safari. Firefox cannot listen, and the engine says so rather than failing.
+Nothing in Ozi is tuned to the stand-in's mistakes.
+
+### Speaking by default
+
+Ozi speaks aloud from the first launch. A new Settings page, linked in the header, has the "Ozi
+speaks aloud" switch. It is on unless turned off, and found, not offered. The page also has the
+voice choice for the language, and choosing a voice says a sentence in it. Settings are kept on
+the device for now. They move to the account with the language module.
+
+### The microphone is now a conversation
+
+1. Ozi greets the Shopper aloud and listens.
+2. It shows what it heard and answers aloud.
+3. Pressing the button while Ozi is talking stops it mid-sentence. Pressing it while Ozi is
+   listening stops the listening.
+
+Until voice ordering is built, which comes next, Ozi says plainly that ordering by voice is coming.
+
+### A screen reader and Ozi must not talk over each other, and nobody may be left in silence
+
+Everything Ozi says is written on the screen:
+- While Ozi is speaking aloud, those words are shown but not announced.
+- When Ozi is muted, or cannot speak, they are announced instead.
+
+The browser check found a device that cannot speak at all. The test browser has no voices, and
+every sentence fails at once. The first version reported that as an interruption. The conversation
+hung, and a screen reader user would have heard nothing, because the screen was holding back while
+Ozi was meant to be speaking.
+
+Now the engine reports `not-spoken`. The screen announces the words, the engine stops claiming it
+can speak, and the conversation carries on. A safety timer also covers a device that never says
+when it has finished speaking. Both are written into the Oluoma contract, so the real engine has to
+be honest about it too.
+
+### What is next in Section E
+
+1. Full voice ordering: the order by speech alone, the spoken address confirmation, and the £80
+   voice ceiling with touch above it.
+2. The language module: English and Welsh first.
+3. Ozi explaining itself.
+
+"Hey Ozi" as a wake word with the phone locked needs the native apps (Section F) and Oluoma Voice.
+
+### Checked
+
+- `pnpm run verify` passes: lint, typecheck and **434 tests** (38 core, 274 api, 122 web).
+- 13 new voice tests:
+  - Ozi greets, listens and answers;
+  - pressing interrupts it at once;
+  - "nothing heard" gets an answer;
+  - a phone that cannot speak gets its words announced, and the conversation carries on;
+  - Ozi speaks by default;
+  - muting keeps Ozi quiet, announces on the screen and is remembered;
+  - voices are listed, and choosing one speaks in it;
+  - axe finds nothing on Settings;
+  - the stand-in reports a browser without recognition;
+  - it listens in the language asked for, here Welsh;
+  - it speaks in the chosen voice, and can be interrupted;
+  - a failed voice is reported as not spoken;
+  - it never hangs on a device that does not report the end of speech.
+- Settings is in the axe and button-size sweeps.
+- In Chromium:
+  - the greeting is announced on the screen when the device cannot speak;
+  - Ozi tries to listen, says plainly that the microphone is not allowed, and resets;
+  - Settings passes axe, and nothing scrolls sideways at 390 pixels.
+- Not checked here: hearing a real voice, and Ozi's voice on a real phone. This environment has
+  no speakers, no microphone and no speech service. The first real check is on Anthony's phone.
+
 ---
 
 ## What Anthony Should Check

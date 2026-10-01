@@ -50,6 +50,11 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
                     </Link>
                   </li>
                 )}
+                <li>
+                  <Link to="/settings" className="control bg-paper/10 text-paper">
+                    Settings
+                  </Link>
+                </li>
               </ul>
             </nav>
           )}
