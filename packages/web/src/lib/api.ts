@@ -330,7 +330,7 @@ export interface ItemQuestion {
   orderItemId: string;
   itemName: string;
   answer: ItemAnswer | null;
-  answeredBy: 'shopper' | 'preference' | null;
+  answeredBy: 'shopper' | 'no_answer' | null;
   secondsLeft: number;
   ifNoAnswer: ItemAnswer;
 }

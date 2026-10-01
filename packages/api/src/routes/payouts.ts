@@ -5,7 +5,7 @@
  * from the constant in `@aldilivery/core`, never calculated from the fee, never scaled by
  * distance, never reduced because an order was small or pooled or late.
  *
- * Rule Ten: Aldilivery never holds Runner money. The five pounds moves by Stripe Connect
+ * Rule Ten: The service never holds Runner money. The five pounds moves by Stripe Connect
  * transfer to the Runner's own account. The only money that pauses is the cool bag deposit,
  * which is withheld a little at a time and paid over in full after the twentieth delivery.
  */
@@ -70,7 +70,7 @@ export async function registerPayoutRoutes(app: FastifyInstance): Promise<void> 
   /**
    * Start, or carry on with, setting up where a Runner's pay goes. Makes their Stripe account the
    * first time, and always hands back a fresh one-time link to Stripe's own form, where their
-   * bank details go straight to Stripe and never through Aldilivery.
+   * bank details go straight to Stripe and never through the service.
    */
   app.post('/runners/me/payouts/setup', async (request) => {
     const session = requireSession(request, 'runner');

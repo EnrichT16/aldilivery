@@ -1,0 +1,463 @@
+# Ozi Delivery — Complete Build Prompt
+
+30 September 2026, version two. From Anthony Tochukwu Ibe, the owner.
+
+This supersedes ALL previous Ozi Delivery prompts, notes, figures and code comments. Where
+anything conflicts with this, this wins. Do not reason from numbers or names found elsewhere.
+
+> Kept word for word, with one change: the sentence that named the retired product name now
+> says only that the old name is retired, so that this file does not bring it back. Anthony's
+> answers given alongside it on 30 September 2026 are at the end.
+
+---
+
+## Section A — Identity and principles
+
+**The name.** The product is Ozi Delivery. Ozi is Igbo for message. The old name is RETIRED.
+Remove it from code, comments, variable names, database names, copy, filenames and commit
+messages. Domain: ozidelivery.co.uk
+
+**Vocabulary.** The customer is the Shopper. The deliverer is the Runner. Never "user",
+"customer", "client", "driver" or "courier" in anything either of them sees.
+
+**Who this is for.** Blind, partially sighted and elderly people first. Every decision is judged
+against whether it works for someone who cannot see the screen. Accessibility is not a later
+pass. It is the product. THE OWNER OF THIS BUSINESS IS BLIND. The admin panel is a primary
+accessible surface, built to the same standard as the Shopper app.
+
+**Icon rule.** Every icon carries its words underneath it. A plus symbol is never alone; it reads
+ADD AN ADDRESS. For dyslexic users, users with learning disabilities, and first-time users. No
+exceptions anywhere.
+
+**Feel.** Premium finish. Smooth, unhurried scrolling. No jank. No sudden layout shifts, which
+disorientate screen reader users. Text size adjustable and zoom supported on every surface.
+
+**Accessibility gate.** Every screen must pass WCAG 2.2 AA. Every control reachable and operable
+by screen reader and by voice. Large touch targets. High contrast. Nothing may depend on seeing a
+colour, a position or a small icon.
+
+## Section B — Pricing (ruled 29 September 2026)
+
+**Standard delivery: thirteen pounds fifty, flat.** Replaces £8, £7.80, and every banded structure
+of £8 to £12. There are no fee bands. There is no basket-linked fee.
+
+**Maximum basket: sixty pounds.** Above it, Ozi says so in plain speech and offers to split into
+two deliveries. The cap is operational: £60 is four or five carrier bags, what one Runner can carry
+on foot or onto a bus safely.
+
+**Runner share:** £5 on every standard delivery, untouched, whatever the basket.
+
+**Extra shop within one mile:** plus £2.50. £1.50 Runner, £1 platform.
+**Extra shop beyond one mile:** plus £4.00. £2.50 Runner, £1.50 platform.
+
+**Nearer shop:** where a nearer shop carries the item, Ozi names the saving in pounds.
+
+**Business emergency runs:** £12 flat inside Medway. £8 Runner, £4 platform. Promise: 45 minutes
+from call to item in hand. Record actual elapsed time on every run.
+
+**Errands (time-based):** £13.50 covers up to 30 minutes, £5 to the Runner. Each further 15 minutes
+adds £6, of which £4 goes to the Runner.
+
+**Sending (flat):** £13.50 for one collection and one drop within the served area. £5 to the Runner.
+
+**Handed to the person:** £2 at checkout, all of it to the Runner.
+
+**Ozi Line:** £15 for 75 minutes, £25 for 180 minutes, £35 for 300 minutes, 12p per extra minute.
+
+**In-app calls:** 5p per minute to the platform. A separate billing line from delivery fees and
+extra shop charges. Track minutes per call.
+
+**Tipping:** optional, 100% to the Runner, at checkout and for one hour after delivery. NO suggested
+default amount. Ozi NEVER asks for a tip aloud. Pressuring an elderly Shopper for a tip is against
+the purpose of this product.
+
+## Section C — The services
+
+Five, presented as five clear choices.
+
+1. **Shopping.** Runner buys from listed shops and delivers.
+2. **Errands.** Runner spends time on the Shopper's behalf: queuing at the post office, returning
+   an item, dropping clothes at a charity shop, taking a parcel to a collection point, collecting a
+   prescription once a pharmacy has signed up under its own procedures.
+3. **Sending.** Runner carries something from one place to another: donations to a food bank,
+   gifts to a church, or person to person within the served area.
+4. **Business emergency runs.**
+5. **Campus.** A remote payer buys locally for a student. See Section J.
+
+For errands starting at the Shopper's home, the clock starts at the door, not at the destination.
+
+## Section D — Addresses and the PIN
+
+**Registered home address.** Every account has one. It is the fallback for everything. Changeable
+ONLY in settings, ONLY after the PIN. A VOICE ORDER ALWAYS DELIVERS HERE. No exceptions, whatever
+else is saved on the account.
+
+**Saved addresses.** Unlimited. No cap. Reasons: a parent with three children at different
+universities; sending to a friend across town; a business or social media seller sending to
+customers. Control is a plus symbol with ADD AN ADDRESS written underneath. Ozi announces the
+control aloud when the page opens and can act on a spoken request to add an address.
+
+**At checkout.** Offer the saved default first. Offer "send to a different address" beside it.
+After a new address is entered, ask whether to save it or use it once only, the way a bank app asks
+about a payee.
+
+**The PIN, scaled to risk.**
+- One-off address, this order only: touch confirmation, NO PIN.
+- Saving an address permanently: PIN.
+- Changing the registered home address: PIN.
+- Any voice order: registered home address only, PIN irrelevant.
+
+**PIN creation.** Prompted the first time the Shopper tries to add or change an address. NOT part of
+signup — signup stays short.
+
+**PIN rules.** Four digits. May be typed or spoken, Shopper's choice. Reject obvious PINs: 1234,
+0000, four-digit years. Three wrong attempts then a timed lockout. Notify the account owner EVERY
+time the registered home address changes, because a spoken PIN can be overheard.
+
+**The spoken address confirmation — hard rule.** Before EVERY order, of every type, Ozi says the
+delivery address aloud and waits for a yes. Not a summary. Not "your usual address". The actual
+address. This prevents the most likely real-world error: an order intended for one person going to
+another.
+
+## Section E — Voice
+
+**The voice layer is a separate product.** Called Oluoma Voice, in its own repository. Do NOT build
+speech recognition or synthesis inside Ozi. Build a clean documented interface Ozi calls, so the
+engine can be swapped without touching Ozi.
+
+Interface needs: start listening, stop listening, return recognised text, speak given text,
+interrupt speech, report readiness, accept a language parameter.
+
+**Interim:** use the phone's own speech recognition and voice behind that interface until Oluoma
+Voice exists.
+
+**Voice character** (to specify to the Oluoma Voice build). Mid to high pitch, not deep, not thin.
+Clear newsreader delivery, even pacing. Do not clone any existing commercial assistant voice.
+
+**Default behaviour.** Ozi speaks aloud by default, always, from first launch. The product is for
+people who cannot see the screen, so silence is the wrong default. A mute option exists in SETTINGS
+for sighted users. It is found, not offered. Ozi does not ask whether the user wants it muted.
+After the wake word, Ozi stays in listening mode so the exchange is a conversation back and forth,
+not separate commands.
+
+**Full voice ordering.** The whole order must be completable by speech alone. Example: "Hey Siri,
+open Ozi Delivery." Then "Hey Ozi, place an order of bananas, grapes, apples and oranges from
+Iceland, or the nearest available shop." Ozi asks quantities for each. Ozi reads back the full
+basket and total. The Shopper confirms. The stored card is charged.
+
+Confirmation may be by voice OR touch, the Shopper's choice.
+
+**Voice payment ceiling.** A payment confirmed by voice alone is capped at EIGHTY POUNDS. Above £80,
+touch confirmation is required. Reason: a voice can be duplicated, so the loss from a spoofed voice
+must be bounded. Make the ceiling a configurable setting, default £80.
+
+The combined effect of the ceiling and the locked address is that a hijacked voice can at worst buy
+£80 of shopping and have it delivered to the account holder's own front door.
+
+**Ozi explains itself.** Shoppers will not discover these features alone. While the app is active,
+Ozi mentions its own functions from time to time in plain speech, spaced to inform rather than nag.
+Frequency configurable and switchable off.
+
+**Language module — build now, not later.** Do not hard-code English strings anywhere. Launch:
+English and Welsh. Then Igbo, Hausa, Yoruba, Swahili. Structure so further languages are a content
+task, not a code task. Covers displayed text AND spoken output, on every surface including the
+admin panel.
+
+**Accent.** Do NOT build an accent selector for recognition. Accent is handled by model quality, not
+a switch, and a selector burdens the users it claims to help. DO offer two or three output voices
+per language in settings beside the language selector. A Nigerian Shopper may prefer Nigerian
+English to received pronunciation.
+
+## Section F — Calling
+
+Use Apple CallKit on iOS and ConnectionService or a full-screen intent activity on Android. Not
+optional — the system call frameworks are what give the behaviour below.
+
+**Ringing.** Incoming calls ring out loud using the phone's own ringtone and display the full-screen
+native call screen on the lock screen and when unlocked, exactly as WhatsApp does.
+
+**Answering by voice.** On iOS, because the call is reported through CallKit, the system treats it
+as a real call. With the phone locked the Shopper can say "Hey Siri, pick up the call" and Siri
+answers it. Build so this works, and default answered calls to LOUDSPEAKER. On Android,
+additionally support "Hey Ozi, pick up the call" through Ozi's own listener, which Android permits.
+
+**Permissions.** At installation, request the permissions needed for calls on the lock screen and
+when unlocked, explaining in plain speech why each is needed.
+
+**The call button.** A large round green call button, WhatsApp style, on both the Shopper side and
+the Runner side. Large enough to find without hunting. Ozi also offers it aloud: "Do you want to
+call the Runner, or just press the button."
+
+**The call panel.** Once connected: END CALL, MUTE, LOUDSPEAKER, MERGE. Build MERGE now, not later.
+It lets a carer or relative join as a third party, like a conference, to speak on the Shopper's
+behalf.
+
+**No telephone numbers anywhere.** No Shopper ever sees a Runner's number and no Runner ever sees a
+Shopper's number. No number in any screen, notification, email or shared database field. All
+contact goes through the in-app call.
+
+## Section G — Live order status
+
+Once an order is picked up, a live status page is reachable from the home screen on BOTH sides, and
+must be obvious, not buried.
+
+**Shopper sees:** that the Runner is active and on the move, the current stage, and an ETA that
+updates.
+
+**Runner sees:** a matching page about the Shopper showing ONLY what the Shopper has declared, such
+as blind or partially sighted, plus what is needed to complete the handover.
+
+The large green call button sits on both versions.
+
+Ozi announces status changes aloud when the app is in the foreground. Push notifications at each
+stage for when it is not.
+
+**Concurrent ordering.** While an order is active, the Shopper must still be able to place another
+quick purchase. The active job continues and stays visible. Do NOT block the ordering flow behind
+an in-progress job.
+
+## Section H — Substitutions
+
+The Runner reaches the shelf and the item is not there. This happens on a large share of grocery
+orders.
+
+**The rule.** The Runner opens the in-app call. The Shopper decides. If the Shopper cannot be
+reached, the item is NOT bought and is refunded. NEVER a silent substitution. NEVER a Runner
+guessing.
+
+Build: a substitution prompt in the Runner app that starts the call in one tap, records the outcome
+against the order line, and adjusts the total before payment is taken.
+
+## Section I — Scheduled orders and reorder
+
+**Scheduled orders.** The Shopper can place an order for a future time or a recurring slot. Elderly
+Shoppers live by routine, and "Tuesday morning" is worth more to them than speed. Settable and
+cancellable by voice.
+
+**Reorder.** "Same as last week" places the whole previous basket. Order history browsable and
+speakable. For a repeat weekly shop this is the single most useful function in the app. Make it
+prominent and make it work by voice.
+
+## Section J — Campus
+
+**The model:** the parent does NOT send a box. The parent pays, an Ozi Runner buys locally, and it
+goes to the hall of residence the same day. This is Shopping with a remote payer. No long distance
+carriage, no new capability, no new price. £13.50 plus goods.
+
+The long-distance parcel version is rejected: Evri and Royal Mail already carry a parcel for around
+£5.
+
+**Why it is local:** Universities at Medway is a shared campus at Chatham Maritime run jointly by
+Greenwich, Kent and Canterbury Christ Church, with several thousand students. University of Kent
+students are housed at Liberty Quays, in Gillingham itself.
+
+**The advantage:** Royal Mail, Evri and DPD all prohibit food and perishables. A parent sending
+their child cooked food or fresh groceries cannot use any of them. Ozi can.
+
+**Payer and recipient are different people** at different addresses. Handled by Section D:
+touch-confirmed orders may use a second address; voice orders never do.
+
+Campus demand is seasonal. Treat it as a supplement, never a foundation.
+
+## Section K — Sending rules and contents
+
+**The contents rule.** The sender SHOWS the Runner what is being sent. Not an inspection, not a
+search — an open box or bag at the door. The Runner records the contents the way the
+handed-to-the-person photograph is recorded: geotagged and transmitted at the moment of capture.
+
+A declared contents list accompanies every sending job. The sender is responsible for the legality
+of what is sent. This is how every carrier allocates it.
+
+**Ozi will not carry:** Cash. Medicines, unless a signed-up pharmacy job under that pharmacy's own
+procedures. Alcohol where the recipient cannot prove their age. Explosives and fireworks including
+Christmas crackers. Flammable liquids. Aerosols and compressed gases. Illegal drugs. Firearms and
+weapons including replicas and knives. Loose lithium batteries. Tobacco. Anything the sender will
+not show the Runner.
+
+A Runner may decline any sending job without giving a reason and without penalty.
+
+**The size rule.** If it does not fit in the boot of a saloon car, Ozi does not carry it. Write this
+into the terms and conditions in those words.
+
+**Police reporting.** Where drugs, weapons or counterfeit goods are found, the carrier is legally
+obliged to report to the police. Build a procedure for a Runner who opens a package and sees
+something wrong. The procedure protects the Runner FIRST. No Runner is ever expected to challenge a
+sender at the door.
+
+## Section L — Handed to the person
+
+£2 at checkout. All of it to the Runner, because they may have to wait and waiting cannot be
+hurried.
+
+**Evidence:** the recipient's first name, plus a photograph of the items in the doorway with the
+recipient present.
+
+The photograph is geotagged with location and exact time and TRANSMITTED TO THE SERVER AT THE
+MOMENT OF CAPTURE, not uploaded later. Immediate transmission is the point: it cannot be altered
+afterwards, which makes it evidence rather than a photograph.
+
+If the recipient declines a photograph, accept without argument. The exact handover time plus the
+first name stands as the record.
+
+No signatures. No identity checks.
+
+## Section M — Runner app
+
+**Safety / SOS.** A large SOS button that shares live location. A lone Runner going to a stranger's
+door currently has nothing. Standard on every driver app and not optional here.
+
+**Earnings.** The Runner sees what they have earned, per job and cumulatively, clearly and without
+hunting.
+
+**Job offers.** Accept or decline, with the pay and the distance shown before accepting.
+
+**Navigation** to pickup and to drop.
+
+**Offline tolerance.** The Runner app must degrade gracefully on poor signal and sync when it
+returns. Do not lose captured evidence because signal dropped.
+
+**Who pays when something goes wrong.** Refunds, damage, wrong items and split bags are borne by the
+PLATFORM, not the Runner, unless the Runner was negligent. Build refund handling on that basis. Do
+NOT build any mechanism that deducts an incident from a Runner's payout automatically. A Runner who
+fears paying for accidents will avoid difficult jobs, heavy baskets and awkward addresses — exactly
+the work Ozi exists to do.
+
+**Hire and reward insurance.** Ordinary private car insurance does not cover carrying goods for
+payment. Hire and reward cover is the statutory minimum. Build a field that records and verifies
+it, and block a Runner from accepting car-based jobs without it. Does not apply to walking or
+public transport Runners.
+
+**Cool box.** Funded at £1 from each of the first ten payouts per Runner, returned to them on the
+twentieth delivery.
+
+## Section N — Shops
+
+Listing is FREE. Shops have no login, no app, no device, no training. Orders reach a shop by the
+Runner walking in and buying as an ordinary customer. DO NOT BUILD ANY SHOP-FACING SYSTEM.
+
+Listings are entered manually at a desk from doorstep cards holding shop name, address, telephone,
+owner or manager name, and a dated agreement to be listed.
+
+Prices arrive by WhatsApp as a photo, a voice note or typed text, and are entered manually.
+
+EVERY DISPLAYED PRICE SHOWS THE DATE IT WAS LAST UPDATED.
+
+No product photographs in version one.
+
+**No white label.** Ozi's name is visible on every Medway delivery. Do not build any white-label,
+unbranded or partner-branded path.
+
+## Section O — Feedback and advertising
+
+**Feedback.** Collected after delivery. Shops see PATTERNS ONLY: how many raised a theme, how often.
+Never who said what. Never traceable to an individual. Reward leaving feedback of ANY kind with
+delivery credit. NEVER make a reward conditional on the feedback being positive.
+
+**Unmet demand.** Record every Shopper search for an item no listed local shop carries. Store item,
+count, area, period. Internal data only. No dashboard, no external feed.
+
+**Local voice advertising.** A paid mention NEVER changes a recommendation. The genuine
+recommendation comes first, the paid mention afterwards, clearly labelled as an advertisement. Ozi
+states only checkable facts: nearer, cheaper, in stock. NEVER "better". Charge roughly £1 per
+delivery that results from a mention, not per mention and not monthly. Track attribution from
+mention to completed order.
+
+## Section P — Region and marketplace
+
+Every region is a separate marketplace, INCLUDING regions with no listed businesses.
+
+A region selector exists from day one. Only Medway is live at launch. Build the architecture for
+many regions now.
+
+When a Shopper's location changes region — Gillingham to Morocco, or to Nigeria — the app offers or
+performs a marketplace switch. Whether it is automatic or on request is a Shopper-controlled
+setting. Default: automatic for business accounts, ask first for personal accounts.
+
+## Section Q — The admin panel
+
+A full product surface, not a dashboard bolted on. The owner is blind and will run the whole
+business through it.
+
+**Platforms.** Works on laptop and on phone. Same capability on both, laid out for each.
+Apple-premium finish, smooth scrolling, adjustable text size, zoom.
+
+**Accounts and roles.** An OWNER account with powers nobody else has. Named STAFF accounts, each
+with its own login credentials, added remotely by the owner. First staff account: Precious.
+Role-based permissions so each member of staff sees what their job needs and nothing more. Instant
+revocation: the owner can disable a staff login in seconds. Two-factor authentication on every
+admin login without exception. Real money moves through this panel.
+
+**What only the owner can do.** Open an individual Shopper's account. Add, edit or remove staff
+accounts and permissions. Change pricing. Issue refunds above a set threshold. Export data.
+
+**Audit log — mandatory.** Every administrative action logged with who did it, what they did, and
+when. Refunds, account access, price changes, staff changes, exports. Immutable and viewable by the
+owner only. This exists so a dispute between staff can be settled, and so the business can answer
+the Information Commissioner if a Shopper complains that their record was accessed.
+
+**What the panel shows.** Live and historical orders across all five services. Runners: who is
+active, who is available, earnings, jobs completed. Shops: listings, price freshness, who has not
+updated recently. Money: taken, paid out to Runners, platform share, Stripe fees, refunds issued,
+call minutes billed. Signups: Shoppers and Runners, by period. Cancellations and refunds with
+reasons. Feedback, as patterns and as individual records where permitted. Unmet demand records.
+
+**Voice control of the panel.** The owner can open the panel by voice and ask it questions in plain
+speech. Examples that must work: "What's happening?" "How many orders today?" "How much have we
+taken this week?" "How many signups this month?" "What refunds went out yesterday and why?" "How
+many Runners are active right now?" "Read me the cancellations."
+
+Answers must be specific and backed by the actual data, never vague and never estimated. If the
+panel does not know, it says so.
+
+**Spoken answers and privacy — hard rule.** Spoken answers give NUMBERS, TOTALS AND PATTERNS ONLY.
+Anything naming an individual Shopper, Runner or address requires the screen and an explicit
+on-screen action. Reason: the owner may ask a question in a public place, and a panel that reads a
+Shopper's name and address aloud on a bus is a data breach.
+
+The panel follows the same icon rule, the same contrast and target sizes, and the same WCAG 2.2 AA
+standard as the Shopper app.
+
+## Section R — Data, payments, launch gates
+
+**Personal data.** Strip personal data at the point of collection, BEFORE storage, not afterwards.
+Replace rather than delete so sentences still read naturally. Test the stripping with Igbo, Hausa,
+Yoruba and other non-English names, because detection trained on English names will miss them.
+
+**Payments.** Stripe, Flutterwave and Paystack, all in version one. Flutterwave has a £250 ceiling.
+
+**VAT — not yet settled.** Whether Ozi is principal or disclosed agent on the goods is with the
+accountant. Record the goods value and the Ozi fee as SEPARATE amounts throughout, so either
+treatment can be applied without rework. Do NOT hard-code a VAT treatment on the goods.
+
+**Launch gates.** Stripe moved from test keys to live keys. Development database moved to a managed
+database with backups. Full accessibility pass with NVDA, VoiceOver, axe and WAVE, covering the
+admin panel as well as the Shopper and Runner apps.
+
+## Section S — Build order
+
+**First, and these are the product:** Section E voice layer interface and voice ordering. Section F
+calling. Section G live status. Section D addresses and PIN. Section H substitutions.
+
+**Second:** Section B pricing across all five services. Section Q admin panel, including accounts,
+roles, audit log and voice queries. Section L handed to the person. Section I scheduled orders and
+reorder. Section M Runner app including SOS.
+
+**Third, and it is acceptable to launch before these are finished:** Section O feedback, unmet
+demand and advertising. Section K sending rules beyond the basic contents rule. Section P automatic
+marketplace switching.
+
+**Roadmap only — record, build nothing:** Braille output. Haptic and vibration alerts. Integration
+with a handheld Sonara device. A wrist band that tightens or pulses on an incoming call.
+
+---
+
+## Anthony's answers, 30 September 2026
+
+1. **Pricing:** £13.50 flat, maximum basket £60, Runner £5 always. No fee bands, no basket-linked
+   fee. The £2 floor and Rule Three are superseded.
+2. **Voice engine:** use the phone's own speech recognition and voice as a stand-in BEHIND the
+   Oluoma Voice interface, swappable later. The spelling is O-L-U-O-M-A. Do not tune ordering logic
+   around the stand-in's recognition mistakes; they will not exist in the real engine, which uses
+   Faster Whisper and is far better on Nigerian, Welsh and Kentish accents.
+3. **Calling provider:** LiveKit.
+4. **The rename pull request (#14):** merge it before starting.

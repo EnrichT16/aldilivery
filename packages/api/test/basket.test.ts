@@ -58,7 +58,7 @@ describe('Rule Six: age restricted goods', () => {
           confirmed: true,
           channel: 'button',
           statement: 'Send my order.',
-          agreedTotalPence: 1474,
+          agreedTotalPence: 2024,
         },
       },
     });
@@ -93,11 +93,11 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
     expect(response.statusCode).toBe(200);
     const body = response.json() as { goodsEstimatePence: number; feePence: number; totalPence: number };
     expect(body.goodsEstimatePence).toBe(1);
-    expect(body.feePence).toBe(harness.config.fees.bands[0]!.feePence);
+    expect(body.feePence).toBe(harness.config.fees.standardDeliveryPence);
     expect(body.totalPence).toBe(1 + body.feePence);
   });
 
-  it('charges the same fee for two baskets in the same band, whatever their size', async () => {
+  it('charges the same flat fee for two baskets, whatever their size', async () => {
     const small = await harness.app.inject({
       method: 'POST',
       url: '/basket/price',
@@ -122,8 +122,8 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
     });
 
     const body = response.json() as { inWords: { fee: string; total: string }; explanation: string[] };
-    expect(body.inWords.fee).toBe('£8.00');
-    expect(body.inWords.total).toBe('£10.50');
+    expect(body.inWords.fee).toBe('£13.50');
+    expect(body.inWords.total).toBe('£16.00');
     expect(body.explanation.join(' ')).toContain('That is the only fee.');
   });
 
@@ -134,5 +134,32 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
       payload: { lines: [] },
     });
     expect(response.statusCode).toBe(400);
+  });
+});
+
+describe('the most one delivery carries', () => {
+  it('prices exactly sixty pounds of shopping', async () => {
+    // 48 pints of milk at £1.25 is £60.00.
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/basket/price',
+      payload: { lines: [{ catalogueItemId: items.milk, quantity: 48 }] },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ goodsEstimatePence: 6000, feePence: 1350 });
+  });
+
+  it('says plainly when a basket is over, and offers two deliveries', async () => {
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/basket/price',
+      payload: { lines: [{ catalogueItemId: items.milk, quantity: 49 }] },
+    });
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error).toMatchObject({
+      code: 'basket_too_large',
+      message:
+        'This comes to £61.25 of shopping, and one delivery carries up to £60.00: about as much as one Runner can carry safely. We can split it into two deliveries.',
+    });
   });
 });

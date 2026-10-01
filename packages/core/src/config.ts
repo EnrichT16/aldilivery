@@ -6,19 +6,18 @@
  * at lives in `config/store.json` and arrives in the application through this file.
  *
  * The parser is deliberately strict, and it does more than check shapes. It also refuses
- * any configuration that contradicts an inviolable rule — a fee band that would lose money,
- * a Runner payment that is not five pounds, a notice period that is not thirty minutes, an
+ * any configuration that contradicts an inviolable rule — a delivery fee that would not cover
+ * the Runner's five pounds, a Runner payment that is not five pounds, a notice period that is not thirty minutes, an
  * age restriction switched on. A JSON edit cannot break a promise: the process will not
  * start, and the error says exactly which rule was contradicted.
  */
 
 import {
   AGE_RESTRICTED_GOODS_ALLOWED,
-  MINIMUM_NET_PENCE,
   RUNNER_PAYMENT_PENCE,
   SET_NOTICE_MINUTES_BEFORE,
 } from './rules.js';
-import { assertBandsHonourNetFloor, type FeeBand, type ProcessorModel } from './fees.js';
+import type { ProcessorModel } from './fees.js';
 
 export type CatalogueSourceMode = 'partner_feed' | 'community';
 
@@ -54,9 +53,10 @@ export interface StoreConfig {
   readonly fees: {
     readonly currency: string;
     readonly runnerPaymentPence: number;
-    readonly minimumNetPence: number;
+    /** Standard delivery, flat (docs/BUILD_PROMPT.md, Section B). */
+    readonly standardDeliveryPence: number;
+    /** The most shopping one delivery carries; above it, two deliveries are offered. */
     readonly maximumGoodsPence: number;
-    readonly bands: readonly FeeBand[];
     readonly processor: ProcessorModel;
     readonly coolBag: {
       readonly depositPence: number;
@@ -162,29 +162,6 @@ function equals(actual: number, expected: number, path: string, rule: string): n
   return actual;
 }
 
-function parseBands(value: unknown, path: string): FeeBand[] {
-  const raw = array(value, path);
-  const bands = raw.map((entry, index) => {
-    const band = object(entry, `${path}[${index}]`);
-    return {
-      uptoPence: wholeNumber(band['uptoPence'], `${path}[${index}].uptoPence`, 1),
-      feePence: wholeNumber(band['feePence'], `${path}[${index}].feePence`, 1),
-    } satisfies FeeBand;
-  });
-
-  for (let i = 1; i < bands.length; i += 1) {
-    const previous = bands[i - 1] as FeeBand;
-    const current = bands[i] as FeeBand;
-    if (current.uptoPence <= previous.uptoPence) {
-      throw new StoreConfigError(
-        `${path} must be in ascending order of uptoPence; band ${i} ends at ${current.uptoPence}p which is not above band ${i - 1} ending at ${previous.uptoPence}p.`,
-      );
-    }
-  }
-
-  return bands;
-}
-
 function parseCatalogueMode(value: unknown, path: string, allowed: readonly string[]): CatalogueSourceMode {
   const mode = str(value, path);
   if (!allowed.includes(mode)) {
@@ -228,7 +205,6 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     }
   }
 
-  const bands = parseBands(fees['bands'], 'fees.bands');
   const processor: ProcessorModel = {
     percentageBasisPoints: wholeNumber(
       processorRaw['percentageBasisPoints'],
@@ -238,22 +214,19 @@ export function parseStoreConfig(input: unknown): StoreConfig {
   };
 
   const maximumGoodsPence = wholeNumber(fees['maximumGoodsPence'], 'fees.maximumGoodsPence', 1);
-  const topBand = bands[bands.length - 1] as FeeBand;
-  if (topBand.uptoPence !== maximumGoodsPence) {
+  const standardDeliveryPence = wholeNumber(
+    fees['standardDeliveryPence'],
+    'fees.standardDeliveryPence',
+    1,
+  );
+  if (standardDeliveryPence <= RUNNER_PAYMENT_PENCE) {
     throw new StoreConfigError(
-      `fees.maximumGoodsPence is ${maximumGoodsPence}p but the last fee band ends at ${topBand.uptoPence}p. ` +
-        `They must agree, otherwise a basket could be accepted that no band can price.`,
+      `fees.standardDeliveryPence is ${standardDeliveryPence}p, which does not cover the Runner's ${RUNNER_PAYMENT_PENCE}p. Rule Two: the Runner's five pounds is untouched.`,
     );
   }
 
-  // Rule Two, Rule Three, Rule Five and Rule Six are checked against the constants, not
-  // trusted from the file.
-  const minimumNetPence = equals(
-    wholeNumber(fees['minimumNetPence'], 'fees.minimumNetPence'),
-    MINIMUM_NET_PENCE,
-    'fees.minimumNetPence',
-    'Rule Three',
-  );
+  // Rule Two, Rule Five and Rule Six are checked against the constants, not trusted from the
+  // file.
   equals(
     wholeNumber(fees['runnerPaymentPence'], 'fees.runnerPaymentPence'),
     RUNNER_PAYMENT_PENCE,
@@ -276,9 +249,6 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       'versionOneRestrictions.ageRestrictedGoodsAllowed must be false. Rule Six: no age restricted goods in version one.',
     );
   }
-
-  // Rule Three again, this time against the actual bands.
-  assertBandsHonourNetFloor(bands, processor, minimumNetPence);
 
   const skipWord = str(recurringOrders['skipWord'], 'recurringOrders.skipWord');
   if (/\s/.test(skipWord.trim()) || skipWord.trim() === '') {
@@ -360,9 +330,8 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     fees: {
       currency: str(fees['currency'], 'fees.currency'),
       runnerPaymentPence: RUNNER_PAYMENT_PENCE,
-      minimumNetPence,
+      standardDeliveryPence,
       maximumGoodsPence,
-      bands,
       processor,
       coolBag: {
         depositPence: wholeNumber(coolBag['depositPence'], 'fees.coolBag.depositPence'),
@@ -400,4 +369,4 @@ export function parseStoreConfig(input: unknown): StoreConfig {
   };
 }
 
-export type { FeeBand, ProcessorModel };
+export type { ProcessorModel };

@@ -22,7 +22,6 @@ import {
   type OfferedJob,
   type RunnerAccount,
   type RunnerPay,
-  type SubstitutionChoice,
 } from '../lib/api';
 import { money } from '../lib/money';
 import { clearRunnerToken, readRunnerToken } from '../lib/session';
@@ -47,11 +46,12 @@ import { clearRunnerToken, readRunnerToken } from '../lib/session';
 
 const POLL_MS = 5000;
 
-const SUBSTITUTIONS: Record<SubstitutionChoice, string> = {
-  ask_me: 'If something is not there, ask them before swapping it.',
-  similar_item: 'If something is not there, bring something similar.',
-  no_substitutes: 'If something is not there, leave it out.',
-};
+/**
+ * What a Runner does when something is not on the shelf (docs/BUILD_PROMPT.md, Section H): the
+ * Shopper decides. Never a silent substitution, and never a Runner guessing.
+ */
+const NOT_ON_THE_SHELF =
+  'If something is not on the shelf, ask the Shopper with the Cannot find it button. If they do not answer, leave it out. Never swap anything they have not agreed to.';
 
 const ANSWER_WORDS: Record<ItemAnswer, string> = {
   similar: 'bring something similar',
@@ -109,7 +109,7 @@ export function RunnerHome(): JSX.Element {
           setNews(
             question.answeredBy === 'shopper'
               ? `${shopperName} says: ${ANSWER_WORDS[question.answer]}, for the ${question.itemName}.`
-              : `No answer in time about the ${question.itemName}, so ${ANSWER_WORDS[question.answer]}, as ${shopperName} asked when they signed up.`,
+              : `No answer in time about the ${question.itemName}, so leave it out. ${shopperName} is not charged for it.`,
           );
         }
       } else {
@@ -374,7 +374,7 @@ function JobInHand({
             );
           })}
         </ul>
-        <p className="m-0">{SUBSTITUTIONS[job.substitutionDefault]}</p>
+        <p className="m-0">{NOT_ON_THE_SHELF}</p>
       </div>
 
       <div className="space-y-2">
@@ -473,12 +473,12 @@ function questionWords(question: ItemQuestion, shopperName: string): string {
   }
   return question.answeredBy === 'shopper'
     ? `${shopperName} says: ${ANSWER_WORDS[question.answer]}.`
-    : `No answer in time, so ${ANSWER_WORDS[question.answer]}, as they asked when they signed up.`;
+    : 'No answer in time, so leave it out. They are not charged for it.';
 }
 
 /**
  * Where a Runner's pay goes. Their bank details go into Stripe's own form, never into
- * Aldilivery: this only starts that, and says plainly what has been earned and what is waiting.
+ * the service: this only starts that, and says plainly what has been earned and what is waiting.
  */
 function HowYouGetPaid(): JSX.Element {
   const [pay, setPay] = useState<RunnerPay | null>(null);

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 
+import { storeConfig } from '../config';
 import { money } from '../lib/money';
 import { useBasket } from '../state/basket';
 
@@ -12,7 +13,7 @@ import { useBasket } from '../state/basket';
  * this page charges anybody.
  */
 export function Basket(): JSX.Element {
-  const { lines, pricing, setQuantity, remove } = useBasket();
+  const { lines, pricing, overMaximum, setQuantity, remove } = useBasket();
 
   if (lines.length === 0) {
     return (
@@ -116,9 +117,18 @@ export function Basket(): JSX.Element {
         </p>
       </section>
 
-      <Link to="/confirm" className="control w-full bg-highlight text-ink text-lead">
-        Check and send my order
-      </Link>
+      {overMaximum ? (
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+          This comes to about {money(pricing.goodsPence)} of shopping, and one delivery carries up
+          to {money(storeConfig.fees.maximumGoodsPence)}: about as much as one Runner can carry
+          safely. Take some things out and send this as one delivery, then order the rest as a
+          second delivery.
+        </p>
+      ) : (
+        <Link to="/confirm" className="control w-full bg-highlight text-ink text-lead">
+          Check and send my order
+        </Link>
+      )}
     </div>
   );
 }

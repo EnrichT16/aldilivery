@@ -30,15 +30,8 @@
   "fees": {
     "currency": "GBP",
     "runnerPaymentPence": 500,
-    "minimumNetPence": 200,
-    "maximumGoodsPence": 30000,
-    "bands": [
-      { "uptoPence": 3500, "feePence": 800 },
-      { "uptoPence": 10000, "feePence": 900 },
-      { "uptoPence": 16500, "feePence": 1000 },
-      { "uptoPence": 24000, "feePence": 1100 },
-      { "uptoPence": 30000, "feePence": 1200 }
-    ],
+    "standardDeliveryPence": 1350,
+    "maximumGoodsPence": 6000,
     "processor": {
       "percentageBasisPoints": 150,
       "fixedPence": 20

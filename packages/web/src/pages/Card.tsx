@@ -15,7 +15,7 @@ import { useSession } from '../state/session';
  * Saving a card.
  *
  * The fields below are not ours. Stripe draws them inside its own iframe, so the digits go
- * from the Shopper's keyboard to Stripe and never pass through Aldilivery — not through our
+ * from the Shopper's keyboard to Stripe and never pass through the service — not through our
  * JavaScript, not through our server, not into any log. What we are given back, and all we
  * ever store, is an identifier and the last four digits.
  *

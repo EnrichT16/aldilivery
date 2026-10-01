@@ -3,7 +3,7 @@
  *
  * `prisma migrate deploy` creates tables. It does not create rows. Without this, the first
  * deployment comes up with an empty catalogue: search returns nothing, no basket can be
- * filled, and Aldilivery looks broken while in fact working perfectly. Seeding needs to
+ * filled, and the service looks broken while in fact working perfectly. Seeding needs to
  * happen without anybody having a terminal, so it happens here.
  *
  * Three rules govern whether it runs, and all three have to agree.

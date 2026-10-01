@@ -6,7 +6,7 @@ import { fetchSignInAvailable, requestSignInCode, verifySignInCode } from '../li
 import { useSession } from '../state/session';
 
 /**
- * Signing back in, on a phone or computer somebody has not used Aldilivery on before.
+ * Signing back in, on a phone or computer somebody has not used the app on before.
  *
  * Two steps, one question each: the phone number, then the code that was texted to it. There
  * is no password, and never will be — a password is a poor fit for somebody who cannot see

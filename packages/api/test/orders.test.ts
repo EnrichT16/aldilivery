@@ -38,8 +38,8 @@ function orderPayload(overrides: Record<string, unknown> = {}) {
     confirmation: {
       confirmed: true,
       channel: 'button',
-      statement: 'Send my order. About £10.50 altogether.',
-      agreedTotalPence: 250 + 800,
+      statement: 'Send my order. About £16.00 altogether.',
+      agreedTotalPence: 250 + 1350,
     },
     ...overrides,
   };
@@ -71,7 +71,7 @@ describe('Rule One: no payment without an explicit confirmation', () => {
           confirmed: false,
           channel: 'button',
           statement: 'Send my order.',
-          agreedTotalPence: 1050,
+          agreedTotalPence: 1600,
         },
       }),
     });
@@ -160,7 +160,7 @@ describe('Rule One: no payment without an explicit confirmation', () => {
 
     expect(response.statusCode).toBe(201);
     const input = harness.payments.calls[0]!.input as { amountPence: number };
-    expect(input.amountPence).toBe(1050);
+    expect(input.amountPence).toBe(1600);
     expect(harness.payments.calls.filter((call) => call.kind === 'payment_intent')).toHaveLength(1);
   });
 
@@ -209,8 +209,8 @@ describe('repricing to the receipt', () => {
       order: { receiptTotalPence: number; receiptFeePence: number; finalTotalPence: number };
     };
     expect(body.order.receiptTotalPence).toBe(231);
-    // The receipt fell in the first band, so the fee is the first band's fee.
-    expect(body.order.receiptFeePence).toBe(harness.config.fees.bands[0]!.feePence);
+    // The fee is the flat standard delivery fee, whatever the till says.
+    expect(body.order.receiptFeePence).toBe(harness.config.fees.standardDeliveryPence);
     expect(body.order.finalTotalPence).toBe(231 + body.order.receiptFeePence);
   });
 });
@@ -286,8 +286,8 @@ describe('a payment the bank has not approved yet', () => {
         confirmation: {
           confirmed: true,
           channel: 'button',
-          statement: 'Send my order. About £10.50 altogether.',
-          agreedTotalPence: 250 + 800,
+          statement: 'Send my order. About £16.00 altogether.',
+          agreedTotalPence: 250 + 1350,
         },
       },
     });
@@ -325,8 +325,8 @@ describe('a payment the bank has not approved yet', () => {
         confirmation: {
           confirmed: true,
           channel: 'button',
-          statement: 'Send my order. About £10.50 altogether.',
-          agreedTotalPence: 250 + 800,
+          statement: 'Send my order. About £16.00 altogether.',
+          agreedTotalPence: 250 + 1350,
         },
       },
     });
@@ -388,8 +388,8 @@ describe('a payment the gateway refuses', () => {
         confirmation: {
           confirmed: true,
           channel: 'button',
-          statement: 'Send my order. About £10.50 altogether.',
-          agreedTotalPence: 250 + 800,
+          statement: 'Send my order. About £16.00 altogether.',
+          agreedTotalPence: 250 + 1350,
         },
       },
     });
@@ -437,7 +437,7 @@ describe('a payment the gateway refuses', () => {
     // Rule One is about what was recorded, not about whether the payment went through. The
     // Shopper did confirm, and the order must still say so.
     expect(orders[0].spokenConfirmationAt).not.toBeNull();
-    expect(orders[0].confirmationStatement).toBe('Send my order. About £10.50 altogether.');
+    expect(orders[0].confirmationStatement).toBe('Send my order. About £16.00 altogether.');
 
     await harness.close();
   });
@@ -459,8 +459,8 @@ describe('a payment the gateway refuses', () => {
         confirmation: {
           confirmed: true,
           channel: 'button',
-          statement: 'Send my order. About £10.50 altogether.',
-          agreedTotalPence: 250 + 800,
+          statement: 'Send my order. About £16.00 altogether.',
+          agreedTotalPence: 250 + 1350,
         },
       },
     });

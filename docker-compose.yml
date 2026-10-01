@@ -1,7 +1,7 @@
-# Aldilivery — local development database.
+# Local development database.
 #
 # This file starts PostgreSQL and nothing else. The database, the volume and the port are
-# dedicated to Aldilivery: Rule Eight says Aldilivery shares no database with any other
+# dedicated to the service: Rule Eight says the service shares no database with any other
 # product, so the port is deliberately 5433 rather than the default 5432, to make it hard
 # to point this at, or collide with, another product's database by accident.
 #
@@ -12,23 +12,23 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: aldilivery-postgres
+    container_name: ozidelivery-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-aldilivery}
+      POSTGRES_USER: ${POSTGRES_USER:-ozidelivery}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_locally}
-      POSTGRES_DB: ${POSTGRES_DB:-aldilivery}
+      POSTGRES_DB: ${POSTGRES_DB:-ozidelivery}
     ports:
       - '${POSTGRES_PORT:-5433}:5432'
     volumes:
-      - aldilivery-postgres-data:/var/lib/postgresql/data
+      - ozidelivery-postgres-data:/var/lib/postgresql/data
     healthcheck:
       test:
-        ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-aldilivery} -d ${POSTGRES_DB:-aldilivery}']
+        ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-ozidelivery} -d ${POSTGRES_DB:-ozidelivery}']
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  aldilivery-postgres-data:
-    name: aldilivery-postgres-data
+  ozidelivery-postgres-data:
+    name: ozidelivery-postgres-data

@@ -17,6 +17,11 @@ interface BasketValue {
   setQuantity: (itemId: string, quantity: number) => void;
   clear: () => void;
   pricing: BasketPricing;
+  /**
+   * More shopping than one delivery carries. The Shopper is told so in plain words and offered
+   * two deliveries; the order cannot be sent as it is.
+   */
+  overMaximum: boolean;
   itemCount: number;
 }
 
@@ -26,7 +31,7 @@ const BasketContext = createContext<BasketValue | null>(null);
  * The basket, and the price of it.
  *
  * The fee is worked out with the very same function the server uses, from the very same
- * bands in `config/store.json`. The two cannot drift, so what the Shopper is shown before
+ * figures in `config/store.json`. The two cannot drift, so what the Shopper is shown before
  * they confirm is what they will be charged.
  */
 export function BasketProvider({ children }: { children: ReactNode }): JSX.Element {
@@ -70,9 +75,15 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
     if (goodsPence === 0) {
       return { goodsPence: 0, feePence: 0, totalPence: 0 };
     }
-    const feePence = feeForGoodsPence(goodsPence, storeConfig.fees.bands);
+    // Over the maximum, the fee is still the flat fee; `overMaximum` says it cannot go as one.
+    const feePence =
+      goodsPence > storeConfig.fees.maximumGoodsPence
+        ? storeConfig.fees.standardDeliveryPence
+        : feeForGoodsPence(goodsPence, storeConfig.fees);
     return { goodsPence, feePence, totalPence: goodsPence + feePence };
   }, [lines]);
+
+  const overMaximum = pricing.goodsPence > storeConfig.fees.maximumGoodsPence;
 
   const value = useMemo<BasketValue>(
     () => ({
@@ -82,9 +93,10 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
       setQuantity,
       clear,
       pricing,
+      overMaximum,
       itemCount: lines.reduce((sum, line) => sum + line.quantity, 0),
     }),
-    [lines, add, remove, setQuantity, clear, pricing],
+    [lines, add, remove, setQuantity, clear, pricing, overMaximum],
   );
 
   return <BasketContext.Provider value={value}>{children}</BasketContext.Provider>;

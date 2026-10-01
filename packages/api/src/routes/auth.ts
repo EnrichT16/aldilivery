@@ -1,7 +1,7 @@
 /**
  * Signing in: a phone number and a one time code.
  *
- * There are no passwords in Aldilivery. A password is a poor fit for someone who cannot see
+ * There are no passwords in the service. A password is a poor fit for someone who cannot see
  * the screen, and a barrier for someone who finds reading hard. A code read out over the
  * phone, or shown large, is kinder and no less safe when it expires in ten minutes.
  *

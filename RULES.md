@@ -3,15 +3,21 @@
 These rules are not guidance. They are the product. Every line of code in this repository
 obeys them. A change that breaks one of these rules must break a test.
 
+Where anything here conflicts with **[docs/BUILD_PROMPT.md](docs/BUILD_PROMPT.md)** (30 September
+2026, version two), that document wins. Rules Two and Three were changed to match it on 30
+September 2026; the other eight stand as they were.
+
 ---
 
 ## The rules
 
 **One.** A single explicit confirmation from the Shopper is required before any payment is taken.
 
-**Two.** The Runner receives five pounds on every completed order, without exception.
+**Two.** The Runner receives five pounds on every standard delivery, untouched, whatever the basket.
 
-**Three.** Ozi Delivery never nets below two pounds on any order after payment processing costs.
+**Three.** Standard delivery is thirteen pounds fifty, flat, and one delivery carries at most sixty pounds of shopping.
+
+*Ruled 29 September 2026. This replaces the earlier Rule Three, a two pound net floor, which is superseded, together with the fee bands it governed.*
 
 **Four.** No surge pricing, no small order fee, no minimum spend.
 
@@ -34,12 +40,21 @@ obeys them. A change that breaks one of these rules must break a test.
 | Rule | Enforcement point |
 | --- | --- |
 | One | `POST /orders` refuses to create a Stripe payment intent unless `spokenConfirmationAt` has already been written to the order. `packages/api/src/routes/orders.ts`, proved in `packages/api/test/orders.test.ts`. The web confirmation screen has exactly one confirming control, reading *Send my order*. |
-| Two | `RUNNER_PAYMENT_PENCE` in `packages/core/src/rules.ts` is the only source of the figure. The payout route transfers exactly that amount per completed order. Pooled orders each pay it in full. Proved in `packages/core/test/fees.test.ts` and `packages/api/test/payout.test.ts`. |
-| Three | `aldiliveryNetPence` in `packages/core/src/fees.ts`, proved for every goods total from 1p to 30000p in `packages/core/test/fees.test.ts`. The fee bands are configuration; the 200p floor is a constant that the test asserts against and that no band edit may lower. |
-| Four | The fee is a function of the goods band alone. No time input, no demand input, no distance input, no order count input reaches `feeForGoodsPence`; its signature makes surge pricing unrepresentable. No minimum basket value exists in `POST /basket/price`. Proved in `packages/core/test/fees.test.ts`. |
+| Two | `RUNNER_PAYMENT_PENCE` in `packages/core/src/rules.ts` is the only source of the figure, and the configuration parser refuses a delivery fee that would not cover it. The payout transfers exactly that amount per standard delivery; pooled orders each pay it in full. Extras (another shop, handing to the person, tips) are paid on top and never out of it. Proved in `packages/core/test/fees.test.ts`, `packages/core/test/config.test.ts` and `packages/api/test/jobs.test.ts`. |
+| Three | `feeForGoodsPence` in `packages/core/src/fees.ts` returns `fees.standardDeliveryPence` (1350) from `config/store.json` for every basket up to `fees.maximumGoodsPence` (6000), and refuses anything over with an offer of two deliveries. Proved one penny at a time from 1p to 6000p in `packages/core/test/fees.test.ts`; the API refusal and its plain words in `packages/api/test/basket.test.ts`; the basket screen in `packages/web/test/shell.test.tsx`. The figures are configuration because the owner can change pricing; the test pins them so a change is made on purpose. |
+| Four | The fee is one flat figure. No time input, no demand input, no distance input, no order count input reaches `feeForGoodsPence`; its signature makes surge pricing unrepresentable. No minimum basket value exists in `POST /basket/price`. Proved in `packages/core/test/fees.test.ts`. |
 | Five | `packages/api/src/services/sets.ts` computes `noticeDueAt` as fire time minus the configured `noticeMinutesBefore` (30) and refuses to fire a Set whose notice was not sent. The skip token is one word, configured, and case insensitive. Proved in `packages/api/test/sets.test.ts`. |
 | Six | `CatalogueItem.ageRestricted` is rejected at basket time in `POST /basket/price` and again at order creation. Proved in `packages/api/test/basket.test.ts`. |
 | Seven | `eslint-plugin-jsx-a11y` in `eslint.config.js`, and `axe-core` run against every screen in `packages/web/test`. Any violation fails the build. Minimum control height, base font size and focus visibility are enforced in `packages/web/src/styles/index.css`. |
-| Eight | This repository contains one product. `docker-compose.yml` starts a database named for this product alone, on its own port and volume. There is no shared authentication provider, no shared Stripe account, and no imported code from any other product of Anthony. |
-| Nine | Everything about the store and the product lives in `config/store.json`. The store name, the product name and the legal entity each appear in that file, in documentation, and nowhere else in any source file, and the product's former name, Aldilivery, appears in no line of source outside a comment. The web page shown before JavaScript runs is filled in from the same file at build time, and the three rules above that name the product take the name from it too (`inviolableRules` in `packages/core/src/rules.ts`). Proved by repository scan tests in `packages/core/test/config.test.ts`. |
+| Eight | This repository contains one product. `docker-compose.yml` starts a database named for this product alone, on its own port and volume. There is no shared authentication provider, no shared Stripe account, and no imported code from any other product of Anthony. Oluoma Voice, the separate voice product (docs/BUILD_PROMPT.md, Section E), is reached only through a documented interface: no shared code, database, login or payment account. |
+| Nine | Everything about the store and the product lives in `config/store.json`. The store name, the product name and the legal entity each appear in that file, in documentation, and nowhere else in any source file, and the product's retired name appears nowhere in the repository, code, comments or documents, outside database migrations that have already run. The web page shown before JavaScript runs is filled in from the same file at build time, and the two rules above that name the product take the name from it too (`inviolableRules` in `packages/core/src/rules.ts`). Proved by repository scan tests in `packages/core/test/config.test.ts`. |
 | Ten | `PaymentMethod` in `packages/api/prisma/schema.prisma` has a Stripe payment method identifier and last four digits, and no field capable of holding a card number. Runner money moves by Stripe Connect transfer to the Runner own connected account; Ozi Delivery never takes custody. |
+
+---
+
+## Points in docs/BUILD_PROMPT.md still to be settled with Anthony
+
+- **Rule Six and Section K.** Rule Six forbids age restricted goods in version one. Section K
+  says Ozi will not carry alcohol where the recipient cannot prove their age, which implies it
+  may when they can, and Section L says there are no identity checks. Until Anthony rules, no
+  alcohol is carried at all, which satisfies all three.

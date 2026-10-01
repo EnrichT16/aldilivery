@@ -51,7 +51,7 @@ beforeEach(() => {
 });
 
 function stubShopperApi(): void {
-  window.localStorage.setItem('aldilivery.session.token', 'test-token');
+  window.localStorage.setItem('ozidelivery.session.token', 'test-token');
   const reply = (body: unknown, status = 200): Response =>
     ({
       ok: status < 300,

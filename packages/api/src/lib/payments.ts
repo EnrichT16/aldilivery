@@ -2,11 +2,11 @@
  * The payments gateway.
  *
  * Rule Ten, made structural. Look at `PaymentsGateway` below: there is no method on it that
- * accepts a card number, an expiry date or a security code, because no part of Aldilivery
+ * accepts a card number, an expiry date or a security code, because no part of the service
  * ever handles one. The Shopper's browser sends card details straight to Stripe and gets
  * back a payment method identifier; that identifier is all that ever reaches this server.
  *
- * The Runner's money is moved by a Connect transfer to the Runner's own account. Aldilivery
+ * The Runner's money is moved by a Connect transfer to the Runner's own account. The service
  * does not hold it, does not pool it, and cannot spend it.
  */
 
@@ -77,9 +77,9 @@ export interface PaymentsGateway {
   createPaymentIntent(input: CreatePaymentIntentInput): Promise<PaymentIntentResult>;
   createTransfer(input: CreateTransferInput): Promise<TransferResult>;
   /**
-   * A Stripe account of the Runner's own, for their pay to go to (Rule Ten: Aldilivery never
+   * A Stripe account of the Runner's own, for their pay to go to (Rule Ten: The service never
    * holds a Runner's money). Stripe collects their bank details on its own pages; they never
-   * pass through Aldilivery.
+   * pass through the service.
    */
   createConnectedAccount(input: { runnerId: string }): Promise<{ id: string }>;
   /** A one-time link to Stripe's form for that account. Expires after a few minutes. */

@@ -1,4 +1,4 @@
-// Aldilivery data model.
+// The data model.
 //
 // Two things to notice before reading any further.
 //
@@ -7,7 +7,7 @@
 // is all that is needed to say "the card ending 4242" back to a Shopper. Card details go
 // from the Shopper's browser to Stripe and never touch this database.
 //
-// Rule Eight: this database belongs to Aldilivery alone. It shares no table, no user table
+// Rule Eight: this database belongs to the service alone. It shares no table, no user table
 // and no payment account with any other product.
 
 generator client {
@@ -165,7 +165,7 @@ model Runner {
   criminalRecordCheckVerified  Boolean @default(false)
 
   /// The Runner's own Stripe Connect account. Their money is transferred straight to it;
-  /// Aldilivery never holds it (Rule Ten).
+  /// The service never holds it (Rule Ten).
   stripeConnectedAccountId String?
 
   coolBagDepositStatus   CoolBagDepositStatus @default(not_started)
@@ -274,7 +274,7 @@ model CatalogueItem {
 // Payment methods — Rule Ten
 // ---------------------------------------------------------------------------
 
-/// A saved card, as far as Aldilivery is concerned.
+/// A saved card, as far as the service is concerned.
 ///
 /// There is no card number field, no CVC field and no expiry-plus-number pairing that
 /// could be reassembled into one. `lastFour` exists solely so a Shopper can be told which

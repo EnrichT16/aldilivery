@@ -123,7 +123,7 @@ export class BasketTooLargeError extends ApiError {
     super(
       422,
       'basket_too_large',
-      `This shop comes to more than we can take in one order. Please split it into two orders.`,
+      `This comes to £${(goodsPence / 100).toFixed(2)} of shopping, and one delivery carries up to £${(maximumPence / 100).toFixed(2)}: about as much as one Runner can carry safely. We can split it into two deliveries.`,
       { goodsPence, maximumPence },
     );
   }

@@ -1,7 +1,7 @@
 /**
  * "I cannot find this": the Runner asks, the Shopper answers on their own screen, and nobody's
- * phone number changes hands. If the Shopper does not answer in time, their own preference
- * decides — and "ask me first", unanswered, means the item is left out.
+ * phone number changes hands. If the Shopper does not answer in time, the item is left out and
+ * not charged for — whatever they chose at sign-up (docs/BUILD_PROMPT.md, Section H).
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -41,7 +41,7 @@ beforeEach(async () => {
         confirmed: true,
         channel: 'button',
         statement: 'Send my order.',
-        agreedTotalPence: 1050,
+        agreedTotalPence: 1600,
       },
     },
   });
@@ -98,7 +98,7 @@ describe('asking', () => {
       itemName: expect.stringMatching(/milk/i),
       answer: null,
       secondsLeft: QUESTION_WAIT_SECONDS,
-      // The test Shopper's preference is "ask me first", so no answer means leave it out.
+      // Nobody answering always means the item is left out.
       ifNoAnswer: 'leave_out',
     });
 
@@ -155,20 +155,22 @@ describe('answering', () => {
     expect(second.json().error.message).toBe('You have already answered: leave it out.');
   });
 
-  it('leaves the item out when an "ask me first" Shopper cannot be asked in time', async () => {
+  it('leaves the item out when the Shopper cannot be reached in time', async () => {
     await startShopping();
     const id = (await ask()).json().question.id;
     harness.setNow(new Date(harness.now().getTime() + (QUESTION_WAIT_SECONDS + 1) * 1000));
 
     const view = await shopperView();
-    expect(view.questions[0]).toMatchObject({ answer: 'leave_out', answeredBy: 'preference' });
+    expect(view.questions[0]).toMatchObject({ answer: 'leave_out', answeredBy: 'no_answer' });
 
     const late = await answer(id, 'similar');
     expect(late.statusCode).toBe(409);
-    expect(late.json().error.message).toMatch(/could not wait any longer.*leave it out/);
+    expect(late.json().error.message).toBe(
+      'We could not wait any longer, so your Runner has left it out. You will not be charged for it.',
+    );
   });
 
-  it('brings something similar when that is the Shopper’s standing preference', async () => {
+  it('never substitutes silently, even for a Shopper who once chose "bring something similar"', async () => {
     await harness.repository.shoppers.update(shopper.shopperId, {
       substitutionDefault: 'similar_item',
     });
@@ -176,8 +178,9 @@ describe('answering', () => {
     await ask();
     harness.setNow(new Date(harness.now().getTime() + (QUESTION_WAIT_SECONDS + 1) * 1000));
     expect((await shopperView()).questions[0]).toMatchObject({
-      answer: 'similar',
-      answeredBy: 'preference',
+      answer: 'leave_out',
+      answeredBy: 'no_answer',
+      ifNoAnswer: 'leave_out',
     });
   });
 });

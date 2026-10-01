@@ -11,7 +11,7 @@ import { requireSession } from '../app.js';
 import type { Order } from '../domain.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 import { notifyShopper } from '../services/notify.js';
-import { questionsForOrder, settle, preferenceAnswer } from '../services/questions.js';
+import { questionsForOrder, settle } from '../services/questions.js';
 
 const ANSWER_WORDS = {
   similar: 'bring something similar',
@@ -34,11 +34,6 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
         : order.runnerId === session.accountId;
     if (!mine) throw new ForbiddenError('That order is not yours.');
     return { order, role: session.role };
-  }
-
-  async function preferenceOf(order: Order) {
-    const shopper = await repository.shoppers.findById(order.shopperId);
-    return shopper?.substitutionDefault ?? 'ask_me';
   }
 
   /** The Runner cannot find one thing on the list. Asks once per item; asking again returns it. */
@@ -78,7 +73,7 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
         },
       );
     }
-    const views = await questionsForOrder(repository, order.id, await preferenceOf(order), now());
+    const views = await questionsForOrder(repository, order.id, now());
     return { question: views.find((view) => view.orderItemId === orderItemId) };
   });
 
@@ -86,7 +81,7 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const { order } = await orderFor(request, id);
     return {
-      questions: await questionsForOrder(repository, order.id, await preferenceOf(order), now()),
+      questions: await questionsForOrder(repository, order.id, now()),
     };
   });
 
@@ -101,16 +96,11 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
 
     const found = await repository.itemQuestions.findById(questionId);
     if (!found || found.orderId !== order.id) throw new NotFoundError('question');
-    const question = await settle(
-      repository,
-      found,
-      preferenceAnswer(await preferenceOf(order)),
-      now(),
-    );
+    const question = await settle(repository, found, now());
     if (question.answer !== null) {
       throw new ConflictError(
-        question.answeredBy === 'preference'
-          ? `We could not wait any longer, so your Runner went with what you asked for when you signed up: ${ANSWER_WORDS[question.answer]}.`
+        question.answeredBy === 'no_answer'
+          ? 'We could not wait any longer, so your Runner has left it out. You will not be charged for it.'
           : `You have already answered: ${ANSWER_WORDS[question.answer]}.`,
       );
     }
@@ -149,7 +139,7 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
         totalEstimatePence: order.totalEstimatePence,
         deliveredAt: order.deliveredAt,
       },
-      questions: await questionsForOrder(repository, order.id, await preferenceOf(order), now()),
+      questions: await questionsForOrder(repository, order.id, now()),
     };
   });
 }

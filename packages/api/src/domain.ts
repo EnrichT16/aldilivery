@@ -83,7 +83,7 @@ export interface ItemQuestion {
   orderItemId: string;
   askedAt: Date;
   answer: ItemAnswer | null;
-  answeredBy: 'shopper' | 'preference' | null;
+  answeredBy: 'shopper' | 'no_answer' | null;
   answeredAt: Date | null;
 }
 

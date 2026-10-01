@@ -175,7 +175,7 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
   /**
    * Group paid orders that are close enough to be carried in one trip.
    *
-   * Pooling saves the Runner time. It does not save Aldilivery money at the Runner's
+   * Pooling saves the Runner time. It does not save the service money at the Runner's
    * expense: every order in a pool still pays five pounds, so a pool of three pays fifteen.
    */
   app.post('/jobs/pool', async (request) => {

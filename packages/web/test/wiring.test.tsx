@@ -64,8 +64,9 @@ describe('setting up an account', () => {
       displayName: 'Ada',
       phone: '07700 900000',
       deliveryAddress: '12 Made Up Street, Leeds, LS1 1AA',
-      substitutionDefault: 'ask_me',
     });
+    // No question about swapping things: the Shopper is always asked (Section H).
+    expect(body).not.toHaveProperty('substitutionDefault');
     // No password, because there is no password. If one ever appears in this body,
     // something has gone badly wrong with the design.
     expect(Object.keys(body)).not.toContain('password');
@@ -82,7 +83,7 @@ describe('setting up an account', () => {
     await user.click(screen.getByRole('button', { name: 'Create my account' }));
 
     await waitFor(() => {
-      expect(window.localStorage.getItem('aldilivery.session.token')).toBe('new-token');
+      expect(window.localStorage.getItem('ozidelivery.session.token')).toBe('new-token');
     });
   });
 

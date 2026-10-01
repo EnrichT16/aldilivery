@@ -121,9 +121,9 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
    * stub. Setting both states explicitly makes the order of tests stop mattering.
    */
   if (options.shopper) {
-    window.localStorage.setItem('aldilivery.session.token', 'test-token');
+    window.localStorage.setItem('ozidelivery.session.token', 'test-token');
   } else {
-    window.localStorage.removeItem('aldilivery.session.token');
+    window.localStorage.removeItem('ozidelivery.session.token');
   }
 
   const reply = (body: unknown, status = 200): Response =>

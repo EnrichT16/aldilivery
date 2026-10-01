@@ -217,9 +217,8 @@ export function MyOrder(): JSX.Element {
                 Leave it out
               </button>
               <p className="m-0">
-                If we do not hear from you in {timeLeft(question.secondsLeft)}, they will{' '}
-                {ANSWER_WORDS[question.ifNoAnswer]}, as you asked when you signed up. You are only
-                charged for what they bring.
+                If we do not hear from you in {timeLeft(question.secondsLeft)}, they will leave it
+                out, and you will not be charged for it. Nothing is ever swapped without asking you.
               </p>
             </section>
           ))}
@@ -246,7 +245,7 @@ export function MyOrder(): JSX.Element {
                     {decided?.answer &&
                       (decided.answeredBy === 'shopper'
                         ? `. Not on the shelf: you asked them to ${ANSWER_WORDS[decided.answer]}.`
-                        : `. Not on the shelf, and we could not reach you in time, so they will ${ANSWER_WORDS[decided.answer]}.`)}
+                        : '. Not on the shelf, and we could not reach you in time, so it was left out. You are not charged for it.')}
                   </li>
                 );
               })}

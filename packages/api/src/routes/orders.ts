@@ -126,10 +126,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
     // Rule Six is applied again here, not only at basket time, because the catalogue can
     // change between pricing a basket and sending it.
-    const priced = priceLines(input.lines, catalogueItems, {
-      bands: config.fees.bands,
-      maximumGoodsPence: config.fees.maximumGoodsPence,
-    });
+    const priced = priceLines(input.lines, catalogueItems, config.fees);
 
     if (!input.overrideBudgetCap && exceedsBudgetCap(priced.goodsPence, shopper.budgetCapPence)) {
       throw new BadRequestError(
@@ -376,7 +373,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     const repricing = repriceToReceipt(
       input.receiptTotalPence,
       order.goodsEstimatePence,
-      config.fees.bands,
+      config.fees,
     );
 
     for (const line of input.items ?? []) {

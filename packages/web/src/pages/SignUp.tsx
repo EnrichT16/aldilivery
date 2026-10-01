@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { storeConfig } from '../config';
-import { registerShopper, type SubstitutionChoice } from '../lib/api';
-import { Field, Radio } from '../components/FormFields';
+import { registerShopper } from '../lib/api';
+import { Field } from '../components/FormFields';
 import { useSession } from '../state/session';
 
 /**
@@ -43,9 +43,6 @@ export function SignUp(): JSX.Element {
     const phone = String(data.get('phone') ?? '').trim();
     const deliveryAddress = String(data.get('deliveryAddress') ?? '').trim();
     const doorstepProtocol = String(data.get('doorstepProtocol') ?? '').trim();
-    const substitutionDefault = String(
-      data.get('substitutionDefault') ?? 'ask_me',
-    ) as SubstitutionChoice;
 
     const found: Array<{ field: string; message: string }> = [];
     if (displayName === '')
@@ -71,7 +68,6 @@ export function SignUp(): JSX.Element {
         phone,
         deliveryAddress,
         doorstepProtocol,
-        substitutionDefault,
       });
       signedUp(result.token, result.shopper);
       // Straight on to the card, because that is the next thing standing between them and
@@ -171,13 +167,6 @@ export function SignUp(): JSX.Element {
           hint="For example: knock loudly and wait, I am slow to the door. You can leave this empty."
           multiline
         />
-
-        <fieldset className="border-2 border-paper/40 rounded-xl p-4 m-0">
-          <legend className="px-2 font-bold">If something is not on the shelf</legend>
-          <Radio name="substitutionDefault" value="ask_me" label="Ask me first" defaultChecked />
-          <Radio name="substitutionDefault" value="similar_item" label="Bring something similar" />
-          <Radio name="substitutionDefault" value="no_substitutes" label="Leave it out" />
-        </fieldset>
 
         <button
           type="submit"

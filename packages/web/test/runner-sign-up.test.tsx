@@ -77,8 +77,8 @@ describe('signing up to run', () => {
     await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
     await screen.findByRole('heading', { level: 1, name: 'Thank you, Tomasz' });
 
-    expect(window.localStorage.getItem('aldilivery.runner.token')).toBe('runner-token');
-    expect(window.localStorage.getItem('aldilivery.session.token')).toBeNull();
+    expect(window.localStorage.getItem('ozidelivery.runner.token')).toBe('runner-token');
+    expect(window.localStorage.getItem('ozidelivery.session.token')).toBeNull();
     expect(screen.getByRole('link', { name: 'Go to your Runner page' })).toHaveAttribute(
       'href',
       '/runner/home',

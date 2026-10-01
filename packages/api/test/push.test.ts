@@ -61,7 +61,7 @@ async function shopping(setup: Awaited<ReturnType<typeof withPush>>) {
         confirmed: true,
         channel: 'button',
         statement: 'Send my order.',
-        agreedTotalPence: 1050,
+        agreedTotalPence: 1600,
       },
     },
   });

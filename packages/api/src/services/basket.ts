@@ -7,12 +7,12 @@
  * then quietly dropped at checkout — refused, by name, so the Shopper knows why.
  *
  * Rule Four: there is no minimum. A basket of one tin is priced and accepted like any
- * other. There is also no maximum in the sense of a rule; the only ceiling is the top of
- * the fee bands, above which Aldilivery cannot price the order without breaking Rule
- * Three, and that is explained rather than silently applied.
+ * other. There is a maximum, which is operational rather than a price: one delivery carries
+ * what one Runner can carry safely (docs/BUILD_PROMPT.md, Section B). Above it the Shopper is
+ * told so in plain words and offered two deliveries, never charged more.
  */
 
-import { priceBasket, type BasketPricing, type FeeBand } from '@aldilivery/core';
+import { priceBasket, type BasketPricing, type DeliveryFees } from '@aldilivery/core';
 
 import type { BasketLine, CatalogueItem } from '../domain.js';
 import { AgeRestrictedItemError, BadRequestError, BasketTooLargeError, NotFoundError } from '../errors.js';
@@ -31,10 +31,7 @@ export interface PricedBasket extends BasketPricing {
   lines: PricedLine[];
 }
 
-export interface PriceBasketOptions {
-  bands: readonly FeeBand[];
-  maximumGoodsPence: number;
-}
+export type PriceBasketOptions = DeliveryFees;
 
 /**
  * Turn basket lines and the catalogue rows they point at into a price.
@@ -86,6 +83,6 @@ export function priceLines(
     throw new BasketTooLargeError(goodsPence, options.maximumGoodsPence);
   }
 
-  const pricing = priceBasket(goodsPence, options.bands);
+  const pricing = priceBasket(goodsPence, options);
   return { ...pricing, lines: pricedLines };
 }
