@@ -25,6 +25,8 @@ September 2026; the other eight stand as they were.
 
 **Six.** No age restricted goods in version one.
 
+*Confirmed 1 October 2026 for alcohol in particular: none is sold or carried in version one, by any service, and no identity check is ever made at a handover (docs/BUILD_PROMPT.md, rulings).*
+
 **Seven.** Every screen meets WCAG two point two level double A.
 
 **Eight.** Ozi Delivery shares no code, database, login or payment account with any other product.
@@ -50,11 +52,3 @@ September 2026; the other eight stand as they were.
 | Nine | Everything about the store and the product lives in `config/store.json`. The store name, the product name and the legal entity each appear in that file, in documentation, and nowhere else in any source file, and the product's retired name appears nowhere in the repository, code, comments or documents, outside database migrations that have already run. The web page shown before JavaScript runs is filled in from the same file at build time, and the two rules above that name the product take the name from it too (`inviolableRules` in `packages/core/src/rules.ts`). Proved by repository scan tests in `packages/core/test/config.test.ts`. |
 | Ten | `PaymentMethod` in `packages/api/prisma/schema.prisma` has a Stripe payment method identifier and last four digits, and no field capable of holding a card number. Runner money moves by Stripe Connect transfer to the Runner own connected account; Ozi Delivery never takes custody. |
 
----
-
-## Points in docs/BUILD_PROMPT.md still to be settled with Anthony
-
-- **Rule Six and Section K.** Rule Six forbids age restricted goods in version one. Section K
-  says Ozi will not carry alcohol where the recipient cannot prove their age, which implies it
-  may when they can, and Section L says there are no identity checks. Until Anthony rules, no
-  alcohol is carried at all, which satisfies all three.

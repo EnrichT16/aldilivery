@@ -269,7 +269,7 @@ A declared contents list accompanies every sending job. The sender is responsibl
 of what is sent. This is how every carrier allocates it.
 
 **Ozi will not carry:** Cash. Medicines, unless a signed-up pharmacy job under that pharmacy's own
-procedures. Alcohol where the recipient cannot prove their age. Explosives and fireworks including
+procedures. Alcohol. Explosives and fireworks including
 Christmas crackers. Flammable liquids. Aerosols and compressed gases. Illegal drugs. Firearms and
 weapons including replicas and knives. Loose lithium batteries. Tobacco. Anything the sender will
 not show the Runner.
@@ -461,3 +461,14 @@ with a handheld Sonara device. A wrist band that tightens or pulses on an incomi
    Faster Whisper and is far better on Nigerian, Welsh and Kentish accents.
 3. **Calling provider:** LiveKit.
 4. **The rename pull request (#14):** merge it before starting.
+
+## Rulings since, 1 October 2026
+
+1. **No alcohol in version one.** Section K above is corrected: the clause "where the recipient
+   cannot prove their age" is removed, and alcohol is on the absolute prohibited list alongside
+   cash, medicines and tobacco. Section L stands unchanged: no signatures, no identity checks,
+   ever. Reason: age verification is an identity check, and handovers must stay quick and
+   non-intrusive. Alcohol also carries licensing obligations not confirmed with Medway Council.
+   Revisit only if that changes.
+2. **The working branch keeps its name.** Renaming it would break links in past pull requests,
+   and the name is not visible to anyone.
