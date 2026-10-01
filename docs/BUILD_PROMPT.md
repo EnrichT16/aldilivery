@@ -493,3 +493,83 @@ with a handheld Sonara device. A wrist band that tightens or pulses on an incomi
      conversation, so with the browser stand-in, which cannot do that, the button brings it
      back, and Ozi only promises what works. Oluoma Voice is asked for an on-device wake word
      (docs/OLUOMA_VOICE.md).
+
+## Section T — Approved additions, 1 October 2026
+
+Proposed by Claude Code and approved in full by Anthony on 1 October 2026: "add all your ideas".
+Each one keeps every rule above. Where a price is given it is a proposal for Anthony to confirm;
+nothing is charged until he does.
+
+**T1. Family and carer plan.** A relative or carer, invited by the Shopper, gets their own view:
+live order status, a spoken weekly summary, alerts. They can top up a budget, approve anything
+over a limit the Shopper sets, and join calls through MERGE (Section F). The Shopper invites them
+and can remove them at any time; the carer sees only what the Shopper allows, and never the
+Runner's number. Proposed price: £3.99 a month. *Build:* second group, after calling (MERGE) and
+the admin panel's accounts.
+
+**T2. Councils and social care.** Medway Council adult social care, housing associations and
+charities pay Ozi to serve their residents, including Shoppers paying from a personal budget or
+Direct Payments. *Needs Anthony:* the conversations and contracts, and any provider registration
+the council requires. *Build:* invoicing by organisation and the reports a commissioner asks for,
+in the admin panel (Section Q). The data model already has organisations.
+
+**T3. Delivery bundles.** Deliveries paid for in advance at a small saving. Proposed: four standard
+deliveries for £48 instead of £54. Never time-limited pressure, never surge (Rule Four). The
+Runner's £5 per delivery is untouched (Rule Two). *Build:* with Section B pricing.
+
+**T4. Grants.** Innovate UK, the National Lottery Community Fund, the Thomas Pocklington Trust and
+RNIB-linked funds. Non-dilutive. *Needs Anthony:* the applications. *Build:* nothing in the
+product; Claude Code can draft applications from the build log and this document on request.
+
+**T5. Sheltered housing rounds.** One Runner serves several Shoppers in the same building in one
+trip: cheaper per drop, more per hour for the Runner, easy to offer to a housing scheme. Each
+Shopper still pays the standard delivery and each still gets their own handover. *Build:* with
+dispatch (Section M), extending the pooling the server already has.
+
+**T6. A safe word at the door.** For every order Ozi gives the Shopper the Runner's first name and
+a two-word code; the Runner says the code at the door. A blind Shopper knows the person knocking
+is their Runner. Words are chosen to be easy to hear and say, never a number. *Build:* first group,
+with live status (Section G).
+
+**T7. A weekly spoken summary.** "This week you spent £38 on shopping. Your next delivery is
+Tuesday morning." Spent, saved, what is booked; offered aloud once a week and on request, and
+switchable off. A natural moment to offer "same as last week". *Build:* second group, with
+scheduled orders and reorder (Section I).
+
+**T8. An optional wellbeing check.** Only if the Shopper agrees, and only by a Runner who has
+completed the safeguarding module (T11): a Runner who notices something worrying at the door can
+raise it in the app, and Ozi tells the named contact the Shopper chose. Never a diagnosis, never a
+report to anyone the Shopper did not name, except where the safeguarding procedure says a life is
+at risk. *Needs Anthony:* the safeguarding procedure, reviewed by someone qualified. *Build:* third
+group, after T11.
+
+**T9. The landline, from the start.** A dedicated phone number, live from launch, for people
+without a smartphone. A call comes into the central system and becomes a job like any other,
+dispatched to the Runner best placed for the caller's address. Ozi Line (Section B) is how it is
+priced. How Runners are offered jobs — for app orders and phone orders alike — is to be discussed
+with Anthony before it is built; Claude Code is to bring a proposal. *Build:* first group, after
+voice ordering, because a phone order is a voice order (Section E rules apply: the registered home
+address, the spoken address confirmation, the £80 voice ceiling).
+
+**T10. Receipts read aloud.** After delivery, Ozi reads the receipt: what was bought, what was left
+out and why, the final charge, and the delivery fee as its own line (Section R keeps goods and fee
+separate). Available again on request. *Build:* first group, with substitutions (Section H),
+because that is where the final lines are settled.
+
+**T11. Runner training.** Short, spoken-and-written modules, done in the Runner app, each with a
+completion record. Some jobs are only offered to Runners who have passed the modules they need.
+Modules: guiding and handing over to a blind or partially sighted person; the door safe word (T6);
+the handover photograph and consent (Section L); substitution calls (Section H); food hygiene and
+the cool box; lone working and SOS (Section M); sending — contents, refusals and the police
+procedure (Section K); safeguarding and the wellbeing check (T8); data protection; hire and reward
+insurance. Anthony's aim: it helps Runners develop, as well as do this job better. *Build:* second
+group, with the Runner app (Section M); the safeguarding module before T8.
+
+### Where they sit in the build order (Section S)
+
+- **First group:** T6 door safe word (with G), T10 receipts read aloud (with H), T9 landline (after
+  voice ordering in E).
+- **Second group:** T1 family and carer plan, T3 bundles, T5 sheltered housing rounds, T7 weekly
+  summary, T11 Runner training, T2 council invoicing and reports.
+- **Third group:** T8 wellbeing check (after T11).
+- **Not product work:** T2 contracts and T4 grant applications, which are Anthony's.

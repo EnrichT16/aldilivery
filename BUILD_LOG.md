@@ -2555,6 +2555,32 @@ have no such rule.
 - Not checked here: a real voice, and a real "Hey Ozi". Both wait for a real phone, and the second
   for Oluoma Voice.
 
+## 2026-10-01 — Step 34: ten ideas approved, Runner training, and the landline from day one
+
+Anthony asked Claude Code for its own ideas, and approved all ten. He added Runner training, which
+he had been planning anyway, and a dedicated landline integrated with dispatch from launch.
+
+They are written into docs/BUILD_PROMPT.md as **Section T**, eleven items. Each one says what it
+does, the rules it keeps, what needs Anthony, and where it sits in the build order:
+
+1. T1, the family and carer plan.
+2. T2, councils and social care.
+3. T3, delivery bundles.
+4. T4, grants.
+5. T5, sheltered housing rounds.
+6. T6, the door safe word.
+7. T7, the weekly spoken summary.
+8. T8, the optional wellbeing check.
+9. T9, the landline.
+10. T10, receipts read aloud.
+11. T11, Runner training.
+
+Prices given there (£3.99 a month for the carer plan, four deliveries for £48) are proposals for
+Anthony to confirm. Nothing is charged until he does.
+
+Anthony asked for a proposal on how Runners should be offered jobs, for app and phone orders alike.
+That comes once the current work is done, as he asked. Nothing in this step changes code.
+
 ---
 
 ## What Anthony Should Check
