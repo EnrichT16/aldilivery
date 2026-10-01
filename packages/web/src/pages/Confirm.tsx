@@ -2,11 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { NotifyMe } from '../components/NotifyMe';
+import { PinGate } from '../components/PinGate';
 import { storeConfig } from '../config';
 import {
   createOrder,
+  fetchAddresses,
   listPaymentMethods,
+  saveAddress,
   updateMe,
+  type AddressBook,
   type PaymentMethod,
   type PlacedOrder,
 } from '../lib/api';
@@ -43,6 +47,16 @@ export function Confirm(): JSX.Element {
   const [editingAddress, setEditingAddress] = useState(false);
   const [address, setAddress] = useState('');
   /**
+   * Where it can go (docs/BUILD_PROMPT.md, Section D): the home address first, then any saved,
+   * then "send to a different address", which asks afterwards whether to save it (with the
+   * PIN) or use it this once (no PIN), the way a bank app asks about a payee.
+   */
+  const [book, setBook] = useState<AddressBook | null>(null);
+  const [chosen, setChosen] = useState<string>('home');
+  const [oneOff, setOneOff] = useState('');
+  const [other, setOther] = useState<'closed' | 'typing' | 'asking' | 'saving'>('closed');
+  const [typed, setTyped] = useState('');
+  /**
    * The address the Shopper has said is right (docs/BUILD_PROMPT.md, Section D: before every
    * order, of every type, the actual address is put to them and they say yes). Changing the
    * address means saying yes again.
@@ -52,12 +66,31 @@ export function Confirm(): JSX.Element {
   const ozi = useOzi();
   const spokenFor = useRef<string | null>(null);
 
+  const home = book?.home ?? shopper?.deliveryAddress ?? '';
   useEffect(() => {
-    setAddress(shopper?.deliveryAddress ?? '');
+    if (chosen === 'home') setAddress(home);
+    else if (chosen === 'once') setAddress(oneOff);
+    else setAddress(book?.saved.find((saved) => saved.id === chosen)?.address ?? home);
+  }, [chosen, home, oneOff, book]);
+
+  useEffect(() => {
+    if (!shopper) return;
+    let cancelled = false;
+    fetchAddresses()
+      .then((found) => {
+        if (!cancelled) setBook(found);
+      })
+      .catch(() => {
+        // Without the list, the home address on the account is still there to send to.
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [shopper]);
 
   // Ozi says the address aloud, once for each address shown, and waits for the yes below.
-  const askAboutAddress = shopper !== null && lines.length > 0 && !placed && !editingAddress;
+  const askAboutAddress =
+    shopper !== null && lines.length > 0 && !placed && !editingAddress && other === 'closed';
   useEffect(() => {
     const where = address.trim();
     if (!askAboutAddress || where === '' || addressConfirmed || spokenFor.current === where) return;
@@ -139,10 +172,14 @@ export function Confirm(): JSX.Element {
     }
   }
 
+  /** The very first home address, given here without a PIN as it would be at sign up. */
   async function onSaveAddress(): Promise<void> {
     try {
       const result = await updateMe({ deliveryAddress: address.trim() });
       replaceShopper(result.shopper);
+      setBook((previous) =>
+        previous ? { ...previous, home: result.shopper.deliveryAddress } : previous,
+      );
       setEditingAddress(false);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'We could not save that address.');
@@ -263,7 +300,7 @@ export function Confirm(): JSX.Element {
         {editingAddress ? (
           <div className="space-y-2 max-w-xl">
             <label htmlFor="deliveryAddress" className="block font-bold">
-              Your address
+              Your home address
             </label>
             <textarea
               id="deliveryAddress"
@@ -283,11 +320,124 @@ export function Confirm(): JSX.Element {
               Save this address
             </button>
           </div>
+        ) : other === 'typing' ? (
+          <form
+            className="space-y-2 max-w-xl"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (typed.trim().length < 5) return;
+              setOther('asking');
+            }}
+          >
+            <label htmlFor="otherAddress" className="block font-bold">
+              The address to send it to
+            </label>
+            <p id="otherAddress-hint" className="m-0 text-paper/90">
+              The house number, street, town and postcode.
+            </p>
+            <textarea
+              id="otherAddress"
+              rows={3}
+              value={typed}
+              aria-describedby="otherAddress-hint"
+              onChange={(event) => setTyped(event.target.value)}
+              className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+            />
+            <div className="flex flex-wrap gap-3">
+              <button type="submit" className="control bg-highlight text-ink">
+                Next
+              </button>
+              <button
+                type="button"
+                onClick={() => setOther('closed')}
+                className="control bg-paper/10 text-paper underline"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        ) : other === 'asking' ? (
+          <div className="space-y-3 max-w-xl">
+            <p className="m-0">{typed.trim()}</p>
+            <p className="m-0 font-bold">Save it for next time, or use it this once?</p>
+            <p className="m-0">Saving it needs your PIN. Using it once does not.</p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => setOther('saving')}
+                className="control bg-paper text-ink"
+              >
+                Save it for next time
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOneOff(typed.trim());
+                  setChosen('once');
+                  setOther('closed');
+                }}
+                className="control bg-paper text-ink"
+              >
+                Use it once, for this order only
+              </button>
+            </div>
+          </div>
+        ) : other === 'saving' ? (
+          <div className="space-y-3">
+            <p className="m-0">Saving {typed.trim()}</p>
+            <PinGate
+              hasPin={book?.hasPin ?? shopper.hasPin ?? false}
+              setHasPin={(hasPin) => {
+                setBook((previous) => (previous ? { ...previous, hasPin } : previous));
+              }}
+              purpose="to save this address"
+              onCancel={() => setOther('asking')}
+              action={async (pin) => {
+                const result = await saveAddress({ address: typed.trim(), pin });
+                setBook((previous) =>
+                  previous ? { ...previous, saved: [...previous.saved, result.address] } : previous,
+                );
+                setChosen(result.address.id);
+                setOther('closed');
+              }}
+            />
+          </div>
         ) : (
           <>
-            <p className="m-0">
-              {address === '' ? 'You have not given us an address yet.' : address}
-            </p>
+            {(book?.saved.length ?? 0) > 0 || chosen === 'once' ? (
+              <fieldset className="border-2 border-paper/40 rounded-xl p-4 m-0 space-y-2 max-w-xl">
+                <legend className="px-2 font-bold">Choose where it goes</legend>
+                {[
+                  { key: 'home', label: 'Your home address', where: home },
+                  ...(book?.saved ?? []).map((saved) => ({
+                    key: saved.id,
+                    label: saved.label || 'Saved address',
+                    where: saved.address,
+                  })),
+                  ...(oneOff !== ''
+                    ? [{ key: 'once', label: 'This order only', where: oneOff }]
+                    : []),
+                ].map((option) => (
+                  <div key={option.key} className="flex items-start gap-3 min-h-control">
+                    <input
+                      id={`where-${option.key}`}
+                      type="radio"
+                      name="where"
+                      checked={chosen === option.key}
+                      onChange={() => setChosen(option.key)}
+                      className="h-7 w-7 mt-1 shrink-0"
+                    />
+                    <label htmlFor={`where-${option.key}`}>
+                      <span className="font-bold">{option.label}:</span> {option.where}
+                    </label>
+                  </div>
+                ))}
+              </fieldset>
+            ) : (
+              <p className="m-0">
+                {address === '' ? 'You have not given us an address yet.' : address}
+              </p>
+            )}
             {address.trim() !== '' &&
               (addressConfirmed ? (
                 <p role="status" className="m-0 font-bold">
@@ -302,13 +452,26 @@ export function Confirm(): JSX.Element {
                   Yes, this is the right address
                 </button>
               ))}
-            <button
-              type="button"
-              onClick={() => setEditingAddress(true)}
-              className="control bg-paper text-ink"
-            >
-              {address === '' ? 'Add an address' : 'Change this address'}
-            </button>
+            {home === '' ? (
+              <button
+                type="button"
+                onClick={() => setEditingAddress(true)}
+                className="control bg-paper text-ink"
+              >
+                Add an address
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setTyped('');
+                  setOther('typing');
+                }}
+                className="control bg-paper text-ink"
+              >
+                Send to a different address
+              </button>
+            )}
           </>
         )}
       </section>

@@ -3,6 +3,7 @@ import { Route, Routes, useLocation } from 'react-router-dom';
 
 import { Layout } from './components/Layout';
 import { applyBrandToDocument, storeConfig } from './config';
+import { Addresses } from './pages/Addresses';
 import { Basket } from './pages/Basket';
 import { Card } from './pages/Card';
 import { Catalogue } from './pages/Catalogue';
@@ -112,6 +113,7 @@ export function App(): JSX.Element {
                 <Route path="/runner/home" element={<RunnerHome />} />
                 <Route path="/just-looking" element={<JustLooking />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/addresses" element={<Addresses />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Layout>

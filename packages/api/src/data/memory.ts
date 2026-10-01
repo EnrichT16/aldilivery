@@ -24,6 +24,7 @@ import type {
   Organisation,
   PaymentMethod,
   PushSubscription,
+  SavedAddress,
   RecurringSet,
   Runner,
   RunnerCheck,
@@ -75,6 +76,7 @@ export function memoryRepository(): Repository {
   const runnerChecks: RunnerCheck[] = [];
   const itemQuestions = new Map<string, ItemQuestion>();
   const pushSubscriptions = new Map<string, PushSubscription>();
+  const savedAddresses = new Map<string, SavedAddress>();
 
   const now = (): Date => new Date();
 
@@ -92,6 +94,9 @@ export function memoryRepository(): Repository {
           deliveryAddress: input.deliveryAddress ?? '',
           substitutionDefault: input.substitutionDefault ?? 'ask_me',
           budgetCapPence: input.budgetCapPence ?? null,
+          pinHash: null,
+          pinFailedAttempts: 0,
+          pinLockedUntil: null,
           deletionScheduledFor: null,
           organisationId: input.organisationId ?? null,
           createdAt: now(),
@@ -179,6 +184,27 @@ export function memoryRepository(): Repository {
         return [...runners.values()]
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
           .map(clone);
+      },
+    },
+
+    savedAddresses: {
+      async create(input) {
+        const row: SavedAddress = { ...input, id: id() };
+        savedAddresses.set(row.id, row);
+        return clone(row);
+      },
+      async listForShopper(shopperId) {
+        return [...savedAddresses.values()]
+          .filter((row) => row.shopperId === shopperId)
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async findById(key) {
+        const found = savedAddresses.get(key);
+        return found ? clone(found) : null;
+      },
+      async delete(key) {
+        savedAddresses.delete(key);
       },
     },
 

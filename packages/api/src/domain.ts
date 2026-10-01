@@ -36,10 +36,23 @@ export interface Shopper {
   deliveryAddress: string;
   substitutionDefault: SubstitutionPreference;
   budgetCapPence: number | null;
+  /** The PIN, hashed with a salt and a server secret; never the PIN itself. */
+  pinHash: string | null;
+  pinFailedAttempts: number;
+  pinLockedUntil: Date | null;
   deletionScheduledFor: Date | null;
   organisationId: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** An address saved for orders sent somewhere other than home (Section D). */
+export interface SavedAddress {
+  id: string;
+  shopperId: string;
+  label: string;
+  address: string;
+  createdAt: Date;
 }
 
 export interface Runner {

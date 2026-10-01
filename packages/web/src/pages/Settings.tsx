@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { storeConfig } from '../config';
 import { useVoice } from '../state/voice';
 import type { OutputVoice, VoiceReadiness } from '../voice';
 
 /**
- * Settings: for now, Ozi's voice.
+ * Settings: your addresses, and Ozi's voice.
  *
  * Ozi speaks aloud unless this says otherwise (docs/BUILD_PROMPT.md, Section E). The switch is
  * here for sighted Shoppers who would rather read; it is found, not offered.
@@ -47,6 +48,18 @@ export function Settings(): JSX.Element {
       <p role="status" className="m-0 min-h-control">
         {news}
       </p>
+
+      <section aria-labelledby="addresses-heading" className="space-y-3 max-w-xl">
+        <h2 id="addresses-heading" className="text-lead font-bold">
+          Addresses
+        </h2>
+        <p className="m-0">
+          Your home address, and any others you send shopping to. Changing them needs your PIN.
+        </p>
+        <Link to="/addresses" className="control bg-paper text-ink">
+          Your addresses
+        </Link>
+      </section>
 
       <section aria-labelledby="voice-heading" className="space-y-4 max-w-xl">
         <h2 id="voice-heading" className="text-lead font-bold">

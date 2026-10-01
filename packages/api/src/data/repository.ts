@@ -24,6 +24,7 @@ import type {
   Organisation,
   PaymentMethod,
   PushSubscription,
+  SavedAddress,
   RecurringSet,
   Runner,
   RunnerCheck,
@@ -151,6 +152,15 @@ export interface Repository {
     /** Every Runner, oldest first. For the approval tool, not for offering jobs. */
     listAll(): Promise<Runner[]>;
     /** Removes a Runner and their checks and offers. Only for one who has never had an order. */
+    delete(id: string): Promise<void>;
+  };
+
+  /** Addresses Shoppers have saved, beyond their home address. */
+  savedAddresses: {
+    create(input: Omit<SavedAddress, 'id'>): Promise<SavedAddress>;
+    /** Oldest first, the order they were saved in. */
+    listForShopper(shopperId: string): Promise<SavedAddress[]>;
+    findById(id: string): Promise<SavedAddress | null>;
     delete(id: string): Promise<void>;
   };
 

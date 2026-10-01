@@ -83,6 +83,7 @@ async function main(): Promise<void> {
     env,
     logger: true,
     ...push,
+    ...(sendText ? { sendText } : {}),
     ...(sendText
       ? {
           codeDelivery: 'sms' as const,
@@ -118,7 +119,7 @@ async function main(): Promise<void> {
 
   if (!pushReady) {
     app.log.info(
-      'Notifications are off: VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are not both set. A Runner\'s question still appears on the Your order page.',
+      "Notifications are off: VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are not both set. A Runner's question still appears on the Your order page.",
     );
   }
 
