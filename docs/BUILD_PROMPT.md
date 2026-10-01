@@ -565,6 +565,12 @@ procedure (Section K); safeguarding and the wellbeing check (T8); data protectio
 insurance. Anthony's aim: it helps Runners develop, as well as do this job better. *Build:* second
 group, with the Runner app (Section M); the safeguarding module before T8.
 
+**Accepted as starting defaults, 1 October 2026.** Anthony: leave the suggestions as they are for
+now, to be adjusted once running. So: the family and carer plan is £3.99 a month for each Shopper
+looked after, cancellable any time, with up to three family members connected; it is paid by a
+family member, the Shopper, or an organisation; all of it goes to the platform, never touching the
+Runner's pay. Bundles are four standard deliveries for £48.
+
 ### Where they sit in the build order (Section S)
 
 - **First group:** T6 door safe word (with G), T10 receipts read aloud (with H), T9 landline (after
