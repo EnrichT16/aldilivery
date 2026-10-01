@@ -1,12 +1,15 @@
 /**
- * Ozi's voice, through the Oluoma Voice interface (docs/BUILD_PROMPT.md, Section E).
+ * Ozi's voice, through the Oluoma Voice interface (docs/BUILD_PROMPT.md, Section E), and Ozi's
+ * presence on every screen as Anthony described it on 1 Oct 2026: speaking on the first launch,
+ * the glowing round button, muting by press or by voice, gentle reminders, and a button that
+ * can be moved.
  *
  * The screens are tested against a stand-in engine that records what Ozi was asked to say and
  * lets the test decide what the Shopper said. The browser stand-in itself is tested against a
  * fake of the browser's speech API, because jsdom has none.
  */
 
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { MemoryRouter } from 'react-router-dom';
@@ -14,11 +17,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
 import { storeConfig } from '../src/config';
+import { FIRST_REMINDER_MS, LATER_REMINDER_MS } from '../src/state/ozi';
 import { browserVoiceEngine } from '../src/voice/browser-engine';
 import {
   setVoiceEngine,
   type ListenOptions,
   type SpeakOptions,
+  type SpeakOutcome,
   type VoiceEngine,
 } from '../src/voice';
 import { stubApi } from './setup';
@@ -33,10 +38,13 @@ interface FakeEngine extends VoiceEngine {
   interrupted: number;
 }
 
-function fakeEngine(options: { canListen?: boolean; holdSpeech?: boolean } = {}): FakeEngine {
+function fakeEngine(
+  options: { canListen?: boolean; holdSpeech?: boolean; outcome?: SpeakOutcome } = {},
+): FakeEngine {
   let release: (() => void) | null = null;
   const engine: FakeEngine = {
     name: 'A test engine',
+    wakeWordOnDevice: false,
     spoken: [],
     listening: null,
     interrupted: 0,
@@ -51,9 +59,10 @@ function fakeEngine(options: { canListen?: boolean; holdSpeech?: boolean } = {})
     },
     speak(text, speakOptions) {
       engine.spoken.push({ text, options: speakOptions });
-      if (!options.holdSpeech) return Promise.resolve('finished');
+      if (!options.holdSpeech) return Promise.resolve(options.outcome ?? 'finished');
       return new Promise((resolve) => {
         release = () => {
+          release = null;
           resolve('interrupted');
         };
       });
@@ -84,108 +93,246 @@ function renderAt(path: string) {
   );
 }
 
+function firstLaunch(): void {
+  window.localStorage.removeItem('ozidelivery.voice.settings');
+}
+
+function storedSettings(): Record<string, unknown> {
+  return JSON.parse(window.localStorage.getItem('ozidelivery.voice.settings') ?? '{}') as Record<
+    string,
+    unknown
+  >;
+}
+
+function bubble(name: string): HTMLElement {
+  return screen.getByRole('button', { name });
+}
+
 afterEach(() => {
-  setVoiceEngine(null);
+  vi.useRealTimers();
 });
 
-describe('the microphone', () => {
-  it('greets the Shopper aloud, listens, and answers what it heard', async () => {
+describe('the first launch', () => {
+  it('introduces itself aloud, with no notification, then listens', async () => {
+    firstLaunch();
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubApi();
+    renderAt('/');
+
+    await waitFor(() => {
+      expect(engine.spoken).toHaveLength(1);
+    });
+    const intro = engine.spoken[0]!.text;
+    expect(intro).toMatch(new RegExp(`^Hello, I'm ${assistant}\\. I'm designed to speak with you`));
+    expect(intro).toMatch(/press it, or say "Ozi, mute"/);
+    expect(intro).toMatch(/turn my voice off in Settings/);
+    expect(intro).toMatch(/hold it down and drag it/);
+    // The stand-in cannot hear a wake word while muted, so Ozi does not promise it.
+    expect(intro).not.toMatch(/Hey Ozi/);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(engine.listening).not.toBeNull();
+    });
+    expect(storedSettings()).toMatchObject({ introHeard: true });
+  });
+
+  it('does not introduce itself again', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubApi();
+    renderAt('/');
+    await waitFor(() => {
+      expect(engine.listening).not.toBeNull();
+    });
+    expect(engine.spoken).toEqual([]);
+  });
+
+  it('shows and announces the introduction when it could not be spoken', async () => {
+    firstLaunch();
+    setVoiceEngine(fakeEngine({ outcome: 'not-spoken' }));
+    stubApi();
+    renderAt('/');
+    const shown = await screen.findAllByText(/^Hello, I'm Ozi/);
+    const status = shown.find((element) => element.getAttribute('role') === 'status');
+    await waitFor(() => {
+      expect(status).toHaveAttribute('aria-live', 'polite');
+    });
+  });
+});
+
+describe('the round button', () => {
+  it('glows green while listening; pressing mutes it, and it changes in more than colour', async () => {
     const engine = fakeEngine();
     setVoiceEngine(engine);
     stubApi();
     const user = userEvent.setup();
-    renderAt('/');
+    renderAt('/shop');
 
-    await user.click(screen.getByRole('button', { name: 'Say what you need' }));
     await waitFor(() => {
       expect(engine.listening).not.toBeNull();
     });
-    expect(engine.spoken[0]).toEqual({
-      text: `Hello, I am ${assistant}. What would you like?`,
-      options: { language: 'en-GB' },
-    });
-    expect(screen.getByRole('button', { name: 'Listening. Press to stop' })).toBeInTheDocument();
+    expect(bubble('Listening')).toHaveClass('ozi-beaming');
+    expect(bubble('Listening')).toHaveAccessibleDescription(/Ozi is listening\. Press to mute\./);
 
+    await user.click(bubble('Listening'));
+    await waitFor(() => {
+      expect(bubble('Muted')).toBeInTheDocument();
+    });
+    expect(bubble('Muted')).not.toHaveClass('ozi-beaming');
+    expect(bubble('Muted')).toHaveClass('border-dashed');
+    expect(engine.listening).toBeNull();
+    expect(engine.spoken.at(-1)?.text).toMatch(/^I'm muted now, and not listening/);
+
+    await user.click(bubble('Muted'));
+    await waitFor(() => {
+      expect(engine.spoken.at(-1)?.text).toBe("I'm listening. What would you like?");
+    });
+    await waitFor(() => {
+      expect(engine.listening).not.toBeNull();
+    });
+  });
+
+  it('mutes when told to', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubApi();
+    renderAt('/shop');
+    await waitFor(() => {
+      expect(engine.listening).not.toBeNull();
+    });
+    act(() => {
+      engine.hear('Ozi, mute yourself');
+    });
+    await waitFor(() => {
+      expect(bubble('Muted')).toBeInTheDocument();
+    });
+  });
+
+  it('answers what it heard', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubApi();
+    renderAt('/');
+    await waitFor(() => {
+      expect(engine.listening).not.toBeNull();
+    });
     act(() => {
       engine.hear('bananas and grapes');
     });
-    expect(await screen.findByText('You said: bananas and grapes')).toBeInTheDocument();
     await waitFor(() => {
-      expect(engine.spoken[1]?.text).toMatch(/^You said: bananas and grapes\./);
+      expect(engine.spoken.at(-1)?.text).toMatch(/^You said: bananas and grapes\./);
     });
-    // Ozi is speaking aloud, so its words are shown but not announced over its voice.
-    expect(screen.getByText(/^You said: bananas and grapes\. Ordering/)).toHaveAttribute(
-      'aria-live',
-      'off',
-    );
+    expect(await screen.findByText('You said: bananas and grapes')).toBeInTheDocument();
   });
 
-  it('stops talking at once when pressed while it is speaking', async () => {
+  it('stops talking at once when pressed while Ozi is talking', async () => {
+    firstLaunch();
     const engine = fakeEngine({ holdSpeech: true });
     setVoiceEngine(engine);
     stubApi();
     const user = userEvent.setup();
-    renderAt('/');
-
-    await user.click(screen.getByRole('button', { name: 'Say what you need' }));
-    await user.click(await screen.findByRole('button', { name: `Stop ${assistant} talking` }));
+    renderAt('/shop');
+    await user.click(await screen.findByRole('button', { name: 'Talking' }));
     expect(engine.interrupted).toBe(1);
+  });
+
+  it('reminds gently while muted: after two minutes, then every three', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubApi();
+    renderAt('/shop');
+    await waitFor(() => {
+      expect(engine.listening).not.toBeNull();
+    });
+    fireEvent.click(bubble('Listening'));
+    await waitFor(() => {
+      expect(bubble('Muted')).toBeInTheDocument();
+    });
+    const before = engine.spoken.length;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(FIRST_REMINDER_MS - 1000);
+    });
+    expect(engine.spoken).toHaveLength(before);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(engine.spoken.at(-1)?.text).toMatch(
+      /^Just a gentle reminder: I'm still here, but I'm muted, and I'm not listening\./,
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(LATER_REMINDER_MS);
+    });
+    expect(engine.spoken.at(-1)?.text).toMatch(/^I'm still here, resting and not listening\./);
+    expect(engine.spoken).toHaveLength(before + 2);
+    // Still muted: reminding is not listening.
     expect(engine.listening).toBeNull();
-    expect(screen.getByRole('button', { name: 'Say what you need' })).toBeInTheDocument();
   });
 
-  it('announces its words on the screen when the phone cannot actually speak them', async () => {
-    const engine = fakeEngine();
-    engine.speak = (text, options) => {
-      engine.spoken.push({ text, options });
-      return Promise.resolve('not-spoken');
-    };
-    setVoiceEngine(engine);
+  it('moves with the arrow keys and stays put; Settings puts it back', async () => {
+    setVoiceEngine(fakeEngine());
     stubApi();
     const user = userEvent.setup();
-    renderAt('/');
+    renderAt('/settings');
+    await screen.findByRole('button', { name: 'Listening' });
 
-    await user.click(screen.getByRole('button', { name: 'Say what you need' }));
-    const greeting = await screen.findByText(`Hello, I am ${assistant}. What would you like?`);
-    await waitFor(() => {
-      expect(greeting).toHaveAttribute('aria-live', 'polite');
-    });
-    // And the conversation carries on rather than hanging.
+    bubble('Listening').focus();
+    await user.keyboard('{ArrowLeft}{ArrowUp}');
+    const moved = storedSettings().bubble as { x: number; y: number };
+    expect(moved.x).toBeCloseTo(0.87);
+    expect(moved.y).toBeCloseTo(0.5);
+
+    await user.click(
+      screen.getByRole('button', { name: `Put ${assistant}’s button back in its usual place` }),
+    );
+    expect(storedSettings().bubble).toBeNull();
+  });
+
+  it('moves by dragging, and a drag is never taken for a press', async () => {
+    // jsdom has no PointerEvent; a mouse event with a pointer id stands in for it.
+    if (typeof window.PointerEvent === 'undefined') {
+      vi.stubGlobal(
+        'PointerEvent',
+        class extends MouseEvent {
+          pointerId: number;
+          constructor(type: string, init: PointerEventInit = {}) {
+            super(type, init);
+            this.pointerId = init.pointerId ?? 0;
+          }
+        },
+      );
+    }
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubApi();
+    renderAt('/shop');
     await waitFor(() => {
       expect(engine.listening).not.toBeNull();
     });
-  });
+    const button = bubble('Listening');
+    fireEvent.pointerDown(button, { pointerId: 1, clientX: 900, clientY: 400 });
+    fireEvent.pointerMove(button, { pointerId: 1, clientX: 600, clientY: 300 });
+    fireEvent.pointerUp(button, { pointerId: 1, clientX: 600, clientY: 300 });
+    fireEvent.click(button);
 
-  it('says so when nothing was heard', async () => {
-    const engine = fakeEngine();
-    setVoiceEngine(engine);
-    stubApi();
-    const user = userEvent.setup();
-    renderAt('/');
-
-    await user.click(screen.getByRole('button', { name: 'Say what you need' }));
-    await waitFor(() => {
-      expect(engine.listening).not.toBeNull();
-    });
-    act(() => {
-      engine.hear('');
-    });
-    await waitFor(() => {
-      expect(engine.spoken[1]?.text).toMatch(/^I did not hear anything/);
-    });
+    const placed = storedSettings().bubble as { x: number; y: number };
+    expect(placed.x).toBeCloseTo(600 / window.innerWidth);
+    expect(bubble('Listening')).toBeInTheDocument();
   });
 });
 
-describe('speaking by default, and muting in Settings', () => {
+describe('speaking by default, and Settings', () => {
   it('speaks from the first launch, without asking', async () => {
-    const engine = fakeEngine();
-    setVoiceEngine(engine);
+    setVoiceEngine(fakeEngine());
     stubApi();
     renderAt('/settings');
     expect(await screen.findByLabelText(`${assistant} speaks aloud`)).toBeChecked();
   });
 
-  it('stays quiet once muted, and announces its words on the screen instead', async () => {
+  it('stays quiet once its voice is off, and announces its words on the screen instead', async () => {
     const engine = fakeEngine();
     setVoiceEngine(engine);
     stubApi();
@@ -193,22 +340,15 @@ describe('speaking by default, and muting in Settings', () => {
     renderAt('/settings');
 
     await user.click(await screen.findByLabelText(`${assistant} speaks aloud`));
-    expect(await screen.findByText(new RegExp(`${assistant} will stay quiet`))).toHaveAttribute(
-      'role',
-      'status',
-    );
-    expect(
-      JSON.parse(window.localStorage.getItem('ozidelivery.voice.settings') ?? '{}'),
-    ).toMatchObject({
-      muted: true,
-    });
+    expect(storedSettings()).toMatchObject({ muted: true });
 
-    await user.click(screen.getByRole('link', { name: 'Shop' }));
-    await user.click(screen.getByRole('link', { name: storeConfig.productName }));
-    await user.click(screen.getByRole('button', { name: 'Say what you need' }));
-    const greeting = await screen.findByText(`Hello, I am ${assistant}. What would you like?`);
+    await user.click(await screen.findByRole('button', { name: 'Listening' }));
+    const words = await screen.findAllByText(/^I'm muted now, and not listening/);
     expect(engine.spoken).toEqual([]);
-    expect(greeting).toHaveAttribute('aria-live', 'polite');
+    expect(words.find((element) => element.getAttribute('role') === 'status')).toHaveAttribute(
+      'aria-live',
+      'polite',
+    );
   });
 
   it('offers the voices for the language, and says a sentence in the one chosen', async () => {
@@ -223,21 +363,25 @@ describe('speaking by default, and muting in Settings', () => {
       text: `This is how ${assistant} will sound.`,
       options: { language: 'en-GB', voiceId: 'voice-ng' },
     });
-    expect(
-      JSON.parse(window.localStorage.getItem('ozidelivery.voice.settings') ?? '{}').voiceIds,
-    ).toEqual({ 'en-GB': 'voice-ng' });
+    expect(storedSettings().voiceIds).toEqual({ 'en-GB': 'voice-ng' });
   });
 
-  it('has no axe violations', async () => {
-    setVoiceEngine(fakeEngine());
-    stubApi();
-    renderAt('/settings');
-    await screen.findByLabelText('Nigerian English');
-    const results = await axe.run(document.body, {
+  it('has no axe violations on Settings or the landing page, with the button showing', async () => {
+    const options = {
       resultTypes: ['violations'],
       rules: { 'color-contrast': { enabled: false } },
-    } as axe.RunOptions);
-    expect(results.violations.map((v) => v.id)).toEqual([]);
+    } as axe.RunOptions;
+    setVoiceEngine(fakeEngine());
+    stubApi();
+    const { unmount } = renderAt('/settings');
+    await screen.findByLabelText('Nigerian English');
+    await screen.findByRole('button', { name: 'Listening' });
+    expect((await axe.run(document.body, options)).violations.map((v) => v.id)).toEqual([]);
+    unmount();
+
+    renderAt('/');
+    await screen.findByRole('button', { name: 'Listening' });
+    expect((await axe.run(document.body, options)).violations.map((v) => v.id)).toEqual([]);
   });
 });
 
@@ -300,6 +444,36 @@ describe('the stand-in engine: the phone’s own speech', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('cannot hear a wake word while muted, and says so', () => {
+    expect(browserVoiceEngine().wakeWordOnDevice).toBe(false);
+  });
+
+  it('treats a browser that wants a touch first as not having spoken, without giving up on it', async () => {
+    vi.stubGlobal(
+      'SpeechSynthesisUtterance',
+      class {
+        lang = '';
+        rate = 0;
+        voice: unknown = null;
+        onend: (() => void) | null = null;
+        onerror: ((event: { error: string }) => void) | null = null;
+        constructor(readonly text: string) {}
+      },
+    );
+    vi.stubGlobal('speechSynthesis', {
+      getVoices: () => [{ voiceURI: 'gb', name: 'British', lang: 'en-GB', default: true }],
+      speak: (utterance: { onerror: ((event: { error: string }) => void) | null }) => {
+        utterance.onerror?.({ error: 'not-allowed' });
+      },
+      cancel: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    });
+    const engine = browserVoiceEngine();
+    await expect(engine.speak('Hello', { language: 'en-GB' })).resolves.toBe('not-spoken');
+    expect((await engine.readiness('en-GB')).canSpeak).toBe(true);
   });
 
   it('says it cannot listen where the browser has no recognition', async () => {

@@ -18,6 +18,7 @@ import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
 import { BasketProvider } from './state/basket';
 import { SessionProvider } from './state/session';
+import { OziProvider } from './state/ozi';
 import { VoiceProvider } from './state/voice';
 
 /**
@@ -92,28 +93,30 @@ export function App(): JSX.Element {
   return (
     <SessionProvider>
       <VoiceProvider>
-        <BasketProvider>
-          <Layout>
-            <RouteAnnouncer />
-            <PageTitle />
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/sign-up" element={<SignUp />} />
-              <Route path="/sign-in" element={<SignIn />} />
-              <Route path="/card" element={<Card />} />
-              <Route path="/shop" element={<Catalogue />} />
-              <Route path="/basket" element={<Basket />} />
-              <Route path="/confirm" element={<Confirm />} />
-              <Route path="/my-order" element={<MyOrder />} />
-              <Route path="/runner" element={<RunnerDoor />} />
-              <Route path="/runner/sign-up" element={<RunnerSignUp />} />
-              <Route path="/runner/home" element={<RunnerHome />} />
-              <Route path="/just-looking" element={<JustLooking />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Layout>
-        </BasketProvider>
+        <OziProvider>
+          <BasketProvider>
+            <Layout>
+              <RouteAnnouncer />
+              <PageTitle />
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/sign-up" element={<SignUp />} />
+                <Route path="/sign-in" element={<SignIn />} />
+                <Route path="/card" element={<Card />} />
+                <Route path="/shop" element={<Catalogue />} />
+                <Route path="/basket" element={<Basket />} />
+                <Route path="/confirm" element={<Confirm />} />
+                <Route path="/my-order" element={<MyOrder />} />
+                <Route path="/runner" element={<RunnerDoor />} />
+                <Route path="/runner/sign-up" element={<RunnerSignUp />} />
+                <Route path="/runner/home" element={<RunnerHome />} />
+                <Route path="/just-looking" element={<JustLooking />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Layout>
+          </BasketProvider>
+        </OziProvider>
       </VoiceProvider>
     </SessionProvider>
   );

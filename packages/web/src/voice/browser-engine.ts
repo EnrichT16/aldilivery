@@ -116,6 +116,7 @@ export function browserVoiceEngine(): VoiceEngine {
 
   return {
     name: 'The phone’s own speech (stand-in until Oluoma Voice)',
+    wakeWordOnDevice: false,
 
     async readiness(): Promise<VoiceReadiness> {
       const canListen = recognitionConstructor() !== undefined;
@@ -217,6 +218,10 @@ export function browserVoiceEngine(): VoiceEngine {
           const error = (event as { error?: string }).error;
           if (error === 'interrupted' || error === 'canceled') {
             finishSpeaking('interrupted');
+          } else if (error === 'not-allowed') {
+            // The browser will not speak until the person has touched the page once. Not a
+            // broken device: the next sentence, after a touch, will work.
+            finishSpeaking('not-spoken');
           } else {
             speechFailed = true;
             finishSpeaking('not-spoken');

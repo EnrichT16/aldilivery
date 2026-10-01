@@ -121,6 +121,16 @@ export function Settings(): JSX.Element {
             speak.
           </p>
         )}
+        <button
+          type="button"
+          onClick={() => {
+            voice.update({ bubble: null });
+            setNews(`${assistant}’s button is back in its usual place, on the right.`);
+          }}
+          className="control bg-paper text-ink"
+        >
+          Put {assistant}&rsquo;s button back in its usual place
+        </button>
         <p className="m-0 text-paper/80">Speech by: {voice.engine.name}.</p>
       </section>
     </div>

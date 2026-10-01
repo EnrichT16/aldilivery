@@ -2465,6 +2465,96 @@ be honest about it too.
 - Not checked here: hearing a real voice, and Ozi's voice on a real phone. This environment has
   no speakers, no microphone and no speech service. The first real check is on Anthony's phone.
 
+## 2026-10-01 — Step 33: Ozi introduces itself, and Ozi's round button
+
+Anthony described this by voice. It is written into docs/BUILD_PROMPT.md, under the rulings of 1
+October, so the master blueprint can pick it up.
+
+### First launch
+
+Ozi speaks straight away, with no notification. It introduces itself as made to speak with the
+Shopper and have a conversation. It then says four things:
+- while its round green button glows, it is listening;
+- to pause it, press the button or say "Ozi, mute", and press again to bring it back;
+- its voice can be turned off in Settings;
+- the button can be moved by holding and dragging it, or with the arrow keys.
+
+The introduction is said once per device.
+
+One limit of the web: a browser will not speak until the page has been touched once. On the web,
+the introduction is shown and announced at once, and spoken at the first touch. The native apps
+have no such rule.
+
+### The round button, on every screen
+
+- It is in its own landmark, named "Ozi", so a screen reader user can jump straight to it.
+- It starts at the middle of the right-hand edge, is 124 pixels across, and is always kept wholly on
+  the screen.
+- **Listening:** bright green, glowing outward, with "Listening" written under the microphone. The
+  green is in config/store.json (Rule Nine). Navy words on it have a contrast ratio of 6.9 to 1.
+- **Muted:** white, with a dashed edge, a line through the microphone, the word "Muted", and no
+  glow. It changes in brightness, shape, words and movement, so the difference never rests on
+  colour. Red was not used, because red and green are the pair colour-blind people confuse most.
+- With reduced motion asked for, the glow holds still as a solid ring.
+- **Moving it:** hold and drag, or the arrow keys. A single press never moves it, so moving is never
+  needed to use it (WCAG 2.5.7), and a drag is never taken for a press. Settings has "Put Ozi's
+  button back in its usual place".
+- The button's name is exactly its visible word, so a voice control user says what they see. What
+  a press does is read after the name.
+- Ozi's words appear in a panel beside the button while they are said, and for a little while
+  after, on whichever side has more room.
+
+### Listening, muting and reminders
+
+- Ozi listens while the button is green. It stops while it is talking, so it never hears itself,
+  and stops while the page is hidden.
+- Pressing the button, or saying "mute", "stop listening" or "be quiet", mutes Ozi.
+- Muted, Ozi gives gentle reminders: after two minutes, then every three minutes. It never listens
+  in the meantime.
+- If speech recognition loses its connection, Ozi says so once, then retries quietly, waiting longer
+  each time, up to a minute. It does not hammer the network.
+- **"Hey Ozi" while muted:**
+  - It needs an engine that hears the wake word on the phone and nothing else.
+  - The browser stand-in streams whatever it hears to the browser maker. Letting it listen while
+    muted would break Anthony's own rule that a muted Ozi does not listen to conversations.
+  - So with the stand-in, the button brings Ozi back, and Ozi only promises what works.
+  - The interface now has `wakeWordOnDevice`. When Oluoma Voice reports it, Ozi listens for the wake
+    word alone while muted, and every sentence offers "or say Hey Ozi" by itself.
+- The landing page's big microphone is the same Ozi, only larger.
+
+### Found in the browser and fixed
+
+- **The button was not round, and spilled off the edge of a phone.** A general button style
+  overrode its shape, and its starting place did not allow for its own size.
+- **Ozi's words covered half the screen** during the long introduction. They are now a narrow panel
+  beside the button, which scrolls if needed.
+- **The first press on the button was taken over.** The introduction replayed at the first touch,
+  which turned the press into "stop talking" instead of "mute". A first press on Ozi's own button now
+  does what it says.
+- **"Listening" was clipped** inside the circle. The button grew from 104 to 124 pixels.
+
+### Checked
+
+- `pnpm run verify` passes: lint, typecheck and **442 tests** (38 core, 274 api, 130 web).
+- Voice tests now cover:
+  - the introduction: said once, aloud, with no notification, then listening;
+  - an introduction that cannot be spoken, shown and announced instead;
+  - the button glowing while listening, and changing in more than colour when muted;
+  - "Ozi, mute yourself" muting it;
+  - answering what it heard;
+  - stopping talking at a press;
+  - reminders at two minutes and then three minutes later, while still not listening;
+  - the arrow keys moving the button, which stays put until Settings puts it back;
+  - a drag moving it without counting as a press;
+  - axe finding nothing on Settings and the landing page with the button showing;
+  - the stand-in never claiming a wake word, and a browser that wants a touch first not being
+    given up on.
+- In Chromium at 390 pixels:
+  - the button listening and muted, both with no axe problems and nothing scrolling sideways;
+  - dragging it to the left half of the screen, where it stays muted.
+- Not checked here: a real voice, and a real "Hey Ozi". Both wait for a real phone, and the second
+  for Oluoma Voice.
+
 ---
 
 ## What Anthony Should Check

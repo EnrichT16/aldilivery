@@ -5,6 +5,7 @@ import { cleanup, configure } from '@testing-library/react';
 
 import { clearRunnerToken, clearToken } from '../src/lib/session';
 import { forgetCardEntry } from '../src/lib/stripe';
+import { setVoiceEngine } from '../src/voice';
 
 /**
  * How long `waitFor` and `findBy` keep trying. The default is one second, which is fine on
@@ -23,6 +24,9 @@ configure({ asyncUtilTimeout: 8_000 });
  */
 beforeEach(() => {
   document.documentElement.lang = 'en-GB';
+  // Ozi introduces itself on a first launch. Every test but the ones about that introduction
+  // starts as a device that has already heard it, so screens are tested on their own.
+  window.localStorage.setItem('ozidelivery.voice.settings', JSON.stringify({ introHeard: true }));
 });
 
 afterEach(() => {
@@ -35,6 +39,8 @@ afterEach(() => {
   clearRunnerToken();
   // Stripe.js is loaded once per page and memoised. Tests must not inherit each other's.
   forgetCardEntry();
+  // Each test gets a fresh voice engine, never one another test left in a state.
+  setVoiceEngine(null);
 });
 
 /** A small catalogue, so the shopping page has something to draw. */

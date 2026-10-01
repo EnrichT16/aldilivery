@@ -17,6 +17,7 @@ source of truth; this document explains it.
 | `stopListening()` | Stop listening now. Text already heard is still delivered. |
 | `speak(text, { language, voiceId })` | Say the text in that language, in the chosen voice, or the engine's own default for the language. Resolve `finished` when it has been said, `interrupted` if it was cut short, and `not-spoken` if it could not be said or the engine cannot tell that it was. Never reject. On `not-spoken`, Ozi announces the words on the screen instead, so be honest: a sentence reported `finished` that nobody heard leaves a blind Shopper in silence. |
 | `interrupt()` | Stop speaking now, mid-word if need be. Ozi uses this whenever the Shopper presses the microphone while Ozi is talking. |
+| `wakeWordOnDevice` | A property, not a method: whether the engine can listen for "Hey Ozi" on the phone itself, hearing nothing else and sending nothing anywhere. Only then may Ozi listen while muted, so that "Hey Ozi" can bring it back. A muted Ozi must never be listening to a conversation. The browser stand-in cannot, so it reports `false`; Oluoma Voice is asked to provide this. |
 | `voices(language)` | List the output voices for that language: two or three each. Each has a stable `id` that Ozi stores, a `name` the Shopper is shown, and its `language`. |
 
 Errors reported through `onError` have a `kind`: `not-allowed` (the microphone was refused),
@@ -53,6 +54,10 @@ beside the language, and plays a sentence in the one chosen.
 - **Everything Ozi says is also written on the screen.** While Ozi is speaking aloud, those words
   are shown but not announced, so a screen reader does not talk over Ozi. When Ozi is muted or
   cannot speak, they are announced instead.
+- **Ozi's round button** shows whether Ozi is listening: bright green and glowing while it is,
+  white with a crossed-out microphone and the word "Muted" when it is not. Muted means the
+  engine is not listening at all, unless it reports `wakeWordOnDevice`, in which case it may
+  listen for the wake word alone.
 - **After the wake word, Ozi stays in listening mode**, so ordering is a back and forth
   conversation rather than separate commands. "Hey Ozi" as a wake word, with the phone locked,
   needs the native apps (Section F) and Oluoma Voice; in the browser today, the conversation

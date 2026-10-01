@@ -80,6 +80,15 @@ export interface VoiceEngine {
   /** Which engine this is, for the log and for Settings. */
   readonly name: string;
 
+  /**
+   * Whether the engine can listen for the wake word, "Hey Ozi", on the device itself, hearing
+   * nothing else and sending nothing anywhere. Only an engine that can may listen while Ozi is
+   * muted: a muted Ozi must not be listening to anybody's conversation. The browser stand-in
+   * cannot, because its recognition streams whatever it hears to the browser maker; Oluoma
+   * Voice is expected to.
+   */
+  readonly wakeWordOnDevice: boolean;
+
   /** Report readiness: whether listening and speaking work in this language here. */
   readiness(language: LanguageTag): Promise<VoiceReadiness>;
 

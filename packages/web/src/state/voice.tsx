@@ -35,9 +35,22 @@ export interface VoiceSettings {
   language: LanguageTag;
   /** The chosen output voice for each language, if the Shopper has chosen one. */
   voiceIds: Record<LanguageTag, string>;
+  /** Whether Ozi has introduced itself on this device yet. */
+  introHeard: boolean;
+  /**
+   * Where the Shopper has moved Ozi's button to, as fractions of the screen's width and
+   * height, so it stays in the same place when the screen turns. Null for the usual place.
+   */
+  bubble: { x: number; y: number } | null;
 }
 
-const DEFAULTS: VoiceSettings = { muted: false, language: 'en-GB', voiceIds: {} };
+const DEFAULTS: VoiceSettings = {
+  muted: false,
+  language: 'en-GB',
+  voiceIds: {},
+  introHeard: false,
+  bubble: null,
+};
 const STORAGE_KEY = 'ozidelivery.voice.settings';
 
 function readSettings(): VoiceSettings {
@@ -49,6 +62,11 @@ function readSettings(): VoiceSettings {
       muted: parsed.muted === true,
       language: typeof parsed.language === 'string' ? parsed.language : DEFAULTS.language,
       voiceIds: typeof parsed.voiceIds === 'object' && parsed.voiceIds ? parsed.voiceIds : {},
+      introHeard: parsed.introHeard === true,
+      bubble:
+        parsed.bubble && typeof parsed.bubble.x === 'number' && typeof parsed.bubble.y === 'number'
+          ? { x: parsed.bubble.x, y: parsed.bubble.y }
+          : null,
     };
   } catch {
     return DEFAULTS;
@@ -120,8 +138,12 @@ export function VoiceProvider({ children }: { children: ReactNode }): JSX.Elemen
         language: settings.language,
         ...(voiceId ? { voiceId } : {}),
       });
-      // Speech that failed once is not trusted again: the screen announces from now on.
-      if (outcome === 'not-spoken') setCanSpeak(false);
+      // Whether speech can be trusted is the engine's to say, after every sentence: a device
+      // with no voice stops claiming it can, and the screen announces from then on.
+      if (outcome === 'not-spoken') {
+        const ready = await engine.readiness(settings.language);
+        setCanSpeak(ready.canSpeak);
+      }
       return outcome;
     },
     [engine, settings],

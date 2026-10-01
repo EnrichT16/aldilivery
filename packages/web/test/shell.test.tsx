@@ -43,8 +43,10 @@ describe('the landing page', () => {
 
     await user.click(screen.getByRole('button', { name: 'Say what you need' }));
 
-    const message = await screen.findByText(/I cannot listen on this phone or browser yet/);
-    expect(message).toHaveAttribute('role', 'status');
+    // Shown under the microphone, and announced once, beside Ozi's round button.
+    const shown = await screen.findAllByText(/I can't listen on this phone or browser yet/);
+    const message = shown.find((element) => element.getAttribute('role') === 'status');
+    expect(message).toBeDefined();
     // Nothing can be spoken here, so the words are announced instead.
     expect(message).toHaveAttribute('aria-live', 'polite');
   });

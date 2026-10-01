@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 
 import { storeConfig } from '../config';
 import { useSession } from '../state/session';
+import { OziBubble } from './OziBubble';
 
 /**
  * The page frame.
@@ -78,6 +79,7 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
           </p>
         </div>
       </footer>
+      <OziBubble />
     </div>
   );
 }

@@ -472,3 +472,24 @@ with a handheld Sonara device. A wrist band that tightens or pulses on an incomi
    Revisit only if that changes.
 2. **The working branch keeps its name.** Renaming it would break links in past pull requests,
    and the name is not visible to anyone.
+3. **Ozi on first launch, and Ozi's button** (given by voice, 1 October 2026):
+   - **First launch: Ozi speaks, with no notification.** Loud and clear, from setup. It
+     introduces itself as designed to speak with the Shopper and have a conversation; says that
+     to stop it speaking aloud they can turn it off in Settings; says how to pause its listening
+     and how to bring it back; and says its button can be moved.
+   - **The button.** A big round green button, glowing ("beaming") while Ozi is actively
+     listening. On every screen, starting at the middle of the right-hand edge, big enough to
+     see, out of the way of the screen. It can be moved: hold it and drag it (and, for keyboard
+     and screen reader users, the arrow keys). Ozi tells the Shopper it can be moved.
+   - **Muting.** Pressing the button, or saying "Ozi, mute", mutes Ozi: it stops listening. The
+     button then changes so it is plainly not the bright green it was — and not by colour
+     alone, for people who do not see colour well. Pressing it again brings Ozi back.
+   - **Gentle reminders while muted**, so nobody thinks Ozi is listening when it is not: after
+     two minutes, again three minutes later (five in all), and every three minutes after that —
+     "I'm still here, but muted and not listening; press my button when you want me", in Ozi's
+     own gentle words.
+   - **"Hey Ozi"** brings Ozi back, where the voice engine can hear the wake word on the phone
+     itself without listening to anything else. A muted Ozi must not be listening to anybody's
+     conversation, so with the browser stand-in, which cannot do that, the button brings it
+     back, and Ozi only promises what works. Oluoma Voice is asked for an on-device wake word
+     (docs/OLUOMA_VOICE.md).

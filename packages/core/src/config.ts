@@ -48,6 +48,8 @@ export interface StoreConfig {
       readonly navy: string;
       readonly gold: string;
       readonly white: string;
+      /** Ozi's button while it is listening: a bright green, with navy words on it. */
+      readonly listening: string;
     };
   };
   readonly fees: {
@@ -325,6 +327,7 @@ export function parseStoreConfig(input: unknown): StoreConfig {
         navy: hexColour(colours['navy'], 'brand.colours.navy'),
         gold: hexColour(colours['gold'], 'brand.colours.gold'),
         white: hexColour(colours['white'], 'brand.colours.white'),
+        listening: hexColour(colours['listening'], 'brand.colours.listening'),
       },
     },
     fees: {
