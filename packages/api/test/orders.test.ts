@@ -37,6 +37,7 @@ function orderPayload(overrides: Record<string, unknown> = {}) {
     paymentMethodId: shopper.paymentMethodId,
     confirmation: {
       confirmed: true,
+      addressConfirmed: true,
       channel: 'button',
       statement: 'Send my order. About £16.00 altogether.',
       agreedTotalPence: 250 + 1350,
@@ -124,6 +125,7 @@ describe('Rule One: no payment without an explicit confirmation', () => {
       payload: orderPayload({
         confirmation: {
           confirmed: true,
+          addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order.',
           agreedTotalPence: 100,
@@ -285,6 +287,7 @@ describe('a payment the bank has not approved yet', () => {
         paymentMethodId: them.paymentMethodId,
         confirmation: {
           confirmed: true,
+          addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order. About £16.00 altogether.',
           agreedTotalPence: 250 + 1350,
@@ -324,6 +327,7 @@ describe('a payment the bank has not approved yet', () => {
         paymentMethodId: them.paymentMethodId,
         confirmation: {
           confirmed: true,
+          addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order. About £16.00 altogether.',
           agreedTotalPence: 250 + 1350,
@@ -387,6 +391,7 @@ describe('a payment the gateway refuses', () => {
         paymentMethodId: them.paymentMethodId,
         confirmation: {
           confirmed: true,
+          addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order. About £16.00 altogether.',
           agreedTotalPence: 250 + 1350,
@@ -458,6 +463,7 @@ describe('a payment the gateway refuses', () => {
         paymentMethodId: them.paymentMethodId,
         confirmation: {
           confirmed: true,
+          addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order. About £16.00 altogether.',
           agreedTotalPence: 250 + 1350,
@@ -470,5 +476,111 @@ describe('a payment the gateway refuses', () => {
     expect(second.statusCode).toBe(402);
 
     await harness.close();
+  });
+});
+
+describe('ordering by voice (Sections D and E)', () => {
+  const HOME = '12 Example Street, Birmingham';
+
+  async function voiceOrder(
+    target: TestHarness,
+    who: SignedInShopper,
+    overrides: { deliveryAddress?: string; agreedTotalPence?: number } = {},
+  ) {
+    return target.app.inject({
+      method: 'POST',
+      url: '/orders',
+      headers: who.authHeader,
+      payload: {
+        lines: [{ catalogueItemId: items.milk, quantity: 2 }],
+        deliveryAddress: overrides.deliveryAddress ?? HOME,
+        paymentMethodId: who.paymentMethodId,
+        confirmation: {
+          confirmed: true,
+          addressConfirmed: true,
+          channel: 'voice',
+          statement: 'Yes, send it.',
+          agreedTotalPence: overrides.agreedTotalPence ?? 250 + 1350,
+        },
+      },
+    });
+  }
+
+  beforeEach(async () => {
+    await harness.repository.shoppers.update(shopper.shopperId, { deliveryAddress: HOME });
+  });
+
+  it('takes a spoken yes for an order to the home address, and records it as spoken', async () => {
+    const response = await voiceOrder(harness, shopper);
+    expect(response.statusCode, response.body).toBe(201);
+    const [order] = await harness.repository.orders.listForShopper(shopper.shopperId);
+    expect(order?.confirmationChannel).toBe('voice');
+  });
+
+  it('accepts the home address however it is spaced or punctuated', async () => {
+    const response = await voiceOrder(harness, shopper, {
+      deliveryAddress: '12  example street birmingham',
+    });
+    expect(response.statusCode, response.body).toBe(201);
+  });
+
+  it('never sends a voice order anywhere but the home address, and charges nothing', async () => {
+    const response = await voiceOrder(harness, shopper, { deliveryAddress: '1 Other Road, Leeds' });
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.message).toBe(
+      'An order by voice always goes to your home address. To send it somewhere else, please use the screen. Nothing has been charged.',
+    );
+    expect(harness.payments.calls).toHaveLength(0);
+  });
+
+  it('asks for a touch above the voice ceiling, and charges nothing', async () => {
+    const strict = await buildTestApp(undefined, { voicePaymentCeilingPence: 1500 });
+    const strictItems = await seedCatalogue(strict.repository);
+    const who = await signUpShopper(strict);
+    await strict.repository.shoppers.update(who.shopperId, { deliveryAddress: HOME });
+    const response = await strict.app.inject({
+      method: 'POST',
+      url: '/orders',
+      headers: who.authHeader,
+      payload: {
+        lines: [{ catalogueItemId: strictItems.milk, quantity: 2 }],
+        deliveryAddress: HOME,
+        paymentMethodId: who.paymentMethodId,
+        confirmation: {
+          confirmed: true,
+          addressConfirmed: true,
+          channel: 'voice',
+          statement: 'Yes, send it.',
+          agreedTotalPence: 250 + 1350,
+        },
+      },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.message).toMatch(
+      /^A payment confirmed by voice alone can be up to £15\.00\. This one is £16\.00, so please confirm it by touch/,
+    );
+    expect(strict.payments.calls).toHaveLength(0);
+  });
+
+  it('is eighty pounds unless the setting says otherwise', () => {
+    expect(harness.config.voice.paymentCeilingPence).toBe(8000);
+  });
+});
+
+describe('the delivery address is confirmed before every order (Section D)', () => {
+  it('refuses an order of any kind whose address was not confirmed, and charges nothing', async () => {
+    const payload = orderPayload();
+    delete (payload.confirmation as Record<string, unknown>)['addressConfirmed'];
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/orders',
+      headers: shopper.authHeader,
+      payload,
+    });
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.message).toBe(
+      'Please check the delivery address and say it is right before sending the order.',
+    );
+    expect(harness.payments.calls).toHaveLength(0);
   });
 });

@@ -47,8 +47,17 @@ const createOrderSchema = z.object({
    */
   confirmation: z.object({
     confirmed: z.literal(true),
-    /** How it was given: "button" today; a spoken channel in a later phase. */
-    channel: z.string().trim().min(1).max(40).default('button'),
+    /** How it was given: a press of the button, or a spoken yes. */
+    channel: z.enum(['button', 'voice']).default('button'),
+    /**
+     * The delivery address was said to, or shown to, the Shopper, and they said yes to it
+     * (docs/BUILD_PROMPT.md, Section D: before every order, of every type). Required.
+     */
+    addressConfirmed: z.literal(true, {
+      errorMap: () => ({
+        message: 'Please check the delivery address and say it is right before sending the order.',
+      }),
+    }),
     /** The exact words the Shopper agreed to, kept for the record. */
     statement: z.string().trim().min(1).max(400),
     /** What the Shopper was shown as the total, in pence, at the moment they confirmed. */
@@ -142,6 +151,26 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         `The price changed while you were deciding. It is now ${formatPence(priced.totalPence, symbol)}. Nothing has been charged. Please check it and confirm again.`,
         { agreedTotalPence: input.confirmation.agreedTotalPence, totalPence: priced.totalPence },
       );
+    }
+
+    // Ordering by voice (Sections D and E). A spoken confirmation is bounded twice over, so
+    // that a copied voice can at worst buy what the ceiling allows, delivered to the account
+    // holder's own front door. Both are checked here, where no screen can get round them.
+    if (input.confirmation.channel === 'voice') {
+      const ceiling = config.voice.paymentCeilingPence;
+      if (priced.totalPence > ceiling) {
+        throw new BadRequestError(
+          `A payment confirmed by voice alone can be up to ${formatPence(ceiling, symbol)}. This one is ${formatPence(priced.totalPence, symbol)}, so please confirm it by touch on the screen. Nothing has been charged.`,
+          { totalPence: priced.totalPence, ceilingPence: ceiling },
+        );
+      }
+      const normalise = (address: string): string =>
+        address.toLowerCase().replace(/[\s,]+/g, ' ').trim();
+      if (normalise(input.deliveryAddress) !== normalise(shopper.deliveryAddress)) {
+        throw new BadRequestError(
+          'An order by voice always goes to your home address. To send it somewhere else, please use the screen. Nothing has been charged.',
+        );
+      }
     }
 
     // Step one: write the order. Nothing has been charged.

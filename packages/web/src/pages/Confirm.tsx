@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { NotifyMe } from '../components/NotifyMe';
@@ -13,6 +13,7 @@ import {
 import { money } from '../lib/money';
 import { prepareCardEntry } from '../lib/stripe';
 import { useBasket } from '../state/basket';
+import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
 
 /**
@@ -41,10 +42,30 @@ export function Confirm(): JSX.Element {
 
   const [editingAddress, setEditingAddress] = useState(false);
   const [address, setAddress] = useState('');
+  /**
+   * The address the Shopper has said is right (docs/BUILD_PROMPT.md, Section D: before every
+   * order, of every type, the actual address is put to them and they say yes). Changing the
+   * address means saying yes again.
+   */
+  const [confirmedAddress, setConfirmedAddress] = useState<string | null>(null);
+  const addressConfirmed = confirmedAddress !== null && confirmedAddress === address.trim();
+  const ozi = useOzi();
+  const spokenFor = useRef<string | null>(null);
 
   useEffect(() => {
     setAddress(shopper?.deliveryAddress ?? '');
   }, [shopper]);
+
+  // Ozi says the address aloud, once for each address shown, and waits for the yes below.
+  const askAboutAddress = shopper !== null && lines.length > 0 && !placed && !editingAddress;
+  useEffect(() => {
+    const where = address.trim();
+    if (!askAboutAddress || where === '' || addressConfirmed || spokenFor.current === where) return;
+    spokenFor.current = where;
+    void ozi.say(
+      `Before you send it: this order will go to ${where}. If that is right, press Yes, this is the right address.`,
+    );
+  }, [askAboutAddress, address, addressConfirmed, ozi]);
 
   useEffect(() => {
     if (!shopper) return;
@@ -68,7 +89,7 @@ export function Confirm(): JSX.Element {
 
   async function onSend(): Promise<void> {
     const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
-    if (!card || sending || address.trim() === '' || overMaximum) return;
+    if (!card || sending || address.trim() === '' || overMaximum || !addressConfirmed) return;
 
     setSending(true);
     setError('');
@@ -80,7 +101,7 @@ export function Confirm(): JSX.Element {
         })),
         deliveryAddress: address.trim(),
         paymentMethodId: card.id,
-        confirmation: { statement, agreedTotalPence: pricing.totalPence },
+        confirmation: { statement, agreedTotalPence: pricing.totalPence, addressConfirmed: true },
       });
 
       /**
@@ -203,7 +224,7 @@ export function Confirm(): JSX.Element {
   }
 
   const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
-  const ready = card !== undefined && address.trim() !== '' && !overMaximum;
+  const ready = card !== undefined && address.trim() !== '' && !overMaximum && addressConfirmed;
 
   return (
     <div className="space-y-8">
@@ -267,6 +288,20 @@ export function Confirm(): JSX.Element {
             <p className="m-0">
               {address === '' ? 'You have not given us an address yet.' : address}
             </p>
+            {address.trim() !== '' &&
+              (addressConfirmed ? (
+                <p role="status" className="m-0 font-bold">
+                  You said this is the right address.
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmedAddress(address.trim())}
+                  className="control bg-highlight text-ink"
+                >
+                  Yes, this is the right address
+                </button>
+              ))}
             <button
               type="button"
               onClick={() => setEditingAddress(true)}

@@ -210,7 +210,7 @@ describe('the round button', () => {
     });
   });
 
-  it('answers what it heard', async () => {
+  it('does not answer words that were not meant for it, like the television', async () => {
     const engine = fakeEngine();
     setVoiceEngine(engine);
     stubApi();
@@ -219,12 +219,12 @@ describe('the round button', () => {
       expect(engine.listening).not.toBeNull();
     });
     act(() => {
-      engine.hear('bananas and grapes');
+      engine.hear('and the weather tomorrow will be lovely');
     });
-    await waitFor(() => {
-      expect(engine.spoken.at(-1)?.text).toMatch(/^You said: bananas and grapes\./);
-    });
-    expect(await screen.findByText('You said: bananas and grapes')).toBeInTheDocument();
+    expect(
+      await screen.findByText('You said: and the weather tomorrow will be lovely'),
+    ).toBeInTheDocument();
+    expect(engine.spoken).toEqual([]);
   });
 
   it('stops talking at once when pressed while Ozi is talking', async () => {

@@ -2581,6 +2581,91 @@ Anthony to confirm. Nothing is charged until he does.
 Anthony asked for a proposal on how Runners should be offered jobs, for app and phone orders alike.
 That comes once the current work is done, as he asked. Nothing in this step changes code.
 
+## 2026-10-01 — Step 35: ordering by voice alone
+
+Anthony merged #16, and accepted the family plan and bundle suggestions as starting defaults, to
+adjust once running. Then the heart of Section E: a whole order by speech alone.
+
+### The conversation
+
+The Shopper says, for example, "I'd like bananas and milk". Ozi then:
+
+1. Looks each item up. Where there is more than one kind, it names up to three with their prices
+   and asks which. It asks how many of each, unless a number was said with the item ("three
+   bananas"). It says plainly when something cannot be found, and leaves it out.
+2. Reads the basket back: every item, the shopping total, the £13.50 delivery fee and the total
+   altogether.
+3. Says the actual delivery address aloud and waits for a yes (Section D). For a voice order this
+   is always the registered home address.
+4. Asks: "Shall I send your order now, and charge about £X to your card ending 1234? You pay what
+   the till says." A yes sends it. That sentence is stored against the order as what the Shopper
+   agreed to (Rule One).
+
+Two separate yeses, the address and the payment, and nothing is sent without both. "Stop" or
+"cancel" ends it at any point, with nothing sent.
+
+A no to the address opens the confirmation screen, because a voice order cannot go anywhere else.
+Over £60, a missing card or a missing address each open the right screen, with the shopping already
+in the basket. Asked for a shop that is not listed yet ("from Iceland"), Ozi says it will look in
+the shop that is listed.
+
+So that Ozi does not take the television for an order, a new order starts only when the words ask
+for one ("I'd like", "order", "can I have") or are said to Ozi by name, or straight after Ozi has
+asked "What would you like?". Words not meant for Ozi are not answered.
+
+### The limits, on the server, where no screen can get round them
+
+- **Voice ceiling.** A spoken confirmation is refused above `voice.paymentCeilingPence` in
+  config/store.json: £80 by default, and a setting. Above it, the Shopper is asked to confirm by
+  touch.
+- **Home address only.** A voice order whose delivery address is not the registered home address is
+  refused. Spacing and commas do not matter.
+- **The address is confirmed on every order.** It is confirmed whether the order comes by voice or
+  by touch. Every order must carry `addressConfirmed`, or the server refuses it. The confirmation
+  screen now shows the address with a "Yes, this is the right address" button, and Ozi reads the
+  address aloud there. "Send my order" stays unavailable until the address is confirmed, and
+  changing the address means confirming it again.
+
+**Found while testing.** With the £60 cap and the £13.50 fee, a standard order is at most £73.50,
+so it never reaches the £80 ceiling. The ceiling will start to matter with extras (extra shops,
+handing to the person, tips), or if Anthony lowers the setting. It is enforced now, so nothing can
+slip past it later.
+
+### Not yet
+
+- The PIN for saving an address, and for changing the registered home address, comes with the rest
+  of Section D. Until then, the confirmation screen's "Change this address" still edits the
+  registered address directly.
+- Ozi announcing the order's progress aloud comes with live status (Section G). Ozi does not promise
+  it until then.
+
+### Checked
+
+- `pnpm run verify` passes: lint, typecheck and **459 tests** (38 core, 280 api, 141 web).
+- New tests cover:
+  - a voice yes to the home address being accepted and recorded as spoken;
+  - another address refused and nothing charged;
+  - a lower ceiling refusing a voice yes above it, with nothing charged;
+  - £80 as the default;
+  - any order without a confirmed address refused;
+  - understanding a sentence, numbers ("a dozen" is twelve), "the second one", and yes and no
+    ("no" wins when both are heard);
+  - the whole conversation: which, how many, read back, address, payment, and exactly what goes
+    on the wire;
+  - a number said with the item;
+  - something not found;
+  - a no to the address, "cancel the order", and a no to sending;
+  - nobody signed in, and no card;
+  - words not meant for Ozi not being answered;
+  - the confirmation screen refusing to send until the address is confirmed.
+- In Chromium, against the real server, with a script standing in for the microphone:
+  - "I'd like bananas and apples", "two", "one", "yes", "yes please";
+  - Ozi asked both quantities, read back the basket, the fee, the £16.63 total and the home
+    address, and took both yeses;
+  - the server holds a paid order for exactly those items;
+  - the Your order page opened, with no axe problems.
+- Not checked here: a real voice. That waits for a real phone.
+
 ---
 
 ## What Anthony Should Check

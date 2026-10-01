@@ -83,6 +83,8 @@ export interface TestAppOptions {
   autoPayout?: boolean;
   /** In place of recording codes: used to make sending fail. */
   deliverCode?: (phone: string, code: string) => Promise<void>;
+  /** The voice payment ceiling, in pence, when a test needs one other than the configured one. */
+  voicePaymentCeilingPence?: number;
   /** Web Push. Off unless a test hands in a stand-in sender. */
   sendPush?: SendPush;
 }
@@ -91,7 +93,11 @@ export async function buildTestApp(
   startAt = new Date('2026-09-09T09:00:00.000Z'),
   options: TestAppOptions = {},
 ): Promise<TestHarness> {
-  const config = loadStoreConfig();
+  const loaded = loadStoreConfig();
+  const config =
+    options.voicePaymentCeilingPence === undefined
+      ? loaded
+      : { ...loaded, voice: { paymentCeilingPence: options.voicePaymentCeilingPence } };
   const repository = memoryRepository();
   const payments = (options.payments ?? rehearsalGateway()) as RehearsalGateway;
   const deliveredCodes: Array<{ phone: string; code: string }> = [];

@@ -39,6 +39,7 @@ beforeEach(async () => {
       paymentMethodId: shopper.paymentMethodId,
       confirmation: {
         confirmed: true,
+        addressConfirmed: true,
         channel: 'button',
         statement: 'Send my order.',
         agreedTotalPence: 1600,

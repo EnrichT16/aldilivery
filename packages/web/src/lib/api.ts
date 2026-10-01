@@ -507,7 +507,14 @@ export function createOrder(input: {
   lines: Array<{ catalogueItemId: string; quantity: number }>;
   deliveryAddress: string;
   paymentMethodId: string;
-  confirmation: { statement: string; agreedTotalPence: number };
+  confirmation: {
+    statement: string;
+    agreedTotalPence: number;
+    /** How the Shopper said yes: a press of the button, or out loud to Ozi. */
+    channel?: 'button' | 'voice';
+    /** The delivery address was put to the Shopper and they said yes to it (Section D). */
+    addressConfirmed: true;
+  };
 }): Promise<CreateOrderResult> {
   return request<CreateOrderResult>('/orders', {
     method: 'POST',
@@ -517,7 +524,8 @@ export function createOrder(input: {
       paymentMethodId: input.paymentMethodId,
       confirmation: {
         confirmed: true,
-        channel: 'button',
+        addressConfirmed: input.confirmation.addressConfirmed,
+        channel: input.confirmation.channel ?? 'button',
         statement: input.confirmation.statement,
         agreedTotalPence: input.confirmation.agreedTotalPence,
       },
