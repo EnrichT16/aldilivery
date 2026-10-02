@@ -715,3 +715,41 @@ Runner's pay. Bundles are four standard deliveries for £48.
 15. **The recovery rate follows the law.** If the law caps it at 10%, it is 10%: 50p from a £5
     job, which Anthony is content with. Until a solicitor confirms that more is lawful, the
     setting starts at 10%.
+16. **Every open question of 2 October is answered yes.** Each of these now stands as a ruling:
+    - **Chains are listed by default.** Big chains (Asda, Aldi, Tesco and others) are listed by
+      name without a dated agreement, because the Runner buys as an ordinary customer. There are
+      no logos and nothing that suggests a partnership. Section N's dated agreement is still
+      needed for anything beyond an ordinary listing (feeds, discounts, commission).
+    - **Finding shops and products costs nothing per search.**
+      - OpenStreetMap shop data for where shops are, hosted by us, with attribution.
+      - A list linking items to the kind of shop that sells them.
+      - Prices from Runners' till receipts, Open Food Facts and Open Prices, and entries made by
+        hand.
+      - Retailer feeds where they are offered.
+      - No copying of supermarket websites, whether by Cowork, a crawler or a browser of our own.
+    - **Ordinary calls.** In a call between a Shopper and a Runner, the Shopper pays the 5p a
+      minute. A Runner never pays for a call.
+    - **Merged calls.** An unpaid call balance above £10 is paid before more people can be added.
+      Before anyone is added, Ozi says the price and waits for a yes.
+    - **"Shopper" on every screen**, never "customer".
+    - **Admin is off the public first screen.** Staff sign in at a separate address with two-step
+      sign-in. The public first screen offers Shopper, Runner, organisation and "I look after
+      someone".
+    - **DBS checks.** A basic DBS check is mandatory for every Runner. An enhanced DBS, with the
+      adults' barred list, is needed before T5 rounds, T8 wellbeing checks and handovers to the
+      person (Section L).
+    - **Payouts** are weekly by default. A Runner can choose daily, or take an instant payout at
+      Stripe's fee, which the Runner pays and sees first.
+    - **Records.** Order and money records are kept for seven years, then anonymised. Runners see
+      an order reference and the area only.
+    - **Refunds.**
+      - A decision within 2 working days, 5 at most.
+      - The refund paid the same day it is decided.
+      - Under £5, refunded straight away without investigation, and never counted against a
+        Runner.
+    - **Referral reward.** £150 when someone has referred 100 people who have each paid for an
+      order that was not refunded, with the guards against cheating above. It is not announced.
+    - **Data shared outside.** Every figure covers at least 10 Shoppers. Products that reveal
+      health are never shared. No record about an individual is ever sold.
+    - **A Runner who leaves owing money.** Anything under £20 is written off. Anything above that,
+      they are asked to repay.
