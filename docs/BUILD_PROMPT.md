@@ -706,3 +706,12 @@ Runner's pay. Bundles are four standard deliveries for £48.
   - Health-revealing products are left out of anything shared outside.
   - The privacy notice says plainly that aggregated data is used commercially.
   - A data protection impact assessment, and registration with the ICO.
+
+## Approved, 2 October 2026 (given by voice)
+
+14. **Claude Code's ideas of 2 October are approved**: the Runner app design, the data and
+    insight ideas, and the referral programme's shape. The specific questions still listed for
+    Anthony stay open until he answers them.
+15. **The recovery rate follows the law.** If the law caps it at 10%, it is 10%: 50p from a £5
+    job, which Anthony is content with. Until a solicitor confirms that more is lawful, the
+    setting starts at 10%.
