@@ -289,3 +289,56 @@ export interface BasketLine {
   catalogueItemId: string;
   quantity: number;
 }
+
+/**
+ * An in-app call about an order (docs/BUILD_PROMPT.md, Section F), carried by LiveKit. Nobody's
+ * telephone number is part of it: people join a room by an identity of ours, never a number.
+ */
+export type CallStatus = 'ringing' | 'live' | 'ended';
+export type CallRole = 'shopper' | 'runner' | 'guest';
+/**
+ * `not_due`: nothing to pay. `paid`: taken from the Shopper's card. `outstanding`: the card could
+ * not be charged, so it waits and is taken the next time a charge succeeds (ruling, 2 Oct 2026).
+ */
+export type CallChargeStatus = 'pending' | 'not_due' | 'paid' | 'outstanding';
+
+export interface Call {
+  id: string;
+  orderId: string;
+  shopperId: string;
+  runnerId: string;
+  /** The LiveKit room. Unguessable, and different for every call. */
+  roomName: string;
+  startedBy: 'shopper' | 'runner';
+  status: CallStatus;
+  createdAt: Date;
+  endedAt: Date | null;
+  /** What the Shopper said yes to, in the words they were shown or told (Rule One). */
+  priceStatement: string | null;
+  priceAcceptedAt: Date | null;
+  pencePerMinute: number;
+  billedMinutes: number;
+  chargePence: number;
+  chargeStatus: CallChargeStatus;
+  paymentReference: string | null;
+  chargedAt: Date | null;
+}
+
+/** One person's part in a call: when they were connected, and who added them. */
+export interface CallLeg {
+  id: string;
+  callId: string;
+  role: CallRole;
+  /** The LiveKit identity: `shopper-…`, `runner-…` or `guest-…`. Never a number. */
+  identity: string;
+  /** The name others hear and see: a first name, or what the Shopper called their guest. */
+  name: string;
+  /** When they last connected, while they are connected. */
+  connectedSince: Date | null;
+  secondsConnected: number;
+  /** For a guest: the hash of the code in their invitation link. */
+  inviteCodeHash: string | null;
+  /** For a guest: what the Shopper said yes to before adding them. */
+  priceStatement: string | null;
+  createdAt: Date;
+}

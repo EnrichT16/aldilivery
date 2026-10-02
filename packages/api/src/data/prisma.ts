@@ -95,6 +95,54 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    calls: {
+      async create(input) {
+        return (await prisma.call.create({ data: input })) as any;
+      },
+      async findById(id) {
+        return (await prisma.call.findUnique({ where: { id } })) as any;
+      },
+      async findByRoomName(roomName) {
+        return (await prisma.call.findUnique({ where: { roomName } })) as any;
+      },
+      async findOpenForOrder(orderId) {
+        return (await prisma.call.findFirst({
+          where: { orderId, status: { not: 'ended' } },
+          orderBy: { createdAt: 'desc' },
+        })) as any;
+      },
+      async listChargesDue(shopperId) {
+        return (await prisma.call.findMany({
+          where: { shopperId, status: 'ended', chargeStatus: { in: ['pending', 'outstanding'] } },
+          orderBy: { createdAt: 'asc' },
+        })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.call.update({ where: { id }, data: patch })) as any;
+      },
+    },
+
+    callLegs: {
+      async create(input) {
+        return (await prisma.callLeg.create({ data: input })) as any;
+      },
+      async findById(id) {
+        return (await prisma.callLeg.findUnique({ where: { id } })) as any;
+      },
+      async listForCall(callId) {
+        return (await prisma.callLeg.findMany({
+          where: { callId },
+          orderBy: { createdAt: 'asc' },
+        })) as any;
+      },
+      async findByInviteCodeHash(inviteCodeHash) {
+        return (await prisma.callLeg.findUnique({ where: { inviteCodeHash } })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.callLeg.update({ where: { id }, data: patch })) as any;
+      },
+    },
+
     savedAddresses: {
       async create(input) {
         return (await prisma.savedAddress.create({ data: input })) as any;

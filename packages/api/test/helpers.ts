@@ -19,6 +19,7 @@ import {
   type PaymentsGateway,
   type RehearsalGateway,
 } from '../src/lib/payments.js';
+import type { CallProvider } from '../src/lib/livekit.js';
 import type { SendPush } from '../src/lib/push.js';
 
 export const TEST_SECRET = 'test-secret-that-is-long-enough-for-hmac';
@@ -49,6 +50,9 @@ export const testEnv: Env = {
   vapidPublicKey: undefined,
   vapidPrivateKey: undefined,
   vapidSubject: undefined,
+  livekitUrl: undefined,
+  livekitApiKey: undefined,
+  livekitApiSecret: undefined,
   seedOnStart: true,
 };
 
@@ -89,6 +93,8 @@ export interface TestAppOptions {
   sendText?: (to: string, body: string) => Promise<void>;
   /** Web Push. Off unless a test hands in a stand-in sender. */
   sendPush?: SendPush;
+  /** LiveKit. Off unless a test hands in a stand-in. */
+  calls?: CallProvider;
 }
 
 export async function buildTestApp(
@@ -121,6 +127,7 @@ export async function buildTestApp(
     autoPayout: options.autoPayout ?? false,
     ...(options.sendPush ? { sendPush: options.sendPush, pushPublicKey: 'test-public-key' } : {}),
     ...(options.sendText ? { sendText: options.sendText } : {}),
+    ...(options.calls ? { calls: options.calls } : {}),
     deliverCode:
       options.deliverCode ??
       (async (phone, code) => {

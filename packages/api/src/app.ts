@@ -19,6 +19,7 @@ import type { Repository } from './data/repository.js';
 import type { AccountRole } from './domain.js';
 import { ApiError, ForbiddenError, UnauthorisedError } from './errors.js';
 import type { Env } from './env.js';
+import type { CallProvider } from './lib/livekit.js';
 import type { PaymentsGateway } from './lib/payments.js';
 import type { SendPush } from './lib/push.js';
 import type { SendText } from './lib/sms.js';
@@ -34,6 +35,7 @@ import { registerOrderRoutes } from './routes/orders.js';
 import { registerPaymentMethodRoutes } from './routes/payment-methods.js';
 import { registerPayoutRoutes } from './routes/payouts.js';
 import { registerAddressRoutes } from './routes/addresses.js';
+import { registerCallRoutes } from './routes/calls.js';
 import { registerPushRoutes } from './routes/push.js';
 import { registerSetRoutes } from './routes/sets.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
@@ -75,6 +77,8 @@ export interface AppContext {
    * without notifications switched on — such as the home address changing. Null without Twilio.
    */
   sendText: SendText | null;
+  /** LiveKit, for in-app calls (Section F). Null until its three settings are given. */
+  calls: CallProvider | null;
 }
 
 export interface Session {
@@ -103,6 +107,7 @@ export interface BuildAppOptions extends Partial<
     | 'sendPush'
     | 'pushPublicKey'
     | 'sendText'
+    | 'calls'
   >
 > {
   config: StoreConfig;
@@ -148,6 +153,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     sendPush: options.sendPush ?? null,
     pushPublicKey: options.sendPush ? (options.pushPublicKey ?? null) : null,
     sendText: options.sendText ?? null,
+    calls: options.calls ?? null,
   };
 
   app.decorate('ctx', ctx);
@@ -160,6 +166,16 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     origin: allowAnyOrigin ? true : options.env.allowedOrigins,
     credentials: true,
   });
+
+  // LiveKit signs its webhooks over the exact text it sent, so that text is kept as it came.
+  app.addContentTypeParser(
+    'application/webhook+json',
+    { parseAs: 'string' },
+    (request, body: string, done) => {
+      (request as FastifyRequest & { rawText?: string }).rawText = body;
+      done(null, {});
+    },
+  );
 
   // Keep the raw body for signature verification on the Stripe webhook only.
   app.addContentTypeParser(
@@ -276,6 +292,8 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
     dataBackend: ctx.env.dataBackend,
     // Asked of the gateway that is actually in use, never inferred from configuration.
     paymentsMode: ctx.payments.mode,
+    // Whether LiveKit's three settings are in place, so in-app calls can connect.
+    callsEnabled: ctx.calls !== null,
   }));
 
   /** The public facing configuration the web app is allowed to know about. */
@@ -320,6 +338,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerPaymentMethodRoutes(app);
   await registerPushRoutes(app);
   await registerAddressRoutes(app);
+  await registerCallRoutes(app);
   await registerQuestionRoutes(app);
   await registerOrderRoutes(app);
   await registerJobRoutes(app);

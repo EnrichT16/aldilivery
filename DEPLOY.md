@@ -180,6 +180,22 @@ Make the keys once only. Making new ones later means every Shopper who allowed n
 
 Once it is redeployed, the Your order page shows a part headed If your Runner has a question, with a button saying Tell me when my Runner has a question. The phone asks for permission first. On an Android phone, or in Chrome, Edge or Firefox on a computer, that is all. On an iPhone or iPad, Apple only allows it once Ozi Delivery has been added to the Home Screen, using Share and then Add to Home Screen, and opened from there; the page says so. Until the keys are set, that part simply does not appear, and questions still show on the page.
 
+Switching on in-app calls
+
+The calls between a Shopper and their Runner, and the button that adds a carer or relative to a call, run through LiveKit. Nobody's phone number is used anywhere in them. The server side is built; it needs a LiveKit account and three settings, and until they are there the app says calls are not switched on yet.
+
+First, make the account. Go to cloud.livekit.io and sign up. Create a project and call it Ozi Delivery. The free plan is enough to start.
+
+Second, find three things in the project. Open the project's Settings, then the part called Keys, or API keys. You need the project URL, which starts with w s s colon slash slash and ends in livekit dot cloud; the API key, which is short and starts with A P I; and the API secret, which is long. If there is no key yet, press the button to create one. The secret is shown in full only once, so copy it straight into DigitalOcean as below. Treat it like a password: never send it in a chat or an email, and cover it in any screenshot.
+
+Third, put them into DigitalOcean. Open the app, go to the Settings tab, choose the api component, and open Environment Variables. Press edit and add three variables: LIVEKIT_URL with the project URL, LIVEKIT_API_KEY with the API key, and LIVEKIT_API_SECRET with the API secret, ticking Encrypt for the secret. Save. The app redeploys by itself.
+
+Fourth, tell LiveKit where to report the minutes, because calls are charged from LiveKit's own record of who was connected and for how long. Back in the LiveKit project's Settings, find Webhooks and add one. The address is your site's address followed by slash api slash webhooks slash livekit, so for the live site: https colon slash slash ozidelivery dot co dot uk slash api slash webhooks slash livekit. Where it asks for a signing key, choose the same API key. Save.
+
+To check it worked, visit your site's address followed by slash api slash health. It now says callsEnabled true. If it says false, one of the three settings is missing or still has a placeholder in it.
+
+What a call costs is set in config slash store dot json, under calls: 5p a minute for each person, paid by the Shopper, and the most that may wait unpaid, £10, before nobody more can be added to a call. A Runner never pays for a call.
+
 Approving a Runner
 
 Somebody signs up to run from the Runner page on the site. That makes their account, but they cannot be offered any job until a person has seen two things: their right to work in the United Kingdom, and a criminal record check. Nothing in Ozi Delivery decides that for you. The approval tool only writes down what you decided, who you are, when, and what you saw, and then lets the job queue include them.

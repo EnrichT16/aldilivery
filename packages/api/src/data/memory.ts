@@ -25,6 +25,8 @@ import type {
   PaymentMethod,
   PushSubscription,
   SavedAddress,
+  Call,
+  CallLeg,
   RecurringSet,
   Runner,
   RunnerCheck,
@@ -77,6 +79,8 @@ export function memoryRepository(): Repository {
   const itemQuestions = new Map<string, ItemQuestion>();
   const pushSubscriptions = new Map<string, PushSubscription>();
   const savedAddresses = new Map<string, SavedAddress>();
+  const calls = new Map<string, Call>();
+  const callLegs = new Map<string, CallLeg>();
 
   const now = (): Date => new Date();
 
@@ -205,6 +209,75 @@ export function memoryRepository(): Repository {
       },
       async delete(key) {
         savedAddresses.delete(key);
+      },
+    },
+
+    calls: {
+      async create(input) {
+        const row: Call = { ...input, id: id() };
+        calls.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = calls.get(key);
+        return found ? clone(found) : null;
+      },
+      async findByRoomName(roomName) {
+        const found = [...calls.values()].find((row) => row.roomName === roomName);
+        return found ? clone(found) : null;
+      },
+      async findOpenForOrder(orderId) {
+        const found = [...calls.values()].find(
+          (row) => row.orderId === orderId && row.status !== 'ended',
+        );
+        return found ? clone(found) : null;
+      },
+      async listChargesDue(shopperId) {
+        return [...calls.values()]
+          .filter(
+            (row) =>
+              row.shopperId === shopperId &&
+              (row.chargeStatus === 'outstanding' || row.chargeStatus === 'pending') &&
+              row.status === 'ended',
+          )
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async update(key, patch) {
+        const found = calls.get(key);
+        if (!found) throw new Error(`No call ${key}`);
+        const row = { ...found, ...patch };
+        calls.set(key, row);
+        return clone(row);
+      },
+    },
+
+    callLegs: {
+      async create(input) {
+        const row: CallLeg = { ...input, id: id() };
+        callLegs.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = callLegs.get(key);
+        return found ? clone(found) : null;
+      },
+      async listForCall(callId) {
+        return [...callLegs.values()]
+          .filter((row) => row.callId === callId)
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async findByInviteCodeHash(hash) {
+        const found = [...callLegs.values()].find((row) => row.inviteCodeHash === hash);
+        return found ? clone(found) : null;
+      },
+      async update(key, patch) {
+        const found = callLegs.get(key);
+        if (!found) throw new Error(`No call leg ${key}`);
+        const row = { ...found, ...patch };
+        callLegs.set(key, row);
+        return clone(row);
       },
     },
 

@@ -29,6 +29,22 @@ export interface PaymentIntentResult {
   clientSecret: string | null;
 }
 
+/**
+ * Taking a charge the Shopper has already agreed to, without them at the screen: what an in-app
+ * call cost, agreed before it started (Rule One). Never anything they have not said yes to.
+ */
+export interface ChargeSavedCardInput {
+  amountPence: number;
+  currency: string;
+  paymentMethodId: string;
+  /** The Shopper's Stripe customer. A saved card can only be used again through one. */
+  customerId: string | null;
+  description: string;
+  /** What was agreed, and when: recorded on the payment. */
+  reference: string;
+  agreedAt: string;
+}
+
 export interface CreateTransferInput {
   amountPence: number;
   currency: string;
@@ -76,6 +92,8 @@ export interface PaymentsGateway {
   readonly mode: 'stripe' | 'rehearsal';
   createPaymentIntent(input: CreatePaymentIntentInput): Promise<PaymentIntentResult>;
   createTransfer(input: CreateTransferInput): Promise<TransferResult>;
+  /** Succeeds, or throws: there is no half-taken charge. */
+  chargeSavedCard(input: ChargeSavedCardInput): Promise<{ id: string }>;
   /**
    * A Stripe account of the Runner's own, for their pay to go to (Rule Ten: The service never
    * holds a Runner's money). Stripe collects their bank details on its own pages; they never
@@ -116,6 +134,28 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
         },
       });
       return { id: intent.id, status: intent.status, clientSecret: intent.client_secret };
+    },
+
+    async chargeSavedCard(input) {
+      if (!input.customerId) {
+        // A card saved without a customer is spent after its first payment (see BUILD_LOG,
+        // Step 37). Until cards are saved to a customer, the charge waits as outstanding.
+        throw new Error('This card was not saved in a way that lets it be charged again.');
+      }
+      const intent = await stripe.paymentIntents.create({
+        amount: input.amountPence,
+        currency: input.currency.toLowerCase(),
+        customer: input.customerId,
+        payment_method: input.paymentMethodId,
+        confirm: true,
+        off_session: true,
+        description: input.description,
+        metadata: { reference: input.reference, shopperAgreedAt: input.agreedAt },
+      });
+      if (intent.status !== 'succeeded') {
+        throw new Error(`The charge did not go through (${intent.status}).`);
+      }
+      return { id: intent.id };
     },
 
     async createTransfer(input) {
@@ -181,21 +221,34 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
  * `mode` above carries the same fact to `/health` and `/config` so nothing has to guess.
  */
 export interface RecordedCall {
-  kind: 'payment_intent' | 'transfer' | 'connected_account';
-  input: CreatePaymentIntentInput | CreateTransferInput | { runnerId: string };
+  kind: 'payment_intent' | 'transfer' | 'connected_account' | 'saved_card_charge';
+  input:
+    CreatePaymentIntentInput | CreateTransferInput | ChargeSavedCardInput | { runnerId: string };
 }
 
 export interface RehearsalGateway extends PaymentsGateway {
   readonly calls: RecordedCall[];
+  /** For tests: the next saved-card charge is refused, as a card with no money would be. */
+  declineNextCharge: boolean;
 }
 
 export function rehearsalGateway(): RehearsalGateway {
   const calls: RecordedCall[] = [];
   let counter = 0;
 
-  return {
+  const gateway: RehearsalGateway = {
     mode: 'rehearsal',
     calls,
+    declineNextCharge: false,
+    async chargeSavedCard(input) {
+      if (gateway.declineNextCharge) {
+        gateway.declineNextCharge = false;
+        throw new Error('Your card was declined.');
+      }
+      counter += 1;
+      calls.push({ kind: 'saved_card_charge', input });
+      return { id: `pi_rehearsal_${counter}` };
+    },
     async createPaymentIntent(input) {
       counter += 1;
       calls.push({ kind: 'payment_intent', input });
@@ -237,4 +290,5 @@ export function rehearsalGateway(): RehearsalGateway {
       };
     },
   };
+  return gateway;
 }
