@@ -169,8 +169,8 @@ model Runner {
   vehicleType VehicleType @default(on_foot)
 
   /// Both checks must be true before a Runner may be offered any job.
-  rightToWorkVerified          Boolean @default(false)
-  criminalRecordCheckVerified  Boolean @default(false)
+  rightToWorkVerified         Boolean @default(false)
+  criminalRecordCheckVerified Boolean @default(false)
 
   /// The Runner's own Stripe Connect account. Their money is transferred straight to it;
   /// The service never holds it (Rule Ten).
@@ -200,14 +200,14 @@ model Runner {
 
 /// A council, charity or care provider that pays for Shoppers as service users.
 model Organisation {
-  id            String  @id @default(cuid())
-  name          String
-  contactName   String
-  contactEmail  String
-  contactPhone  String?
+  id           String  @id @default(cuid())
+  name         String
+  contactName  String
+  contactEmail String
+  contactPhone String?
   /// Free text, for example "30 days from invoice, purchase order required".
-  invoiceTerms  String  @default("")
-  active        Boolean @default(true)
+  invoiceTerms String  @default("")
+  active       Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -238,12 +238,12 @@ model HouseholdCircleMember {
 
   /// Null until the Shopper has consented. A member without a consent timestamp has no
   /// powers in the circle.
-  consentGivenAt  DateTime?
+  consentGivenAt    DateTime?
   /// How the consent was captured, for example "spoken to Ozi" or "typed on the web".
-  consentMethod   String?
+  consentMethod     String?
   /// Who recorded it, for the audit trail.
   consentRecordedBy String?
-  canOrderForOthers Boolean @default(false)
+  canOrderForOthers Boolean   @default(false)
 
   createdAt DateTime @default(now())
 
@@ -288,9 +288,9 @@ model CatalogueItem {
 /// could be reassembled into one. `lastFour` exists solely so a Shopper can be told which
 /// card is about to be used.
 model PaymentMethod {
-  id                    String  @id @default(cuid())
-  shopperId             String
-  shopper               Shopper @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  shopperId String
+  shopper   Shopper @relation(fields: [shopperId], references: [id], onDelete: Cascade)
 
   stripePaymentMethodId String  @unique
   lastFour              String
@@ -328,16 +328,16 @@ model Order {
   totalEstimatePence Int
 
   /// What the till actually said. Null until the Runner submits the receipt.
-  receiptTotalPence  Int?
+  receiptTotalPence Int?
   /// The fee recalculated against the receipt, and the amount finally charged.
-  receiptFeePence    Int?
-  finalTotalPence    Int?
+  receiptFeePence   Int?
+  finalTotalPence   Int?
 
   /// Rule One. The order may not reach a payment intent until this is set. It records the
   /// single explicit confirmation the Shopper gave, and how they gave it.
-  spokenConfirmationAt   DateTime?
-  confirmationChannel    String?
-  confirmationStatement  String?
+  spokenConfirmationAt  DateTime?
+  confirmationChannel   String?
+  confirmationStatement String?
 
   /// The doorstep instructions as they stood at the moment of confirmation, so a later
   /// edit to the Shopper's profile cannot change what the Runner was told to do.
@@ -366,14 +366,15 @@ model Order {
   completedAt DateTime?
   cancelledAt DateTime?
 
-  items  OrderItem[]
-  offers JobOffer[]
-  payout RunnerPayout?
+  items     OrderItem[]
+  offers    JobOffer[]
+  payout    RunnerPayout?
+  questions ItemQuestion[]
+  calls     Call[]
 
   @@index([status])
   @@index([shopperId])
   @@index([poolId])
-  questions ItemQuestion[]
 }
 
 model OrderItem {
@@ -408,10 +409,10 @@ model JobOffer {
   runnerId String
   runner   Runner @relation(fields: [runnerId], references: [id], onDelete: Cascade)
 
-  offeredAt   DateTime        @default(now())
-  expiresAt   DateTime
-  respondedAt DateTime?
-  outcome     JobOfferOutcome @default(pending)
+  offeredAt     DateTime        @default(now())
+  expiresAt     DateTime
+  respondedAt   DateTime?
+  outcome       JobOfferOutcome @default(pending)
   /// Where this Runner sat in the rotation when the offer was made, for auditing fairness.
   queuePosition Int
   distanceMiles Float?
@@ -431,7 +432,7 @@ model RunnerPayout {
   /// Always five hundred. Recorded per payout so the audit trail is self evident.
   earnedPence          Int
   /// Held back towards the cool bag deposit, never taken from the earning.
-  coolBagWithheldPence Int    @default(0)
+  coolBagWithheldPence Int     @default(0)
   /// What actually moved to the Runner's own account in this transfer.
   transferredPence     Int
   stripeTransferId     String?
@@ -469,7 +470,7 @@ model Set {
   nextFireAt DateTime
 
   /// Rule Five. A Set may not fire unless a notice went out thirty minutes beforehand.
-  noticeSentAt DateTime?
+  noticeSentAt           DateTime?
   /// Set when the Shopper replies with the one word skip. Cleared once the skipped
   /// occurrence has passed.
   skipRequestedForFireAt DateTime?
@@ -547,12 +548,12 @@ model RunnerCheck {
 /// decides, and where that was "ask me first" the item is left out — nothing is ever bought that
 /// the Shopper did not agree to.
 model ItemQuestion {
-  id          String     @id @default(cuid())
+  id          String      @id @default(cuid())
   orderId     String
-  order       Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order       Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
   orderItemId String
-  orderItem   OrderItem  @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
-  askedAt     DateTime   @default(now())
+  orderItem   OrderItem   @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  askedAt     DateTime    @default(now())
   answer      ItemAnswer?
   /// `shopper` when they answered, `preference` when nobody did and their preference decided.
   answeredBy  String?
@@ -560,7 +561,6 @@ model ItemQuestion {
 
   @@index([orderId])
 }
-
 
 /// A device a Shopper has allowed to show notifications. The browser's push address and the
 /// keys for encrypting what is sent to it; no message is ever stored.
@@ -589,4 +589,54 @@ model SavedAddress {
   createdAt DateTime @default(now())
 
   @@index([shopperId])
+}
+
+/// An in-app call about an order (docs/BUILD_PROMPT.md, Section F), carried by LiveKit. No
+/// telephone number is stored anywhere in it.
+model Call {
+  id               String    @id @default(cuid())
+  orderId          String
+  order            Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  shopperId        String
+  runnerId         String
+  /// The LiveKit room: unguessable, one per call.
+  roomName         String    @unique
+  /// "shopper" or "runner".
+  startedBy        String
+  /// "ringing", "live" or "ended".
+  status           String    @default("ringing")
+  createdAt        DateTime  @default(now())
+  endedAt          DateTime?
+  /// What the Shopper said yes to (Rule One).
+  priceStatement   String?
+  priceAcceptedAt  DateTime?
+  pencePerMinute   Int
+  billedMinutes    Int       @default(0)
+  chargePence      Int       @default(0)
+  /// "pending", "not_due", "paid" or "outstanding".
+  chargeStatus     String    @default("pending")
+  paymentReference String?
+  chargedAt        DateTime?
+  legs             CallLeg[]
+
+  @@index([orderId])
+  @@index([shopperId, chargeStatus])
+}
+
+/// One person's part in a call.
+model CallLeg {
+  id               String    @id @default(cuid())
+  callId           String
+  call             Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
+  /// "shopper", "runner" or "guest".
+  role             String
+  identity         String
+  name             String
+  connectedSince   DateTime?
+  secondsConnected Int       @default(0)
+  inviteCodeHash   String?   @unique
+  priceStatement   String?
+  createdAt        DateTime  @default(now())
+
+  @@unique([callId, identity])
 }

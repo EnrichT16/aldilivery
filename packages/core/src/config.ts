@@ -97,6 +97,13 @@ export interface StoreConfig {
      */
     readonly paymentCeilingPence: number;
   };
+  /** In-app calls (docs/BUILD_PROMPT.md, Sections B and F; rulings of 2 October 2026). */
+  readonly calls: {
+    /** What each person's minute costs, paid by the Shopper. 5p. A Runner never pays. */
+    readonly pencePerMinute: number;
+    /** Above this unpaid call balance, nobody more can be added to a call until it is paid. */
+    readonly maxOutstandingPence: number;
+  };
   readonly versionOneRestrictions: {
     readonly ageRestrictedGoodsAllowed: boolean;
   };
@@ -205,6 +212,7 @@ export function parseStoreConfig(input: unknown): StoreConfig {
   const accessibility = object(root['accessibility'], 'accessibility');
   const versionOneRestrictions = object(root['versionOneRestrictions'], 'versionOneRestrictions');
   const voice = object(root['voice'], 'voice');
+  const calls = object(root['calls'], 'calls');
 
   const allowedModes = array(catalogueSource['allowedModes'], 'store.catalogueSource.allowedModes').map(
     (entry, index) => str(entry, `store.catalogueSource.allowedModes[${index}]`),
@@ -375,6 +383,10 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       targetStandard: str(accessibility['targetStandard'], 'accessibility.targetStandard'),
       baseFontSizePx,
       minimumControlHeightPx,
+    },
+    calls: {
+      pencePerMinute: wholeNumber(calls['pencePerMinute'], 'calls.pencePerMinute', 0),
+      maxOutstandingPence: wholeNumber(calls['maxOutstandingPence'], 'calls.maxOutstandingPence', 0),
     },
     voice: {
       paymentCeilingPence: wholeNumber(voice['paymentCeilingPence'], 'voice.paymentCeilingPence', 1),

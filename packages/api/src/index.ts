@@ -16,6 +16,7 @@ import { seedRepository } from './data/seed-data.js';
 import { seedOnStartup, type StartupSeedOutcome } from './data/startup-seed.js';
 import { readEnv } from './env.js';
 import { rehearsalGateway, stripeGateway, type PaymentsGateway } from './lib/payments.js';
+import { livekitProvider } from './lib/livekit.js';
 import { webPushSender } from './lib/push.js';
 import { codeMessage, twilioSender } from './lib/sms.js';
 import { sweepOffers } from './services/dispatch.js';
@@ -76,8 +77,19 @@ async function main(): Promise<void> {
       }
     : {};
 
+  // In-app calls, through LiveKit, when all three settings are real.
+  const calls =
+    env.livekitUrl && env.livekitApiKey && env.livekitApiSecret
+      ? livekitProvider({
+          url: env.livekitUrl,
+          apiKey: env.livekitApiKey,
+          apiSecret: env.livekitApiSecret,
+        })
+      : null;
+
   const app = await buildApp({
     config,
+    calls,
     repository,
     payments,
     env,
@@ -116,6 +128,12 @@ async function main(): Promise<void> {
     },
     'Configuration loaded',
   );
+
+  if (!calls) {
+    app.log.info(
+      'In-app calls are off: LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET are not all set.',
+    );
+  }
 
   if (!pushReady) {
     app.log.info(

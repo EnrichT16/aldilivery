@@ -25,6 +25,8 @@ import type {
   PaymentMethod,
   PushSubscription,
   SavedAddress,
+  Call,
+  CallLeg,
   RecurringSet,
   Runner,
   RunnerCheck,
@@ -162,6 +164,25 @@ export interface Repository {
     listForShopper(shopperId: string): Promise<SavedAddress[]>;
     findById(id: string): Promise<SavedAddress | null>;
     delete(id: string): Promise<void>;
+  };
+
+  /** In-app calls (Section F) and each person's part in them. */
+  calls: {
+    create(input: Omit<Call, 'id'>): Promise<Call>;
+    findById(id: string): Promise<Call | null>;
+    findByRoomName(roomName: string): Promise<Call | null>;
+    /** The call about this order that has not ended, if there is one. */
+    findOpenForOrder(orderId: string): Promise<Call | null>;
+    /** Calls whose charge is still to be taken (pending or outstanding), oldest first. */
+    listChargesDue(shopperId: string): Promise<Call[]>;
+    update(id: string, patch: Partial<Omit<Call, 'id'>>): Promise<Call>;
+  };
+  callLegs: {
+    create(input: Omit<CallLeg, 'id'>): Promise<CallLeg>;
+    findById(id: string): Promise<CallLeg | null>;
+    listForCall(callId: string): Promise<CallLeg[]>;
+    findByInviteCodeHash(hash: string): Promise<CallLeg | null>;
+    update(id: string, patch: Partial<Omit<CallLeg, 'id'>>): Promise<CallLeg>;
   };
 
   /** The devices a Shopper has allowed to show notifications. */

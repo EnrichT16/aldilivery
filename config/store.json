@@ -66,6 +66,10 @@
   "voice": {
     "paymentCeilingPence": 8000
   },
+  "calls": {
+    "pencePerMinute": 5,
+    "maxOutstandingPence": 1000
+  },
   "versionOneRestrictions": {
     "ageRestrictedGoodsAllowed": false
   }

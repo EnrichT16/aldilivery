@@ -109,6 +109,13 @@ export interface Env {
   /** Who the push services can contact about our messages: `mailto:` or an `https:` address. */
   vapidSubject: string | undefined;
   /**
+   * LiveKit, for the in-app calls (Section F): the `wss://` address of the project, and its API
+   * key and secret. All three, or none; with none, calls are not switched on.
+   */
+  livekitUrl: string | undefined;
+  livekitApiKey: string | undefined;
+  livekitApiSecret: string | undefined;
+  /**
    * Fill an empty catalogue at startup. On by default, because a deployed service with
    * no catalogue looks broken. Set `SEED_ON_START=false` once the catalogue comes from
    * somewhere else.
@@ -219,6 +226,9 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     vapidPublicKey: realValue(source['VAPID_PUBLIC_KEY']),
     vapidPrivateKey: realValue(source['VAPID_PRIVATE_KEY']),
     vapidSubject: realValue(source['VAPID_SUBJECT']),
+    livekitUrl: realValue(source['LIVEKIT_URL']),
+    livekitApiKey: realValue(source['LIVEKIT_API_KEY']),
+    livekitApiSecret: realValue(source['LIVEKIT_API_SECRET']),
     seedOnStart: source['SEED_ON_START'] !== 'false',
   };
 }

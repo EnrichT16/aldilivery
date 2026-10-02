@@ -2747,6 +2747,89 @@ Orders by voice still go only to the home address.
 
 ---
 
+## 2026-10-02 — Step 37: in-app calls, the server side (LiveKit)
+
+Anthony approved PR 18, and every open question of 2 October (written into the blueprint). He
+asked for LiveKit next: he and Yvette will create the account.
+
+### What it does
+
+- **Calls about an order.** The Shopper and the Runner of an order can call each other while the
+  order is under way.
+  - Each gets a short-lived pass into that call's own room.
+  - Each joins under an identity of ours with a first name only. No phone number is used anywhere:
+    not in the room, the pass, the replies or the database.
+  - When the Runner calls, the Shopper gets a notification ("Your Runner is calling").
+- **The price is agreed first (Rule One).** Before a Shopper can start or answer a call, they are
+  told "In-app calls cost 5p a minute, paid from your card when the call ends" and must say yes.
+  What they agreed to is stored on the call.
+- **MERGE.** The Shopper can add a carer or relative.
+  - The price for that person is put to them first, and they say yes.
+  - They get a link to send however they like. The person opens it and joins, with no account and
+    no number.
+  - Only the Shopper can add people. A Runner cannot.
+- **Who pays (ruling, 2 October).**
+  - The Shopper pays 5p a minute for their own time and for each person they added. Each
+    person's time is rounded up to a whole minute.
+  - A Runner's minutes are never counted, and a Runner never pays.
+  - A Shopper who never answered pays nothing.
+- **Minutes come from LiveKit itself.** LiveKit's signed reports of who joined, who left and when
+  the room closed are the record. A report without LiveKit's signature is refused. END CALL closes
+  the room for everyone and bills what was used.
+- **A card with no money.**
+  - The charge waits as outstanding, and the Shopper can see what is waiting.
+  - It is taken the next time a charge succeeds, whether that is the next call or the next order
+    payment.
+  - Above £10 waiting, nobody more can be added to a call until it is paid.
+  - The price and the £10 limit are settings in config/store.json, under `calls`.
+- **Switched off until the account exists.** Until the three LiveKit settings are in place, the
+  call routes say plainly that calls are not switched on yet. `/health` reports `callsEnabled`.
+  DEPLOY.md, under "Switching on in-app calls", has the steps for Anthony: the account, the three
+  settings in DigitalOcean, and the webhook address.
+
+### Found while building: a saved card can only be used once
+
+Cards are saved as a Stripe payment method that is not attached to a Stripe customer. Stripe allows
+a card saved that way to be used for one payment only. So in live mode:
+
+- a Shopper's second order with the same saved card will be refused;
+- a call charge cannot be taken either.
+
+In rehearsal mode, and so in every test, it works, which is why nothing has shown it yet. Until it
+is fixed, live call charges wait as outstanding rather than failing again. The fix, saving each
+card to a Stripe customer, is the next piece of work, as its own PR.
+
+### Not yet
+
+- **The screens:** the call button, the call panel with END CALL, MUTE, LOUDSPEAKER and MERGE, and
+  the page a guest opens. These come next, with the native ringing (CallKit, ConnectionService)
+  when the phone apps are built.
+- **The Runner hearing a call ring** when their page is closed. Today they see it on their job
+  page. Ringing on a locked phone needs the native app.
+
+### Checked
+
+- `pnpm run verify` passes: lint, typecheck and **498 tests** (38 core, 309 api, 151 web).
+- 14 new tests cover:
+  - the price agreed before anything connects;
+  - first names and our own identities only, with no number anywhere;
+  - a Runner calling and the Shopper answering only after saying yes;
+  - strangers refused;
+  - calls switched off saying so;
+  - 4 minutes billed for 200 seconds, with the Runner not counted;
+  - nothing charged when the Shopper never answered;
+  - a forged webhook refused;
+  - MERGE with its link and the guest's minutes billed;
+  - a Runner unable to add anyone;
+  - a declined card waiting, then taken with the next charge;
+  - the £10 limit;
+  - END CALL;
+  - the real LiveKit library issuing a pass for one room and checking a webhook's signature.
+- Not checked here: a real call between two phones. That needs the LiveKit account, then the
+  screens.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has

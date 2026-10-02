@@ -1,0 +1,89 @@
+/**
+ * LiveKit, which carries the in-app calls (docs/BUILD_PROMPT.md, Section F).
+ *
+ * Everything the server needs from it is behind `CallProvider`, so the routes and the tests
+ * never touch LiveKit directly:
+ *
+ * - a short-lived pass into one room, for one identity of ours (never a phone number);
+ * - checking that a webhook really came from LiveKit, because minutes are billed from it;
+ * - closing a room when somebody ends the call for everyone.
+ *
+ * Without the three settings (LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET) there is no
+ * provider, and the call routes say plainly that calls are not switched on yet.
+ */
+
+import { AccessToken, RoomServiceClient, WebhookReceiver } from 'livekit-server-sdk';
+
+export interface CallWebhookEvent {
+  /** LiveKit's own id for the event, for ignoring a repeat. */
+  id: string;
+  /** `participant_joined`, `participant_left`, `room_finished`, and others we ignore. */
+  event: string;
+  roomName: string | null;
+  identity: string | null;
+  at: Date;
+}
+
+export interface CallProvider {
+  /** The address the app connects to, `wss://…`. Public. */
+  readonly url: string;
+  issueToken(input: {
+    roomName: string;
+    identity: string;
+    name: string;
+    ttlSeconds: number;
+  }): Promise<string>;
+  /** Throws when the signature does not check out. */
+  verifyWebhook(body: string, authorization: string | undefined): Promise<CallWebhookEvent>;
+  endRoom(roomName: string): Promise<void>;
+}
+
+export function livekitProvider(settings: {
+  url: string;
+  apiKey: string;
+  apiSecret: string;
+}): CallProvider {
+  const receiver = new WebhookReceiver(settings.apiKey, settings.apiSecret);
+  // The room service speaks https to the same host the app reaches over wss.
+  const rooms = new RoomServiceClient(
+    settings.url.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:'),
+    settings.apiKey,
+    settings.apiSecret,
+  );
+
+  return {
+    url: settings.url,
+
+    async issueToken({ roomName, identity, name, ttlSeconds }) {
+      const token = new AccessToken(settings.apiKey, settings.apiSecret, {
+        identity,
+        name,
+        ttl: ttlSeconds,
+      });
+      token.addGrant({
+        room: roomName,
+        roomJoin: true,
+        canPublish: true,
+        canSubscribe: true,
+        // Nobody can rename themselves or change what the room says about them.
+        canUpdateOwnMetadata: false,
+      });
+      return token.toJwt();
+    },
+
+    async verifyWebhook(body, authorization) {
+      const event = await receiver.receive(body, authorization);
+      return {
+        id: event.id,
+        event: event.event,
+        roomName: event.room?.name ?? null,
+        identity: event.participant?.identity ?? null,
+        at: new Date(Number(event.createdAt) * 1000),
+      };
+    },
+
+    async endRoom(roomName) {
+      await rooms.deleteRoom(roomName);
+    },
+  };
+}
