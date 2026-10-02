@@ -647,3 +647,62 @@ Runner's pay. Bundles are four standard deliveries for £48.
     minute for them, on your card") and waits for a yes.
   - A Runner never pays for a call (Rule Two).
   - An outstanding call balance above £10 is settled before more people can be added.
+
+## More rulings, 2 October 2026 (given by voice)
+
+7. **Problems and refunds: evidence from the Runner.** Each job in the Runner's account has its own
+   "Report a problem" page. The Runner can send voice notes, type, and upload photographs and
+   video as evidence, on their own, in the app. The admin panel (Section Q) has a tab where all of
+   it arrives for review, with a deadline for each decision.
+8. **Who pays, once decided. This amends Section M.**
+   - The platform refunds the Shopper first.
+   - If the Runner is found at fault, the amount is recovered from the Runner gradually: a small
+     part of each job's pay, never the whole. Anthony's example is £1 from a £5 job, which is 20%,
+     so the Runner still goes home with £4. It continues until the amount is repaid.
+   - If the Shopper is at fault, there is no refund.
+   - If the platform is at fault, the platform bears it.
+
+   Section M's protection still holds in this form: nothing is ever deducted automatically. A
+   deduction follows only a staff decision on the evidence, which is written down and given to the
+   Runner, who can answer it.
+9. **Switching how you deliver, restated.** A Runner registered with a car can switch to walking or
+   bicycle at any time, instantly, with no insurance needed. Driving needs insurance.
+10. **Everything is online, anywhere in the UK.** Nobody comes to an office.
+11. **Runner ID, share button and feedback.**
+    - Every Runner has their own ID.
+    - A share button sends a personal invitation link to other people.
+    - A feedback page lets Runners tell us things.
+12. **A private referral reward (not announced yet).** When someone refers 100 people who have each
+    made at least one purchase, they are rewarded. It is built and tracked in the admin panel,
+    with a database of every referral, and told to nobody until Anthony says so.
+13. **A database of everything that is not about a person.**
+    - What products people buy.
+    - Which shops they buy from.
+    - What sells most.
+    - What people ask for but cannot get.
+
+    This is to build a model and to earn from insight, for example by showing a shop its demand.
+    It must stay within UK GDPR and the Data Protection Act 2018.
+
+### Proposed by Claude Code, 2 October 2026, awaiting Anthony (continued)
+
+- **Refund timeline.**
+  - Ozi acknowledges a report straight away.
+  - Staff decide within 2 working days, 5 at the most.
+  - A refund goes back to the card the same day it is decided. The law's limit is 14 days.
+  - Items under £5 are refunded straight away without investigation. Investigating would cost more
+    than the item. This is never counted against a Runner.
+- **Recovery rate.** A setting, default 20% of each job's pay, subject to a solicitor's advice. If
+  Runners count in law as "workers" in retail, the legal cap on deductions for stock deficiencies
+  is 10% of pay per pay day. The deduction is in the Runner's written agreement from the start.
+- **Referral reward.** £150 when 100 referred people have each paid for at least one order that
+  was not refunded. Guards against cheating: a different card, phone number and address for each
+  person, and nobody can refer themselves.
+- **Data.**
+  - Insight is sold only as aggregated figures. Every figure covers at least 10 different
+    Shoppers, and no record about an individual is ever sold.
+  - An analytics store separate from accounts: no names, phone numbers or full addresses, and
+    postcode district only.
+  - Health-revealing products are left out of anything shared outside.
+  - The privacy notice says plainly that aggregated data is used commercially.
+  - A data protection impact assessment, and registration with the ICO.
