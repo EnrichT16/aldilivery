@@ -125,6 +125,8 @@ model Shopper {
   phone                String                 @unique
   /// A hash of the Shopper's spoken code. The code itself is never stored.
   spokenCodeHash       String?
+  /// The Shopper's customer at Stripe, which saved cards are attached to so they can be used again.
+  stripeCustomerId     String?                @unique
   preferredLanguage    String                 @default("en-GB")
   /// Free text the Runner reads at the door: "knock loudly, I am slow to the door".
   doorstepProtocol     String                 @default("")

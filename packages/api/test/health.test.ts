@@ -232,7 +232,7 @@ describe('what /config tells the browser about payments', () => {
 
     expect(body.payments.mode).toBe('stripe');
     expect(body.payments.publishableKey).toBe('pk_test_not_a_real_key');
-    expect(body.payments.supportedCardRegions).toContain('UK');
+    expect(body.payments.supportedCardRegions).toEqual(['ANY']);
 
     // The one that matters: the secret key must not be anywhere in that reply.
     expect(JSON.stringify(body)).not.toContain('sk_test_not_a_real_key');

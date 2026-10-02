@@ -45,7 +45,7 @@
   },
   "payments": {
     "provider": "stripe",
-    "supportedCardRegions": ["UK", "EU"]
+    "supportedCardRegions": ["ANY"]
   },
   "allocation": {
     "offerHoldSeconds": 60,

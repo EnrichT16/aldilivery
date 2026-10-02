@@ -99,6 +99,7 @@ export function memoryRepository(): Repository {
           substitutionDefault: input.substitutionDefault ?? 'ask_me',
           budgetCapPence: input.budgetCapPence ?? null,
           pinHash: null,
+          stripeCustomerId: null,
           pinFailedAttempts: 0,
           pinLockedUntil: null,
           deletionScheduledFor: null,

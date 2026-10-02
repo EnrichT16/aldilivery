@@ -513,6 +513,11 @@ export function Confirm(): JSX.Element {
           {error}
         </p>
       )}
+      {error.startsWith('Please add your card again') && (
+        <Link to="/card" className="control bg-paper text-ink">
+          Add my card again
+        </Link>
+      )}
 
       {overMaximum && (
         <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">

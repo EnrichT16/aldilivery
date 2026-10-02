@@ -105,9 +105,7 @@ export async function chargeCalls(
         amountPence: call.chargePence,
         currency: config.store.currency,
         paymentMethodId: card.stripePaymentMethodId,
-        // Cards are not yet saved to a Stripe customer (BUILD_LOG, Step 37): until they are,
-        // a live charge waits as outstanding rather than failing a second time.
-        customerId: null,
+        customerId: shopper.stripeCustomerId,
         description: `${config.productName} call, ${call.billedMinutes} minutes`,
         reference: `call:${call.id}`,
         agreedAt: (call.priceAcceptedAt ?? call.createdAt).toISOString(),

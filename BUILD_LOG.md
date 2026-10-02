@@ -2830,6 +2830,66 @@ card to a Stripe customer, is the next piece of work, as its own PR.
 
 ---
 
+## 2026-10-02 — Step 38: saved cards that work again and again, and cards from any country
+
+Anthony merged #19. Anthony created the LiveKit project (EU, Frankfurt). A local `.env` was
+prepared for its three settings and confirmed ignored by git. The values belong in DigitalOcean for
+the live site. Then two changes to taking money.
+
+### A saved card can be charged more than once
+
+**Until now:** a card was saved at Stripe on its own. Stripe spends a card saved that way after one
+payment. So in live mode, a Shopper's second order with the same card would have been refused, and
+no call charge could be taken.
+
+**Now:**
+
+- Every Shopper has their own customer at Stripe, made the first time they save a card. Every card
+  they save is attached to it.
+- Orders are charged through that customer, and so are call charges at the end of a call. Any call
+  money waiting is taken at the next successful payment.
+- **Cards saved before this change** are attached at the Shopper's next order, before anything is
+  created or charged.
+  - If Stripe has already spent the card on an earlier payment, the Shopper is told: "Please add
+    your card again. We have improved how cards are saved, so it can be used for every order.
+    Nothing has been charged."
+  - The confirmation screen then offers "Add my card again".
+- If Stripe will not keep a new card, nothing is saved, and the Shopper is told so in plain words.
+- The Stripe customer id never leaves the server.
+
+### Cards from any country (ruling, 2 October 2026)
+
+`payments.supportedCardRegions` is now `ANY`. Shoppers pay with the cards they have, including
+cards from home: Nigeria, Ghana, Kenya, Zimbabwe, Sierra Leone, India, anywhere. Stripe still
+screens every payment. Flutterwave, Paystack and mobile money follow as further gateways. The
+blueprint has what was found about each country.
+
+Nigerian naira cards are often limited by the issuing bank for spending abroad. Some will still be
+declined by the bank, not by us, until Flutterwave or Paystack charges them in naira.
+
+### Not yet
+
+- **Cards saved through Stripe's "set up for later" step.** Cards are now kept, but a UK bank may
+  still ask the Shopper to confirm a charge made with nobody at the screen, as a call charge is. If
+  it does, the charge waits as outstanding and is tried again with the next payment. Saving cards
+  through that Stripe step, so banks agree to later charges up front, is a follow-up to the card
+  screen.
+
+### Checked
+
+- `pnpm run verify` passes: lint, typecheck and **511 tests** (38 core, 322 api, 151 web).
+- New tests cover:
+  - a Stripe customer made on the first card, kept off `/me`, and reused for every later card;
+  - two orders in a row charged through the same customer;
+  - a card Stripe will not keep refused in plain words, with nothing saved;
+  - an old card attached at the next order;
+  - an old, already spent card answered with "Please add your card again", with nothing charged;
+  - cards from Nigeria, Ghana, Kenya, Zimbabwe, Sierra Leone, India and the United States taken.
+- Not checked here: against real Stripe test keys. Worth one order and one repeat order with a
+  test card once deployed.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has

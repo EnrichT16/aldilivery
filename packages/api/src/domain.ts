@@ -40,6 +40,11 @@ export interface Shopper {
   pinHash: string | null;
   pinFailedAttempts: number;
   pinLockedUntil: Date | null;
+  /**
+   * The Shopper's customer at Stripe. A saved card is attached to it, which is what lets the
+   * same card be charged again; a card on its own is spent after one payment.
+   */
+  stripeCustomerId: string | null;
   deletionScheduledFor: Date | null;
   organisationId: string | null;
   createdAt: Date;

@@ -245,6 +245,7 @@ function publicShopper(shopper: import('../domain.js').Shopper) {
     pinHash,
     pinFailedAttempts: _attempts,
     pinLockedUntil: _locked,
+    stripeCustomerId: _customer,
     ...rest
   } = shopper;
   return { ...rest, hasPin: pinHash !== null };

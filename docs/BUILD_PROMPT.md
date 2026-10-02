@@ -786,3 +786,12 @@ Runner's pay. Bundles are four standard deliveries for £48.
   3. Kenya, about 135,000.
   4. Zimbabwe, about 124,000.
   5. Sierra Leone, far fewer.
+18. **No restriction by card country (Anthony, 2 October 2026).** No law stops Ozi taking payment
+    from cards issued abroad, so Shoppers pay with their local cards from anywhere. Ozi keeps adding
+    payment gateways, beyond Stripe, Flutterwave and Paystack, wherever their terms can be met.
+    - Mobile money such as MTN, Orange and EcoCash is wanted, because it is what people at home
+      are used to.
+    - Chinese Shoppers come later; Anthony will campaign hard among international students.
+    - Reason: people in the UK, and abroad, pay for their families' shopping. Every payment goes to
+      a third party (the shop), and orders are capped, so the service offers nothing to launder
+      money through. Each gateway still does its own fraud and sanctions screening.
