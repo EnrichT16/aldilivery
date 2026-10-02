@@ -579,3 +579,177 @@ Runner's pay. Bundles are four standard deliveries for £48.
   summary, T11 Runner training, T2 council invoicing and reports.
 - **Third group:** T8 wellbeing check (after T11).
 - **Not product work:** T2 contracts and T4 grant applications, which are Anthony's.
+
+## Rulings, 2 October 2026 (given by voice)
+
+1. **Who pays for a merged call.** The person who adds people to a call (MERGE, Section F) pays,
+   from the card on their own account. They pay for their own minutes and for the minutes of every
+   person they added. If the card cannot be charged at the time, the amount is kept as an
+   outstanding balance and taken the next time their card is charged successfully. They are told.
+   This applies to call charges only.
+2. **Runners register themselves, entirely in the app.** No visit to the office. Quick and simple.
+   Documents are photographed with the phone camera, not scanned, and the app makes sure each
+   photograph is clear.
+3. **The first screen asks who you are.** One app. Each choice has a short description under it,
+   spoken aloud and written: Shopper, Runner, organisation, and the admin route.
+4. **How a Runner delivers.** On foot, bicycle, motorbike or scooter, or car. On foot and bicycle
+   need no insurance. A car, and a motorbike or scooter, need insurance. The Runner can switch at
+   any time in their own Settings, for example from car to walking or bicycle, whatever the reason.
+5. **The Runner's dashboard.**
+   - What they have earned is big and bold, for today and over time.
+   - A Training tab (T11).
+   - Full job history, each job with its date, time, area, pay and a reference number linking it
+     to the order and the Shopper, kept as long as the law allows.
+   - Payouts: what has been paid out, and when.
+6. **The DBS check.** Required if the law requires it; otherwise optional. Claude Code's reading
+   is below, awaiting Anthony's decision.
+
+### Proposed by Claude Code, 2 October 2026, awaiting Anthony
+
+- **Wording on the first screen.** "Shopper", not "customer", keeping Section A's vocabulary.
+- **Admin is not on the public first screen.** Staff sign in at a separate staff address, with
+  two-step sign-in (Section Q). Public: Shopper, Runner, organisation, and "I look after someone"
+  (the family and carer plan, T1).
+- **Runner sign-up, in this order.**
+  1. Name and phone number, confirmed by a text code.
+  2. How you deliver: tick every option you might use, so switching later needs nothing new.
+  3. A photo of your face. It is matched to your documents and shown to the Shopper at the door
+     (T6).
+  4. Right to work: a Home Office share code, or a passport photo for British and Irish citizens.
+  5. A basic DBS certificate, or a share code for it.
+  6. Car or motorbike only:
+     - a photo of the driving licence, front and back, plus a DVLA check code;
+     - the registration number, so MOT and road tax are checked automatically;
+     - a photo of the insurance certificate showing business or hire-and-reward cover.
+  7. Bank details through Stripe's own secure pages.
+
+  While staff check the documents in the admin panel, the Runner starts training.
+- **Switching how you deliver.** Switching down, to walking or bicycle, is instant. Switching to a
+  car or motorbike needs valid insurance on file, and an expiry date triggers reminders. Only jobs
+  that suit the current way of delivering are offered.
+- **DBS.** For ordinary delivery work a DBS check is not legally required. But Ozi's Shoppers are
+  elderly and disabled people, and Runners shop on their behalf and meet them at their door. In
+  law, shopping for an adult because of age or disability can count as "regulated activity", which
+  allows an enhanced check, and organisations and councils will expect one.
+  - Proposed: a basic DBS for every Runner, mandatory.
+  - An enhanced DBS, with the adults' barred list, before T5 rounds, T8 wellbeing checks and
+    handovers to the person (Section L).
+  - Anthony to confirm with a solicitor.
+- **Records.** Order and money records are kept for seven years, beyond HMRC's six, then
+  anonymised. Runners see an order reference, never the Shopper's name or phone number. Old jobs
+  show only the area, such as "Gillingham, ME7", not the full address. The link from a reference
+  to the Shopper is held only in the admin panel.
+- **Payouts.** Weekly by default, through Stripe. A Runner can choose daily in Settings. Instant
+  payout is available, with Stripe's small fee paid by the Runner and shown first. A new Stripe
+  account has a short first-payout delay that Stripe sets.
+- **Merged calls.**
+  - Rule One applies: before a person is added, Ozi says the price ("adding someone costs 5p a
+    minute for them, on your card") and waits for a yes.
+  - A Runner never pays for a call (Rule Two).
+  - An outstanding call balance above £10 is settled before more people can be added.
+
+## More rulings, 2 October 2026 (given by voice)
+
+7. **Problems and refunds: evidence from the Runner.** Each job in the Runner's account has its own
+   "Report a problem" page. The Runner can send voice notes, type, and upload photographs and
+   video as evidence, on their own, in the app. The admin panel (Section Q) has a tab where all of
+   it arrives for review, with a deadline for each decision.
+8. **Who pays, once decided. This amends Section M.**
+   - The platform refunds the Shopper first.
+   - If the Runner is found at fault, the amount is recovered from the Runner gradually: a small
+     part of each job's pay, never the whole. Anthony's example is £1 from a £5 job, which is 20%,
+     so the Runner still goes home with £4. It continues until the amount is repaid.
+   - If the Shopper is at fault, there is no refund.
+   - If the platform is at fault, the platform bears it.
+
+   Section M's protection still holds in this form: nothing is ever deducted automatically. A
+   deduction follows only a staff decision on the evidence, which is written down and given to the
+   Runner, who can answer it.
+9. **Switching how you deliver, restated.** A Runner registered with a car can switch to walking or
+   bicycle at any time, instantly, with no insurance needed. Driving needs insurance.
+10. **Everything is online, anywhere in the UK.** Nobody comes to an office.
+11. **Runner ID, share button and feedback.**
+    - Every Runner has their own ID.
+    - A share button sends a personal invitation link to other people.
+    - A feedback page lets Runners tell us things.
+12. **A private referral reward (not announced yet).** When someone refers 100 people who have each
+    made at least one purchase, they are rewarded. It is built and tracked in the admin panel,
+    with a database of every referral, and told to nobody until Anthony says so.
+13. **A database of everything that is not about a person.**
+    - What products people buy.
+    - Which shops they buy from.
+    - What sells most.
+    - What people ask for but cannot get.
+
+    This is to build a model and to earn from insight, for example by showing a shop its demand.
+    It must stay within UK GDPR and the Data Protection Act 2018.
+
+### Proposed by Claude Code, 2 October 2026, awaiting Anthony (continued)
+
+- **Refund timeline.**
+  - Ozi acknowledges a report straight away.
+  - Staff decide within 2 working days, 5 at the most.
+  - A refund goes back to the card the same day it is decided. The law's limit is 14 days.
+  - Items under £5 are refunded straight away without investigation. Investigating would cost more
+    than the item. This is never counted against a Runner.
+- **Recovery rate.** A setting, default 20% of each job's pay, subject to a solicitor's advice. If
+  Runners count in law as "workers" in retail, the legal cap on deductions for stock deficiencies
+  is 10% of pay per pay day. The deduction is in the Runner's written agreement from the start.
+- **Referral reward.** £150 when 100 referred people have each paid for at least one order that
+  was not refunded. Guards against cheating: a different card, phone number and address for each
+  person, and nobody can refer themselves.
+- **Data.**
+  - Insight is sold only as aggregated figures. Every figure covers at least 10 different
+    Shoppers, and no record about an individual is ever sold.
+  - An analytics store separate from accounts: no names, phone numbers or full addresses, and
+    postcode district only.
+  - Health-revealing products are left out of anything shared outside.
+  - The privacy notice says plainly that aggregated data is used commercially.
+  - A data protection impact assessment, and registration with the ICO.
+
+## Approved, 2 October 2026 (given by voice)
+
+14. **Claude Code's ideas of 2 October are approved**: the Runner app design, the data and
+    insight ideas, and the referral programme's shape. The specific questions still listed for
+    Anthony stay open until he answers them.
+15. **The recovery rate follows the law.** If the law caps it at 10%, it is 10%: 50p from a £5
+    job, which Anthony is content with. Until a solicitor confirms that more is lawful, the
+    setting starts at 10%.
+16. **Every open question of 2 October is answered yes.** Each of these now stands as a ruling:
+    - **Chains are listed by default.** Big chains (Asda, Aldi, Tesco and others) are listed by
+      name without a dated agreement, because the Runner buys as an ordinary customer. There are
+      no logos and nothing that suggests a partnership. Section N's dated agreement is still
+      needed for anything beyond an ordinary listing (feeds, discounts, commission).
+    - **Finding shops and products costs nothing per search.**
+      - OpenStreetMap shop data for where shops are, hosted by us, with attribution.
+      - A list linking items to the kind of shop that sells them.
+      - Prices from Runners' till receipts, Open Food Facts and Open Prices, and entries made by
+        hand.
+      - Retailer feeds where they are offered.
+      - No copying of supermarket websites, whether by Cowork, a crawler or a browser of our own.
+    - **Ordinary calls.** In a call between a Shopper and a Runner, the Shopper pays the 5p a
+      minute. A Runner never pays for a call.
+    - **Merged calls.** An unpaid call balance above £10 is paid before more people can be added.
+      Before anyone is added, Ozi says the price and waits for a yes.
+    - **"Shopper" on every screen**, never "customer".
+    - **Admin is off the public first screen.** Staff sign in at a separate address with two-step
+      sign-in. The public first screen offers Shopper, Runner, organisation and "I look after
+      someone".
+    - **DBS checks.** A basic DBS check is mandatory for every Runner. An enhanced DBS, with the
+      adults' barred list, is needed before T5 rounds, T8 wellbeing checks and handovers to the
+      person (Section L).
+    - **Payouts** are weekly by default. A Runner can choose daily, or take an instant payout at
+      Stripe's fee, which the Runner pays and sees first.
+    - **Records.** Order and money records are kept for seven years, then anonymised. Runners see
+      an order reference and the area only.
+    - **Refunds.**
+      - A decision within 2 working days, 5 at most.
+      - The refund paid the same day it is decided.
+      - Under £5, refunded straight away without investigation, and never counted against a
+        Runner.
+    - **Referral reward.** £150 when someone has referred 100 people who have each paid for an
+      order that was not refunded, with the guards against cheating above. It is not announced.
+    - **Data shared outside.** Every figure covers at least 10 Shoppers. Products that reveal
+      health are never shared. No record about an individual is ever sold.
+    - **A Runner who leaves owing money.** Anything under £20 is written off. Anything above that,
+      they are asked to repay.

@@ -2634,8 +2634,7 @@ slip past it later.
 ### Not yet
 
 - The PIN for saving an address, and for changing the registered home address, comes with the rest
-  of Section D. Until then, the confirmation screen's "Change this address" still edits the
-  registered address directly.
+  of Section D (done in Step 36).
 - Ozi announcing the order's progress aloud comes with live status (Section G). Ozi does not promise
   it until then.
 
@@ -2665,6 +2664,86 @@ slip past it later.
   - the server holds a paid order for exactly those items;
   - the Your order page opened, with no axe problems.
 - Not checked here: a real voice. That waits for a real phone.
+
+---
+
+## 2026-10-01 — Step 36: addresses and the PIN
+
+Anthony merged #17 and asked for Section D next: the four-digit PIN and the address input.
+
+### The PIN
+
+- **Chosen the first time it is needed**, never at sign up. Sign up stays short. The first time a
+  Shopper saves an address or changes the home address, they choose a PIN, entering it twice so a
+  slip cannot become a PIN nobody knows. The same PIN then does what they came to do.
+- **Typed or said aloud**, the Shopper's choice. "Say my PIN" makes Ozi ask for the four numbers.
+  The next words go to the PIN field only: they are not shown on the screen, not kept, not said
+  back, and not treated as an order. "Two seven five nine", "2 7 5 9", "oh eight one four" and
+  "double seven one three" are all understood. Anything other than exactly four numbers is not
+  filled in.
+- **Obvious PINs are refused, in plain words:** the same number four times, a run up or down (1234,
+  9876), and anything from 1900 to 2099, which looks like a year.
+- **Three wrong tries lock it for 15 minutes**, enforced on the server. The Shopper is told how
+  many tries are left.
+- **Only a salted hash is kept**, never the PIN. No screen or reply ever shows it, only whether
+  there is one.
+
+### Addresses
+
+- **Your addresses** is reached from Settings. It holds the registered home address and as many
+  other addresses as the Shopper wants, with no cap, each with an optional name ("Mum", "Tom's
+  halls").
+- **Adding one** uses a plus with ADD AN ADDRESS written under it, following the icon rule. Ozi
+  says it is there when the page opens. Saying "Ozi, add an address" anywhere opens the page with
+  the form already open. Saving needs the PIN. Removing one does not.
+- **The home address** changes only on this page, and only with the PIN. Each time it changes, the
+  owner gets a text and a notification: "the home address on your account was changed just now.
+  If that was not you, ring us straight away." This matters because a spoken PIN can be overheard.
+  The old way round, changing it through the profile, is now refused once there is a home
+  address. The very first home address can still be given without a PIN, as at sign up.
+
+### At checkout
+
+The home address is offered first, with any saved addresses beside it. "Send to a different
+address" asks for the address, then asks, the way a bank app asks about a payee: "Save it for next
+time, or use it this once?"
+
+- **Use it once** needs no PIN, only the usual "Yes, this is the right address".
+- **Save it** needs the PIN, and the new address is then chosen.
+
+Orders by voice still go only to the home address.
+
+### Checked
+
+- `pnpm run verify` passes: lint, typecheck and **483 tests** (38 core, 294 api, 151 web).
+- New server tests cover:
+  - the PIN rules;
+  - only a hash being kept;
+  - a PIN chosen once only, and never shown;
+  - unlimited saved addresses, kept in order;
+  - "choose a PIN first";
+  - removing only the Shopper's own addresses;
+  - the wrong-PIN countdown and the 15-minute lock;
+  - the count starting again after a right PIN;
+  - the home address changed only with the PIN, with the text sent;
+  - the profile route refused.
+- New screen tests cover:
+  - the spoken-PIN parser;
+  - the plus and ADD AN ADDRESS, with Ozi announcing it and no axe problems;
+  - choosing a PIN, including a too-easy PIN and two that do not match;
+  - "Ozi, add an address" followed by a spoken PIN, which is never shown or said back;
+  - a wrong PIN, then the right one, changing the home address;
+  - removing an address;
+  - at checkout: choosing a saved address, using one once with no PIN, and saving one with the PIN.
+- In Chromium, against the real server, with a script standing in for the microphone:
+  - Settings, then Your addresses: Ozi announced the plus;
+  - Mum's address added, and the PIN chosen by saying it twice;
+  - the server holds the address and a PIN;
+  - the home address changed with a typed PIN;
+  - no axe problems before or after.
+- Not checked here:
+  - the text message itself, which needs the Twilio settings live;
+  - a real voice, which waits for a real phone.
 
 ---
 

@@ -227,6 +227,7 @@ describe('the accessibility promises axe cannot see', () => {
     '/runner/home',
     '/just-looking',
     '/settings',
+    '/addresses',
   ];
 
   it('gives every control a name that a person could read out, on every screen', async () => {

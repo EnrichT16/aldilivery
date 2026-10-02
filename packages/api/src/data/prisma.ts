@@ -23,9 +23,7 @@ import type {
 import type { CatalogueSearchOptions, Repository } from './repository.js';
 
 export function createPrismaClient(databaseUrl?: string): PrismaClient {
-  return new PrismaClient(
-    databaseUrl ? { datasources: { db: { url: databaseUrl } } } : undefined,
-  );
+  return new PrismaClient(databaseUrl ? { datasources: { db: { url: databaseUrl } } } : undefined);
 }
 
 function toOrder(row: any): Order {
@@ -97,6 +95,24 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    savedAddresses: {
+      async create(input) {
+        return (await prisma.savedAddress.create({ data: input })) as any;
+      },
+      async listForShopper(shopperId) {
+        return (await prisma.savedAddress.findMany({
+          where: { shopperId },
+          orderBy: { createdAt: 'asc' },
+        })) as any;
+      },
+      async findById(id) {
+        return (await prisma.savedAddress.findUnique({ where: { id } })) as any;
+      },
+      async delete(id) {
+        await prisma.savedAddress.deleteMany({ where: { id } });
+      },
+    },
+
     pushSubscriptions: {
       async save(input) {
         return (await prisma.pushSubscription.upsert({
@@ -151,7 +167,9 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         return (await prisma.organisation.findUnique({ where: { id } })) as any;
       },
       async listServiceUsers(organisationId) {
-        return (await prisma.shopper.findMany({ where: { organisationId } })) as unknown as Shopper[];
+        return (await prisma.shopper.findMany({
+          where: { organisationId },
+        })) as unknown as Shopper[];
       },
     },
 
@@ -335,7 +353,10 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         return rows.map(toSet);
       },
       async listActive() {
-        const rows = await prisma.set.findMany({ where: { active: true }, include: { items: true } });
+        const rows = await prisma.set.findMany({
+          where: { active: true },
+          include: { items: true },
+        });
         return rows.map(toSet);
       },
     },

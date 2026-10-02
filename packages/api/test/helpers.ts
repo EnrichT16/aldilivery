@@ -85,6 +85,8 @@ export interface TestAppOptions {
   deliverCode?: (phone: string, code: string) => Promise<void>;
   /** The voice payment ceiling, in pence, when a test needs one other than the configured one. */
   voicePaymentCeilingPence?: number;
+  /** Texts to an account's own phone, for notices such as the home address changing. */
+  sendText?: (to: string, body: string) => Promise<void>;
   /** Web Push. Off unless a test hands in a stand-in sender. */
   sendPush?: SendPush;
 }
@@ -118,6 +120,7 @@ export async function buildTestApp(
     autoOffer: options.autoOffer ?? false,
     autoPayout: options.autoPayout ?? false,
     ...(options.sendPush ? { sendPush: options.sendPush, pushPublicKey: 'test-public-key' } : {}),
+    ...(options.sendText ? { sendText: options.sendText } : {}),
     deliverCode:
       options.deliverCode ??
       (async (phone, code) => {

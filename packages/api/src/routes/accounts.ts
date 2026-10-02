@@ -11,7 +11,7 @@ import { formatPence, RUNNER_PAYMENT_PENCE } from '@aldilivery/core';
 import { z } from 'zod';
 
 import { requireSession } from '../app.js';
-import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 import { NOT_A_UK_NUMBER, ukPhone } from '../lib/phone.js';
 import { hashCode, signSession, suggestHandle } from '../lib/tokens.js';
 import { sweepOffers } from '../services/dispatch.js';
@@ -159,6 +159,19 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
   app.patch('/me', async (request) => {
     const session = requireSession(request, 'shopper');
     const patch = profileSchema.parse(request.body);
+    const current = await repository.shoppers.findById(session.accountId);
+    if (!current) throw new NotFoundError('account');
+    // Changing the registered home address needs the PIN (Section D): PUT /me/home-address.
+    // Giving one for the first time, when there is none, is part of setting the account up.
+    if (
+      patch.deliveryAddress !== undefined &&
+      current.deliveryAddress.trim() !== '' &&
+      patch.deliveryAddress.trim() !== current.deliveryAddress.trim()
+    ) {
+      throw new ForbiddenError(
+        'Changing your home address needs your PIN. You can change it in Your addresses.',
+      );
+    }
     const shopper = await repository.shoppers.update(session.accountId, patch);
     return { shopper: publicShopper(shopper) };
   });
@@ -227,8 +240,14 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
 }
 
 function publicShopper(shopper: import('../domain.js').Shopper) {
-  const { spokenCodeHash: _omitted, ...rest } = shopper;
-  return rest;
+  const {
+    spokenCodeHash: _code,
+    pinHash,
+    pinFailedAttempts: _attempts,
+    pinLockedUntil: _locked,
+    ...rest
+  } = shopper;
+  return { ...rest, hasPin: pinHash !== null };
 }
 
 function publicRunner(runner: import('../domain.js').Runner) {

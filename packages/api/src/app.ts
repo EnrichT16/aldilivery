@@ -21,6 +21,7 @@ import { ApiError, ForbiddenError, UnauthorisedError } from './errors.js';
 import type { Env } from './env.js';
 import type { PaymentsGateway } from './lib/payments.js';
 import type { SendPush } from './lib/push.js';
+import type { SendText } from './lib/sms.js';
 import { verifySession } from './lib/tokens.js';
 import { gitCommit } from './lib/version.js';
 import { registerAuthRoutes } from './routes/auth.js';
@@ -32,6 +33,7 @@ import { registerQuestionRoutes } from './routes/questions.js';
 import { registerOrderRoutes } from './routes/orders.js';
 import { registerPaymentMethodRoutes } from './routes/payment-methods.js';
 import { registerPayoutRoutes } from './routes/payouts.js';
+import { registerAddressRoutes } from './routes/addresses.js';
 import { registerPushRoutes } from './routes/push.js';
 import { registerSetRoutes } from './routes/sets.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
@@ -68,6 +70,11 @@ export interface AppContext {
   sendPush: SendPush | null;
   /** The public half of the key pair, which a browser needs in order to subscribe. */
   pushPublicKey: string | null;
+  /**
+   * Sending a text to an account's own phone, for notices that must reach the owner even
+   * without notifications switched on — such as the home address changing. Null without Twilio.
+   */
+  sendText: SendText | null;
 }
 
 export interface Session {
@@ -95,6 +102,7 @@ export interface BuildAppOptions extends Partial<
     | 'autoPayout'
     | 'sendPush'
     | 'pushPublicKey'
+    | 'sendText'
   >
 > {
   config: StoreConfig;
@@ -139,6 +147,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       }),
     sendPush: options.sendPush ?? null,
     pushPublicKey: options.sendPush ? (options.pushPublicKey ?? null) : null,
+    sendText: options.sendText ?? null,
   };
 
   app.decorate('ctx', ctx);
@@ -310,6 +319,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerBasketRoutes(app);
   await registerPaymentMethodRoutes(app);
   await registerPushRoutes(app);
+  await registerAddressRoutes(app);
   await registerQuestionRoutes(app);
   await registerOrderRoutes(app);
   await registerJobRoutes(app);

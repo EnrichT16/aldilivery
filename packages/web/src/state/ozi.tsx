@@ -9,6 +9,8 @@ import {
   type ReactNode,
 } from 'react';
 
+import { useNavigate } from 'react-router-dom';
+
 import { storeConfig } from '../config';
 import type { SpeakOutcome } from '../voice';
 import { useVoiceOrdering } from './voice-order';
@@ -61,6 +63,12 @@ interface OziValue {
   press: () => void;
   mute: () => void;
   wake: () => void;
+  /**
+   * Hand the next thing Ozi hears to `handler` instead of answering it, after saying
+   * `prompt`: for a PIN said aloud. What is heard this way is never shown or kept. Returns a
+   * function that cancels it.
+   */
+  listenFor: (prompt: string, handler: (text: string) => void) => () => void;
 }
 
 const OziContext = createContext<OziValue | null>(null);
@@ -68,6 +76,7 @@ const OziContext = createContext<OziValue | null>(null);
 export function OziProvider({ children }: { children: ReactNode }): JSX.Element {
   const voice = useVoice();
   const { engine, settings } = voice;
+  const navigate = useNavigate();
   const assistant = storeConfig.assistantName;
 
   const [presence, setPresenceState] = useState<Presence>('starting');
@@ -209,11 +218,41 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
 
   /* ------------------------------------------------------------------ what Ozi hears */
 
+  // Something on the screen is waiting for the next words, a PIN say: they go there only.
+  const captureRef = useRef<((text: string) => void) | null>(null);
+
+  const listenFor = useCallback(
+    (prompt: string, handler: (text: string) => void) => {
+      captureRef.current = handler;
+      if (presenceRef.current === 'muted') {
+        clearReminders();
+        setPresence('listening');
+      }
+      // Ozi listens again as soon as it has finished saying the prompt.
+      void sayRef.current(prompt);
+      return () => {
+        if (captureRef.current === handler) captureRef.current = null;
+      };
+    },
+    [clearReminders, setPresence],
+  );
+
   heardRef.current = (text: string) => {
+    const capture = captureRef.current;
+    if (capture) {
+      captureRef.current = null;
+      capture(text);
+      return;
+    }
     setHeard(text);
     const words = text.toLowerCase();
     if (/\bmute\b|\bstop listening\b|\bbe quiet\b/.test(words)) {
       mute();
+      return;
+    }
+    // "Add an address", "save a new address": the addresses page, with the form open.
+    if (!ordering.busy() && /\b(add|save|new)\b.*\baddress\b/.test(words)) {
+      navigate('/addresses?add=1');
       return;
     }
     void (async () => {
@@ -316,8 +355,9 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       press,
       mute,
       wake,
+      listenFor,
     }),
-    [presence, talking, said, announce, heard, press, mute, wake],
+    [presence, talking, said, announce, heard, press, mute, wake, listenFor],
   );
 
   return <OziContext.Provider value={value}>{children}</OziContext.Provider>;

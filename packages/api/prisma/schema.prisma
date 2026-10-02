@@ -135,6 +135,13 @@ model Shopper {
   substitutionDefault  SubstitutionPreference @default(ask_me)
   /// An upper limit the Shopper sets on the goods estimate. Never a minimum (Rule Four).
   budgetCapPence       Int?
+  /// The four-digit PIN for saving addresses and changing the home address, hashed with a
+  /// salt and a server secret. The PIN itself is never stored. Null until the Shopper
+  /// chooses one, the first time they add or change an address.
+  pinHash              String?
+  /// Wrong PIN attempts in a row. Three locks the PIN for a while.
+  pinFailedAttempts    Int                    @default(0)
+  pinLockedUntil       DateTime?
   /// Set when the Shopper asks for deletion. The row survives for the recycle bin window
   /// and is removed afterwards. Deleting is never immediate and never silent.
   deletionScheduledFor DateTime?
@@ -150,6 +157,7 @@ model Shopper {
   paymentMethods    PaymentMethod[]
   circleMemberships HouseholdCircleMember[]
   pushSubscriptions PushSubscription[]
+  savedAddresses    SavedAddress[]
 
   @@index([deletionScheduledFor])
 }
@@ -563,6 +571,21 @@ model PushSubscription {
   endpoint  String   @unique
   p256dh    String
   auth      String
+  createdAt DateTime @default(now())
+
+  @@index([shopperId])
+}
+
+/// An address a Shopper has saved for orders sent somewhere other than home: a child at
+/// university, a friend across town, a customer. Unlimited. Saving one needs the PIN; a voice
+/// order never uses one, only the home address.
+model SavedAddress {
+  id        String   @id @default(cuid())
+  shopperId String
+  shopper   Shopper  @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  /// What the Shopper calls it: "Tom's halls", "Mum".
+  label     String   @default("")
+  address   String
   createdAt DateTime @default(now())
 
   @@index([shopperId])

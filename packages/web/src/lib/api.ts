@@ -63,6 +63,21 @@ function isNotJson(response: Response): boolean {
   return typeof contentType === 'string' && !contentType.includes('json');
 }
 
+/**
+ * The server said no, in words. `status` and `details` are there for the screens that act on
+ * the kind of no — a PIN that has not been chosen yet, say — rather than only showing it.
+ */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly details: Record<string, unknown> | undefined,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 async function request<T>(
   path: string,
   init?: RequestInit,
@@ -97,13 +112,16 @@ async function request<T>(
     parsed = {};
   }
 
-  const body = parsed as T | { error?: { message?: string } };
+  type Refusal = { error?: { message?: string; details?: Record<string, unknown> } };
+  const body = parsed as T | Refusal;
 
   if (!response.ok) {
-    const message =
-      (body as { error?: { message?: string } }).error?.message ??
-      'Something went wrong. Nothing has been charged.';
-    throw new Error(message);
+    const refusal = (body as Refusal).error;
+    throw new ApiError(
+      refusal?.message ?? 'Something went wrong. Nothing has been charged.',
+      response.status,
+      refusal?.details,
+    );
   }
 
   return body as T;
@@ -144,6 +162,8 @@ export interface Shopper {
   deliveryAddress: string;
   substitutionDefault: SubstitutionChoice;
   budgetCapPence: number | null;
+  /** Whether a PIN has been chosen. The PIN itself never leaves the server. */
+  hasPin?: boolean;
 }
 
 export interface RegisterShopperInput {
@@ -391,12 +411,75 @@ export function fetchMe(): Promise<{ role: string; shopper?: Shopper }> {
   return request<{ role: string; shopper?: Shopper }>('/me');
 }
 
-/** Changing the account. Used when somebody corrects their address on the way to an order. */
+/**
+ * Changing the account. The home address can be given this way only the first time; after
+ * that, changing it needs the PIN (`changeHomeAddress`).
+ */
 export function updateMe(patch: Partial<RegisterShopperInput>): Promise<{ shopper: Shopper }> {
   return request<{ shopper: Shopper }>('/me', {
     method: 'PATCH',
     body: JSON.stringify(patch),
   });
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * Addresses and the PIN (docs/BUILD_PROMPT.md, Section D)
+ * ------------------------------------------------------------------------------------- */
+
+export interface SavedAddress {
+  id: string;
+  label: string;
+  address: string;
+}
+
+export interface AddressBook {
+  home: string;
+  saved: SavedAddress[];
+  hasPin: boolean;
+}
+
+export function fetchAddresses(): Promise<AddressBook> {
+  return request<AddressBook>('/me/addresses');
+}
+
+/** Choosing the PIN, the first time one is needed. It cannot be chosen twice. */
+export function choosePin(pin: string): Promise<{ message: string }> {
+  return request<{ message: string }>('/me/pin', {
+    method: 'POST',
+    body: JSON.stringify({ pin }),
+  });
+}
+
+export function saveAddress(input: {
+  address: string;
+  label?: string;
+  pin: string;
+}): Promise<{ address: SavedAddress }> {
+  return request<{ address: SavedAddress }>('/me/addresses', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function removeAddress(id: string): Promise<{ message: string }> {
+  return request<{ message: string }>(`/me/addresses/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+}
+
+export function changeHomeAddress(
+  address: string,
+  pin: string,
+): Promise<{ home: string; message: string }> {
+  return request<{ home: string; message: string }>('/me/home-address', {
+    method: 'PUT',
+    body: JSON.stringify({ address, pin }),
+  });
+}
+
+/** The server asked for a PIN to be chosen before it would go on. */
+export function pinNeeded(failure: unknown): boolean {
+  return failure instanceof ApiError && failure.details?.['pin'] === 'needed';
 }
 
 /* ------------------------------------------------------------------------------------- *
