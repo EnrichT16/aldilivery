@@ -579,3 +579,71 @@ Runner's pay. Bundles are four standard deliveries for £48.
   summary, T11 Runner training, T2 council invoicing and reports.
 - **Third group:** T8 wellbeing check (after T11).
 - **Not product work:** T2 contracts and T4 grant applications, which are Anthony's.
+
+## Rulings, 2 October 2026 (given by voice)
+
+1. **Who pays for a merged call.** The person who adds people to a call (MERGE, Section F) pays,
+   from the card on their own account. They pay for their own minutes and for the minutes of every
+   person they added. If the card cannot be charged at the time, the amount is kept as an
+   outstanding balance and taken the next time their card is charged successfully. They are told.
+   This applies to call charges only.
+2. **Runners register themselves, entirely in the app.** No visit to the office. Quick and simple.
+   Documents are photographed with the phone camera, not scanned, and the app makes sure each
+   photograph is clear.
+3. **The first screen asks who you are.** One app. Each choice has a short description under it,
+   spoken aloud and written: Shopper, Runner, organisation, and the admin route.
+4. **How a Runner delivers.** On foot, bicycle, motorbike or scooter, or car. On foot and bicycle
+   need no insurance. A car, and a motorbike or scooter, need insurance. The Runner can switch at
+   any time in their own Settings, for example from car to walking or bicycle, whatever the reason.
+5. **The Runner's dashboard.**
+   - What they have earned is big and bold, for today and over time.
+   - A Training tab (T11).
+   - Full job history, each job with its date, time, area, pay and a reference number linking it
+     to the order and the Shopper, kept as long as the law allows.
+   - Payouts: what has been paid out, and when.
+6. **The DBS check.** Required if the law requires it; otherwise optional. Claude Code's reading
+   is below, awaiting Anthony's decision.
+
+### Proposed by Claude Code, 2 October 2026, awaiting Anthony
+
+- **Wording on the first screen.** "Shopper", not "customer", keeping Section A's vocabulary.
+- **Admin is not on the public first screen.** Staff sign in at a separate staff address, with
+  two-step sign-in (Section Q). Public: Shopper, Runner, organisation, and "I look after someone"
+  (the family and carer plan, T1).
+- **Runner sign-up, in this order.**
+  1. Name and phone number, confirmed by a text code.
+  2. How you deliver: tick every option you might use, so switching later needs nothing new.
+  3. A photo of your face. It is matched to your documents and shown to the Shopper at the door
+     (T6).
+  4. Right to work: a Home Office share code, or a passport photo for British and Irish citizens.
+  5. A basic DBS certificate, or a share code for it.
+  6. Car or motorbike only:
+     - a photo of the driving licence, front and back, plus a DVLA check code;
+     - the registration number, so MOT and road tax are checked automatically;
+     - a photo of the insurance certificate showing business or hire-and-reward cover.
+  7. Bank details through Stripe's own secure pages.
+
+  While staff check the documents in the admin panel, the Runner starts training.
+- **Switching how you deliver.** Switching down, to walking or bicycle, is instant. Switching to a
+  car or motorbike needs valid insurance on file, and an expiry date triggers reminders. Only jobs
+  that suit the current way of delivering are offered.
+- **DBS.** For ordinary delivery work a DBS check is not legally required. But Ozi's Shoppers are
+  elderly and disabled people, and Runners shop on their behalf and meet them at their door. In
+  law, shopping for an adult because of age or disability can count as "regulated activity", which
+  allows an enhanced check, and organisations and councils will expect one.
+  - Proposed: a basic DBS for every Runner, mandatory.
+  - An enhanced DBS, with the adults' barred list, before T5 rounds, T8 wellbeing checks and
+    handovers to the person (Section L).
+  - Anthony to confirm with a solicitor.
+- **Records.** Order and money records are kept for seven years, beyond HMRC's six, then
+  anonymised. Runners see an order reference, never the Shopper's name or phone number. Old jobs
+  show only the area, such as "Gillingham, ME7", not the full address. The link from a reference
+  to the Shopper is held only in the admin panel.
+- **Payouts.** Weekly by default, through Stripe. A Runner can choose daily in Settings. Instant
+  payout is available, with Stripe's small fee paid by the Runner and shown first. A new Stripe
+  account has a short first-payout delay that Stripe sets.
+- **Merged calls.**
+  - Rule One applies: before a person is added, Ozi says the price ("adding someone costs 5p a
+    minute for them, on your card") and waits for a yes.
+  - A Runner never pays for a call (Rule Two).
+  - An outstanding call balance above £10 is settled before more people can be added.
