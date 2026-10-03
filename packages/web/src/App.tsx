@@ -13,6 +13,7 @@ import { Landing } from './pages/Landing';
 import { LookingAfter } from './pages/LookingAfter';
 import { MyOrder } from './pages/MyOrder';
 import { Organisations } from './pages/Organisations';
+import { ReportProblem } from './pages/ReportProblem';
 import { RunnerDoor } from './pages/Runner';
 import { RunnerHome } from './pages/RunnerHome';
 import { RunnerSignUp } from './pages/RunnerSignUp';
@@ -116,6 +117,7 @@ export function App(): JSX.Element {
                 <Route path="/runner" element={<RunnerDoor />} />
                 <Route path="/runner/sign-up" element={<RunnerSignUp />} />
                 <Route path="/runner/home" element={<RunnerHome />} />
+                <Route path="/runner/jobs/:orderId/problem" element={<ReportProblem />} />
                 <Route path="/just-looking" element={<JustLooking />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/addresses" element={<Addresses />} />

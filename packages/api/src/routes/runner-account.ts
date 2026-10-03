@@ -252,6 +252,7 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
         const when = order.deliveredAt ?? order.completedAt ?? order.updatedAt;
         const payout = payoutFor.get(order.id);
         return {
+          orderId: order.id,
           reference: orderReference(order.id),
           deliveredAt: when,
           area: areaOf(order.deliveryAddress),
@@ -265,6 +266,21 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
     const weekPence = sum(jobs.filter((job) => job.day >= weekStart));
     const allPence = sum(jobs);
     const origin = env.primaryOrigin ?? '';
+    // What is owed after a decision against them, and what has been taken back so far. Never
+    // hidden: every deduction, its reason and what is left.
+    const owed = await repository.recoveries.listOutstanding(runner.id);
+    const owing = await Promise.all(
+      owed.map(async (recovery) => {
+        const report = await repository.problems.findById(recovery.reportId);
+        return {
+          reference: report ? orderReference(report.orderId) : '',
+          amountPence: recovery.amountPence,
+          recoveredPence: recovery.recoveredPence,
+          remainingPence: recovery.amountPence - recovery.recoveredPence,
+          reason: report?.decisionNote ?? '',
+        };
+      }),
+    );
 
     return {
       runnerId: runner.referralCode,
@@ -284,10 +300,13 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
         reference: orderReference(payout.orderId),
         earnedPence: payout.earnedPence,
         coolBagWithheldPence: payout.coolBagWithheldPence,
+        recoveryWithheldPence: payout.recoveryWithheldPence,
         transferredPence: payout.transferredPence,
         at: payout.createdAt,
       })),
       totalTransferredPence: payouts.reduce((t, payout) => t + payout.transferredPence, 0),
+      owing,
+      recoveryPercentOfPay: config.problems.recoveryPercentOfPay,
     };
   });
 

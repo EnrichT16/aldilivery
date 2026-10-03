@@ -29,6 +29,9 @@ import type {
   CallLeg,
   RunnerDocument,
   RunnerFeedback,
+  ProblemReport,
+  ProblemEvidence,
+  RunnerRecovery,
   RecurringSet,
   Runner,
   RunnerCheck,
@@ -127,7 +130,7 @@ export type CreateRunnerPayout = Pick<
   RunnerPayout,
   'orderId' | 'runnerId' | 'earnedPence' | 'coolBagWithheldPence' | 'transferredPence'
 > &
-  Partial<Pick<RunnerPayout, 'stripeTransferId'>>;
+  Partial<Pick<RunnerPayout, 'stripeTransferId' | 'recoveryWithheldPence'>>;
 
 export type CreateOneTimeCode = Pick<OneTimeCode, 'phone' | 'codeHash' | 'expiresAt'> &
   /** `createdAt` from the route's clock, so the limits count on the same clock they check. */
@@ -186,6 +189,27 @@ export interface Repository {
     create(input: Omit<RunnerFeedback, 'id'>): Promise<RunnerFeedback>;
     /** Newest first. */
     list(): Promise<RunnerFeedback[]>;
+  };
+
+  /** Problems with orders, their evidence, and what Runners found at fault repay. */
+  problems: {
+    create(input: Omit<ProblemReport, 'id'>): Promise<ProblemReport>;
+    findById(id: string): Promise<ProblemReport | null>;
+    listForOrder(orderId: string): Promise<ProblemReport[]>;
+    /** Open ones, the soonest due first. */
+    listOpen(): Promise<ProblemReport[]>;
+    update(id: string, patch: Partial<Omit<ProblemReport, 'id'>>): Promise<ProblemReport>;
+  };
+  problemEvidence: {
+    create(input: Omit<ProblemEvidence, 'id'>): Promise<ProblemEvidence>;
+    findById(id: string): Promise<ProblemEvidence | null>;
+    listForReport(reportId: string): Promise<ProblemEvidence[]>;
+  };
+  recoveries: {
+    create(input: Omit<RunnerRecovery, 'id'>): Promise<RunnerRecovery>;
+    /** Still owed (not fully recovered, not written off), oldest first. */
+    listOutstanding(runnerId: string): Promise<RunnerRecovery[]>;
+    update(id: string, patch: Partial<Omit<RunnerRecovery, 'id'>>): Promise<RunnerRecovery>;
   };
 
   /** In-app calls (Section F) and each person's part in them. */

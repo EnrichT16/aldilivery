@@ -304,7 +304,15 @@ export function RunnerHome(): JSX.Element {
               </ul>
             </section>
           ) : job ? (
-            <JobInHand job={job} questions={questions} busy={busy} act={act} />
+            <>
+              <JobInHand job={job} questions={questions} busy={busy} act={act} />
+              <Link
+                to={`/runner/jobs/${encodeURIComponent(job.orderId)}/problem`}
+                className="control bg-paper/10 text-paper underline"
+              >
+                Report a problem with this job
+              </Link>
+            </>
           ) : (
             <>
               <section aria-labelledby="shift-heading" className="space-y-3 max-w-xl">
@@ -709,6 +717,12 @@ function JobHistory({ dashboard }: { dashboard: RunnerDashboard | null }): JSX.E
               <p className="m-0">
                 Area {job.area}. Order {job.reference}. {job.paid ? 'Paid.' : 'Not paid yet.'}
               </p>
+              <Link
+                to={`/runner/jobs/${encodeURIComponent(job.orderId)}/problem`}
+                className="control bg-paper/10 text-paper underline mt-2"
+              >
+                Report a problem<span className="visually-hidden"> with order {job.reference}</span>
+              </Link>
             </li>
           ))}
         </ul>
@@ -736,6 +750,26 @@ function Money({ dashboard }: { dashboard: RunnerDashboard | null }): JSX.Elemen
         <p className="m-0 text-lead font-bold">{money(dashboard.earnings.weekPence)} this week</p>
         <p className="m-0 text-lead font-bold">{money(dashboard.earnings.allTimePence)} in all</p>
       </section>
+      {dashboard.owing && dashboard.owing.length > 0 && (
+        <section aria-labelledby="owing-heading" className="space-y-2">
+          <h2 id="owing-heading" className="text-lead font-bold">
+            Being repaid
+          </h2>
+          <p className="m-0">
+            After a decision that you were responsible for a refund,{' '}
+            {dashboard.recoveryPercentOfPay ?? 10}% of each job&rsquo;s pay goes towards it until it
+            is repaid. You always keep the rest.
+          </p>
+          <ul className="m-0 ps-6 space-y-2">
+            {dashboard.owing.map((item) => (
+              <li key={item.reference + item.amountPence}>
+                Order {item.reference}: {money(item.remainingPence)} left of{' '}
+                {money(item.amountPence)}. {item.reason}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <section aria-labelledby="paid-heading" className="space-y-2">
         <h2 id="paid-heading" className="text-lead font-bold">
           Paid out to you

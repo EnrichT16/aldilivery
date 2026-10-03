@@ -96,6 +96,12 @@ export interface PaymentsGateway {
   createTransfer(input: CreateTransferInput): Promise<TransferResult>;
   /** Succeeds, or throws: there is no half-taken charge. */
   chargeSavedCard(input: ChargeSavedCardInput): Promise<{ id: string }>;
+  /** Give money back to the card a payment came from. Part of it, or all. */
+  refundPayment(input: {
+    paymentIntentId: string;
+    amountPence: number;
+    reference: string;
+  }): Promise<{ id: string }>;
   /**
    * Keep a card for use again: make the Shopper's Stripe customer if they have none yet, and
    * attach the card to it. Throws if Stripe will not keep the card (for example, one already
@@ -147,6 +153,15 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
         },
       });
       return { id: intent.id, status: intent.status, clientSecret: intent.client_secret };
+    },
+
+    async refundPayment(input) {
+      const refund = await stripe.refunds.create({
+        payment_intent: input.paymentIntentId,
+        amount: input.amountPence,
+        metadata: { reference: input.reference },
+      });
+      return { id: refund.id };
     },
 
     async saveCardForReuse(input) {
@@ -245,9 +260,13 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
  * `mode` above carries the same fact to `/health` and `/config` so nothing has to guess.
  */
 export interface RecordedCall {
-  kind: 'payment_intent' | 'transfer' | 'connected_account' | 'saved_card_charge';
+  kind: 'payment_intent' | 'transfer' | 'connected_account' | 'saved_card_charge' | 'refund';
   input:
-    CreatePaymentIntentInput | CreateTransferInput | ChargeSavedCardInput | { runnerId: string };
+    | CreatePaymentIntentInput
+    | CreateTransferInput
+    | ChargeSavedCardInput
+    | { paymentIntentId: string; amountPence: number; reference: string }
+    | { runnerId: string };
 }
 
 export interface RehearsalGateway extends PaymentsGateway {
@@ -267,6 +286,11 @@ export function rehearsalGateway(): RehearsalGateway {
     calls,
     declineNextCharge: false,
     refuseNextSave: false,
+    async refundPayment(input) {
+      counter += 1;
+      calls.push({ kind: 'refund', input });
+      return { id: `re_rehearsal_${counter}` };
+    },
     async saveCardForReuse(input) {
       if (gateway.refuseNextSave) {
         gateway.refuseNextSave = false;

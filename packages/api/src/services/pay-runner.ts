@@ -60,15 +60,34 @@ export async function payOutOrder(ctx: PayContext, orderId: string): Promise<Pay
     throw new Error('Rule Two: a Runner earns five pounds on every completed order.');
   }
 
+  // A refund the Runner was found at fault for (rulings of 2 October 2026): a small part of
+  // each job's pay, never all of it, oldest first, until it is repaid. The earning stays five
+  // pounds (Rule Two); only what is sent today is less, exactly as the cool bag deposit works.
+  const owed = await repository.recoveries.listOutstanding(runner.id);
+  const cap = Math.floor((plan.earnedPence * config.problems.recoveryPercentOfPay) / 100);
+  let recoveryWithheldPence = 0;
+  const takes: Array<{ id: string; recoveredPence: number }> = [];
+  for (const recovery of owed) {
+    const room = Math.min(
+      cap - recoveryWithheldPence,
+      plan.transferredPence - recoveryWithheldPence,
+    );
+    if (room <= 0) break;
+    const take = Math.min(room, recovery.amountPence - recovery.recoveredPence);
+    takes.push({ id: recovery.id, recoveredPence: recovery.recoveredPence + take });
+    recoveryWithheldPence += take;
+  }
+  const transferredPence = plan.transferredPence - recoveryWithheldPence;
+
   let transferId: string | null = null;
-  if (plan.transferredPence > 0) {
+  if (transferredPence > 0) {
     if (!runner.stripeConnectedAccountId) {
       throw new BadRequestError(
         'We cannot pay you until your bank details are set up. Nothing is lost; the money is owed to you.',
       );
     }
     const transfer = await payments.createTransfer({
-      amountPence: plan.transferredPence,
+      amountPence: transferredPence,
       currency: config.fees.currency,
       destinationAccountId: runner.stripeConnectedAccountId,
       orderId: order.id,
@@ -78,12 +97,18 @@ export async function payOutOrder(ctx: PayContext, orderId: string): Promise<Pay
     transferId = transfer.id;
   }
 
+  // Only once the money has gone: a failed transfer recovers nothing.
+  for (const take of takes) {
+    await repository.recoveries.update(take.id, { recoveredPence: take.recoveredPence });
+  }
+
   const payout = await repository.payouts.create({
     orderId: order.id,
     runnerId: runner.id,
     earnedPence: plan.earnedPence,
     coolBagWithheldPence: plan.coolBagWithheldPence,
-    transferredPence: plan.transferredPence,
+    recoveryWithheldPence,
+    transferredPence,
     stripeTransferId: transferId,
   });
 
@@ -111,7 +136,12 @@ export async function payOutOrder(ctx: PayContext, orderId: string): Promise<Pay
       `Your cool bag deposit of ${formatPence(plan.coolBagReleasedPence, symbol)} has been paid back to you.`,
     );
   }
-  notes.push(`${formatPence(plan.transferredPence, symbol)} is on its way to your account.`);
+  if (recoveryWithheldPence > 0) {
+    notes.push(
+      `${formatPence(recoveryWithheldPence, symbol)} went towards the refund you were found responsible for. You can see what is left in Money.`,
+    );
+  }
+  notes.push(`${formatPence(transferredPence, symbol)} is on its way to your account.`);
 
   return { payout, plan, order: updatedOrder, notes };
 }

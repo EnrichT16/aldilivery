@@ -170,6 +170,7 @@ function stubRunnerApi(): void {
           earnings: { todayPence: 1500, weekPence: 3500, allTimePence: 12000, jobsToday: 3 },
           jobs: [
             {
+              orderId: 'order-0',
               reference: 'OZ-ABC123',
               deliveredAt: '2026-10-03T09:00:00.000Z',
               area: 'ME7',
@@ -187,6 +188,16 @@ function stubRunnerApi(): void {
             },
           ],
           totalTransferredPence: 400,
+          owing: [
+            {
+              reference: 'OZ-ABC123',
+              amountPence: 120,
+              recoveredPence: 50,
+              remainingPence: 70,
+              reason: 'Heavy jars should go in a separate bag.',
+            },
+          ],
+          recoveryPercentOfPay: 10,
         });
       }
       if (path === '/runners/me/travel-mode') {
@@ -477,11 +488,20 @@ describe('the Runner page tabs', () => {
     await user.click(await screen.findByRole('button', { name: 'Jobs' }));
     expect(screen.getByRole('button', { name: 'Jobs' })).toHaveAttribute('aria-current', 'page');
     expect(await screen.findByText('Area ME7. Order OZ-ABC123. Paid.')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Report a problem with order OZ-ABC123' }),
+    ).toHaveAttribute('href', '/runner/jobs/order-0/problem');
 
     await user.click(screen.getByRole('button', { name: 'Money' }));
     expect(screen.getByText('£35.00 this week')).toBeInTheDocument();
     expect(screen.getByText('£120.00 in all')).toBeInTheDocument();
     expect(screen.getByText(/after £1.00 towards your cool box/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Order OZ-ABC123: £0.70 left of £1.20. Heavy jars should go in a separate bag./,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/10% of each job’s pay goes towards it/)).toBeInTheDocument();
   });
 
   it('lists the training to come, honestly marked', async () => {

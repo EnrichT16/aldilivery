@@ -141,6 +141,61 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    problems: {
+      async create(input) {
+        return (await prisma.problemReport.create({ data: input })) as any;
+      },
+      async findById(id) {
+        return (await prisma.problemReport.findUnique({ where: { id } })) as any;
+      },
+      async listForOrder(orderId) {
+        return (await prisma.problemReport.findMany({
+          where: { orderId },
+          orderBy: { createdAt: 'desc' },
+        })) as any;
+      },
+      async listOpen() {
+        return (await prisma.problemReport.findMany({
+          where: { status: 'open' },
+          orderBy: { decideBy: 'asc' },
+        })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.problemReport.update({ where: { id }, data: patch as any })) as any;
+      },
+    },
+
+    problemEvidence: {
+      async create(input) {
+        return (await prisma.problemEvidence.create({ data: input as any })) as any;
+      },
+      async findById(id) {
+        return (await prisma.problemEvidence.findUnique({ where: { id } })) as any;
+      },
+      async listForReport(reportId) {
+        return (await prisma.problemEvidence.findMany({
+          where: { reportId },
+          orderBy: { createdAt: 'asc' },
+        })) as any;
+      },
+    },
+
+    recoveries: {
+      async create(input) {
+        return (await prisma.runnerRecovery.create({ data: input })) as any;
+      },
+      async listOutstanding(runnerId) {
+        const rows = await prisma.runnerRecovery.findMany({
+          where: { runnerId, writtenOff: false },
+          orderBy: { createdAt: 'asc' },
+        });
+        return rows.filter((row) => row.recoveredPence < row.amountPence) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.runnerRecovery.update({ where: { id }, data: patch })) as any;
+      },
+    },
+
     calls: {
       async create(input) {
         return (await prisma.call.create({ data: input })) as any;

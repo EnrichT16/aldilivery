@@ -250,6 +250,8 @@ export interface RunnerPayout {
   runnerId: string;
   earnedPence: number;
   coolBagWithheldPence: number;
+  /** Taken towards a refund a Runner was found at fault for: a small part of each job, never all. */
+  recoveryWithheldPence: number;
   transferredPence: number;
   stripeTransferId: string | null;
   createdAt: Date;
@@ -398,5 +400,58 @@ export interface RunnerFeedback {
   id: string;
   runnerId: string | null;
   message: string;
+  createdAt: Date;
+}
+
+/**
+ * Something that went wrong with an order, reported by the Runner or the Shopper, with evidence,
+ * decided by a person (rulings of 2 October 2026).
+ */
+export type ProblemDecision =
+  | 'shopper_at_fault'
+  | 'runner_at_fault'
+  | 'platform_at_fault'
+  | 'shop_at_fault'
+  | 'no_fault';
+
+export interface ProblemReport {
+  id: string;
+  orderId: string;
+  reportedBy: 'runner' | 'shopper';
+  reporterId: string;
+  summary: string;
+  /** What the Shopper asked to have back, if they asked. */
+  refundRequestedPence: number;
+  status: 'open' | 'decided';
+  /** The day a decision is due: two working days after it was reported. */
+  decideBy: Date;
+  decision: ProblemDecision | null;
+  refundPence: number;
+  refundReference: string | null;
+  decisionNote: string | null;
+  decidedBy: string | null;
+  decidedAt: Date | null;
+  createdAt: Date;
+}
+
+export interface ProblemEvidence {
+  id: string;
+  reportId: string;
+  addedBy: 'runner' | 'shopper';
+  kind: 'voice_note' | 'photo' | 'note';
+  data: Buffer | null;
+  contentType: string | null;
+  text: string | null;
+  createdAt: Date;
+}
+
+/** What a Runner owes after being found at fault, taken back a little from each job. */
+export interface RunnerRecovery {
+  id: string;
+  runnerId: string;
+  reportId: string;
+  amountPence: number;
+  recoveredPence: number;
+  writtenOff: boolean;
   createdAt: Date;
 }

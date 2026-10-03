@@ -323,6 +323,7 @@ export interface RunnerDashboard {
     jobsToday: number;
   };
   jobs: Array<{
+    orderId: string;
     reference: string;
     deliveredAt: string;
     area: string;
@@ -333,10 +334,20 @@ export interface RunnerDashboard {
     reference: string;
     earnedPence: number;
     coolBagWithheldPence: number;
+    recoveryWithheldPence?: number;
     transferredPence: number;
     at: string;
   }>;
   totalTransferredPence: number;
+  /** Owed after a decision against them: every one, its reason, and what is left. */
+  owing?: Array<{
+    reference: string;
+    amountPence: number;
+    recoveredPence: number;
+    remainingPence: number;
+    reason: string;
+  }>;
+  recoveryPercentOfPay?: number;
 }
 
 export function fetchRunnerDashboard(): Promise<RunnerDashboard> {
@@ -717,4 +728,70 @@ export function createOrder(input: {
       },
     }),
   });
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * When something goes wrong with an order
+ * ------------------------------------------------------------------------------------- */
+
+export interface ProblemReport {
+  id: string;
+  orderId: string;
+  reportedBy: 'runner' | 'shopper';
+  summary: string;
+  refundRequestedPence: number;
+  status: 'open' | 'decided';
+  decideBy: string;
+  decision: string | null;
+  decisionWords: string | null;
+  refundPence: number;
+  decisionNote: string | null;
+  decidedAt: string | null;
+  evidence: Array<{
+    id: string;
+    kind: 'voice_note' | 'photo' | 'note';
+    addedBy: 'runner' | 'shopper';
+    text: string | null;
+    createdAt: string;
+  }>;
+}
+
+export function fetchProblems(
+  orderId: string,
+  as: 'shopper' | 'runner',
+): Promise<{ reports: ProblemReport[] }> {
+  return request<{ reports: ProblemReport[] }>(
+    `/orders/${encodeURIComponent(orderId)}/problems`,
+    undefined,
+    as,
+  );
+}
+
+export function reportProblem(
+  orderId: string,
+  input: { summary: string; refundRequestedPence?: number },
+  as: 'shopper' | 'runner',
+): Promise<{ report: ProblemReport; message: string }> {
+  return request<{ report: ProblemReport; message: string }>(
+    `/orders/${encodeURIComponent(orderId)}/problems`,
+    { method: 'POST', body: JSON.stringify(input) },
+    as,
+  );
+}
+
+export function addProblemEvidence(
+  reportId: string,
+  input: {
+    kind: 'voice_note' | 'photo' | 'note';
+    data?: string;
+    contentType?: string;
+    text?: string;
+  },
+  as: 'shopper' | 'runner',
+): Promise<{ message: string }> {
+  return request<{ message: string }>(
+    `/problems/${encodeURIComponent(reportId)}/evidence`,
+    { method: 'POST', body: JSON.stringify(input) },
+    as,
+  );
 }

@@ -442,12 +442,14 @@ model RunnerPayout {
   runner   Runner @relation(fields: [runnerId], references: [id], onDelete: Cascade)
 
   /// Always five hundred. Recorded per payout so the audit trail is self evident.
-  earnedPence          Int
+  earnedPence           Int
   /// Held back towards the cool bag deposit, never taken from the earning.
-  coolBagWithheldPence Int     @default(0)
+  /// Taken towards a refund the Runner was found at fault for, a little from each job.
+  recoveryWithheldPence Int     @default(0)
+  coolBagWithheldPence  Int     @default(0)
   /// What actually moved to the Runner's own account in this transfer.
-  transferredPence     Int
-  stripeTransferId     String?
+  transferredPence      Int
+  stripeTransferId      String?
 
   createdAt DateTime @default(now())
 }
@@ -682,4 +684,59 @@ model RunnerFeedback {
   runnerId  String?
   message   String
   createdAt DateTime @default(now())
+}
+
+/// Something that went wrong with an order, with evidence, decided by a person.
+model ProblemReport {
+  id                   String            @id @default(cuid())
+  orderId              String
+  /// "runner" or "shopper".
+  reportedBy           String
+  reporterId           String
+  summary              String
+  refundRequestedPence Int               @default(0)
+  /// "open" or "decided".
+  status               String            @default("open")
+  decideBy             DateTime
+  /// shopper_at_fault, runner_at_fault, platform_at_fault, shop_at_fault or no_fault.
+  decision             String?
+  refundPence          Int               @default(0)
+  refundReference      String?
+  decisionNote         String?
+  decidedBy            String?
+  decidedAt            DateTime?
+  createdAt            DateTime          @default(now())
+  evidence             ProblemEvidence[]
+
+  @@index([status, decideBy])
+  @@index([orderId])
+}
+
+/// A voice note, photo or written note sent as evidence.
+model ProblemEvidence {
+  id          String        @id @default(cuid())
+  reportId    String
+  report      ProblemReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  addedBy     String
+  /// voice_note, photo or note.
+  kind        String
+  data        Bytes?
+  contentType String?
+  text        String?
+  createdAt   DateTime      @default(now())
+
+  @@index([reportId])
+}
+
+/// What a Runner owes after being found at fault, recovered a little from each job.
+model RunnerRecovery {
+  id             String   @id @default(cuid())
+  runnerId       String
+  reportId       String
+  amountPence    Int
+  recoveredPence Int      @default(0)
+  writtenOff     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([runnerId])
 }

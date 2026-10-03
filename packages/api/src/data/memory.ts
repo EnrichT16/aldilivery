@@ -31,6 +31,9 @@ import type {
   CallLeg,
   RunnerDocument,
   RunnerFeedback,
+  ProblemReport,
+  ProblemEvidence,
+  RunnerRecovery,
   RecurringSet,
   Runner,
   RunnerCheck,
@@ -86,6 +89,9 @@ export function memoryRepository(): Repository {
   const calls = new Map<string, Call>();
   const runnerDocuments = new Map<string, RunnerDocument>();
   const runnerFeedback: RunnerFeedback[] = [];
+  const problems = new Map<string, ProblemReport>();
+  const problemEvidence = new Map<string, ProblemEvidence>();
+  const recoveries = new Map<string, RunnerRecovery>();
   const callLegs = new Map<string, CallLeg>();
 
   const now = (): Date => new Date();
@@ -269,6 +275,79 @@ export function memoryRepository(): Repository {
       },
       async list() {
         return [...runnerFeedback].reverse().map(clone);
+      },
+    },
+
+    problems: {
+      async create(input) {
+        const row: ProblemReport = { ...input, id: id() };
+        problems.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = problems.get(key);
+        return found ? clone(found) : null;
+      },
+      async listForOrder(orderId) {
+        return [...problems.values()]
+          .filter((row) => row.orderId === orderId)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map(clone);
+      },
+      async listOpen() {
+        return [...problems.values()]
+          .filter((row) => row.status === 'open')
+          .sort((a, b) => a.decideBy.getTime() - b.decideBy.getTime())
+          .map(clone);
+      },
+      async update(key, patch) {
+        const found = problems.get(key);
+        if (!found) throw new Error(`No problem report ${key}`);
+        const row = { ...found, ...patch };
+        problems.set(key, row);
+        return clone(row);
+      },
+    },
+
+    problemEvidence: {
+      async create(input) {
+        const row: ProblemEvidence = { ...input, id: id() };
+        problemEvidence.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = problemEvidence.get(key);
+        return found ? clone(found) : null;
+      },
+      async listForReport(reportId) {
+        return [...problemEvidence.values()]
+          .filter((row) => row.reportId === reportId)
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+    },
+
+    recoveries: {
+      async create(input) {
+        const row: RunnerRecovery = { ...input, id: id() };
+        recoveries.set(row.id, row);
+        return clone(row);
+      },
+      async listOutstanding(runnerId) {
+        return [...recoveries.values()]
+          .filter(
+            (row) =>
+              row.runnerId === runnerId && !row.writtenOff && row.recoveredPence < row.amountPence,
+          )
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async update(key, patch) {
+        const found = recoveries.get(key);
+        if (!found) throw new Error(`No recovery ${key}`);
+        const row = { ...found, ...patch };
+        recoveries.set(key, row);
+        return clone(row);
       },
     },
 
@@ -666,6 +745,7 @@ export function memoryRepository(): Repository {
           runnerId: input.runnerId,
           earnedPence: input.earnedPence,
           coolBagWithheldPence: input.coolBagWithheldPence,
+          recoveryWithheldPence: input.recoveryWithheldPence ?? 0,
           transferredPence: input.transferredPence,
           stripeTransferId: input.stripeTransferId ?? null,
           createdAt: now(),

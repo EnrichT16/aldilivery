@@ -70,6 +70,12 @@
     "pencePerMinute": 5,
     "maxOutstandingPence": 1000
   },
+  "problems": {
+    "instantRefundUpToPence": 500,
+    "decideWithinWorkingDays": 2,
+    "recoveryPercentOfPay": 10,
+    "writeOffUpToPence": 2000
+  },
   "versionOneRestrictions": {
     "ageRestrictedGoodsAllowed": false
   }
