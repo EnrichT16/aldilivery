@@ -116,6 +116,7 @@ export interface ApiStubOptions {
  */
 export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
   const recorded: RecordedRequest[] = [];
+  const runnerDocumentsSent: string[] = [];
 
   /**
    * Signed in, or signed out — never "whatever the last test left behind".
@@ -219,6 +220,28 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
           },
           201,
         );
+      }
+
+      // A Runner's documents: what is still needed shrinks as each one is sent.
+      if (path === '/runners/me/documents') {
+        const needed = [
+          { kind: 'face_photo', name: 'A photo of your face' },
+          { kind: 'right_to_work', name: 'Your right to work in the UK' },
+          { kind: 'dbs', name: 'Your DBS certificate' },
+        ].filter((item) => !runnerDocumentsSent.includes(item.kind));
+        if (method === 'POST') {
+          const sent = body as { kind: string };
+          runnerDocumentsSent.push(sent.kind);
+          return reply(
+            {
+              documents: [],
+              stillNeeded: needed.filter((item) => item.kind !== sent.kind),
+              message: 'Thank you. We will check it and let you know.',
+            },
+            201,
+          );
+        }
+        return reply({ documents: [], stillNeeded: needed });
       }
 
       if (path === '/shoppers') {

@@ -226,7 +226,10 @@ export type VehicleType = 'on_foot' | 'bicycle' | 'motorbike' | 'car' | 'van';
 export interface RegisterRunnerInput {
   name: string;
   phone: string;
-  vehicleType: VehicleType;
+  /** Every way they might deliver: tick all, so switching later needs nothing new. */
+  travelModes: VehicleType[];
+  /** The ID of whoever invited them, from the link they followed. */
+  referredBy?: string;
 }
 
 /**
@@ -235,11 +238,14 @@ export interface RegisterRunnerInput {
  */
 export function registerRunner(
   input: RegisterRunnerInput,
-): Promise<{ runner: { name: string; phone: string }; token: string }> {
-  return request<{ runner: { name: string; phone: string }; token: string }>('/runners', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  });
+): Promise<{ runner: { name: string; phone: string; referralCode: string }; token: string }> {
+  return request<{ runner: { name: string; phone: string; referralCode: string }; token: string }>(
+    '/runners',
+    {
+      method: 'POST',
+      body: JSON.stringify(input),
+    },
+  );
 }
 
 export interface RunnerAccount {
@@ -249,6 +255,103 @@ export interface RunnerAccount {
   rightToWorkVerified: boolean;
   criminalRecordCheckVerified: boolean;
   available: boolean;
+  /** How they are delivering now. */
+  vehicleType?: VehicleType;
+  travelModes?: VehicleType[];
+  referralCode?: string;
+}
+
+export type RunnerDocumentKind =
+  | 'face_photo'
+  | 'right_to_work'
+  | 'dbs'
+  | 'driving_licence_front'
+  | 'driving_licence_back'
+  | 'insurance';
+
+export interface RunnerDocumentRecord {
+  id: string;
+  kind: RunnerDocumentKind;
+  name: string;
+  status: 'submitted' | 'accepted' | 'rejected';
+  reviewNote: string | null;
+  sentAs: 'photo' | 'share code';
+  createdAt: string;
+}
+
+export interface RunnerDocuments {
+  documents: RunnerDocumentRecord[];
+  stillNeeded: Array<{ kind: RunnerDocumentKind; name: string }>;
+}
+
+export function fetchRunnerDocuments(): Promise<RunnerDocuments> {
+  return request<RunnerDocuments>('/runners/me/documents', undefined, 'runner');
+}
+
+export function sendRunnerDocument(input: {
+  kind: RunnerDocumentKind;
+  image?: string;
+  contentType?: string;
+  shareCode?: string;
+  expiresOn?: string;
+}): Promise<RunnerDocuments & { message: string }> {
+  return request<RunnerDocuments & { message: string }>(
+    '/runners/me/documents',
+    { method: 'POST', body: JSON.stringify(input) },
+    'runner',
+  );
+}
+
+export function setTravelMode(mode: VehicleType): Promise<{ message: string }> {
+  return request<{ message: string }>(
+    '/runners/me/travel-mode',
+    { method: 'POST', body: JSON.stringify({ mode }) },
+    'runner',
+  );
+}
+
+export interface RunnerDashboard {
+  runnerId: string;
+  shareLink: string;
+  travelling: VehicleType;
+  travelModes: VehicleType[];
+  canDrive: boolean;
+  earnings: {
+    todayPence: number;
+    weekPence: number;
+    allTimePence: number;
+    jobsToday: number;
+  };
+  jobs: Array<{
+    reference: string;
+    deliveredAt: string;
+    area: string;
+    earnedPence: number;
+    paid: boolean;
+  }>;
+  payouts: Array<{
+    reference: string;
+    earnedPence: number;
+    coolBagWithheldPence: number;
+    transferredPence: number;
+    at: string;
+  }>;
+  totalTransferredPence: number;
+}
+
+export function fetchRunnerDashboard(): Promise<RunnerDashboard> {
+  return request<RunnerDashboard>('/runners/me/dashboard', undefined, 'runner');
+}
+
+export function sendRunnerFeedback(
+  message: string,
+  anonymous: boolean,
+): Promise<{ message: string }> {
+  return request<{ message: string }>(
+    '/runners/me/feedback',
+    { method: 'POST', body: JSON.stringify({ message, anonymous }) },
+    'runner',
+  );
 }
 
 export function fetchRunnerMe(): Promise<{ runner: RunnerAccount }> {

@@ -5,6 +5,11 @@ import { storeConfig } from '../config';
 import {
   acceptJob,
   ApiUnavailableError,
+  fetchRunnerDashboard,
+  sendRunnerFeedback,
+  setTravelMode,
+  type RunnerDashboard,
+  type VehicleType,
   askAboutItem,
   declineJob,
   fetchCurrentJob,
@@ -23,6 +28,7 @@ import {
   type RunnerAccount,
   type RunnerPay,
 } from '../lib/api';
+import { DocumentsChecklist } from '../components/DocumentsChecklist';
 import { money } from '../lib/money';
 import { clearRunnerToken, readRunnerToken } from '../lib/session';
 
@@ -45,6 +51,23 @@ import { clearRunnerToken, readRunnerToken } from '../lib/session';
  */
 
 const POLL_MS = 5000;
+
+type TabKey = 'today' | 'jobs' | 'money' | 'training' | 'more';
+const TABS: Array<{ key: TabKey; label: string }> = [
+  { key: 'today', label: 'Today' },
+  { key: 'jobs', label: 'Jobs' },
+  { key: 'money', label: 'Money' },
+  { key: 'training', label: 'Training' },
+  { key: 'more', label: 'More' },
+];
+
+const TRAVEL_WORDS: Record<VehicleType, string> = {
+  on_foot: 'Walking',
+  bicycle: 'Bicycle',
+  motorbike: 'Motorbike or moped',
+  car: 'Car',
+  van: 'Van',
+};
 
 /**
  * What a Runner does when something is not on the shelf (docs/BUILD_PROMPT.md, Section H): the
@@ -82,6 +105,8 @@ export function RunnerHome(): JSX.Element {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
   const [news, setNews] = useState('');
+  const [tab, setTab] = useState<TabKey>('today');
+  const [dashboard, setDashboard] = useState<RunnerDashboard | null>(null);
   const problemRef = useRef<HTMLParagraphElement>(null);
 
   const approved = runner
@@ -92,6 +117,10 @@ export function RunnerHome(): JSX.Element {
     try {
       const me = await fetchRunnerMe();
       setRunner(me.runner);
+      // Earnings, jobs and travel. Never allowed to stop the rest of the page working.
+      fetchRunnerDashboard()
+        .then(setDashboard)
+        .catch(() => undefined);
       const current = await fetchCurrentJob();
       setJob(current.job);
       if (current.job && current.job.status !== 'accepted') {
@@ -157,7 +186,7 @@ export function RunnerHome(): JSX.Element {
     setProblem('');
     try {
       await action();
-      setNews(done);
+      if (done) setNews(done);
       await refresh();
     } catch (failure) {
       setProblem(failure instanceof Error ? failure.message : 'That did not work.');
@@ -210,101 +239,152 @@ export function RunnerHome(): JSX.Element {
         </p>
       )}
 
-      {!approved ? (
-        <section aria-labelledby="checks-heading" className="space-y-3 max-w-xl">
-          <h2 id="checks-heading" className="text-lead font-bold">
-            Waiting for your checks
-          </h2>
-          <p className="m-0">
-            You can go on shift once a person at {storeConfig.productName} has seen both of these.
-            We will contact you to arrange it.
-          </p>
-          <ul className="m-0 ps-6 space-y-2">
-            <li>
-              Right to work in the United Kingdom: {runner.rightToWorkVerified ? 'done' : 'not yet'}
-              .
+      <nav aria-label="Your Runner pages">
+        <ul className="flex flex-wrap gap-2 list-none m-0 p-0">
+          {TABS.map((item) => (
+            <li key={item.key}>
+              <button
+                type="button"
+                aria-current={tab === item.key ? 'page' : undefined}
+                onClick={() => setTab(item.key)}
+                className={`control ${tab === item.key ? 'bg-highlight text-ink' : 'bg-paper/10 text-paper'}`}
+              >
+                {item.label}
+              </button>
             </li>
-            <li>
-              Criminal record check: {runner.criminalRecordCheckVerified ? 'done' : 'not yet'}.
-            </li>
-          </ul>
-        </section>
-      ) : job ? (
-        <JobInHand job={job} questions={questions} busy={busy} act={act} />
-      ) : (
-        <>
-          <section aria-labelledby="shift-heading" className="space-y-3 max-w-xl">
-            <h2 id="shift-heading" className="text-lead font-bold">
-              {runner.available ? 'You are on shift' : 'You are off shift'}
-            </h2>
-            <p className="m-0">
-              {runner.available
-                ? 'Jobs near you will appear here. You do not need to keep refreshing.'
-                : 'Go on shift when you are ready to take jobs.'}
-            </p>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                const next = !runner.available;
-                void act(
-                  () => setRunnerAvailability(next),
-                  next ? 'You are on shift.' : 'You are off shift.',
-                );
-              }}
-              className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
-            >
-              {runner.available ? 'Go off shift' : 'Go on shift'}
-            </button>
-          </section>
+          ))}
+        </ul>
+      </nav>
 
-          {runner.available && offer?.job && (
-            <section
-              role="alert"
-              aria-labelledby="offer-heading"
-              className="space-y-3 max-w-xl border-2 border-highlight rounded-xl p-4"
-            >
-              <h2 id="offer-heading" className="text-lead font-bold m-0">
-                A job for you
+      {tab === 'today' && (
+        <>
+          {dashboard && approved && (
+            <section aria-labelledby="today-heading" className="space-y-1 max-w-xl">
+              <h2 id="today-heading" className="visually-hidden">
+                Earned today
               </h2>
-              <p className="m-0">
-                {offer.job.itemCount} {offer.job.itemCount === 1 ? 'thing' : 'things'}, about{' '}
-                {money(offer.job.goodsEstimatePence)} of shopping
-                {offer.job.distanceMiles !== null
-                  ? `, ${offer.job.distanceMiles.toFixed(1)} miles away`
-                  : ''}
-                . You get {money(offer.job.runnerPaymentPence)}.
+              <p className="m-0 text-display font-bold">
+                {money(dashboard.earnings.todayPence)} today
               </p>
-              <p className="m-0">About {offer.secondsLeft} seconds left to say yes.</p>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  void act(() => acceptJob(offer.offer.id), 'The job is yours.');
-                }}
-                className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
-              >
-                Take this job
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  void act(
-                    () => declineJob(offer.offer.id),
-                    'No problem. It will go to somebody else.',
-                  );
-                }}
-                className="control bg-paper/10 text-paper underline"
-              >
-                Not this one
-              </button>
+              <p className="m-0">
+                {dashboard.earnings.jobsToday} {dashboard.earnings.jobsToday === 1 ? 'job' : 'jobs'}{' '}
+                today. {money(dashboard.earnings.weekPence)} this week.
+              </p>
             </section>
           )}
+          {dashboard && !job && (
+            <TravelToday
+              dashboard={dashboard}
+              busy={busy}
+              onChoose={(mode) => {
+                void act(async () => {
+                  const result = await setTravelMode(mode);
+                  setNews(result.message);
+                }, '');
+              }}
+            />
+          )}
+          {!approved ? (
+            <section aria-labelledby="checks-heading" className="space-y-3 max-w-xl">
+              <h2 id="checks-heading" className="text-lead font-bold">
+                Waiting for your checks
+              </h2>
+              <p className="m-0">
+                You can go on shift once a person at {storeConfig.productName} has seen both of
+                these. We will contact you to arrange it.
+              </p>
+              <ul className="m-0 ps-6 space-y-2">
+                <li>
+                  Right to work in the United Kingdom:{' '}
+                  {runner.rightToWorkVerified ? 'done' : 'not yet'}.
+                </li>
+                <li>
+                  Criminal record check: {runner.criminalRecordCheckVerified ? 'done' : 'not yet'}.
+                </li>
+              </ul>
+            </section>
+          ) : job ? (
+            <JobInHand job={job} questions={questions} busy={busy} act={act} />
+          ) : (
+            <>
+              <section aria-labelledby="shift-heading" className="space-y-3 max-w-xl">
+                <h2 id="shift-heading" className="text-lead font-bold">
+                  {runner.available ? 'You are on shift' : 'You are off shift'}
+                </h2>
+                <p className="m-0">
+                  {runner.available
+                    ? 'Jobs near you will appear here. You do not need to keep refreshing.'
+                    : 'Go on shift when you are ready to take jobs.'}
+                </p>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    const next = !runner.available;
+                    void act(
+                      () => setRunnerAvailability(next),
+                      next ? 'You are on shift.' : 'You are off shift.',
+                    );
+                  }}
+                  className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+                >
+                  {runner.available ? 'Go off shift' : 'Go on shift'}
+                </button>
+              </section>
+
+              {runner.available && offer?.job && (
+                <section
+                  role="alert"
+                  aria-labelledby="offer-heading"
+                  className="space-y-3 max-w-xl border-2 border-highlight rounded-xl p-4"
+                >
+                  <h2 id="offer-heading" className="text-lead font-bold m-0">
+                    A job for you
+                  </h2>
+                  <p className="m-0">
+                    {offer.job.itemCount} {offer.job.itemCount === 1 ? 'thing' : 'things'}, about{' '}
+                    {money(offer.job.goodsEstimatePence)} of shopping
+                    {offer.job.distanceMiles !== null
+                      ? `, ${offer.job.distanceMiles.toFixed(1)} miles away`
+                      : ''}
+                    . You get {money(offer.job.runnerPaymentPence)}.
+                  </p>
+                  <p className="m-0">About {offer.secondsLeft} seconds left to say yes.</p>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      void act(() => acceptJob(offer.offer.id), 'The job is yours.');
+                    }}
+                    className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+                  >
+                    Take this job
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => {
+                      void act(
+                        () => declineJob(offer.offer.id),
+                        'No problem. It will go to somebody else.',
+                      );
+                    }}
+                    className="control bg-paper/10 text-paper underline"
+                  >
+                    Not this one
+                  </button>
+                </section>
+              )}
+            </>
+          )}
+          {approved && <HowYouGetPaid />}
         </>
       )}
 
-      {approved && <HowYouGetPaid />}
+      {tab === 'jobs' && <JobHistory dashboard={dashboard} />}
+      {tab === 'money' && <Money dashboard={dashboard} />}
+      {tab === 'training' && <Training />}
+      {tab === 'more' && <More dashboard={dashboard} onNews={setNews} />}
     </div>
   );
 }
@@ -556,5 +636,282 @@ function HowYouGetPaid(): JSX.Element {
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * How they are delivering today (ruling, 2 October 2026). Walking or cycling can be chosen at
+ * any time, whatever they signed up with. A car or motorbike needs their licence and insurance
+ * checked and in date; the server says so if not.
+ */
+function TravelToday({
+  dashboard,
+  busy,
+  onChoose,
+}: {
+  dashboard: RunnerDashboard;
+  busy: boolean;
+  onChoose: (mode: VehicleType) => void;
+}): JSX.Element {
+  const choices = [...new Set<VehicleType>(['on_foot', 'bicycle', ...dashboard.travelModes])];
+  return (
+    <section aria-labelledby="travel-heading" className="space-y-3 max-w-xl">
+      <h2 id="travel-heading" className="text-lead font-bold">
+        Today you are delivering: {TRAVEL_WORDS[dashboard.travelling].toLowerCase()}
+      </h2>
+      <div className="flex flex-wrap gap-2">
+        {choices
+          .filter((mode) => mode !== dashboard.travelling)
+          .map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              disabled={busy}
+              onClick={() => onChoose(mode)}
+              className="control bg-paper text-ink disabled:opacity-70"
+            >
+              Switch to {TRAVEL_WORDS[mode].toLowerCase()}
+            </button>
+          ))}
+      </div>
+    </section>
+  );
+}
+
+function day(at: string): string {
+  return new Date(at).toLocaleString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+/** Every job they have done: when, where (the area only), what they earned, and its reference. */
+function JobHistory({ dashboard }: { dashboard: RunnerDashboard | null }): JSX.Element {
+  return (
+    <section aria-labelledby="jobs-heading" className="space-y-3 max-w-xl">
+      <h2 id="jobs-heading" className="text-lead font-bold">
+        Jobs you have done
+      </h2>
+      {dashboard === null ? (
+        <p className="m-0">Finding your jobs.</p>
+      ) : dashboard.jobs.length === 0 ? (
+        <p className="m-0">No jobs yet. They will be listed here, newest first.</p>
+      ) : (
+        <ul className="list-none m-0 p-0 space-y-3">
+          {dashboard.jobs.map((job) => (
+            <li key={job.reference} className="border-2 border-paper/40 rounded-xl p-4">
+              <p className="m-0 font-bold">
+                {money(job.earnedPence)}, {day(job.deliveredAt)}
+              </p>
+              <p className="m-0">
+                Area {job.area}. Order {job.reference}. {job.paid ? 'Paid.' : 'Not paid yet.'}
+              </p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** What they have earned and what has been paid out, big and plain. */
+function Money({ dashboard }: { dashboard: RunnerDashboard | null }): JSX.Element {
+  if (!dashboard) {
+    return (
+      <p role="status" className="m-0">
+        Working out your money.
+      </p>
+    );
+  }
+  return (
+    <div className="space-y-6 max-w-xl">
+      <section aria-labelledby="earned-heading" className="space-y-2">
+        <h2 id="earned-heading" className="text-lead font-bold">
+          What you have earned
+        </h2>
+        <p className="m-0 text-display font-bold">{money(dashboard.earnings.todayPence)} today</p>
+        <p className="m-0 text-lead font-bold">{money(dashboard.earnings.weekPence)} this week</p>
+        <p className="m-0 text-lead font-bold">{money(dashboard.earnings.allTimePence)} in all</p>
+      </section>
+      <section aria-labelledby="paid-heading" className="space-y-2">
+        <h2 id="paid-heading" className="text-lead font-bold">
+          Paid out to you
+        </h2>
+        <p className="m-0">
+          {money(dashboard.totalTransferredPence)} sent to your bank account so far.
+        </p>
+        {dashboard.payouts.length > 0 && (
+          <ul className="m-0 ps-6 space-y-2">
+            {dashboard.payouts.map((payout) => (
+              <li key={payout.reference + payout.at}>
+                {money(payout.transferredPence)} for order {payout.reference}, {day(payout.at)}
+                {payout.coolBagWithheldPence > 0
+                  ? `, after ${money(payout.coolBagWithheldPence)} towards your cool box, which you get back`
+                  : ''}
+                .
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}
+
+/**
+ * Training (T11). The modules are being written; this is where they will be, each spoken and
+ * written, with a record when passed. Some jobs will only be offered after the ones they need.
+ */
+const MODULES = [
+  'Guiding and handing over to a blind or partially sighted person',
+  'The door safe word',
+  'The handover photograph, and asking first',
+  'Calling the Shopper when something is not on the shelf',
+  'Food hygiene and the cool box',
+  'Working alone safely, and the SOS button',
+  'What can and cannot be sent',
+  'Safeguarding and the wellbeing check',
+  "Looking after people's information",
+  'Insurance for delivery work',
+];
+
+function Training(): JSX.Element {
+  return (
+    <section aria-labelledby="training-heading" className="space-y-3 max-w-xl">
+      <h2 id="training-heading" className="text-lead font-bold">
+        Training
+      </h2>
+      <p className="m-0">
+        Short lessons, read aloud and written, to help you do this job well and grow. They are being
+        written now. Each one will show here with a mark when you have passed it.
+      </p>
+      <ol className="m-0 ps-6 space-y-2">
+        {MODULES.map((module) => (
+          <li key={module}>{module}: coming soon.</li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+/** Their ID and link, their documents, and a way to tell us things. */
+function More({
+  dashboard,
+  onNews,
+}: {
+  dashboard: RunnerDashboard | null;
+  onNews: (news: string) => void;
+}): JSX.Element {
+  const [message, setMessage] = useState('');
+  const [anonymous, setAnonymous] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [feedbackProblem, setFeedbackProblem] = useState('');
+
+  async function share(link: string): Promise<void> {
+    const text = `Deliver with ${storeConfig.productName}: ${link}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: storeConfig.productName, text, url: link });
+        return;
+      }
+      await navigator.clipboard.writeText(link);
+      onNews('Your link is copied. You can paste it into a message.');
+    } catch {
+      // They closed the share sheet: nothing to say.
+    }
+  }
+
+  return (
+    <div className="space-y-8 max-w-xl">
+      {dashboard && (
+        <section aria-labelledby="id-heading" className="space-y-3">
+          <h2 id="id-heading" className="text-lead font-bold">
+            Your ID and your link
+          </h2>
+          <p className="m-0">
+            Your Runner ID is{' '}
+            <span className="font-bold">{dashboard.runnerId.split('').join(' ')}</span>.
+          </p>
+          <p className="m-0 break-all">{dashboard.shareLink}</p>
+          <button
+            type="button"
+            onClick={() => {
+              void share(dashboard.shareLink);
+            }}
+            className="control bg-highlight text-ink"
+          >
+            Share my link
+          </button>
+        </section>
+      )}
+
+      <section aria-labelledby="documents-heading" className="space-y-3">
+        <h2 id="documents-heading" className="text-lead font-bold">
+          Your documents
+        </h2>
+        <DocumentsChecklist onNews={onNews} />
+      </section>
+
+      <section aria-labelledby="feedback-heading" className="space-y-3">
+        <h2 id="feedback-heading" className="text-lead font-bold">
+          Tell us something
+        </h2>
+        <form
+          className="space-y-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (message.trim() === '') {
+              setFeedbackProblem('Please say what you would like to tell us.');
+              return;
+            }
+            setSending(true);
+            setFeedbackProblem('');
+            sendRunnerFeedback(message.trim(), anonymous)
+              .then((result) => {
+                setMessage('');
+                onNews(result.message);
+              })
+              .catch((failure: unknown) => {
+                setFeedbackProblem(
+                  failure instanceof Error ? failure.message : 'That did not send.',
+                );
+              })
+              .finally(() => setSending(false));
+          }}
+        >
+          <label htmlFor="feedback" className="block font-bold">
+            What would you like to tell us?
+          </label>
+          <textarea
+            id="feedback"
+            rows={4}
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+            className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+          />
+          <div className="flex items-center gap-3 min-h-control">
+            <input
+              id="feedback-anonymous"
+              type="checkbox"
+              checked={anonymous}
+              onChange={(event) => setAnonymous(event.target.checked)}
+              className="h-6 w-6"
+            />
+            <label htmlFor="feedback-anonymous">Send it without my name</label>
+          </div>
+          {feedbackProblem !== '' && (
+            <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+              {feedbackProblem}
+            </p>
+          )}
+          <button type="submit" disabled={sending} className="control bg-paper text-ink">
+            {sending ? 'Sending…' : 'Send'}
+          </button>
+        </form>
+      </section>
+    </div>
   );
 }
