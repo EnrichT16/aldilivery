@@ -18,6 +18,8 @@ export interface CreatePaymentIntentInput {
   /** A Stripe payment method identifier. Never a card number. */
   paymentMethodId: string;
   orderId: string;
+  /** The Shopper's Stripe customer, which the saved card is attached to. */
+  customerId?: string | null;
   description: string;
   /** Recorded on the intent so a dispute can be answered without guesswork. */
   confirmationRecordedAt: string;
@@ -94,6 +96,22 @@ export interface PaymentsGateway {
   createTransfer(input: CreateTransferInput): Promise<TransferResult>;
   /** Succeeds, or throws: there is no half-taken charge. */
   chargeSavedCard(input: ChargeSavedCardInput): Promise<{ id: string }>;
+  /** Give money back to the card a payment came from. Part of it, or all. */
+  refundPayment(input: {
+    paymentIntentId: string;
+    amountPence: number;
+    reference: string;
+  }): Promise<{ id: string }>;
+  /**
+   * Keep a card for use again: make the Shopper's Stripe customer if they have none yet, and
+   * attach the card to it. Throws if Stripe will not keep the card (for example, one already
+   * spent on a payment before it was attached).
+   */
+  saveCardForReuse(input: {
+    shopperId: string;
+    customerId: string | null;
+    paymentMethodId: string;
+  }): Promise<{ customerId: string }>;
   /**
    * A Stripe account of the Runner's own, for their pay to go to (Rule Ten: The service never
    * holds a Runner's money). Stripe collects their bank details on its own pages; they never
@@ -123,6 +141,7 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
         amount: input.amountPence,
         currency: input.currency.toLowerCase(),
         payment_method: input.paymentMethodId,
+        ...(input.customerId ? { customer: input.customerId } : {}),
         confirm: true,
         off_session: false,
         automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
@@ -136,10 +155,30 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
       return { id: intent.id, status: intent.status, clientSecret: intent.client_secret };
     },
 
+    async refundPayment(input) {
+      const refund = await stripe.refunds.create({
+        payment_intent: input.paymentIntentId,
+        amount: input.amountPence,
+        metadata: { reference: input.reference },
+      });
+      return { id: refund.id };
+    },
+
+    async saveCardForReuse(input) {
+      const customerId =
+        input.customerId ??
+        (await stripe.customers.create({ metadata: { shopperId: input.shopperId } })).id;
+      const method = await stripe.paymentMethods.retrieve(input.paymentMethodId);
+      if (method.customer !== customerId) {
+        await stripe.paymentMethods.attach(input.paymentMethodId, { customer: customerId });
+      }
+      return { customerId };
+    },
+
     async chargeSavedCard(input) {
       if (!input.customerId) {
-        // A card saved without a customer is spent after its first payment (see BUILD_LOG,
-        // Step 37). Until cards are saved to a customer, the charge waits as outstanding.
+        // A card that is not attached to a customer is spent after one payment, so it cannot
+        // be charged with nobody at the screen. The charge waits as outstanding.
         throw new Error('This card was not saved in a way that lets it be charged again.');
       }
       const intent = await stripe.paymentIntents.create({
@@ -221,15 +260,21 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
  * `mode` above carries the same fact to `/health` and `/config` so nothing has to guess.
  */
 export interface RecordedCall {
-  kind: 'payment_intent' | 'transfer' | 'connected_account' | 'saved_card_charge';
+  kind: 'payment_intent' | 'transfer' | 'connected_account' | 'saved_card_charge' | 'refund';
   input:
-    CreatePaymentIntentInput | CreateTransferInput | ChargeSavedCardInput | { runnerId: string };
+    | CreatePaymentIntentInput
+    | CreateTransferInput
+    | ChargeSavedCardInput
+    | { paymentIntentId: string; amountPence: number; reference: string }
+    | { runnerId: string };
 }
 
 export interface RehearsalGateway extends PaymentsGateway {
   readonly calls: RecordedCall[];
   /** For tests: the next saved-card charge is refused, as a card with no money would be. */
   declineNextCharge: boolean;
+  /** For tests: the next card cannot be kept, as one already spent would not be. */
+  refuseNextSave: boolean;
 }
 
 export function rehearsalGateway(): RehearsalGateway {
@@ -240,7 +285,24 @@ export function rehearsalGateway(): RehearsalGateway {
     mode: 'rehearsal',
     calls,
     declineNextCharge: false,
+    refuseNextSave: false,
+    async refundPayment(input) {
+      counter += 1;
+      calls.push({ kind: 'refund', input });
+      return { id: `re_rehearsal_${counter}` };
+    },
+    async saveCardForReuse(input) {
+      if (gateway.refuseNextSave) {
+        gateway.refuseNextSave = false;
+        throw new Error('This PaymentMethod was previously used without being attached.');
+      }
+      counter += 1;
+      return { customerId: input.customerId ?? `cus_rehearsal_${counter}` };
+    },
     async chargeSavedCard(input) {
+      if (!input.customerId) {
+        throw new Error('This card was not saved in a way that lets it be charged again.');
+      }
       if (gateway.declineNextCharge) {
         gateway.declineNextCharge = false;
         throw new Error('Your card was declined.');

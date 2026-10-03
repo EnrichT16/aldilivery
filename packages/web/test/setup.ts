@@ -27,12 +27,16 @@ beforeEach(() => {
   // Ozi introduces itself on a first launch. Every test but the ones about that introduction
   // starts as a device that has already heard it, so screens are tested on their own.
   window.localStorage.setItem('ozidelivery.voice.settings', JSON.stringify({ introHeard: true }));
+  // Likewise the choices Ozi reads on the first screen once a visit: heard already, unless a
+  // test is about them.
+  window.sessionStorage.setItem('ozidelivery.doors.read', 'yes');
 });
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   window.localStorage.clear();
+  window.sessionStorage.clear();
   // The token is also kept in memory, for browsers where storage throws. Without this, a test
   // that signs in leaves the next one signed in too.
   clearToken();
@@ -116,6 +120,7 @@ export interface ApiStubOptions {
  */
 export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
   const recorded: RecordedRequest[] = [];
+  const runnerDocumentsSent: string[] = [];
 
   /**
    * Signed in, or signed out — never "whatever the last test left behind".
@@ -219,6 +224,28 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
           },
           201,
         );
+      }
+
+      // A Runner's documents: what is still needed shrinks as each one is sent.
+      if (path === '/runners/me/documents') {
+        const needed = [
+          { kind: 'face_photo', name: 'A photo of your face' },
+          { kind: 'right_to_work', name: 'Your right to work in the UK' },
+          { kind: 'dbs', name: 'Your DBS certificate' },
+        ].filter((item) => !runnerDocumentsSent.includes(item.kind));
+        if (method === 'POST') {
+          const sent = body as { kind: string };
+          runnerDocumentsSent.push(sent.kind);
+          return reply(
+            {
+              documents: [],
+              stillNeeded: needed.filter((item) => item.kind !== sent.kind),
+              message: 'Thank you. We will check it and let you know.',
+            },
+            201,
+          );
+        }
+        return reply({ documents: [], stillNeeded: needed });
       }
 
       if (path === '/shoppers') {

@@ -52,3 +52,13 @@ export function cardRegionFor(countryOrRegion: string): string {
   if (EU.has(code)) return 'EU';
   return code;
 }
+
+/**
+ * Whether the store takes a card from this region. `ANY` takes a card from any country (ruling,
+ * 2 October 2026): Shoppers pay with the cards they have, including ones from home, and the
+ * gateway still screens every payment. A card whose country is not known is taken.
+ */
+export function cardAccepted(supportedRegions: readonly string[], region: string | null): boolean {
+  if (!region || supportedRegions.includes('ANY')) return true;
+  return supportedRegions.includes(region);
+}

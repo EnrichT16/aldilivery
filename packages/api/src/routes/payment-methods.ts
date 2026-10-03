@@ -11,8 +11,8 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import { requireSession } from '../app.js';
-import { BadRequestError } from '../errors.js';
-import { cardRegionFor } from '../lib/card-region.js';
+import { BadRequestError, NotFoundError } from '../errors.js';
+import { cardAccepted, cardRegionFor } from '../lib/card-region.js';
 
 const saveSchema = z.object({
   /** From Stripe, in the browser. Looks like `pm_1234...`. */
@@ -28,17 +28,39 @@ const saveSchema = z.object({
 });
 
 export async function registerPaymentMethodRoutes(app: FastifyInstance): Promise<void> {
-  const { repository, config } = app.ctx;
+  const { repository, config, payments } = app.ctx;
 
   app.post('/payment-methods', async (request, reply) => {
     const session = requireSession(request, 'shopper');
     const input = saveSchema.parse(request.body);
     const region = input.region ? cardRegionFor(input.region) : undefined;
 
-    if (region && !config.payments.supportedCardRegions.includes(region)) {
+    if (!cardAccepted(config.payments.supportedCardRegions, region ?? null)) {
       throw new BadRequestError(
         `We can only take cards from ${config.payments.supportedCardRegions.join(' and ')} at the moment.`,
       );
+    }
+
+    // Attach the card to the Shopper's Stripe customer, so it can be charged again: for the
+    // next order, and for a call that ends with nobody at the screen. A card that is not
+    // attached is spent after one payment.
+    const shopper = await repository.shoppers.findById(session.accountId);
+    if (!shopper) throw new NotFoundError('account');
+    let customerId: string;
+    try {
+      ({ customerId } = await payments.saveCardForReuse({
+        shopperId: shopper.id,
+        customerId: shopper.stripeCustomerId,
+        paymentMethodId: input.stripePaymentMethodId,
+      }));
+    } catch (failure) {
+      request.log.warn({ err: failure }, 'Stripe would not keep a card.');
+      throw new BadRequestError(
+        'We could not save that card. Please check the details, or try a different card. Nothing has been charged.',
+      );
+    }
+    if (customerId !== shopper.stripeCustomerId) {
+      await repository.shoppers.update(shopper.id, { stripeCustomerId: customerId });
     }
 
     const method = await repository.paymentMethods.create({

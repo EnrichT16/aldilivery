@@ -14,7 +14,14 @@ import { formatPence, type OrderStatus } from '@aldilivery/core';
 import { z } from 'zod';
 
 import { requireSession } from '../app.js';
-import { BadRequestError, ForbiddenError, NotFoundError, PaymentFailedError } from '../errors.js';
+import {
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  PaymentFailedError,
+} from '../errors.js';
+import { cardAccepted } from '../lib/card-region.js';
 import { priceLines } from '../services/basket.js';
 import { offerOrder } from '../services/dispatch.js';
 import { payOutOrder } from '../services/pay-runner.js';
@@ -120,13 +127,31 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     if (!paymentMethod || paymentMethod.shopperId !== shopper.id) {
       throw new NotFoundError('payment card');
     }
-    if (
-      paymentMethod.region &&
-      !config.payments.supportedCardRegions.includes(paymentMethod.region)
-    ) {
+    if (!cardAccepted(config.payments.supportedCardRegions, paymentMethod.region)) {
       throw new BadRequestError(
         `We can only take cards from ${config.payments.supportedCardRegions.join(' and ')} at the moment.`,
       );
+    }
+
+    // A card saved before cards were attached to a Stripe customer is attached now, before
+    // anything is created. If Stripe will no longer keep it — it was spent on an earlier
+    // payment — the Shopper is asked to add it again, and nothing is charged.
+    let customerId = shopper.stripeCustomerId;
+    if (!customerId) {
+      try {
+        ({ customerId } = await payments.saveCardForReuse({
+          shopperId: shopper.id,
+          customerId: null,
+          paymentMethodId: paymentMethod.stripePaymentMethodId,
+        }));
+        await repository.shoppers.update(shopper.id, { stripeCustomerId: customerId });
+      } catch (failure) {
+        request.log.warn({ err: failure }, 'An old saved card could not be kept.');
+        throw new ConflictError(
+          'Please add your card again. We have improved how cards are saved, so it can be used for every order. Nothing has been charged.',
+          { card: 'add_again' },
+        );
+      }
     }
 
     const catalogueItems = await repository.catalogue.findManyByIds(
@@ -226,6 +251,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         amountPence: confirmed.totalEstimatePence,
         currency: config.fees.currency,
         paymentMethodId: paymentMethod.stripePaymentMethodId,
+        customerId,
         orderId: confirmed.id,
         description: `${config.productName} order ${confirmed.id}`,
         confirmationRecordedAt: confirmedAt.toISOString(),

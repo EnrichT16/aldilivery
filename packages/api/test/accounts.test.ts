@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { cardAccepted } from '../src/lib/card-region.js';
 import { buildTestApp, signUpShopper, type TestHarness } from './helpers.js';
 
 let harness: TestHarness;
@@ -294,7 +295,11 @@ describe('Rule Ten: no card numbers, anywhere', () => {
     expect(response.statusCode).toBe(400);
   });
 
-  it('refuses a card from an unsupported region', async () => {
+  /**
+   * Shoppers pay with the cards they have, including ones from home (ruling, 2 October 2026):
+   * a Nigerian, Ghanaian, Kenyan, Zimbabwean, Sierra Leonean, Indian or American card is taken.
+   */
+  it.each(['NG', 'GH', 'KE', 'ZW', 'SL', 'IN', 'US'])('takes a card issued in %s', async (country) => {
     const signUp = await harness.app.inject({
       method: 'POST',
       url: '/shoppers',
@@ -306,9 +311,15 @@ describe('Rule Ten: no card numbers, anywhere', () => {
       method: 'POST',
       url: '/payment-methods',
       headers: { authorization: `Bearer ${token}` },
-      payload: { stripePaymentMethodId: 'pm_test_visa', lastFour: '4242', region: 'US' },
+      payload: { stripePaymentMethodId: 'pm_test_visa', lastFour: '4242', region: country },
     });
-    expect(response.statusCode).toBe(400);
+    expect(response.statusCode, response.body).toBe(201);
+  });
+
+  it('still refuses a card from outside the list, if the store is ever set to a list', () => {
+    expect(cardAccepted(['UK', 'EU'], 'NG')).toBe(false);
+    expect(cardAccepted(['UK', 'EU'], 'UK')).toBe(true);
+    expect(cardAccepted(['ANY'], 'NG')).toBe(true);
   });
 
   /**

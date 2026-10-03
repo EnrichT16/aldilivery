@@ -51,11 +51,29 @@ describe('the landing page', () => {
     expect(message).toHaveAttribute('aria-live', 'polite');
   });
 
-  it('has three doors: Shopper, Runner and just looking', () => {
+  it('asks who you are, with words under each choice, and no door for staff', () => {
     renderAt('/');
+    expect(screen.getByRole('heading', { name: 'Who are you?' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /^Shopper/ })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^Runner/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /^Runner.*take it to the Shopper/ }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Organisation/ })).toHaveAttribute(
+      'href',
+      '/organisations',
+    );
+    expect(screen.getByRole('link', { name: /^I look after someone/ })).toHaveAttribute(
+      'href',
+      '/looking-after',
+    );
     expect(screen.getByRole('link', { name: /^Just looking/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /admin|staff/i })).toBeNull();
+  });
+
+  it('keeps the invitation code from a shared link for the sign-up form', () => {
+    renderAt('/join?ref=rabcd234');
+    expect(window.sessionStorage.getItem('ozidelivery.referral')).toBe('RABCD234');
+    expect(screen.getByRole('heading', { name: 'Who are you?' })).toBeInTheDocument();
   });
 
   it('shows the telephone number, and says it is a placeholder', () => {
@@ -228,6 +246,8 @@ describe('the accessibility promises axe cannot see', () => {
     '/just-looking',
     '/settings',
     '/addresses',
+    '/organisations',
+    '/looking-after',
   ];
 
   it('gives every control a name that a person could read out, on every screen', async () => {

@@ -24,6 +24,8 @@ interface State {
   pay: 'not_started' | 'incomplete' | 'ready';
   question: null | { answer: null | 'similar' | 'leave_out'; answeredBy: null | 'shopper' };
   sent: Array<{ method: string; path: string; body: unknown }>;
+  travelling: 'on_foot' | 'bicycle' | 'car';
+  canDrive: boolean;
 }
 
 let state: State;
@@ -158,6 +160,70 @@ function stubRunnerApi(): void {
         state.status = (body as { status: State['status'] }).status;
         return reply({});
       }
+      if (path === '/runners/me/dashboard') {
+        return reply({
+          runnerId: 'RABCD234',
+          shareLink: 'https://ozidelivery.co.uk/join?ref=RABCD234',
+          travelling: state.travelling,
+          travelModes: ['on_foot', 'car'],
+          canDrive: state.canDrive,
+          earnings: { todayPence: 1500, weekPence: 3500, allTimePence: 12000, jobsToday: 3 },
+          jobs: [
+            {
+              orderId: 'order-0',
+              reference: 'OZ-ABC123',
+              deliveredAt: '2026-10-03T09:00:00.000Z',
+              area: 'ME7',
+              earnedPence: 500,
+              paid: true,
+            },
+          ],
+          payouts: [
+            {
+              reference: 'OZ-ABC123',
+              earnedPence: 500,
+              coolBagWithheldPence: 100,
+              transferredPence: 400,
+              at: '2026-10-03T09:05:00.000Z',
+            },
+          ],
+          totalTransferredPence: 400,
+          owing: [
+            {
+              reference: 'OZ-ABC123',
+              amountPence: 120,
+              recoveredPence: 50,
+              remainingPence: 70,
+              reason: 'Heavy jars should go in a separate bag.',
+            },
+          ],
+          recoveryPercentOfPay: 10,
+        });
+      }
+      if (path === '/runners/me/travel-mode') {
+        const { mode } = body as { mode: State['travelling'] };
+        if (mode === 'car' && !state.canDrive) {
+          return reply(
+            {
+              error: {
+                message:
+                  'Before you can deliver by car or motorbike, we need to check your driving licence and insurance. You can deliver walking or by bicycle today.',
+              },
+            },
+            409,
+          );
+        }
+        state.travelling = mode;
+        return reply({
+          message: `Done. You are delivering ${mode === 'bicycle' ? 'by bicycle' : mode}.`,
+        });
+      }
+      if (path === '/runners/me/feedback') {
+        return reply({ message: 'Thank you. We have it, without your name.' }, 201);
+      }
+      if (path === '/runners/me/documents') {
+        return reply({ documents: [], stillNeeded: [] });
+      }
       if (path === '/orders/order-1/receipt') {
         state.status = 'receipt_submitted';
         return reply({ message: 'The shopping came to £3.20.' });
@@ -184,6 +250,8 @@ beforeEach(() => {
     pay: 'ready',
     question: null,
     sent: [],
+    travelling: 'on_foot',
+    canDrive: false,
   };
 });
 
@@ -387,5 +455,97 @@ describe('how a Runner gets paid', () => {
     renderHome();
     await screen.findByRole('heading', { name: 'Waiting for your checks' });
     expect(screen.queryByRole('heading', { name: 'How you get paid' })).not.toBeInTheDocument();
+  });
+});
+
+describe('the Runner page tabs', () => {
+  it('shows what was earned today big and plain, and switches how they travel', async () => {
+    const user = userEvent.setup({ delay: null });
+    stubRunnerApi();
+    renderHome();
+    expect(await screen.findByText('£15.00 today')).toBeInTheDocument();
+    expect(screen.getByText(/3 jobs today. £35.00 this week./)).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Today you are delivering: walking' }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Switch to car' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /check your driving licence and insurance/,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Switch to bicycle' }));
+    expect(await screen.findByText('Done. You are delivering by bicycle.')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Today you are delivering: bicycle' }),
+    ).toBeInTheDocument();
+  });
+
+  it('lists jobs by date, area and reference, and the money in and paid out', async () => {
+    const user = userEvent.setup({ delay: null });
+    stubRunnerApi();
+    renderHome();
+    await user.click(await screen.findByRole('button', { name: 'Jobs' }));
+    expect(screen.getByRole('button', { name: 'Jobs' })).toHaveAttribute('aria-current', 'page');
+    expect(await screen.findByText('Area ME7. Order OZ-ABC123. Paid.')).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Report a problem with order OZ-ABC123' }),
+    ).toHaveAttribute('href', '/runner/jobs/order-0/problem');
+
+    await user.click(screen.getByRole('button', { name: 'Money' }));
+    expect(screen.getByText('£35.00 this week')).toBeInTheDocument();
+    expect(screen.getByText('£120.00 in all')).toBeInTheDocument();
+    expect(screen.getByText(/after £1.00 towards your cool box/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Order OZ-ABC123: £0.70 left of £1.20. Heavy jars should go in a separate bag./,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/10% of each job’s pay goes towards it/)).toBeInTheDocument();
+  });
+
+  it('lists the training to come, honestly marked', async () => {
+    const user = userEvent.setup({ delay: null });
+    stubRunnerApi();
+    renderHome();
+    await user.click(await screen.findByRole('button', { name: 'Training' }));
+    expect(screen.getByText(/The door safe word: coming soon/)).toBeInTheDocument();
+  });
+
+  it('gives their ID and link to share, and takes feedback without their name', async () => {
+    const user = userEvent.setup({ delay: null });
+    stubRunnerApi();
+    renderHome();
+    await user.click(await screen.findByRole('button', { name: 'More' }));
+    expect(screen.getByText('R A B C D 2 3 4')).toBeInTheDocument();
+    expect(screen.getByText('https://ozidelivery.co.uk/join?ref=RABCD234')).toBeInTheDocument();
+
+    await user.type(
+      screen.getByLabelText('What would you like to tell us?'),
+      'More shade at Chatham.',
+    );
+    await user.click(screen.getByLabelText('Send it without my name'));
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    expect(
+      await screen.findByText('Thank you. We have it, without your name.'),
+    ).toBeInTheDocument();
+    expect(state.sent.find((r) => r.path === '/runners/me/feedback')?.body).toEqual({
+      message: 'More shade at Chatham.',
+      anonymous: true,
+    });
+  });
+
+  it('passes axe on every tab', async () => {
+    const user = userEvent.setup({ delay: null });
+    stubRunnerApi();
+    renderHome();
+    await screen.findByText('£15.00 today');
+    for (const name of ['Today', 'Jobs', 'Money', 'Training', 'More']) {
+      await user.click(screen.getByRole('button', { name }));
+      const results = await axe.run(document.body, {
+        rules: { 'color-contrast': { enabled: false } },
+      } as axe.RunOptions);
+      expect(results.violations.map((v) => `${name}: ${v.id}`)).toEqual([]);
+    }
   });
 });

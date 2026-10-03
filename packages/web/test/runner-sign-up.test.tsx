@@ -36,25 +36,29 @@ describe('signing up to run', () => {
 
   it('says before anything is filled in that a person checks documents first', () => {
     renderAt('/runner/sign-up');
-    expect(screen.getByText(/right to work in the United Kingdom and a/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/checks your right to work in the UK and a DBS check/),
+    ).toBeInTheDocument();
   });
 
-  it('asks for a name and mobile with real labels, and how they get around as a group', () => {
+  it('asks for a name and mobile with real labels, and every way they might deliver', () => {
     renderAt('/runner/sign-up');
     expect(screen.getByLabelText('Your name')).toHaveAccessibleDescription(/documents/);
     expect(screen.getByLabelText('Your mobile number')).toHaveAttribute('type', 'tel');
-    const group = screen.getByRole('group', { name: 'How will you get around?' });
-    expect(group).toBeInTheDocument();
-    expect(screen.getByLabelText('On foot')).toBeChecked();
+    const group = screen.getByRole('group', { name: 'How will you deliver?' });
+    expect(group).toHaveAccessibleDescription(/switch any day/);
+    expect(screen.getByLabelText('Walking')).toBeChecked();
+    expect(screen.getByLabelText('Car')).not.toBeChecked();
   });
 
-  it('sends what was typed, and says what happens next', async () => {
+  it('sends every way they ticked and who invited them, then asks for the documents', async () => {
     const user = userEvent.setup({ delay: null });
-    const recorded = renderAt('/runner/sign-up');
+    const recorded = renderAt('/runner/sign-up?ref=RABCD234');
 
     await user.type(screen.getByLabelText('Your name'), 'Tomasz');
     await user.type(screen.getByLabelText('Your mobile number'), '07700 900101');
-    await user.click(screen.getByLabelText('Bicycle'));
+    await user.click(screen.getByLabelText('Bicycle or electric bike'));
+    await user.click(screen.getByLabelText('Car'));
     await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
 
     expect(
@@ -63,10 +67,36 @@ describe('signing up to run', () => {
     expect(recorded.find((r) => r.path === '/runners')?.body).toEqual({
       name: 'Tomasz',
       phone: '07700 900101',
-      vehicleType: 'bicycle',
+      travelModes: ['on_foot', 'bicycle', 'car'],
+      referredBy: 'RABCD234',
     });
-    expect(screen.getByText(/We will contact you on 07700 900101/)).toBeInTheDocument();
-    expect(screen.getByText(/your Runner page is where you go on shift/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Now, your documents' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'A photo of your face' }),
+    ).toBeInTheDocument();
+  });
+
+  it('sends a photo from the camera, or a share code, and moves on to what is left', async () => {
+    const user = userEvent.setup({ delay: null });
+    const recorded = renderAt('/runner/sign-up');
+    await user.type(screen.getByLabelText('Your name'), 'Tomasz');
+    await user.type(screen.getByLabelText('Your mobile number'), '07700 900101');
+    await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
+
+    const face = await screen.findByLabelText('Take a photo of my face');
+    expect(face).toHaveAttribute('capture', 'user');
+    await user.upload(face, new File(['face'], 'face.jpg', { type: 'image/jpeg' }));
+    expect(await screen.findByText(/A photo of your face: Thank you/)).toBeInTheDocument();
+    const sentPhoto = recorded.find(
+      (r) => r.path === '/runners/me/documents' && r.method === 'POST',
+    );
+    expect(sentPhoto?.body).toMatchObject({ kind: 'face_photo', contentType: 'image/jpeg' });
+
+    await user.type(screen.getAllByLabelText('Or type the share code')[0]!, 'W4X 7YZ 9AB');
+    await user.click(screen.getAllByRole('button', { name: 'Send the share code' })[0]!);
+    await screen.findByText(/Your right to work in the UK: Thank you/);
+    expect(screen.queryByRole('heading', { name: 'Your right to work in the UK' })).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Your DBS certificate' })).toBeInTheDocument();
   });
 
   it('keeps the Runner signed in on this device, without touching a Shopper signed in here', async () => {

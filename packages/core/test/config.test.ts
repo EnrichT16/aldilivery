@@ -45,8 +45,8 @@ describe('the live configuration file', () => {
     expect(config.store.catalogueSource.mode).toBe('community');
   });
 
-  it('supports the UK and the EU card regions', () => {
-    expect(config.payments.supportedCardRegions).toEqual(['UK', 'EU']);
+  it('takes cards from any country (ruling, 2 October 2026)', () => {
+    expect(config.payments.supportedCardRegions).toEqual(['ANY']);
   });
 
   it('holds the legal entity name as an acknowledged placeholder', () => {

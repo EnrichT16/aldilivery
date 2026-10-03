@@ -27,6 +27,11 @@ import type {
   SavedAddress,
   Call,
   CallLeg,
+  RunnerDocument,
+  RunnerFeedback,
+  ProblemReport,
+  ProblemEvidence,
+  RunnerRecovery,
   RecurringSet,
   Runner,
   RunnerCheck,
@@ -55,6 +60,9 @@ export type CreateRunner = Pick<Runner, 'name' | 'phone'> &
     Pick<
       Runner,
       | 'vehicleType'
+      | 'travelModes'
+      | 'referralCode'
+      | 'referredBy'
       | 'rightToWorkVerified'
       | 'criminalRecordCheckVerified'
       | 'stripeConnectedAccountId'
@@ -122,7 +130,7 @@ export type CreateRunnerPayout = Pick<
   RunnerPayout,
   'orderId' | 'runnerId' | 'earnedPence' | 'coolBagWithheldPence' | 'transferredPence'
 > &
-  Partial<Pick<RunnerPayout, 'stripeTransferId'>>;
+  Partial<Pick<RunnerPayout, 'stripeTransferId' | 'recoveryWithheldPence'>>;
 
 export type CreateOneTimeCode = Pick<OneTimeCode, 'phone' | 'codeHash' | 'expiresAt'> &
   /** `createdAt` from the route's clock, so the limits count on the same clock they check. */
@@ -148,6 +156,7 @@ export interface Repository {
     create(input: CreateRunner): Promise<Runner>;
     findById(id: string): Promise<Runner | null>;
     findByPhone(phone: string): Promise<Runner | null>;
+    findByReferralCode(code: string): Promise<Runner | null>;
     update(id: string, patch: Partial<Runner>): Promise<Runner>;
     /** Every Runner who is on shift, verified, and not already holding an offer. */
     listAvailable(): Promise<Runner[]>;
@@ -164,6 +173,43 @@ export interface Repository {
     listForShopper(shopperId: string): Promise<SavedAddress[]>;
     findById(id: string): Promise<SavedAddress | null>;
     delete(id: string): Promise<void>;
+  };
+
+  /** What Runners send in at sign-up, and what a person decided about each. */
+  runnerDocuments: {
+    create(input: Omit<RunnerDocument, 'id'>): Promise<RunnerDocument>;
+    findById(id: string): Promise<RunnerDocument | null>;
+    /** Newest first. */
+    listForRunner(runnerId: string): Promise<RunnerDocument[]>;
+    /** Waiting for a person, oldest first. */
+    listSubmitted(): Promise<RunnerDocument[]>;
+    update(id: string, patch: Partial<Omit<RunnerDocument, 'id'>>): Promise<RunnerDocument>;
+  };
+  runnerFeedback: {
+    create(input: Omit<RunnerFeedback, 'id'>): Promise<RunnerFeedback>;
+    /** Newest first. */
+    list(): Promise<RunnerFeedback[]>;
+  };
+
+  /** Problems with orders, their evidence, and what Runners found at fault repay. */
+  problems: {
+    create(input: Omit<ProblemReport, 'id'>): Promise<ProblemReport>;
+    findById(id: string): Promise<ProblemReport | null>;
+    listForOrder(orderId: string): Promise<ProblemReport[]>;
+    /** Open ones, the soonest due first. */
+    listOpen(): Promise<ProblemReport[]>;
+    update(id: string, patch: Partial<Omit<ProblemReport, 'id'>>): Promise<ProblemReport>;
+  };
+  problemEvidence: {
+    create(input: Omit<ProblemEvidence, 'id'>): Promise<ProblemEvidence>;
+    findById(id: string): Promise<ProblemEvidence | null>;
+    listForReport(reportId: string): Promise<ProblemEvidence[]>;
+  };
+  recoveries: {
+    create(input: Omit<RunnerRecovery, 'id'>): Promise<RunnerRecovery>;
+    /** Still owed (not fully recovered, not written off), oldest first. */
+    listOutstanding(runnerId: string): Promise<RunnerRecovery[]>;
+    update(id: string, patch: Partial<Omit<RunnerRecovery, 'id'>>): Promise<RunnerRecovery>;
   };
 
   /** In-app calls (Section F) and each person's part in them. */
@@ -253,6 +299,8 @@ export interface Repository {
     listByPool(poolId: string): Promise<Order[]>;
     /** How many orders a Runner has ever been given, of any status. */
     countForRunner(runnerId: string): Promise<number>;
+    /** Every order a Runner has been given, newest first. */
+    listForRunner(runnerId: string): Promise<Order[]>;
   };
 
   offers: {

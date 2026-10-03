@@ -753,3 +753,45 @@ Runner's pay. Bundles are four standard deliveries for £48.
       health are never shared. No record about an individual is ever sold.
     - **A Runner who leaves owing money.** Anything under £20 is written off. Anything above that,
       they are asked to repay.
+
+## Rulings, 2 October 2026 (later): paying with cards from home countries
+
+17. **Shoppers in the UK can pay with cards from their home countries.** Many people in the UK
+    still pay with a Nigerian card. The same should hold for Ghana, Kenya, Zimbabwe, Sierra Leone
+    and other countries as Ozi grows, along with Europe and India. Flutterwave and Paystack are
+    confirmed (Section R), and others can be added where a market needs them.
+
+### Claude Code's findings and plan, 2 October 2026
+
+- **Today the store refuses these cards itself.** `payments.supportedCardRegions` in
+  config/store.json is UK and EU only. Stripe can charge most Visa and Mastercard cards from any
+  country, so widening that list is the quickest step.
+  - Nigerian naira cards are often limited or blocked by the issuing bank for spending abroad. So
+    charging them in naira through Flutterwave or Paystack is the dependable route.
+- **Coverage found, October 2026.**
+  - Flutterwave: Nigeria, Ghana, Kenya, South Africa, Uganda, Rwanda, Tanzania, Zambia, Cameroon,
+    Côte d'Ivoire, Senegal, Egypt and others, with mobile money such as M-Pesa and Ghana Mobile
+    Money. Sierra Leone is partial. Zimbabwe is not confirmed.
+  - Paystack (owned by Stripe): Nigeria, Ghana, Kenya, South Africa and Côte d'Ivoire, with Egypt
+    and Rwanda joining. It signs up businesses registered in those countries, so it may need a
+    company registered there.
+  - Zimbabwe's own gateway is Paynow (EcoCash, ZimSwitch). Zimbabwean Visa and Mastercard cards
+    go through Stripe.
+  - Europe: Stripe covers cards and the local methods (iDEAL, Bancontact, BLIK, SEPA, Klarna).
+  - India: Indian cards go through Stripe. UPI needs an Indian-registered business (Razorpay, or
+    Stripe India), so it waits until Ozi goes to India.
+- **Order of priority by people in the UK (Census 2021).**
+  1. Nigeria, about 271,000.
+  2. Ghana, about 136,000.
+  3. Kenya, about 135,000.
+  4. Zimbabwe, about 124,000.
+  5. Sierra Leone, far fewer.
+18. **No restriction by card country (Anthony, 2 October 2026).** No law stops Ozi taking payment
+    from cards issued abroad, so Shoppers pay with their local cards from anywhere. Ozi keeps adding
+    payment gateways, beyond Stripe, Flutterwave and Paystack, wherever their terms can be met.
+    - Mobile money such as MTN, Orange and EcoCash is wanted, because it is what people at home
+      are used to.
+    - Chinese Shoppers come later; Anthony will campaign hard among international students.
+    - Reason: people in the UK, and abroad, pay for their families' shopping. Every payment goes to
+      a third party (the shop), and orders are capped, so the service offers nothing to launder
+      money through. Each gateway still does its own fraud and sanctions screening.

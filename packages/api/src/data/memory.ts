@@ -8,6 +8,8 @@
 
 import { randomUUID } from 'node:crypto';
 
+import { newReferralCode } from '../lib/referral.js';
+
 import type { OrderStatus } from '@aldilivery/core';
 
 import type {
@@ -27,6 +29,11 @@ import type {
   SavedAddress,
   Call,
   CallLeg,
+  RunnerDocument,
+  RunnerFeedback,
+  ProblemReport,
+  ProblemEvidence,
+  RunnerRecovery,
   RecurringSet,
   Runner,
   RunnerCheck,
@@ -80,6 +87,11 @@ export function memoryRepository(): Repository {
   const pushSubscriptions = new Map<string, PushSubscription>();
   const savedAddresses = new Map<string, SavedAddress>();
   const calls = new Map<string, Call>();
+  const runnerDocuments = new Map<string, RunnerDocument>();
+  const runnerFeedback: RunnerFeedback[] = [];
+  const problems = new Map<string, ProblemReport>();
+  const problemEvidence = new Map<string, ProblemEvidence>();
+  const recoveries = new Map<string, RunnerRecovery>();
   const callLegs = new Map<string, CallLeg>();
 
   const now = (): Date => new Date();
@@ -99,6 +111,7 @@ export function memoryRepository(): Repository {
           substitutionDefault: input.substitutionDefault ?? 'ask_me',
           budgetCapPence: input.budgetCapPence ?? null,
           pinHash: null,
+          stripeCustomerId: null,
           pinFailedAttempts: 0,
           pinLockedUntil: null,
           deletionScheduledFor: null,
@@ -141,6 +154,11 @@ export function memoryRepository(): Repository {
           name: input.name,
           phone: input.phone,
           vehicleType: input.vehicleType ?? 'on_foot',
+          travelModes: input.travelModes ?? [input.vehicleType ?? 'on_foot'],
+          referralCode: input.referralCode ?? newReferralCode('R'),
+          referredBy: input.referredBy ?? null,
+          drivingLicenceVerified: false,
+          motorInsuranceUntil: null,
           rightToWorkVerified: input.rightToWorkVerified ?? false,
           criminalRecordCheckVerified: input.criminalRecordCheckVerified ?? false,
           stripeConnectedAccountId: input.stripeConnectedAccountId ?? null,
@@ -164,6 +182,12 @@ export function memoryRepository(): Repository {
       async findByPhone(phone) {
         for (const runner of runners.values()) {
           if (runner.phone === phone) return clone(runner);
+        }
+        return null;
+      },
+      async findByReferralCode(code) {
+        for (const runner of runners.values()) {
+          if (runner.referralCode === code) return clone(runner);
         }
         return null;
       },
@@ -209,6 +233,121 @@ export function memoryRepository(): Repository {
       },
       async delete(key) {
         savedAddresses.delete(key);
+      },
+    },
+
+    runnerDocuments: {
+      async create(input) {
+        const row: RunnerDocument = { ...input, id: id() };
+        runnerDocuments.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = runnerDocuments.get(key);
+        return found ? clone(found) : null;
+      },
+      async listForRunner(runnerId) {
+        return [...runnerDocuments.values()]
+          .filter((row) => row.runnerId === runnerId)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map(clone);
+      },
+      async listSubmitted() {
+        return [...runnerDocuments.values()]
+          .filter((row) => row.status === 'submitted')
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async update(key, patch) {
+        const found = runnerDocuments.get(key);
+        if (!found) throw new Error(`No document ${key}`);
+        const row = { ...found, ...patch };
+        runnerDocuments.set(key, row);
+        return clone(row);
+      },
+    },
+
+    runnerFeedback: {
+      async create(input) {
+        const row: RunnerFeedback = { ...input, id: id() };
+        runnerFeedback.push(row);
+        return clone(row);
+      },
+      async list() {
+        return [...runnerFeedback].reverse().map(clone);
+      },
+    },
+
+    problems: {
+      async create(input) {
+        const row: ProblemReport = { ...input, id: id() };
+        problems.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = problems.get(key);
+        return found ? clone(found) : null;
+      },
+      async listForOrder(orderId) {
+        return [...problems.values()]
+          .filter((row) => row.orderId === orderId)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map(clone);
+      },
+      async listOpen() {
+        return [...problems.values()]
+          .filter((row) => row.status === 'open')
+          .sort((a, b) => a.decideBy.getTime() - b.decideBy.getTime())
+          .map(clone);
+      },
+      async update(key, patch) {
+        const found = problems.get(key);
+        if (!found) throw new Error(`No problem report ${key}`);
+        const row = { ...found, ...patch };
+        problems.set(key, row);
+        return clone(row);
+      },
+    },
+
+    problemEvidence: {
+      async create(input) {
+        const row: ProblemEvidence = { ...input, id: id() };
+        problemEvidence.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = problemEvidence.get(key);
+        return found ? clone(found) : null;
+      },
+      async listForReport(reportId) {
+        return [...problemEvidence.values()]
+          .filter((row) => row.reportId === reportId)
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+    },
+
+    recoveries: {
+      async create(input) {
+        const row: RunnerRecovery = { ...input, id: id() };
+        recoveries.set(row.id, row);
+        return clone(row);
+      },
+      async listOutstanding(runnerId) {
+        return [...recoveries.values()]
+          .filter(
+            (row) =>
+              row.runnerId === runnerId && !row.writtenOff && row.recoveredPence < row.amountPence,
+          )
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async update(key, patch) {
+        const found = recoveries.get(key);
+        if (!found) throw new Error(`No recovery ${key}`);
+        const row = { ...found, ...patch };
+        recoveries.set(key, row);
+        return clone(row);
       },
     },
 
@@ -552,6 +691,12 @@ export function memoryRepository(): Repository {
       async countForRunner(runnerId) {
         return [...orders.values()].filter((o) => o.runnerId === runnerId).length;
       },
+      async listForRunner(runnerId) {
+        return [...orders.values()]
+          .filter((o) => o.runnerId === runnerId)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map(clone);
+      },
     },
 
     offers: {
@@ -600,6 +745,7 @@ export function memoryRepository(): Repository {
           runnerId: input.runnerId,
           earnedPence: input.earnedPence,
           coolBagWithheldPence: input.coolBagWithheldPence,
+          recoveryWithheldPence: input.recoveryWithheldPence ?? 0,
           transferredPence: input.transferredPence,
           stripeTransferId: input.stripeTransferId ?? null,
           createdAt: now(),

@@ -125,6 +125,8 @@ model Shopper {
   phone                String                 @unique
   /// A hash of the Shopper's spoken code. The code itself is never stored.
   spokenCodeHash       String?
+  /// The Shopper's customer at Stripe, which saved cards are attached to so they can be used again.
+  stripeCustomerId     String?                @unique
   preferredLanguage    String                 @default("en-GB")
   /// Free text the Runner reads at the door: "knock loudly, I am slow to the door".
   doorstepProtocol     String                 @default("")
@@ -163,10 +165,19 @@ model Shopper {
 }
 
 model Runner {
-  id          String      @id @default(cuid())
-  name        String
-  phone       String      @unique
-  vehicleType VehicleType @default(on_foot)
+  id                     String        @id @default(cuid())
+  name                   String
+  phone                  String        @unique
+  vehicleType            VehicleType   @default(on_foot)
+  /// Every way the Runner said they might deliver.
+  travelModes            VehicleType[] @default([])
+  /// Their own ID, shown to them and used in the link they share.
+  referralCode           String        @unique
+  /// The ID of whoever invited them.
+  referredBy             String?
+  drivingLicenceVerified Boolean       @default(false)
+  /// Accepted motor insurance covers them until this day.
+  motorInsuranceUntil    DateTime?
 
   /// Both checks must be true before a Runner may be offered any job.
   rightToWorkVerified         Boolean @default(false)
@@ -190,10 +201,11 @@ model Runner {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orders  Order[]
-  offers  JobOffer[]
-  payouts RunnerPayout[]
-  checks  RunnerCheck[]
+  orders    Order[]
+  offers    JobOffer[]
+  payouts   RunnerPayout[]
+  checks    RunnerCheck[]
+  documents RunnerDocument[]
 
   @@index([available, lastJobCompletedAt])
 }
@@ -430,12 +442,14 @@ model RunnerPayout {
   runner   Runner @relation(fields: [runnerId], references: [id], onDelete: Cascade)
 
   /// Always five hundred. Recorded per payout so the audit trail is self evident.
-  earnedPence          Int
+  earnedPence           Int
   /// Held back towards the cool bag deposit, never taken from the earning.
-  coolBagWithheldPence Int     @default(0)
+  /// Taken towards a refund the Runner was found at fault for, a little from each job.
+  recoveryWithheldPence Int     @default(0)
+  coolBagWithheldPence  Int     @default(0)
   /// What actually moved to the Runner's own account in this transfer.
-  transferredPence     Int
-  stripeTransferId     String?
+  transferredPence      Int
+  stripeTransferId      String?
 
   createdAt DateTime @default(now())
 }
@@ -639,4 +653,90 @@ model CallLeg {
   createdAt        DateTime  @default(now())
 
   @@unique([callId, identity])
+}
+
+/// A document a Runner sent in. The photograph is removed once a person has decided, except the
+/// face photograph, which is shown to the Shopper at the door.
+model RunnerDocument {
+  id          String    @id @default(cuid())
+  runnerId    String
+  runner      Runner    @relation(fields: [runnerId], references: [id], onDelete: Cascade)
+  /// face_photo, right_to_work, dbs, driving_licence_front, driving_licence_back, insurance.
+  kind        String
+  image       Bytes?
+  contentType String?
+  shareCode   String?
+  expiresOn   DateTime?
+  /// submitted, accepted or rejected.
+  status      String    @default("submitted")
+  reviewNote  String?
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([runnerId])
+  @@index([status])
+}
+
+/// Something a Runner told us. No Runner is recorded when they chose to be anonymous.
+model RunnerFeedback {
+  id        String   @id @default(cuid())
+  runnerId  String?
+  message   String
+  createdAt DateTime @default(now())
+}
+
+/// Something that went wrong with an order, with evidence, decided by a person.
+model ProblemReport {
+  id                   String            @id @default(cuid())
+  orderId              String
+  /// "runner" or "shopper".
+  reportedBy           String
+  reporterId           String
+  summary              String
+  refundRequestedPence Int               @default(0)
+  /// "open" or "decided".
+  status               String            @default("open")
+  decideBy             DateTime
+  /// shopper_at_fault, runner_at_fault, platform_at_fault, shop_at_fault or no_fault.
+  decision             String?
+  refundPence          Int               @default(0)
+  refundReference      String?
+  decisionNote         String?
+  decidedBy            String?
+  decidedAt            DateTime?
+  createdAt            DateTime          @default(now())
+  evidence             ProblemEvidence[]
+
+  @@index([status, decideBy])
+  @@index([orderId])
+}
+
+/// A voice note, photo or written note sent as evidence.
+model ProblemEvidence {
+  id          String        @id @default(cuid())
+  reportId    String
+  report      ProblemReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  addedBy     String
+  /// voice_note, photo or note.
+  kind        String
+  data        Bytes?
+  contentType String?
+  text        String?
+  createdAt   DateTime      @default(now())
+
+  @@index([reportId])
+}
+
+/// What a Runner owes after being found at fault, recovered a little from each job.
+model RunnerRecovery {
+  id             String   @id @default(cuid())
+  runnerId       String
+  reportId       String
+  amountPence    Int
+  recoveredPence Int      @default(0)
+  writtenOff     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([runnerId])
 }

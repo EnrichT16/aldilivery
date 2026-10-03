@@ -13,8 +13,10 @@ import { z } from 'zod';
 import { requireSession } from '../app.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 import { NOT_A_UK_NUMBER, ukPhone } from '../lib/phone.js';
+import { newReferralCode } from '../lib/referral.js';
 import { hashCode, signSession, suggestHandle } from '../lib/tokens.js';
 import { sweepOffers } from '../services/dispatch.js';
+import { MOTOR_MODES, canDrive, documentsNeeded } from './runner-account.js';
 
 /** Checked, and turned into `+44…`, so the same number always finds the same account. */
 const phoneSchema = z
@@ -53,6 +55,14 @@ const runnerSchema = z.object({
   name: z.string().trim().min(1).max(80),
   phone: phoneSchema,
   vehicleType: z.enum(['on_foot', 'bicycle', 'motorbike', 'car', 'van']).optional(),
+  /** Every way they might deliver (ruling, 2 October 2026): tick all, so switching needs nothing new. */
+  travelModes: z
+    .array(z.enum(['on_foot', 'bicycle', 'motorbike', 'car', 'van']))
+    .min(1, 'Please choose at least one way you will deliver.')
+    .max(5)
+    .optional(),
+  /** The ID of whoever invited them, from the link they followed. */
+  referredBy: z.string().trim().max(20).optional(),
   stripeConnectedAccountId: z.string().trim().max(120).optional(),
 });
 
@@ -112,10 +122,25 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       throw new ConflictError('There is already a Runner on that phone number.');
     }
 
+    const travelModes = [...new Set(input.travelModes ?? [input.vehicleType ?? 'on_foot'])];
+    // They start walking or cycling if they can; a car or motorbike waits for the licence and
+    // insurance to be checked.
+    const firstMode =
+      input.vehicleType ??
+      travelModes.find((mode) => !MOTOR_MODES.includes(mode)) ??
+      (travelModes[0] as (typeof travelModes)[number]);
+    const referrer = input.referredBy
+      ? ((await repository.runners.findByReferralCode(input.referredBy.toUpperCase()))
+          ?.referralCode ?? null)
+      : null;
+
     const runner = await repository.runners.create({
       name: input.name,
       phone: input.phone,
-      vehicleType: input.vehicleType ?? 'on_foot',
+      vehicleType: firstMode,
+      travelModes,
+      referralCode: newReferralCode('R'),
+      referredBy: referrer,
       stripeConnectedAccountId: input.stripeConnectedAccountId ?? null,
       // Both checks start false. No Runner is offered a job until a person has verified
       // their right to work and their criminal record check.
@@ -135,8 +160,19 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       runner: publicRunner(runner),
       token,
       nextSteps: [
-        'We need to check your right to work in the United Kingdom.',
-        'We need a criminal record check.',
+        ...documentsNeeded(travelModes).map((kind) =>
+          kind === 'face_photo'
+            ? 'A photo of your face, for Shoppers to know you at the door.'
+            : kind === 'right_to_work'
+              ? 'Your right to work in the UK: a share code, or a photo of your passport.'
+              : kind === 'dbs'
+                ? 'A basic DBS certificate, or its share code.'
+                : kind === 'insurance'
+                  ? 'Your motor insurance certificate, covering delivery work.'
+                  : kind === 'driving_licence_front'
+                    ? 'The front of your driving licence.'
+                    : 'The back of your driving licence.',
+        ),
         // Rule Two, from the constant. The figure a Runner is told is the figure the
         // payout route transfers, because both read the same number.
         `You will be paid ${formatPence(RUNNER_PAYMENT_PENCE, config.store.currencySymbol)} for every order you complete.`,
@@ -187,6 +223,14 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       })
       .parse(request.body);
 
+    const current = await repository.runners.findById(session.accountId);
+    if (!current) throw new NotFoundError('account');
+    if (body.available && MOTOR_MODES.includes(current.vehicleType) && !canDrive(current, now())) {
+      throw new ConflictError(
+        'Before you can deliver by car or motorbike, we need your driving licence and insurance checked and in date. Switch to walking or bicycle to start now.',
+        { needs: 'licence_and_insurance' },
+      );
+    }
     const runner = await repository.runners.update(session.accountId, {
       available: body.available,
       ...(body.latitude !== undefined ? { latitude: body.latitude } : {}),
@@ -245,6 +289,7 @@ function publicShopper(shopper: import('../domain.js').Shopper) {
     pinHash,
     pinFailedAttempts: _attempts,
     pinLockedUntil: _locked,
+    stripeCustomerId: _customer,
     ...rest
   } = shopper;
   return { ...rest, hasPin: pinHash !== null };

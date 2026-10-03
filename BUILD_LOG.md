@@ -2830,6 +2830,165 @@ card to a Stripe customer, is the next piece of work, as its own PR.
 
 ---
 
+## 2026-10-02 — Step 38: saved cards that work again and again, and cards from any country
+
+Anthony merged #19. Anthony created the LiveKit project (EU, Frankfurt). A local `.env` was
+prepared for its three settings and confirmed ignored by git. The values belong in DigitalOcean for
+the live site. Then two changes to taking money.
+
+### A saved card can be charged more than once
+
+**Until now:** a card was saved at Stripe on its own. Stripe spends a card saved that way after one
+payment. So in live mode, a Shopper's second order with the same card would have been refused, and
+no call charge could be taken.
+
+**Now:**
+
+- Every Shopper has their own customer at Stripe, made the first time they save a card. Every card
+  they save is attached to it.
+- Orders are charged through that customer, and so are call charges at the end of a call. Any call
+  money waiting is taken at the next successful payment.
+- **Cards saved before this change** are attached at the Shopper's next order, before anything is
+  created or charged.
+  - If Stripe has already spent the card on an earlier payment, the Shopper is told: "Please add
+    your card again. We have improved how cards are saved, so it can be used for every order.
+    Nothing has been charged."
+  - The confirmation screen then offers "Add my card again".
+- If Stripe will not keep a new card, nothing is saved, and the Shopper is told so in plain words.
+- The Stripe customer id never leaves the server.
+
+### Cards from any country (ruling, 2 October 2026)
+
+`payments.supportedCardRegions` is now `ANY`. Shoppers pay with the cards they have, including
+cards from home: Nigeria, Ghana, Kenya, Zimbabwe, Sierra Leone, India, anywhere. Stripe still
+screens every payment. Flutterwave, Paystack and mobile money follow as further gateways. The
+blueprint has what was found about each country.
+
+Nigerian naira cards are often limited by the issuing bank for spending abroad. Some will still be
+declined by the bank, not by us, until Flutterwave or Paystack charges them in naira.
+
+### Not yet
+
+- **Cards saved through Stripe's "set up for later" step.** Cards are now kept, but a UK bank may
+  still ask the Shopper to confirm a charge made with nobody at the screen, as a call charge is. If
+  it does, the charge waits as outstanding and is tried again with the next payment. Saving cards
+  through that Stripe step, so banks agree to later charges up front, is a follow-up to the card
+  screen.
+
+### Checked
+
+- `pnpm run verify` passes: lint, typecheck and **511 tests** (38 core, 322 api, 151 web).
+- New tests cover:
+  - a Stripe customer made on the first card, kept off `/me`, and reused for every later card;
+  - two orders in a row charged through the same customer;
+  - a card Stripe will not keep refused in plain words, with nothing saved;
+  - an old card attached at the next order;
+  - an old, already spent card answered with "Please add your card again", with nothing charged;
+  - cards from Nigeria, Ghana, Kenya, Zimbabwe, Sierra Leone, India and the United States taken.
+- Not checked here: against real Stripe test keys. Worth one order and one repeat order with a
+  test card once deployed.
+
+---
+
+## 2026-10-03 — Step 39: Runner accounts, the first screen, and reporting problems
+
+While Anthony set up the Apple and Google Play accounts, he asked for the rest to go ahead. All of
+this follows the rulings of 2 October 2026 in the blueprint.
+
+### Runners, all online, from anywhere in the UK
+
+- **Signing up.**
+  - A Runner ticks every way they might deliver: walking, bicycle or electric bike, motorbike or
+    moped, car, van.
+  - They start walking or cycling if they ticked one. A car or motorbike waits until the licence
+    and insurance have been checked.
+  - Who invited them is kept, from the link they followed.
+- **Documents, photographed with the phone.**
+  - Each document has a button that opens the camera: the front camera for the face photo, the
+    back one for documents.
+  - The right to work and DBS can be sent as a share code instead of a photo.
+  - Insurance asks for the date it runs out.
+  - Photos are shrunk on the phone before sending.
+  - Staff see each document with the staff key and accept or reject it. A rejection must say why,
+    and the Runner sees the reason.
+  - The photo is deleted once decided, apart from the face photo, which the Shopper sees at the
+    door.
+  - Accepting the right to work or DBS records the check, the same as the approval tool does.
+- **Switching how they travel.**
+  - Walking or cycling: at once, any day, nothing needed.
+  - Car, motorbike or van: only with a licence and in-date insurance, both accepted by a person.
+  - Nobody goes on shift driving without them, and the insurance end date is checked every time.
+- **The Runner page has tabs.**
+  - **Today:** earnings big and bold, how they are travelling today with one-press switching, then
+    the shift, job offers and the job in hand.
+  - **Jobs:** every job with its date, area (postcode district only), pay and order reference,
+    each with Report a problem. Never the Shopper's name, street or number.
+  - **Money:** earned today, this week and in all; what has been paid out; anything being repaid,
+    with the reason and what is left.
+  - **Training:** the ten modules, honestly marked as coming soon.
+  - **More:**
+    - their Runner ID, read out letter by letter;
+    - their invitation link with a Share button;
+    - their documents;
+    - feedback, with or without their name.
+
+### The first screen: who are you?
+
+- Shopper, Runner, Organisation, I look after someone, and Just looking. Each has a short
+  description under it.
+- Ozi reads them out once a visit, after its first-launch introduction.
+- Staff have no door on the public screen.
+- New pages:
+  - **For organisations:** what is offered, and ring us to be set up.
+  - **For family and carers:** what they can do now; the £3.99 plan, marked as coming.
+- Invitation links (`/join?ref=CODE`) open the first screen and keep the code for sign-up.
+
+### When something goes wrong
+
+- **Reporting.** The Runner or the Shopper reports a problem on an order. Either side can add
+  voice notes (recorded in the page), photos and written notes.
+- **Deciding.** A person decides within two working days, as staff see it, soonest first, with
+  overdue ones flagged. The decision must be written down, in words both sides will read.
+- **Refunds:**
+  - £5 or less is refunded straight away with no investigation, and never counted against anyone.
+  - Otherwise the refund goes back to the card the day it is decided.
+  - Never more than the order cost.
+  - No refund when the Shopper was responsible.
+- **A Runner found at fault** repays 10% of each job's pay until it is repaid.
+  - It is taken only after the transfer goes through.
+  - The earning stays £5, as Rule Two requires. Only what is sent that day is less, the same way
+    the cool box deposit works.
+  - The Runner sees every deduction, its reason and what is left.
+  - The four settings (refund straight away up to £5, two working days, 10%, write-off up to £20)
+    are in `config/store.json` under `problems`. The percentage can never be set above 20%.
+
+### Not yet
+
+- The Shopper's own Report a problem screen. The server takes Shopper reports and the £5
+  straight-away refund now.
+- The admin panel screens for documents and problems. Staff use the staff-key API until then.
+- The write-off when a Runner leaves owing money.
+- Recording a voice note was checked in tests by its fallback only. A real phone is needed to
+  hear one.
+
+### Checked
+
+- `pnpm run verify` passes: lint, typecheck and **549 tests** (38 core, 348 api, 163 web).
+- New tests cover:
+  - sign-up with every way of delivering, and who invited them;
+  - documents by photo or share code, staff review, photos deleted after review (face photo kept),
+    rejections with reasons;
+  - driving refused without a licence and in-date insurance, and going on shift refused;
+  - the dashboard's earnings by day, week and in all, with no Shopper details;
+  - anonymous feedback;
+  - the first screen's choices and the invitation link;
+  - problem reports from either side, with voice notes, photos and notes;
+  - the £5 straight-away refund and two working days over a weekend;
+  - written decisions, no refund when the Shopper is at fault, and 10% recovered at the next payout;
+  - the Runner's tabs, the Report a problem page, and axe on every new screen.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has

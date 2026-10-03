@@ -7,6 +7,8 @@
 
 import { PrismaClient } from '@prisma/client';
 
+import { newReferralCode } from '../lib/referral.js';
+
 import type { OrderStatus } from '@aldilivery/core';
 
 import type {
@@ -64,13 +66,24 @@ export function prismaRepository(prisma: PrismaClient): Repository {
 
     runners: {
       async create(input) {
-        return (await prisma.runner.create({ data: { ...input } as any })) as unknown as Runner;
+        return (await prisma.runner.create({
+          data: {
+            ...input,
+            referralCode: input.referralCode ?? newReferralCode('R'),
+            travelModes: input.travelModes ?? [input.vehicleType ?? 'on_foot'],
+          } as any,
+        })) as unknown as Runner;
       },
       async findById(id) {
         return (await prisma.runner.findUnique({ where: { id } })) as unknown as Runner | null;
       },
       async findByPhone(phone) {
         return (await prisma.runner.findUnique({ where: { phone } })) as unknown as Runner | null;
+      },
+      async findByReferralCode(referralCode) {
+        return (await prisma.runner.findUnique({
+          where: { referralCode },
+        })) as unknown as Runner | null;
       },
       async update(id, patch) {
         return (await prisma.runner.update({
@@ -92,6 +105,94 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         return (await prisma.runner.findMany({
           orderBy: { createdAt: 'asc' },
         })) as unknown as Runner[];
+      },
+    },
+
+    runnerDocuments: {
+      async create(input) {
+        return (await prisma.runnerDocument.create({ data: input as any })) as any;
+      },
+      async findById(id) {
+        return (await prisma.runnerDocument.findUnique({ where: { id } })) as any;
+      },
+      async listForRunner(runnerId) {
+        return (await prisma.runnerDocument.findMany({
+          where: { runnerId },
+          orderBy: { createdAt: 'desc' },
+        })) as any;
+      },
+      async listSubmitted() {
+        return (await prisma.runnerDocument.findMany({
+          where: { status: 'submitted' },
+          orderBy: { createdAt: 'asc' },
+        })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.runnerDocument.update({ where: { id }, data: patch as any })) as any;
+      },
+    },
+
+    runnerFeedback: {
+      async create(input) {
+        return (await prisma.runnerFeedback.create({ data: input })) as any;
+      },
+      async list() {
+        return (await prisma.runnerFeedback.findMany({ orderBy: { createdAt: 'desc' } })) as any;
+      },
+    },
+
+    problems: {
+      async create(input) {
+        return (await prisma.problemReport.create({ data: input })) as any;
+      },
+      async findById(id) {
+        return (await prisma.problemReport.findUnique({ where: { id } })) as any;
+      },
+      async listForOrder(orderId) {
+        return (await prisma.problemReport.findMany({
+          where: { orderId },
+          orderBy: { createdAt: 'desc' },
+        })) as any;
+      },
+      async listOpen() {
+        return (await prisma.problemReport.findMany({
+          where: { status: 'open' },
+          orderBy: { decideBy: 'asc' },
+        })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.problemReport.update({ where: { id }, data: patch as any })) as any;
+      },
+    },
+
+    problemEvidence: {
+      async create(input) {
+        return (await prisma.problemEvidence.create({ data: input as any })) as any;
+      },
+      async findById(id) {
+        return (await prisma.problemEvidence.findUnique({ where: { id } })) as any;
+      },
+      async listForReport(reportId) {
+        return (await prisma.problemEvidence.findMany({
+          where: { reportId },
+          orderBy: { createdAt: 'asc' },
+        })) as any;
+      },
+    },
+
+    recoveries: {
+      async create(input) {
+        return (await prisma.runnerRecovery.create({ data: input })) as any;
+      },
+      async listOutstanding(runnerId) {
+        const rows = await prisma.runnerRecovery.findMany({
+          where: { runnerId, writtenOff: false },
+          orderBy: { createdAt: 'asc' },
+        });
+        return rows.filter((row) => row.recoveredPence < row.amountPence) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.runnerRecovery.update({ where: { id }, data: patch })) as any;
       },
     },
 
@@ -334,6 +435,14 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
       async countForRunner(runnerId) {
         return prisma.order.count({ where: { runnerId } });
+      },
+      async listForRunner(runnerId) {
+        const rows = await prisma.order.findMany({
+          where: { runnerId },
+          include: { items: true },
+          orderBy: { createdAt: 'desc' },
+        });
+        return rows.map(toOrder);
       },
     },
 

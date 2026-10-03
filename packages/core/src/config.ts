@@ -104,6 +104,17 @@ export interface StoreConfig {
     /** Above this unpaid call balance, nobody more can be added to a call until it is paid. */
     readonly maxOutstandingPence: number;
   };
+  /** Problems and refunds (rulings of 2 October 2026). */
+  readonly problems: {
+    /** A refund asked for at or below this is given straight away, with no investigation. */
+    readonly instantRefundUpToPence: number;
+    /** Working days a person has to decide a reported problem. */
+    readonly decideWithinWorkingDays: number;
+    /** The part of each job's pay taken towards a refund a Runner was found at fault for. */
+    readonly recoveryPercentOfPay: number;
+    /** Owed by a Runner who leaves: written off at or below this, asked for above it. */
+    readonly writeOffUpToPence: number;
+  };
   readonly versionOneRestrictions: {
     readonly ageRestrictedGoodsAllowed: boolean;
   };
@@ -213,6 +224,18 @@ export function parseStoreConfig(input: unknown): StoreConfig {
   const versionOneRestrictions = object(root['versionOneRestrictions'], 'versionOneRestrictions');
   const voice = object(root['voice'], 'voice');
   const calls = object(root['calls'], 'calls');
+  const problems = object(root['problems'], 'problems');
+  const recoveryPercentOfPay = wholeNumber(
+    problems['recoveryPercentOfPay'],
+    'problems.recoveryPercentOfPay',
+    0,
+  );
+  if (recoveryPercentOfPay > 20) {
+    // The law may cap it at 10% (ruling, 2 October 2026); never more than £1 of a £5 job.
+    throw new StoreConfigError(
+      `problems.recoveryPercentOfPay is ${recoveryPercentOfPay}%. It may not be more than 20%, so a Runner always takes home most of every job.`,
+    );
+  }
 
   const allowedModes = array(catalogueSource['allowedModes'], 'store.catalogueSource.allowedModes').map(
     (entry, index) => str(entry, `store.catalogueSource.allowedModes[${index}]`),
@@ -383,6 +406,12 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       targetStandard: str(accessibility['targetStandard'], 'accessibility.targetStandard'),
       baseFontSizePx,
       minimumControlHeightPx,
+    },
+    problems: {
+      instantRefundUpToPence: wholeNumber(problems['instantRefundUpToPence'], 'problems.instantRefundUpToPence', 0),
+      decideWithinWorkingDays: wholeNumber(problems['decideWithinWorkingDays'], 'problems.decideWithinWorkingDays', 1),
+      recoveryPercentOfPay,
+      writeOffUpToPence: wholeNumber(problems['writeOffUpToPence'], 'problems.writeOffUpToPence', 0),
     },
     calls: {
       pencePerMinute: wholeNumber(calls['pencePerMinute'], 'calls.pencePerMinute', 0),
