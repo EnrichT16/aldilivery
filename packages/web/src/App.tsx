@@ -10,7 +10,9 @@ import { Catalogue } from './pages/Catalogue';
 import { Confirm } from './pages/Confirm';
 import { JustLooking } from './pages/JustLooking';
 import { Landing } from './pages/Landing';
+import { LookingAfter } from './pages/LookingAfter';
 import { MyOrder } from './pages/MyOrder';
+import { Organisations } from './pages/Organisations';
 import { RunnerDoor } from './pages/Runner';
 import { RunnerHome } from './pages/RunnerHome';
 import { RunnerSignUp } from './pages/RunnerSignUp';
@@ -101,6 +103,9 @@ export function App(): JSX.Element {
               <PageTitle />
               <Routes>
                 <Route path="/" element={<Landing />} />
+                <Route path="/join" element={<Landing />} />
+                <Route path="/organisations" element={<Organisations />} />
+                <Route path="/looking-after" element={<LookingAfter />} />
                 <Route path="/sign-up" element={<SignUp />} />
                 <Route path="/sign-in" element={<SignIn />} />
                 <Route path="/card" element={<Card />} />

@@ -16,7 +16,7 @@ import { OziBubble } from './OziBubble';
  */
 export function Layout({ children }: { children: ReactNode }): JSX.Element {
   const location = useLocation();
-  const onLanding = location.pathname === '/';
+  const onLanding = location.pathname === '/' || location.pathname === '/join';
   const { shopper } = useSession();
 
   return (

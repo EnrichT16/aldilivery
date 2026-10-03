@@ -27,12 +27,16 @@ beforeEach(() => {
   // Ozi introduces itself on a first launch. Every test but the ones about that introduction
   // starts as a device that has already heard it, so screens are tested on their own.
   window.localStorage.setItem('ozidelivery.voice.settings', JSON.stringify({ introHeard: true }));
+  // Likewise the choices Ozi reads on the first screen once a visit: heard already, unless a
+  // test is about them.
+  window.sessionStorage.setItem('ozidelivery.doors.read', 'yes');
 });
 
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   window.localStorage.clear();
+  window.sessionStorage.clear();
   // The token is also kept in memory, for browsers where storage throws. Without this, a test
   // that signs in leaves the next one signed in too.
   clearToken();

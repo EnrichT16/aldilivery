@@ -5,6 +5,7 @@ import { DocumentsChecklist } from '../components/DocumentsChecklist';
 import { Field } from '../components/FormFields';
 import { storeConfig } from '../config';
 import { registerRunner, type VehicleType } from '../lib/api';
+import { readReferral } from '../lib/referral';
 import { writeRunnerToken } from '../lib/session';
 
 const WAYS: Array<{ value: VehicleType; label: string }> = [
@@ -33,7 +34,7 @@ export function RunnerSignUp(): JSX.Element {
   const [done, setDone] = useState<{ name: string; phone: string } | null>(null);
   const [news, setNews] = useState('');
   const [params] = useSearchParams();
-  const referredBy = params.get('ref') ?? undefined;
+  const referredBy = params.get('ref') ?? readReferral() ?? undefined;
   const summary = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

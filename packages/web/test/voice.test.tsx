@@ -146,7 +146,28 @@ describe('the first launch', () => {
     await waitFor(() => {
       expect(engine.listening).not.toBeNull();
     });
-    expect(engine.spoken).toEqual([]);
+    expect(engine.spoken.some((s) => /^Hello, I'm/.test(s.text))).toBe(false);
+  });
+
+  it('reads the choices on the first screen once a visit, after the introduction', async () => {
+    window.sessionStorage.removeItem('ozidelivery.doors.read');
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubApi();
+    const view = renderAt('/');
+    await waitFor(() => {
+      expect(engine.spoken.map((s) => s.text).join(' ')).toMatch(
+        /^Who are you\? Shopper: I want my shopping brought to me\. Runner: .* Organisation: .* I look after someone: /,
+      );
+    });
+    view.unmount();
+    const again = fakeEngine();
+    setVoiceEngine(again);
+    renderAt('/');
+    await waitFor(() => {
+      expect(again.listening).not.toBeNull();
+    });
+    expect(again.spoken).toEqual([]);
   });
 
   it('shows and announces the introduction when it could not be spoken', async () => {
