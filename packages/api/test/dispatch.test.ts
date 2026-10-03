@@ -87,6 +87,9 @@ describe('offering without anybody pressing anything', () => {
     await harness.repository.runners.update(runner.runnerId, {
       rightToWorkVerified: true,
       criminalRecordCheckVerified: true,
+      // Registered with a car: driving needs the licence and insurance accepted too.
+      drivingLicenceVerified: true,
+      motorInsuranceUntil: new Date('2099-12-31T00:00:00.000Z'),
     });
     await harness.app.inject({
       method: 'POST',

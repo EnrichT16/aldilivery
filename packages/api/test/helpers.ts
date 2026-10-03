@@ -278,6 +278,9 @@ export async function signUpRunner(
     await harness.repository.runners.update(body.runner.id, {
       rightToWorkVerified: true,
       criminalRecordCheckVerified: true,
+      // They registered with a car, so an approved one has had both checked.
+      drivingLicenceVerified: true,
+      motorInsuranceUntil: new Date('2099-12-31T00:00:00.000Z'),
       available: true,
       latitude: overrides.latitude ?? 52.4862,
       longitude: overrides.longitude ?? -1.8904,

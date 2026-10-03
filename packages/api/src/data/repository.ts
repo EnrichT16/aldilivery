@@ -27,6 +27,8 @@ import type {
   SavedAddress,
   Call,
   CallLeg,
+  RunnerDocument,
+  RunnerFeedback,
   RecurringSet,
   Runner,
   RunnerCheck,
@@ -55,6 +57,9 @@ export type CreateRunner = Pick<Runner, 'name' | 'phone'> &
     Pick<
       Runner,
       | 'vehicleType'
+      | 'travelModes'
+      | 'referralCode'
+      | 'referredBy'
       | 'rightToWorkVerified'
       | 'criminalRecordCheckVerified'
       | 'stripeConnectedAccountId'
@@ -148,6 +153,7 @@ export interface Repository {
     create(input: CreateRunner): Promise<Runner>;
     findById(id: string): Promise<Runner | null>;
     findByPhone(phone: string): Promise<Runner | null>;
+    findByReferralCode(code: string): Promise<Runner | null>;
     update(id: string, patch: Partial<Runner>): Promise<Runner>;
     /** Every Runner who is on shift, verified, and not already holding an offer. */
     listAvailable(): Promise<Runner[]>;
@@ -164,6 +170,22 @@ export interface Repository {
     listForShopper(shopperId: string): Promise<SavedAddress[]>;
     findById(id: string): Promise<SavedAddress | null>;
     delete(id: string): Promise<void>;
+  };
+
+  /** What Runners send in at sign-up, and what a person decided about each. */
+  runnerDocuments: {
+    create(input: Omit<RunnerDocument, 'id'>): Promise<RunnerDocument>;
+    findById(id: string): Promise<RunnerDocument | null>;
+    /** Newest first. */
+    listForRunner(runnerId: string): Promise<RunnerDocument[]>;
+    /** Waiting for a person, oldest first. */
+    listSubmitted(): Promise<RunnerDocument[]>;
+    update(id: string, patch: Partial<Omit<RunnerDocument, 'id'>>): Promise<RunnerDocument>;
+  };
+  runnerFeedback: {
+    create(input: Omit<RunnerFeedback, 'id'>): Promise<RunnerFeedback>;
+    /** Newest first. */
+    list(): Promise<RunnerFeedback[]>;
   };
 
   /** In-app calls (Section F) and each person's part in them. */
@@ -253,6 +275,8 @@ export interface Repository {
     listByPool(poolId: string): Promise<Order[]>;
     /** How many orders a Runner has ever been given, of any status. */
     countForRunner(runnerId: string): Promise<number>;
+    /** Every order a Runner has been given, newest first. */
+    listForRunner(runnerId: string): Promise<Order[]>;
   };
 
   offers: {

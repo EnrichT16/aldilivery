@@ -165,10 +165,19 @@ model Shopper {
 }
 
 model Runner {
-  id          String      @id @default(cuid())
-  name        String
-  phone       String      @unique
-  vehicleType VehicleType @default(on_foot)
+  id                     String        @id @default(cuid())
+  name                   String
+  phone                  String        @unique
+  vehicleType            VehicleType   @default(on_foot)
+  /// Every way the Runner said they might deliver.
+  travelModes            VehicleType[] @default([])
+  /// Their own ID, shown to them and used in the link they share.
+  referralCode           String        @unique
+  /// The ID of whoever invited them.
+  referredBy             String?
+  drivingLicenceVerified Boolean       @default(false)
+  /// Accepted motor insurance covers them until this day.
+  motorInsuranceUntil    DateTime?
 
   /// Both checks must be true before a Runner may be offered any job.
   rightToWorkVerified         Boolean @default(false)
@@ -192,10 +201,11 @@ model Runner {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orders  Order[]
-  offers  JobOffer[]
-  payouts RunnerPayout[]
-  checks  RunnerCheck[]
+  orders    Order[]
+  offers    JobOffer[]
+  payouts   RunnerPayout[]
+  checks    RunnerCheck[]
+  documents RunnerDocument[]
 
   @@index([available, lastJobCompletedAt])
 }
@@ -641,4 +651,35 @@ model CallLeg {
   createdAt        DateTime  @default(now())
 
   @@unique([callId, identity])
+}
+
+/// A document a Runner sent in. The photograph is removed once a person has decided, except the
+/// face photograph, which is shown to the Shopper at the door.
+model RunnerDocument {
+  id          String    @id @default(cuid())
+  runnerId    String
+  runner      Runner    @relation(fields: [runnerId], references: [id], onDelete: Cascade)
+  /// face_photo, right_to_work, dbs, driving_licence_front, driving_licence_back, insurance.
+  kind        String
+  image       Bytes?
+  contentType String?
+  shareCode   String?
+  expiresOn   DateTime?
+  /// submitted, accepted or rejected.
+  status      String    @default("submitted")
+  reviewNote  String?
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([runnerId])
+  @@index([status])
+}
+
+/// Something a Runner told us. No Runner is recorded when they chose to be anonymous.
+model RunnerFeedback {
+  id        String   @id @default(cuid())
+  runnerId  String?
+  message   String
+  createdAt DateTime @default(now())
 }

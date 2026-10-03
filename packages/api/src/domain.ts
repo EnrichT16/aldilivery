@@ -64,7 +64,18 @@ export interface Runner {
   id: string;
   name: string;
   phone: string;
+  /** How the Runner is delivering right now. Walking or cycling can be chosen at any time. */
   vehicleType: VehicleType;
+  /** Every way the Runner said they might deliver, so switching later needs nothing new. */
+  travelModes: VehicleType[];
+  /** Their own ID, shown to them and used in the invitation link they share. */
+  referralCode: string;
+  /** The ID of whoever invited them, if anyone did. */
+  referredBy: string | null;
+  /** A person has seen their driving licence and found it valid. */
+  drivingLicenceVerified: boolean;
+  /** Their motor insurance, seen and accepted by a person, covers them until this day. */
+  motorInsuranceUntil: Date | null;
   rightToWorkVerified: boolean;
   criminalRecordCheckVerified: boolean;
   stripeConnectedAccountId: string | null;
@@ -345,5 +356,47 @@ export interface CallLeg {
   inviteCodeHash: string | null;
   /** For a guest: what the Shopper said yes to before adding them. */
   priceStatement: string | null;
+  createdAt: Date;
+}
+
+/** What a Runner photographs or types in when they sign up (ruling, 2 October 2026). */
+export type RunnerDocumentKind =
+  | 'face_photo'
+  | 'right_to_work'
+  | 'dbs'
+  | 'driving_licence_front'
+  | 'driving_licence_back'
+  | 'insurance';
+
+export type RunnerDocumentStatus = 'submitted' | 'accepted' | 'rejected';
+
+/**
+ * A document a Runner sent in. The photograph is kept only until a person has decided, then
+ * removed; what was decided, by whom and when is kept. The face photograph is the exception: it
+ * stays, because it is shown to the Shopper at the door.
+ */
+export interface RunnerDocument {
+  id: string;
+  runnerId: string;
+  kind: RunnerDocumentKind;
+  /** The photograph, as sent. Null once it has been reviewed and removed, or for a share code. */
+  image: Buffer | null;
+  contentType: string | null;
+  /** A Home Office or DBS share code, where one was given instead of a photograph. */
+  shareCode: string | null;
+  /** For insurance: the last day it covers. */
+  expiresOn: Date | null;
+  status: RunnerDocumentStatus;
+  reviewNote: string | null;
+  reviewedBy: string | null;
+  reviewedAt: Date | null;
+  createdAt: Date;
+}
+
+/** Something a Runner told us, from the Feedback page. Anonymous if they chose. */
+export interface RunnerFeedback {
+  id: string;
+  runnerId: string | null;
+  message: string;
   createdAt: Date;
 }
