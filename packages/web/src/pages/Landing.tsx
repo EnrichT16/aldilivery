@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { DoorButton } from '../components/DoorButton';
@@ -52,22 +52,24 @@ export function Landing(): JSX.Element {
     rememberReferral(params.get('ref'));
   }, [params]);
 
+  // As they are on arrival: the choices are read once a visit, not again when these change.
+  const onArrival = useRef({ say: ozi.say, introHeard: settings.introHeard });
+
   useEffect(() => {
+    const { say, introHeard } = onArrival.current;
     // The first launch has Ozi's own introduction; after that, the choices, once a visit.
-    if (!settings.introHeard) return;
+    if (!introHeard) return;
     try {
       if (window.sessionStorage.getItem('ozidelivery.doors.read') === 'yes') return;
       window.sessionStorage.setItem('ozidelivery.doors.read', 'yes');
     } catch {
       return;
     }
-    void ozi.say(
+    void say(
       'Who are you? ' +
         DOORS.map((door) => `${door.title}: ${door.description}`).join(' ') +
         ' Or just tell me what you need.',
     );
-    // Once a visit, on arrival.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

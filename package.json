@@ -26,7 +26,7 @@
     "db:down": "docker compose down",
     "db:push": "pnpm --filter @aldilivery/api db:push",
     "db:seed": "pnpm --filter @aldilivery/api db:seed",
-    "verify": "pnpm run lint && pnpm run typecheck && pnpm run test"
+    "verify": "pnpm run lint && pnpm --filter @aldilivery/web lint && pnpm run typecheck && pnpm run test"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",
