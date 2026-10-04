@@ -3034,6 +3034,64 @@ they switch to walking or cycling, or until their documents are accepted.
 
 ---
 
+## 2026-10-04 — Step 41: before launch: one Ozi button, privacy and terms, calls, the admin panel
+
+Anthony's screenshot of the live site showed two problems, and asked for the steps before launch.
+
+**The two fixes.**
+
+- The home page had two Ozi buttons, and the gold one sat over the green bubble. The old gold
+  microphone button is gone. The green bubble is the only Ozi button, on every page.
+- Ozi took "Ozi delivery dot co dot uk", heard from the page itself, as an order. Now an order
+  starts only on words like "I want" or "order", on Ozi's name, or within 30 seconds of Ozi
+  asking "What would you like?". "Ozi" on its own is no longer taken as a thing to buy.
+
+**Privacy and terms, as drafts.** `/privacy` and `/terms`, linked from every page's footer. They
+are written from what the code actually does: who handles what, how long it is kept, refund
+times, call prices. Every figure comes from configuration. Both say "draft" at the top until a
+solicitor has read them.
+
+**Shoppers can report a problem.** Under "Past orders", each order has "Report a problem", with
+the refund amount asked for. As already built for Runners, five pounds or less is refunded
+straight away.
+
+**In-app calls.**
+
+- A big round green "Call" button appears on the Shopper's order page and on the Runner's job.
+- The Shopper is told the price (5p a minute) and says yes before calling, answering, or adding
+  someone. A Runner calls and answers free.
+- During a call there are End call and Mute buttons. For the Shopper there is also "Add someone
+  to the call", which makes a link for a carer or relative. The guest page, `/call/join`, needs
+  no account.
+- The button only appears once the three LiveKit settings are in place.
+
+**The admin panel**, at `/staff`.
+
+- It signs in with a new STAFF_API_KEY and the person's name, which is recorded with each
+  decision.
+- Documents: show the photo, accept or send back with a reason, and give the insurance expiry
+  date.
+- Problems: play voice notes, see photos and notes, choose who was responsible, set the refund,
+  and write the decision down.
+- Money owed: what Runners still repay. When a Runner leaves owing 20 pounds or less, it can be
+  written off, and who did it and when are recorded (a new migration).
+- Feedback: what Runners have sent, named or anonymous.
+
+**Launch checklist.** [LAUNCH.md](LAUNCH.md) lists, for Anthony, what must be true before the
+public can order, in the order to do it.
+
+**Also fixed.** The Runner dashboard listed jobs in whatever order the database returned them.
+Its test failed now and then when orders were created in the same millisecond. Jobs are now
+sorted newest delivery first.
+
+**Checked.**
+
+- `pnpm run verify` passes, including the web package's own lint: 576 tests.
+- The web build passes.
+- Every migration applies to a real PostgreSQL 16, with no difference from the schema.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has

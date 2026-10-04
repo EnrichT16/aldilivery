@@ -194,6 +194,28 @@ services:
         type: SECRET
         value: replace_with_the_private_key
 
+      # The admin panel at /staff signs in with this. Make one with: openssl rand -base64 32
+      # Until it is real, every staff page refuses everybody. LAUNCH.md, step 6.
+      - key: STAFF_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: replace_with_a_long_random_staff_key
+
+      # In-app calls (DEPLOY.md, "Switching on in-app calls"). Until all three are real, the call button is
+      # simply not shown.
+      - key: LIVEKIT_URL
+        scope: RUN_TIME
+        value: replace_with_the_livekit_project_url
+
+      - key: LIVEKIT_API_KEY
+        scope: RUN_TIME
+        value: replace_with_the_livekit_api_key
+
+      - key: LIVEKIT_API_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: replace_with_the_livekit_api_secret
+
 # ---------------------------------------------------------------------------
 # The web app
 # ---------------------------------------------------------------------------
