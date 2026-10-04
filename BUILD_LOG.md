@@ -2989,6 +2989,51 @@ this follows the rulings of 2 October 2026 in the blueprint.
 
 ---
 
+## 2026-10-03 — Step 40: why nothing since PR 15 had reached the live site
+
+Anthony opened `/api/health` after PR 20 was merged. It reported commit `bfa4ac0`, which is PR 15.
+PRs 16 to 20 had merged, but none had deployed.
+
+**The cause.** DigitalOcean builds the web app with `pnpm --filter @aldilivery/web build`. That
+runs the web package's own lint, with `--max-warnings=0`, from inside `packages/web`. Run from
+there, the web rules in the shared ESLint config do not apply, so the React hooks plugin is not
+loaded. Two `eslint-disable-next-line react-hooks/exhaustive-deps` comments, the first added in
+PR 16, then failed as "Definition for rule … was not found". The web build failed, and App
+Platform deploys the API and the web together, so every deployment since has been refused. The
+live site stayed on PR 15 the whole time. Nothing was broken there, but nothing new arrived.
+
+`pnpm run verify` did not catch it, because it runs ESLint from the repository root, where the
+plugin is loaded and the comments are valid.
+
+**The fix.**
+
+- The two effects no longer need a disable comment. Each reads what it needs on arrival through a
+  ref, so both lint configurations pass with no errors and no warnings.
+- `pnpm run verify` now also runs the web package's own lint, exactly as the deployment does, so
+  this cannot happen silently again.
+
+**Checked before pushing.**
+
+- **The DigitalOcean build in a fresh copy of main:** the same commands as the deployment. It
+  failed before the fix, at exactly this error, and passes after.
+- **Every database migration from PR 16 to PR 20 on a real PostgreSQL 16:**
+  - set up at PR 15's schema, with existing Runner and Shopper rows;
+  - all five new migrations applied cleanly;
+  - existing Runners kept their travel mode and were given their own ID;
+  - Prisma reports no difference between the migrations and the schema.
+- **The real server started on that database:**
+  - `/health` answered;
+  - a Runner signed up with two travel modes;
+  - a card from Nigeria was saved;
+  - a 300 KB face photo was stored.
+- `pnpm run verify` passes: 549 tests.
+
+**Expect, once this deploys.** PRs 16 to 20 arrive together. Any Runner registered by car before
+now starts as a car driver with no licence or insurance checked. They cannot go on shift until
+they switch to walking or cycling, or until their documents are accepted.
+
+---
+
 ## What Anthony Should Check
 
 This section is for you, Anthony, rather than for a developer. It says how to run what has

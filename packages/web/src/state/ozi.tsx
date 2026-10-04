@@ -285,7 +285,12 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
 
   /* ------------------------------------------------------------------ first launch */
 
+  // What the first launch needs, as it is when the page opens. Read through a ref so the effect
+  // below runs once, on the first launch only, and never again when any of these change.
+  const firstLaunch = useRef({ assistant, engine, settings, setPresence, wakeHint });
+
   useEffect(() => {
+    const { assistant, engine, settings, setPresence, wakeHint } = firstLaunch.current;
     let cancelled = false;
     const intro =
       `Hello, I'm ${assistant}. I'm designed to speak with you, so that we can have a conversation. ` +
@@ -326,8 +331,6 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     return () => {
       cancelled = true;
     };
-    // The introduction is for the first launch only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Stop listening while the page is hidden, and pick up again when it comes back.
