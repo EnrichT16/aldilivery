@@ -14,12 +14,14 @@ import { LookingAfter } from './pages/LookingAfter';
 import { MyOrder } from './pages/MyOrder';
 import { Organisations } from './pages/Organisations';
 import { ReportProblem } from './pages/ReportProblem';
+import { Privacy } from './pages/Privacy';
 import { RunnerDoor } from './pages/Runner';
 import { RunnerHome } from './pages/RunnerHome';
 import { RunnerSignUp } from './pages/RunnerSignUp';
 import { Settings } from './pages/Settings';
 import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
+import { Terms } from './pages/Terms';
 import { BasketProvider } from './state/basket';
 import { SessionProvider } from './state/session';
 import { OziProvider } from './state/ozi';
@@ -106,6 +108,8 @@ export function App(): JSX.Element {
                 <Route path="/" element={<Landing />} />
                 <Route path="/join" element={<Landing />} />
                 <Route path="/organisations" element={<Organisations />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/terms" element={<Terms />} />
                 <Route path="/looking-after" element={<LookingAfter />} />
                 <Route path="/sign-up" element={<SignUp />} />
                 <Route path="/sign-in" element={<SignIn />} />

@@ -71,6 +71,15 @@ describe('the landing page', () => {
     expect(screen.queryByRole('link', { name: /admin|staff/i })).toBeNull();
   });
 
+  it('links to the privacy page and the terms from every page, marked as drafts', () => {
+    renderAt('/shop');
+    expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy');
+    expect(screen.getByRole('link', { name: 'Our terms' })).toHaveAttribute('href', '/terms');
+    renderAt('/privacy');
+    expect(screen.getByText(/This is a draft, being checked by our solicitor/)).toBeInTheDocument();
+    expect(screen.getByText(/Calls are not recorded/)).toBeInTheDocument();
+  });
+
   it('keeps the invitation code from a shared link for the sign-up form', () => {
     renderAt('/join?ref=rabcd234');
     expect(window.sessionStorage.getItem('ozidelivery.referral')).toBe('RABCD234');
@@ -249,6 +258,8 @@ describe('the accessibility promises axe cannot see', () => {
     '/addresses',
     '/organisations',
     '/looking-after',
+    '/privacy',
+    '/terms',
   ];
 
   it('gives every control a name that a person could read out, on every screen', async () => {

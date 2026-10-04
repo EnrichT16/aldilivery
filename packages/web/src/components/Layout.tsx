@@ -73,6 +73,18 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
             shelf price and you are charged what the till says.
           </p>
           <p className="m-0 text-paper/80">{storeConfig.store.catalogueSource.attribution}</p>
+          <ul className="flex flex-wrap gap-2 list-none m-0 p-0">
+            <li>
+              <Link to="/privacy" className="control px-0 text-paper underline">
+                Privacy
+              </Link>
+            </li>
+            <li>
+              <Link to="/terms" className="control px-0 text-paper underline">
+                Our terms
+              </Link>
+            </li>
+          </ul>
           <p className="m-0 text-paper/80">
             {storeConfig.store.legalEntityName}
             {storeConfig.store.legalEntityIsPlaceholder ? ' (company details to follow)' : ''}
