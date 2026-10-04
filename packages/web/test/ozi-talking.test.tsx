@@ -326,3 +326,18 @@ describe('a shared phone', () => {
     expect(said(engine).at(-1)).toMatch(/^Nobody is signed in on this phone\./);
   });
 });
+
+describe('signing out in Settings', () => {
+  it('has a Sign out button for a shared phone', async () => {
+    introHeard();
+    setVoiceEngine(fakeEngine());
+    stubApi({ shopper: FAKE_SHOPPER });
+    const user = userEvent.setup();
+    renderAt('/settings');
+    await user.click(await screen.findByRole('button', { name: 'Sign out' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
+    });
+    expect(screen.queryByRole('link', { name: 'Your order' })).not.toBeInTheDocument();
+  });
+});
