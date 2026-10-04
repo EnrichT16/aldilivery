@@ -342,6 +342,12 @@ export function memoryRepository(): Repository {
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
           .map(clone);
       },
+      async listAllOutstanding() {
+        return [...recoveries.values()]
+          .filter((row) => !row.writtenOff && row.recoveredPence < row.amountPence)
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
       async update(key, patch) {
         const found = recoveries.get(key);
         if (!found) throw new Error(`No recovery ${key}`);

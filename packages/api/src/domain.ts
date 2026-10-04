@@ -453,5 +453,7 @@ export interface RunnerRecovery {
   amountPence: number;
   recoveredPence: number;
   writtenOff: boolean;
+  writtenOffBy: string | null;
+  writtenOffAt: Date | null;
   createdAt: Date;
 }

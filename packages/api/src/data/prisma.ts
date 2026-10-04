@@ -191,6 +191,13 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         });
         return rows.filter((row) => row.recoveredPence < row.amountPence) as any;
       },
+      async listAllOutstanding() {
+        const rows = await prisma.runnerRecovery.findMany({
+          where: { writtenOff: false },
+          orderBy: { createdAt: 'asc' },
+        });
+        return rows.filter((row) => row.recoveredPence < row.amountPence) as any;
+      },
       async update(id, patch) {
         return (await prisma.runnerRecovery.update({ where: { id }, data: patch })) as any;
       },

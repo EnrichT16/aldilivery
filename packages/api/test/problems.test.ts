@@ -266,3 +266,82 @@ describe('working days', () => {
     );
   });
 });
+
+describe('the admin panel', () => {
+  it('checks the staff key', async () => {
+    expect((await harness.app.inject({ method: 'GET', url: '/staff/check' })).statusCode).toBe(403);
+    const ok = await harness.app.inject({ method: 'GET', url: '/staff/check', headers: STAFF });
+    expect(ok.json()).toEqual({ ok: true });
+  });
+
+  it('shows Runner feedback with who sent it, unless they asked not to be named', async () => {
+    await harness.app.inject({
+      method: 'POST',
+      url: '/runners/me/feedback',
+      headers: runner.authHeader,
+      payload: { message: 'The shop map would help.', anonymous: false },
+    });
+    await harness.app.inject({
+      method: 'POST',
+      url: '/runners/me/feedback',
+      headers: runner.authHeader,
+      payload: { message: 'Pay day could be sooner.', anonymous: true },
+    });
+    const listed = await harness.app.inject({
+      method: 'GET',
+      url: '/staff/feedback',
+      headers: STAFF,
+    });
+    const rows = listed.json().feedback as Array<{ message: string; runner: unknown }>;
+    expect(rows.find((r) => r.message.startsWith('The shop'))?.runner).toMatchObject({
+      runnerId: expect.stringMatching(/^R/),
+    });
+    expect(rows.find((r) => r.message.startsWith('Pay day'))?.runner).toBeNull();
+  });
+
+  async function owe(pence: number) {
+    await harness.repository.recoveries.create({
+      runnerId: runner.runnerId,
+      reportId: 'report-x',
+      amountPence: pence,
+      recoveredPence: 0,
+      writtenOff: false,
+      writtenOffBy: null,
+      writtenOffAt: null,
+      createdAt: FRIDAY,
+    });
+  }
+
+  function writeOff() {
+    return harness.app.inject({
+      method: 'POST',
+      url: `/staff/runners/${runner.runnerId}/write-off`,
+      headers: STAFF,
+      payload: { by: 'Anthony' },
+    });
+  }
+
+  it('writes off £20 or less owed by a Runner who leaves', async () => {
+    await owe(1200);
+    await owe(800);
+    const listed = await harness.app.inject({
+      method: 'GET',
+      url: '/staff/recoveries',
+      headers: STAFF,
+    });
+    expect(listed.json().recoveries).toEqual([
+      expect.objectContaining({ remainingPence: 2000, canWriteOff: true }),
+    ]);
+    const response = await writeOff();
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json().message).toBe('£20.00 written off.');
+    expect(await harness.repository.recoveries.listOutstanding(runner.runnerId)).toEqual([]);
+  });
+
+  it('will not write off more than £20', async () => {
+    await owe(2001);
+    const response = await writeOff();
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.message).toMatch(/Please ask the Runner for it/);
+  });
+});

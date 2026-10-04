@@ -736,6 +736,9 @@ model RunnerRecovery {
   amountPence    Int
   recoveredPence Int      @default(0)
   writtenOff     Boolean  @default(false)
+  /// Who wrote it off when the Runner left, and when (at or below problems.writeOffUpToPence).
+  writtenOffBy   String?
+  writtenOffAt   DateTime?
   createdAt      DateTime @default(now())
 
   @@index([runnerId])
