@@ -5,7 +5,7 @@
  * a different address, saved with the PIN or used once without.
  */
 
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { MemoryRouter } from 'react-router-dom';
@@ -350,5 +350,121 @@ describe('where an order goes, at checkout', () => {
     await user.click(screen.getByRole('button', { name: 'Use this PIN' }));
     expect(await screen.findByRole('radio', { name: /5 Friend Street/ })).toBeChecked();
     expect(server.saved).toHaveLength(1);
+  });
+});
+
+describe('a PIN tapped on the screen', () => {
+  // Anthony, 4 October 2026: for somebody who cannot see and has people around them.
+  it('takes each number in taps, buzzes it back, and keeps it on one tap or redoes it on two', async () => {
+    const buzzes: Array<number | number[]> = [];
+    Object.defineProperty(navigator, 'vibrate', {
+      configurable: true,
+      value: (pattern: number | number[]) => {
+        buzzes.push(pattern);
+        return true;
+      },
+    });
+    const user = userEvent.setup();
+    renderAt('/addresses');
+    await user.click(await screen.findByRole('button', { name: 'Add an address' }));
+    await user.type(screen.getByLabelText(/A name for it/), 'Mum');
+    await user.type(screen.getByLabelText('The address'), '4 Other Road, Rochester, ME1 1AA');
+    await user.click(screen.getByRole('button', { name: 'Next' }));
+    await user.click(screen.getByRole('button', { name: 'Tap my PIN' }));
+
+    vi.useFakeTimers();
+    const pad = (): HTMLElement =>
+      screen.getByRole('button', { name: /^Tapping your|^Tap once for yes|is talking$/ });
+    const wait = async (ms: number): Promise<void> => {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(ms);
+      });
+    };
+    const tap = async (times: number): Promise<void> => {
+      await wait(0);
+      for (let i = 0; i < times; i += 1) {
+        fireEvent.pointerDown(pad());
+        fireEvent.pointerUp(pad());
+      }
+    };
+    const hold = async (): Promise<void> => {
+      await wait(0);
+      fireEvent.pointerDown(pad());
+      await wait(900);
+      fireEvent.pointerUp(pad());
+    };
+    /** Taps stop: the number is taken, buzzed back, and the yes-or-no question asked. */
+    const settle = async (): Promise<void> => {
+      await wait(8000);
+    };
+    const answer = async (times: number): Promise<void> => {
+      await tap(times);
+      await wait(1300);
+    };
+    const lastSaid = (): string => engine.spoken.at(-1)?.text ?? '';
+
+    try {
+      await wait(0);
+      expect(engine.spoken.some((s) => /For zero, press and hold for a second/.test(s.text))).toBe(
+        true,
+      );
+      expect(lastSaid()).toMatch(
+        /When you stop tapping, I'll take the number\. Your first number\. Take your time\. Start\.$/,
+      );
+
+      await tap(2);
+      await settle();
+      expect(buzzes).toContainEqual([250, 350, 250]);
+      expect(lastSaid()).toBe(
+        'If that was right, tap once, or say yes. If not, tap twice, or say no.',
+      );
+      await answer(1);
+
+      // A slip: three taps, then two taps for "no", then zero by holding.
+      await tap(3);
+      await settle();
+      await answer(2);
+      expect(lastSaid()).toMatch(/^All right, let's do that number again\./);
+      await hold();
+      await settle();
+      expect(buzzes).toContainEqual([900]);
+      await answer(1);
+
+      // Ten taps is not a number.
+      await tap(10);
+      await settle();
+      expect(lastSaid()).toMatch(/^That was more than nine taps/);
+      await tap(5);
+      await settle();
+      await answer(1);
+
+      await tap(9);
+      await settle();
+      await answer(1);
+
+      // Choosing a PIN asks for it twice.
+      await wait(100);
+      expect(lastSaid()).toMatch(/^Now tap the same PIN once more/);
+      for (const digit of [2, 0, 5, 9]) {
+        if (digit === 0) await hold();
+        else await tap(digit);
+        await settle();
+        await answer(1);
+      }
+      await wait(100);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(
+      await screen.findByText('4 Other Road, Rochester, ME1 1AA', { selector: 'p' }),
+    ).toBeInTheDocument();
+    expect(server.pin).toBe('2059');
+    // Never said, never shown.
+    const spoken = engine.spoken.map((s) => s.text);
+    const start = spoken.findIndex((text) => text.includes('Tap once for one'));
+    const afterInstructions = spoken.slice(start + 1);
+    expect(afterInstructions.join(' ')).not.toMatch(/2059|\b(two|five|zero)\b/);
+    expect(document.body.textContent).not.toMatch(/2059/);
   });
 });

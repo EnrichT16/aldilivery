@@ -3,6 +3,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { storeConfig } from '../config';
 import { useOzi } from '../state/ozi';
 import { parsePin } from '../voice/pin';
+import { TapPin } from './TapPin';
 
 /**
  * The four-digit PIN, typed or said aloud (docs/BUILD_PROMPT.md, Section D).
@@ -13,6 +14,9 @@ import { parsePin } from '../voice/pin';
  * Said aloud, Ozi asks for the four numbers and the next words go straight to this field and
  * nowhere else: never shown, never kept, never said back. Ozi does say what happened ("I heard
  * four numbers"), so somebody who cannot see the field knows whether it worked.
+ *
+ * Or tapped, for somebody who cannot see the screen and has people around (TapPin): Ozi guides
+ * each number, taps count it, and the phone buzzes it back.
  *
  * Whatever the server says — a PIN too easy to guess, a wrong one, a lock — is shown here and
  * announced, in its own words.
@@ -44,7 +48,9 @@ export function PinEntry({
   const [value, setValue] = useState('');
   const [error, setError] = useState('');
   const [working, setWorking] = useState(false);
+  const [tapping, setTapping] = useState(false);
   const stopListening = useRef<(() => void) | null>(null);
+  const tappingRef = useRef(false);
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(
@@ -78,10 +84,14 @@ export function PinEntry({
       first.current = pin;
       setValue('');
       setStage('again');
+      // Tapped: the pad asks for the same PIN again itself.
+      if (tappingRef.current) return;
       input.current?.focus();
       if (spoken) sayIt();
       return;
     }
+    setTapping(false);
+    tappingRef.current = false;
     if (mode === 'choose' && pin !== first.current) {
       first.current = '';
       setValue('');
@@ -139,6 +149,27 @@ export function PinEntry({
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
 
+  if (tapping) {
+    return (
+      <section aria-labelledby={`${id}-heading`} className="space-y-3 max-w-xl">
+        <h3 id={`${id}-heading`} className="text-lead font-bold m-0">
+          {heading}
+        </h3>
+        <TapPin
+          key={stage}
+          again={mode === 'choose' && stage === 'again'}
+          onPin={(pin) => {
+            void submit(pin);
+          }}
+          onCancel={() => {
+            tappingRef.current = false;
+            setTapping(false);
+          }}
+        />
+      </section>
+    );
+  }
+
   return (
     <form onSubmit={onSubmit} className="space-y-3 max-w-xl" aria-labelledby={`${id}-heading`}>
       <h3 id={`${id}-heading`} className="text-lead font-bold m-0">
@@ -193,6 +224,19 @@ export function PinEntry({
             Say my PIN
           </button>
         )}
+        <button
+          type="button"
+          onClick={() => {
+            stopListening.current?.();
+            setError('');
+            tappingRef.current = true;
+            setTapping(true);
+          }}
+          aria-describedby={`${id}-tap-hint`}
+          className="control bg-paper text-ink"
+        >
+          Tap my PIN
+        </button>
         {onCancel && (
           <button
             type="button"
@@ -203,6 +247,10 @@ export function PinEntry({
           </button>
         )}
       </div>
+      <p id={`${id}-tap-hint`} className="m-0 text-paper/80">
+        People around you? Tap your PIN on the screen instead of saying it. {assistant} guides you
+        one number at a time, and the phone buzzes each one back.
+      </p>
       {ozi.presence !== 'cannot-listen' && (
         <p id={`${id}-say-hint`} className="m-0 text-paper/80">
           {assistant} listens for the four numbers. They are not shown or kept.
