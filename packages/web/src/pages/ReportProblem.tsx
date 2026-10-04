@@ -54,9 +54,9 @@ export function ReportProblem({ as = 'runner' }: { as?: 'runner' | 'shopper' }):
     try {
       setReports((await fetchProblems(orderId, as)).reports);
     } catch (failure) {
-      setProblem(failure instanceof Error ? failure.message : 'We could not load this job.');
+      setProblem(failure instanceof Error ? failure.message : 'We could not load this order.');
     }
-  }, [orderId]);
+  }, [orderId, as]);
 
   useEffect(() => {
     void load();
