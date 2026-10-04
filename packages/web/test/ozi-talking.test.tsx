@@ -293,3 +293,36 @@ describe('when the browser will not let Ozi speak first', () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe('a shared phone', () => {
+  it('signs out, and changes account, by voice', async () => {
+    introHeard();
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubApi({ shopper: FAKE_SHOPPER });
+    renderAt('/shop');
+    await screen.findByRole('link', { name: 'Your order' });
+
+    await say(engine, 'Ozi, change account');
+    expect(said(engine).at(-1)).toBe(
+      "I've signed out Ada. Would you like to sign in to another account, or open a new one? Say sign in, or new account.",
+    );
+    await waitFor(() => {
+      expect(screen.queryByRole('link', { name: 'Your order' })).not.toBeInTheDocument();
+    });
+    await say(engine, 'new account');
+    await waitFor(() => {
+      expect(said(engine).at(-1)).toMatch(/what's your name\?/);
+    });
+  });
+
+  it('says so when nobody is signed in', async () => {
+    introHeard();
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubApi();
+    renderAt('/shop');
+    await say(engine, 'sign me out');
+    expect(said(engine).at(-1)).toMatch(/^Nobody is signed in on this phone\./);
+  });
+});

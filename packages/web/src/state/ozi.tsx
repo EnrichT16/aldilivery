@@ -60,6 +60,13 @@ const TURN_ON =
 const CREATE_ACCOUNT =
   /\b(create|make|open|opening|set up|start)\s+((my|an|a|a new)\s+)?account\b|\bstart\s+(opening|creating)\b|\bsign me up\b|\bsign up\b|\bregister me\b/;
 
+/** "Sign me out", "log out". */
+const SIGN_OUT = /\b(sign|log)\s+(me\s+)?out\b/;
+
+/** "Change account", "switch my account", "use a different account". */
+const CHANGE_ACCOUNT =
+  /\b(change|switch)\s+(my\s+|the\s+)?account\b|\b(different|another)\s+account\b/;
+
 /** "Repeat", "say that again", "come again", "pardon", "I beg your pardon". */
 const REPEAT =
   /\b(repeat|say (that|it) again|come again|pardon|what did you say|didn'?t (hear|catch)|once more|one more time)\b/;
@@ -353,6 +360,21 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       navigate('/sign-up?talk=1');
       return;
     }
+    // A shared phone: change who is signed in, by voice (Anthony, 4 October 2026).
+    if (!ordering.busy() && CHANGE_ACCOUNT.test(words)) {
+      changeAccount();
+      return;
+    }
+    if (!ordering.busy() && SIGN_OUT.test(words)) {
+      const { shopper: current, signOut: out } = accountRef.current;
+      out();
+      void sayRef.current(
+        current
+          ? `You're signed out, ${current.displayName}. To sign in again, or open a new account, just tell me.`
+          : 'Nobody is signed in on this phone. To open an account, say open an account.',
+      );
+      return;
+    }
     if (!ordering.busy() && PHONE.test(words)) {
       sayPhoneNumber();
       return;
@@ -405,6 +427,27 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       await sayRef.current('Did you hear that? Say yes or no.');
       lastSaid.current = what;
     })();
+  };
+
+  const changeAccount = (): void => {
+    const { shopper: current, signOut: out } = accountRef.current;
+    if (current) out();
+    captureRef.current = (answer) => {
+      const said = answer.toLowerCase();
+      if (/\b(new|open|create|make)\b/.test(said)) {
+        navigate('/sign-up?talk=1');
+      } else if (/\b(sign|log)\s*in\b|\b(another|existing|other)\b/.test(said)) {
+        navigate('/sign-in');
+        void sayRef.current(
+          "Here's signing in. Put in the mobile number of the account, and we'll text a code to it.",
+        );
+      } else {
+        void sayRef.current('All right. Nobody is signed in now. Just tell me when you need me.');
+      }
+    };
+    void sayRef.current(
+      `${current ? `I've signed out ${current.displayName}. ` : ''}Would you like to sign in to another account, or open a new one? Say sign in, or new account.`,
+    );
   };
 
   /** The telephone number, in twos, twice, then a third time if asked. */
@@ -485,7 +528,9 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
 
   // What the first launch needs, as it is when the page opens. Read through a ref so the effect
   // below runs once, on the first launch only, and never again when any of these change.
-  const { shopper } = useSession();
+  const { shopper, signOut } = useSession();
+  const accountRef = useRef({ shopper, signOut });
+  accountRef.current = { shopper, signOut };
   const firstLaunch = useRef({
     assistant,
     engine,
