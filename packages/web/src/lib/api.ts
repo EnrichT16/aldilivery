@@ -810,3 +810,87 @@ export interface PastOrder {
 export function fetchMyOrders(): Promise<{ orders: PastOrder[] }> {
   return request<{ orders: PastOrder[] }>('/orders');
 }
+
+/* ------------------------------------------------------------------------------------- *
+ * In-app calls (Section F)
+ * ------------------------------------------------------------------------------------- */
+
+export interface CallsConfig {
+  enabled: boolean;
+  pencePerMinute: number;
+}
+
+export function fetchCallsConfig(): Promise<CallsConfig> {
+  return request<{ calls?: CallsConfig }>('/config').then(
+    (body) => body.calls ?? { enabled: false, pencePerMinute: 5 },
+  );
+}
+
+export interface CallInfo {
+  id: string;
+  orderId: string;
+  status: 'ringing' | 'live' | 'ended';
+  startedBy: 'shopper' | 'runner';
+  pencePerMinute: number;
+  priceAccepted: boolean;
+}
+
+export interface CallJoin {
+  url: string;
+  token: string;
+  roomName: string;
+}
+
+export function fetchCurrentCall(
+  orderId: string,
+  as: 'shopper' | 'runner',
+): Promise<{ call: CallInfo | null }> {
+  return request<{ call: CallInfo | null }>(
+    `/orders/${encodeURIComponent(orderId)}/calls/current`,
+    undefined,
+    as,
+  );
+}
+
+export function startCall(
+  orderId: string,
+  as: 'shopper' | 'runner',
+): Promise<{ call: CallInfo; join: CallJoin }> {
+  return request<{ call: CallInfo; join: CallJoin }>(
+    `/orders/${encodeURIComponent(orderId)}/calls`,
+    { method: 'POST', body: JSON.stringify(as === 'shopper' ? { priceAccepted: true } : {}) },
+    as,
+  );
+}
+
+export function answerCall(
+  callId: string,
+  as: 'shopper' | 'runner',
+): Promise<{ call: CallInfo; join: CallJoin }> {
+  return request<{ call: CallInfo; join: CallJoin }>(
+    `/calls/${encodeURIComponent(callId)}/join`,
+    { method: 'POST', body: JSON.stringify(as === 'shopper' ? { priceAccepted: true } : {}) },
+    as,
+  );
+}
+
+export function endCall(callId: string, as: 'shopper' | 'runner'): Promise<unknown> {
+  return request<unknown>(`/calls/${encodeURIComponent(callId)}/end`, { method: 'POST' }, as);
+}
+
+export function addCallGuest(
+  callId: string,
+  name: string,
+): Promise<{ link: string; message: string }> {
+  return request<{ link: string; message: string }>(`/calls/${encodeURIComponent(callId)}/guests`, {
+    method: 'POST',
+    body: JSON.stringify({ name, priceAccepted: true }),
+  });
+}
+
+export function joinAsGuest(code: string): Promise<{ name: string; join: CallJoin }> {
+  return request<{ name: string; join: CallJoin }>('/calls/guest-join', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}

@@ -23,6 +23,7 @@ import { Settings } from './pages/Settings';
 import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
 import { Terms } from './pages/Terms';
+import { CallJoin } from './pages/CallJoin';
 import { BasketProvider } from './state/basket';
 import { SessionProvider } from './state/session';
 import { OziProvider } from './state/ozi';
@@ -111,6 +112,7 @@ export function App(): JSX.Element {
                 <Route path="/organisations" element={<Organisations />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
+                <Route path="/call/join" element={<CallJoin />} />
                 <Route path="/looking-after" element={<LookingAfter />} />
                 <Route path="/sign-up" element={<SignUp />} />
                 <Route path="/sign-in" element={<SignIn />} />
