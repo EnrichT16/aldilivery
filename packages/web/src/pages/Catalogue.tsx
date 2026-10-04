@@ -90,8 +90,8 @@ export function Catalogue(): JSX.Element {
         <div role="alert" className="border-2 border-paper p-4 rounded-xl space-y-2">
           <h2 className="text-lead font-bold m-0">We cannot reach the shopping list</h2>
           <p className="m-0">
-            The {storeConfig.productName} server is not answering. If you are running this on your
-            own computer, start the server and this page will fill itself in.
+            The {storeConfig.productName} server is not answering. If you are running this on
+            your own computer, start the server and this page will fill itself in.
           </p>
         </div>
       )}
