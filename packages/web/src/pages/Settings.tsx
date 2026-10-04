@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { storeConfig } from '../config';
+import { useSession } from '../state/session';
 import { useVoice } from '../state/voice';
 import type { OutputVoice, VoiceReadiness } from '../voice';
 
@@ -18,6 +19,7 @@ import type { OutputVoice, VoiceReadiness } from '../voice';
  */
 export function Settings(): JSX.Element {
   const voice = useVoice();
+  const { shopper, signOut } = useSession();
   const { settings } = voice;
   const assistant = storeConfig.assistantName;
   const [voices, setVoices] = useState<OutputVoice[] | null>(null);
@@ -146,6 +148,29 @@ export function Settings(): JSX.Element {
         </button>
         <p className="m-0 text-paper/80">Speech by: {voice.engine.name}.</p>
       </section>
+
+      {shopper && (
+        // A shared phone (Anthony, 4 October 2026). By voice: "sign me out", "change account".
+        <section aria-labelledby="account-heading" className="space-y-3 max-w-xl">
+          <h2 id="account-heading" className="text-lead font-bold">
+            This phone
+          </h2>
+          <p className="m-0">
+            Signed in as {shopper.displayName}. Sharing this phone? Sign out, and the next person
+            can sign in or open their own account.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              signOut();
+              setNews('Signed out. To sign in again, or open an account, just tell me.');
+            }}
+            className="control bg-paper text-ink"
+          >
+            Sign out
+          </button>
+        </section>
+      )}
     </div>
   );
 }
