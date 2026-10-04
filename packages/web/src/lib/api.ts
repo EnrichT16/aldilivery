@@ -795,3 +795,18 @@ export function addProblemEvidence(
     as,
   );
 }
+
+export interface PastOrder {
+  id: string;
+  status: string;
+  totalEstimatePence: number;
+  finalTotalPence: number | null;
+  createdAt: string;
+  deliveredAt: string | null;
+  items: Array<{ id: string; name: string; quantity: number }>;
+}
+
+/** Every order the signed-in Shopper has made, newest first. */
+export function fetchMyOrders(): Promise<{ orders: PastOrder[] }> {
+  return request<{ orders: PastOrder[] }>('/orders');
+}

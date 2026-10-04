@@ -51,6 +51,13 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
                     </Link>
                   </li>
                 )}
+                {shopper && (
+                  <li>
+                    <Link to="/orders" className="control bg-paper/10 text-paper">
+                      Past orders
+                    </Link>
+                  </li>
+                )}
                 <li>
                   <Link to="/settings" className="control bg-paper/10 text-paper">
                     Settings

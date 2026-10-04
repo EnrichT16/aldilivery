@@ -12,6 +12,7 @@ import { JustLooking } from './pages/JustLooking';
 import { Landing } from './pages/Landing';
 import { LookingAfter } from './pages/LookingAfter';
 import { MyOrder } from './pages/MyOrder';
+import { Orders } from './pages/Orders';
 import { Organisations } from './pages/Organisations';
 import { ReportProblem } from './pages/ReportProblem';
 import { Privacy } from './pages/Privacy';
@@ -118,6 +119,8 @@ export function App(): JSX.Element {
                 <Route path="/basket" element={<Basket />} />
                 <Route path="/confirm" element={<Confirm />} />
                 <Route path="/my-order" element={<MyOrder />} />
+                <Route path="/orders" element={<Orders />} />
+                <Route path="/orders/:orderId/problem" element={<ReportProblem as="shopper" />} />
                 <Route path="/runner" element={<RunnerDoor />} />
                 <Route path="/runner/sign-up" element={<RunnerSignUp />} />
                 <Route path="/runner/home" element={<RunnerHome />} />
