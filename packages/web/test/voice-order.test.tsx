@@ -138,6 +138,8 @@ describe('understanding a spoken order', () => {
         'Hey Ozi, place an order of bananas, grapes, apples and oranges from Iceland, or the nearest available shop',
       ),
     ).toEqual({ items: ['bananas', 'grapes', 'apples', 'oranges'], shopAskedFor: 'Iceland' });
+    expect(splitItems('Ozi', 'Ozi').items).toEqual([]);
+    expect(splitItems('Hey Ozi.', 'Ozi').items).toEqual([]);
     expect(splitItems("I'd like two pints of milk and some bread").items).toEqual([
       'two pints of milk',
       'bread',
@@ -277,5 +279,36 @@ describe('ordering by voice alone', () => {
     renderApp();
     expect(await say(engine, 'I want three bananas')).toMatch(/you need a card saved/);
     expect(await screen.findByRole('heading', { name: /card/i })).toBeInTheDocument();
+  });
+});
+
+describe('waiting for an order, but not for ever', () => {
+  it('takes the next words as an order for thirty seconds after asking, and not after', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubShop();
+    renderApp();
+    expect(await say(engine, 'Ozi')).toBe(
+      'What would you like? You can say, for example, bananas and milk.',
+    );
+
+    // Thirty-one seconds later, a conversation in the room is not an order.
+    const later = Date.now() + 31_000;
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(later);
+    await waitFor(() => {
+      expect(engine.listening).not.toBeNull();
+    });
+    const before = engine.spoken.length;
+    act(() => {
+      engine.hear('bananas are cheaper at the market');
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(engine.spoken.length).toBe(before);
+
+    // Asked again, the answer within thirty seconds is taken.
+    clock.mockReturnValue(later + 1000);
+    expect(await say(engine, 'Ozi')).toMatch(/^What would you like\?/);
+    expect(await say(engine, 'bananas')).toBe('How many Bananas, loose would you like?');
+    clock.mockRestore();
   });
 });

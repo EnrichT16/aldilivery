@@ -46,6 +46,9 @@ interface Picked {
   quantity: number;
 }
 
+/** How long the words after "What would you like?" count as an order, whatever they are. */
+export const EXPECT_ORDER_MS = 30_000;
+
 const ORDER_INTENT = /\b(order|want|like|need|get|buy|have|bring|send|shopping|basket)\b/i;
 
 /** "two bananas" asks for two; "bananas" asks for some. */
@@ -83,7 +86,15 @@ export function useVoiceOrdering(say: (text: string) => Promise<SpeakOutcome>): 
   const stage = useRef<Stage>({ kind: 'idle' });
   const pending = useRef<string[]>([]);
   const picked = useRef<Picked[]>([]);
-  const expecting = useRef(false);
+  // Straight after Ozi asks "What would you like?", the next words are an order, whatever they
+  // are — but only for a short while. After that, only words that ask for something, or say
+  // Ozi's name, start one: a conversation in the room is not an order.
+  const expectingUntil = useRef<number | null>(null);
+  const expectNow = (): void => {
+    expectingUntil.current = Date.now() + EXPECT_ORDER_MS;
+  };
+  const isExpecting = (): boolean =>
+    expectingUntil.current !== null && Date.now() <= expectingUntil.current;
   // Read through refs so the conversation always sees the current account and basket.
   const live = useRef({ shopper, basket });
   live.current = { shopper, basket };
@@ -234,8 +245,8 @@ export function useVoiceOrdering(say: (text: string) => Promise<SpeakOutcome>): 
       switch (current.kind) {
         case 'idle': {
           const addressed = new RegExp(`\\b${assistant}\\b`, 'i').test(text);
-          if (!expecting.current && !addressed && !ORDER_INTENT.test(text)) return false;
-          expecting.current = false;
+          if (!isExpecting() && !addressed && !ORDER_INTENT.test(text)) return false;
+          expectingUntil.current = null;
           if (!live.current.shopper) {
             await say(
               'To order by voice, you need an account first. You can set one up on the screen by pressing Shopper, or ring us and a person will take your order.',
@@ -244,7 +255,7 @@ export function useVoiceOrdering(say: (text: string) => Promise<SpeakOutcome>): 
           }
           const { items, shopAskedFor } = splitItems(text, assistant);
           if (items.length === 0) {
-            expecting.current = true;
+            expectNow();
             await say('What would you like? You can say, for example, bananas and milk.');
             return true;
           }
@@ -383,7 +394,7 @@ export function useVoiceOrdering(say: (text: string) => Promise<SpeakOutcome>): 
   );
 
   const expectOrder = useCallback(() => {
-    expecting.current = true;
+    expectNow();
   }, []);
 
   const busy = useCallback(() => stage.current.kind !== 'idle', []);

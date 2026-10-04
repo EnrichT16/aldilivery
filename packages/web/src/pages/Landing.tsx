@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { DoorButton } from '../components/DoorButton';
-import { MicrophoneButton } from '../components/MicrophoneButton';
 import { storeConfig } from '../config';
 import { rememberReferral } from '../lib/referral';
 import { useOzi } from '../state/ozi';
@@ -37,8 +36,10 @@ const DOORS = [
 /**
  * The landing page: who are you?
  *
- * Deep navy, one large gold microphone in the middle, white text, and the doors, each with a
- * short description under it, written and — once Ozi has introduced itself — said aloud, once a
+ * Deep navy, white text, and the doors, each with a short description under it. Ozi's own round
+ * button is the one microphone, here as on every screen (ruling, 1 October 2026): a second one in
+ * the middle of this page sat under it and said the same thing twice to a screen reader. Each door
+ * has its description written and — once Ozi has introduced itself — said aloud, once a
  * visit. Staff do not have a door here; they sign in at their own address.
  *
  * An invitation link, `/join?ref=…`, lands here too, and the code is kept for the sign-up form.
@@ -77,8 +78,6 @@ export function Landing(): JSX.Element {
       <h1 className="text-display font-bold text-center m-0">{storeConfig.productName}</h1>
 
       <p className="text-lead text-center m-0 max-w-xl">{storeConfig.tagline}</p>
-
-      <MicrophoneButton />
 
       <section aria-labelledby="doors-heading" className="w-full max-w-xl">
         <h2 id="doors-heading" className="text-lead font-bold">

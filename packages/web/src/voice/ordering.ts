@@ -106,7 +106,8 @@ export function splitItems(
   let rest = text.trim().replace(/[.!?]+$/, '');
   // "Ozi, three bananas": the assistant's own name is who is being spoken to, not an item.
   if (assistantName) {
-    rest = rest.replace(new RegExp(`^(hey\\s+)?${assistantName}[,.]?\\s+`, 'i'), '');
+    // Said on its own, "Ozi" is a call for attention, with nothing asked for yet.
+    rest = rest.replace(new RegExp(`^(hey\\s+)?${assistantName}[,.]?(\\s+|$)`, 'i'), '');
   }
   for (const pattern of LEADING) rest = rest.replace(pattern, '');
 

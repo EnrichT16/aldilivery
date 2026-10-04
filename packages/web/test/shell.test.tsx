@@ -30,10 +30,11 @@ describe('the landing page', () => {
     expect(screen.getByText('Say it, Ozi shops it, a Runner brings it')).toBeInTheDocument();
   });
 
-  it('has one microphone button, and it says what it is in words', () => {
+  it('has one microphone, Ozi’s own round button, and it says what it is in words', async () => {
     renderAt('/');
-    const microphone = screen.getByRole('button', { name: 'Say what you need' });
-    expect(microphone).toBeInTheDocument();
+    const ozi = await screen.findByRole('button', { name: 'Can’t listen' });
+    expect(ozi.closest('[data-ozi]')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Say what you need' })).toBeNull();
   });
 
   it('says plainly when this browser cannot listen, rather than doing nothing', async () => {
@@ -41,9 +42,9 @@ describe('the landing page', () => {
     const user = userEvent.setup();
     renderAt('/');
 
-    await user.click(screen.getByRole('button', { name: 'Say what you need' }));
+    await user.click(await screen.findByRole('button', { name: 'Can’t listen' }));
 
-    // Shown under the microphone, and announced once, beside Ozi's round button.
+    // Shown and announced beside Ozi's round button.
     const shown = await screen.findAllByText(/I can't listen on this phone or browser yet/);
     const message = shown.find((element) => element.getAttribute('role') === 'status');
     expect(message).toBeDefined();
@@ -356,7 +357,7 @@ describe('Rule Nine, on the screen', () => {
   it('names the assistant from configuration, never from a string in a component', async () => {
     const user = userEvent.setup();
     renderAt('/');
-    await user.click(screen.getByRole('button', { name: 'Say what you need' }));
+    await user.click(await screen.findByRole('button', { name: 'Can’t listen' }));
     expect(readableText().some((line) => line.includes(storeConfig.assistantName))).toBe(true);
   });
 
