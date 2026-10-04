@@ -12,14 +12,19 @@ import { JustLooking } from './pages/JustLooking';
 import { Landing } from './pages/Landing';
 import { LookingAfter } from './pages/LookingAfter';
 import { MyOrder } from './pages/MyOrder';
+import { Orders } from './pages/Orders';
 import { Organisations } from './pages/Organisations';
 import { ReportProblem } from './pages/ReportProblem';
+import { Privacy } from './pages/Privacy';
 import { RunnerDoor } from './pages/Runner';
 import { RunnerHome } from './pages/RunnerHome';
 import { RunnerSignUp } from './pages/RunnerSignUp';
 import { Settings } from './pages/Settings';
 import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
+import { Terms } from './pages/Terms';
+import { CallJoin } from './pages/CallJoin';
+import { Staff } from './pages/Staff';
 import { BasketProvider } from './state/basket';
 import { SessionProvider } from './state/session';
 import { OziProvider } from './state/ozi';
@@ -106,6 +111,10 @@ export function App(): JSX.Element {
                 <Route path="/" element={<Landing />} />
                 <Route path="/join" element={<Landing />} />
                 <Route path="/organisations" element={<Organisations />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/call/join" element={<CallJoin />} />
+                <Route path="/staff" element={<Staff />} />
                 <Route path="/looking-after" element={<LookingAfter />} />
                 <Route path="/sign-up" element={<SignUp />} />
                 <Route path="/sign-in" element={<SignIn />} />
@@ -114,6 +123,8 @@ export function App(): JSX.Element {
                 <Route path="/basket" element={<Basket />} />
                 <Route path="/confirm" element={<Confirm />} />
                 <Route path="/my-order" element={<MyOrder />} />
+                <Route path="/orders" element={<Orders />} />
+                <Route path="/orders/:orderId/problem" element={<ReportProblem as="shopper" />} />
                 <Route path="/runner" element={<RunnerDoor />} />
                 <Route path="/runner/sign-up" element={<RunnerSignUp />} />
                 <Route path="/runner/home" element={<RunnerHome />} />

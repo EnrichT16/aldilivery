@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { storeConfig } from '../config';
 import { useSession } from '../state/session';
 import { OziBubble } from './OziBubble';
+import { OziSwitch } from './OziSwitch';
 
 /**
  * The page frame.
@@ -20,7 +21,7 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
   const { shopper } = useSession();
 
   return (
-    <div className="min-h-screen flex flex-col bg-ink text-paper">
+    <div className="min-h-screen flex flex-col bg-ink text-paper pb-20">
       <a className="skip-link" href="#main">
         Skip to the main part of this page
       </a>
@@ -51,6 +52,13 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
                     </Link>
                   </li>
                 )}
+                {shopper && (
+                  <li>
+                    <Link to="/orders" className="control bg-paper/10 text-paper">
+                      Past orders
+                    </Link>
+                  </li>
+                )}
                 <li>
                   <Link to="/settings" className="control bg-paper/10 text-paper">
                     Settings
@@ -73,12 +81,25 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
             shelf price and you are charged what the till says.
           </p>
           <p className="m-0 text-paper/80">{storeConfig.store.catalogueSource.attribution}</p>
+          <ul className="flex flex-wrap gap-2 list-none m-0 p-0">
+            <li>
+              <Link to="/privacy" className="control px-0 text-paper underline">
+                Privacy
+              </Link>
+            </li>
+            <li>
+              <Link to="/terms" className="control px-0 text-paper underline">
+                Our terms
+              </Link>
+            </li>
+          </ul>
           <p className="m-0 text-paper/80">
             {storeConfig.store.legalEntityName}
             {storeConfig.store.legalEntityIsPlaceholder ? ' (company details to follow)' : ''}
           </p>
         </div>
       </footer>
+      <OziSwitch />
       <OziBubble />
     </div>
   );

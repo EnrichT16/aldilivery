@@ -36,6 +36,9 @@ const SCREENS: Array<{ name: string; path: string }> = [
   { name: 'your addresses, signed out', path: '/addresses' },
   { name: 'for organisations', path: '/organisations' },
   { name: 'if you look after someone', path: '/looking-after' },
+  { name: 'privacy', path: '/privacy' },
+  { name: 'our terms', path: '/terms' },
+  { name: 'past orders, signed out', path: '/orders' },
   { name: 'a page that does not exist', path: '/nowhere' },
 ];
 

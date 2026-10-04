@@ -209,6 +209,8 @@ export interface Repository {
     create(input: Omit<RunnerRecovery, 'id'>): Promise<RunnerRecovery>;
     /** Still owed (not fully recovered, not written off), oldest first. */
     listOutstanding(runnerId: string): Promise<RunnerRecovery[]>;
+    /** Still owed, by every Runner, oldest first. */
+    listAllOutstanding(): Promise<RunnerRecovery[]>;
     update(id: string, patch: Partial<Omit<RunnerRecovery, 'id'>>): Promise<RunnerRecovery>;
   };
 

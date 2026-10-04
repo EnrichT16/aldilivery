@@ -329,6 +329,8 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
     },
     /** Whether a code can be sent, so the sign-in screen can say so before anybody tries. */
     signIn: { byText: ctx.codeDelivery !== 'off' },
+    // In-app calls (Section F): whether they can connect, and the price agreed before each one.
+    calls: { enabled: ctx.calls !== null, pencePerMinute: ctx.config.calls.pencePerMinute },
     /** Null when notifications are not set up, so the page does not offer them. */
     push: { publicKey: ctx.pushPublicKey },
   }));

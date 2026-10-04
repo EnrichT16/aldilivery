@@ -30,10 +30,11 @@ describe('the landing page', () => {
     expect(screen.getByText('Say it, Ozi shops it, a Runner brings it')).toBeInTheDocument();
   });
 
-  it('has one microphone button, and it says what it is in words', () => {
+  it('has one microphone, Ozi’s own round button, and it says what it is in words', async () => {
     renderAt('/');
-    const microphone = screen.getByRole('button', { name: 'Say what you need' });
-    expect(microphone).toBeInTheDocument();
+    const ozi = await screen.findByRole('button', { name: 'Can’t listen' });
+    expect(ozi.closest('[data-ozi]')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Say what you need' })).toBeNull();
   });
 
   it('says plainly when this browser cannot listen, rather than doing nothing', async () => {
@@ -41,9 +42,9 @@ describe('the landing page', () => {
     const user = userEvent.setup();
     renderAt('/');
 
-    await user.click(screen.getByRole('button', { name: 'Say what you need' }));
+    await user.click(await screen.findByRole('button', { name: 'Can’t listen' }));
 
-    // Shown under the microphone, and announced once, beside Ozi's round button.
+    // Shown and announced beside Ozi's round button.
     const shown = await screen.findAllByText(/I can't listen on this phone or browser yet/);
     const message = shown.find((element) => element.getAttribute('role') === 'status');
     expect(message).toBeDefined();
@@ -70,6 +71,15 @@ describe('the landing page', () => {
     expect(screen.queryByRole('link', { name: /admin|staff/i })).toBeNull();
   });
 
+  it('links to the privacy page and the terms from every page, marked as drafts', () => {
+    renderAt('/shop');
+    expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy');
+    expect(screen.getByRole('link', { name: 'Our terms' })).toHaveAttribute('href', '/terms');
+    renderAt('/privacy');
+    expect(screen.getByText(/This is a draft, being checked by our solicitor/)).toBeInTheDocument();
+    expect(screen.getByText(/Calls are not recorded/)).toBeInTheDocument();
+  });
+
   it('keeps the invitation code from a shared link for the sign-up form', () => {
     renderAt('/join?ref=rabcd234');
     expect(window.sessionStorage.getItem('ozidelivery.referral')).toBe('RABCD234');
@@ -79,8 +89,9 @@ describe('the landing page', () => {
   it('shows the telephone number, and says it is a placeholder', () => {
     renderAt('/');
     expect(
-      screen.getByRole('link', { name: storeConfig.contact.telephonePlaceholder }),
-    ).toBeInTheDocument();
+      // In twos, the way Ozi reads it out.
+      screen.getByRole('link', { name: '08 00 00 00 00 0' }),
+    ).toHaveAttribute('href', `tel:${storeConfig.contact.telephonePlaceholder.replace(/\s/g, '')}`);
     expect(screen.getByText(/placeholder while we get the line set up/i)).toBeInTheDocument();
   });
 
@@ -248,6 +259,8 @@ describe('the accessibility promises axe cannot see', () => {
     '/addresses',
     '/organisations',
     '/looking-after',
+    '/privacy',
+    '/terms',
   ];
 
   it('gives every control a name that a person could read out, on every screen', async () => {
@@ -356,7 +369,7 @@ describe('Rule Nine, on the screen', () => {
   it('names the assistant from configuration, never from a string in a component', async () => {
     const user = userEvent.setup();
     renderAt('/');
-    await user.click(screen.getByRole('button', { name: 'Say what you need' }));
+    await user.click(await screen.findByRole('button', { name: 'Can’t listen' }));
     expect(readableText().some((line) => line.includes(storeConfig.assistantName))).toBe(true);
   });
 

@@ -154,17 +154,24 @@ export function OziBubble(): JSX.Element {
 
   return (
     <aside data-ozi aria-label={assistant} className="fixed z-50" style={{ left, top }}>
-      <p
-        role="status"
-        aria-live={captionLive}
+      <div
         className={
-          captionShown && ozi.said !== ''
+          captionShown && (ozi.said !== '' || ozi.heard !== '')
             ? `absolute top-0 ${captionSide} w-56 max-w-[60vw] max-h-[45vh] overflow-y-auto rounded-xl border-2 border-ink bg-paper text-ink p-3 m-0 shadow-lg text-base`
             : 'visually-hidden'
         }
       >
-        {ozi.said}
-      </p>
+        {/* What Ozi heard, so anybody can see whether it heard them right. Not announced: the
+            person who said it knows what they said. */}
+        {ozi.heard !== '' && (
+          <p className="m-0 mb-2 italic" aria-hidden="true">
+            You said: {ozi.heard}
+          </p>
+        )}
+        <p role="status" aria-live={captionLive} className="m-0">
+          {ozi.said}
+        </p>
+      </div>
       <button
         type="button"
         aria-describedby="ozi-bubble-hint"

@@ -795,3 +795,217 @@ export function addProblemEvidence(
     as,
   );
 }
+
+export interface PastOrder {
+  id: string;
+  status: string;
+  totalEstimatePence: number;
+  finalTotalPence: number | null;
+  createdAt: string;
+  deliveredAt: string | null;
+  items: Array<{ id: string; name: string; quantity: number }>;
+}
+
+/** Every order the signed-in Shopper has made, newest first. */
+export function fetchMyOrders(): Promise<{ orders: PastOrder[] }> {
+  return request<{ orders: PastOrder[] }>('/orders');
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * In-app calls (Section F)
+ * ------------------------------------------------------------------------------------- */
+
+export interface CallsConfig {
+  enabled: boolean;
+  pencePerMinute: number;
+}
+
+export function fetchCallsConfig(): Promise<CallsConfig> {
+  return request<{ calls?: CallsConfig }>('/config').then(
+    (body) => body.calls ?? { enabled: false, pencePerMinute: 5 },
+  );
+}
+
+export interface CallInfo {
+  id: string;
+  orderId: string;
+  status: 'ringing' | 'live' | 'ended';
+  startedBy: 'shopper' | 'runner';
+  pencePerMinute: number;
+  priceAccepted: boolean;
+}
+
+export interface CallJoin {
+  url: string;
+  token: string;
+  roomName: string;
+}
+
+export function fetchCurrentCall(
+  orderId: string,
+  as: 'shopper' | 'runner',
+): Promise<{ call: CallInfo | null }> {
+  return request<{ call: CallInfo | null }>(
+    `/orders/${encodeURIComponent(orderId)}/calls/current`,
+    undefined,
+    as,
+  );
+}
+
+export function startCall(
+  orderId: string,
+  as: 'shopper' | 'runner',
+): Promise<{ call: CallInfo; join: CallJoin }> {
+  return request<{ call: CallInfo; join: CallJoin }>(
+    `/orders/${encodeURIComponent(orderId)}/calls`,
+    { method: 'POST', body: JSON.stringify(as === 'shopper' ? { priceAccepted: true } : {}) },
+    as,
+  );
+}
+
+export function answerCall(
+  callId: string,
+  as: 'shopper' | 'runner',
+): Promise<{ call: CallInfo; join: CallJoin }> {
+  return request<{ call: CallInfo; join: CallJoin }>(
+    `/calls/${encodeURIComponent(callId)}/join`,
+    { method: 'POST', body: JSON.stringify(as === 'shopper' ? { priceAccepted: true } : {}) },
+    as,
+  );
+}
+
+export function endCall(callId: string, as: 'shopper' | 'runner'): Promise<unknown> {
+  return request<unknown>(`/calls/${encodeURIComponent(callId)}/end`, { method: 'POST' }, as);
+}
+
+export function addCallGuest(
+  callId: string,
+  name: string,
+): Promise<{ link: string; message: string }> {
+  return request<{ link: string; message: string }>(`/calls/${encodeURIComponent(callId)}/guests`, {
+    method: 'POST',
+    body: JSON.stringify({ name, priceAccepted: true }),
+  });
+}
+
+export function joinAsGuest(code: string): Promise<{ name: string; join: CallJoin }> {
+  return request<{ name: string; join: CallJoin }>('/calls/guest-join', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * The admin panel (/staff): every call carries the staff key in an x-staff-key header
+ * ------------------------------------------------------------------------------------- */
+
+function staffRequest<T>(key: string, path: string, init?: RequestInit): Promise<T> {
+  return request<T>(path, { ...init, headers: { 'x-staff-key': key } });
+}
+
+export function checkStaffKey(key: string): Promise<{ ok: true }> {
+  return staffRequest(key, '/staff/check');
+}
+
+export interface StaffDocument {
+  id: string;
+  kind: string;
+  name: string;
+  status: string;
+  sentAs: 'share code' | 'photo';
+  shareCode: string | null;
+  createdAt: string;
+  runner: { id: string; name: string; runnerId: string } | null;
+}
+
+export function fetchStaffDocuments(key: string): Promise<{ documents: StaffDocument[] }> {
+  return staffRequest(key, '/staff/documents');
+}
+
+export function reviewDocument(
+  key: string,
+  id: string,
+  review: { decision: 'accept' | 'reject'; by: string; note?: string; expiresOn?: string },
+): Promise<unknown> {
+  return staffRequest(key, `/staff/documents/${encodeURIComponent(id)}/review`, {
+    method: 'POST',
+    body: JSON.stringify(review),
+  });
+}
+
+export interface StaffProblem {
+  id: string;
+  orderId: string;
+  reportedBy: 'runner' | 'shopper';
+  summary: string;
+  refundRequestedPence: number | null;
+  decideBy: string;
+  overdue: boolean;
+  evidence: Array<{
+    id: string;
+    kind: 'voice_note' | 'photo' | 'note';
+    addedBy: 'runner' | 'shopper';
+    text: string | null;
+    contentType: string | null;
+  }>;
+}
+
+export function fetchStaffProblems(key: string): Promise<{ reports: StaffProblem[] }> {
+  return staffRequest(key, '/staff/problems');
+}
+
+export type ProblemDecision =
+  'shopper_at_fault' | 'runner_at_fault' | 'platform_at_fault' | 'shop_at_fault' | 'no_fault';
+
+export function decideProblem(
+  key: string,
+  id: string,
+  decision: { decision: ProblemDecision; refundPence: number; note: string; by: string },
+): Promise<unknown> {
+  return staffRequest(key, `/staff/problems/${encodeURIComponent(id)}/decide`, {
+    method: 'POST',
+    body: JSON.stringify(decision),
+  });
+}
+
+export interface StaffFeedback {
+  id: string;
+  message: string;
+  createdAt: string;
+  runner: { name: string; runnerId: string } | null;
+}
+
+export function fetchStaffFeedback(key: string): Promise<{ feedback: StaffFeedback[] }> {
+  return staffRequest(key, '/staff/feedback');
+}
+
+export interface StaffRecovery {
+  runner: { id: string; name: string; runnerId?: string };
+  remainingPence: number;
+  canWriteOff: boolean;
+}
+
+export function fetchStaffRecoveries(
+  key: string,
+): Promise<{ recoveries: StaffRecovery[]; writeOffUpToPence: number }> {
+  return staffRequest(key, '/staff/recoveries');
+}
+
+export function writeOffRunner(
+  key: string,
+  runnerId: string,
+  by: string,
+): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/runners/${encodeURIComponent(runnerId)}/write-off`, {
+    method: 'POST',
+    body: JSON.stringify({ by }),
+  });
+}
+
+/** A document photo or a piece of evidence, as a local address the page can show or play. */
+export async function fetchStaffFile(key: string, path: string): Promise<string> {
+  const response = await fetch(`${BASE_URL}${path}`, { headers: { 'x-staff-key': key } });
+  if (!response.ok)
+    throw new ApiError('That file could not be opened.', response.status, undefined);
+  return URL.createObjectURL(await response.blob());
+}

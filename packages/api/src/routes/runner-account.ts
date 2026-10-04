@@ -260,7 +260,9 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
           paid: payout !== undefined,
           day: ukDay(when),
         };
-      });
+      })
+      // Newest delivery first, whatever order the orders were created in.
+      .sort((a, b) => b.deliveredAt.getTime() - a.deliveredAt.getTime());
     const sum = (list: typeof jobs): number => list.reduce((t, job) => t + job.earnedPence, 0);
     const todayPence = sum(jobs.filter((job) => job.day === today));
     const weekPence = sum(jobs.filter((job) => job.day >= weekStart));
@@ -427,5 +429,78 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
       }
     }
     return { document: publicDocument(decided) };
+  });
+
+  /** The admin panel signing in: is this the staff key? */
+  app.get('/staff/check', async (request) => {
+    requireStaff(request, env.staffKey);
+    return { ok: true };
+  });
+
+  app.get('/staff/feedback', async (request) => {
+    requireStaff(request, env.staffKey);
+    const rows = [];
+    for (const item of await repository.runnerFeedback.list()) {
+      const runner = item.runnerId ? await repository.runners.findById(item.runnerId) : null;
+      rows.push({
+        id: item.id,
+        message: item.message,
+        createdAt: item.createdAt,
+        runner: runner ? { name: runner.name, runnerId: runner.referralCode } : null,
+      });
+    }
+    return { feedback: rows };
+  });
+
+  /** What Runners still owe after being found at fault, one row per Runner. */
+  app.get('/staff/recoveries', async (request) => {
+    requireStaff(request, env.staffKey);
+    const byRunner = new Map<string, number>();
+    for (const row of await repository.recoveries.listAllOutstanding()) {
+      byRunner.set(
+        row.runnerId,
+        (byRunner.get(row.runnerId) ?? 0) + row.amountPence - row.recoveredPence,
+      );
+    }
+    const rows = [];
+    for (const [runnerId, remainingPence] of byRunner) {
+      const runner = await repository.runners.findById(runnerId);
+      rows.push({
+        runner: { id: runnerId, name: runner?.name ?? 'A Runner', runnerId: runner?.referralCode },
+        remainingPence,
+        canWriteOff: remainingPence <= config.problems.writeOffUpToPence,
+      });
+    }
+    return { recoveries: rows, writeOffUpToPence: config.problems.writeOffUpToPence };
+  });
+
+  /**
+   * A Runner who leaves owing a little: written off at or below problems.writeOffUpToPence
+   * (ruling of 2 October 2026). Above it, a person asks the Runner for it instead.
+   */
+  app.post('/staff/runners/:id/write-off', async (request) => {
+    requireStaff(request, env.staffKey);
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const body = z
+      .object({ by: z.string().trim().min(1, 'Please say who decided.').max(80) })
+      .parse(request.body);
+    const owed = await repository.recoveries.listOutstanding(id);
+    if (owed.length === 0) throw new NotFoundError('amount owed');
+    const total = owed.reduce((sum, row) => sum + row.amountPence - row.recoveredPence, 0);
+    const limit = config.problems.writeOffUpToPence;
+    if (total > limit) {
+      throw new BadRequestError(
+        `${formatPence(total, symbol)} is owed, more than ${formatPence(limit, symbol)}, so it cannot be written off. Please ask the Runner for it.`,
+      );
+    }
+    const at = now();
+    for (const row of owed) {
+      await repository.recoveries.update(row.id, {
+        writtenOff: true,
+        writtenOffBy: body.by,
+        writtenOffAt: at,
+      });
+    }
+    return { writtenOffPence: total, message: `${formatPence(total, symbol)} written off.` };
   });
 }

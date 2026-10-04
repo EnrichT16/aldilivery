@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { storeConfig } from '../config';
 import { registerShopper } from '../lib/api';
 import { Field } from '../components/FormFields';
+import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
+import { useVoiceSignUp, yesOrNo, type SpokenDetails } from '../state/voice-sign-up';
 
 /**
  * Signing up, for real.
@@ -22,6 +24,10 @@ import { useSession } from '../state/session';
  * else has — arrives here as a sentence and is shown in the same list as the checks done in
  * the browser. A refusal is a refusal, and it should not look different depending on which
  * side of the wire noticed.
+ *
+ * Or by talking (Anthony, 4 October 2026): Ozi offers, on arrival, to set the account up by
+ * voice, and "create my account" said anywhere comes here and starts at once. Ozi fills in this
+ * same form as it goes (state/voice-sign-up.ts).
  */
 export function SignUp(): JSX.Element {
   const navigate = useNavigate();
@@ -29,6 +35,73 @@ export function SignUp(): JSX.Element {
   const [errors, setErrors] = useState<Array<{ field: string; message: string }>>([]);
   const [saving, setSaving] = useState(false);
   const summary = useRef<HTMLDivElement>(null);
+  const ozi = useOzi();
+  const [params, setParams] = useSearchParams();
+  const assistant = storeConfig.assistantName;
+
+  const create = useCallback(
+    async (details: SpokenDetails) => {
+      try {
+        const result = await registerShopper(details);
+        signedUp(result.token, result.shopper);
+        void ozi.say(
+          `Your account is ready, ${result.shopper.displayName}. Next is adding your card, which is on the screen now. Nothing is charged until you order.`,
+        );
+        navigate('/card');
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'We could not set up your account.';
+        setErrors([{ field: 'displayName', message }]);
+        void ozi.say(
+          `I'm sorry, the account wasn't created. ${message} What I heard is in the form on the screen.`,
+        );
+      }
+    },
+    [navigate, ozi, signedUp],
+  );
+
+  const talking = useVoiceSignUp({
+    fill: (field, value) => {
+      const input = document.getElementById(field) as HTMLInputElement | HTMLTextAreaElement | null;
+      if (input) input.value = value;
+    },
+    finish: create,
+  });
+  const canTalk = ozi.presence === 'listening' || ozi.presence === 'muted';
+
+  // "Create my account" said anywhere lands here with ?talk=1: start straight away. Otherwise,
+  // offer once a visit, as soon as Ozi can listen.
+  const offered = useRef(false);
+  const live = useRef({ talking, ozi, shopper });
+  live.current = { talking, ozi, shopper };
+  const wantsTalk = params.get('talk') === '1';
+
+  useEffect(() => {
+    const { talking: t, ozi: o, shopper: s } = live.current;
+    if (s || !canTalk) return;
+    if (wantsTalk) {
+      offered.current = true;
+      setParams({}, { replace: true });
+      t.start();
+      return;
+    }
+    // Turned off with the switch: no offer out loud. The button is still there.
+    if (offered.current || !o.voiceOn) return;
+    offered.current = true;
+    try {
+      if (window.sessionStorage.getItem('ozidelivery.signup.offered') === 'yes') return;
+      window.sessionStorage.setItem('ozidelivery.signup.offered', 'yes');
+    } catch {
+      return;
+    }
+    o.listenFor(
+      'Would you like to create your account by talking to me? Say yes. Or fill in the form on the screen.',
+      (text) => {
+        if (yesOrNo(text) === 'yes') live.current.talking.start();
+        else void live.current.ozi.say('All right. The form is on the screen.');
+      },
+    );
+  }, [canTalk, wantsTalk, setParams]);
 
   useEffect(() => {
     if (errors.length > 0) summary.current?.focus();
@@ -107,6 +180,19 @@ export function SignUp(): JSX.Element {
         There is no password. Setting up an account signs you in on this device and keeps you signed
         in.
       </p>
+
+      {canTalk && (
+        <button
+          type="button"
+          disabled={talking.active}
+          onClick={talking.start}
+          className="control w-full max-w-xl bg-[var(--colour-listening)] text-ink text-lead font-bold border-4 border-ink disabled:opacity-70"
+        >
+          {talking.active
+            ? `${assistant} is setting up your account with you`
+            : `Create my account by talking to ${assistant}`}
+        </button>
+      )}
 
       <Link to="/sign-in" className="control bg-paper/10 text-paper underline">
         Already set up on another phone or computer? Sign in

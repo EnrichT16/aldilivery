@@ -28,6 +28,7 @@ import {
   type RunnerAccount,
   type RunnerPay,
 } from '../lib/api';
+import { CallControls } from '../components/CallControls';
 import { DocumentsChecklist } from '../components/DocumentsChecklist';
 import { money } from '../lib/money';
 import { clearRunnerToken, readRunnerToken } from '../lib/session';
@@ -306,6 +307,7 @@ export function RunnerHome(): JSX.Element {
           ) : job ? (
             <>
               <JobInHand job={job} questions={questions} busy={busy} act={act} />
+              <CallControls orderId={job.orderId} as="runner" otherName={job.shopperName} />
               <Link
                 to={`/runner/jobs/${encodeURIComponent(job.orderId)}/problem`}
                 className="control bg-paper/10 text-paper underline"

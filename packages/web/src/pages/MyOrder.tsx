@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { CallControls } from '../components/CallControls';
 import { NotifyMe } from '../components/NotifyMe';
 
 import {
@@ -224,6 +225,10 @@ export function MyOrder(): JSX.Element {
           ))}
 
           <NotifyMe />
+
+          {order.runnerName && !['delivered', 'completed'].includes(order.status) && (
+            <CallControls orderId={order.id} as="shopper" otherName={order.runnerName} />
+          )}
 
           <section aria-labelledby="where-heading" className="space-y-3 max-w-xl">
             <h2 id="where-heading" className="text-lead font-bold">

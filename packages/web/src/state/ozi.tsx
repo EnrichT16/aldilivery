@@ -12,7 +12,9 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 import { storeConfig } from '../config';
+import { inPairs, pairsAloud } from '../lib/phone-aloud';
 import type { SpeakOutcome } from '../voice';
+import { useSession } from './session';
 import { useVoiceOrdering } from './voice-order';
 import { useVoice } from './voice';
 
@@ -43,6 +45,44 @@ export type Presence =
   /** This phone or browser cannot listen; Ozi can still speak. */
   | 'cannot-listen';
 
+/** The motto (Anthony, 4 October 2026): "Send me, I will help." */
+const MOTTO = storeConfig.motto;
+
+/** "Turn off", "turn off talking", "turn the talking switch off", "stop talking". */
+const TURN_OFF =
+  /\b(turn|switch)\s+(yourself\s+|your\s+voice\s+|the\s+voice\s+|the\s+button\s+|the\s+switch\s+|it\s+|talking\s+|speaking\s+|(the\s+)?talking\s+switch\s+)?off\b|\b(turn|switch)\s+off\s+(the\s+)?(talking|speaking|voice|read aloud)\b|\bstop talking\b/;
+
+/** "Hey Ozi, turn on", "turn talking back on", "speak aloud", "talk out loud". */
+const TURN_ON =
+  /\b(turn|switch)\s+(yourself\s+|your\s+voice\s+|the\s+voice\s+|talking\s+|speaking\s+|it\s+)?(back\s+)?on\b|\b(turn|switch)\s+on\s+(the\s+)?(talking|speaking|voice)\b|\b(speak|talk|read)\s+(out\s+)?(loud|aloud)\b/;
+
+/** "Create my account", "open an account", "start opening an account", "sign me up". */
+const CREATE_ACCOUNT =
+  /\b(create|make|open|opening|set up|start)\s+((my|an|a|a new)\s+)?account\b|\bstart\s+(opening|creating)\b|\bsign me up\b|\bsign up\b|\bregister me\b/;
+
+/** "Repeat", "say that again", "come again", "pardon", "I beg your pardon". */
+const REPEAT =
+  /\b(repeat|say (that|it) again|come again|pardon|what did you say|didn'?t (hear|catch)|once more|one more time)\b/;
+
+/** "What's your phone number?", "can I ring you", "the number to call". */
+const PHONE =
+  /\b(phone|telephone)\s+number\b|\bnumber\s+to\s+(call|ring)\b|\b(call|ring|phone)\s+(you|the number|someone|a person)\b/;
+
+/** Different ways of saying it again, taken in turn, so a repeat never sounds like a recording. */
+const REPEAT_OPENINGS = [
+  'Of course. I said: ',
+  'Sure, here it is again. ',
+  "No problem, I'll say that again. ",
+  'Okay, once more. ',
+];
+
+function isYes(text: string): boolean {
+  return (
+    /\b(yes|yeah|yep|please|ok|okay|sure|repeat|again|pardon)\b/i.test(text) &&
+    !/\bno\b/i.test(text)
+  );
+}
+
 /** When the gentle reminders come while Ozi is muted. Exported for the tests. */
 export const FIRST_REMINDER_MS = 2 * 60 * 1000;
 export const LATER_REMINDER_MS = 3 * 60 * 1000;
@@ -69,6 +109,15 @@ interface OziValue {
    * function that cancels it.
    */
   listenFor: (prompt: string, handler: (text: string) => void) => () => void;
+  /** Ozi's voice and listening are on: the switch at the bottom of the screen. */
+  voiceOn: boolean;
+  /** The switch: off is silent and not listening, with the words still on the screen. */
+  setVoiceOn: (on: boolean) => void;
+  /**
+   * The browser would not let Ozi speak before the page was touched: the first touch anywhere
+   * will start the introduction. The page says so in big letters meanwhile.
+   */
+  waitingForTouch: boolean;
 }
 
 const OziContext = createContext<OziValue | null>(null);
@@ -84,6 +133,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   const [said, setSaid] = useState('');
   const [announce, setAnnounce] = useState(false);
   const [heard, setHeard] = useState('');
+  const [waitingForTouch, setWaitingForTouch] = useState(false);
 
   const presenceRef = useRef<Presence>('starting');
   const talkingRef = useRef(false);
@@ -151,8 +201,15 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
 
   /* ------------------------------------------------------------------ speaking */
 
+  // The last thing Ozi said, for "say that again".
+  const lastSaid = useRef('');
+  // Said while the browser would not let Ozi speak yet: said again at the first touch.
+  const unheard = useRef<string | null>(null);
+  const touched = useRef(false);
+
   const sayRef = useRef<(text: string) => Promise<SpeakOutcome>>(async () => 'finished');
   sayRef.current = async (text: string) => {
+    lastSaid.current = text;
     // Ozi does not listen while it talks, or it would hear itself.
     talkingRef.current = true;
     setTalking(true);
@@ -161,6 +218,12 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     setSaid(text);
     const outcome = await voiceRef.current.say(text);
     if (outcome === 'not-spoken') {
+      // A browser will not let a page make a sound until it has been touched once. Keep what
+      // was meant to be heard, and say it at the first touch.
+      if (!touched.current && !voiceRef.current.settings.muted) {
+        unheard.current = text;
+        setWaitingForTouch(true);
+      }
       // Not heard aloud: show the words again, announced, so a screen reader reads them.
       setAnnounce(true);
       setSaid('');
@@ -207,7 +270,28 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     scheduleReminder();
   }, [setPresence, stopListening, clearReminders, scheduleReminder, wakeHint]);
 
-  const ordering = useVoiceOrdering(useCallback((text: string) => sayRef.current(text), []));
+  /**
+   * The switch, or "turn off talking": Ozi stops talking out loud. It still listens, so "Hey
+   * Ozi, turn on" brings it back, and its words are still on the screen and read by a screen
+   * reader. To stop it listening too, press its round button.
+   */
+  const turnOff = useCallback(async (sayFirst: boolean) => {
+    if (sayFirst) {
+      await sayRef.current(
+        `Okay, I'm turning off talking now. I'll still listen, and my words will stay on the screen. To turn me back on, use the switch at the bottom of the screen, or in Settings, or just say: "Hey ${storeConfig.assistantName}, turn on".`,
+      );
+    }
+    voiceRef.current.update({ muted: true });
+  }, []);
+
+  // Turning back on waits for the setting to be saved, so the first words are spoken aloud.
+  const wakeWhenOn = useRef(false);
+
+  const offerAccountRef = useRef<() => void>(() => {});
+  const ordering = useVoiceOrdering(
+    useCallback((text: string) => sayRef.current(text), []),
+    useCallback(() => offerAccountRef.current(), []),
+  );
 
   const wake = useCallback(() => {
     clearReminders();
@@ -238,6 +322,25 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   );
 
   heardRef.current = (text: string) => {
+    const words = text.toLowerCase();
+    // "Turn off" works even in the middle of a question, so nobody is stuck with a talking app.
+    if (TURN_OFF.test(words)) {
+      setHeard(text);
+      void turnOff(true);
+      return;
+    }
+    if (TURN_ON.test(words) && voiceRef.current.settings.muted) {
+      setHeard(text);
+      setVoiceOnRef.current(true);
+      return;
+    }
+    // "Say that again": the last thing Ozi said, put a different way each time. A question
+    // that was waiting for an answer is still waiting afterwards.
+    if (REPEAT.test(words) && lastSaid.current !== '') {
+      setHeard(text);
+      sayAgain();
+      return;
+    }
     const capture = captureRef.current;
     if (capture) {
       captureRef.current = null;
@@ -245,7 +348,15 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       return;
     }
     setHeard(text);
-    const words = text.toLowerCase();
+    // "Create my account": set one up by talking, on the sign-up page.
+    if (!ordering.busy() && CREATE_ACCOUNT.test(words)) {
+      navigate('/sign-up?talk=1');
+      return;
+    }
+    if (!ordering.busy() && PHONE.test(words)) {
+      sayPhoneNumber();
+      return;
+    }
     if (/\bmute\b|\bstop listening\b|\bbe quiet\b/.test(words)) {
       mute();
       return;
@@ -267,6 +378,70 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     })();
   };
 
+  const repeats = useRef(0);
+  const sayAgain = (): void => {
+    const what = lastSaid.current;
+    const opening = REPEAT_OPENINGS[repeats.current % REPEAT_OPENINGS.length]!;
+    repeats.current += 1;
+    if (captureRef.current) {
+      // Keep the question open: just say it again.
+      void sayRef.current(`${opening}${what}`).then(() => {
+        lastSaid.current = what;
+      });
+      return;
+    }
+    void (async () => {
+      await sayRef.current(`${opening}${what}`);
+      lastSaid.current = what;
+      captureRef.current = (answer) => {
+        if (REPEAT.test(answer.toLowerCase()) || /\b(no|nope|not really)\b/i.test(answer)) {
+          sayAgain();
+        } else {
+          void sayRef.current('Good.').then(() => {
+            lastSaid.current = what;
+          });
+        }
+      };
+      await sayRef.current('Did you hear that? Say yes or no.');
+      lastSaid.current = what;
+    })();
+  };
+
+  /** The telephone number, in twos, twice, then a third time if asked. */
+  const sayPhoneNumber = (lead = ''): void => {
+    const { telephonePlaceholder, telephoneIsPlaceholder } = storeConfig.contact;
+    const aloud = pairsAloud(telephonePlaceholder);
+    const notYet = telephoneIsPlaceholder
+      ? " This number isn't connected yet; it will be soon."
+      : '';
+    void (async () => {
+      captureRef.current = (answer) => {
+        if (isYes(answer)) {
+          void sayRef.current(`Of course. The number is: ${aloud}.${notYet}`);
+        } else {
+          void sayRef.current('All right.');
+        }
+      };
+      await sayRef.current(
+        `${lead}Our phone number is: ${aloud}. I'll say it again: ${aloud}. It's on the screen too, as ${inPairs(telephonePlaceholder)}.${notYet} If you'd like me to say it again, just say yes please, or repeat.`,
+      );
+    })();
+  };
+
+  // No account yet: ask, and set one up by talking on a yes; on a no, offer the phone.
+  offerAccountRef.current = () => {
+    captureRef.current = (answer) => {
+      if (isYes(answer) || CREATE_ACCOUNT.test(answer.toLowerCase())) {
+        navigate('/sign-up?talk=1');
+      } else {
+        sayPhoneNumber('All right. You can also ring us, and a person will take your order. ');
+      }
+    };
+    void sayRef.current(
+      'To order, you need an account first. Would you like to open one now, just by talking with me? Just say yes or no.',
+    );
+  };
+
   const press = useCallback(() => {
     if (talkingRef.current) {
       voiceRef.current.interrupt();
@@ -283,21 +458,55 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     }
   }, [mute, wake]);
 
+  const setVoiceOn = useCallback(
+    (on: boolean) => {
+      if (!on) {
+        void turnOff(false);
+        return;
+      }
+      wakeWhenOn.current = true;
+      voiceRef.current.update({ muted: false });
+    },
+    [turnOff],
+  );
+
+  const setVoiceOnRef = useRef(setVoiceOn);
+  setVoiceOnRef.current = setVoiceOn;
+
+  useEffect(() => {
+    if (settings.muted || !wakeWhenOn.current) return;
+    wakeWhenOn.current = false;
+    clearReminders();
+    if (presenceRef.current === 'muted') setPresence('listening');
+    void sayRef.current(`I'm talking out loud again. ${MOTTO}`);
+  }, [settings.muted, clearReminders, setPresence]);
+
   /* ------------------------------------------------------------------ first launch */
 
   // What the first launch needs, as it is when the page opens. Read through a ref so the effect
   // below runs once, on the first launch only, and never again when any of these change.
-  const firstLaunch = useRef({ assistant, engine, settings, setPresence, wakeHint });
+  const { shopper } = useSession();
+  const firstLaunch = useRef({
+    assistant,
+    engine,
+    settings,
+    setPresence,
+    wakeHint,
+    signedIn: shopper !== null,
+  });
 
   useEffect(() => {
     const { assistant, engine, settings, setPresence, wakeHint } = firstLaunch.current;
     let cancelled = false;
+    // Anthony's words, 4 October 2026: who Ozi is, the motto, how to turn talking off and back
+    // on, by the switch or by voice, and that it will say anything again.
     const intro =
-      `Hello, I'm ${assistant}. I'm designed to speak with you, so that we can have a conversation. ` +
-      `While my round green button is glowing, I'm listening. To pause me, press it, or say "${assistant}, mute". ` +
-      `Press it again${wakeHint} when you want me back. ` +
-      `If you would rather I didn't speak aloud, you can turn my voice off in Settings. ` +
-      `And you can move my button out of the way: hold it down and drag it, or use the arrow keys.`;
+      `Hello, I'm ${assistant}, your shopping assistant. ${MOTTO} ` +
+      `Tell me what shopping you need, and a Runner will bring it to your door. ` +
+      `If you'd rather I didn't talk out loud, turn off the switch at the bottom of the screen, or just say "turn off talking". ` +
+      `To turn me back on, use the same switch, or Settings, or say "Hey ${assistant}, turn on". ` +
+      `If you miss anything I say, just say "repeat". ` +
+      `While my round green button glows, I'm listening. Press it to pause me, and again${wakeHint} to bring me back.`;
 
     void (async () => {
       const ready = await engine.readiness(settings.language);
@@ -310,26 +519,45 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       const outcome = await sayRef.current(intro);
       if (cancelled) return;
       voiceRef.current.update({ introHeard: true });
-      // A browser will not speak until the page has been touched once. If that is what
-      // stopped the introduction, say it at the first touch or key press; it is on the screen,
-      // announced, in the meantime. A phone with a native app has no such rule.
-      if (outcome === 'not-spoken' && (await engine.readiness(settings.language)).canSpeak) {
-        const onFirstTouch = (event: Event): void => {
-          window.removeEventListener('click', onFirstTouch);
-          window.removeEventListener('keydown', onFirstTouch);
-          // A first press on Ozi's own button is the Shopper doing something with Ozi: let
-          // that press do what it says, rather than replaying the introduction over it.
-          const target = event.target as Element | null;
-          if (target?.closest?.('[data-ozi]')) return;
-          void sayRef.current(intro);
-        };
-        window.addEventListener('click', onFirstTouch);
-        window.addEventListener('keydown', onFirstTouch);
-      }
+      // Somebody new: offer to open an account straight away, by talking.
+      if (outcome !== 'not-spoken' && !firstLaunch.current.signedIn) offerAccountRef.current();
     })();
 
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  // A browser will not let a page speak until it has been touched once. Whatever Ozi meant to
+  // say before then is on the screen, announced to a screen reader, and said aloud at the first
+  // touch or key press anywhere. A phone app has no such rule, and speaks straight away.
+  useEffect(() => {
+    const onFirstTouch = (event: Event): void => {
+      touched.current = true;
+      window.removeEventListener('click', onFirstTouch);
+      window.removeEventListener('keydown', onFirstTouch);
+      setWaitingForTouch(false);
+      const pending = unheard.current;
+      unheard.current = null;
+      // A first press on Ozi's own button is somebody doing something with Ozi: let that press
+      // do what it says, rather than replaying words over it.
+      const target = event.target as Element | null;
+      if (!pending || target?.closest?.('[data-ozi]')) return;
+      void sayRef.current(pending).then((outcome) => {
+        if (
+          outcome !== 'not-spoken' &&
+          pending.startsWith('Hello') &&
+          !firstLaunch.current.signedIn
+        ) {
+          offerAccountRef.current();
+        }
+      });
+    };
+    window.addEventListener('click', onFirstTouch);
+    window.addEventListener('keydown', onFirstTouch);
+    return () => {
+      window.removeEventListener('click', onFirstTouch);
+      window.removeEventListener('keydown', onFirstTouch);
     };
   }, []);
 
@@ -359,8 +587,24 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       mute,
       wake,
       listenFor,
+      voiceOn: !settings.muted,
+      setVoiceOn,
+      waitingForTouch,
     }),
-    [presence, talking, said, announce, heard, press, mute, wake, listenFor],
+    [
+      presence,
+      talking,
+      said,
+      announce,
+      heard,
+      press,
+      mute,
+      wake,
+      listenFor,
+      settings.muted,
+      setVoiceOn,
+      waitingForTouch,
+    ],
   );
 
   return <OziContext.Provider value={value}>{children}</OziContext.Provider>;

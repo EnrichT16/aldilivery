@@ -34,7 +34,9 @@ function when(at: string): string {
 
 const KIND_WORDS = { voice_note: 'Voice note', photo: 'Photo', note: 'Note' } as const;
 
-export function ReportProblem(): JSX.Element {
+export function ReportProblem({ as = 'runner' }: { as?: 'runner' | 'shopper' }): JSX.Element {
+  const other = as === 'runner' ? 'the Shopper' : 'your Runner';
+  const [refund, setRefund] = useState('');
   const { orderId = '' } = useParams();
   const [reports, setReports] = useState<ProblemReport[] | null>(null);
   const [summary, setSummary] = useState('');
@@ -50,11 +52,11 @@ export function ReportProblem(): JSX.Element {
 
   const load = useCallback(async () => {
     try {
-      setReports((await fetchProblems(orderId, 'runner')).reports);
+      setReports((await fetchProblems(orderId, as)).reports);
     } catch (failure) {
-      setProblem(failure instanceof Error ? failure.message : 'We could not load this job.');
+      setProblem(failure instanceof Error ? failure.message : 'We could not load this order.');
     }
-  }, [orderId]);
+  }, [orderId, as]);
 
   useEffect(() => {
     void load();
@@ -93,7 +95,7 @@ export function ReportProblem(): JSX.Element {
           addProblemEvidence(
             current.id,
             { kind: 'voice_note', data: await blobToBase64(blob), contentType: blob.type },
-            'runner',
+            as,
           ),
         );
       };
@@ -140,9 +142,24 @@ export function ReportProblem(): JSX.Element {
               setProblem('Please say what went wrong.');
               return;
             }
+            const pounds = refund.replace(/[£,\s]/g, '');
+            if (pounds !== '' && !/^\d+(\.\d{1,2})?$/.test(pounds)) {
+              setProblem('Please write the amount in pounds and pence, like 2.50.');
+              return;
+            }
             void run(async () => {
-              const result = await reportProblem(orderId, { summary: summary.trim() }, 'runner');
+              const result = await reportProblem(
+                orderId,
+                {
+                  summary: summary.trim(),
+                  ...(pounds !== ''
+                    ? { refundRequestedPence: Math.round(Number(pounds) * 100) }
+                    : {}),
+                },
+                as,
+              );
               setSummary('');
+              setRefund('');
               return result;
             });
           }}
@@ -162,6 +179,25 @@ export function ReportProblem(): JSX.Element {
             onChange={(event) => setSummary(event.target.value)}
             className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
           />
+          {as === 'shopper' && (
+            <>
+              <label htmlFor="refund" className="block font-bold">
+                How much would you like back? (you can leave this empty)
+              </label>
+              <p id="refund-hint" className="m-0 text-paper/90">
+                In pounds and pence, like 2.50. {money(storeConfig.problems.instantRefundUpToPence)}{' '}
+                or less is refunded straight away.
+              </p>
+              <input
+                id="refund"
+                inputMode="decimal"
+                value={refund}
+                aria-describedby="refund-hint"
+                onChange={(event) => setRefund(event.target.value)}
+                className="w-40 min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+              />
+            </>
+          )}
           <button type="submit" disabled={sending} className="control bg-highlight text-ink">
             {sending ? 'Sending…' : 'Send the report'}
           </button>
@@ -216,7 +252,7 @@ export function ReportProblem(): JSX.Element {
                   return addProblemEvidence(
                     current.id,
                     { kind: 'photo', data: photo.base64, contentType: photo.contentType },
-                    'runner',
+                    as,
                   );
                 });
               }}
@@ -236,7 +272,7 @@ export function ReportProblem(): JSX.Element {
                 const result = await addProblemEvidence(
                   current.id,
                   { kind: 'note', text: note.trim() },
-                  'runner',
+                  as,
                 );
                 setNote('');
                 return result;
@@ -269,14 +305,16 @@ export function ReportProblem(): JSX.Element {
             {reports.map((report) => (
               <li key={report.id} className="border-2 border-paper/40 rounded-xl p-4 space-y-2">
                 <p className="m-0 font-bold">
-                  {report.reportedBy === 'runner' ? 'You reported' : 'The Shopper reported'}:{' '}
-                  {report.summary}
+                  {report.reportedBy === as
+                    ? 'You reported'
+                    : `${other[0]!.toUpperCase()}${other.slice(1)} reported`}
+                  : {report.summary}
                 </p>
                 {report.status === 'decided' ? (
                   <p className="m-0">
                     Decided: {report.decisionWords} {report.decisionNote}
                     {report.refundPence > 0
-                      ? ` The Shopper was refunded ${money(report.refundPence)}.`
+                      ? ` ${as === 'shopper' ? 'You were' : 'The Shopper was'} refunded ${money(report.refundPence)}.`
                       : ''}
                   </p>
                 ) : (
@@ -286,8 +324,7 @@ export function ReportProblem(): JSX.Element {
                   <ul className="m-0 ps-6">
                     {report.evidence.map((item) => (
                       <li key={item.id}>
-                        {KIND_WORDS[item.kind]} from{' '}
-                        {item.addedBy === 'runner' ? 'you' : 'the Shopper'}
+                        {KIND_WORDS[item.kind]} from {item.addedBy === as ? 'you' : other}
                         {item.text ? `: ${item.text}` : ''}
                       </li>
                     ))}
@@ -305,8 +342,11 @@ export function ReportProblem(): JSX.Element {
         </section>
       )}
 
-      <Link to="/runner/home" className="control bg-paper/10 text-paper underline">
-        Back to your Runner page
+      <Link
+        to={as === 'runner' ? '/runner/home' : '/orders'}
+        className="control bg-paper/10 text-paper underline"
+      >
+        {as === 'runner' ? 'Back to your Runner page' : 'Back to your orders'}
       </Link>
     </div>
   );

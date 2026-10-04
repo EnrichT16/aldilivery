@@ -46,6 +46,9 @@ interface Picked {
   quantity: number;
 }
 
+/** How long the words after "What would you like?" count as an order, whatever they are. */
+export const EXPECT_ORDER_MS = 30_000;
+
 const ORDER_INTENT = /\b(order|want|like|need|get|buy|have|bring|send|shopping|basket)\b/i;
 
 /** "two bananas" asks for two; "bananas" asks for some. */
@@ -71,7 +74,11 @@ export interface VoiceOrdering {
   handle: (text: string) => Promise<boolean>;
 }
 
-export function useVoiceOrdering(say: (text: string) => Promise<SpeakOutcome>): VoiceOrdering {
+export function useVoiceOrdering(
+  say: (text: string) => Promise<SpeakOutcome>,
+  /** No account yet: Ozi asks whether to open one now, by talking. */
+  offerAccount?: () => void,
+): VoiceOrdering {
   const { shopper } = useSession();
   const basket = useBasket();
   const navigate = useNavigate();
@@ -83,7 +90,15 @@ export function useVoiceOrdering(say: (text: string) => Promise<SpeakOutcome>): 
   const stage = useRef<Stage>({ kind: 'idle' });
   const pending = useRef<string[]>([]);
   const picked = useRef<Picked[]>([]);
-  const expecting = useRef(false);
+  // Straight after Ozi asks "What would you like?", the next words are an order, whatever they
+  // are — but only for a short while. After that, only words that ask for something, or say
+  // Ozi's name, start one: a conversation in the room is not an order.
+  const expectingUntil = useRef<number | null>(null);
+  const expectNow = (): void => {
+    expectingUntil.current = Date.now() + EXPECT_ORDER_MS;
+  };
+  const isExpecting = (): boolean =>
+    expectingUntil.current !== null && Date.now() <= expectingUntil.current;
   // Read through refs so the conversation always sees the current account and basket.
   const live = useRef({ shopper, basket });
   live.current = { shopper, basket };
@@ -234,17 +249,21 @@ export function useVoiceOrdering(say: (text: string) => Promise<SpeakOutcome>): 
       switch (current.kind) {
         case 'idle': {
           const addressed = new RegExp(`\\b${assistant}\\b`, 'i').test(text);
-          if (!expecting.current && !addressed && !ORDER_INTENT.test(text)) return false;
-          expecting.current = false;
+          if (!isExpecting() && !addressed && !ORDER_INTENT.test(text)) return false;
+          expectingUntil.current = null;
           if (!live.current.shopper) {
+            if (offerAccount) {
+              offerAccount();
+              return true;
+            }
             await say(
-              'To order by voice, you need an account first. You can set one up on the screen by pressing Shopper, or ring us and a person will take your order.',
+              'To order, you need an account first. I can set one up with you now, just by talking. Say "create my account". Or ring us, and a person will take your order.',
             );
             return true;
           }
           const { items, shopAskedFor } = splitItems(text, assistant);
           if (items.length === 0) {
-            expecting.current = true;
+            expectNow();
             await say('What would you like? You can say, for example, bananas and milk.');
             return true;
           }
@@ -379,11 +398,11 @@ export function useVoiceOrdering(say: (text: string) => Promise<SpeakOutcome>): 
         }
       }
     },
-    [assistant, say, reset, next, navigate, ceiling, shop],
+    [assistant, say, offerAccount, reset, next, navigate, ceiling, shop],
   );
 
   const expectOrder = useCallback(() => {
-    expecting.current = true;
+    expectNow();
   }, []);
 
   const busy = useCallback(() => stage.current.kind !== 'idle', []);

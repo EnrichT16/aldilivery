@@ -329,6 +329,8 @@ export async function registerProblemRoutes(app: FastifyInstance): Promise<void>
         amountPence: body.refundPence,
         recoveredPence: 0,
         writtenOff: false,
+        writtenOffBy: null,
+        writtenOffAt: null,
         createdAt: at,
       });
     }
