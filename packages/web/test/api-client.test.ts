@@ -73,7 +73,11 @@ describe('when the web app’s own HTML answers instead of the API', () => {
 describe('when the API answers properly', () => {
   it('returns the results', async () => {
     respondWith(
-      JSON.stringify({ items: [{ id: 'a', name: 'Milk', category: 'Dairy', estimatedPricePence: 125 }], attribution: 'x', source: 'community' }),
+      JSON.stringify({
+        items: [{ id: 'a', name: 'Milk', category: 'Dairy', estimatedPricePence: 125 }],
+        attribution: 'x',
+        source: 'community',
+      }),
       'application/json; charset=utf-8',
     );
 
@@ -93,7 +97,10 @@ describe('when the API answers properly', () => {
   });
 
   it('treats a lost connection as unreachable, as it always did', async () => {
-    vi.stubGlobal('fetch', vi.fn(async () => Promise.reject(new Error('network'))));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => Promise.reject(new Error('network'))),
+    );
 
     await expect(searchCatalogue('milk')).rejects.toBeInstanceOf(ApiUnavailableError);
   });

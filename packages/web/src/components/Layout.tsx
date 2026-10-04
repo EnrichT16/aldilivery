@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { storeConfig } from '../config';
 import { useSession } from '../state/session';
 import { OziBubble } from './OziBubble';
+import { OziSwitch } from './OziSwitch';
 
 /**
  * The page frame.
@@ -20,7 +21,7 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
   const { shopper } = useSession();
 
   return (
-    <div className="min-h-screen flex flex-col bg-ink text-paper">
+    <div className="min-h-screen flex flex-col bg-ink text-paper pb-20">
       <a className="skip-link" href="#main">
         Skip to the main part of this page
       </a>
@@ -98,6 +99,7 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
           </p>
         </div>
       </footer>
+      <OziSwitch />
       <OziBubble />
     </div>
   );

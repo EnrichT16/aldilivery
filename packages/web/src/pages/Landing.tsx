@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { DoorButton } from '../components/DoorButton';
 import { storeConfig } from '../config';
+import { inPairs } from '../lib/phone-aloud';
 import { rememberReferral } from '../lib/referral';
 import { useOzi } from '../state/ozi';
 import { useVoice } from '../state/voice';
@@ -67,16 +68,28 @@ export function Landing(): JSX.Element {
       return;
     }
     void say(
-      'Who are you? ' +
+      `Hello, I'm ${storeConfig.assistantName}, your shopping assistant. ${storeConfig.motto} Who are you? ` +
         DOORS.map((door) => `${door.title}: ${door.description}`).join(' ') +
-        ' Or just tell me what you need.',
+        ' Or just tell me what you need. To create your account by talking to me, say "create my account".',
     );
   }, []);
 
   return (
     <div className="flex flex-col items-center gap-10 py-4">
+      {ozi.waitingForTouch && (
+        // The browser will not let a website make a sound until it is touched once. A touch
+        // anywhere starts Ozi; this says so, as big as anything on the page.
+        <button
+          type="button"
+          className="control w-full max-w-xl min-h-[6rem] bg-[var(--colour-listening)] text-ink text-lead font-bold border-4 border-ink"
+        >
+          Tap anywhere, and {storeConfig.assistantName} will talk to you
+        </button>
+      )}
+
       <h1 className="text-display font-bold text-center m-0">{storeConfig.productName}</h1>
 
+      <p className="text-lead font-bold text-center m-0 max-w-xl">{storeConfig.motto}</p>
       <p className="text-lead text-center m-0 max-w-xl">{storeConfig.tagline}</p>
 
       <section aria-labelledby="doors-heading" className="w-full max-w-xl">
@@ -102,7 +115,8 @@ export function Landing(): JSX.Element {
             href={`tel:${storeConfig.contact.telephonePlaceholder.replace(/\s/g, '')}`}
             className="control bg-paper text-ink text-lead"
           >
-            {storeConfig.contact.telephonePlaceholder}
+            {/* Spaced in twos, the way Ozi reads it out (Anthony, 4 October 2026). */}
+            {inPairs(storeConfig.contact.telephonePlaceholder)}
           </a>
         </p>
         {storeConfig.contact.telephoneIsPlaceholder && (

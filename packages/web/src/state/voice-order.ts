@@ -74,7 +74,11 @@ export interface VoiceOrdering {
   handle: (text: string) => Promise<boolean>;
 }
 
-export function useVoiceOrdering(say: (text: string) => Promise<SpeakOutcome>): VoiceOrdering {
+export function useVoiceOrdering(
+  say: (text: string) => Promise<SpeakOutcome>,
+  /** No account yet: Ozi asks whether to open one now, by talking. */
+  offerAccount?: () => void,
+): VoiceOrdering {
   const { shopper } = useSession();
   const basket = useBasket();
   const navigate = useNavigate();
@@ -248,8 +252,12 @@ export function useVoiceOrdering(say: (text: string) => Promise<SpeakOutcome>): 
           if (!isExpecting() && !addressed && !ORDER_INTENT.test(text)) return false;
           expectingUntil.current = null;
           if (!live.current.shopper) {
+            if (offerAccount) {
+              offerAccount();
+              return true;
+            }
             await say(
-              'To order by voice, you need an account first. You can set one up on the screen by pressing Shopper, or ring us and a person will take your order.',
+              'To order, you need an account first. I can set one up with you now, just by talking. Say "create my account". Or ring us, and a person will take your order.',
             );
             return true;
           }
@@ -390,7 +398,7 @@ export function useVoiceOrdering(say: (text: string) => Promise<SpeakOutcome>): 
         }
       }
     },
-    [assistant, say, reset, next, navigate, ceiling, shop],
+    [assistant, say, offerAccount, reset, next, navigate, ceiling, shop],
   );
 
   const expectOrder = useCallback(() => {

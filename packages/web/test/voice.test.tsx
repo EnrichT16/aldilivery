@@ -121,15 +121,25 @@ describe('the first launch', () => {
     renderAt('/');
 
     await waitFor(() => {
-      expect(engine.spoken).toHaveLength(1);
+      expect(engine.spoken).toHaveLength(2);
     });
     const intro = engine.spoken[0]!.text;
-    expect(intro).toMatch(new RegExp(`^Hello, I'm ${assistant}\\. I'm designed to speak with you`));
-    expect(intro).toMatch(/press it, or say "Ozi, mute"/);
-    expect(intro).toMatch(/turn my voice off in Settings/);
-    expect(intro).toMatch(/hold it down and drag it/);
-    // The stand-in cannot hear a wake word while muted, so Ozi does not promise it.
-    expect(intro).not.toMatch(/Hey Ozi/);
+    // Somebody new is asked straight away whether to open an account, by talking.
+    expect(engine.spoken[1]!.text).toMatch(
+      /Would you like to open one now, just by talking with me\?/,
+    );
+    // Anthony's words, 4 October 2026: who Ozi is, the motto, then how to turn it off.
+    expect(intro).toMatch(
+      new RegExp(`^Hello, I'm ${assistant}, your shopping assistant\\. Send me, I will help\\.`),
+    );
+    expect(intro).toMatch(
+      /turn off the switch at the bottom of the screen, or just say "turn off talking"/,
+    );
+    expect(intro).toMatch(/use the same switch, or Settings, or say "Hey Ozi, turn on"/);
+    expect(intro).toMatch(/just say "repeat"/);
+    // The stand-in cannot hear a wake word while its button has paused it, so Ozi does not
+    // promise that. "Hey Ozi, turn on" works because turning talking off keeps Ozi listening.
+    expect(intro).not.toMatch(/again, or say "Hey Ozi"/);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
     await waitFor(() => {
@@ -157,7 +167,7 @@ describe('the first launch', () => {
     const view = renderAt('/');
     await waitFor(() => {
       expect(engine.spoken.map((s) => s.text).join(' ')).toMatch(
-        /^Who are you\? Shopper: I want my shopping brought to me\. Runner: .* Organisation: .* I look after someone: /,
+        /^Hello, I'm Ozi, your shopping assistant\. Send me, I will help\. Who are you\? Shopper: I want my shopping brought to me\. Runner: .* Organisation: .* I look after someone: /,
       );
     });
     view.unmount();

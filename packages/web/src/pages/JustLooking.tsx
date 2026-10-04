@@ -26,8 +26,7 @@ export function JustLooking(): JSX.Element {
           your door. You pay for the shopping, plus one fee.
         </p>
         <p className="m-0 max-w-xl">
-          We will never take a payment without asking you first, and we never keep your card
-          number.
+          We will never take a payment without asking you first, and we never keep your card number.
         </p>
       </section>
 
@@ -37,13 +36,12 @@ export function JustLooking(): JSX.Element {
         </h2>
         <p className="m-0 max-w-xl">
           One flat fee of {money(standardDeliveryPence)} for each delivery, whatever the shopping
-          comes to. It never goes up because it is raining, or because it is Friday, or because
-          your order is small.
+          comes to. It never goes up because it is raining, or because it is Friday, or because your
+          order is small.
         </p>
         <p className="m-0 max-w-xl">
-          One delivery carries up to {money(maximumGoodsPence)} of shopping, which is about as
-          much as one Runner can carry safely. If you need more than that, it goes as two
-          deliveries.
+          One delivery carries up to {money(maximumGoodsPence)} of shopping, which is about as much
+          as one Runner can carry safely. If you need more than that, it goes as two deliveries.
         </p>
 
         <p className="m-0 max-w-xl">
@@ -60,8 +58,9 @@ export function JustLooking(): JSX.Element {
           <li>We ask you once, clearly, before we take any payment.</li>
           <li>No surge pricing, no small order fee, and no smallest order.</li>
           <li>
-            If you set up a regular order, we tell you {storeConfig.recurringOrders.noticeMinutesBefore}{' '}
-            minutes beforehand and you can stop it by saying &ldquo;
+            If you set up a regular order, we tell you{' '}
+            {storeConfig.recurringOrders.noticeMinutesBefore} minutes beforehand and you can stop it
+            by saying &ldquo;
             {storeConfig.recurringOrders.skipWord}&rdquo;.
           </li>
           <li>Every screen is built to be used by ear, by keyboard, or with very large text.</li>

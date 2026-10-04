@@ -795,3 +795,12 @@ Runner's pay. Bundles are four standard deliveries for £48.
     - Reason: people in the UK, and abroad, pay for their families' shopping. Every payment goes to
       a third party (the shop), and orders are capped, so the service offers nothing to launder
       money through. Each gateway still does its own fraud and sanctions screening.
+
+## Rulings, 4 October 2026 (given by voice)
+
+19. **The motto is "Send me, I will help."** Ozi says it when it introduces itself, and it is shown on the first screen.
+20. **Ozi speaks first.** On opening, Ozi introduces itself before anyone speaks to it: "Hello, I'm Ozi, your shopping assistant. Send me, I will help." Then it says how to turn talking off and back on, and that it will repeat anything. A browser will not let any website make a sound until the page is touched once. So on the website, Ozi's words are shown and read by a screen reader straight away, a big "Tap anywhere" notice appears, and the first touch anywhere makes Ozi speak. The phone apps have no such rule, and Ozi speaks with no touch.
+21. **The round green button and a switch are on the screen from the start.** The switch sits at the bottom of every screen, so a sighted person can turn talking off. Ozi can be turned off by the switch, by saying "turn off" or "turn off talking", or in Settings. When turned off, Ozi says so, then says how to turn it back on: the switch, Settings, or "Hey Ozi, turn on". Turned off, Ozi is silent but still listens, so it can be turned back on by voice. Its words stay on the screen.
+22. **Ozi repeats.** "Repeat", "say that again", "come again", "pardon", "I beg your pardon" and the like make Ozi repeat the last thing it said, worded differently each time. Then it asks "Did you hear that?". A question still waiting for an answer stays open.
+23. **Telephone numbers are said in twos** ("zero one, six three, four eight"), twice. Ozi then offers a third time ("just say yes please, or repeat"). On the screen the number is spaced in the same twos.
+24. **Opening an account is done by voice.** Ozi asks, "Would you like to open one now, just by talking with me? Just say yes or no." "Yes", "open account" or "start opening an account" starts it. Ozi asks for the name, mobile number, address and what to do at the door. It reads the number back in twos and reads back the address, fills in the form as it goes, and creates the account only after a final yes. There is no email or password; the mobile number signs the person in.

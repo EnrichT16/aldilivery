@@ -53,9 +53,9 @@ export function RunnerDoor(): JSX.Element {
         </h2>
         <p className="m-0 max-w-xl">
           You will need a cool bag. We hold back {money(coolBag.withholdPerOrderPence)} from your
-          first few payments, up to {money(coolBag.depositPence)} in total, and give the whole
-          lot back to you after your {coolBag.releaseAfterCompletedDeliveries}th delivery. It is
-          held, not taken.
+          first few payments, up to {money(coolBag.depositPence)} in total, and give the whole lot
+          back to you after your {coolBag.releaseAfterCompletedDeliveries}th delivery. It is held,
+          not taken.
         </p>
       </section>
 

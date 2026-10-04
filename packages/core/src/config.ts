@@ -26,6 +26,8 @@ export interface StoreConfig {
   readonly productName: string;
   readonly assistantName: string;
   readonly tagline: string;
+  /** The motto, said by Ozi when it introduces itself and shown on the first screen. */
+  readonly motto: string;
   readonly contact: {
     readonly telephonePlaceholder: string;
     readonly telephoneIsPlaceholder: boolean;
@@ -346,6 +348,7 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     productName: str(root['productName'], 'productName'),
     assistantName: str(root['assistantName'], 'assistantName'),
     tagline: str(root['tagline'], 'tagline'),
+    motto: str(root['motto'], 'motto'),
     contact: {
       telephonePlaceholder: str(contact['telephonePlaceholder'], 'contact.telephonePlaceholder'),
       telephoneIsPlaceholder: bool(contact['telephoneIsPlaceholder'], 'contact.telephoneIsPlaceholder'),

@@ -89,8 +89,9 @@ describe('the landing page', () => {
   it('shows the telephone number, and says it is a placeholder', () => {
     renderAt('/');
     expect(
-      screen.getByRole('link', { name: storeConfig.contact.telephonePlaceholder }),
-    ).toBeInTheDocument();
+      // In twos, the way Ozi reads it out.
+      screen.getByRole('link', { name: '08 00 00 00 00 0' }),
+    ).toHaveAttribute('href', `tel:${storeConfig.contact.telephonePlaceholder.replace(/\s/g, '')}`);
     expect(screen.getByText(/placeholder while we get the line set up/i)).toBeInTheDocument();
   });
 
