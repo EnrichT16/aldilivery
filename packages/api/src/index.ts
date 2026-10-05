@@ -18,7 +18,7 @@ import { readEnv } from './env.js';
 import { rehearsalGateway, stripeGateway, type PaymentsGateway } from './lib/payments.js';
 import { livekitProvider } from './lib/livekit.js';
 import { webPushSender } from './lib/push.js';
-import { codeMessage, twilioSender } from './lib/sms.js';
+import { callScript, codeMessage, twilioCaller, twilioSender } from './lib/sms.js';
 import { sweepOffers } from './services/dispatch.js';
 import { sweepPayouts } from './services/pay-runner.js';
 
@@ -61,6 +61,24 @@ async function main(): Promise<void> {
     : undefined;
   const webOrigin = env.primaryOrigin;
 
+  // Codes spoken by an automatic phone call, for landlines: Twilio, from a number that can call.
+  const callReady = env.twilioAccountSid && env.twilioAuthToken && env.twilioVoiceFrom;
+  const callCode = callReady
+    ? twilioCaller(
+        {
+          accountSid: env.twilioAccountSid as string,
+          authToken: env.twilioAuthToken as string,
+          from: env.twilioVoiceFrom as string,
+        },
+        (code) =>
+          callScript({
+            productName: config.productName,
+            code,
+            minutes: Math.round(env.otpTtlSeconds / 60),
+          }),
+      )
+    : undefined;
+
   // Notifications. The push services want somebody to contact about our messages: the
   // address given, or else the site itself when it is served over https.
   const vapidSubject =
@@ -96,6 +114,7 @@ async function main(): Promise<void> {
     logger: true,
     ...push,
     ...(sendText ? { sendText } : {}),
+    ...(callCode ? { callDelivery: 'call' as const, callCode } : {}),
     ...(sendText
       ? {
           codeDelivery: 'sms' as const,

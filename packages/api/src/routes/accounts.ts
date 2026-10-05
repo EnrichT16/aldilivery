@@ -10,11 +10,11 @@ import type { FastifyInstance } from 'fastify';
 import { formatPence, RUNNER_PAYMENT_PENCE } from '@aldilivery/core';
 import { z } from 'zod';
 
-import { requireSession } from '../app.js';
+import { phoneConfirmedAtSignUp, requireSession } from '../app.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 import { NOT_A_UK_NUMBER, ukPhone } from '../lib/phone.js';
 import { newReferralCode } from '../lib/referral.js';
-import { hashCode, signSession, suggestHandle } from '../lib/tokens.js';
+import { hashCode, signSession, suggestHandle, verifyPhoneProof } from '../lib/tokens.js';
 import { sweepOffers } from '../services/dispatch.js';
 import { MOTOR_MODES, canDrive, documentsNeeded } from './runner-account.js';
 
@@ -44,6 +44,8 @@ const shopperSchema = z.object({
     .optional(),
   phone: phoneSchema,
   spokenCode: z.string().trim().min(4).max(20).optional(),
+  /** From /auth/verify-code: proof the number was confirmed with a code. */
+  phoneProof: z.string().trim().max(500).optional(),
   preferredLanguage: z.string().trim().min(2).max(20).optional(),
   doorstepProtocol: z.string().trim().max(500).optional(),
   deliveryAddress: z.string().trim().max(300).optional(),
@@ -80,6 +82,19 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
 
   app.post('/shoppers', async (request, reply) => {
     const input = shopperSchema.parse(request.body);
+
+    // Once codes really go out, a new account's number is confirmed with one first (ruling
+    // 33), so nobody can open an account on somebody else's phone.
+    if (phoneConfirmedAtSignUp(app.ctx)) {
+      const proof = input.phoneProof
+        ? verifyPhoneProof(input.phoneProof, env.authTokenSecret, now())
+        : null;
+      if (!proof || proof.role !== 'shopper' || proof.phone !== ukPhone(input.phone)) {
+        throw new BadRequestError(
+          'Please confirm your phone number with the code we send it, then try again.',
+        );
+      }
+    }
 
     if (await repository.shoppers.findByPhone(input.phone)) {
       throw new ConflictError('There is already an account on that phone number.');

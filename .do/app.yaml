@@ -181,6 +181,13 @@ services:
         scope: RUN_TIME
         value: replace_with_the_number_or_name_texts_come_from
 
+      # Codes spoken by an automatic phone call, for landlines (ruling 27). A Twilio number that
+      # can make calls, in +44 form; a sender name cannot call. Until it is real, codes by call
+      # are not offered. Not a secret.
+      - key: TWILIO_VOICE_FROM
+        scope: RUN_TIME
+        value: replace_with_a_twilio_number_that_can_call
+
       # Notifications on a Shopper's phone when their Runner has a question. A key pair made
       # once with `node packages/api/scripts/push-keys.mjs` in the Console; DEPLOY.md,
       # "Telling a Shopper about a question", has the steps. Without both, notifications are

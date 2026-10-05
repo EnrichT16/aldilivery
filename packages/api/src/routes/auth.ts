@@ -19,7 +19,10 @@ import {
   UnavailableError,
 } from '../errors.js';
 import { isUkMobile, NOT_A_UK_NUMBER, ukPhone } from '../lib/phone.js';
-import { codesMatch, generateCode, hashCode, signSession } from '../lib/tokens.js';
+import { codesMatch, generateCode, hashCode, signPhoneProof, signSession } from '../lib/tokens.js';
+
+/** How long the proof of holding a number lasts, between the code and opening the account. */
+const PHONE_PROOF_MINUTES = 30;
 
 const phoneSchema = z
   .string()
@@ -30,7 +33,14 @@ const phoneSchema = z
 
 const roleSchema = z.enum(['shopper', 'runner']).default('shopper');
 
-const requestCodeSchema = z.object({ phone: phoneSchema, role: roleSchema });
+const requestCodeSchema = z.object({
+  phone: phoneSchema,
+  role: roleSchema,
+  /** A text to a mobile, or an automatic phone call that speaks it, for a landline. */
+  channel: z.enum(['text', 'call']).default('text'),
+  /** Signing in to an account, or confirming the number of a new one. */
+  purpose: z.enum(['sign-in', 'sign-up']).default('sign-in'),
+});
 
 const verifyCodeSchema = z.object({
   phone: phoneSchema,
@@ -62,7 +72,7 @@ const TOO_MANY =
   'You have asked for a lot of codes. Please wait a few minutes and try again. If you keep having trouble, phone us.';
 
 export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
-  const { repository, env, now, deliverCode, codeDelivery } = app.ctx;
+  const { repository, env, now, deliverCode, codeDelivery, callCode, callDelivery } = app.ctx;
 
   // Kept in memory: one server, and a restart forgetting who asked is harmless. The
   // per-number limits are in the database, so they survive a restart.
@@ -88,15 +98,23 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     const role = input.role;
     const phone = ukPhone(input.phone);
     if (!phone) throw new BadRequestError(NOT_A_UK_NUMBER);
-    if (!isUkMobile(phone)) {
+    const byCall = input.channel === 'call';
+    if (!byCall && !isUkMobile(phone)) {
       throw new BadRequestError(
-        'We can only send a code to a mobile phone. Please give a mobile number, starting 07.',
+        callDelivery === 'off'
+          ? 'We can only send a code to a mobile phone. Please give a mobile number, starting 07.'
+          : 'A landline cannot get a text. Choose "Call me with the code" instead, and we will phone you and say it.',
       );
     }
 
-    if (codeDelivery === 'off') {
+    if (!byCall && codeDelivery === 'off') {
       throw new UnavailableError(
         'Signing in by text message is not switched on yet. Please set up your account on this device for now.',
+      );
+    }
+    if (byCall && callDelivery === 'off') {
+      throw new UnavailableError(
+        'Codes by phone call are not switched on yet. Please use a mobile number for now.',
       );
     }
 
@@ -149,21 +167,33 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       createdAt: now(),
     });
 
+    // A phone call to sign in only goes to a number already on an account (ruling 27): nobody
+    // can use this to have strangers' phones rung. The answer is the same either way, so it
+    // cannot be used to find out who is registered.
+    const callAllowed =
+      !byCall || input.purpose === 'sign-up' || (await findAccount(phone, input.phone, role));
     try {
-      await deliverCode(phone, code);
+      if (byCall) {
+        if (callAllowed) await callCode(phone, code);
+      } else {
+        await deliverCode(phone, code);
+      }
     } catch (failure) {
       request.log.error({ err: failure }, 'A sign-in code could not be sent');
       throw new UnavailableError(
-        'We could not send a text just now. Please try again in a minute.',
+        byCall
+          ? 'We could not phone you just now. Please try again in a minute.'
+          : 'We could not send a text just now. Please try again in a minute.',
       );
     }
 
-    // The same answer whether or not an account exists, so this cannot be used to find out
-    // who is registered.
     return {
       sent: true,
+      channel: input.channel,
       expiresInSeconds: env.otpTtlSeconds,
-      message: 'We have sent you a code. It lasts ten minutes.',
+      message: byCall
+        ? 'We are phoning you now. Answer, and a voice will read your code, three times. It lasts ten minutes.'
+        : 'We have sent you a code. It lasts ten minutes.',
     };
   });
 
@@ -199,6 +229,15 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         registrationRequired: true,
         role,
         phone,
+        // Shown to open the account on this number, and to nothing else.
+        phoneProof: signPhoneProof(
+          {
+            phone,
+            role,
+            expiresAt: Math.floor(now().getTime() / 1000) + PHONE_PROOF_MINUTES * 60,
+          },
+          env.authTokenSecret,
+        ),
         message:
           role === 'runner'
             ? 'We do not know you yet. Let us set you up as a Runner.'

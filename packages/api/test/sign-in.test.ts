@@ -143,7 +143,7 @@ describe('signing back in on another device', () => {
   it('only sends a code to a mobile, and says so', async () => {
     const response = await requestCode('020 7946 0000');
     expect(response.statusCode).toBe(400);
-    expect(response.json().error.message).toMatch(/mobile/);
+    expect(response.json().error.message).toMatch(/A landline cannot get a text/);
     expect(harness.deliveredCodes).toHaveLength(0);
   });
 
@@ -198,12 +198,12 @@ describe('when texts cannot be sent', () => {
     expect(harness.deliveredCodes).toHaveLength(0);
 
     const config = await harness.app.inject({ method: 'GET', url: '/config' });
-    expect(config.json().signIn).toEqual({ byText: false });
+    expect(config.json().signIn).toMatchObject({ byText: false });
   });
 
   it('tells the web app that signing in by text works when it does', async () => {
     const config = await harness.app.inject({ method: 'GET', url: '/config' });
-    expect(config.json().signIn).toEqual({ byText: true });
+    expect(config.json().signIn).toMatchObject({ byText: true });
   });
 
   it('turns a failure at Twilio into a sentence, not a five hundred', async () => {

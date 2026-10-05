@@ -104,6 +104,10 @@ export interface ApiStubOptions {
   orderRequiresAction?: boolean;
   /** Whether the server can text a sign-in code. True unless a test says otherwise. */
   signInByText?: boolean;
+  /** Whether codes by phone call can be made, for landlines. */
+  signInByCall?: boolean;
+  /** Whether a new account's number must be confirmed with a code first. */
+  confirmAtSignUp?: boolean;
   /** What checking a sign-in code answers: a token, no account, or a wrong code. */
   verifyResult?: 'signed-in' | 'no-account' | 'wrong-code';
 }
@@ -179,12 +183,23 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
             publishableKey: options.publishableKey ?? null,
             supportedCardRegions: ['GB'],
           },
-          signIn: { byText: options.signInByText ?? true },
+          signIn: {
+            byText: options.signInByText ?? true,
+            byCall: options.signInByCall ?? false,
+            confirmAtSignUp: options.confirmAtSignUp ?? false,
+          },
         });
       }
 
       if (path === '/auth/request-code' && method === 'POST') {
-        return reply({ sent: true, message: 'We have sent you a code. It lasts ten minutes.' });
+        const asked = (body ?? {}) as { channel?: string };
+        return reply({
+          sent: true,
+          message:
+            asked.channel === 'call'
+              ? 'We are phoning you now. Answer, and a voice will read your code, three times. It lasts ten minutes.'
+              : 'We have sent you a code. It lasts ten minutes.',
+        });
       }
 
       if (path === '/auth/verify-code' && method === 'POST') {
@@ -193,7 +208,12 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
           return reply({ error: { message: 'That code was not right. Try again.' } }, 401);
         }
         if (result === 'no-account') {
-          return reply({ registrationRequired: true, phone: '+447700900123', message: 'x' });
+          return reply({
+            registrationRequired: true,
+            phone: '+447700900123',
+            message: 'x',
+            phoneProof: 'proof-token',
+          });
         }
         return reply({ registrationRequired: false, token: 'signed-in-token' });
       }
