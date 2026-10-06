@@ -13,7 +13,10 @@ import { useNavigate } from 'react-router-dom';
 
 import { storeConfig } from '../config';
 import { inPairs, pairsAloud } from '../lib/phone-aloud';
+import { fetchMyOrder } from '../lib/api';
 import { nameHeardIn, onlyName } from '../voice/name';
+import { answerShoppingQuestion, orderWhere } from '../voice/shopping-questions';
+import { useBasket } from './basket';
 import type { SpeakOutcome } from '../voice';
 import { useSession } from './session';
 import { useVoiceOrdering } from './voice-order';
@@ -398,6 +401,41 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       );
       return;
     }
+    // Questions about the shopping: the basket, the total, taking something out, the order.
+    if (!ordering.busy()) {
+      const b = basketRef.current;
+      const answer = answerShoppingQuestion(text, {
+        lines: b.lines,
+        goodsPence: b.pricing.goodsPence,
+        feePence: b.pricing.feePence,
+        totalPence: b.pricing.totalPence,
+      });
+      if (answer?.kind === 'say') {
+        void sayRef.current(answer.text);
+        return;
+      }
+      if (answer?.kind === 'remove') {
+        b.remove(answer.itemId);
+        void sayRef.current(answer.text);
+        return;
+      }
+      if (answer?.kind === 'order-status') {
+        if (!accountRef.current.shopper) {
+          void sayRef.current(
+            "You're not signed in, so I can't see an order. To sign in, say sign in.",
+          );
+          return;
+        }
+        void fetchMyOrder()
+          .then(({ order }) => sayRef.current(orderWhere(order)))
+          .catch(() =>
+            sayRef.current(
+              "I couldn't check your order just now. Please ask me again in a moment.",
+            ),
+          );
+        return;
+      }
+    }
     if (!ordering.busy() && PHONE.test(words)) {
       sayPhoneNumber();
       return;
@@ -553,6 +591,9 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   // What the first launch needs, as it is when the page opens. Read through a ref so the effect
   // below runs once, on the first launch only, and never again when any of these change.
   const { shopper, signOut } = useSession();
+  const basket = useBasket();
+  const basketRef = useRef(basket);
+  basketRef.current = basket;
   const accountRef = useRef({ shopper, signOut });
   accountRef.current = { shopper, signOut };
   const firstLaunch = useRef({
