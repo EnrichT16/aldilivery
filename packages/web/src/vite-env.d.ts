@@ -12,6 +12,16 @@ declare module '@store-config' {
   export default value;
 }
 
+/** Ozi Recipes and Little Gifts, checked by `src/lib/extras.ts` before use. */
+declare module '@recipes' {
+  const value: unknown;
+  export default value;
+}
+declare module '@gifts' {
+  const value: unknown;
+  export default value;
+}
+
 /** Ozi's everyday phrases and replies, checked by `src/voice/phrases.ts` before use. */
 declare module '@ozi-phrases' {
   const value: unknown;

@@ -36,6 +36,7 @@ import { registerPaymentMethodRoutes } from './routes/payment-methods.js';
 import { registerPayoutRoutes } from './routes/payouts.js';
 import { registerAddressRoutes } from './routes/addresses.js';
 import { registerCallRoutes } from './routes/calls.js';
+import { registerExtrasRoutes } from './routes/extras.js';
 import { registerProblemRoutes } from './routes/problems.js';
 import { registerRunnerAccountRoutes } from './routes/runner-account.js';
 import { registerPushRoutes } from './routes/push.js';
@@ -357,6 +358,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
     },
     // In-app calls (Section F): whether they can connect, and the price agreed before each one.
     calls: { enabled: ctx.calls !== null, pencePerMinute: ctx.config.calls.pencePerMinute },
+    extras: ctx.config.extras,
     /** Null when notifications are not set up, so the page does not offer them. */
     push: { publicKey: ctx.pushPublicKey },
   }));
@@ -371,6 +373,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerCallRoutes(app);
   await registerRunnerAccountRoutes(app);
   await registerProblemRoutes(app);
+  await registerExtrasRoutes(app);
   await registerQuestionRoutes(app);
   await registerOrderRoutes(app);
   await registerJobRoutes(app);

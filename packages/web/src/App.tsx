@@ -8,6 +8,7 @@ import { Basket } from './pages/Basket';
 import { Card } from './pages/Card';
 import { Catalogue } from './pages/Catalogue';
 import { Confirm } from './pages/Confirm';
+import { Gifts } from './pages/Gifts';
 import { JustLooking } from './pages/JustLooking';
 import { Landing } from './pages/Landing';
 import { LookingAfter } from './pages/LookingAfter';
@@ -16,6 +17,7 @@ import { Orders } from './pages/Orders';
 import { Organisations } from './pages/Organisations';
 import { ReportProblem } from './pages/ReportProblem';
 import { Privacy } from './pages/Privacy';
+import { Recipes } from './pages/Recipes';
 import { RunnerDoor } from './pages/Runner';
 import { RunnerHome } from './pages/RunnerHome';
 import { RunnerSignUp } from './pages/RunnerSignUp';
@@ -121,6 +123,8 @@ export function App(): JSX.Element {
                 <Route path="/card" element={<Card />} />
                 <Route path="/shop" element={<Catalogue />} />
                 <Route path="/basket" element={<Basket />} />
+                <Route path="/recipes" element={<Recipes />} />
+                <Route path="/gifts" element={<Gifts />} />
                 <Route path="/confirm" element={<Confirm />} />
                 <Route path="/my-order" element={<MyOrder />} />
                 <Route path="/orders" element={<Orders />} />

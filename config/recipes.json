@@ -1,0 +1,211 @@
+{
+  "about": "Ozi Recipes (6 October 2026): a paid extra. The name, a short description and the ingredients are free to see; the method, read out by Ozi, and adding everything to the basket in one go need the Recipe Pass. Each ingredient's 'item' is the exact name of a catalogue item (packages/api/src/data/seed-data.ts), so it can be added to the basket.",
+  "recipes": [
+    {
+      "id": "spaghetti-bolognese",
+      "name": "Spaghetti bolognese",
+      "summary": "A family favourite, rich and filling.",
+      "serves": 4,
+      "minutes": 40,
+      "ingredients": [
+        { "item": "Beef mince 5% fat, 500g", "quantity": 1 },
+        { "item": "Dried spaghetti, 500g", "quantity": 1 },
+        { "item": "Chopped tomatoes, 400g", "quantity": 2 },
+        { "item": "Onions, 1kg", "quantity": 1 },
+        { "item": "Carrots, 1kg", "quantity": 1 },
+        { "item": "Garlic, 4 bulbs", "quantity": 1 },
+        { "item": "Mixed dried herbs", "quantity": 1 }
+      ],
+      "method": [
+        "Chop one onion, one carrot and two cloves of garlic.",
+        "Fry them gently in a little oil for five minutes, until soft.",
+        "Add the mince and cook, stirring, until it is browned all over.",
+        "Add both tins of tomatoes and a teaspoon of mixed herbs. Simmer for twenty minutes.",
+        "Meanwhile, boil the spaghetti for about ten minutes, then drain it.",
+        "Serve the sauce on the spaghetti."
+      ]
+    },
+    {
+      "id": "red-lentil-soup",
+      "name": "Red lentil soup",
+      "summary": "Warming, cheap and very good for you.",
+      "serves": 4,
+      "minutes": 35,
+      "ingredients": [
+        { "item": "Red lentils, 500g", "quantity": 1 },
+        { "item": "Onions, 1kg", "quantity": 1 },
+        { "item": "Carrots, 1kg", "quantity": 1 },
+        { "item": "Garlic, 4 bulbs", "quantity": 1 },
+        { "item": "Vegetable stock cubes, 10", "quantity": 1 },
+        { "item": "Chopped tomatoes, 400g", "quantity": 1 },
+        { "item": "Bay leaves", "quantity": 1 }
+      ],
+      "method": [
+        "Chop one onion, two carrots and two cloves of garlic, and soften them in a little oil.",
+        "Add two hundred grams of lentils, the tin of tomatoes, a litre of stock made with two cubes, and two bay leaves.",
+        "Simmer for twenty five minutes, until the lentils are soft.",
+        "Take out the bay leaves. Blend it smooth, or leave it chunky."
+      ]
+    },
+    {
+      "id": "chicken-and-rice",
+      "name": "Chicken, peas and rice",
+      "summary": "One pan, simple and tasty.",
+      "serves": 4,
+      "minutes": 35,
+      "ingredients": [
+        { "item": "Chicken breast fillets, 640g", "quantity": 1 },
+        { "item": "Long grain rice, 1kg", "quantity": 1 },
+        { "item": "Onions, 1kg", "quantity": 1 },
+        { "item": "Frozen peas, 900g", "quantity": 1 },
+        { "item": "Vegetable stock cubes, 10", "quantity": 1 },
+        { "item": "Garlic, 4 bulbs", "quantity": 1 }
+      ],
+      "method": [
+        "Cut the chicken into pieces and fry them until golden. Set them aside.",
+        "Soften a chopped onion and two cloves of garlic in the same pan.",
+        "Add two mugs of rice and four mugs of stock. Put the chicken back and cover.",
+        "Simmer for fifteen minutes, add two handfuls of peas, and cook five minutes more."
+      ]
+    },
+    {
+      "id": "salmon-potatoes-broccoli",
+      "name": "Salmon with potatoes and broccoli",
+      "summary": "A healthy dinner, ready in half an hour.",
+      "serves": 2,
+      "minutes": 30,
+      "ingredients": [
+        { "item": "Salmon fillets, 240g", "quantity": 1 },
+        { "item": "Baking potatoes, 2.5kg", "quantity": 1 },
+        { "item": "Broccoli", "quantity": 1 },
+        { "item": "Lemons, 4 pack", "quantity": 1 },
+        { "item": "Salted butter, 250g", "quantity": 1 }
+      ],
+      "method": [
+        "Cut two potatoes into chunks and boil them for fifteen minutes.",
+        "Put the salmon on a baking tray with a slice of lemon on each, and bake at two hundred degrees for twelve to fifteen minutes.",
+        "Boil the broccoli for the last four minutes.",
+        "Drain the potatoes, add a little butter, and serve everything together."
+      ]
+    },
+    {
+      "id": "cheesy-baked-potatoes",
+      "name": "Baked potatoes with beans and cheese",
+      "summary": "Comfort food that almost cooks itself.",
+      "serves": 2,
+      "minutes": 70,
+      "ingredients": [
+        { "item": "Baking potatoes, 2.5kg", "quantity": 1 },
+        { "item": "Baked beans, 415g", "quantity": 1 },
+        { "item": "Mature cheddar, 400g", "quantity": 1 },
+        { "item": "Salted butter, 250g", "quantity": 1 }
+      ],
+      "method": [
+        "Prick two potatoes with a fork and bake them at two hundred degrees for an hour, until soft inside.",
+        "Warm the beans in a pan.",
+        "Split the potatoes, add a little butter, then the beans and grated cheese on top."
+      ]
+    },
+    {
+      "id": "porridge-banana-honey",
+      "name": "Porridge with banana and honey",
+      "summary": "A healthy breakfast in five minutes.",
+      "serves": 1,
+      "minutes": 5,
+      "ingredients": [
+        { "item": "Porridge oats, 1kg", "quantity": 1 },
+        { "item": "Semi skimmed milk, 2 pints", "quantity": 1 },
+        { "item": "Bananas, loose, per kilogram", "quantity": 1 },
+        { "item": "Honey, 340g", "quantity": 1 }
+      ],
+      "method": [
+        "Put half a mug of oats and a mug of milk in a pan.",
+        "Heat gently for four minutes, stirring, until thick and creamy.",
+        "Slice a banana on top and add a spoonful of honey."
+      ]
+    },
+    {
+      "id": "egg-fried-rice",
+      "name": "Egg fried rice",
+      "summary": "Quick, cheap and filling.",
+      "serves": 2,
+      "minutes": 20,
+      "ingredients": [
+        { "item": "Long grain rice, 1kg", "quantity": 1 },
+        { "item": "Large free range eggs, 6", "quantity": 1 },
+        { "item": "Frozen peas, 900g", "quantity": 1 },
+        { "item": "Onions, 1kg", "quantity": 1 },
+        { "item": "Garlic, 4 bulbs", "quantity": 1 },
+        { "item": "Olive oil, 500ml", "quantity": 1 }
+      ],
+      "method": [
+        "Cook a mug of rice and let it cool a little. Day old rice is even better.",
+        "Fry a chopped onion and a clove of garlic in oil for three minutes.",
+        "Add the rice and a handful of peas, and stir fry for three minutes.",
+        "Push it to one side, scramble two eggs in the space, then stir it all together."
+      ]
+    },
+    {
+      "id": "pancakes",
+      "name": "Pancakes with lemon",
+      "summary": "A treat for any day of the week.",
+      "serves": 4,
+      "minutes": 25,
+      "ingredients": [
+        { "item": "Plain flour, 1.5kg", "quantity": 1 },
+        { "item": "Large free range eggs, 6", "quantity": 1 },
+        { "item": "Semi skimmed milk, 2 pints", "quantity": 1 },
+        { "item": "Salted butter, 250g", "quantity": 1 },
+        { "item": "Lemons, 4 pack", "quantity": 1 }
+      ],
+      "method": [
+        "Whisk a hundred grams of flour, two eggs and three hundred millilitres of milk into a smooth batter.",
+        "Melt a little butter in a frying pan.",
+        "Pour in a thin layer of batter, cook for a minute, then flip it and cook the other side.",
+        "Serve with a squeeze of lemon."
+      ]
+    },
+    {
+      "id": "cottage-pie",
+      "name": "Cottage pie",
+      "summary": "A proper British classic.",
+      "serves": 4,
+      "minutes": 60,
+      "ingredients": [
+        { "item": "Beef mince 5% fat, 500g", "quantity": 1 },
+        { "item": "Baking potatoes, 2.5kg", "quantity": 1 },
+        { "item": "Onions, 1kg", "quantity": 1 },
+        { "item": "Carrots, 1kg", "quantity": 1 },
+        { "item": "Frozen peas, 900g", "quantity": 1 },
+        { "item": "Vegetable stock cubes, 10", "quantity": 1 },
+        { "item": "Salted butter, 250g", "quantity": 1 },
+        { "item": "Semi skimmed milk, 2 pints", "quantity": 1 }
+      ],
+      "method": [
+        "Brown the mince with a chopped onion and two chopped carrots.",
+        "Add three hundred millilitres of stock and a handful of peas. Simmer for fifteen minutes.",
+        "Boil four potatoes, then mash them with butter and a splash of milk.",
+        "Put the mince in a dish, spread the mash on top, and bake at two hundred degrees for twenty minutes, until golden."
+      ]
+    },
+    {
+      "id": "yoghurt-fruit-pots",
+      "name": "Yoghurt and fruit pots",
+      "summary": "A light, healthy pudding or breakfast.",
+      "serves": 2,
+      "minutes": 5,
+      "ingredients": [
+        { "item": "Natural yoghurt, 500g", "quantity": 1 },
+        { "item": "Braeburn apples, 6 pack", "quantity": 1 },
+        { "item": "Bananas, loose, per kilogram", "quantity": 1 },
+        { "item": "Honey, 340g", "quantity": 1 },
+        { "item": "Porridge oats, 1kg", "quantity": 1 }
+      ],
+      "method": [
+        "Chop an apple and a banana.",
+        "Spoon yoghurt into two glasses or bowls, then add the fruit.",
+        "Sprinkle a spoonful of oats on top and drizzle with honey."
+      ]
+    }
+  ]
+}

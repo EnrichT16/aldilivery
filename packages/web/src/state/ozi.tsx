@@ -13,7 +13,8 @@ import { useNavigate } from 'react-router-dom';
 
 import { storeConfig } from '../config';
 import { inPairs, pairsAloud } from '../lib/phone-aloud';
-import { fetchMyOrder } from '../lib/api';
+import { fetchMyOrder, fetchMyOrders } from '../lib/api';
+import { addNamedItems, listInWords } from '../lib/extras';
 import { nameHeardIn, onlyName } from '../voice/name';
 import { phraseReply } from '../voice/phrases';
 import { answerShoppingQuestion, orderWhere } from '../voice/shopping-questions';
@@ -74,7 +75,18 @@ const CHANGE_ACCOUNT =
 
 /** "Repeat", "say that again", "come again", "pardon", "I beg your pardon". */
 const REPEAT =
-  /\b(repeat|say (that|it) again|come again|pardon|what did you say|didn'?t (hear|catch)|once more|one more time)\b/;
+  /\b(repeat(?!\s+(my|the|that|last)\b)|say (that|it) again|come again|pardon|what did you say|didn'?t (hear|catch)|once more|one more time)\b/;
+
+/** "Same as last time", "order the same again", "my usual": the last order's shopping again. */
+const REORDER =
+  /\bsame as (last|the last) (time|week|order)\b|\b(order|get|do)\s+(it|that|the same|my shopping|the same shopping)\s+again\b|\bmy usual\b|\brepeat\s+(my|the|that|last)\s+(last\s+)?(order|shop|shopping)\b|\border again\b/;
+
+/** "What can I cook?", "show me the recipes". */
+const RECIPES =
+  /\brecipes?\b|\bwhat (can|could|shall|should) i (cook|make)\b|\bsomething to cook\b/;
+
+/** "I need a gift", "a present for my wife". */
+const GIFTS = /\b(gift|gifts|present|presents)\b(?!\s+(bag|card))/;
 
 /** "What's your phone number?", "can I ring you", "the number to call". */
 const PHONE =
@@ -450,6 +462,26 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       navigate('/addresses?add=1');
       return;
     }
+    // Ozi Recipes and Little Gifts (Anthony, 6 October 2026).
+    if (!ordering.busy() && RECIPES.test(words)) {
+      navigate('/recipes');
+      void sayRef.current(
+        'Here are the recipes. Each one tells you what you need, and I can read it out and put everything in your basket.',
+      );
+      return;
+    }
+    if (!ordering.busy() && GIFTS.test(words)) {
+      navigate('/gifts');
+      void sayRef.current(
+        'Here are the little gifts: a card, flowers, chocolates and more, brought with your shopping. Which would you like?',
+      );
+      return;
+    }
+    // The weekly shop again: "same as last time" puts the last order back in the basket.
+    if (!ordering.busy() && REORDER.test(words)) {
+      orderAgain();
+      return;
+    }
     // An everyday phrase, the whole sentence: "thank you", "who are you", "how much is delivery".
     if (!ordering.busy()) {
       const everyday = phraseReply(text, phraseTurn.current, 'exact');
@@ -469,6 +501,48 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
         await sayRef.current(
           everyday ??
             "I can take a shopping order for you. Say, for example, I'd like bananas and milk.",
+        );
+      }
+    })();
+  };
+
+  const orderAgain = (): void => {
+    if (!accountRef.current.shopper) {
+      void sayRef.current(
+        "You're not signed in, so I can't see your last order. To sign in, say sign in.",
+      );
+      return;
+    }
+    void (async () => {
+      try {
+        const { orders } = await fetchMyOrders();
+        const last = orders.find((order) => order.items.length > 0);
+        if (!last) {
+          await sayRef.current("There's no earlier order to copy yet. What would you like?");
+          return;
+        }
+        const { added, missing } = await addNamedItems(
+          last.items.map((item) => ({ item: item.name, quantity: item.quantity })),
+          basketRef.current,
+        );
+        if (added.length === 0) {
+          await sayRef.current(
+            "I couldn't find those things in the shop today. What would you like?",
+          );
+          return;
+        }
+        listenFor(
+          `I've put the same shopping as last time in your basket: ${listInWords(added)}.` +
+            (missing.length > 0 ? ` I couldn't find ${listInWords(missing)}.` : '') +
+            ' Shall we look at your basket?',
+          (heard) => {
+            if (/\b(yes|yeah|ok|okay|please|sure)\b/i.test(heard)) navigate('/basket');
+            else void sayRef.current('All right. Anything else?');
+          },
+        );
+      } catch {
+        await sayRef.current(
+          "I couldn't find your last order just now. Please ask me again in a moment.",
         );
       }
     })();
