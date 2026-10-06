@@ -3,9 +3,9 @@
  * shopping (Anthony, 6 October 2026).
  */
 
-import { act, render, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
 import { setVoiceEngine } from '../src/voice';
@@ -18,19 +18,28 @@ const stripeFake = vi.hoisted(() => {
     string,
     (event: { complete: boolean; error?: { message: string } }) => void
   > = {};
+  const wallet: Record<string, (event: never) => void> = {};
   return {
     handlers,
+    wallet,
     stripe: {
       elements: () => ({
+        submit: async () => Promise.resolve({}),
         create: (kind: string) => ({
           mount: () => undefined,
           unmount: () => undefined,
+          destroy: () => undefined,
           clear: () => undefined,
-          on: (_: string, handler: (event: { complete: boolean }) => void) => {
-            handlers[kind] = handler;
+          on: (name: string, handler: (event: never) => void) => {
+            if (kind === 'expressCheckout') wallet[name] = handler;
+            else handlers[kind] = handler as never;
           },
         }),
       }),
+      createPaymentMethod: async () =>
+        Promise.resolve({
+          paymentMethod: { id: 'pm_wallet', card: { last4: '1111', brand: 'visa', country: 'GB' } },
+        }),
     },
   };
 });
@@ -56,6 +65,10 @@ vi.mock('../src/lib/alert', () => ({
     clicks.count += 1;
   },
 }));
+
+beforeEach(() => {
+  for (const key of Object.keys(stripeFake.wallet)) delete stripeFake.wallet[key];
+});
 
 function introHeard(): void {
   window.localStorage.setItem('ozidelivery.voice.settings', JSON.stringify({ introHeard: true }));
@@ -85,9 +98,17 @@ describe('the card page, one box at a time', () => {
         <App />
       </MemoryRouter>,
     );
+    // This phone has no wallet: the guidance starts with the boxes.
+    await waitFor(() => {
+      expect(stripeFake.wallet['ready']).toBeDefined();
+    });
+    act(() => {
+      stripeFake.wallet['ready']?.({ availablePaymentMethods: undefined } as never);
+    });
     await waitFor(() => {
       expect(lastSaid(engine)).toMatch(/First, the long number on the front of the card/);
     });
+    expect(lastSaid(engine)).not.toMatch(/wallet/);
 
     fill('cardNumber');
     expect(clicks.count).toBe(1);
@@ -121,6 +142,46 @@ describe('the card page, one box at a time', () => {
     });
     await waitFor(() => {
       expect(lastSaid(engine)).toBe("I'm listening. What would you like?");
+    });
+  });
+});
+
+describe('a card from the phone wallet', () => {
+  it('says Apple Pay first when the phone has it, and saves the card it gives', async () => {
+    introHeard();
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const sent = stubApi({
+      shopper: FAKE_SHOPPER,
+      paymentsMode: 'stripe',
+      publishableKey: 'pk_test',
+    });
+    render(
+      <MemoryRouter initialEntries={['/card']}>
+        <App />
+      </MemoryRouter>,
+    );
+    await waitFor(() => {
+      expect(stripeFake.wallet['ready']).toBeDefined();
+    });
+    act(() => {
+      stripeFake.wallet['ready']?.({ availablePaymentMethods: { applePay: true } } as never);
+    });
+    await waitFor(() => {
+      expect(lastSaid(engine)).toMatch(/use the Apple Pay button at the top of the screen/);
+    });
+    expect(await screen.findByRole('heading', { name: 'Quickest: Apple Pay' })).toBeInTheDocument();
+
+    act(() => {
+      stripeFake.wallet['confirm']?.({} as never);
+    });
+    await waitFor(() => {
+      expect(
+        sent.find((r) => r.path === '/payment-methods' && r.method === 'POST')?.body,
+      ).toMatchObject({ stripePaymentMethodId: 'pm_wallet', lastFour: '1111' });
+    });
+    await waitFor(() => {
+      expect(lastSaid(engine)).toMatch(/Shall we carry on with the shopping\?$/);
     });
   });
 });
