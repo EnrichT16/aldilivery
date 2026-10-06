@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import type {
   StripeCardCvcElement,
   StripeCardExpiryElement,
@@ -9,6 +9,7 @@ import type {
 import { storeConfig } from '../config';
 import { savePaymentMethod } from '../lib/api';
 import { createCardPaymentMethod, postcodeFrom, prepareCardEntry } from '../lib/stripe';
+import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
 
 /**
@@ -54,6 +55,26 @@ export function Card(): JSX.Element {
   const [error, setError] = useState<string>('');
   const [saved, setSaved] = useState<string>('');
   const [postcode, setPostcode] = useState<string>('');
+  const ozi = useOzi();
+  const welcome = (useLocation().state as { welcome?: string } | null)?.welcome;
+  const greeting = welcome ? `Your account is ready, ${welcome}. ` : '';
+  const greetingRef = useRef(greeting);
+
+  // Ozi says what this page is and how to fill it in, once a visit (Anthony, 6 October 2026:
+  // Ozi "couldn't find the card on the screen").
+  const guided = useRef(false);
+  const say = useRef(ozi.say);
+  say.current = ozi.say;
+  useEffect(() => {
+    if (guided.current || state === 'loading') return;
+    guided.current = true;
+    void say.current(
+      greetingRef.current +
+        (state === 'ready'
+          ? 'This is where your card is saved, once, so you can order. The card goes straight to Stripe, the payment company, never to us. There are three boxes on the screen: the long card number, the expiry date, and the three-number security code on the back. On many iPhones, tapping the card number box offers Scan Card, which uses the camera to fill it in for you. If people are around you, type it rather than reading it out. If it is hard, someone you trust can do it for you. When it is done, press Save my card.'
+          : `${unavailableReason} You can still look around the shop.`),
+    );
+  }, [state, unavailableReason]);
 
   // Filled in once, from the address given at sign up. Somebody whose card is registered
   // somewhere else can change it.

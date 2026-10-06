@@ -116,10 +116,8 @@ export function SignUp(): JSX.Element {
       try {
         const result = await registerShopper(withProof(details));
         signedUp(result.token, result.shopper);
-        void ozi.say(
-          `Your account is ready, ${result.shopper.displayName}. Next is adding your card, which is on the screen now. Nothing is charged until you order.`,
-        );
-        navigate('/card');
+        // The card page says this first, so the two are one message and neither cuts the other off.
+        navigate('/card', { state: { welcome: result.shopper.displayName } });
       } catch (error) {
         const message =
           error instanceof Error ? error.message : 'We could not set up your account.';

@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { storeConfig } from '../config';
 import { inPairs, pairsAloud } from '../lib/phone-aloud';
+import { nameHeardIn, onlyName } from '../voice/name';
 import type { SpeakOutcome } from '../voice';
 import { useSession } from './session';
 import { useVoiceOrdering } from './voice-order';
@@ -74,6 +75,13 @@ const REPEAT =
 /** "What's your phone number?", "can I ring you", "the number to call". */
 const PHONE =
   /\b(phone|telephone)\s+number\b|\bnumber\s+to\s+(call|ring)\b|\b(call|ring|phone)\s+(you|the number|someone|a person)\b/;
+
+/** Answers to "Hey Ozi" on its own, taken in turn. */
+const HERE = [
+  "I'm here. How can I help?",
+  "Yes, I'm listening. What would you like?",
+  "I'm here. What can I get for you?",
+];
 
 /** Different ways of saying it again, taken in turn, so a repeat never sounds like a recording. */
 const REPEAT_OPENINGS = [
@@ -348,6 +356,21 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       sayAgain();
       return;
     }
+    // "Hey Ozi" on its own: Ozi answers, and if it had asked something, asks it again, with
+    // the question still open (Anthony, 6 October 2026).
+    if (onlyName(text)) {
+      setHeard(text);
+      const pending = captureRef.current ? lastSaid.current : '';
+      if (pending) {
+        void sayRef.current(`I'm here. ${pending}`).then(() => {
+          lastSaid.current = pending;
+        });
+      } else {
+        ordering.expectOrder();
+        void sayRef.current(HERE[hereCount.current++ % HERE.length]!);
+      }
+      return;
+    }
     const capture = captureRef.current;
     if (capture) {
       captureRef.current = null;
@@ -392,7 +415,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       if (await ordering.handle(text)) return;
       // Words not about an order are not answered unless they were said to Ozi: Ozi does not
       // talk back to the television.
-      if (new RegExp(`\\b${assistant}\\b`, 'i').test(text)) {
+      if (nameHeardIn(text)) {
         await sayRef.current(
           "I can take a shopping order for you. Say, for example, I'd like bananas and milk.",
         );
@@ -401,6 +424,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   };
 
   const repeats = useRef(0);
+  const hereCount = useRef(0);
   const sayAgain = (): void => {
     const what = lastSaid.current;
     const opening = REPEAT_OPENINGS[repeats.current % REPEAT_OPENINGS.length]!;
