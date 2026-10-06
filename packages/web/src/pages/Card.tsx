@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type {
   StripeCardCvcElement,
   StripeCardExpiryElement,
@@ -9,6 +9,9 @@ import type {
 import { storeConfig } from '../config';
 import { savePaymentMethod } from '../lib/api';
 import { createCardPaymentMethod, postcodeFrom, prepareCardEntry } from '../lib/stripe';
+import { click } from '../lib/alert';
+import { useOzi } from '../state/ozi';
+import { yesOrNo } from '../state/voice-sign-up';
 import { useSession } from '../state/session';
 
 /**
@@ -54,6 +57,77 @@ export function Card(): JSX.Element {
   const [error, setError] = useState<string>('');
   const [saved, setSaved] = useState<string>('');
   const [postcode, setPostcode] = useState<string>('');
+  const ozi = useOzi();
+  const welcome = (useLocation().state as { welcome?: string } | null)?.welcome;
+  const greeting = welcome ? `Your account is ready, ${welcome}. ` : '';
+  const greetingRef = useRef(greeting);
+
+  // Ozi says what this page is and how to fill it in, once a visit (Anthony, 6 October 2026:
+  // Ozi "couldn't find the card on the screen").
+  const guided = useRef(false);
+  const say = useRef(ozi.say);
+  say.current = ozi.say;
+  useEffect(() => {
+    if (guided.current || state === 'loading') return;
+    guided.current = true;
+    void say.current(
+      greetingRef.current +
+        (state === 'ready'
+          ? `Now your card, saved once so you can order. It goes straight to Stripe, the payment company, never to us. I'll guide you one box at a time, and you'll hear a click as each one is filled. First, the long number on the front of the card: type it in the first box, or tap the box and choose Scan Card if your phone offers it. If people are around you, type rather than reading it out. If it's hard, someone you trust can do it for you.`
+          : `${unavailableReason} You can still look around the shop.`),
+    );
+  }, [state, unavailableReason]);
+
+  // One box at a time (Anthony, 6 October 2026): a click as each is filled, then the next step,
+  // then "Shall I save this card?", then back to the shopping.
+  const done = useRef({ number: false, expiry: false, cvc: false });
+  const lastError = useRef('');
+  const saveRef = useRef<() => Promise<boolean>>(async () => false);
+  const navigate = useNavigate();
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+  const oziRef = useRef(ozi);
+  oziRef.current = ozi;
+
+  const onBoxChange = useRef(
+    (box: 'number' | 'expiry' | 'cvc', complete: boolean, error?: string) => {
+      const o = oziRef.current;
+      if (error && error !== lastError.current) {
+        lastError.current = error;
+        void o.say(error);
+        return;
+      }
+      if (!error) lastError.current = '';
+      const was = done.current[box];
+      done.current = { ...done.current, [box]: complete };
+      if (!complete || was) return;
+      click();
+      const { number, expiry, cvc } = done.current;
+      if (number && expiry && cvc) {
+        o.listenFor(
+          "That's everything. Shall I save this card? Say yes, or press Save my card.",
+          (heard) => {
+            if (yesOrNo(heard) === 'yes') void saveRef.current();
+            else void oziRef.current.say('All right. Press Save my card whenever you are ready.');
+          },
+        );
+      } else if (box === 'number') {
+        void o.say(
+          'Got the card number. Next, the expiry date, also on the front: the month and the year, like zero eight, two seven. Type it in the second box.',
+        );
+      } else if (box === 'expiry') {
+        void o.say(
+          'Thank you. Now turn the card over. On the back, next to the signature strip, there is a three-number security code. Type it in the third box.',
+        );
+      } else {
+        void o.say(
+          number
+            ? 'Got the security code. Now the expiry date, in the second box.'
+            : 'Got the security code. Now the long number on the front, in the first box.',
+        );
+      }
+    },
+  );
 
   // Filled in once, from the address given at sign up. Somebody whose card is registered
   // somewhere else can change it.
@@ -96,6 +170,14 @@ export function Card(): JSX.Element {
       const expiry = elements.create('cardExpiry', { style });
       const cvc = elements.create('cardCvc', { style });
 
+      number.on('change', (event) =>
+        onBoxChange.current('number', event.complete, event.error?.message),
+      );
+      expiry.on('change', (event) =>
+        onBoxChange.current('expiry', event.complete, event.error?.message),
+      );
+      cvc.on('change', (event) => onBoxChange.current('cvc', event.complete, event.error?.message));
+
       if (numberMount.current && expiryMount.current && cvcMount.current) {
         number.mount(numberMount.current);
         expiry.mount(expiryMount.current);
@@ -137,10 +219,10 @@ export function Card(): JSX.Element {
     );
   }
 
-  async function onSave(): Promise<void> {
+  async function onSave(): Promise<boolean> {
     const card = fields.current;
     const setup = await prepareCardEntry();
-    if (!card || !setup.ready || saving) return;
+    if (!card || !setup.ready || saving) return false;
 
     setSaving(true);
     setError('');
@@ -160,12 +242,29 @@ export function Card(): JSX.Element {
       card.number.clear();
       card.expiry.clear();
       card.cvc.clear();
+      // Then straight back to what the card was for.
+      ozi.listenFor(
+        `${result.message} Your card is saved. Nothing has been charged. Shall we carry on with the shopping?`,
+        (heard) => {
+          if (yesOrNo(heard) === 'yes') {
+            navigateRef.current('/shop');
+            oziRef.current.wake();
+          } else {
+            void oziRef.current.say('All right. Just tell me when you want to shop.');
+          }
+        },
+      );
+      return true;
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'That card was not accepted.');
+      const message = failure instanceof Error ? failure.message : 'That card was not accepted.';
+      setError(message);
+      void ozi.say(`${message} Please check the boxes and try again.`);
+      return false;
     } finally {
       setSaving(false);
     }
   }
+  saveRef.current = onSave;
 
   if (saved !== '') {
     return (

@@ -13,6 +13,10 @@ import { useNavigate } from 'react-router-dom';
 
 import { storeConfig } from '../config';
 import { inPairs, pairsAloud } from '../lib/phone-aloud';
+import { fetchMyOrder } from '../lib/api';
+import { nameHeardIn, onlyName } from '../voice/name';
+import { answerShoppingQuestion, orderWhere } from '../voice/shopping-questions';
+import { useBasket } from './basket';
 import type { SpeakOutcome } from '../voice';
 import { useSession } from './session';
 import { useVoiceOrdering } from './voice-order';
@@ -74,6 +78,13 @@ const REPEAT =
 /** "What's your phone number?", "can I ring you", "the number to call". */
 const PHONE =
   /\b(phone|telephone)\s+number\b|\bnumber\s+to\s+(call|ring)\b|\b(call|ring|phone)\s+(you|the number|someone|a person)\b/;
+
+/** Answers to "Hey Ozi" on its own, taken in turn. */
+const HERE = [
+  "I'm here. How can I help?",
+  "Yes, I'm listening. What would you like?",
+  "I'm here. What can I get for you?",
+];
 
 /** Different ways of saying it again, taken in turn, so a repeat never sounds like a recording. */
 const REPEAT_OPENINGS = [
@@ -348,6 +359,21 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       sayAgain();
       return;
     }
+    // "Hey Ozi" on its own: Ozi answers, and if it had asked something, asks it again, with
+    // the question still open (Anthony, 6 October 2026).
+    if (onlyName(text)) {
+      setHeard(text);
+      const pending = captureRef.current ? lastSaid.current : '';
+      if (pending) {
+        void sayRef.current(`I'm here. ${pending}`).then(() => {
+          lastSaid.current = pending;
+        });
+      } else {
+        ordering.expectOrder();
+        void sayRef.current(HERE[hereCount.current++ % HERE.length]!);
+      }
+      return;
+    }
     const capture = captureRef.current;
     if (capture) {
       captureRef.current = null;
@@ -375,6 +401,41 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       );
       return;
     }
+    // Questions about the shopping: the basket, the total, taking something out, the order.
+    if (!ordering.busy()) {
+      const b = basketRef.current;
+      const answer = answerShoppingQuestion(text, {
+        lines: b.lines,
+        goodsPence: b.pricing.goodsPence,
+        feePence: b.pricing.feePence,
+        totalPence: b.pricing.totalPence,
+      });
+      if (answer?.kind === 'say') {
+        void sayRef.current(answer.text);
+        return;
+      }
+      if (answer?.kind === 'remove') {
+        b.remove(answer.itemId);
+        void sayRef.current(answer.text);
+        return;
+      }
+      if (answer?.kind === 'order-status') {
+        if (!accountRef.current.shopper) {
+          void sayRef.current(
+            "You're not signed in, so I can't see an order. To sign in, say sign in.",
+          );
+          return;
+        }
+        void fetchMyOrder()
+          .then(({ order }) => sayRef.current(orderWhere(order)))
+          .catch(() =>
+            sayRef.current(
+              "I couldn't check your order just now. Please ask me again in a moment.",
+            ),
+          );
+        return;
+      }
+    }
     if (!ordering.busy() && PHONE.test(words)) {
       sayPhoneNumber();
       return;
@@ -392,7 +453,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       if (await ordering.handle(text)) return;
       // Words not about an order are not answered unless they were said to Ozi: Ozi does not
       // talk back to the television.
-      if (new RegExp(`\\b${assistant}\\b`, 'i').test(text)) {
+      if (nameHeardIn(text)) {
         await sayRef.current(
           "I can take a shopping order for you. Say, for example, I'd like bananas and milk.",
         );
@@ -401,6 +462,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   };
 
   const repeats = useRef(0);
+  const hereCount = useRef(0);
   const sayAgain = (): void => {
     const what = lastSaid.current;
     const opening = REPEAT_OPENINGS[repeats.current % REPEAT_OPENINGS.length]!;
@@ -529,6 +591,9 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   // What the first launch needs, as it is when the page opens. Read through a ref so the effect
   // below runs once, on the first launch only, and never again when any of these change.
   const { shopper, signOut } = useSession();
+  const basket = useBasket();
+  const basketRef = useRef(basket);
+  basketRef.current = basket;
   const accountRef = useRef({ shopper, signOut });
   accountRef.current = { shopper, signOut };
   const firstLaunch = useRef({

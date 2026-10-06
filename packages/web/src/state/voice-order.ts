@@ -8,6 +8,7 @@ import { parseChoice, parseQuantity, parseYesNo, splitItems, wantsToStop } from 
 import type { SpeakOutcome } from '../voice';
 import { useBasket } from './basket';
 import { useSession } from './session';
+import { NAME_PATTERN, nameHeardIn } from '../voice/name';
 
 /**
  * Ordering by voice alone (docs/BUILD_PROMPT.md, Section E), as a conversation:
@@ -82,7 +83,6 @@ export function useVoiceOrdering(
   const { shopper } = useSession();
   const basket = useBasket();
   const navigate = useNavigate();
-  const assistant = storeConfig.assistantName;
   const shop = storeConfig.store.displayName;
   const { standardDeliveryPence, maximumGoodsPence } = storeConfig.fees;
   const ceiling = storeConfig.voice.paymentCeilingPence;
@@ -248,7 +248,7 @@ export function useVoiceOrdering(
 
       switch (current.kind) {
         case 'idle': {
-          const addressed = new RegExp(`\\b${assistant}\\b`, 'i').test(text);
+          const addressed = nameHeardIn(text);
           if (!isExpecting() && !addressed && !ORDER_INTENT.test(text)) return false;
           expectingUntil.current = null;
           if (!live.current.shopper) {
@@ -261,7 +261,7 @@ export function useVoiceOrdering(
             );
             return true;
           }
-          const { items, shopAskedFor } = splitItems(text, assistant);
+          const { items, shopAskedFor } = splitItems(text, NAME_PATTERN);
           if (items.length === 0) {
             expectNow();
             await say('What would you like? You can say, for example, bananas and milk.');
@@ -398,7 +398,7 @@ export function useVoiceOrdering(
         }
       }
     },
-    [assistant, say, offerAccount, reset, next, navigate, ceiling, shop],
+    [say, offerAccount, reset, next, navigate, ceiling, shop],
   );
 
   const expectOrder = useCallback(() => {

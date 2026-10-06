@@ -277,8 +277,12 @@ describe('ordering by voice alone', () => {
     setVoiceEngine(engine);
     stubShop({ cards: [] });
     renderApp();
-    expect(await say(engine, 'I want three bananas')).toMatch(/you need a card saved/);
+    await say(engine, 'I want three bananas');
     expect(await screen.findByRole('heading', { name: /card/i })).toBeInTheDocument();
+    // Said in full first, then the card page explains itself.
+    const spoken = engine.spoken.map((s) => s.text);
+    const needs = spoken.findIndex((text) => /you need a card saved/.test(text));
+    expect(needs).toBeGreaterThan(-1);
   });
 });
 
@@ -288,9 +292,8 @@ describe('waiting for an order, but not for ever', () => {
     setVoiceEngine(engine);
     stubShop();
     renderApp();
-    expect(await say(engine, 'Ozi')).toBe(
-      'What would you like? You can say, for example, bananas and milk.',
-    );
+    // "Ozi" on its own is answered, and opens the thirty seconds.
+    expect(await say(engine, 'Ozi')).toBe("I'm here. How can I help?");
 
     // Thirty-one seconds later, a conversation in the room is not an order.
     const later = Date.now() + 31_000;
@@ -307,7 +310,7 @@ describe('waiting for an order, but not for ever', () => {
 
     // Asked again, the answer within thirty seconds is taken.
     clock.mockReturnValue(later + 1000);
-    expect(await say(engine, 'Ozi')).toMatch(/^What would you like\?/);
+    expect(await say(engine, 'Ozi')).toMatch(/What would you like\?/);
     expect(await say(engine, 'bananas')).toBe('How many Bananas, loose would you like?');
     clock.mockRestore();
   });

@@ -25,6 +25,11 @@ export interface StoreConfig {
   readonly configVersion: number;
   readonly productName: string;
   readonly assistantName: string;
+  /**
+   * How a phone's speech recognition tends to write the assistant's name ("Ozzy", "Aussie"), so
+   * Ozi still knows it is being spoken to (Anthony, 6 October 2026).
+   */
+  readonly assistantHeardAs: readonly string[];
   readonly tagline: string;
   /** The motto, said by Ozi when it introduces itself and shown on the first screen. */
   readonly motto: string;
@@ -347,6 +352,12 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     configVersion: wholeNumber(root['configVersion'], 'configVersion', 1),
     productName: str(root['productName'], 'productName'),
     assistantName: str(root['assistantName'], 'assistantName'),
+    assistantHeardAs:
+      root['assistantHeardAs'] === undefined
+        ? []
+        : array(root['assistantHeardAs'], 'assistantHeardAs').map((entry, index) =>
+            str(entry, `assistantHeardAs[${index}]`),
+          ),
     tagline: str(root['tagline'], 'tagline'),
     motto: str(root['motto'], 'motto'),
     contact: {

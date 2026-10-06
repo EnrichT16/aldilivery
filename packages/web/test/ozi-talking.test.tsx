@@ -204,7 +204,9 @@ describe('opening an account by talking', () => {
     expect(screen.getByRole('heading', { name: 'Set up your account' })).toBeInTheDocument();
 
     await say(engine, 'My name is margaret');
-    expect(said(engine).at(-1)).toBe("Thank you, Margaret. What's your phone number? A mobile or a landline.");
+    expect(said(engine).at(-1)).toBe(
+      "Thank you, Margaret. What's your phone number? A mobile or a landline.",
+    );
     expect(screen.getByLabelText('Your name')).toHaveValue('Margaret');
 
     await say(engine, 'oh seven seven double oh nine double oh one two three');
@@ -339,5 +341,57 @@ describe('signing out in Settings', () => {
       expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument();
     });
     expect(screen.queryByRole('link', { name: 'Your order' })).not.toBeInTheDocument();
+  });
+});
+
+describe('hearing its name, however the phone spells it', () => {
+  it('answers "Hey Ozzy" on its own, a different way each time', async () => {
+    introHeard();
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubApi({ shopper: FAKE_SHOPPER });
+    renderAt('/shop');
+    await say(engine, 'Hey Ozzy');
+    expect(said(engine).at(-1)).toBe("I'm here. How can I help?");
+    await say(engine, 'Aussie?');
+    expect(said(engine).at(-1)).toBe("Yes, I'm listening. What would you like?");
+  });
+
+  it('asks again what it had asked, and keeps the question open', async () => {
+    introHeard();
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubApi();
+    renderAt('/shop');
+    await say(engine, 'Ozzie, I would like some milk');
+    const question = said(engine).at(-1)!;
+    expect(question).toMatch(/Would you like to open one now/);
+    await say(engine, 'hey ozzy');
+    expect(said(engine).at(-1)).toBe(`I'm here. ${question}`);
+    await say(engine, 'yes');
+    await waitFor(() => {
+      expect(said(engine).at(-1)).toMatch(/what's your name\?/);
+    });
+  });
+
+  it('knows the name inside a sentence', async () => {
+    const { nameHeardIn, onlyName } = await import('../src/voice/name');
+    expect(nameHeardIn('hey Aussie can you get bread')).toBe(true);
+    expect(nameHeardIn('the oz is hot')).toBe(false);
+    expect(onlyName('Hey Ozzy!')).toBe(true);
+    expect(onlyName('Ozzy get milk')).toBe(false);
+  });
+});
+
+describe('the card page', () => {
+  it('has Ozi say what it is and what to do', async () => {
+    introHeard();
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubApi({ shopper: FAKE_SHOPPER });
+    renderAt('/card');
+    await waitFor(() => {
+      expect(said(engine).join(' ')).toMatch(/Card payments are not switched on yet/);
+    });
   });
 });

@@ -48,3 +48,32 @@ export function buzz(): void {
     // No vibration on this device.
   }
 }
+
+/**
+ * A short click, like a camera shutter: something has been taken in (Anthony, 6 October 2026:
+ * "it should make a sound ... to show that it's been captured"). Used when a card box is filled.
+ */
+export function click(): void {
+  try {
+    const Context: AudioContextConstructor | undefined =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: AudioContextConstructor }).webkitAudioContext;
+    if (!Context) return;
+    const audio = new Context();
+    const start = audio.currentTime;
+    const tone = audio.createOscillator();
+    const volume = audio.createGain();
+    tone.type = 'square';
+    tone.frequency.value = 1400;
+    volume.gain.setValueAtTime(0.3, start);
+    volume.gain.exponentialRampToValueAtTime(0.0001, start + 0.06);
+    tone.connect(volume).connect(audio.destination);
+    tone.start(start);
+    tone.stop(start + 0.07);
+    window.setTimeout(() => {
+      void audio.close();
+    }, 500);
+  } catch {
+    // No sound. Ozi still says it.
+  }
+}

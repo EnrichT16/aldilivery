@@ -2,6 +2,7 @@
   "configVersion": 1,
   "productName": "Ozi Delivery",
   "assistantName": "Ozi",
+  "assistantHeardAs": ["Ozzy", "Ozzie", "Ozie", "Osi", "Ossie", "Ozy", "Aussie", "Hozi", "Ozee"],
   "tagline": "Say it, Ozi shops it, a Runner brings it",
   "motto": "Send me, I will help.",
   "contact": {
