@@ -1,0 +1,297 @@
+{
+  "about": "What Ozi says to everyday words (ruling 34). Added to every day by a scheduled task, checked by the tests before it goes live. Each entry: an id, a topic, the words people say ('when'), and replies, one chosen in turn. In replies, {assistant} becomes Ozi's name, {product} the product's name, {motto} the motto, and {fee}, {maximum}, {runnerPay}, {callPrice} and {instantRefund} the figures from config/store.json, so a price is never written here. Ozi only uses these when nothing about an order or the basket was meant, and only when the whole sentence is one of the 'when' phrases or Ozi was called by name.",
+  "phrases": [
+    {
+      "id": "thanks",
+      "topic": "manners",
+      "when": ["thank you", "thanks", "cheers", "thank you very much", "thanks a lot", "ta"],
+      "replies": [
+        "You're welcome. {motto}",
+        "My pleasure. Is there anything else you need?",
+        "Any time. Just say my name when you need me."
+      ]
+    },
+    {
+      "id": "hello",
+      "topic": "manners",
+      "when": ["hello", "hi", "good morning", "good afternoon", "good evening", "hiya"],
+      "replies": [
+        "Hello. What shopping can I get for you today?",
+        "Hello there. Would you like to order something?",
+        "Hi. {motto} What would you like?"
+      ]
+    },
+    {
+      "id": "how-are-you",
+      "topic": "manners",
+      "when": ["how are you", "how are you doing", "you alright", "are you ok", "how's it going"],
+      "replies": [
+        "I'm very well, thank you for asking. What can I get for you today?",
+        "I'm good, and ready to help with your shopping. What would you like?"
+      ]
+    },
+    {
+      "id": "goodbye",
+      "topic": "manners",
+      "when": ["goodbye", "bye", "see you", "see you later", "good night", "bye bye"],
+      "replies": [
+        "Goodbye. I'm here whenever you need shopping.",
+        "Bye for now. Just say my name when you need me again."
+      ]
+    },
+    {
+      "id": "sorry",
+      "topic": "manners",
+      "when": ["sorry", "my mistake", "oops"],
+      "replies": [
+        "No problem at all. Take your time.",
+        "That's all right. What would you like to do?"
+      ]
+    },
+    {
+      "id": "who-are-you",
+      "topic": "the app",
+      "when": ["who are you", "what are you", "what's your name", "what is your name", "tell me about yourself"],
+      "replies": [
+        "I'm {assistant}, your shopping assistant. {motto} Tell me what you need, and a Runner will bring it to your door.",
+        "My name is {assistant}. I take your shopping order by voice, and a Runner shops for it and brings it to you."
+      ]
+    },
+    {
+      "id": "what-can-you-do",
+      "topic": "the app",
+      "when": ["what can you do", "how can you help", "what do you do", "help", "help me", "i need help", "how does this work"],
+      "replies": [
+        "I can take your shopping order, read your basket back, tell you the total, and tell you where your Runner is. Just say, for example, I'd like bread and milk.",
+        "Tell me the shopping you need, and I'll put it in your basket and send it when you say yes. You can also ask what's in your basket, or where your order is."
+      ]
+    },
+    {
+      "id": "how-much-delivery",
+      "topic": "prices",
+      "when": ["how much is delivery", "what does delivery cost", "how much do you charge", "what's the delivery fee", "is delivery free"],
+      "replies": [
+        "Delivery is one flat fee, the same every time: {fee}. You pay what the till says for the shopping itself.",
+        "It's {fee} for delivery, whatever you order, up to {maximum} of shopping. {runnerPay} of that always goes to your Runner."
+      ]
+    },
+    {
+      "id": "maximum",
+      "topic": "prices",
+      "when": ["how much can i order", "is there a limit", "what's the most i can order", "maximum order"],
+      "replies": [
+        "One delivery carries up to {maximum} of shopping, about as much as one Runner can carry safely. More than that goes as a second delivery."
+      ]
+    },
+    {
+      "id": "who-is-runner",
+      "topic": "runners",
+      "when": ["what is a runner", "who is the runner", "who will bring it", "who brings my shopping"],
+      "replies": [
+        "A Runner is a checked local person who buys your shopping at the shop and brings it to your door. Their right to work and background are checked before they take any job."
+      ]
+    },
+    {
+      "id": "can-i-call-runner",
+      "topic": "runners",
+      "when": ["can i call my runner", "can i speak to my runner", "call the runner", "phone the runner"],
+      "replies": [
+        "Yes. On Your order, there's a big green Call button once a Runner has your order. Calls cost {callPrice} a minute, and nobody's phone number is ever shared."
+      ]
+    },
+    {
+      "id": "when-arrive",
+      "topic": "delivery",
+      "when": ["how long does delivery take", "how quick is delivery", "how fast is it", "how long will it take"],
+      "replies": [
+        "As soon as a Runner accepts your order, they go to the shop, do your shopping, and bring it straight to you. I'll tell you each step as it happens."
+      ]
+    },
+    {
+      "id": "not-in-stock",
+      "topic": "delivery",
+      "when": ["what if they don't have it", "what if it's out of stock", "what if something is missing"],
+      "replies": [
+        "If something isn't on the shelf, your Runner asks you in the app. Nothing is ever swapped without your say, and if you don't answer, it's left out and you're not charged for it."
+      ]
+    },
+    {
+      "id": "pay-how",
+      "topic": "payment",
+      "when": ["how do i pay", "how does payment work", "when do i pay", "do i pay now"],
+      "replies": [
+        "You save a card once, and it's charged when you send an order. You pay what the shop's till says, plus the {fee} delivery. Nothing is charged without your yes."
+      ]
+    },
+    {
+      "id": "card-safe",
+      "topic": "payment",
+      "when": ["is my card safe", "do you keep my card", "is it safe", "where is my card stored"],
+      "replies": [
+        "Your card goes straight to Stripe, the payment company. We never see or keep the card number, only the last four numbers so I can tell you which card it is."
+      ]
+    },
+    {
+      "id": "cash",
+      "topic": "payment",
+      "when": ["can i pay cash", "do you take cash", "cash on delivery"],
+      "replies": [
+        "Not at the moment. Every order is paid by a card saved first, so your Runner never handles money at your door."
+      ]
+    },
+    {
+      "id": "alcohol",
+      "topic": "rules",
+      "when": ["can you get alcohol", "can i order wine", "can you bring beer", "do you deliver cigarettes", "can you get medicine"],
+      "replies": [
+        "I'm sorry, we can't deliver alcohol, tobacco, medicines or cash. Everything else from the shop, I can help with."
+      ]
+    },
+    {
+      "id": "change-address",
+      "topic": "the app",
+      "when": ["change my address", "i've moved", "new address", "update my address"],
+      "replies": [
+        "You can change your address in Your addresses, in Settings. To keep your account safe, it needs your four-number PIN."
+      ]
+    },
+    {
+      "id": "forgot-pin",
+      "topic": "the app",
+      "when": ["i forgot my pin", "forgot my pin", "reset my pin", "what's my pin"],
+      "replies": [
+        "I'm sorry, I can't see or say your PIN, so it stays safe. Please ring us, and a person will help you set a new one."
+      ]
+    },
+    {
+      "id": "cancel-order",
+      "topic": "orders",
+      "when": ["cancel my order", "i want to cancel", "can i cancel"],
+      "replies": [
+        "To cancel, please ring us before your Runner starts shopping, and we'll cancel it and refund you in full."
+      ]
+    },
+    {
+      "id": "problem",
+      "topic": "orders",
+      "when": ["something was wrong", "my order was wrong", "i want a refund", "something was missing", "it was damaged"],
+      "replies": [
+        "I'm sorry about that. Go to Past orders and choose Report a problem. {instantRefund} or less is refunded straight away, and anything more is decided by a person within two working days."
+      ]
+    },
+    {
+      "id": "healthy-ideas",
+      "topic": "healthy eating",
+      "when": ["something healthy", "healthy food", "what's healthy", "i want to eat healthy", "healthy ideas"],
+      "replies": [
+        "Good choice. Fruit like bananas and apples, vegetables like carrots and broccoli, wholemeal bread, eggs, oats and yoghurt are all good. Shall I add any of those?",
+        "For a healthy basket, try porridge oats, fresh fruit, frozen vegetables, beans and wholemeal bread. Just tell me which you'd like."
+      ]
+    },
+    {
+      "id": "breakfast-ideas",
+      "topic": "healthy eating",
+      "when": ["breakfast ideas", "what's good for breakfast", "something for breakfast"],
+      "replies": [
+        "For breakfast, porridge oats with a banana, wholemeal toast with eggs, or yoghurt and fruit are all good. Shall I add any?"
+      ]
+    },
+    {
+      "id": "five-a-day",
+      "topic": "healthy eating",
+      "when": ["five a day", "5 a day", "fruit and veg"],
+      "replies": [
+        "Five a day is easy with a mix: bananas, apples, carrots, peas and tomatoes. Tinned and frozen count too. Which would you like?"
+      ]
+    },
+    {
+      "id": "cheap-ideas",
+      "topic": "shopping",
+      "when": ["something cheap", "i'm on a budget", "cheap food", "save money", "money is tight"],
+      "replies": [
+        "Good value staples are rice, pasta, porridge oats, tinned beans, tinned tomatoes, eggs and frozen vegetables. Shall I add some of those?"
+      ]
+    },
+    {
+      "id": "basics",
+      "topic": "shopping",
+      "when": ["the usual", "the basics", "just the basics", "essentials"],
+      "replies": [
+        "For the basics, many people choose milk, bread, eggs, butter and bananas. Tell me which you'd like, and how many."
+      ]
+    },
+    {
+      "id": "which-shop",
+      "topic": "shopping",
+      "when": ["which shop", "where do you shop", "what shop is it", "which supermarket"],
+      "replies": [
+        "Your Runner shops at our listed shop, and you pay the shelf price. More shops are coming."
+      ]
+    },
+    {
+      "id": "help-someone",
+      "topic": "the app",
+      "when": ["shop for my mum", "order for someone else", "i look after someone", "shop for my dad"],
+      "replies": [
+        "You can. On the first screen choose I look after someone, or add their address in Your addresses, with your PIN, and send the order there."
+      ]
+    },
+    {
+      "id": "be-a-runner",
+      "topic": "runners",
+      "when": ["how do i become a runner", "can i work for you", "i want to be a runner", "are you hiring"],
+      "replies": [
+        "You can sign up as a Runner in the app, from the first screen. You'll be asked for a photo, your right to work and a DBS check, and then you can take jobs near you."
+      ]
+    },
+    {
+      "id": "speak-slower",
+      "topic": "the app",
+      "when": ["slow down", "speak slower", "too fast", "you're too fast"],
+      "replies": [
+        "Sorry. You can choose a different voice in Settings, and if you miss anything, just say repeat."
+      ]
+    },
+    {
+      "id": "human",
+      "topic": "the app",
+      "when": ["speak to a person", "talk to a human", "real person", "speak to someone"],
+      "replies": [
+        "Of course. You can ring us, and a person will help. Ask me for the phone number and I'll read it out."
+      ]
+    },
+    {
+      "id": "good-job",
+      "topic": "manners",
+      "when": ["well done", "good job", "you're great", "that was quick", "brilliant"],
+      "replies": [
+        "Thank you, that's kind. {motto}",
+        "Thank you. Is there anything else I can get for you?"
+      ]
+    },
+    {
+      "id": "weather",
+      "topic": "life",
+      "when": ["what's the weather", "is it raining", "is it cold outside"],
+      "replies": [
+        "I can't see the weather, but if it's a day for staying in, I can bring the shopping to you. What would you like?"
+      ]
+    },
+    {
+      "id": "bored",
+      "topic": "life",
+      "when": ["i'm bored", "i'm lonely", "nobody to talk to"],
+      "replies": [
+        "I'm sorry to hear that. I'm always here to help with your shopping. Perhaps a treat, or something nice for tea? Just tell me."
+      ]
+    },
+    {
+      "id": "hungry",
+      "topic": "life",
+      "when": ["i'm hungry", "what should i eat", "what's for dinner", "what can i have for tea"],
+      "replies": [
+        "How about something easy, like pasta with tinned tomatoes, beans on toast, or eggs and bread? Shall I add any of those?"
+      ]
+    }
+  ]
+}

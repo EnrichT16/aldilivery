@@ -8,7 +8,13 @@ import type {
 
 import { storeConfig } from '../config';
 import { savePaymentMethod } from '../lib/api';
-import { createCardPaymentMethod, postcodeFrom, prepareCardEntry } from '../lib/stripe';
+import {
+  createCardPaymentMethod,
+  mountWalletButton,
+  postcodeFrom,
+  prepareCardEntry,
+  type CardDetails,
+} from '../lib/stripe';
 import { click } from '../lib/alert';
 import { useOzi } from '../state/ozi';
 import { yesOrNo } from '../state/voice-sign-up';
@@ -67,16 +73,31 @@ export function Card(): JSX.Element {
   const guided = useRef(false);
   const say = useRef(ozi.say);
   say.current = ozi.say;
+  // Which wallets this phone has, once Stripe knows; null until then.
+  const [wallets, setWallets] = useState<string[] | null>(null);
+  const walletMount = useRef<HTMLDivElement>(null);
+  const persistRef = useRef<(details: CardDetails) => Promise<boolean>>(async () => false);
   useEffect(() => {
-    if (guided.current || state === 'loading') return;
+    if (state !== 'ready' || wallets !== null) return undefined;
+    // Some browsers never say; do not keep anybody waiting for the guidance.
+    const timer = window.setTimeout(() => setWallets((w) => w ?? []), 2500);
+    return () => window.clearTimeout(timer);
+  }, [state, wallets]);
+
+  useEffect(() => {
+    if (guided.current || state === 'loading' || (state === 'ready' && wallets === null)) return;
     guided.current = true;
+    const wallet =
+      wallets && wallets.length > 0
+        ? `Quickest of all: if your card is already in your phone's wallet, use the ${wallets.join(' or ')} button at the top of the screen. Nothing to type. Otherwise, `
+        : '';
     void say.current(
       greetingRef.current +
         (state === 'ready'
-          ? `Now your card, saved once so you can order. It goes straight to Stripe, the payment company, never to us. I'll guide you one box at a time, and you'll hear a click as each one is filled. First, the long number on the front of the card: type it in the first box, or tap the box and choose Scan Card if your phone offers it. If people are around you, type rather than reading it out. If it's hard, someone you trust can do it for you.`
+          ? `${wallet}Now your card, saved once so you can order. It goes straight to Stripe, the payment company, never to us. I'll guide you one box at a time, and you'll hear a click as each one is filled. First, the long number on the front of the card: type it in the first box, or tap the box and choose Scan Card if your phone offers it. If people are around you, type rather than reading it out. If it's hard, someone you trust can do it for you.`
           : `${unavailableReason} You can still look around the shop.`),
     );
-  }, [state, unavailableReason]);
+  }, [state, unavailableReason, wallets]);
 
   // One box at a time (Anthony, 6 October 2026): a click as each is filled, then the next step,
   // then "Shall I save this card?", then back to the shopping.
@@ -139,6 +160,7 @@ export function Card(): JSX.Element {
     if (!shopper) return;
 
     let cancelled = false;
+    let removeWallet: (() => void) | undefined;
 
     void (async () => {
       const setup = await prepareCardEntry();
@@ -183,12 +205,25 @@ export function Card(): JSX.Element {
         expiry.mount(expiryMount.current);
         cvc.mount(cvcMount.current);
         fields.current = { number, expiry, cvc };
+        if (walletMount.current) {
+          removeWallet = mountWalletButton(setup.stripe, walletMount.current, {
+            onAvailable: (offered) => setWallets(offered),
+            onDetails: async (details) => {
+              await persistRef.current(details);
+            },
+            onError: (message) => {
+              setError(message);
+              void say.current(message);
+            },
+          });
+        }
         setState('ready');
       }
     })();
 
     return () => {
       cancelled = true;
+      removeWallet?.();
       fields.current?.number.unmount();
       fields.current?.expiry.unmount();
       fields.current?.cvc.unmount();
@@ -232,6 +267,22 @@ export function Card(): JSX.Element {
         card.number,
         postcode.trim() || undefined,
       );
+      return await persist(details);
+    } catch (failure) {
+      const message = failure instanceof Error ? failure.message : 'That card was not accepted.';
+      setError(message);
+      void ozi.say(`${message} Please check the boxes and try again.`);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+  saveRef.current = onSave;
+
+  /** A card from the boxes or from a wallet: saved with Stripe against this account. */
+  async function persist(details: CardDetails): Promise<boolean> {
+    const card = fields.current;
+    try {
       const result = await savePaymentMethod({
         stripePaymentMethodId: details.stripePaymentMethodId,
         lastFour: details.lastFour,
@@ -239,9 +290,9 @@ export function Card(): JSX.Element {
         ...(details.region ? { region: details.region.toUpperCase() } : {}),
       });
       setSaved(result.message);
-      card.number.clear();
-      card.expiry.clear();
-      card.cvc.clear();
+      card?.number.clear();
+      card?.expiry.clear();
+      card?.cvc.clear();
       // Then straight back to what the card was for.
       ozi.listenFor(
         `${result.message} Your card is saved. Nothing has been charged. Shall we carry on with the shopping?`,
@@ -258,13 +309,11 @@ export function Card(): JSX.Element {
     } catch (failure) {
       const message = failure instanceof Error ? failure.message : 'That card was not accepted.';
       setError(message);
-      void ozi.say(`${message} Please check the boxes and try again.`);
+      void ozi.say(`${message} Please try again.`);
       return false;
-    } finally {
-      setSaving(false);
     }
   }
-  saveRef.current = onSave;
+  persistRef.current = persist;
 
   if (saved !== '') {
     return (
@@ -300,6 +349,20 @@ export function Card(): JSX.Element {
         </>
       ) : (
         <div className="space-y-6 max-w-xl">
+          {/* Apple Pay, Google Pay or Link, drawn by Stripe, only when this phone has one. */}
+          <section
+            aria-labelledby="wallet-heading"
+            className={wallets && wallets.length > 0 ? 'space-y-3' : 'visually-hidden'}
+          >
+            <h2 id="wallet-heading" className="text-lead font-bold m-0">
+              Quickest: {wallets && wallets.length > 0 ? wallets.join(' or ') : 'your phone wallet'}
+            </h2>
+            <p className="m-0">
+              If your card is already in your phone&rsquo;s wallet, use this. Nothing to type.
+            </p>
+            <div ref={walletMount} />
+            <p className="m-0 font-bold">Or type your card below.</p>
+          </section>
           {/*
             A named group rather than a label.
             

@@ -321,6 +321,7 @@ describe('the card form, once somebody is signed in', () => {
       unmount: () => undefined,
       clear: () => undefined,
       on: () => undefined,
+      destroy: () => undefined,
     };
     return { elements: () => ({ create: () => element }) };
   }

@@ -62,6 +62,8 @@ Today Stripe is in test mode: no real card is charged. To take real payments:
 - In live mode, add the webhook endpoint again (DEPLOY.md, "Creating the Stripe webhook and getting the last secret"): live mode has its own, with its own signing secret, which goes in STRIPE_WEBHOOK_SECRET.
 - In Connect settings, under branding, set the name to Ozi Delivery.
 
+For Apple Pay and Google Pay (no other account needed): in Stripe, go to Settings, then Payment methods, and check Apple Pay and Google Pay are switched on. Then, under Payment method domains, add ozidelivery.co.uk. Apple Pay only appears on a website once its address is added there. Google Pay needs nothing more.
+
 Then place one small real order yourself, report a problem on it, and decide the refund in the admin panel, to see the whole thing work with real money.
 
 
