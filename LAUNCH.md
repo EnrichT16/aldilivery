@@ -69,6 +69,8 @@ Step 8. Text messages. Anthony, in Twilio.
 
 Signing in sends a code by text. On a Twilio trial account, texts only reach numbers you have added by hand. Upgrade the Twilio account (add a card), and set TWILIO_FROM to the sender name OziDelivery. DEPLOY.md, "Signing in by text message", has the steps.
 
+For landlines, codes come by an automatic phone call that reads them out. That needs a Twilio number that can make calls: put it, in +44 form, in TWILIO_VOICE_FROM on the api component. Once texts or calls really go out, every new account's number is confirmed with a code before the account opens; until then, sign-up works as it does today.
+
 
 Step 9. In-app calls. Anthony, in LiveKit and DigitalOcean.
 

@@ -2,11 +2,24 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { storeConfig } from '../config';
-import { registerShopper } from '../lib/api';
+import {
+  fetchSignInOptions,
+  isUkMobileNumber,
+  registerShopper,
+  requestSignInCode,
+  verifySignInCode,
+  type RegisterShopperInput,
+  type SignInOptions,
+} from '../lib/api';
 import { Field } from '../components/FormFields';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
-import { useVoiceSignUp, yesOrNo, type SpokenDetails } from '../state/voice-sign-up';
+import {
+  useVoiceSignUp,
+  yesOrNo,
+  type NumberConfirmation,
+  type SpokenDetails,
+} from '../state/voice-sign-up';
 
 /**
  * Signing up, for real.
@@ -28,6 +41,9 @@ import { useVoiceSignUp, yesOrNo, type SpokenDetails } from '../state/voice-sign
  * Or by talking (Anthony, 4 October 2026): Ozi offers, on arrival, to set the account up by
  * voice, and "create my account" said anywhere comes here and starts at once. Ozi fills in this
  * same form as it goes (state/voice-sign-up.ts).
+ *
+ * Once codes really go out, the number is confirmed with one before the account is opened
+ * (ruling 33): a text to a mobile, or a phone call that says the code to a landline.
  */
 export function SignUp(): JSX.Element {
   const navigate = useNavigate();
@@ -38,11 +54,67 @@ export function SignUp(): JSX.Element {
   const ozi = useOzi();
   const [params, setParams] = useSearchParams();
   const assistant = storeConfig.assistantName;
+  const [codes, setCodes] = useState<SignInOptions | null>(null);
+  // The proof from the code, and the details waiting for it, when confirming on the form.
+  const proof = useRef<{ phone: string; token: string } | null>(null);
+  const [waiting, setWaiting] = useState<{
+    details: RegisterShopperInput;
+    message: string;
+    channel: 'text' | 'call';
+  } | null>(null);
+  const codeField = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchSignInOptions()
+      .then((options) => {
+        if (!cancelled) setCodes(options);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (waiting) codeField.current?.focus();
+  }, [waiting]);
+
+  const sendCode = useCallback(
+    async (phone: string): Promise<{ channel: 'text' | 'call'; message: string }> => {
+      const channel = isUkMobileNumber(phone) ? 'text' : 'call';
+      if (channel === 'call' && !codes?.byCall) {
+        throw new Error('We can only check a mobile number for now. Please give a mobile number.');
+      }
+      const result = await requestSignInCode(phone, { channel, purpose: 'sign-up' });
+      return { channel, message: result.message };
+    },
+    [codes],
+  );
+
+  const checkCode = useCallback(async (phone: string, code: string): Promise<true | string> => {
+    try {
+      const result = await verifySignInCode(phone, code);
+      if (!result.registrationRequired) {
+        return 'There is already an account on that number. You can sign in instead.';
+      }
+      if (!result.phoneProof) return 'That code could not be checked. Please try again.';
+      proof.current = { phone, token: result.phoneProof };
+      return true;
+    } catch (failure) {
+      return failure instanceof Error ? failure.message : 'That code did not work.';
+    }
+  }, []);
+
+  const withProof = (details: RegisterShopperInput): RegisterShopperInput =>
+    proof.current && proof.current.phone === details.phone
+      ? { ...details, phoneProof: proof.current.token }
+      : details;
 
   const create = useCallback(
     async (details: SpokenDetails) => {
       try {
-        const result = await registerShopper(details);
+        const result = await registerShopper(withProof(details));
         signedUp(result.token, result.shopper);
         void ozi.say(
           `Your account is ready, ${result.shopper.displayName}. Next is adding your card, which is on the screen now. Nothing is charged until you order.`,
@@ -60,12 +132,20 @@ export function SignUp(): JSX.Element {
     [navigate, ozi, signedUp],
   );
 
+  const confirmNumber: NumberConfirmation | undefined = codes?.confirmAtSignUp
+    ? {
+        send: async (phone) => (await sendCode(phone)).channel,
+        check: checkCode,
+      }
+    : undefined;
+
   const talking = useVoiceSignUp({
     fill: (field, value) => {
       const input = document.getElementById(field) as HTMLInputElement | HTMLTextAreaElement | null;
       if (input) input.value = value;
     },
     finish: create,
+    confirmNumber,
   });
   const canTalk = ozi.presence === 'listening' || ozi.presence === 'muted';
 
@@ -134,14 +214,31 @@ export function SignUp(): JSX.Element {
     }
 
     setErrors([]);
+    const details = { displayName, phone, deliveryAddress, doorstepProtocol };
+    if (codes?.confirmAtSignUp && proof.current?.phone !== phone) {
+      setSaving(true);
+      try {
+        const sent = await sendCode(phone);
+        setWaiting({ details, ...sent });
+      } catch (error) {
+        setErrors([
+          {
+            field: 'phone',
+            message: error instanceof Error ? error.message : 'We could not send a code.',
+          },
+        ]);
+      } finally {
+        setSaving(false);
+      }
+      return;
+    }
+    await register(details);
+  }
+
+  async function register(details: RegisterShopperInput): Promise<void> {
     setSaving(true);
     try {
-      const result = await registerShopper({
-        displayName,
-        phone,
-        deliveryAddress,
-        doorstepProtocol,
-      });
+      const result = await registerShopper(withProof(details));
       signedUp(result.token, result.shopper);
       // Straight on to the card, because that is the next thing standing between them and
       // being able to order. They can leave it and come back; nothing is charged there.
@@ -197,6 +294,61 @@ export function SignUp(): JSX.Element {
       <Link to="/sign-in" className="control bg-paper/10 text-paper underline">
         Already set up on another phone or computer? Sign in
       </Link>
+
+      {waiting && (
+        <form
+          aria-labelledby="confirm-heading"
+          className="space-y-3 max-w-xl border-2 border-highlight rounded-xl p-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const code = String(new FormData(event.currentTarget).get('code') ?? '').replace(
+              /\s/g,
+              '',
+            );
+            void checkCode(waiting.details.phone, code).then((result) => {
+              if (result === true) {
+                const details = waiting.details;
+                setWaiting(null);
+                void register(details);
+              } else {
+                setErrors([{ field: 'confirm-code', message: result }]);
+              }
+            });
+          }}
+        >
+          <h2 id="confirm-heading" className="text-lead font-bold m-0">
+            Check it is your number
+          </h2>
+          <p role="status" className="m-0">
+            {waiting.message}
+          </p>
+          <label htmlFor="confirm-code" className="block font-bold">
+            {waiting.channel === 'call' ? 'The code the voice read out' : 'The code from the text'}
+          </label>
+          <input
+            ref={codeField}
+            id="confirm-code"
+            name="code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            className="w-full max-w-xs min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3 text-lead tracking-widest"
+          />
+          <button type="submit" className="control w-full bg-highlight text-ink text-lead">
+            Confirm and create my account
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              void sendCode(waiting.details.phone).then((sent) =>
+                setWaiting({ ...waiting, ...sent }),
+              );
+            }}
+            className="control bg-paper/10 text-paper underline"
+          >
+            Send the code again
+          </button>
+        </form>
+      )}
 
       {errors.length > 0 && (
         <div

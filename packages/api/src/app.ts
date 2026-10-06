@@ -68,6 +68,12 @@ export interface AppContext {
   autoPayout: boolean;
   deliverCode: (phone: string, code: string) => Promise<void>;
   /**
+   * Codes spoken by an automatic phone call, for landlines. `call` places it with Twilio, `log`
+   * writes it to the log in development, `off` means no calls can be made.
+   */
+  callDelivery: 'call' | 'log' | 'off';
+  callCode: (phone: string, code: string) => Promise<void>;
+  /**
    * Web Push, for notifications on a Shopper's devices. Null when no key pair is set up: the
    * Your order page still shows everything, it just cannot reach a closed page.
    */
@@ -102,6 +108,8 @@ export interface BuildAppOptions extends Partial<
     AppContext,
     | 'now'
     | 'deliverCode'
+    | 'callDelivery'
+    | 'callCode'
     | 'gitCommit'
     | 'codeDelivery'
     | 'autoOffer'
@@ -117,6 +125,13 @@ export interface BuildAppOptions extends Partial<
   payments: PaymentsGateway;
   env: Env;
   logger?: boolean;
+}
+
+/** Whether opening an account needs a code sent to the number: once codes really go out. */
+export function phoneConfirmedAtSignUp(
+  ctx: Pick<AppContext, 'codeDelivery' | 'callDelivery'>,
+): boolean {
+  return ctx.codeDelivery === 'sms' || ctx.callDelivery === 'call';
 }
 
 /** Read and verify the bearer token, if there is one. Never throws. */
@@ -151,6 +166,12 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       options.deliverCode ??
       (async (phone, code) => {
         app.log.info({ phone }, `One time code for ${phone} is ${code}`);
+      }),
+    callDelivery: options.callDelivery ?? (options.env.isProduction ? 'off' : 'log'),
+    callCode:
+      options.callCode ??
+      (async (phone, code) => {
+        app.log.info({ phone }, `One time code for ${phone}, by phone call, is ${code}`);
       }),
     sendPush: options.sendPush ?? null,
     pushPublicKey: options.sendPush ? (options.pushPublicKey ?? null) : null,
@@ -328,7 +349,12 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
       supportedCardRegions: ctx.config.payments.supportedCardRegions,
     },
     /** Whether a code can be sent, so the sign-in screen can say so before anybody tries. */
-    signIn: { byText: ctx.codeDelivery !== 'off' },
+    signIn: {
+      byText: ctx.codeDelivery !== 'off',
+      byCall: ctx.callDelivery !== 'off',
+      // A new account's number is confirmed with a code once codes really go out (ruling 33).
+      confirmAtSignUp: phoneConfirmedAtSignUp(ctx),
+    },
     // In-app calls (Section F): whether they can connect, and the price agreed before each one.
     calls: { enabled: ctx.calls !== null, pencePerMinute: ctx.config.calls.pencePerMinute },
     /** Null when notifications are not set up, so the page does not offer them. */

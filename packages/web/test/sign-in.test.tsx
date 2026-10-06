@@ -28,7 +28,7 @@ function renderAt(path: string, options: ApiStubOptions = {}) {
 
 async function askForCode() {
   const user = userEvent.setup({ delay: null });
-  await user.type(await screen.findByLabelText('Your mobile number'), '07700 900123');
+  await user.type(await screen.findByLabelText('Your phone number'), '07700 900123');
   await user.click(screen.getByRole('button', { name: 'Text me a code' }));
   return user;
 }
@@ -36,7 +36,7 @@ async function askForCode() {
 describe('signing in', () => {
   it('asks for the mobile number with a real label and a hint', async () => {
     renderAt('/sign-in');
-    const phone = await screen.findByLabelText('Your mobile number');
+    const phone = await screen.findByLabelText('Your phone number');
     expect(phone).toHaveAttribute('type', 'tel');
     expect(phone).toHaveAccessibleDescription(/when you set up your account/);
   });
@@ -48,6 +48,8 @@ describe('signing in', () => {
     expect(recorded.find((r) => r.path === '/auth/request-code')?.body).toEqual({
       phone: '07700 900123',
       role: 'shopper',
+      channel: 'text',
+      purpose: 'sign-in',
     });
     const code = await screen.findByLabelText('The code from the text');
     expect(code).toHaveAttribute('autocomplete', 'one-time-code');
@@ -114,7 +116,7 @@ describe('signing in', () => {
   it('says plainly when signing in by text is not switched on yet', async () => {
     renderAt('/sign-in', { signInByText: false });
     expect(await screen.findByText(/not switched on yet/)).toBeInTheDocument();
-    expect(screen.queryByLabelText('Your mobile number')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Your phone number')).not.toBeInTheDocument();
   });
 
   it('is offered from the sign up screen and before sending an order', async () => {
@@ -127,7 +129,7 @@ describe('signing in', () => {
 
   it('has no axe violations, at either step', async () => {
     renderAt('/sign-in');
-    await screen.findByLabelText('Your mobile number');
+    await screen.findByLabelText('Your phone number');
     const options = {
       resultTypes: ['violations'],
       rules: { 'color-contrast': { enabled: false } },

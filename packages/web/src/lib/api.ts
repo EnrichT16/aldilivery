@@ -172,6 +172,8 @@ export interface RegisterShopperInput {
   deliveryAddress: string;
   doorstepProtocol?: string;
   substitutionDefault?: SubstitutionChoice;
+  /** From verifying the code sent to the number, once numbers are confirmed at sign-up. */
+  phoneProof?: string;
 }
 
 /**
@@ -192,23 +194,52 @@ export function registerShopper(
  * Signing back in, with a code sent by text
  * ------------------------------------------------------------------------------------- */
 
-/** Whether the server can send a code at all. False until Twilio is set up in production. */
-export function fetchSignInAvailable(): Promise<boolean> {
-  return request<{ signIn?: { byText: boolean } }>('/config').then(
-    (body) => body.signIn?.byText ?? false,
-  );
+export interface SignInOptions {
+  /** A code by text, to a mobile. */
+  byText: boolean;
+  /** A code spoken by an automatic phone call, for a landline. */
+  byCall: boolean;
+  /** Whether a new account's number must be confirmed with a code (ruling 33). */
+  confirmAtSignUp: boolean;
 }
 
-export function requestSignInCode(phone: string): Promise<{ message: string }> {
+export function fetchSignInOptions(): Promise<SignInOptions> {
+  return request<{ signIn?: Partial<SignInOptions> }>('/config').then((body) => ({
+    byText: body.signIn?.byText ?? false,
+    byCall: body.signIn?.byCall ?? false,
+    confirmAtSignUp: body.signIn?.confirmAtSignUp ?? false,
+  }));
+}
+
+/** Whether the server can send a code at all. False until Twilio is set up in production. */
+export function fetchSignInAvailable(): Promise<boolean> {
+  return fetchSignInOptions().then((options) => options.byText || options.byCall);
+}
+
+/** A British mobile number, which can get a text; anything else is a landline, rung instead. */
+export function isUkMobileNumber(phone: string): boolean {
+  const digits = phone.replace(/[^\d+]/g, '');
+  return /^(\+44|0044|0)7\d{9}$/.test(digits);
+}
+
+export function requestSignInCode(
+  phone: string,
+  options: { channel?: 'text' | 'call'; purpose?: 'sign-in' | 'sign-up' } = {},
+): Promise<{ message: string }> {
   return request<{ message: string }>('/auth/request-code', {
     method: 'POST',
-    body: JSON.stringify({ phone, role: 'shopper' }),
+    body: JSON.stringify({
+      phone,
+      role: 'shopper',
+      channel: options.channel ?? 'text',
+      purpose: options.purpose ?? 'sign-in',
+    }),
   });
 }
 
 export type SignInResult =
   | { registrationRequired: false; token: string }
-  | { registrationRequired: true; phone: string; message: string };
+  | { registrationRequired: true; phone: string; message: string; phoneProof?: string };
 
 export function verifySignInCode(phone: string, code: string): Promise<SignInResult> {
   return request<SignInResult>('/auth/verify-code', {

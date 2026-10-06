@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { storeConfig } from '../config';
-import { fetchSignInAvailable, requestSignInCode, verifySignInCode } from '../lib/api';
+import { fetchSignInOptions, requestSignInCode, verifySignInCode } from '../lib/api';
 import { useSession } from '../state/session';
 
 /**
@@ -30,6 +30,8 @@ export function SignIn(): JSX.Element {
   const next = /^\/[a-z-]*$/.test(requested) ? requested : '/shop';
 
   const [available, setAvailable] = useState<boolean | null>(null);
+  const [byCall, setByCall] = useState(false);
+  const [channel, setChannel] = useState<'text' | 'call'>('text');
   const [step, setStep] = useState<'phone' | 'code'>('phone');
   const [phone, setPhone] = useState('');
   const [sentMessage, setSentMessage] = useState('');
@@ -40,9 +42,11 @@ export function SignIn(): JSX.Element {
 
   useEffect(() => {
     let cancelled = false;
-    fetchSignInAvailable()
-      .then((yes) => {
-        if (!cancelled) setAvailable(yes);
+    fetchSignInOptions()
+      .then((options) => {
+        if (cancelled) return;
+        setAvailable(options.byText || options.byCall);
+        setByCall(options.byCall);
       })
       .catch(() => {
         // Cannot reach us at all. Offer the form anyway: asking for a code will say so.
@@ -65,13 +69,17 @@ export function SignIn(): JSX.Element {
     event.preventDefault();
     if (busy) return;
     if (phone.trim() === '') {
-      setError('Please give the mobile number you set up your account with.');
+      setError('Please give the phone number you set up your account with.');
       return;
     }
+    // Whichever button was pressed: a text, or a phone call that says the code.
+    const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+    const how = submitter?.value === 'call' ? 'call' : 'text';
+    setChannel(how);
     setBusy(true);
     setError('');
     try {
-      const result = await requestSignInCode(phone.trim());
+      const result = await requestSignInCode(phone.trim(), { channel: how });
       setSentMessage(result.message);
       setStep('code');
     } catch (failure) {
@@ -139,6 +147,8 @@ export function SignIn(): JSX.Element {
           <p className="m-0 max-w-xl">
             There is no password. We text a code to the mobile number you set up your account with,
             and you type it in here.
+            {byCall &&
+              ' With a landline, choose a phone call instead, and a voice will read you the code.'}
           </p>
 
           {error !== '' && (
@@ -162,10 +172,11 @@ export function SignIn(): JSX.Element {
             >
               <div className="space-y-2">
                 <label htmlFor="sign-in-phone" className="block text-lead font-bold">
-                  Your mobile number
+                  Your phone number
                 </label>
                 <p id="sign-in-phone-hint" className="m-0 text-paper/90">
-                  The one you gave when you set up your account, like 07700 900123.
+                  The one you gave when you set up your account, like 07700 900123
+                  {byCall ? ', or your landline' : ''}.
                 </p>
                 <input
                   id="sign-in-phone"
@@ -187,6 +198,17 @@ export function SignIn(): JSX.Element {
               >
                 {busy ? 'Sending your code…' : 'Text me a code'}
               </button>
+              {byCall && (
+                <button
+                  type="submit"
+                  name="channel"
+                  value="call"
+                  disabled={busy || available === null}
+                  className="control w-full bg-paper text-ink text-lead disabled:opacity-70"
+                >
+                  Call me with the code
+                </button>
+              )}
             </form>
           ) : (
             <form
@@ -197,15 +219,18 @@ export function SignIn(): JSX.Element {
               className="space-y-6 max-w-xl"
             >
               <p role="status" className="m-0">
-                {sentMessage} We sent it to {phone.trim()}.
+                {sentMessage} {channel === 'call' ? 'We are calling' : 'We sent it to'}{' '}
+                {phone.trim()}.
               </p>
               <div className="space-y-2">
                 <label htmlFor="sign-in-code" className="block text-lead font-bold">
-                  The code from the text
+                  {channel === 'call' ? 'The code from the phone call' : 'The code from the text'}
                 </label>
                 <p id="sign-in-code-hint" className="m-0 text-paper/90">
-                  The numbers in the text message. Nobody from {storeConfig.productName} will ever
-                  phone you to ask for it.
+                  {channel === 'call'
+                    ? 'The numbers the voice read out.'
+                    : 'The numbers in the text message.'}{' '}
+                  Nobody from {storeConfig.productName} will ever phone you to ask for it.
                 </p>
                 <input
                   ref={codeField}

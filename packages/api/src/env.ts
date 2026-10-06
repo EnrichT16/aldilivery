@@ -100,6 +100,11 @@ export interface Env {
   /** A `+44…` number, a Messaging Service `MG…`, or a sender name of at most eleven characters, such as `OziDelivery`. */
   twilioFrom: string | undefined;
   /**
+   * A Twilio number that can make calls, in +44 form, for codes spoken by an automatic phone
+   * call to a landline. A sender name cannot make a call, so this is separate from TWILIO_FROM.
+   */
+  twilioVoiceFrom: string | undefined;
+  /**
    * Web Push, for telling a Shopper their Runner has a question when the page is closed. A key
    * pair made once with `npx web-push generate-vapid-keys`; both, or none. The public half is
    * served from `/config`, as it must be: the browser needs it to subscribe.
@@ -223,6 +228,7 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     twilioAccountSid: realValue(source['TWILIO_ACCOUNT_SID']),
     twilioAuthToken: realValue(source['TWILIO_AUTH_TOKEN']),
     twilioFrom: realValue(source['TWILIO_FROM']),
+    twilioVoiceFrom: realValue(source['TWILIO_VOICE_FROM']),
     vapidPublicKey: realValue(source['VAPID_PUBLIC_KEY']),
     vapidPrivateKey: realValue(source['VAPID_PRIVATE_KEY']),
     vapidSubject: realValue(source['VAPID_SUBJECT']),

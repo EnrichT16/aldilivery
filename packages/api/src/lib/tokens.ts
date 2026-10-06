@@ -24,6 +24,45 @@ export function codesMatch(candidate: string, storedHash: string, secret: string
   return timingSafeEqual(candidateHash, stored);
 }
 
+/**
+ * Proof that somebody has just shown they hold a phone number, by giving the code sent to it.
+ * Handed out by /auth/verify-code when there is no account yet, and required to open one, so
+ * nobody can open an account on somebody else's number. Signed like a session token, but
+ * with its own label, so it can never be mistaken for one.
+ */
+export function signPhoneProof(
+  proof: { phone: string; role: AccountRole; expiresAt: number },
+  secret: string,
+): string {
+  const body = Buffer.from(JSON.stringify(proof)).toString('base64url');
+  const mac = createHmac('sha256', `phone-proof:${secret}`).update(body).digest('base64url');
+  return `${body}.${mac}`;
+}
+
+export function verifyPhoneProof(
+  token: string,
+  secret: string,
+  now = new Date(),
+): { phone: string; role: AccountRole } | null {
+  const [body, mac] = token.split('.');
+  if (!body || !mac) return null;
+  const expected = createHmac('sha256', `phone-proof:${secret}`).update(body).digest('base64url');
+  const a = Buffer.from(mac);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  try {
+    const proof = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as {
+      phone: string;
+      role: AccountRole;
+      expiresAt: number;
+    };
+    if (proof.expiresAt * 1000 <= now.getTime()) return null;
+    return { phone: proof.phone, role: proof.role };
+  } catch {
+    return null;
+  }
+}
+
 /** A numeric code, because it has to be readable aloud and typeable on a phone keypad. */
 export function generateCode(length: number): string {
   let code = '';
@@ -50,7 +89,11 @@ export function signSession(claims: SessionClaims, secret: string): string {
   return `${payload}.${signature}`;
 }
 
-export function verifySession(token: string, secret: string, now = new Date()): SessionClaims | null {
+export function verifySession(
+  token: string,
+  secret: string,
+  now = new Date(),
+): SessionClaims | null {
   const parts = token.split('.');
   if (parts.length !== 2) return null;
   const [payload, signature] = parts as [string, string];

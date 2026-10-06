@@ -47,6 +47,7 @@ export const testEnv: Env = {
   twilioAccountSid: undefined,
   twilioAuthToken: undefined,
   twilioFrom: undefined,
+  twilioVoiceFrom: undefined,
   vapidPublicKey: undefined,
   vapidPrivateKey: undefined,
   vapidSubject: undefined,
@@ -69,6 +70,8 @@ export interface TestHarness {
   now: () => Date;
   /** Codes handed to `deliverCode`, most recent last. */
   deliveredCodes: Array<{ phone: string; code: string }>;
+  /** Codes spoken by an automatic phone call, most recent last. */
+  calledCodes: Array<{ phone: string; code: string }>;
   close: () => Promise<void>;
 }
 
@@ -81,6 +84,8 @@ export interface TestAppOptions {
   payments?: PaymentsGateway;
   /** How sign-in codes go out. `log` unless a test says otherwise. */
   codeDelivery?: 'sms' | 'log' | 'off';
+  /** How codes by phone call go out. `log` unless a test says otherwise. */
+  callDelivery?: 'call' | 'log' | 'off';
   /** Offer orders to Runners automatically, as the real server does. Off unless asked for. */
   autoOffer?: boolean;
   /** Pay Runners at delivery, as the real server does. Off unless asked for. */
@@ -109,6 +114,7 @@ export async function buildTestApp(
   const repository = memoryRepository();
   const payments = (options.payments ?? rehearsalGateway()) as RehearsalGateway;
   const deliveredCodes: Array<{ phone: string; code: string }> = [];
+  const calledCodes: Array<{ phone: string; code: string }> = [];
 
   let currentTime = startAt;
   const now = (): Date => currentTime;
@@ -123,6 +129,10 @@ export async function buildTestApp(
     gitCommit: null,
     now,
     codeDelivery: options.codeDelivery ?? 'log',
+    callDelivery: options.callDelivery ?? 'log',
+    callCode: async (phone, code) => {
+      calledCodes.push({ phone, code });
+    },
     autoOffer: options.autoOffer ?? false,
     autoPayout: options.autoPayout ?? false,
     ...(options.sendPush ? { sendPush: options.sendPush, pushPublicKey: 'test-public-key' } : {}),
@@ -147,6 +157,7 @@ export async function buildTestApp(
       currentTime = at;
     },
     deliveredCodes,
+    calledCodes,
     close: async () => {
       await app.close();
     },

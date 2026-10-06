@@ -89,14 +89,28 @@ export function yesOrNo(text: string): 'yes' | 'no' | null {
 const STOP = /\b(stop|cancel|never mind|forget it)\b/i;
 const NOTHING = /^(nothing|no|none|skip|nothing thanks|no thanks|nothing special)\b/i;
 
+/**
+ * Confirming the number with a code (ruling 33), when the server asks for it: a text to a
+ * mobile, or a phone call that says the code to a landline.
+ */
+export interface NumberConfirmation {
+  /** Send the code; says how. Throws with the words to say if it cannot be sent. */
+  send: (phone: string) => Promise<'text' | 'call'>;
+  /** Check the code: true, or the words saying what was wrong. */
+  check: (phone: string, code: string) => Promise<true | string>;
+}
+
 export function useVoiceSignUp({
   fill,
   finish,
+  confirmNumber,
 }: {
   /** Write what was heard into the form on the screen. */
   fill: (field: Field, value: string) => void;
   /** Everything is agreed: create the account. */
   finish: (details: SpokenDetails) => Promise<void>;
+  /** Present once numbers are confirmed with a code at sign-up. */
+  confirmNumber?: NumberConfirmation | undefined;
 }): { active: boolean; start: () => void } {
   const ozi = useOzi();
   const [active, setActive] = useState(false);
@@ -107,8 +121,8 @@ export function useVoiceSignUp({
     deliveryAddress: '',
     doorstepProtocol: '',
   });
-  const live = useRef({ ozi, fill, finish });
-  live.current = { ozi, fill, finish };
+  const live = useRef({ ozi, fill, finish, confirmNumber });
+  live.current = { ozi, fill, finish, confirmNumber };
 
   // Leaving the page stops the questions, so nothing said later is taken as an answer.
   useEffect(
@@ -156,7 +170,7 @@ export function useVoiceSignUp({
           return;
         }
         set('displayName', name);
-        askPhone(`Thank you, ${name}. What's your mobile number?`);
+        askPhone(`Thank you, ${name}. What's your phone number? A mobile or a landline.`);
       });
 
     const askPhone = (prompt: string): void =>
@@ -172,12 +186,63 @@ export function useVoiceSignUp({
           `I heard ${pairsAloud(digits)}. Is that right?`,
           () => {
             set('phone', digits);
+            if (live.current.confirmNumber) {
+              void sendCode(digits);
+              return;
+            }
             askAddress(
               'Where should we bring your shopping? Please say the full address, with the door number and the postcode.',
             );
           },
-          () => askPhone('All right. Please say your mobile number again.'),
+          () => askPhone('All right. Please say your phone number again.'),
         );
+      });
+
+    const sendCode = async (phone: string): Promise<void> => {
+      const confirmation = live.current.confirmNumber;
+      if (!confirmation) return;
+      try {
+        const how = await confirmation.send(phone);
+        askCode(
+          how === 'call'
+            ? "To check it's your number, I'm phoning it now. Answer, and a voice will read you a code. Then tell me the numbers of the code, one at a time."
+            : "To check it's your number, I've sent a code to it by text. When it arrives, tell me the numbers of the code, one at a time. Or say send it again.",
+          phone,
+          0,
+        );
+      } catch (failure) {
+        setActive(false);
+        void live.current.ozi.say(
+          `${failure instanceof Error ? failure.message : "I couldn't send a code just now."} What I heard is in the form on the screen.`,
+        );
+      }
+    };
+
+    const askCode = (prompt: string, phone: string, tries: number): void =>
+      ask(prompt, (text) => {
+        if (/\b(again|resend|didn'?t (get|come)|not (come|arrived)|call me)\b/i.test(text)) {
+          void sendCode(phone);
+          return;
+        }
+        const code = spokenDigits(text);
+        if (code.length < 4) {
+          askCode("I didn't hear the code. Please say its numbers, one at a time.", phone, tries);
+          return;
+        }
+        void live.current.confirmNumber?.check(phone, code).then((result) => {
+          if (result === true) {
+            askAddress(
+              'Thank you, your number is confirmed. Where should we bring your shopping? Please say the full address, with the door number and the postcode.',
+            );
+          } else if (tries >= 2) {
+            setActive(false);
+            void live.current.ozi.say(
+              `${result} I've stopped for now. To try again, say create my account.`,
+            );
+          } else {
+            askCode(`${result} Please say the code again.`, phone, tries + 1);
+          }
+        });
       });
 
     const askAddress = (prompt: string): void =>

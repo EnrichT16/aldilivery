@@ -86,3 +86,93 @@ function safeHost(origin: string): string | undefined {
     return undefined;
   }
 }
+
+export type CallWithCode = (to: string, code: string) => Promise<void>;
+
+/**
+ * A code spoken by an automatic phone call, for a landline, which cannot receive a text
+ * (Anthony, 4 October 2026). The words are given to Twilio inline, so nothing is fetched from
+ * our server during the call and the code is never in a web address.
+ */
+export function twilioCaller(
+  settings: { accountSid: string; authToken: string; from: string },
+  script: (code: string) => string,
+  fetchImpl: typeof fetch = fetch,
+): CallWithCode {
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(settings.accountSid)}/Calls.json`;
+  const authorisation = `Basic ${Buffer.from(`${settings.accountSid}:${settings.authToken}`).toString('base64')}`;
+  return async (to, code) => {
+    const form = new URLSearchParams({ To: to, From: settings.from, Twiml: script(code) });
+    const response = await fetchImpl(url, {
+      method: 'POST',
+      headers: {
+        authorization: authorisation,
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: form.toString(),
+    });
+    if (!response.ok) {
+      let detail = `HTTP ${response.status}`;
+      try {
+        const failure = (await response.json()) as { code?: number; message?: string };
+        detail = `Twilio ${failure.code ?? response.status}: ${failure.message ?? 'no message'}`;
+      } catch {
+        // Not JSON. The status is all there is.
+      }
+      throw new Error(detail);
+    }
+  };
+}
+
+const DIGIT_WORDS = [
+  'zero',
+  'one',
+  'two',
+  'three',
+  'four',
+  'five',
+  'six',
+  'seven',
+  'eight',
+  'nine',
+];
+
+/** "472913" → "four seven, two nine, one three": in twos, like every number Ozi reads out. */
+export function codeInTwos(code: string): string {
+  return (code.match(/\d{1,2}/g) ?? [])
+    .map((pair) =>
+      pair
+        .split('')
+        .map((d) => DIGIT_WORDS[Number(d)])
+        .join(' '),
+    )
+    .join(', ');
+}
+
+/**
+ * What the call says: who is calling, the code in twos, slowly, three times, and the warning.
+ * British English, at a pace an older person can write down.
+ */
+export function callScript(input: { productName: string; code: string; minutes: number }): string {
+  const spoken = codeInTwos(input.code);
+  const say = (text: string): string =>
+    `<Say voice="Polly.Amy" language="en-GB">${escapeXml(text)}</Say><Pause length="1"/>`;
+  return [
+    '<Response>',
+    '<Pause length="1"/>',
+    say(`Hello. This is ${input.productName}, with the code you asked for.`),
+    say(`Your code is: ${spoken}.`),
+    say(`Again: ${spoken}.`),
+    say(`One more time: ${spoken}.`),
+    say(`It lasts ${input.minutes} minutes. We will never phone you to ask for it. Goodbye.`),
+    '</Response>',
+  ].join('');
+}
+
+function escapeXml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
