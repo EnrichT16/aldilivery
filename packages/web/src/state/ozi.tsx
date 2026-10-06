@@ -15,6 +15,7 @@ import { storeConfig } from '../config';
 import { inPairs, pairsAloud } from '../lib/phone-aloud';
 import { fetchMyOrder } from '../lib/api';
 import { nameHeardIn, onlyName } from '../voice/name';
+import { phraseReply } from '../voice/phrases';
 import { answerShoppingQuestion, orderWhere } from '../voice/shopping-questions';
 import { useBasket } from './basket';
 import type { SpeakOutcome } from '../voice';
@@ -449,13 +450,25 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       navigate('/addresses?add=1');
       return;
     }
+    // An everyday phrase, the whole sentence: "thank you", "who are you", "how much is delivery".
+    if (!ordering.busy()) {
+      const everyday = phraseReply(text, phraseTurn.current, 'exact');
+      if (everyday) {
+        phraseTurn.current += 1;
+        void sayRef.current(everyday);
+        return;
+      }
+    }
     void (async () => {
       if (await ordering.handle(text)) return;
       // Words not about an order are not answered unless they were said to Ozi: Ozi does not
       // talk back to the television.
       if (nameHeardIn(text)) {
+        const everyday = phraseReply(text, phraseTurn.current, 'within');
+        phraseTurn.current += 1;
         await sayRef.current(
-          "I can take a shopping order for you. Say, for example, I'd like bananas and milk.",
+          everyday ??
+            "I can take a shopping order for you. Say, for example, I'd like bananas and milk.",
         );
       }
     })();
@@ -463,6 +476,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
 
   const repeats = useRef(0);
   const hereCount = useRef(0);
+  const phraseTurn = useRef(0);
   const sayAgain = (): void => {
     const what = lastSaid.current;
     const opening = REPEAT_OPENINGS[repeats.current % REPEAT_OPENINGS.length]!;
