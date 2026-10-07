@@ -104,13 +104,28 @@ export interface StoreConfig {
      */
     readonly paymentCeilingPence: number;
   };
-  /** In-app calls (docs/BUILD_PROMPT.md, Sections B and F; rulings of 2 October 2026). */
-  /** Paid extras (6 October 2026). */
+  /** Paid extras (6 and 7 October 2026). Every price is agreed before it is taken. */
   readonly extras: {
     /** Ozi Recipes: full recipes, read out and added to the basket in one go. */
     readonly recipePassPence: number;
     readonly recipePassDays: number;
+    /**
+     * Ozi Plus, for one person and for a family, for a number of days, never renewing by
+     * itself. It never changes the delivery fee (Rule Four): it includes Recipes and the
+     * Ozi Finds It fee.
+     */
+    readonly plusPence: number;
+    readonly plusFamilyPence: number;
+    readonly plusDays: number;
+    /** Everybody on a family plan, the person who bought it included. */
+    readonly familyMaximum: number;
+    /** Ozi Finds It: a person looks in up to this many shops, for this fee. */
+    readonly findItPence: number;
+    readonly findItShops: number;
+    /** The gift card amounts on offer. */
+    readonly giftCardPence: readonly number[];
   };
+  /** In-app calls (docs/BUILD_PROMPT.md, Sections B and F; rulings of 2 October 2026). */
   readonly calls: {
     /** What each person's minute costs, paid by the Shopper. 5p. A Runner never pays. */
     readonly pencePerMinute: number;
@@ -161,6 +176,14 @@ function bool(value: unknown, path: string): boolean {
     throw new StoreConfigError(`${path} must be true or false.`);
   }
   return value;
+}
+
+/** The gift card amounts on offer, each at least a pound. */
+function giftCardAmounts(value: unknown): number[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new StoreConfigError('extras.giftCardPence must be a list of amounts in pence.');
+  }
+  return value.map((entry, index) => wholeNumber(entry, `extras.giftCardPence[${index}]`, 100));
 }
 
 function wholeNumber(value: unknown, path: string, minimum = 0): number {
@@ -437,6 +460,13 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     extras: {
       recipePassPence: wholeNumber(extras['recipePassPence'] ?? 199, 'extras.recipePassPence', 1),
       recipePassDays: wholeNumber(extras['recipePassDays'] ?? 30, 'extras.recipePassDays', 1),
+      plusPence: wholeNumber(extras['plusPence'] ?? 799, 'extras.plusPence', 1),
+      plusFamilyPence: wholeNumber(extras['plusFamilyPence'] ?? 1199, 'extras.plusFamilyPence', 1),
+      plusDays: wholeNumber(extras['plusDays'] ?? 30, 'extras.plusDays', 1),
+      familyMaximum: wholeNumber(extras['familyMaximum'] ?? 4, 'extras.familyMaximum', 2),
+      findItPence: wholeNumber(extras['findItPence'] ?? 200, 'extras.findItPence', 1),
+      findItShops: wholeNumber(extras['findItShops'] ?? 3, 'extras.findItShops', 1),
+      giftCardPence: giftCardAmounts(extras['giftCardPence'] ?? [1000, 2000, 3000, 5000]),
     },
     calls: {
       pencePerMinute: wholeNumber(calls['pencePerMinute'], 'calls.pencePerMinute', 0),

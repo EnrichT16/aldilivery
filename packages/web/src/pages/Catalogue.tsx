@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 
 import { storeConfig } from '../config';
 import { ApiUnavailableError, searchCatalogue, type CatalogueItem } from '../lib/api';
@@ -19,7 +20,9 @@ type LoadState =
  * screen reader user hears the confirmation without having to go looking for it.
  */
 export function Catalogue(): JSX.Element {
-  const [query, setQuery] = useState('');
+  // A link can open the shop already searched: /shop?q=essentials.
+  const [params] = useSearchParams();
+  const [query, setQuery] = useState(params.get('q') ?? '');
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [lastAdded, setLastAdded] = useState('');
   const basket = useBasket();
@@ -71,6 +74,7 @@ export function Catalogue(): JSX.Element {
             id="catalogue-search"
             name="q"
             type="search"
+            defaultValue={query}
             aria-describedby="catalogue-search-hint"
             className="flex-1 min-w-[12rem] min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
           />
@@ -90,8 +94,8 @@ export function Catalogue(): JSX.Element {
         <div role="alert" className="border-2 border-paper p-4 rounded-xl space-y-2">
           <h2 className="text-lead font-bold m-0">We cannot reach the shopping list</h2>
           <p className="m-0">
-            The {storeConfig.productName} server is not answering. If you are running this on
-            your own computer, start the server and this page will fill itself in.
+            The {storeConfig.productName} server is not answering. If you are running this on your
+            own computer, start the server and this page will fill itself in.
           </p>
         </div>
       )}

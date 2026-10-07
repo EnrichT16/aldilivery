@@ -12,6 +12,9 @@
 
 import type {
   AccountRole,
+  FindRequest,
+  GiftCard,
+  OrganisationEnquiry,
   CatalogueItem,
   HouseholdCircle,
   HouseholdCircleMember,
@@ -150,6 +153,10 @@ export interface Repository {
     findByPhone(phone: string): Promise<Shopper | null>;
     findByHandle(handle: string): Promise<Shopper | null>;
     update(id: string, patch: Partial<Shopper>): Promise<Shopper>;
+    /** The owner of the family plan with this code. */
+    findByFamilyCode(code: string): Promise<Shopper | null>;
+    /** Everybody who has joined this Shopper's family plan, oldest first. */
+    listFamily(ownerId: string): Promise<Shopper[]>;
   };
 
   runners: {
@@ -333,6 +340,42 @@ export interface Repository {
     /** How many codes were made for this number since a moment. Limits what a text costs. */
     countSince(phone: string, since: Date): Promise<number>;
     update(id: string, patch: Partial<OneTimeCode>): Promise<OneTimeCode>;
+  };
+
+  /** Ozi Finds It. */
+  findRequests: {
+    create(
+      input: Pick<FindRequest, 'shopperId' | 'description' | 'feePence' | 'chargeId'>,
+    ): Promise<FindRequest>;
+    findById(id: string): Promise<FindRequest | null>;
+    update(id: string, patch: Partial<Omit<FindRequest, 'id'>>): Promise<FindRequest>;
+    /** Newest first. */
+    listForShopper(shopperId: string): Promise<FindRequest[]>;
+    /** Still being looked for, oldest first. */
+    listLooking(): Promise<FindRequest[]>;
+  };
+
+  giftCards: {
+    create(
+      input: Pick<
+        GiftCard,
+        'code' | 'amountPence' | 'buyerShopperId' | 'chargeId' | 'recipientName' | 'message'
+      >,
+    ): Promise<GiftCard>;
+    findByCode(code: string): Promise<GiftCard | null>;
+    /** Marks it used, only if nobody has used it yet. Null when somebody already had. */
+    redeem(id: string, shopperId: string, at: Date): Promise<GiftCard | null>;
+    /** Newest first. */
+    listBoughtBy(shopperId: string): Promise<GiftCard[]>;
+  };
+
+  organisationEnquiries: {
+    create(
+      input: Omit<OrganisationEnquiry, 'id' | 'handled' | 'createdAt'>,
+    ): Promise<OrganisationEnquiry>;
+    /** Newest first. */
+    list(): Promise<OrganisationEnquiry[]>;
+    update(id: string, patch: { handled: boolean }): Promise<OrganisationEnquiry>;
   };
 
   /** Close any underlying connection. */

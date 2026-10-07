@@ -23,6 +23,7 @@ import {
 } from '../errors.js';
 import { cardAccepted } from '../lib/card-region.js';
 import { priceLines } from '../services/basket.js';
+import { applyCredit } from '../services/credit.js';
 import { offerOrder } from '../services/dispatch.js';
 import { payOutOrder } from '../services/pay-runner.js';
 import {
@@ -190,7 +191,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         );
       }
       const normalise = (address: string): string =>
-        address.toLowerCase().replace(/[\s,]+/g, ' ').trim();
+        address
+          .toLowerCase()
+          .replace(/[\s,]+/g, ' ')
+          .trim();
       if (normalise(input.deliveryAddress) !== normalise(shopper.deliveryAddress)) {
         throw new BadRequestError(
           'An order by voice always goes to your home address. To send it somewhere else, please use the screen. Nothing has been charged.',
@@ -298,9 +302,12 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       });
     }
 
+    // Gift card credit goes straight back to the card, now that the payment has gone through.
+    const creditPence = succeeded ? await applyCredit(app.ctx, placed.id, request.log) : 0;
+
     void reply.status(201);
     return {
-      order: placed,
+      order: creditPence > 0 ? { ...placed, creditAppliedPence: creditPence } : placed,
       payment: {
         id: intent.id,
         status: intent.status,
@@ -309,7 +316,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         requiresAction: !succeeded,
       },
       message: succeeded
-        ? `Thank you. Your order is on its way to a Runner. We have taken ${formatPence(placed.totalEstimatePence, symbol)}.`
+        ? `Thank you. Your order is on its way to a Runner. We have taken ${formatPence(placed.totalEstimatePence, symbol)}.` +
+          (creditPence > 0
+            ? ` ${formatPence(creditPence, symbol)} of gift card money is going straight back to your card.`
+            : '')
         : 'Your bank wants to check it is really you. Nothing has been taken yet.',
     };
   });

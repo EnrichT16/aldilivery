@@ -56,6 +56,17 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           where: { handle },
         })) as unknown as Shopper | null;
       },
+      async findByFamilyCode(code) {
+        return (await prisma.shopper.findUnique({
+          where: { familyCode: code },
+        })) as unknown as Shopper | null;
+      },
+      async listFamily(ownerId) {
+        return (await prisma.shopper.findMany({
+          where: { familyOwnerId: ownerId },
+          orderBy: { createdAt: 'asc' },
+        })) as unknown as Shopper[];
+      },
       async update(id, patch) {
         return (await prisma.shopper.update({
           where: { id },
@@ -540,6 +551,68 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
       async update(id, patch) {
         return (await prisma.oneTimeCode.update({ where: { id }, data: patch as any })) as any;
+      },
+    },
+
+    findRequests: {
+      async create(input) {
+        return (await prisma.findRequest.create({ data: input })) as any;
+      },
+      async findById(id) {
+        return (await prisma.findRequest.findUnique({ where: { id } })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.findRequest.update({ where: { id }, data: patch })) as any;
+      },
+      async listForShopper(shopperId) {
+        return (await prisma.findRequest.findMany({
+          where: { shopperId },
+          orderBy: { createdAt: 'desc' },
+        })) as any;
+      },
+      async listLooking() {
+        return (await prisma.findRequest.findMany({
+          where: { status: 'looking' },
+          orderBy: { createdAt: 'asc' },
+        })) as any;
+      },
+    },
+
+    giftCards: {
+      async create(input) {
+        return (await prisma.giftCard.create({ data: input })) as any;
+      },
+      async findByCode(code) {
+        return (await prisma.giftCard.findUnique({ where: { code } })) as any;
+      },
+      async redeem(id, shopperId, at) {
+        // Only one person can ever use a card: the update only matches an unused one.
+        const { count } = await prisma.giftCard.updateMany({
+          where: { id, redeemedByShopperId: null },
+          data: { redeemedByShopperId: shopperId, redeemedAt: at },
+        });
+        if (count === 0) return null;
+        return (await prisma.giftCard.findUnique({ where: { id } })) as any;
+      },
+      async listBoughtBy(shopperId) {
+        return (await prisma.giftCard.findMany({
+          where: { buyerShopperId: shopperId },
+          orderBy: { createdAt: 'desc' },
+        })) as any;
+      },
+    },
+
+    organisationEnquiries: {
+      async create(input) {
+        return (await prisma.organisationEnquiry.create({ data: input })) as any;
+      },
+      async list() {
+        return (await prisma.organisationEnquiry.findMany({
+          orderBy: { createdAt: 'desc' },
+        })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.organisationEnquiry.update({ where: { id }, data: patch })) as any;
       },
     },
 

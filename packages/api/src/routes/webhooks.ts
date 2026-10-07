@@ -13,6 +13,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 
 import { BadRequestError } from '../errors.js';
 import { chargeCalls } from '../services/calls.js';
+import { applyCredit } from '../services/credit.js';
 import { offerOrder } from '../services/dispatch.js';
 
 interface PaymentIntentLike {
@@ -59,6 +60,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
             // Their card has just been charged successfully: anything waiting for calls is
             // taken now too (ruling, 2 October 2026).
             await chargeCalls(app.ctx, order.shopperId, request.log).catch(() => undefined);
+            await applyCredit(app.ctx, order.id, request.log).catch(() => 0);
           }
         }
         break;

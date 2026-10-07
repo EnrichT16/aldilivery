@@ -39,6 +39,14 @@ const SCREENS: Array<{ name: string; path: string }> = [
   { name: 'privacy', path: '/privacy' },
   { name: 'our terms', path: '/terms' },
   { name: 'past orders, signed out', path: '/orders' },
+  { name: 'recipes, signed out', path: '/recipes' },
+  { name: 'little gifts', path: '/gifts' },
+  { name: 'more from us', path: '/more' },
+  { name: 'finds it, signed out', path: '/find-it' },
+  { name: 'gift cards, signed out', path: '/gift-cards' },
+  { name: 'plus, signed out', path: '/plus' },
+  { name: 'offers', path: '/offers' },
+  { name: 'the weekly shop, signed out', path: '/weekly-shop' },
   { name: 'a page that does not exist', path: '/nowhere' },
 ];
 

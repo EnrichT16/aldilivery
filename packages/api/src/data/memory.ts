@@ -14,6 +14,9 @@ import type { OrderStatus } from '@aldilivery/core';
 
 import type {
   AccountRole,
+  FindRequest,
+  GiftCard,
+  OrganisationEnquiry,
   CatalogueItem,
   HouseholdCircle,
   HouseholdCircleMember,
@@ -93,6 +96,9 @@ export function memoryRepository(): Repository {
   const problemEvidence = new Map<string, ProblemEvidence>();
   const recoveries = new Map<string, RunnerRecovery>();
   const callLegs = new Map<string, CallLeg>();
+  const findRequests = new Map<string, FindRequest>();
+  const giftCards = new Map<string, GiftCard>();
+  const enquiries = new Map<string, OrganisationEnquiry>();
 
   const now = (): Date => new Date();
 
@@ -113,6 +119,11 @@ export function memoryRepository(): Repository {
           pinHash: null,
           stripeCustomerId: null,
           recipePassUntil: null,
+          plusUntil: null,
+          plusFamily: false,
+          familyCode: null,
+          familyOwnerId: null,
+          creditPence: 0,
           pinFailedAttempts: 0,
           pinLockedUntil: null,
           deletionScheduledFor: null,
@@ -126,6 +137,18 @@ export function memoryRepository(): Repository {
       async findById(key) {
         const found = shoppers.get(key);
         return found ? clone(found) : null;
+      },
+      async findByFamilyCode(code) {
+        for (const shopper of shoppers.values()) {
+          if (shopper.familyCode === code) return clone(shopper);
+        }
+        return null;
+      },
+      async listFamily(ownerId) {
+        return [...shoppers.values()]
+          .filter((shopper) => shopper.familyOwnerId === ownerId)
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
       },
       async findByPhone(phone) {
         for (const shopper of shoppers.values()) {
@@ -635,6 +658,7 @@ export function memoryRepository(): Repository {
           receiptTotalPence: null,
           receiptFeePence: null,
           finalTotalPence: null,
+          creditAppliedPence: 0,
           spokenConfirmationAt: input.spokenConfirmationAt ?? null,
           confirmationChannel: input.confirmationChannel ?? null,
           confirmationStatement: input.confirmationStatement ?? null,
@@ -864,6 +888,102 @@ export function memoryRepository(): Repository {
         if (!existing) throw new NotFoundError('One time code', key);
         const updated = { ...existing, ...patch, id: existing.id };
         oneTimeCodes.set(key, updated);
+        return clone(updated);
+      },
+    },
+
+    findRequests: {
+      async create(input) {
+        const row: FindRequest = {
+          ...input,
+          id: id(),
+          status: 'looking',
+          foundName: null,
+          foundShop: null,
+          foundPricePence: null,
+          catalogueItemId: null,
+          refundId: null,
+          note: null,
+          createdAt: now(),
+          decidedAt: null,
+        };
+        findRequests.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = findRequests.get(key);
+        return found ? clone(found) : null;
+      },
+      async update(key, patch) {
+        const existing = findRequests.get(key);
+        if (!existing) throw new NotFoundError('Find request', key);
+        const updated = { ...existing, ...patch, id: existing.id };
+        findRequests.set(key, updated);
+        return clone(updated);
+      },
+      async listForShopper(shopperId) {
+        return [...findRequests.values()]
+          .filter((row) => row.shopperId === shopperId)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map(clone);
+      },
+      async listLooking() {
+        return [...findRequests.values()]
+          .filter((row) => row.status === 'looking')
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+    },
+
+    giftCards: {
+      async create(input) {
+        const row: GiftCard = {
+          ...input,
+          id: id(),
+          redeemedByShopperId: null,
+          redeemedAt: null,
+          createdAt: now(),
+        };
+        giftCards.set(row.id, row);
+        return clone(row);
+      },
+      async findByCode(code) {
+        for (const card of giftCards.values()) {
+          if (card.code === code) return clone(card);
+        }
+        return null;
+      },
+      async redeem(key, shopperId, at) {
+        const existing = giftCards.get(key);
+        if (!existing || existing.redeemedByShopperId !== null) return null;
+        const updated = { ...existing, redeemedByShopperId: shopperId, redeemedAt: at };
+        giftCards.set(key, updated);
+        return clone(updated);
+      },
+      async listBoughtBy(shopperId) {
+        return [...giftCards.values()]
+          .filter((card) => card.buyerShopperId === shopperId)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map(clone);
+      },
+    },
+
+    organisationEnquiries: {
+      async create(input) {
+        const row: OrganisationEnquiry = { ...input, id: id(), handled: false, createdAt: now() };
+        enquiries.set(row.id, row);
+        return clone(row);
+      },
+      async list() {
+        return [...enquiries.values()]
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map(clone);
+      },
+      async update(key, patch) {
+        const existing = enquiries.get(key);
+        if (!existing) throw new NotFoundError('Enquiry', key);
+        const updated = { ...existing, ...patch };
+        enquiries.set(key, updated);
         return clone(updated);
       },
     },

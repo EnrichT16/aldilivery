@@ -81,7 +81,8 @@ export async function registerProblemRoutes(app: FastifyInstance): Promise<void>
   }
 
   function orderTotal(order: Order): number {
-    return order.finalTotalPence ?? order.totalEstimatePence;
+    // Gift card money already went back to the card, so it cannot be refunded twice.
+    return (order.finalTotalPence ?? order.totalEstimatePence) - order.creditAppliedPence;
   }
 
   async function withEvidence(report: ProblemReport) {

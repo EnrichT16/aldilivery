@@ -2,7 +2,11 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 
 import {
   checkStaffKey,
+  decideFind,
   decideProblem,
+  fetchStaffEnquiries,
+  fetchStaffFinds,
+  markEnquiryHandled,
   fetchStaffDocuments,
   fetchStaffFeedback,
   fetchStaffFile,
@@ -11,6 +15,8 @@ import {
   reviewDocument,
   writeOffRunner,
   type ProblemDecision,
+  type StaffEnquiry,
+  type StaffFindRequest,
   type StaffDocument,
   type StaffFeedback,
   type StaffProblem,
@@ -30,11 +36,13 @@ import { money } from '../lib/money';
 const KEY = 'ozidelivery.staff.key';
 const NAME = 'ozidelivery.staff.name';
 
-type TabKey = 'documents' | 'problems' | 'owed' | 'feedback';
+type TabKey = 'documents' | 'problems' | 'owed' | 'finds' | 'enquiries' | 'feedback';
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'documents', label: 'Documents' },
   { key: 'problems', label: 'Problems' },
   { key: 'owed', label: 'Money owed' },
+  { key: 'finds', label: 'Finds It' },
+  { key: 'enquiries', label: 'Enquiries' },
   { key: 'feedback', label: 'Feedback' },
 ];
 
@@ -114,6 +122,8 @@ export function Staff(): JSX.Element {
       {tab === 'documents' && <Documents staffKey={key} by={by} onNews={setNews} />}
       {tab === 'problems' && <Problems staffKey={key} by={by} onNews={setNews} />}
       {tab === 'owed' && <Owed staffKey={key} by={by} onNews={setNews} />}
+      {tab === 'finds' && <Finds staffKey={key} onNews={setNews} />}
+      {tab === 'enquiries' && <Enquiries staffKey={key} onNews={setNews} />}
       {tab === 'feedback' && <Feedback staffKey={key} />}
     </div>
   );
@@ -642,6 +652,173 @@ function Feedback({ staffKey }: { staffKey: string }): JSX.Element {
                 : 'Sent without a name'}
               , {new Date(row.createdAt).toLocaleDateString('en-GB')}.
             </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Ozi Finds It: what Shoppers asked for, found or not. Found goes in the catalogue. */
+function Finds({
+  staffKey,
+  onNews,
+}: {
+  staffKey: string;
+  onNews: (text: string) => void;
+}): JSX.Element {
+  const list = useList(() => fetchStaffFinds(staffKey));
+  const rows: StaffFindRequest[] | undefined = list.data?.requests;
+  const [problem, setProblem] = useState('');
+
+  const decide = (
+    row: StaffFindRequest,
+    event: FormEvent<HTMLFormElement>,
+    found: boolean,
+  ): void => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const value = (name: string): string => String(data.get(name) ?? '').trim();
+    const pounds = Number(value('price').replace(/[£\s]/g, ''));
+    if (
+      found &&
+      (!Number.isFinite(pounds) || pounds <= 0 || value('name') === '' || value('shop') === '')
+    ) {
+      setProblem('Please give what was found, the shop, and the price in pounds, like 2.50.');
+      return;
+    }
+    setProblem('');
+    decideFind(
+      staffKey,
+      row.id,
+      found
+        ? {
+            found: true,
+            name: value('name'),
+            shop: value('shop'),
+            pricePence: Math.round(pounds * 100),
+            note: value('note') || undefined,
+          }
+        : { found: false, note: value('note') || undefined },
+    )
+      .then(() => {
+        onNews(found ? `Marked found: ${value('name')}.` : 'Marked not found. The fee goes back.');
+        list.reload();
+      })
+      .catch((failure: unknown) =>
+        setProblem(failure instanceof Error ? failure.message : 'That could not be saved.'),
+      );
+  };
+
+  return (
+    <section aria-labelledby="finds-heading" className="space-y-4 max-w-2xl">
+      <h2 id="finds-heading" className="text-lead font-bold">
+        Finds It: still looking
+      </h2>
+      <Failure text={list.problem || problem} />
+      {rows?.length === 0 && <p className="m-0">Nothing waiting.</p>}
+      <ul className="m-0 p-0 list-none space-y-4">
+        {rows?.map((row) => (
+          <li key={row.id} className="border-2 border-paper rounded-xl p-4 space-y-3">
+            <h3 className="m-0 font-bold">{row.description}</h3>
+            <p className="m-0">
+              For {row.shopperName}
+              {row.area ? `, near ${row.area}` : ''}. Look in up to {list.data?.shops ?? 3} shops.
+              {row.feePence > 0 ? ` They paid ${money(row.feePence)}.` : ' Included in Plus.'}
+            </p>
+            <form onSubmit={(event) => decide(row, event, true)} className="space-y-2">
+              <label className="block">
+                What was found
+                <input
+                  name="name"
+                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                />
+              </label>
+              <label className="block">
+                Which shop
+                <input
+                  name="shop"
+                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                />
+              </label>
+              <label className="block">
+                Price in pounds
+                <input
+                  name="price"
+                  inputMode="decimal"
+                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                />
+              </label>
+              <label className="block">
+                Note for the Shopper (optional)
+                <input
+                  name="note"
+                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                />
+              </label>
+              <button type="submit" className="control bg-highlight text-ink">
+                Found it<span className="visually-hidden">: {row.description}</span>
+              </button>
+            </form>
+            <form onSubmit={(event) => decide(row, event, false)}>
+              <input type="hidden" name="note" value="None of the shops had it." />
+              <button type="submit" className="control bg-paper/10 text-paper underline">
+                Not found, give the fee back
+                <span className="visually-hidden">: {row.description}</span>
+              </button>
+            </form>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Organisations and shops asking to work with us. A person rings each one back. */
+function Enquiries({
+  staffKey,
+  onNews,
+}: {
+  staffKey: string;
+  onNews: (text: string) => void;
+}): JSX.Element {
+  const list = useList(() => fetchStaffEnquiries(staffKey));
+  const rows: StaffEnquiry[] | undefined = list.data?.enquiries;
+  return (
+    <section aria-labelledby="enquiries-heading" className="space-y-4 max-w-2xl">
+      <h2 id="enquiries-heading" className="text-lead font-bold">
+        Enquiries
+      </h2>
+      <Failure text={list.problem} />
+      {rows?.length === 0 && <p className="m-0">No enquiries yet.</p>}
+      <ul className="m-0 p-0 list-none space-y-3">
+        {rows?.map((row) => (
+          <li key={row.id} className="border-2 border-paper rounded-xl p-4 space-y-1">
+            <h3 className="m-0 font-bold">
+              {row.organisation}
+              {row.handled ? ', rung back' : ''}
+            </h3>
+            <p className="m-0">
+              {row.contactName},{' '}
+              <a href={`tel:${row.telephone.replace(/\s/g, '')}`}>{row.telephone}</a>
+              {row.email ? `, ${row.email}` : ''}.
+            </p>
+            {row.people && <p className="m-0">People supported: {row.people}.</p>}
+            {row.message && <p className="m-0">{row.message}</p>}
+            {!row.handled && (
+              <button
+                type="button"
+                onClick={() =>
+                  void markEnquiryHandled(staffKey, row.id).then(() => {
+                    onNews(`${row.organisation} marked as rung back.`);
+                    list.reload();
+                  })
+                }
+                className="control bg-paper text-ink"
+              >
+                Mark as rung back<span className="visually-hidden">: {row.organisation}</span>
+              </button>
+            )}
           </li>
         ))}
       </ul>

@@ -2,20 +2,26 @@ import { useEffect, useRef, useState } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 
 import { Layout } from './components/Layout';
+import { WeeklyReminder } from './components/WeeklyReminder';
 import { applyBrandToDocument, storeConfig } from './config';
 import { Addresses } from './pages/Addresses';
 import { Basket } from './pages/Basket';
 import { Card } from './pages/Card';
 import { Catalogue } from './pages/Catalogue';
 import { Confirm } from './pages/Confirm';
+import { FindIt } from './pages/FindIt';
+import { GiftCards } from './pages/GiftCards';
 import { Gifts } from './pages/Gifts';
 import { JustLooking } from './pages/JustLooking';
+import { More } from './pages/More';
+import { Offers } from './pages/Offers';
 import { Landing } from './pages/Landing';
 import { LookingAfter } from './pages/LookingAfter';
 import { MyOrder } from './pages/MyOrder';
 import { Orders } from './pages/Orders';
 import { Organisations } from './pages/Organisations';
 import { ReportProblem } from './pages/ReportProblem';
+import { Plus } from './pages/Plus';
 import { Privacy } from './pages/Privacy';
 import { Recipes } from './pages/Recipes';
 import { RunnerDoor } from './pages/Runner';
@@ -25,6 +31,7 @@ import { Settings } from './pages/Settings';
 import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
 import { Terms } from './pages/Terms';
+import { WeeklyShop } from './pages/WeeklyShop';
 import { CallJoin } from './pages/CallJoin';
 import { Staff } from './pages/Staff';
 import { BasketProvider } from './state/basket';
@@ -108,6 +115,7 @@ export function App(): JSX.Element {
           <OziProvider>
             <Layout>
               <RouteAnnouncer />
+              <WeeklyReminder />
               <PageTitle />
               <Routes>
                 <Route path="/" element={<Landing />} />
@@ -125,6 +133,12 @@ export function App(): JSX.Element {
                 <Route path="/basket" element={<Basket />} />
                 <Route path="/recipes" element={<Recipes />} />
                 <Route path="/gifts" element={<Gifts />} />
+                <Route path="/more" element={<More />} />
+                <Route path="/find-it" element={<FindIt />} />
+                <Route path="/gift-cards" element={<GiftCards />} />
+                <Route path="/plus" element={<Plus />} />
+                <Route path="/offers" element={<Offers />} />
+                <Route path="/weekly-shop" element={<WeeklyShop />} />
                 <Route path="/confirm" element={<Confirm />} />
                 <Route path="/my-order" element={<MyOrder />} />
                 <Route path="/orders" element={<Orders />} />

@@ -47,6 +47,16 @@ export interface Shopper {
   stripeCustomerId: string | null;
   /** Ozi Recipes is unlocked until then; null when it has never been bought. */
   recipePassUntil: Date | null;
+  /** Ozi Plus is on until then, bought or shared from a family plan. */
+  plusUntil: Date | null;
+  /** Whether the Plus this Shopper bought is the family plan. */
+  plusFamily: boolean;
+  /** The code others type to join this Shopper's family plan. */
+  familyCode: string | null;
+  /** The Shopper whose family plan this one joined. */
+  familyOwnerId: string | null;
+  /** Gift card money waiting to be used, in pence. */
+  creditPence: number;
   deletionScheduledFor: Date | null;
   organisationId: string | null;
   createdAt: Date;
@@ -213,6 +223,8 @@ export interface Order {
   receiptTotalPence: number | null;
   receiptFeePence: number | null;
   finalTotalPence: number | null;
+  /** Gift card money used on this order, given back to the card once it was paid. */
+  creditAppliedPence: number;
   spokenConfirmationAt: Date | null;
   confirmationChannel: string | null;
   confirmationStatement: string | null;
@@ -410,11 +422,7 @@ export interface RunnerFeedback {
  * decided by a person (rulings of 2 October 2026).
  */
 export type ProblemDecision =
-  | 'shopper_at_fault'
-  | 'runner_at_fault'
-  | 'platform_at_fault'
-  | 'shop_at_fault'
-  | 'no_fault';
+  'shopper_at_fault' | 'runner_at_fault' | 'platform_at_fault' | 'shop_at_fault' | 'no_fault';
 
 export interface ProblemReport {
   id: string;
@@ -457,5 +465,53 @@ export interface RunnerRecovery {
   writtenOff: boolean;
   writtenOffBy: string | null;
   writtenOffAt: Date | null;
+  createdAt: Date;
+}
+
+/** Ozi Finds It (7 October 2026): something hard to find, looked for in up to three shops. */
+export type FindStatus = 'looking' | 'found' | 'not_found';
+
+export interface FindRequest {
+  id: string;
+  shopperId: string;
+  description: string;
+  feePence: number;
+  /** The payment the fee was taken by; null when Ozi Plus covered it. */
+  chargeId: string | null;
+  status: FindStatus;
+  foundName: string | null;
+  foundShop: string | null;
+  foundPricePence: number | null;
+  catalogueItemId: string | null;
+  refundId: string | null;
+  note: string | null;
+  createdAt: Date;
+  decidedAt: Date | null;
+}
+
+/** A gift card: bought with a card, given as a code, kept as credit when it is used. */
+export interface GiftCard {
+  id: string;
+  code: string;
+  amountPence: number;
+  buyerShopperId: string;
+  chargeId: string;
+  recipientName: string;
+  message: string;
+  redeemedByShopperId: string | null;
+  redeemedAt: Date | null;
+  createdAt: Date;
+}
+
+/** An organisation asking to work with us. A person rings them back. */
+export interface OrganisationEnquiry {
+  id: string;
+  organisation: string;
+  contactName: string;
+  telephone: string;
+  email: string;
+  people: string;
+  message: string;
+  handled: boolean;
   createdAt: Date;
 }

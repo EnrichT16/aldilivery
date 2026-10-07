@@ -157,6 +157,8 @@ export interface Shopper {
   id: string;
   /** Ozi Recipes is unlocked until then (ISO date), or never bought. */
   recipePassUntil?: string | null;
+  plusUntil?: string | null;
+  creditPence?: number;
   displayName: string;
   handle: string;
   phone: string;
@@ -836,7 +838,7 @@ export interface PastOrder {
   finalTotalPence: number | null;
   createdAt: string;
   deliveredAt: string | null;
-  items: Array<{ id: string; name: string; quantity: number }>;
+  items: Array<{ id: string; name: string; quantity: number; catalogueItemId?: string | null }>;
 }
 
 /** Ozi Recipes: unlock it for the agreed price, taken from the saved card. */
@@ -1049,4 +1051,195 @@ export async function fetchStaffFile(key: string, path: string): Promise<string>
   if (!response.ok)
     throw new ApiError('That file could not be opened.', response.status, undefined);
   return URL.createObjectURL(await response.blob());
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * More from Ozi (7 October 2026): Ozi Plus and the family plan, Ozi Finds It, gift cards,
+ * weekly shop day, and organisations asking to work with us. Every price agreed first.
+ * ------------------------------------------------------------------------------------- */
+
+export interface PlusState {
+  active: boolean;
+  plusUntil: string | null;
+  family: boolean;
+  familyCode: string | null;
+  members: string[];
+  joinedFamilyOf: string | null;
+  familyMaximum: number;
+  creditPence: number;
+}
+
+export function fetchPlus(): Promise<PlusState> {
+  return request<PlusState>('/extras/plus');
+}
+
+export function buyPlus(plan: 'single' | 'family'): Promise<PlusState & { message: string }> {
+  return request('/extras/plus', {
+    method: 'POST',
+    body: JSON.stringify({ plan, priceAccepted: true }),
+  });
+}
+
+export function joinFamily(code: string): Promise<PlusState & { message: string }> {
+  return request('/extras/family/join', { method: 'POST', body: JSON.stringify({ code }) });
+}
+
+export function leaveFamily(): Promise<PlusState & { message: string }> {
+  return request('/extras/family/leave', { method: 'POST', body: JSON.stringify({}) });
+}
+
+export interface FindRequest {
+  id: string;
+  description: string;
+  feePence: number;
+  status: 'looking' | 'found' | 'not_found';
+  foundName: string | null;
+  foundShop: string | null;
+  foundPricePence: number | null;
+  catalogueItemId: string | null;
+  note: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+}
+
+export function fetchFindRequests(): Promise<{ requests: FindRequest[] }> {
+  return request('/extras/find-it');
+}
+
+export function askToFind(description: string): Promise<{ request: FindRequest; message: string }> {
+  return request('/extras/find-it', {
+    method: 'POST',
+    body: JSON.stringify({ description, priceAccepted: true }),
+  });
+}
+
+export function fetchCatalogueItem(
+  id: string,
+): Promise<{ found: boolean; item: CatalogueItem | null }> {
+  return request(`/catalogue/${encodeURIComponent(id)}`);
+}
+
+export interface GiftCardBought {
+  code: string;
+  amountPence: number;
+  recipientName: string;
+  message: string;
+  used: boolean;
+  createdAt: string;
+}
+
+export function fetchGiftCards(): Promise<{
+  amountsPence: number[];
+  creditPence: number;
+  bought: GiftCardBought[];
+}> {
+  return request('/extras/gift-cards');
+}
+
+export function buyGiftCard(input: {
+  amountPence: number;
+  recipientName: string;
+  message: string;
+}): Promise<{ giftCard: GiftCardBought; message: string }> {
+  return request('/extras/gift-cards', {
+    method: 'POST',
+    body: JSON.stringify({ ...input, priceAccepted: true }),
+  });
+}
+
+export function redeemGiftCard(code: string): Promise<{ creditPence: number; message: string }> {
+  return request('/extras/gift-cards/redeem', { method: 'POST', body: JSON.stringify({ code }) });
+}
+
+export interface WeeklyShop {
+  id: string;
+  name: string;
+  dayOfWeek: number;
+  active: boolean;
+  items: Array<{ catalogueItemId: string | null; name: string; quantity: number }>;
+}
+
+export function fetchWeeklyShops(): Promise<{ sets: WeeklyShop[] }> {
+  return request('/sets');
+}
+
+export function bookWeeklyShop(input: {
+  dayOfWeek: number;
+  deliveryAddress: string;
+  lines: Array<{ catalogueItemId: string; quantity: number }>;
+}): Promise<{ set: WeeklyShop }> {
+  return request('/sets', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: 'Weekly shop',
+      frequency: 'weekly',
+      timeOfDay: '10:00',
+      ...input,
+    }),
+  });
+}
+
+export function stopWeeklyShop(id: string): Promise<unknown> {
+  return request(`/sets/${encodeURIComponent(id)}/pause`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export function sendOrganisationEnquiry(input: {
+  organisation: string;
+  contactName: string;
+  telephone: string;
+  email: string;
+  people: string;
+  message: string;
+}): Promise<{ message: string }> {
+  return request('/organisations/enquiries', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export interface StaffFindRequest extends FindRequest {
+  shopperName: string;
+  area: string;
+}
+
+export function fetchStaffFinds(
+  key: string,
+): Promise<{ requests: StaffFindRequest[]; shops: number }> {
+  return staffRequest(key, '/staff/find-it');
+}
+
+export function decideFind(
+  key: string,
+  id: string,
+  decision:
+    | { found: true; name: string; shop: string; pricePence: number; note?: string }
+    | { found: false; note?: string },
+): Promise<unknown> {
+  return staffRequest(key, `/staff/find-it/${encodeURIComponent(id)}/decide`, {
+    method: 'POST',
+    body: JSON.stringify(decision),
+  });
+}
+
+export interface StaffEnquiry {
+  id: string;
+  organisation: string;
+  contactName: string;
+  telephone: string;
+  email: string;
+  people: string;
+  message: string;
+  handled: boolean;
+  createdAt: string;
+}
+
+export function fetchStaffEnquiries(key: string): Promise<{ enquiries: StaffEnquiry[] }> {
+  return staffRequest(key, '/staff/enquiries');
+}
+
+export function markEnquiryHandled(key: string, id: string): Promise<unknown> {
+  return staffRequest(key, `/staff/enquiries/${encodeURIComponent(id)}/handled`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
 }
