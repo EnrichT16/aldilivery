@@ -21,6 +21,7 @@ import type {
   StaffPartnerProduct,
   StaffRecovery,
   TeamMember,
+  LearningRow,
 } from '../lib/api';
 import { money } from '../lib/money';
 import { pairsAloud } from '../lib/phone-aloud';
@@ -40,6 +41,8 @@ export interface StaffLists {
   overview?: never[];
   money?: never[];
   team?: TeamMember[];
+  /** What Ozi could not answer, waiting for an answer (ruling 49). */
+  learning?: LearningRow[];
 }
 
 /** What each part is called aloud, as one and as many. */
@@ -63,6 +66,11 @@ export const AREA_WORDS: Record<StaffArea, { one: string; many: string; tab: str
   overview: { one: 'figure', many: 'figures', tab: 'Overview' },
   money: { one: 'payment', many: 'payments', tab: 'Money' },
   team: { one: 'person on the team', many: 'people on the team', tab: 'Team' },
+  learning: {
+    one: 'question Ozi could not answer',
+    many: 'questions Ozi could not answer',
+    tab: 'Learning',
+  },
 };
 
 /** The items of one part that are still waiting for somebody. */
@@ -127,6 +135,7 @@ function firstNoun(areas: readonly StaffArea[], lists: StaffLists): string {
     overview: 'overview',
     money: 'money',
     team: 'team',
+    learning: 'learning list',
   }[area];
 }
 
@@ -146,6 +155,10 @@ function longDate(when: string): string {
 /** One item, read out in full. `position` is "1 of 3". */
 export function readItem(area: StaffArea, item: unknown, position: string): string {
   switch (area) {
+    case 'learning': {
+      const row = item as LearningRow;
+      return `Question ${position}, asked ${row.timesHeard} ${row.timesHeard === 1 ? 'time' : 'times'}: "${row.text}". To teach me the answer, type it in the Learning tab and press approve. Or say next.`;
+    }
     case 'problems': {
       const row = item as StaffProblem;
       const from = row.reporterName ?? (row.reportedBy === 'runner' ? 'A Runner' : 'A Shopper');
@@ -258,6 +271,10 @@ const AREA_PATTERNS: Array<[StaffArea, RegExp]> = [
   ['enquiries', /\b(enquir(y|ies)|inquir(y|ies)|messages?|emails?|web ?mail|organisations?)\b/],
   ['partners', /\b(shop products?|products?|partner shops?|partners?|shops?)\b/],
   ['team', /\b(team|staff|colleagues?)\b/],
+  [
+    'learning',
+    /\b(learning|unanswered|questions? (ozi|you) (could ?n.?t|couldn't|did ?n.?t) answer)\b/,
+  ],
 ];
 
 /** "2 pounds 50", "£2.50", "250 pence", "five pounds". */

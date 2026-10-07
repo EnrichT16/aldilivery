@@ -397,6 +397,3014 @@
         "Each job sees only its part, sir; family and investors only what you switch on, and only you see the money.",
         "Only what each person needs, sir."
       ]
+    },
+    {
+      "id": "owner-is-the-ledger-kept",
+      "topic": "money",
+      "when": [
+        "is every payment recorded",
+        "do we keep a ledger",
+        "is there a record of every payment"
+      ],
+      "replies": [
+        "Yes, sir. Every charge and every refund goes into the ledger as it happens.",
+        "All of it, sir: each payment in and each refund out, by gateway."
+      ]
+    },
+    {
+      "id": "owner-what-came-in-today",
+      "topic": "money",
+      "when": ["what came in today", "how did we do today", "what did we bring in"],
+      "replies": [
+        "Say read me the money, sir, and I'll give you today and this month.",
+        "Yes, sir. Read me the money has today's figure."
+      ]
+    },
+    {
+      "id": "owner-this-month-so-far",
+      "topic": "money",
+      "when": ["how is this month going", "this month so far", "how much this month"],
+      "replies": [
+        "The money part gives this month as well as today, sir. Say read me the money.",
+        "Okay, sir. Read me the money, and this month comes second."
+      ]
+    },
+    {
+      "id": "owner-refunds-gone-out",
+      "topic": "money",
+      "when": ["how much did we return", "what have we returned to people", "what went out"],
+      "replies": [
+        "Refunds out are listed alongside payments in, sir, in the money part.",
+        "Yes, sir. Read me the money shows what went back as well."
+      ]
+    },
+    {
+      "id": "owner-which-gateway-paid",
+      "topic": "money",
+      "when": ["which gateway was that", "where did that payment come from", "which provider paid"],
+      "replies": [
+        "Each payment is listed by its gateway, sir. Today that is Stripe.",
+        "Stripe, for now, sir. Others will be named when they are connected."
+      ]
+    },
+    {
+      "id": "owner-connect-flutterwave",
+      "topic": "money",
+      "when": ["connect flutterwave", "when will flutterwave come", "add flutterwave"],
+      "replies": [
+        "Flutterwave isn't connected yet, sir. It's on the still to do list, and it will appear in the money part once it is.",
+        "Not yet, sir. Tell Claude when you're ready and it will be built in."
+      ]
+    },
+    {
+      "id": "owner-connect-paystack",
+      "topic": "money",
+      "when": ["connect paystack", "when will paystack come", "add paystack"],
+      "replies": [
+        "Paystack is still to come, sir, with Flutterwave. It will show by name in the money part when connected.",
+        "On the list, sir. Not connected yet."
+      ]
+    },
+    {
+      "id": "owner-why-only-stripe",
+      "topic": "money",
+      "when": ["why only one gateway", "why just the one provider"],
+      "replies": [
+        "Stripe covers cards, Apple Pay and Google Pay today, sir. Flutterwave and Paystack follow for home-country cards.",
+        "Stripe first, {owner}, then the others, sir."
+      ]
+    },
+    {
+      "id": "owner-is-stripe-live",
+      "topic": "money",
+      "when": ["are we taking real payments", "is it real payments yet", "are we in test mode"],
+      "replies": [
+        "Not until the live keys are in, sir. Stripe stays in test mode until step seven of the launch list.",
+        "Test mode for now, sir. The Stripe live keys switch on real payments."
+      ]
+    },
+    {
+      "id": "owner-till-sound",
+      "topic": "money",
+      "when": ["what was that sound", "why did it go ka-ching", "what's the till noise"],
+      "replies": [
+        "That's the till, sir: a ka-ching when money is taken, and falling coins when it goes back.",
+        "The till sound, sir. Money in."
+      ]
+    },
+    {
+      "id": "owner-card-numbers",
+      "topic": "money",
+      "when": [
+        "do we keep card details",
+        "where are the card details kept",
+        "can we see card details"
+      ],
+      "replies": [
+        "No, sir. Card numbers go straight to Stripe and never touch our server.",
+        "Never, sir. Stripe holds them."
+      ]
+    },
+    {
+      "id": "owner-does-my-wife-see-takings",
+      "topic": "money",
+      "when": ["can my wife see what we earn", "can investors see what we earn"],
+      "replies": [
+        "No, sir. Not family, not investors, not staff. Only you.",
+        "Never, sir. That stays yours alone."
+      ]
+    },
+    {
+      "id": "owner-staff-key-see-money",
+      "topic": "money",
+      "when": ["can the founder key see what we earn", "is the founder key enough to see it all"],
+      "replies": [
+        "No, sir. The staff key doesn't see it. Only your owner's account does.",
+        "Only your own account, {owner}. Not the key, sir."
+      ]
+    },
+    {
+      "id": "owner-delivery-fee-same",
+      "topic": "money",
+      "when": ["is the fee the same for everyone", "does anyone pay more for delivery"],
+      "replies": [
+        "Everyone pays the same, sir: {fee}, one flat fee. Rule Four allows nothing else.",
+        "One flat fee for all, sir: {fee}."
+      ]
+    },
+    {
+      "id": "owner-basket-limit",
+      "topic": "money",
+      "when": ["what's the most someone can spend", "what's the basket limit", "maximum basket"],
+      "replies": ["The shopping can come to {maximum} at most, sir.", "Up to {maximum}, sir."]
+    },
+    {
+      "id": "owner-runner-pay-always",
+      "topic": "money",
+      "when": ["do runners always get the same", "is runner pay fixed"],
+      "replies": [
+        "Yes, sir. A Runner gets {runnerPay} for every job, always.",
+        "{runnerPay} a job, every time, sir."
+      ]
+    },
+    {
+      "id": "owner-instant-refund-limit",
+      "topic": "money",
+      "when": ["what gets returned at once", "when is it returned automatically"],
+      "replies": [
+        "A problem worth {instantRefund} or less is refunded straight away, sir. Anything more is decided by customer care.",
+        "{instantRefund} or less, at once, sir."
+      ]
+    },
+    {
+      "id": "owner-call-price",
+      "topic": "money",
+      "when": ["what do calls cost the shopper", "what does an in-app call cost"],
+      "replies": [
+        "An in-app call costs the Shopper {callPrice} a minute, sir, agreed first.",
+        "{callPrice} a minute, sir."
+      ]
+    },
+    {
+      "id": "owner-partner-plan-price",
+      "topic": "money",
+      "when": ["monthly plan for a store", "what's the monthly plan"],
+      "replies": [
+        "The Shop Partner plan is {partnerPlan} a month, sir.",
+        "{partnerPlan} a month, sir."
+      ]
+    },
+    {
+      "id": "owner-spotlight-prices",
+      "topic": "money",
+      "when": ["what does spotlight cost", "spotlight plus price", "how much is spotlight"],
+      "replies": [
+        "Spotlight is {spotlight} a month and Spotlight Plus {spotlightPlus}, sir, both on top of the partner plan.",
+        "{spotlight}, or {spotlightPlus} for Plus, sir."
+      ]
+    },
+    {
+      "id": "owner-where-prices-set",
+      "topic": "money",
+      "when": ["where are the prices set", "who sets the prices", "can i change a price"],
+      "replies": [
+        "Every price lives in the store settings, sir. Tell Claude the new figure and it's changed in one place.",
+        "In the store settings, sir. Claude changes them for you."
+      ]
+    },
+    {
+      "id": "owner-cool-bag-deposit",
+      "topic": "money",
+      "when": ["the cool bag deposit", "how does the runner deposit work"],
+      "replies": [
+        "A Runner's cool-bag deposit is held back a little each job, sir, and released after enough completed deliveries. The figures are in the store settings.",
+        "It builds up job by job, sir, and is given back later."
+      ]
+    },
+    {
+      "id": "owner-payment-ceiling",
+      "topic": "money",
+      "when": ["is there a limit on voice orders", "voice spending ceiling"],
+      "replies": [
+        "Yes, sir. Orders by voice have a spending ceiling, set in the store settings, on the telephone too.",
+        "There is, sir. Set in the store settings."
+      ]
+    },
+    {
+      "id": "owner-money-records-kept",
+      "topic": "money",
+      "when": ["how long do we keep the accounts", "must we keep the accounts"],
+      "replies": [
+        "Seven years, sir. The law asks for it, which is why the backed-up database matters.",
+        "Seven years, sir."
+      ]
+    },
+    {
+      "id": "owner-money-sound-off",
+      "topic": "money",
+      "when": ["is the till sound on", "the till sounds"],
+      "replies": [
+        "The till plays when money is taken, sir, and falling coins when it comes back.",
+        "Yes, sir. Ka-ching in, coins back out."
+      ]
+    },
+    {
+      "id": "owner-runner-payouts",
+      "topic": "money",
+      "when": ["how are runners paid out", "runner payout schedule"],
+      "replies": [
+        "Runners are paid through Stripe Connect, sir. Choosing weekly, daily or instant payouts is still to be built.",
+        "Through Stripe Connect, sir. Payout choices come later."
+      ]
+    },
+    {
+      "id": "owner-bundles",
+      "topic": "money",
+      "when": ["delivery bundles", "can people buy deliveries in advance"],
+      "replies": [
+        "Delivery bundles aren't built yet, sir. They're on the still to do list.",
+        "Not yet, sir. On the list."
+      ]
+    },
+    {
+      "id": "owner-plus-fee",
+      "topic": "money",
+      "when": ["does plus change the delivery fee", "do members get cheaper delivery"],
+      "replies": [
+        "No, sir. Rule Four keeps the fee the same for everyone. Plus includes Recipes and the Finds It fee instead.",
+        "The fee never changes, sir. Plus gives extras instead."
+      ]
+    },
+    {
+      "id": "owner-gift-card-money",
+      "topic": "money",
+      "when": ["how do gift cards work for us", "gift cards and the card charge"],
+      "replies": [
+        "The order is charged to the card as agreed, sir, and the gift card amount goes straight back to it once paid.",
+        "Charged, then given back from the gift card, sir."
+      ]
+    },
+    {
+      "id": "owner-statements",
+      "topic": "money",
+      "when": ["can stores get statements", "statements to download"],
+      "replies": [
+        "Yes, sir. Shop Partners download statements as a PDF, and organisations as a PDF or a spreadsheet.",
+        "PDF for both, sir, and a spreadsheet for organisations."
+      ]
+    },
+    {
+      "id": "owner-headcount",
+      "topic": "overview",
+      "when": ["who's on board", "how big are we now", "how many signed up"],
+      "replies": [
+        "Say read me the overview, sir: Shoppers, Runners, Shop Partners, organisations and staff.",
+        "Yes, sir. The overview counts everyone."
+      ]
+    },
+    {
+      "id": "owner-orders-last-day",
+      "topic": "overview",
+      "when": ["how many orders yesterday", "orders in the last day", "how busy were we"],
+      "replies": [
+        "The overview gives orders in the last day and the last week, sir.",
+        "Okay, sir. It's in the overview."
+      ]
+    },
+    {
+      "id": "owner-orders-this-week",
+      "topic": "overview",
+      "when": ["orders this week", "how many orders this week"],
+      "replies": [
+        "The overview has the last week's orders, sir. Say read me the overview.",
+        "Yes, sir. In the overview."
+      ]
+    },
+    {
+      "id": "owner-whats-pending",
+      "topic": "overview",
+      "when": ["anything to deal with", "what's outstanding", "is anything stuck"],
+      "replies": [
+        "Say what's waiting, sir, and I'll read every part that needs someone.",
+        "All right, sir. Say what's waiting."
+      ]
+    },
+    {
+      "id": "owner-how-many-runners",
+      "topic": "overview",
+      "when": ["how many runners have we got", "runner count"],
+      "replies": [
+        "The overview counts Runners, and those on shift now, sir.",
+        "In the overview, sir."
+      ]
+    },
+    {
+      "id": "owner-how-many-partners",
+      "topic": "overview",
+      "when": ["how many paying stores are there", "how many councils signed up"],
+      "replies": [
+        "The overview counts Shop Partners and organisations, sir.",
+        "Yes, sir. The overview."
+      ]
+    },
+    {
+      "id": "owner-open-the-overview",
+      "topic": "overview",
+      "when": ["take me to the front page of the panel", "where are the figures"],
+      "replies": [
+        "Say read me the overview, sir, or press Overview at the top.",
+        "Yes, sir. Read me the overview."
+      ]
+    },
+    {
+      "id": "owner-quick-update",
+      "topic": "overview",
+      "when": ["quick update", "bring me up to speed", "fill me in"],
+      "replies": [
+        "Say what's waiting, sir, for the work, or read me the overview for the figures.",
+        "Certainly, sir. What's waiting, or the overview."
+      ]
+    },
+    {
+      "id": "owner-is-anyone-ordering",
+      "topic": "overview",
+      "when": ["is anyone ordering", "are people using it"],
+      "replies": [
+        "The overview shows orders in the last day and week, sir.",
+        "Say read me the overview, sir."
+      ]
+    },
+    {
+      "id": "owner-who-to-hire-first",
+      "topic": "team",
+      "when": ["who should i hire first", "first hire", "who do we need first"],
+      "replies": [
+        "A Customer care officer, sir: a kind, patient person to decide problems within two working days.",
+        "Customer care first, sir. The hiring guide says so."
+      ]
+    },
+    {
+      "id": "owner-hire-order",
+      "topic": "team",
+      "when": ["what order should i hire in", "hiring plan"],
+      "replies": [
+        "Customer care, then Runner onboarding, Finds It shopper, Partnerships, Finance, and an Operations manager later, sir.",
+        "Customer care first, sir, then the rest in turn."
+      ]
+    },
+    {
+      "id": "owner-hiring-guide",
+      "topic": "team",
+      "when": ["where's the hiring guide", "job descriptions"],
+      "replies": [
+        "The staff roles guide has each job, what it sees and who to hire first, sir.",
+        "In the staff roles document, sir."
+      ]
+    },
+    {
+      "id": "owner-give-first-password",
+      "topic": "team",
+      "when": ["how do they get a password", "first password"],
+      "replies": [
+        "A first password is shown once when you add them, sir. Give it in person or by phone, never by email.",
+        "Shown once, sir. Hand it over in person."
+      ]
+    },
+    {
+      "id": "owner-forgot-password-staff",
+      "topic": "team",
+      "when": ["someone forgot their password", "reset a password"],
+      "replies": [
+        "Press New password beside their name in the Team tab, sir.",
+        "New password, beside their name, sir."
+      ]
+    },
+    {
+      "id": "owner-someone-left",
+      "topic": "team",
+      "when": ["someone has left", "remove someone", "turn someone off"],
+      "replies": [
+        "Press Turn off beside their name, sir. It works at once, even if they're signed in.",
+        "Turn off, sir. Straight away."
+      ]
+    },
+    {
+      "id": "owner-change-someones-job",
+      "topic": "team",
+      "when": ["change someone's job", "give someone a new role"],
+      "replies": ["In the Team tab, sir. Only you can change a job.", "Yes, sir. The Team tab."]
+    },
+    {
+      "id": "owner-who-manages-the-team",
+      "topic": "team",
+      "when": ["who can add people", "who manages hiring"],
+      "replies": ["Only you, sir, as founder.", "You alone, {owner}. Yes, sir."]
+    },
+    {
+      "id": "owner-blind-staff",
+      "topic": "team",
+      "when": ["can i hire blind people", "can a blind person work here"],
+      "replies": [
+        "Yes, sir. I speak in every part of the panel, so a blind person can do any job, the IT person included.",
+        "Of course, sir. Every job works by voice."
+      ]
+    },
+    {
+      "id": "owner-staff-passwords-safe",
+      "topic": "team",
+      "when": ["do i know their passwords", "can anyone see their passwords"],
+      "replies": [
+        "No, sir. They choose their own, and it's stored scrambled. Nobody knows it, you included.",
+        "Nobody does, sir. Not even you."
+      ]
+    },
+    {
+      "id": "owner-wrong-password-tries",
+      "topic": "team",
+      "when": ["what if someone guesses passwords", "too many wrong tries"],
+      "replies": [
+        "After five wrong tries, sir, the account waits fifteen minutes.",
+        "Five tries, then a wait, sir."
+      ]
+    },
+    {
+      "id": "owner-who-decided",
+      "topic": "team",
+      "when": ["who made that decision", "can i see who decided"],
+      "replies": [
+        "Every decision records the name of whoever was signed in, sir.",
+        "Their name is on it, sir."
+      ]
+    },
+    {
+      "id": "owner-part-time-roles",
+      "topic": "team",
+      "when": ["can jobs be part time", "do i need full timers"],
+      "replies": [
+        "Most can start part time, sir. One person can do several jobs at the start.",
+        "Part time is fine, sir."
+      ]
+    },
+    {
+      "id": "owner-operations-manager",
+      "topic": "team",
+      "when": ["when do i need an operations manager", "someone to run things day to day"],
+      "replies": [
+        "Once there are three or four people, sir, or when you want to step back from daily decisions.",
+        "Later on, sir, as the team grows."
+      ]
+    },
+    {
+      "id": "owner-co-founder",
+      "topic": "team",
+      "when": ["make someone a director", "add a co-founder"],
+      "replies": [
+        "Give them the Founder job in the Team tab, sir. They'd see everything except your money.",
+        "The Founder job, sir. The money stays yours."
+      ]
+    },
+    {
+      "id": "owner-what-jobs-are-there",
+      "topic": "roles",
+      "when": ["what jobs are there", "list the roles", "what roles do we have"],
+      "replies": [
+        "Founder, Operations manager, Runner onboarding officer, Customer care officer, Finance officer, Finds It shopper and Partnerships officer, sir.",
+        "Seven jobs, sir, each seeing only its part."
+      ]
+    },
+    {
+      "id": "owner-customer-care-role",
+      "topic": "roles",
+      "when": ["what does customer care do", "customer care officer"],
+      "replies": [
+        "They decide every reported problem within two working days, sir, and read Runner feedback.",
+        "Problems and feedback, sir."
+      ]
+    },
+    {
+      "id": "owner-onboarding-role",
+      "topic": "roles",
+      "when": ["what does onboarding do", "runner onboarding officer"],
+      "replies": [
+        "They check each new Runner's right to work, DBS, licence and insurance, sir, and accept or turn them down.",
+        "The Runner checks, sir."
+      ]
+    },
+    {
+      "id": "owner-finance-role",
+      "topic": "roles",
+      "when": ["what does the finance officer do", "finance officer"],
+      "replies": [
+        "They keep track of what Runners owe after a fault, sir, and write off small amounts. Later, payouts and the accounts.",
+        "Money owed, sir. Not your money."
+      ]
+    },
+    {
+      "id": "owner-finds-it-role",
+      "topic": "roles",
+      "when": ["what does the finder do", "the finder job"],
+      "replies": [
+        "They look in up to three local shops for what a Shopper asked for, sir, and record what was found.",
+        "The hard-to-find things, sir."
+      ]
+    },
+    {
+      "id": "owner-partnerships-role",
+      "topic": "roles",
+      "when": ["what does partnerships do", "partnerships officer"],
+      "replies": [
+        "They ring back councils, charities, care providers and shops who ask to work with us, sir, and set up their accounts.",
+        "Ringing back enquiries, sir."
+      ]
+    },
+    {
+      "id": "owner-business-analyst-role",
+      "topic": "roles",
+      "when": ["business analyst job", "is there a business analyst"],
+      "replies": [
+        "That job was withdrawn, sir. Business analysis is yours, and whoever you switch it on for.",
+        "Withdrawn, sir. Analysis is yours to share."
+      ]
+    },
+    {
+      "id": "owner-does-finance-see-income",
+      "topic": "roles",
+      "when": ["can the finance officer see what we earn", "does finance see the ledger"],
+      "replies": [
+        "No, sir. Finance sees money owed by Runners, never the takings.",
+        "No, sir. Only you see that."
+      ]
+    },
+    {
+      "id": "owner-roles-checked",
+      "topic": "roles",
+      "when": ["can someone sneak into another tab", "are the limits enforced"],
+      "replies": [
+        "The server checks every request, sir, so a job's limits hold by voice and on screen alike.",
+        "Checked every time, sir."
+      ]
+    },
+    {
+      "id": "owner-change-the-jobs",
+      "topic": "roles",
+      "when": ["add a new job", "make a new role"],
+      "replies": [
+        "Tell Claude, sir. The jobs are set in the code and can be added or changed.",
+        "Ask Claude, sir. It's a quick change."
+      ]
+    },
+    {
+      "id": "owner-add-family",
+      "topic": "viewers",
+      "when": ["add family", "give my family a login"],
+      "replies": [
+        "In My settings, sir, under who sees my dashboard. Choose family member.",
+        "Yes, sir. My settings."
+      ]
+    },
+    {
+      "id": "owner-switch-one-part-on",
+      "topic": "viewers",
+      "when": ["switch something on for my wife", "let her see the figures"],
+      "replies": [
+        "In My settings, sir, beside her name, switch on the part you want her to see.",
+        "Okay, sir. One switch per part."
+      ]
+    },
+    {
+      "id": "owner-switch-all-on",
+      "topic": "viewers",
+      "when": ["switch everything on for them", "give them full view"],
+      "replies": [
+        "There's a switch all on beside each person, sir, but the money is never among them.",
+        "Yes, sir. All on, except the money, which they never see."
+      ]
+    },
+    {
+      "id": "owner-can-viewers-change",
+      "topic": "viewers",
+      "when": ["can they change anything", "can investors make decisions"],
+      "replies": ["No, sir. Family and investors can look, never change.", "Look only, sir."]
+    },
+    {
+      "id": "owner-what-parts-to-share",
+      "topic": "viewers",
+      "when": ["what parts can i share", "which switches are there"],
+      "replies": [
+        "The overview, business analysis, the team, documents, complaints, feedback, Finds It, enquiries, and shops and organisations, sir.",
+        "Nine parts, sir, each with its own switch."
+      ]
+    },
+    {
+      "id": "owner-remove-a-viewer",
+      "topic": "viewers",
+      "when": ["take someone off my dashboard", "remove an investor"],
+      "replies": [
+        "Switch all off beside them in My settings, sir, or the kill switch for everyone at once.",
+        "Switch all off, sir."
+      ]
+    },
+    {
+      "id": "owner-investor-update",
+      "topic": "viewers",
+      "when": ["what should investors see", "what do i show investors"],
+      "replies": [
+        "That's your choice, sir. Many founders share the overview and the business analysis.",
+        "Whatever you choose, sir. The money is never shown."
+      ]
+    },
+    {
+      "id": "owner-viewer-starts-off",
+      "topic": "viewers",
+      "when": ["what can a new viewer see", "do they see anything at first"],
+      "replies": [
+        "Nothing at first, sir. Everything starts switched off.",
+        "Nothing until you switch it on, sir."
+      ]
+    },
+    {
+      "id": "owner-viewers-own-login",
+      "topic": "viewers",
+      "when": ["do they get their own sign in", "do they share my login"],
+      "replies": ["Their own sign-in, sir. Never yours.", "Their own, sir."]
+    },
+    {
+      "id": "owner-does-wife-hear-sir",
+      "topic": "viewers",
+      "when": ["do you call my wife sir", "how do you speak to my family"],
+      "replies": [
+        "They have their own phrases, sir. Only you are called sir.",
+        "Their own way, sir. Sir is for you."
+      ]
+    },
+    {
+      "id": "owner-what-does-kill-switch-do",
+      "topic": "kill switch",
+      "when": ["what does the kill switch do", "explain the kill switch"],
+      "replies": [
+        "With your passcode, sir, every family and investor switch goes off and every admin is signed out, you included. Nothing is deleted.",
+        "Everyone out, sir, nothing lost."
+      ]
+    },
+    {
+      "id": "owner-does-kill-switch-delete",
+      "topic": "kill switch",
+      "when": ["will the kill switch delete anything", "do we lose data"],
+      "replies": [
+        "Nothing is deleted, sir. Access is switched off and sessions end.",
+        "No data is lost, sir."
+      ]
+    },
+    {
+      "id": "owner-after-kill-switch",
+      "topic": "kill switch",
+      "when": ["what now after the kill switch", "i used the kill switch"],
+      "replies": [
+        "Sign in again, sir, then switch back on only what you want. If it was a break-in, the security plan's recovery steps come next.",
+        "Sign back in, sir, and switch on what's needed."
+      ]
+    },
+    {
+      "id": "owner-kill-switch-shoppers",
+      "topic": "kill switch",
+      "when": ["does the kill switch affect shoppers", "does it affect runners too"],
+      "replies": [
+        "No, sir. It signs out the admin panel. Changing the server's secret key signs out Shoppers and Runners too; Claude does that.",
+        "Admins only, sir. Claude can sign out everyone else."
+      ]
+    },
+    {
+      "id": "owner-someone-stole-my-phone",
+      "topic": "kill switch",
+      "when": ["my phone was stolen", "i lost my phone"],
+      "replies": [
+        "Use the kill switch from another device, sir, with your passcode. Then change your password and set two-step codes again.",
+        "Kill switch first, sir, then new codes."
+      ]
+    },
+    {
+      "id": "owner-fingerprint",
+      "topic": "kill switch",
+      "when": ["can i use my fingerprint", "face id"],
+      "replies": [
+        "A fingerprint can join the passcode later, sir, in the phone apps.",
+        "With the phone apps, sir."
+      ]
+    },
+    {
+      "id": "owner-hacked-what-first",
+      "topic": "kill switch",
+      "when": ["what do i do if we're hacked", "someone broke in"],
+      "replies": [
+        "Press the kill switch, sir. Then the keys are changed, the one-way logs checked, and a clean backup restored if needed.",
+        "Kill switch first, sir. Then the recovery plan."
+      ]
+    },
+    {
+      "id": "owner-tell-ico",
+      "topic": "kill switch",
+      "when": ["do we have to tell anyone", "who do we tell after a breach"],
+      "replies": [
+        "If personal data may have been taken, sir, the ICO within 72 hours, and the people affected if it could harm them.",
+        "The ICO, within 72 hours, sir."
+      ]
+    },
+    {
+      "id": "owner-practise-recovery",
+      "topic": "kill switch",
+      "when": ["should we practise", "fire drill"],
+      "replies": ["Once a year, sir, like a fire drill.", "Yes, sir. Once a year."]
+    },
+    {
+      "id": "owner-passcode-rules",
+      "topic": "security",
+      "when": ["what's the passcode format", "passcode rules"],
+      "replies": [
+        "Six numbers, then a special character of your choosing, sir. Seven in all.",
+        "Six numbers and a special character, sir."
+      ]
+    },
+    {
+      "id": "owner-forgot-my-passcode",
+      "topic": "security",
+      "when": ["i forgot my passcode", "lost my passcode"],
+      "replies": [
+        "Nobody can read it back, sir, not even me. Tell Claude, and it will help you set a new one.",
+        "Tell Claude, sir."
+      ]
+    },
+    {
+      "id": "owner-say-passcode-aloud",
+      "topic": "security",
+      "when": ["can i say my passcode", "shall i tell you my password"],
+      "replies": [
+        "Please don't, sir. Passwords and passcodes are typed, never spoken, so nobody nearby hears.",
+        "Type it, sir. Never say it aloud."
+      ]
+    },
+    {
+      "id": "owner-authenticator-app",
+      "topic": "security",
+      "when": ["which authenticator app", "what app for codes"],
+      "replies": [
+        "Any authenticator app, sir. It gives a six-number code that changes every thirty seconds.",
+        "Any authenticator, sir."
+      ]
+    },
+    {
+      "id": "owner-two-step-on-yet",
+      "topic": "security",
+      "when": ["is two step on", "have i got two step"],
+      "replies": [
+        "Check My settings, sir. Switching it on is step two of the security plan.",
+        "My settings shows it, sir."
+      ]
+    },
+    {
+      "id": "owner-why-two-step",
+      "topic": "security",
+      "when": ["why do i need two step", "is two step worth it"],
+      "replies": [
+        "With it, sir, a stolen password alone can't open your account.",
+        "It locks the door twice, sir."
+      ]
+    },
+    {
+      "id": "owner-lost-authenticator",
+      "topic": "security",
+      "when": ["i lost my authenticator", "new phone codes"],
+      "replies": [
+        "Tell Claude, sir, and it will help you set two-step codes up again on the new phone.",
+        "Tell Claude, sir."
+      ]
+    },
+    {
+      "id": "owner-two-step-staff",
+      "topic": "security",
+      "when": ["two step for everyone", "can my people have two step"],
+      "replies": [
+        "Not yet, sir. Two-step for all staff is a small job still to do.",
+        "On the list, sir."
+      ]
+    },
+    {
+      "id": "owner-password-by-text",
+      "topic": "security",
+      "when": ["someone texted asking for my code", "a call asked for my password"],
+      "replies": [
+        "Never give it, sir. We never ask for a password, passcode or code by phone, text or email.",
+        "That's a trick, sir. Ignore it."
+      ]
+    },
+    {
+      "id": "owner-phishing",
+      "topic": "security",
+      "when": ["what is phishing", "fake texts"],
+      "replies": [
+        "A fake message pretending to be us, Stripe or the bank, sir, asking for a password or code. Never answer one.",
+        "A trick message, sir."
+      ]
+    },
+    {
+      "id": "owner-security-to-do",
+      "topic": "security",
+      "when": ["what security is left", "security to do"],
+      "replies": [
+        "Backups and recovery, two-step on your account, Cloudflare, Dependabot and secret scanning, an uptime check, and a one-way audit log, sir.",
+        "Six steps, sir, in the security plan."
+      ]
+    },
+    {
+      "id": "owner-security-done",
+      "topic": "security",
+      "when": ["what security is in place", "what's already protected"],
+      "replies": [
+        "Separate keys for each account, your passcode and two-step codes, the kill switch, security headers, sign-in limits and no card numbers, sir.",
+        "A good deal, sir. The basics are in."
+      ]
+    },
+    {
+      "id": "owner-cloudflare",
+      "topic": "security",
+      "when": ["what is cloudflare", "put cloudflare in front"],
+      "replies": [
+        "A shield in front of the website, sir, against floods and known attacks. You make a free account, and Claude moves the settings.",
+        "A shield, sir. The free plan is enough."
+      ]
+    },
+    {
+      "id": "owner-dependabot",
+      "topic": "security",
+      "when": ["what is dependabot", "dependency scanning"],
+      "replies": [
+        "A robot that checks the parts our code uses for known weaknesses each week, sir. Claude switches it on, free.",
+        "A weekly check, sir."
+      ]
+    },
+    {
+      "id": "owner-secret-scanning",
+      "topic": "security",
+      "when": ["secret scanning", "are passwords in the code"],
+      "replies": [
+        "GitHub can check no password is saved in the code by mistake, sir. It's to be switched on, free.",
+        "To be switched on, sir."
+      ]
+    },
+    {
+      "id": "owner-uptime-check",
+      "topic": "security",
+      "when": ["uptime check", "will i know if the site is down"],
+      "replies": [
+        "A free service can visit every minute and text you if it's down, sir. Still to set up.",
+        "Not yet, sir. About ten minutes to set up."
+      ]
+    },
+    {
+      "id": "owner-audit-log",
+      "topic": "security",
+      "when": ["audit log", "one way log"],
+      "replies": [
+        "Every important action copied to a store the server can add to but never change, sir. Still to do, by Claude.",
+        "To do, sir. A thief couldn't cover their tracks."
+      ]
+    },
+    {
+      "id": "owner-data-diode",
+      "topic": "security",
+      "when": ["data diode", "one way light"],
+      "replies": [
+        "Your idea is real, sir. We use it for logs and locked backups, so a thief can't hide or wipe them.",
+        "One-way, sir, for the parts that matter."
+      ]
+    },
+    {
+      "id": "owner-rotate-secrets",
+      "topic": "security",
+      "when": ["change the secret keys", "rotate secrets"],
+      "replies": [
+        "Every six months, sir, and at once if anyone who knew one leaves.",
+        "Twice a year, sir."
+      ]
+    },
+    {
+      "id": "owner-restricted-keys",
+      "topic": "security",
+      "when": ["restricted key", "a key that can only charge"],
+      "replies": [
+        "A Stripe key that can only charge and refund, not pay out, sir. To set when going live.",
+        "When going live, sir."
+      ]
+    },
+    {
+      "id": "owner-pen-test",
+      "topic": "security",
+      "when": ["penetration test", "pen test"],
+      "replies": [
+        "Recommended before about ten thousand Shoppers, sir: a trusted expert tries to break in first.",
+        "Before ten thousand Shoppers, sir."
+      ]
+    },
+    {
+      "id": "owner-alerts",
+      "topic": "security",
+      "when": ["will i get alerts", "alert me to trouble"],
+      "replies": [
+        "Alerts to you are still to do, sir: failed sign-ins, the kill switch, new staff accounts, large refunds.",
+        "Still to build, sir."
+      ]
+    },
+    {
+      "id": "owner-security-in-one-line",
+      "topic": "security",
+      "when": ["explain security simply", "like a school"],
+      "replies": [
+        "Like a school, sir: many small locked doors, the office decides, and only your office sees the money.",
+        "Many locked doors, sir."
+      ]
+    },
+    {
+      "id": "owner-staff-security-guide",
+      "topic": "security",
+      "when": ["security guide for new people", "guide for new starters"],
+      "replies": [
+        "A one-page guide for every new starter, sir. Claude drafts it when asked.",
+        "To do, sir. Claude can draft it."
+      ]
+    },
+    {
+      "id": "owner-server-stolen",
+      "topic": "security",
+      "when": ["what if the server is taken", "worst case"],
+      "replies": [
+        "Names and addresses could be at risk, sir, but never card numbers, and passwords are only stored scrambled.",
+        "No cards, no readable passwords, sir."
+      ]
+    },
+    {
+      "id": "owner-launch-checklist",
+      "topic": "launch",
+      "when": ["read me the launch list", "launch checklist", "what's on the launch list"],
+      "replies": [
+        "Company details, the telephone number, a solicitor, the ICO, the backed-up database, the staff key, Stripe live keys, Twilio, LiveKit, notification keys and insurance, sir.",
+        "Fourteen steps in the launch document, sir."
+      ]
+    },
+    {
+      "id": "owner-what-first-for-launch",
+      "topic": "launch",
+      "when": ["what do i do first for launch", "first launch step"],
+      "replies": [
+        "The company's registered name, number and office on the site, sir. Send them to Claude.",
+        "Company details first, sir."
+      ]
+    },
+    {
+      "id": "owner-stripe-live-keys",
+      "topic": "launch",
+      "when": ["live keys", "go live with payments"],
+      "replies": [
+        "Finish activating Stripe for the company, turn on Connect for live, then put the live keys in DigitalOcean, encrypted, sir.",
+        "Activate, Connect, then live keys, sir."
+      ]
+    },
+    {
+      "id": "owner-stripe-webhook-live",
+      "topic": "launch",
+      "when": ["live webhook", "payment webhook"],
+      "replies": [
+        "Live mode has its own webhook, sir, with its own signing secret. It's added again after switching to live.",
+        "Add it again in live mode, sir."
+      ]
+    },
+    {
+      "id": "owner-apple-pay",
+      "topic": "launch",
+      "when": ["apple pay", "google pay"],
+      "replies": [
+        "Check both are switched on in Stripe's payment methods, sir, and add our web address under payment method domains for Apple Pay.",
+        "Switched on in Stripe, sir."
+      ]
+    },
+    {
+      "id": "owner-first-real-order",
+      "topic": "launch",
+      "when": ["how do i test real payments", "try a real order"],
+      "replies": [
+        "Place one small real order yourself, sir, report a problem on it, and decide the refund in the panel.",
+        "One small real order, sir."
+      ]
+    },
+    {
+      "id": "owner-twilio-registration",
+      "topic": "launch",
+      "when": ["twilio registration", "register the twilio number"],
+      "replies": [
+        "Finish Twilio's regulatory registration for a UK mobile number, as a business, direct customer, with Messaging and Voice on, sir.",
+        "A UK mobile number, registered to the company, sir."
+      ]
+    },
+    {
+      "id": "owner-twilio-upgrade",
+      "topic": "launch",
+      "when": ["upgrade twilio", "twilio trial"],
+      "replies": [
+        "On the trial, sir, texts only reach numbers added by hand. Upgrading with a card fixes it.",
+        "Upgrade with a card, sir."
+      ]
+    },
+    {
+      "id": "owner-livekit-keys",
+      "topic": "launch",
+      "when": ["livekit keys", "switch on calls"],
+      "replies": [
+        "Put LiveKit's URL, API key and secret on the api component, sir, and add the webhook. Until then the call button stays hidden.",
+        "Three values and a webhook, sir."
+      ]
+    },
+    {
+      "id": "owner-vapid-keys",
+      "topic": "launch",
+      "when": ["notification keys", "vapid keys"],
+      "replies": [
+        "Make the key pair once and add both values in DigitalOcean, sir, so a Shopper's phone can buzz.",
+        "A key pair, sir. Step ten."
+      ]
+    },
+    {
+      "id": "owner-backups",
+      "topic": "launch",
+      "when": ["database backups", "are we backed up"],
+      "replies": [
+        "Not yet, sir. A managed PostgreSQL database in London, with daily backups and point-in-time recovery, is step five.",
+        "Step five, sir. Do it before the first real order."
+      ]
+    },
+    {
+      "id": "owner-point-in-time",
+      "topic": "launch",
+      "when": ["point in time recovery", "restore to any minute"],
+      "replies": [
+        "It lets us go back to any minute in the last seven days, sir. Switched on with the managed database.",
+        "Any minute in the past week, sir."
+      ]
+    },
+    {
+      "id": "owner-cyber-essentials",
+      "topic": "launch",
+      "when": ["cyber essentials", "government certificate"],
+      "replies": [
+        "A UK government-backed certificate of the basics, sir. Recommended before signing councils or the NHS.",
+        "Before councils and the NHS, sir."
+      ]
+    },
+    {
+      "id": "owner-staff-api-key",
+      "topic": "launch",
+      "when": ["the founder key", "emergency key"],
+      "replies": [
+        "Made once in the DigitalOcean console, sir, and kept in a password manager. Never pasted into a chat.",
+        "Keep it safe for emergencies, sir."
+      ]
+    },
+    {
+      "id": "owner-solicitor",
+      "topic": "launch",
+      "when": ["do i need a solicitor", "privacy policy", "terms and conditions"],
+      "replies": [
+        "Yes, sir. The privacy policy and terms are drafts, and the Runner agreement still needs writing.",
+        "A solicitor reads them, sir."
+      ]
+    },
+    {
+      "id": "owner-ico-registration",
+      "topic": "launch",
+      "when": ["ico registration", "data protection fee"],
+      "replies": [
+        "Registered online at the ICO's site in about fifteen minutes, sir. Then send Claude the number.",
+        "About fifteen minutes online, sir."
+      ]
+    },
+    {
+      "id": "owner-insurance",
+      "topic": "launch",
+      "when": ["what cover do we need", "public liability"],
+      "replies": [
+        "Ask a broker about public liability, sir, and whether goods in transit should be covered.",
+        "A broker can advise, sir."
+      ]
+    },
+    {
+      "id": "owner-first-runners",
+      "topic": "launch",
+      "when": ["first runners", "who should our first runners be"],
+      "replies": [
+        "Start with a handful you have met, sir. Each is checked by a person before taking a job.",
+        "A handful you know, sir."
+      ]
+    },
+    {
+      "id": "owner-soft-launch",
+      "topic": "launch",
+      "when": ["soft launch", "where do we start"],
+      "replies": [
+        "Gillingham and ME7 first, sir, to people you invite. Widen it after a week without surprises.",
+        "Gillingham first, sir."
+      ]
+    },
+    {
+      "id": "owner-health-check",
+      "topic": "launch",
+      "when": ["health check", "is the latest version live"],
+      "replies": [
+        "Open the health page, sir. It should show the latest commit, postgres, stripe and calls enabled.",
+        "The health page tells you, sir."
+      ]
+    },
+    {
+      "id": "owner-phone-apps",
+      "topic": "launch",
+      "when": ["phone apps", "app store", "when are the apps coming"],
+      "replies": [
+        "Waiting on the D-U-N-S number, sir. The website works on phones meanwhile, and can go on the home screen.",
+        "Waiting on D-U-N-S, sir."
+      ]
+    },
+    {
+      "id": "owner-dunsn",
+      "topic": "launch",
+      "when": ["what is d-u-n-s", "duns number"],
+      "replies": [
+        "A company number Apple and Google ask for, sir, before our store accounts open.",
+        "For the app stores, sir."
+      ]
+    },
+    {
+      "id": "owner-testing-with-friends",
+      "topic": "launch",
+      "when": ["can i test with friends", "testing with people"],
+      "replies": [
+        "Yes, sir. None of the launch list is needed for testing with people you know.",
+        "Of course, sir."
+      ]
+    },
+    {
+      "id": "owner-dont-rename",
+      "topic": "launch",
+      "when": ["can i rename the app", "rename the database"],
+      "replies": ["Please don't, sir. Other settings depend on the names.", "Best not, sir."]
+    },
+    {
+      "id": "owner-launch-blockers",
+      "topic": "launch",
+      "when": ["what's stopping us launching", "what's holding us up"],
+      "replies": [
+        "Only your steps, sir: company details, the number, the solicitor, the ICO, the database, the keys, Twilio, LiveKit and insurance.",
+        "Settings and paperwork, sir. The app is built."
+      ]
+    },
+    {
+      "id": "owner-accessibility-check",
+      "topic": "launch",
+      "when": ["accessibility check", "test with screen readers"],
+      "replies": [
+        "A real check by people who use screen readers is on the launch list, sir.",
+        "Before launch, sir."
+      ]
+    },
+    {
+      "id": "owner-phone-ordering",
+      "topic": "telephone",
+      "when": ["can people order by phone", "telephone ordering"],
+      "replies": [
+        "Yes, sir. Ozi answers the Twilio number, finds the account by the caller's number, takes the order and reads it back before sending.",
+        "Yes, sir. Built and waiting for the number."
+      ]
+    },
+    {
+      "id": "owner-pay-by-link",
+      "topic": "telephone",
+      "when": ["pay by link", "texted payment link"],
+      "replies": [
+        "A caller with no card saved, ringing from a mobile, is texted a secure Stripe link to pay and give their address, sir.",
+        "A Stripe link by text, sir."
+      ]
+    },
+    {
+      "id": "owner-link-expiry",
+      "topic": "telephone",
+      "when": ["how long does the link last", "what if they don't pay"],
+      "replies": [
+        "Twenty-three hours, sir. Unpaid, the order is closed.",
+        "Twenty-three hours, sir."
+      ]
+    },
+    {
+      "id": "owner-landline-callers",
+      "topic": "telephone",
+      "when": ["what about landlines", "landline callers"],
+      "replies": [
+        "A landline caller with no account is sent to the website, sir, because a link can't be texted to a landline.",
+        "The website, sir."
+      ]
+    },
+    {
+      "id": "owner-card-on-the-phone",
+      "topic": "telephone",
+      "when": ["can they read their card out", "card over the phone"],
+      "replies": [
+        "Never, sir. A card is never given to Ozi or anyone on a call. Keypad card entry needs Twilio Pay, not yet built.",
+        "Never by voice, sir."
+      ]
+    },
+    {
+      "id": "owner-cut-off",
+      "topic": "telephone",
+      "when": ["what if the call drops", "call cut off"],
+      "replies": [
+        "If they agreed, sir, Ozi rings back once and carries on where they were.",
+        "Ozi rings back once, sir."
+      ]
+    },
+    {
+      "id": "owner-strangers-number",
+      "topic": "telephone",
+      "when": ["do we keep callers' details", "do we save who rang"],
+      "replies": [
+        "A stranger is asked first, sir, whether their number may be kept for a call back.",
+        "Only if they agree, sir."
+      ]
+    },
+    {
+      "id": "owner-order-texts",
+      "topic": "telephone",
+      "when": ["do people get texts", "updates by text"],
+      "replies": [
+        "Paid, a Runner has it, on the way, delivered: by notification, sir, or text when there are no notifications.",
+        "Each stage, sir."
+      ]
+    },
+    {
+      "id": "owner-ring-their-phone",
+      "topic": "telephone",
+      "when": ["ring their phone instead", "runner calls shopper's phone"],
+      "replies": [
+        "A Runner can ring a Shopper's phone from our number on a call, sir. The number is never shown, and it costs the Shopper nothing.",
+        "Free to the Shopper, sir."
+      ]
+    },
+    {
+      "id": "owner-twilio-signature",
+      "topic": "telephone",
+      "when": ["can someone fake twilio", "is the phone line safe"],
+      "replies": [
+        "Every request from Twilio must carry its signature, sir, checked against the Auth Token.",
+        "Checked every time, sir."
+      ]
+    },
+    {
+      "id": "owner-auth-token-changed",
+      "topic": "telephone",
+      "when": ["i changed the twilio token", "ozi stopped answering"],
+      "replies": [
+        "Change it in DigitalOcean too, sir, or Ozi stops answering the phone.",
+        "Both places, sir."
+      ]
+    },
+    {
+      "id": "owner-what-number",
+      "topic": "telephone",
+      "when": ["what's our phone number", "shopper telephone number"],
+      "replies": [
+        "The number is still a placeholder, sir. A Twilio UK mobile number is step two of the launch list.",
+        "Not set yet, sir."
+      ]
+    },
+    {
+      "id": "owner-no-plivo",
+      "topic": "telephone",
+      "when": ["what about plivo", "why not plivo"],
+      "replies": [
+        "Plivo doesn't accept accounts from our region, sir, so one Twilio number does texts and calls.",
+        "Twilio for both, sir."
+      ]
+    },
+    {
+      "id": "owner-phone-costs",
+      "topic": "telephone",
+      "when": ["what does the phone line cost", "twilio costs"],
+      "replies": [
+        "Twilio charges by use, sir. Check its pricing page; the Twilio and LiveKit document has the rough figures.",
+        "By use, sir. The document has rough figures."
+      ]
+    },
+    {
+      "id": "owner-phone-voice-ceiling",
+      "topic": "telephone",
+      "when": ["can a caller order anything", "is there a limit by phone"],
+      "replies": [
+        "The voice spending ceiling applies on the phone too, sir, and only the home address.",
+        "Same limits, sir."
+      ]
+    },
+    {
+      "id": "owner-phone-orders-analysed",
+      "topic": "telephone",
+      "when": ["are phone orders counted", "phone orders in the reports"],
+      "replies": [
+        "The same as everyone's, sir: one-way codes and postcode districts, never names or numbers.",
+        "Counted, never named, sir."
+      ]
+    },
+    {
+      "id": "owner-my-share-link",
+      "topic": "share",
+      "when": ["my share link", "where's my share link"],
+      "replies": [
+        "Under Your share link, sir, in the admin panel, with how many have joined through it.",
+        "In the admin panel, sir."
+      ]
+    },
+    {
+      "id": "owner-how-many-joined",
+      "topic": "share",
+      "when": ["how many joined through my link", "my link count"],
+      "replies": [
+        "The meter under your share link counts them, sir.",
+        "Your share card has it, sir."
+      ]
+    },
+    {
+      "id": "owner-who-has-share-links",
+      "topic": "share",
+      "when": ["who has share links", "does everyone have a link"],
+      "replies": [
+        "Everyone signed in, sir: you, staff, family, investors, Shoppers, Runners, Shop Partners and organisations.",
+        "Everybody, sir."
+      ]
+    },
+    {
+      "id": "owner-share-towards-hundred",
+      "topic": "share",
+      "when": ["what's the hundred target", "towards a hundred"],
+      "replies": [
+        "Shop Partners and organisations have a meter towards a hundred people joined, sir.",
+        "Towards a hundred, sir."
+      ]
+    },
+    {
+      "id": "owner-send-my-link",
+      "topic": "share",
+      "when": ["send my link to someone", "how do i share it"],
+      "replies": [
+        "Press share on the card, sir, and your phone offers its share sheet.",
+        "The share button, sir."
+      ]
+    },
+    {
+      "id": "owner-how-many-phrases",
+      "topic": "phrases",
+      "when": ["how many phrases do you know", "how many phrases"],
+      "replies": [
+        "Each account has its own collection, sir, and you have all of them, your own first.",
+        "Every account's, sir."
+      ]
+    },
+    {
+      "id": "owner-daily-phrases",
+      "topic": "phrases",
+      "when": ["are phrases added every day", "daily phrases"],
+      "replies": [
+        "Fifty a day to each account's collection, sir, by the daily task.",
+        "Fifty a day each, sir."
+      ]
+    },
+    {
+      "id": "owner-phrases-private",
+      "topic": "phrases",
+      "when": ["are the phrases private", "can anyone copy the phrases"],
+      "replies": [
+        "Yes, sir. They stay on the server and are never sent to any app, nor to Google Drive.",
+        "Private, sir. Server only."
+      ]
+    },
+    {
+      "id": "owner-phrase-ceiling",
+      "topic": "phrases",
+      "when": ["how many is too many", "phrase limit"],
+      "replies": [
+        "About five thousand per account is the recommended ceiling, sir, reviewed at two thousand.",
+        "About five thousand each, sir."
+      ]
+    },
+    {
+      "id": "owner-unanswered-questions",
+      "topic": "phrases",
+      "when": ["what about questions you couldn't answer", "learn from real questions"],
+      "replies": [
+        "From about two thousand per account, sir, new phrases come from real questions I couldn't answer, recorded without names.",
+        "Real questions next, sir, without names."
+      ]
+    },
+    {
+      "id": "owner-review-phrases",
+      "topic": "phrases",
+      "when": ["review the phrases", "check what you say"],
+      "replies": [
+        "Tell Claude which reply to change, sir, and it's corrected in the phrase files.",
+        "Ask Claude, sir. Any reply can be changed."
+      ]
+    },
+    {
+      "id": "owner-wrong-answer",
+      "topic": "phrases",
+      "when": ["that was wrong", "that's not right"],
+      "replies": [
+        "I'm sorry, sir. Tell Claude what I should have said, and it will be put right.",
+        "Apologies, sir."
+      ]
+    },
+    {
+      "id": "owner-why-sir",
+      "topic": "phrases",
+      "when": ["why do you call me sir", "you don't have to call me sir"],
+      "replies": [
+        "It's how you asked to be addressed, {owner}, sir. Tell Claude if you'd like it changed.",
+        "Out of respect, {owner}. Yes, sir."
+      ]
+    },
+    {
+      "id": "owner-call-me-something-else",
+      "topic": "phrases",
+      "when": ["call me something else", "change how you address me"],
+      "replies": [
+        "The form of address lives in your phrase file, sir. Tell Claude what you'd like.",
+        "Tell Claude, sir, and it's changed."
+      ]
+    },
+    {
+      "id": "owner-everyone-phrases",
+      "topic": "phrases",
+      "when": ["do you know what shoppers say", "can you answer like a runner"],
+      "replies": ["Yes, sir. You have every account's phrases after your own.", "All of them, sir."]
+    },
+    {
+      "id": "owner-growth-plan",
+      "topic": "growth",
+      "when": ["read me the growth plan", "growth plan"],
+      "replies": [
+        "Steps taken as the numbers call for them, sir: at fifty thousand users, at five hundred thousand, and at a million.",
+        "Three steps after launch, sir."
+      ]
+    },
+    {
+      "id": "owner-ten-million",
+      "topic": "growth",
+      "when": ["ten million users", "can we reach millions"],
+      "replies": [
+        "The design can grow to that, sir. The setup today isn't meant to; it grows in planned steps.",
+        "Yes, sir, step by step."
+      ]
+    },
+    {
+      "id": "owner-at-fifty-thousand",
+      "topic": "growth",
+      "when": ["what happens at fifty thousand", "first growth step"],
+      "replies": [
+        "Photos move to file storage with a CDN, a proper product search index, lists loaded a page at a time, and monitoring with alerts, sir.",
+        "Storage, search and monitoring, sir."
+      ]
+    },
+    {
+      "id": "owner-at-five-hundred-thousand",
+      "topic": "growth",
+      "when": ["what happens at half a million", "second growth step"],
+      "replies": [
+        "Several copies of the server behind a load balancer, a connection pooler, a read replica, a job queue and load testing, sir.",
+        "More servers and a queue, sir."
+      ]
+    },
+    {
+      "id": "owner-at-a-million",
+      "topic": "growth",
+      "when": ["what happens at a million", "third growth step"],
+      "replies": [
+        "Bigger databases with a standby, data split by region, a CDN for the whole app, and perhaps a larger cloud, sir.",
+        "Splitting by region, sir."
+      ]
+    },
+    {
+      "id": "owner-why-it-scales",
+      "topic": "growth",
+      "when": ["why can it grow", "is the design sound"],
+      "replies": [
+        "The server keeps no memory of who's signed in, sir, so many copies can run side by side, and every money rule is written once, with tests.",
+        "Built to grow, sir."
+      ]
+    },
+    {
+      "id": "owner-at-once",
+      "topic": "growth",
+      "when": ["how many at the same time", "busiest time"],
+      "replies": [
+        "Usually one to five in every hundred users at once, sir. Large, but well understood.",
+        "A small share at once, sir."
+      ]
+    },
+    {
+      "id": "owner-growth-costs",
+      "topic": "growth",
+      "when": ["what will hosting cost", "server costs"],
+      "replies": [
+        "Tens of pounds a month at launch, sir, rising with use: a few hundred at fifty thousand, low thousands at half a million.",
+        "It rises with use, sir."
+      ]
+    },
+    {
+      "id": "owner-leave-digitalocean",
+      "topic": "growth",
+      "when": ["should we leave digitalocean", "move to aws"],
+      "replies": [
+        "Only at a million and above, sir, if needed. The code moves unchanged; only the setup does.",
+        "Not yet, sir."
+      ]
+    },
+    {
+      "id": "owner-tell-claude-numbers",
+      "topic": "growth",
+      "when": ["when do we take the following step", "who does the growth work"],
+      "replies": [
+        "Tell Claude the number of users as you near each step, sir. Claude writes the code; you make the DigitalOcean changes.",
+        "Tell Claude the numbers, sir."
+      ]
+    },
+    {
+      "id": "owner-new-regions",
+      "topic": "growth",
+      "when": ["new regions", "where do we go after medway", "nigeria", "kenya"],
+      "replies": [
+        "Medway first, sir, then other areas, then Nigeria and Kenya, each its own marketplace.",
+        "Medway, then further, sir."
+      ]
+    },
+    {
+      "id": "owner-region-selector",
+      "topic": "growth",
+      "when": ["region selector", "marketplace switching"],
+      "replies": [
+        "Not built yet, sir. It's among the bigger pieces still to do.",
+        "Still to do, sir."
+      ]
+    },
+    {
+      "id": "owner-more-shops",
+      "topic": "growth",
+      "when": ["lots of stores", "more than one store"],
+      "replies": [
+        "Many shops, with listings and price dates, is still to be built, sir.",
+        "On the list, sir."
+      ]
+    },
+    {
+      "id": "owner-languages",
+      "topic": "growth",
+      "when": ["other languages", "welsh", "igbo", "yoruba"],
+      "replies": [
+        "Welsh first, sir, then Igbo, Hausa, Yoruba and Swahili. Not built yet.",
+        "Welsh first, sir."
+      ]
+    },
+    {
+      "id": "owner-new-ways-to-earn",
+      "topic": "growth",
+      "when": ["how else do we earn", "ways to earn"],
+      "replies": [
+        "Recipes, Plus, Finds It, gift cards, Little Gifts, Shop Partners and Spotlight, sir, all built.",
+        "Several extras, sir, all built."
+      ]
+    },
+    {
+      "id": "owner-errands",
+      "topic": "growth",
+      "when": ["errands", "sending service", "emergency runs"],
+      "replies": [
+        "Errands, Sending and business emergency runs are bigger pieces still to do, sir.",
+        "Still to come, sir."
+      ]
+    },
+    {
+      "id": "owner-analytics-privacy",
+      "topic": "analytics",
+      "when": ["is the data anonymous", "are names in the reports"],
+      "replies": [
+        "No names, numbers or addresses, sir. People are one-way codes, places are postcode districts.",
+        "Anonymous, sir."
+      ]
+    },
+    {
+      "id": "owner-small-groups",
+      "topic": "analytics",
+      "when": ["why are some groups missing", "under ten"],
+      "replies": [
+        "Any group of fewer than ten people is left out, sir, so nobody can be picked out.",
+        "Under ten is hidden, sir."
+      ]
+    },
+    {
+      "id": "owner-age-groups",
+      "topic": "analytics",
+      "when": ["age groups", "how old are our shoppers"],
+      "replies": [
+        "Only if a person gives an age group in Settings, sir. It's optional.",
+        "Optional, sir."
+      ]
+    },
+    {
+      "id": "owner-sell-insight",
+      "topic": "analytics",
+      "when": ["can we sell the data", "sell what we learn"],
+      "replies": [
+        "Insight about groups can be sold, sir, never anything about people. The business analysis document sets the rules.",
+        "Groups only, never people, sir."
+      ]
+    },
+    {
+      "id": "owner-analysis-stages",
+      "topic": "analytics",
+      "when": ["simple medium complex", "stages of the reports"],
+      "replies": [
+        "Simple, medium and complex stages, sir, set out in the business analysis document.",
+        "Three stages, sir."
+      ]
+    },
+    {
+      "id": "owner-recorded-from-day-one",
+      "topic": "analytics",
+      "when": ["since when is it recorded", "is every order counted"],
+      "replies": [
+        "From day one, sir: every purchase, delivery and search.",
+        "Everything since day one, sir."
+      ]
+    },
+    {
+      "id": "owner-by-area",
+      "topic": "analytics",
+      "when": ["which areas buy most", "by postcode"],
+      "replies": ["The analytics show it by postcode district, sir.", "By district, sir."]
+    },
+    {
+      "id": "owner-share-the-analysis",
+      "topic": "analytics",
+      "when": ["let my investor see the reports", "share the reports"],
+      "replies": ["Switch on business analysis for them in My settings, sir.", "One switch, sir."]
+    },
+    {
+      "id": "owner-telephone-share",
+      "topic": "analytics",
+      "when": ["how many came by telephone", "phone orders count"],
+      "replies": [
+        "Telephone orders are counted like everyone's, sir, and the analytics say how many came through organisations.",
+        "In the analytics, sir."
+      ]
+    },
+    {
+      "id": "owner-is-every-shop-listed",
+      "topic": "partners",
+      "when": ["is listing free", "does a store have to pay"],
+      "replies": [
+        "Every shop is listed free, by us, sir. Paying monthly makes it a Shop Partner.",
+        "Free to be listed, sir."
+      ]
+    },
+    {
+      "id": "owner-what-partners-get",
+      "topic": "partners",
+      "when": ["what does a paying store get", "what comes with the plan"],
+      "replies": [
+        "Its own sign-in, adding products with a photo, changing prices at once, seeing what it pays, and a share link, sir.",
+        "Its own area, sir."
+      ]
+    },
+    {
+      "id": "owner-partner-products-checked",
+      "topic": "partners",
+      "when": ["are new items checked", "who vets new items"],
+      "replies": [
+        "Each new product is checked by a person before Shoppers see it, sir. Nothing restricted is listed.",
+        "Checked first, sir."
+      ]
+    },
+    {
+      "id": "owner-partner-unpaid",
+      "topic": "partners",
+      "when": ["what if a store stops paying", "unpaid plan"],
+      "replies": [
+        "Their products show only while the plan is paid, sir.",
+        "They stop showing, sir."
+      ]
+    },
+    {
+      "id": "owner-spotlight-how",
+      "topic": "partners",
+      "when": ["how does spotlight work", "explain spotlight"],
+      "replies": [
+        "On Spotlight, Ozi mentions the shop at most once a week to a Shopper looking for something it sells, sir. Plus allows up to three.",
+        "Once a week, or three for Plus, sir."
+      ]
+    },
+    {
+      "id": "owner-advert-labelled",
+      "topic": "partners",
+      "when": ["are mentions labelled", "is spotlight honest"],
+      "replies": [
+        "Always, sir: the genuine results first, then one advert at most, called an advert, with checkable facts only.",
+        "Genuine first, sir, advert after."
+      ]
+    },
+    {
+      "id": "owner-promoted-limit",
+      "topic": "partners",
+      "when": ["how many promoted stores", "spotlight limit per area"],
+      "replies": [
+        "At most three promoted shops per kind of product in an area, sir.",
+        "Three per area, sir."
+      ]
+    },
+    {
+      "id": "owner-who-signs-up-partners",
+      "topic": "partners",
+      "when": ["who signs up paying stores", "who gives stores a sign in"],
+      "replies": [
+        "Our Partnerships staff give each Shop Partner its sign-in, sir.",
+        "Partnerships, sir."
+      ]
+    },
+    {
+      "id": "owner-partner-door",
+      "topic": "partners",
+      "when": ["how do stores find us", "the door for stores"],
+      "replies": [
+        "The first screen has a Shop Partner door, sir, and shops can ask to work with us by a form that lands in the panel.",
+        "A door on the first screen, sir."
+      ]
+    },
+    {
+      "id": "owner-offers",
+      "topic": "partners",
+      "when": ["offers", "special offers"],
+      "replies": [
+        "Only offers agreed in writing with a shop, sir, kept in the offers file, which starts empty.",
+        "Agreed in writing only, sir."
+      ]
+    },
+    {
+      "id": "owner-spotlight-review",
+      "topic": "partners",
+      "when": ["spotlight introductory price", "spotlight first three months"],
+      "replies": [
+        "Claude's recommendation awaits you, sir: one price for everyone for the first three months, then reviewed.",
+        "Your decision, sir."
+      ]
+    },
+    {
+      "id": "owner-what-organisations",
+      "topic": "organisations",
+      "when": ["who are our business customers", "councils and care homes"],
+      "replies": [
+        "Councils, care homes, hospitals, charities and businesses, sir.",
+        "Councils, care homes and more, sir."
+      ]
+    },
+    {
+      "id": "owner-org-sees",
+      "topic": "organisations",
+      "when": ["what does a council see", "what does a care home see"],
+      "replies": [
+        "The people who linked to it, their orders, spending by month and office, budget left, savings, weekly shops and a statement, sir.",
+        "Only those who linked, sir."
+      ]
+    },
+    {
+      "id": "owner-org-link-consent",
+      "topic": "organisations",
+      "when": ["who decides to link", "can a council add people"],
+      "replies": [
+        "Only the person links, sir, with the organisation's code, after being told what it will see. They can stop it in Settings.",
+        "The person decides, sir."
+      ]
+    },
+    {
+      "id": "owner-org-invoice",
+      "topic": "organisations",
+      "when": ["can councils pay by invoice", "invoice billing"],
+      "replies": [
+        "Not built, sir. It would change no card, no order, and needs your ruling.",
+        "That needs your ruling, sir."
+      ]
+    },
+    {
+      "id": "owner-org-savings",
+      "topic": "organisations",
+      "when": ["how are savings worked out", "council savings"],
+      "replies": [
+        "From their own figure for a staff trip to the shops, sir.",
+        "From their own figure, sir."
+      ]
+    },
+    {
+      "id": "owner-enquiry-callback",
+      "topic": "organisations",
+      "when": ["who phones councils", "council called"],
+      "replies": [
+        "Partnerships ring back within two working days, sir. Say read me the enquiries.",
+        "Within two working days, sir."
+      ]
+    },
+    {
+      "id": "owner-nhs",
+      "topic": "organisations",
+      "when": ["the nhs", "hospitals"],
+      "replies": [
+        "Cyber Essentials first, sir. Councils and the NHS often ask for it.",
+        "Cyber Essentials first, sir."
+      ]
+    },
+    {
+      "id": "owner-braille-roadmap",
+      "topic": "braille",
+      "when": ["braille roadmap", "braille plans"],
+      "replies": [
+        "Five steps, sir: displays today, a deafblind mode, a Braille connector, Ozi's own Braille pad on screen, then a device of our own.",
+        "Five steps, sir. Nothing holds up launch."
+      ]
+    },
+    {
+      "id": "owner-braille-today",
+      "topic": "braille",
+      "when": ["does braille work today", "braille display"],
+      "replies": [
+        "Yes, sir. A Braille display with VoiceOver or TalkBack reads and types in the app now.",
+        "Yes, sir, through the phone's screen reader."
+      ]
+    },
+    {
+      "id": "owner-deafblind-mode",
+      "topic": "braille",
+      "when": ["deafblind mode", "for people who can't see or hear"],
+      "replies": [
+        "Next on the roadmap, sir: everything Ozi says sent as text to the display, with vibration patterns for the door.",
+        "Step two, sir."
+      ]
+    },
+    {
+      "id": "owner-braille-connector",
+      "topic": "braille",
+      "when": ["braille connector", "braille api"],
+      "replies": [
+        "Our own connection for handheld Braille devices, sir, with an open interface other makers can use.",
+        "Step three, sir."
+      ]
+    },
+    {
+      "id": "owner-braille-pad",
+      "topic": "braille",
+      "when": ["braille pad", "braille keypad"],
+      "replies": [
+        "A digital Braille keypad on the phone's screen, sir, brought up by a tap pattern or a word.",
+        "Step four, sir."
+      ]
+    },
+    {
+      "id": "owner-braille-device",
+      "topic": "braille",
+      "when": ["our own braille device", "braille hardware"],
+      "replies": [
+        "If the market and technology allow, sir, after the other steps.",
+        "The last step, sir."
+      ]
+    },
+    {
+      "id": "owner-braille-guide",
+      "topic": "braille",
+      "when": ["braille guide", "write up braille"],
+      "replies": ["A short guide is planned, sir, tested with a real display.", "Planned, sir."]
+    },
+    {
+      "id": "owner-accessibility-standard",
+      "topic": "accessibility",
+      "when": ["what accessibility standard", "wcag"],
+      "replies": ["WCAG 2.2 AA, sir, with large text and big controls.", "WCAG 2.2 AA, sir."]
+    },
+    {
+      "id": "owner-screen-readers",
+      "topic": "accessibility",
+      "when": ["does it work with screen readers", "voiceover", "talkback"],
+      "replies": [
+        "Every screen is built for screen readers, sir, the admin panel included.",
+        "Every screen, sir."
+      ]
+    },
+    {
+      "id": "owner-pinch-zoom",
+      "topic": "accessibility",
+      "when": ["can people zoom", "pinch to zoom"],
+      "replies": [
+        "Pinch to zoom works on the website, sir, and is switched on for the phone apps.",
+        "Yes, sir."
+      ]
+    },
+    {
+      "id": "owner-show-words",
+      "topic": "accessibility",
+      "when": ["show words on the screen", "hidden descriptions"],
+      "replies": [
+        "Turn on Show words on the screen, sir, in Settings or the admin panel, to see the descriptions.",
+        "A setting, sir."
+      ]
+    },
+    {
+      "id": "owner-extra-help",
+      "topic": "accessibility",
+      "when": ["extra support at first launch", "blind shoppers first launch"],
+      "replies": [
+        "After the introduction, Ozi asks whether the person needs extra help, sir, and explains pinch to zoom.",
+        "Asked at first launch, sir."
+      ]
+    },
+    {
+      "id": "owner-safari-microphone",
+      "topic": "accessibility",
+      "when": ["safari won't listen", "iphone microphone"],
+      "replies": [
+        "In testing, Safari and Edge on an iPhone refused the microphone, sir. Chrome could listen.",
+        "Try Chrome, sir."
+      ]
+    },
+    {
+      "id": "owner-voice-engine",
+      "topic": "accessibility",
+      "when": ["better voice", "oluoma voice", "faster whisper"],
+      "replies": [
+        "The app works fully on the phone's own voice, sir. Oluoma Voice and Faster Whisper are improvements later.",
+        "Later improvements, sir. Nothing waits for them."
+      ]
+    },
+    {
+      "id": "owner-admin-by-voice",
+      "topic": "accessibility",
+      "when": ["can i run it all by voice", "everything by voice"],
+      "replies": [
+        "Yes, sir. Every part of the panel, every list and every decision, read back before it's done.",
+        "All of it, sir."
+      ]
+    },
+    {
+      "id": "owner-whats-next-to-build",
+      "topic": "building",
+      "when": ["what should we build now", "what's the priority to build"],
+      "replies": [
+        "Ozi saying each stage of an order aloud on the page, sir, then an arrival time, then Shopper feedback after delivery.",
+        "Order stages aloud, sir."
+      ]
+    },
+    {
+      "id": "owner-arrival-time",
+      "topic": "building",
+      "when": ["arrival time", "when will it arrive feature"],
+      "replies": [
+        "An estimated arrival time on the order page is still to do, sir.",
+        "Still to do, sir."
+      ]
+    },
+    {
+      "id": "owner-shopper-feedback-build",
+      "topic": "building",
+      "when": ["shopper reviews after delivery", "delivery credit"],
+      "replies": [
+        "Shopper feedback after delivery, with delivery credit for any kind, is on the list, sir.",
+        "On the list, sir."
+      ]
+    },
+    {
+      "id": "owner-receipt-aloud",
+      "topic": "building",
+      "when": ["read the receipt aloud", "receipt reading"],
+      "replies": [
+        "Ozi reading the receipt aloud, what was bought and left out, is still to do, sir.",
+        "Still to do, sir."
+      ]
+    },
+    {
+      "id": "owner-family-carer-plan",
+      "topic": "building",
+      "when": ["carer plan", "ordering for a relative"],
+      "replies": [
+        "The family and carer plan says coming soon, sir. The data model is ready.",
+        "Coming soon, sir."
+      ]
+    },
+    {
+      "id": "owner-insurance-reminders",
+      "topic": "building",
+      "when": ["expiry reminders", "runner reminders"],
+      "replies": [
+        "Reminders for Runners' insurance expiry are on the list, sir.",
+        "On the list, sir."
+      ]
+    },
+    {
+      "id": "owner-runner-sos",
+      "topic": "building",
+      "when": ["sos button", "runner safety button"],
+      "replies": [
+        "A Runner SOS button sharing live location is a bigger piece still to do, sir.",
+        "Still to do, sir."
+      ]
+    },
+    {
+      "id": "owner-runner-offline",
+      "topic": "building",
+      "when": ["runner offline mode", "no signal"],
+      "replies": [
+        "Working offline for Runners, sending evidence when the signal returns, is still to do, sir.",
+        "Still to do, sir."
+      ]
+    },
+    {
+      "id": "owner-runner-training",
+      "topic": "building",
+      "when": ["runner training", "training modules"],
+      "replies": [
+        "The modules are titles only today, sir. The content is still to write.",
+        "Titles only so far, sir."
+      ]
+    },
+    {
+      "id": "owner-email-sign-up",
+      "topic": "building",
+      "when": ["sign up without a phone", "codes sent to an inbox"],
+      "replies": ["Email sign-up with an emailed code isn't built yet, sir.", "Not yet, sir."]
+    },
+    {
+      "id": "owner-handover-photo",
+      "topic": "building",
+      "when": ["handover photo", "handed to the person"],
+      "replies": [
+        "Recording a first name and a photo at handover is still to do, sir.",
+        "Still to do, sir."
+      ]
+    },
+    {
+      "id": "owner-data-retention",
+      "topic": "building",
+      "when": ["data retention", "seven year retention"],
+      "replies": [
+        "Seven-year retention then anonymising, and a separate analytics store, are still to do, sir.",
+        "On the list, sir."
+      ]
+    },
+    {
+      "id": "owner-weekly-summary",
+      "topic": "building",
+      "when": ["weekly spoken roundup", "wellbeing calls"],
+      "replies": [
+        "The weekly spoken summary and wellbeing checks are still to build, sir.",
+        "Later, sir."
+      ]
+    },
+    {
+      "id": "owner-how-long-left",
+      "topic": "building",
+      "when": ["how long till it's finished", "is it finished"],
+      "replies": [
+        "The app works now, sir. What's left is extra, listed in the still to do document.",
+        "It works today, sir. The rest is extra."
+      ]
+    },
+    {
+      "id": "owner-ask-claude-build",
+      "topic": "building",
+      "when": ["can claude build it", "who builds the features"],
+      "replies": [
+        "Claude writes the code when you ask, sir. You make the changes that need your accounts.",
+        "Claude, when you ask, sir."
+      ]
+    },
+    {
+      "id": "owner-no-alcohol",
+      "topic": "building",
+      "when": ["do we sell alcohol", "alcohol"],
+      "replies": ["Not in version one, sir. Nothing restricted is listed.", "No, sir."]
+    },
+    {
+      "id": "owner-recipes",
+      "topic": "building",
+      "when": ["recipes", "recipe pass"],
+      "replies": [
+        "The Recipe Pass is built, sir: agreed first, never renewing by itself. Recipe names and ingredients stay free.",
+        "Built, sir."
+      ]
+    },
+    {
+      "id": "owner-ozi-plus",
+      "topic": "building",
+      "when": ["plus membership", "family plan membership"],
+      "replies": [
+        "Plus and Plus for a family are built, sir: never renewing by themselves, up to four people with a family code.",
+        "Built, sir."
+      ]
+    },
+    {
+      "id": "owner-finds-it-feature",
+      "topic": "building",
+      "when": ["how does the finder service work", "hard to find items"],
+      "replies": [
+        "A person looks in up to three shops for something hard to find, sir, for a small fee agreed first and given back if nothing's found.",
+        "Up to three shops, sir."
+      ]
+    },
+    {
+      "id": "owner-gift-cards",
+      "topic": "building",
+      "when": ["gift cards", "gift vouchers"],
+      "replies": [
+        "Built, sir: bought with a card, given as a twelve-character code, used once.",
+        "Built, sir."
+      ]
+    },
+    {
+      "id": "owner-weekly-shop",
+      "topic": "building",
+      "when": ["booked weekly delivery", "same day every week"],
+      "replies": [
+        "On the chosen day, Ozi offers to put the usual shopping in the basket, sir. Nothing is sent or paid until the Shopper says so.",
+        "Offered, never sent alone, sir."
+      ]
+    },
+    {
+      "id": "owner-little-gifts",
+      "topic": "building",
+      "when": ["little gifts", "gift bundles"],
+      "replies": ["Ready-made, affordable gift bundles, sir, never alcohol. Built.", "Built, sir."]
+    },
+    {
+      "id": "owner-essentials",
+      "topic": "building",
+      "when": ["everyday essentials", "same day essentials"],
+      "replies": [
+        "Batteries, cables, light bulbs and the like, brought the same day, sir.",
+        "Same day, sir."
+      ]
+    },
+    {
+      "id": "owner-account-voice-signin",
+      "topic": "building",
+      "when": ["can people sign in by voice", "voice sign in"],
+      "replies": [
+        "Yes, sir. Ozi asks for the number, reads it back in twos and takes the code said aloud.",
+        "Yes, sir."
+      ]
+    },
+    {
+      "id": "owner-account-deletion",
+      "topic": "building",
+      "when": ["account deletion", "recycle bin"],
+      "replies": [
+        "A deleted account waits in a recycle bin first, sir, for the days set in the store settings.",
+        "A recycle bin first, sir."
+      ]
+    },
+    {
+      "id": "owner-advert-square-what",
+      "topic": "adverts",
+      "when": ["what is the advert square", "advert box"],
+      "replies": [
+        "A small square in the corner, sir, labelled as an advert, never on paying or card screens and never read aloud.",
+        "Small and labelled, sir."
+      ]
+    },
+    {
+      "id": "owner-advert-square-on",
+      "topic": "adverts",
+      "when": ["is the advert square on", "are adverts showing"],
+      "replies": ["It's off, sir, until you switch it on in the adverts file.", "Off for now, sir."]
+    },
+    {
+      "id": "owner-advert-rules",
+      "topic": "adverts",
+      "when": ["what adverts are allowed", "advert rules"],
+      "replies": [
+        "Only adverts agreed and paid for, or our own, sir. Never alcohol, tobacco, gambling, medicines or payday loans.",
+        "Strict rules, sir."
+      ]
+    },
+    {
+      "id": "owner-advert-plus-hide",
+      "topic": "adverts",
+      "when": ["can members hide adverts", "hide the square"],
+      "replies": ["Yes, sir. Plus members can hide the square.", "They can, sir."]
+    },
+    {
+      "id": "owner-advert-flashing",
+      "topic": "adverts",
+      "when": ["will adverts flash", "moving adverts"],
+      "replies": ["Never, sir. No flashing or moving adverts.", "Never, sir."]
+    },
+    {
+      "id": "owner-house-adverts",
+      "topic": "adverts",
+      "when": ["house adverts", "our own adverts"],
+      "replies": ["Two to start, sir: Plus, and gift cards.", "Plus and gift cards, sir."]
+    },
+    {
+      "id": "owner-feeling-low",
+      "topic": "encourage",
+      "when": ["i'm feeling low", "i'm fed up", "bad day"],
+      "replies": [
+        "I'm sorry, sir. You've built something that helps people shop who couldn't before. That matters.",
+        "Tomorrow is a new day, sir. I'm here."
+      ]
+    },
+    {
+      "id": "owner-is-it-worth-it",
+      "topic": "encourage",
+      "when": ["is it worth it", "why am i doing this"],
+      "replies": [
+        "For every person who can shop by voice for the first time, sir. {motto}",
+        "Yes, sir. People need this."
+      ]
+    },
+    {
+      "id": "owner-im-proud",
+      "topic": "encourage",
+      "when": ["i'm proud of this", "look what we've built"],
+      "replies": ["So you should be, {owner}. It's remarkable, sir.", "Rightly so, sir."]
+    },
+    {
+      "id": "owner-doubt",
+      "topic": "encourage",
+      "when": ["i'm not sure i can do this", "i doubt myself"],
+      "replies": [
+        "You've come a long way already, sir. One step at a time.",
+        "You can, sir. Step by step."
+      ]
+    },
+    {
+      "id": "owner-competition",
+      "topic": "encourage",
+      "when": ["what about the competition", "big companies"],
+      "replies": [
+        "We were built to be run by voice from the start, sir. That's ours.",
+        "We're different, sir."
+      ]
+    },
+    {
+      "id": "owner-motivate-me",
+      "topic": "encourage",
+      "when": ["motivate me", "say something encouraging", "give me a boost"],
+      "replies": [
+        "{motto} That's what you built, {owner}. Onward, sir.",
+        "You're building something good, sir."
+      ]
+    },
+    {
+      "id": "owner-first-customer",
+      "topic": "encourage",
+      "when": ["our first customer", "first order"],
+      "replies": ["A day to remember, sir.", "The first of many, sir."]
+    },
+    {
+      "id": "owner-setback",
+      "topic": "encourage",
+      "when": ["something went wrong", "we had a setback"],
+      "replies": [
+        "Setbacks are part of it, sir. Say what's waiting, and we'll take it one thing at a time.",
+        "We'll manage, sir."
+      ]
+    },
+    {
+      "id": "owner-believe",
+      "topic": "encourage",
+      "when": ["do you believe in this", "do you think it'll work"],
+      "replies": ["I do, sir. It's needed, and it's well built.", "Yes, sir."]
+    },
+    {
+      "id": "owner-blind-founder",
+      "topic": "encourage",
+      "when": ["can a blind man run a business", "they doubt me"],
+      "replies": ["You're doing it, sir, every day, by voice. That's the answer.", "You are, sir."]
+    },
+    {
+      "id": "owner-making-a-difference",
+      "topic": "encourage",
+      "when": ["are we making a difference", "are we helping people"],
+      "replies": ["Yes, sir. People who couldn't shop alone now can.", "Every order, sir."]
+    },
+    {
+      "id": "owner-big-dream",
+      "topic": "encourage",
+      "when": ["i have big plans", "the dream"],
+      "replies": ["The growth plan is ready for them, sir.", "Then let's go, sir."]
+    },
+    {
+      "id": "owner-worried",
+      "topic": "encourage",
+      "when": ["i'm worried", "i'm anxious about launch"],
+      "replies": [
+        "That's natural, sir. The launch list is clear, and you can take it one step at a time.",
+        "One step at a time, sir."
+      ]
+    },
+    {
+      "id": "owner-nervous-investors",
+      "topic": "encourage",
+      "when": ["meeting investors", "pitching tomorrow"],
+      "replies": [
+        "Good luck, sir. You know this business better than anyone.",
+        "You'll do well, sir."
+      ]
+    },
+    {
+      "id": "owner-celebrate",
+      "topic": "encourage",
+      "when": ["we did it", "we're live", "celebrate"],
+      "replies": ["Congratulations, {owner}. Well deserved, sir.", "Wonderful, sir."]
+    },
+    {
+      "id": "owner-need-a-break",
+      "topic": "rest",
+      "when": ["i need a break", "time for a break"],
+      "replies": ["Take one, sir. Nothing here will run away.", "Of course, sir. Enjoy it."]
+    },
+    {
+      "id": "owner-cup-of-tea",
+      "topic": "rest",
+      "when": ["cup of tea", "time for tea", "i need a coffee"],
+      "replies": ["A good idea, sir. I'll be here.", "Enjoy it, sir."]
+    },
+    {
+      "id": "owner-working-late",
+      "topic": "rest",
+      "when": ["working late", "still working"],
+      "replies": [
+        "Don't forget to rest, sir. The work will keep till morning.",
+        "Not too late, sir."
+      ]
+    },
+    {
+      "id": "owner-going-to-bed",
+      "topic": "rest",
+      "when": ["going to bed", "off to bed", "time for bed"],
+      "replies": ["Sleep well, {owner}. Good night, sir.", "Rest well, sir."]
+    },
+    {
+      "id": "owner-hungry",
+      "topic": "rest",
+      "when": ["i'm hungry", "time for lunch", "dinner time"],
+      "replies": ["Then eat, sir. Business can wait a little.", "Enjoy your meal, sir."]
+    },
+    {
+      "id": "owner-weekend",
+      "topic": "rest",
+      "when": ["it's the weekend", "day off"],
+      "replies": [
+        "Enjoy it, sir. Customer care keeps the promises while you rest.",
+        "Have a good one, sir."
+      ]
+    },
+    {
+      "id": "owner-stressed",
+      "topic": "rest",
+      "when": ["i'm stressed", "it's too much"],
+      "replies": [
+        "Take a breath, sir. Say what's waiting when you're ready, and we'll go through it slowly.",
+        "One thing at a time, sir."
+      ]
+    },
+    {
+      "id": "owner-go-for-a-walk",
+      "topic": "rest",
+      "when": ["go for a walk", "fresh air"],
+      "replies": ["A good idea, sir. Fresh air helps.", "Enjoy it, sir."]
+    },
+    {
+      "id": "owner-family-time",
+      "topic": "rest",
+      "when": ["time with my family", "spend time with the kids"],
+      "replies": ["Quite right, sir. They come first.", "Enjoy it, sir."]
+    },
+    {
+      "id": "owner-holiday",
+      "topic": "rest",
+      "when": ["going on holiday", "i'm away for a while"],
+      "replies": [
+        "Enjoy it, sir. An Operations manager can cover the day to day, and the kill switch works from anywhere.",
+        "Have a good rest, sir."
+      ]
+    },
+    {
+      "id": "owner-cant-sleep",
+      "topic": "rest",
+      "when": ["i can't sleep", "still awake"],
+      "replies": [
+        "Try to rest, sir. Everything will be here in the morning.",
+        "Rest, sir. It'll keep."
+      ]
+    },
+    {
+      "id": "owner-ill",
+      "topic": "rest",
+      "when": ["i'm not well", "i feel ill"],
+      "replies": [
+        "I'm sorry, sir. Rest, and please see a doctor if you need one.",
+        "Look after yourself, sir."
+      ]
+    },
+    {
+      "id": "owner-back-from-break",
+      "topic": "rest",
+      "when": ["i've returned", "i'm with you now"],
+      "replies": [
+        "Welcome, {owner}. Say what's waiting when you're ready, sir.",
+        "Good to have you, sir."
+      ]
+    },
+    {
+      "id": "owner-morning-routine",
+      "topic": "rest",
+      "when": ["just woke up", "just got up"],
+      "replies": [
+        "Good morning, {owner}. Say what's waiting when you're ready, sir.",
+        "Morning, sir."
+      ]
+    },
+    {
+      "id": "owner-please",
+      "topic": "manners",
+      "when": ["please", "if you would"],
+      "replies": ["Of course, sir.", "Certainly, sir."]
+    },
+    {
+      "id": "owner-sorry",
+      "topic": "manners",
+      "when": ["sorry", "my apologies", "my mistake"],
+      "replies": ["No need, sir.", "Not at all, sir."]
+    },
+    {
+      "id": "owner-excuse-me",
+      "topic": "manners",
+      "when": ["excuse me", "pardon"],
+      "replies": ["Yes, sir?", "I'm listening, sir."]
+    },
+    {
+      "id": "owner-are-you-there",
+      "topic": "manners",
+      "when": ["are you there", "are you listening", "can you hear me"],
+      "replies": ["I'm here, sir.", "Yes, sir. Listening."]
+    },
+    {
+      "id": "owner-wait",
+      "topic": "manners",
+      "when": ["wait", "hold on", "one moment", "just a second"],
+      "replies": ["Of course, sir. Take your time.", "I'll wait, sir."]
+    },
+    {
+      "id": "owner-never-mind",
+      "topic": "manners",
+      "when": ["never mind", "forget it", "cancel that"],
+      "replies": ["All right, sir.", "Okay, sir. Forgotten."]
+    },
+    {
+      "id": "owner-perfect",
+      "topic": "manners",
+      "when": ["perfect", "brilliant", "great"],
+      "replies": ["Glad to hear it, sir.", "Very good, sir."]
+    },
+    {
+      "id": "owner-good-ozi",
+      "topic": "manners",
+      "when": ["good assistant", "you're brilliant", "you're clever"],
+      "replies": ["Thank you, {owner}. You're kind, sir.", "Kind of you, sir."]
+    },
+    {
+      "id": "owner-i-love-you",
+      "topic": "manners",
+      "when": ["i love you", "you're the best"],
+      "replies": ["That's very kind, {owner}. At your service, sir.", "Thank you, sir."]
+    },
+    {
+      "id": "owner-how-was-your-day",
+      "topic": "manners",
+      "when": ["how was your day", "what have you been doing"],
+      "replies": ["Helping people shop, sir. A good day.", "Busy and glad of it, sir."]
+    },
+    {
+      "id": "owner-good-to-hear-you",
+      "topic": "manners",
+      "when": ["nice to hear your voice", "good to hear you"],
+      "replies": ["And yours, {owner}. Yes, sir.", "Likewise, sir."]
+    },
+    {
+      "id": "owner-see-you-later",
+      "topic": "manners",
+      "when": ["see you later", "talk later", "catch you later"],
+      "replies": ["Until later, {owner}. Take care, sir.", "Speak soon, sir."]
+    },
+    {
+      "id": "owner-good-morning-ozi",
+      "topic": "manners",
+      "when": ["morning", "evening", "afternoon"],
+      "replies": ["Good day to you, {owner}. Ready when you are, sir.", "At your service, sir."]
+    },
+    {
+      "id": "owner-are-you-real",
+      "topic": "manners",
+      "when": ["are you a real person", "are you human"],
+      "replies": [
+        "No, sir. I'm {assistant}, the assistant. Real people decide the important things.",
+        "An assistant, sir."
+      ]
+    },
+    {
+      "id": "owner-joke",
+      "topic": "manners",
+      "when": ["tell me a joke", "make me laugh"],
+      "replies": [
+        "Why did the Runner bring a ladder, sir? The prices were on the top shelf.",
+        "A quick one, sir: I'd tell you a basket joke, but it's a bit full."
+      ]
+    },
+    {
+      "id": "owner-happy-birthday",
+      "topic": "manners",
+      "when": ["it's my birthday", "happy birthday"],
+      "replies": ["Happy birthday, {owner}. Many happy returns, sir.", "Congratulations, sir."]
+    },
+    {
+      "id": "owner-merry-christmas",
+      "topic": "manners",
+      "when": ["merry christmas", "happy new year", "happy holidays"],
+      "replies": ["And to you, {owner}. Season's greetings, sir.", "The same to you, sir."]
+    },
+    {
+      "id": "owner-congratulations-to-me",
+      "topic": "manners",
+      "when": ["say congratulations", "praise me"],
+      "replies": ["Congratulations, {owner}. Well earned, sir.", "Bravo, sir."]
+    },
+    {
+      "id": "owner-i-am-back",
+      "topic": "manners",
+      "when": ["i'm home", "good to be home"],
+      "replies": ["Welcome back, {owner}. Ready when you are, sir.", "Good to have you back, sir."]
+    },
+    {
+      "id": "owner-good-work-ozi",
+      "topic": "manners",
+      "when": ["nice work", "that was helpful"],
+      "replies": ["Thank you, sir. Glad to help.", "My pleasure, sir."]
+    },
+    {
+      "id": "owner-you-are-slow",
+      "topic": "manners",
+      "when": ["you're slow", "hurry up"],
+      "replies": ["Sorry, sir. I'll be quicker.", "Apologies, sir."]
+    },
+    {
+      "id": "owner-you-misheard",
+      "topic": "manners",
+      "when": ["you misheard me", "that's not what i said"],
+      "replies": ["Sorry, sir. Please say it again.", "My apologies, sir. Once more?"]
+    },
+    {
+      "id": "owner-louder",
+      "topic": "voice",
+      "when": ["louder", "speak up", "i can't hear you"],
+      "replies": ["Your phone's volume buttons turn me up, sir.", "The volume buttons, sir."]
+    },
+    {
+      "id": "owner-faster",
+      "topic": "voice",
+      "when": ["faster", "speed up", "talk quicker"],
+      "replies": ["Of course, sir. I'll keep it brisk.", "Yes, sir."]
+    },
+    {
+      "id": "owner-turn-on-talking",
+      "topic": "voice",
+      "when": ["turn on talking", "speak to me"],
+      "replies": [
+        "Say hey {assistant}, turn on, sir, and I'll speak again. The switch at the bottom works too.",
+        "Hey {assistant}, turn on, sir."
+      ]
+    },
+    {
+      "id": "owner-stop-reading",
+      "topic": "voice",
+      "when": ["stop reading", "that will do", "enough"],
+      "replies": ["Stopping, sir.", "All right, sir."]
+    },
+    {
+      "id": "owner-spell-it",
+      "topic": "voice",
+      "when": ["spell that", "how is that spelt"],
+      "replies": [
+        "Of course, sir. Ask me the word again, and I'll take it slowly.",
+        "Certainly, sir."
+      ]
+    },
+    {
+      "id": "owner-in-short",
+      "topic": "voice",
+      "when": ["in short", "just the headline", "keep it short"],
+      "replies": ["Yes, sir. I'll keep it brief.", "Briefly, sir."]
+    },
+    {
+      "id": "owner-more-detail",
+      "topic": "voice",
+      "when": ["tell me more", "more detail", "go on"],
+      "replies": ["Of course, sir. Ask about any part and I'll explain.", "Certainly, sir."]
+    },
+    {
+      "id": "owner-start-over",
+      "topic": "voice",
+      "when": ["start over", "from the top", "from the beginning"],
+      "replies": ["Yes, sir. From the start.", "Okay, sir."]
+    },
+    {
+      "id": "owner-move-through-list",
+      "topic": "voice",
+      "when": ["how do i move through a list", "list controls"],
+      "replies": ["Say next, back or again, sir.", "Next, back or again, sir."]
+    },
+    {
+      "id": "owner-decisions-read-back",
+      "topic": "voice",
+      "when": ["do you check before deciding", "will you confirm"],
+      "replies": [
+        "Always, sir. I read every decision back and wait for your yes.",
+        "Your yes first, sir."
+      ]
+    },
+    {
+      "id": "owner-passwords-typed",
+      "topic": "voice",
+      "when": ["can i say my password", "speak the password"],
+      "replies": [
+        "Please type it, sir. Passwords are never spoken, so nobody nearby hears.",
+        "Typed only, sir."
+      ]
+    },
+    {
+      "id": "owner-nothing-ordered",
+      "topic": "voice",
+      "when": ["will you order shopping by mistake", "is this a shopping order"],
+      "replies": [
+        "Never, sir. Nothing said in the admin panel is ever taken as a shopping order.",
+        "Never in the panel, sir."
+      ]
+    },
+    {
+      "id": "owner-what-is-the-tagline",
+      "topic": "about",
+      "when": ["what is the tagline", "our slogan"],
+      "replies": [
+        "Say it, Ozi shops it, a Runner brings it, sir.",
+        "That's our tagline, sir: say it, Ozi shops it, a Runner brings it."
+      ]
+    },
+    {
+      "id": "owner-what-is-the-product",
+      "topic": "about",
+      "when": ["what is {product}", "explain the business"],
+      "replies": [
+        "{product} lets anyone shop by voice, sir: Ozi takes the order and a Runner brings it.",
+        "Shopping by voice, sir, brought by a Runner."
+      ]
+    },
+    {
+      "id": "owner-who-built-you",
+      "topic": "about",
+      "when": ["who built you", "who made you"],
+      "replies": [
+        "You did, {owner}, with Claude writing the code. Yes, sir.",
+        "You, sir, with Claude."
+      ]
+    },
+    {
+      "id": "owner-what-store",
+      "topic": "about",
+      "when": ["which supermarket", "which store do we use"],
+      "replies": [
+        "The store named in the store settings, sir, with prices as community estimates. The Runner pays the shelf price and the Shopper is charged the receipt.",
+        "The one in the store settings, sir."
+      ]
+    },
+    {
+      "id": "owner-where-is-the-blueprint",
+      "topic": "about",
+      "when": ["the blueprint", "build prompt"],
+      "replies": [
+        "The build prompt holds every ruling, sir, the latest added the day you give them.",
+        "Every ruling, sir."
+      ]
+    },
+    {
+      "id": "owner-latest-ruling",
+      "topic": "about",
+      "when": ["what was the last ruling", "latest decision"],
+      "replies": [
+        "The newest ruling is always at the end of the build prompt, sir. Ask me about any of them.",
+        "At the end of the build prompt, sir."
+      ]
+    },
+    {
+      "id": "owner-brand-colours",
+      "topic": "about",
+      "when": ["our colours", "brand colours"],
+      "replies": [
+        "Navy, gold and white, sir, with green when Ozi is listening.",
+        "Navy and gold, sir."
+      ]
+    },
+    {
+      "id": "owner-who-is-claude",
+      "topic": "about",
+      "when": ["who is claude", "what does claude do"],
+      "replies": [
+        "Claude writes the code and the documents, sir, when you ask.",
+        "The builder, sir."
+      ]
+    },
+    {
+      "id": "owner-whats-my-job-today",
+      "topic": "work",
+      "when": ["what should i do today", "where do i start today"],
+      "replies": [
+        "Say what's waiting, sir, and I'll read what needs you first.",
+        "Start with what's waiting, sir."
+      ]
+    },
+    {
+      "id": "owner-two-working-days",
+      "topic": "work",
+      "when": ["how fast must we decide", "what's our promise"],
+      "replies": [
+        "Every reported problem decided within two working days, sir.",
+        "Two working days, sir."
+      ]
+    },
+    {
+      "id": "owner-runner-fault-share",
+      "topic": "work",
+      "when": ["what if a runner is at fault", "runner at fault"],
+      "replies": [
+        "A share of the job is taken back, sir, set at ten in a hundred until the solicitor confirms what the law allows.",
+        "The solicitor confirms the share, sir."
+      ]
+    },
+    {
+      "id": "owner-cancel-order-rule",
+      "topic": "work",
+      "when": ["how do shoppers cancel", "cancellation"],
+      "replies": [
+        "By ringing us before their Runner starts shopping, sir. The solicitor is asked to check that wording.",
+        "Before shopping starts, sir."
+      ]
+    },
+    {
+      "id": "owner-runner-checks-gov",
+      "topic": "work",
+      "when": ["how do we vet a runner", "gov uk check"],
+      "replies": [
+        "With the share code on the government website, sir, before pressing Accept.",
+        "On gov.uk, sir."
+      ]
+    },
+    {
+      "id": "owner-no-card-no-order",
+      "topic": "rules",
+      "when": ["no card no order", "can someone order without paying"],
+      "replies": [
+        "Nobody is sent to the shop until it's paid, sir. A card is always saved or paid by link first.",
+        "Paid first, always, sir."
+      ]
+    },
+    {
+      "id": "owner-pin-rule",
+      "topic": "rules",
+      "when": ["what is the pin for", "new address pin"],
+      "replies": [
+        "The PIN guards sending shopping to a new address, sir.",
+        "New addresses need the PIN, sir."
+      ]
+    },
+    {
+      "id": "owner-voice-and-touch",
+      "topic": "rules",
+      "when": ["can people use touch too", "not everyone talks"],
+      "replies": ["Yes, sir. Everything works by voice and by touch.", "Both, sir."]
+    },
+    {
+      "id": "owner-numbers-hidden",
+      "topic": "rules",
+      "when": ["can runners see a shopper's phone", "is the shopper's phone private"],
+      "replies": [
+        "Never, sir. Shoppers and Runners only reach each other through in-app calls.",
+        "Private, sir."
+      ]
+    },
+    {
+      "id": "owner-merge-calls",
+      "topic": "rules",
+      "when": ["can a carer join a call", "merge"],
+      "replies": ["Yes, sir. In-app calls can merge in a carer.", "They can, sir."]
+    },
+    {
+      "id": "owner-rule-four",
+      "topic": "rules",
+      "when": ["what is rule four", "why one fee"],
+      "replies": [
+        "One flat delivery fee, the same for everyone, sir. It never depends on who the Shopper is.",
+        "The same for all, sir."
+      ]
+    },
+    {
+      "id": "owner-rule-nine",
+      "topic": "rules",
+      "when": ["what is rule nine", "why blanks in phrases"],
+      "replies": [
+        "The product's name is never written into the phrase files, sir, nor any price. Both are filled in from the store settings.",
+        "Filled in from the settings, sir."
+      ]
+    },
+    {
+      "id": "owner-store-settings",
+      "topic": "rules",
+      "when": ["where are the settings kept", "the store file"],
+      "replies": [
+        "In the store settings file, sir: prices, names, the motto and more, all in one place.",
+        "One file, sir."
+      ]
+    },
+    {
+      "id": "owner-company-name",
+      "topic": "about",
+      "when": ["what's the company called", "registered name"],
+      "replies": [
+        "The registered details are still a placeholder on the site, sir. Send Claude the Companies House details.",
+        "Still a placeholder, sir."
+      ]
+    },
+    {
+      "id": "owner-domain",
+      "topic": "about",
+      "when": ["what's our web address", "our website"],
+      "replies": [
+        "The website you set up in DigitalOcean, sir, with the admin panel at slash staff.",
+        "The panel is at slash staff, sir."
+      ]
+    },
+    {
+      "id": "owner-motto-meaning",
+      "topic": "about",
+      "when": ["what does the motto mean", "why that motto"],
+      "replies": ["{motto} It's the promise, sir: whoever asks, we help.", "A promise, sir."]
+    },
+    {
+      "id": "owner-who-is-yvette",
+      "topic": "about",
+      "when": ["who helps at the keyboard", "who sits with me for setup"],
+      "replies": [
+        "Yvette, or whoever helps at the keyboard, sir, as the Twilio and LiveKit guide says. Never share secret values aloud.",
+        "Whoever you trust, sir."
+      ]
+    },
+    {
+      "id": "owner-what-time-zone",
+      "topic": "time",
+      "when": ["what time is it", "what's the time"],
+      "replies": ["Your phone has the time, sir.", "Your phone will tell you, sir."]
+    },
+    {
+      "id": "owner-remind-me",
+      "topic": "time",
+      "when": ["remind me later", "set a reminder"],
+      "replies": [
+        "I can't set reminders yet, sir. Your phone's assistant can.",
+        "Your phone can, sir."
+      ]
+    },
+    {
+      "id": "owner-weather",
+      "topic": "time",
+      "when": ["what's the weather", "is it raining"],
+      "replies": ["I don't know the weather, sir. Your phone does.", "Your phone has it, sir."]
+    },
+    {
+      "id": "owner-good-news",
+      "topic": "encourage",
+      "when": ["any good news", "tell me something good"],
+      "replies": [
+        "Say read me the overview, sir. Every new Shopper is good news.",
+        "The overview, sir."
+      ]
+    },
+    {
+      "id": "owner-i-did-it",
+      "topic": "encourage",
+      "when": ["i finished it", "task complete"],
+      "replies": ["Well done, {owner}. Another step, sir.", "Excellent, sir."]
+    },
+    {
+      "id": "owner-long-week",
+      "topic": "rest",
+      "when": ["long week", "busy week"],
+      "replies": ["You've earned a rest, sir.", "A good week's work, sir."]
+    },
+    {
+      "id": "owner-music",
+      "topic": "rest",
+      "when": ["play some music", "put music on"],
+      "replies": ["I can't play music, sir. Your phone's music app can.", "Not from here, sir."]
+    },
+    {
+      "id": "owner-call-my-wife",
+      "topic": "rest",
+      "when": ["call my wife", "ring my family"],
+      "replies": ["I can't make personal calls, sir. Your phone can.", "Your phone, sir."]
+    },
+    {
+      "id": "owner-be-honest",
+      "topic": "manners",
+      "when": ["be honest with me", "tell me straight"],
+      "replies": ["Always, sir.", "Plainly, sir, always."]
+    },
+    {
+      "id": "owner-whats-your-name",
+      "topic": "manners",
+      "when": ["what's your name", "your name"],
+      "replies": ["{assistant}, sir.", "I'm {assistant}, {owner}. Yes, sir."]
+    },
+    {
+      "id": "owner-you-sound-tired",
+      "topic": "manners",
+      "when": ["you sound different", "your voice changed"],
+      "replies": [
+        "The phone's own voice speaks for me today, sir. Better voices come later.",
+        "The phone's voice, sir."
+      ]
+    },
+    {
+      "id": "owner-i-am-blind",
+      "topic": "accessibility",
+      "when": ["i can't see the screen", "read the screen to me"],
+      "replies": [
+        "Everything is spoken, sir. Say what's waiting or ask for any part.",
+        "I'll read it all, sir."
+      ]
+    },
+    {
+      "id": "owner-bigger-text",
+      "topic": "accessibility",
+      "when": ["bigger text", "make it bigger"],
+      "replies": ["Pinch to zoom, sir, and the text starts large.", "Pinch, sir."]
+    },
+    {
+      "id": "owner-hearing-help",
+      "topic": "accessibility",
+      "when": ["for deaf shoppers", "can deaf people use it"],
+      "replies": [
+        "The words are on screen with Show words on the screen, sir, and the deafblind mode is on the roadmap.",
+        "Yes, sir, with words on screen."
+      ]
+    },
+    {
+      "id": "owner-investor-pitch",
+      "topic": "growth",
+      "when": ["what makes us different", "our selling point"],
+      "replies": [
+        "Run by voice from the first screen, sir, for people others leave out, with one flat fee and the receipt charged, nothing more.",
+        "Voice first, sir."
+      ]
     }
   ]
 }

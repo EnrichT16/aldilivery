@@ -767,6 +767,29 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    learned: {
+      async heard({ account, text, at }) {
+        await prisma.learnedPhrase.upsert({
+          where: { account_text: { account, text } },
+          create: { account, text, firstHeardAt: at, lastHeardAt: at },
+          update: { timesHeard: { increment: 1 }, lastHeardAt: at },
+        });
+      },
+      async list(status) {
+        return (await prisma.learnedPhrase.findMany({
+          where: { status },
+          orderBy: [{ timesHeard: 'desc' }, { lastHeardAt: 'desc' }],
+          take: 500,
+        })) as any;
+      },
+      async findById(id) {
+        return (await prisma.learnedPhrase.findUnique({ where: { id } })) as any;
+      },
+      async decide(id, patch) {
+        return (await prisma.learnedPhrase.update({ where: { id }, data: patch })) as any;
+      },
+    },
+
     income: {
       async record(input) {
         await prisma.incomeRecord.create({ data: input });

@@ -53,7 +53,7 @@ describe('staff accounts', () => {
       expect.objectContaining({
         name: 'Chidi',
         title: 'Customer care officer',
-        areas: ['problems', 'feedback'],
+        areas: ['problems', 'feedback', 'learning'],
         mustChangePassword: true,
       }),
     );

@@ -772,6 +772,3440 @@
       "topic": "voice",
       "when": ["can you hear me"],
       "replies": ["Yes, I can hear you.", "Loud and clear."]
+    },
+    {
+      "id": "shopper-how-do-i-talk-to-you",
+      "topic": "voice",
+      "when": [
+        "how do i talk to you",
+        "how do i use you",
+        "do i just talk",
+        "how do i speak to you"
+      ],
+      "replies": [
+        "Just talk to me as you would to a friend. Say what you need, like bread and milk, and I'll put it in your basket.",
+        "Speak normally, and take your time. Tell me the shopping you need, and I'll do the rest."
+      ]
+    },
+    {
+      "id": "shopper-are-you-listening",
+      "topic": "voice",
+      "when": ["are you listening", "are you there", "are you awake", "is anybody there"],
+      "replies": [
+        "Yes, I'm here and listening. What shopping can I help with?",
+        "I'm here. Tell me what you need."
+      ]
+    },
+    {
+      "id": "shopper-what-do-i-say",
+      "topic": "voice",
+      "when": [
+        "what do i say",
+        "what should i say",
+        "what words do i use",
+        "what can i say to you"
+      ],
+      "replies": [
+        "You can say what you'd like to buy, ask what's in your basket, ask the total, or ask where your order is. Plain words are fine.",
+        "Try saying the things you need, one after another. For example, bananas, eggs and tea bags."
+      ]
+    },
+    {
+      "id": "shopper-how-do-i-wake-you",
+      "topic": "voice",
+      "when": ["how do i wake you up", "how do i get your attention", "how do i call you"],
+      "replies": [
+        "Press my round green button, or say my name. When the button glows, I'm listening.",
+        "Say my name, or press the big green button on the side of the screen. Then tell me what you need."
+      ]
+    },
+    {
+      "id": "shopper-where-is-your-button",
+      "topic": "voice",
+      "when": [
+        "where is your button",
+        "where's the green button",
+        "i can't find your button",
+        "where is the ozi button"
+      ],
+      "replies": [
+        "My button is big, round and green. It starts in the middle of the right-hand edge of the screen. Press it, and tell me what you need.",
+        "Look on the right-hand side of the screen for a big round green button. It glows when I'm listening."
+      ]
+    },
+    {
+      "id": "shopper-move-your-button",
+      "topic": "voice",
+      "when": [
+        "can i move your button",
+        "move the button",
+        "the button is in the way",
+        "your button is in the way"
+      ],
+      "replies": [
+        "Yes. Hold my green button and drag it where you'd like it. With a keyboard, the arrow keys move it too.",
+        "Of course. Press and hold the button, then slide it somewhere more comfortable."
+      ]
+    },
+    {
+      "id": "shopper-how-do-i-mute-you",
+      "topic": "voice",
+      "when": [
+        "how do i mute you",
+        "stop you listening",
+        "how do i pause you",
+        "can you stop listening"
+      ],
+      "replies": [
+        "Press my green button once, or say mute. I'll stop listening until you press it again.",
+        "Say mute, or press my button. When you want me back, press the button again."
+      ]
+    },
+    {
+      "id": "shopper-are-you-recording",
+      "topic": "voice",
+      "when": [
+        "are you recording me",
+        "do you record what i say",
+        "are you spying on me",
+        "do you listen all the time"
+      ],
+      "replies": [
+        "No. I only use your words to help with your shopping, and when muted I'm not listening at all. What can I get for you?",
+        "I'm only here to help you shop. If you'd like me to stop listening, just say mute or press my button."
+      ]
+    },
+    {
+      "id": "shopper-turn-talking-off-how",
+      "topic": "voice",
+      "when": [
+        "how do i turn your voice off",
+        "how do i stop you talking",
+        "how do i make you quiet",
+        "can you stop talking out loud"
+      ],
+      "replies": [
+        "Use the switch at the bottom of the screen, say turn off talking, or go to Settings. My words stay written on the screen.",
+        "Say turn off talking, and I'll go quiet. To hear me again, say hey {assistant}, turn on."
+      ]
+    },
+    {
+      "id": "shopper-turn-talking-on-how",
+      "topic": "voice",
+      "when": [
+        "how do i turn your voice back on",
+        "how do i hear you again",
+        "bring your voice back"
+      ],
+      "replies": [
+        "Say hey {assistant}, turn on, or use the switch at the bottom of the screen, or Settings.",
+        "Use the talking switch at the bottom of the screen, and I'll speak aloud again."
+      ]
+    },
+    {
+      "id": "shopper-didnt-understand-me",
+      "topic": "voice",
+      "when": [
+        "you didn't understand me",
+        "that's not what i said",
+        "you got it wrong",
+        "you misheard me"
+      ],
+      "replies": [
+        "I'm sorry. Please say it again, a little slower, and I'll try once more.",
+        "Sorry about that. Try saying just the item and how many, like two loaves of bread."
+      ]
+    },
+    {
+      "id": "shopper-you-keep-getting-it-wrong",
+      "topic": "voice",
+      "when": ["you keep getting it wrong", "you never understand", "why don't you understand me"],
+      "replies": [
+        "I'm sorry, and thank you for your patience. Short sentences help me, one item at a time. You can also tap on the screen if that's easier.",
+        "I'm sorry. Let's go slowly. Tell me one thing you need, and I'll check it with you."
+      ]
+    },
+    {
+      "id": "shopper-speak-louder",
+      "topic": "voice",
+      "when": ["speak louder", "i can't hear you", "you're too quiet", "louder please"],
+      "replies": [
+        "Please turn up your phone's volume with the buttons on its side. If you miss anything, just say repeat.",
+        "Try the volume buttons on the side of your phone. And you can always say repeat."
+      ]
+    },
+    {
+      "id": "shopper-too-loud",
+      "topic": "voice",
+      "when": ["you're too loud", "quieter please", "speak quieter", "turn it down"],
+      "replies": [
+        "Please turn the volume down with the buttons on the side of your phone. What shopping can I help with?",
+        "The volume buttons on your phone will make me quieter. Then just tell me what you need."
+      ]
+    },
+    {
+      "id": "shopper-what-languages",
+      "topic": "voice",
+      "when": [
+        "what languages do you speak",
+        "do you speak welsh",
+        "can you speak another language",
+        "do you speak igbo"
+      ],
+      "replies": [
+        "I speak English for now. Welsh and other languages are planned. What can I get for you today?",
+        "Just English at the moment, but more languages are on the way. How can I help with your shopping?"
+      ]
+    },
+    {
+      "id": "shopper-how-clever-are-you",
+      "topic": "voice",
+      "when": [
+        "are you clever",
+        "how clever are you",
+        "are you a robot",
+        "are you artificial intelligence"
+      ],
+      "replies": [
+        "I'm a shopping assistant, here to help you get what you need. What would you like today?",
+        "I'm good at shopping, and that's what I'm here for. What can I find for you?"
+      ]
+    },
+    {
+      "id": "shopper-do-you-sleep",
+      "topic": "small talk",
+      "when": ["do you sleep", "do you ever rest", "are you tired"],
+      "replies": [
+        "I'm always ready to help with your shopping, day or night. What do you need?",
+        "No rest needed. Is there anything you'd like to order?"
+      ]
+    },
+    {
+      "id": "shopper-can-i-type",
+      "topic": "voice",
+      "when": [
+        "can i type instead",
+        "i'd rather type",
+        "can i use the screen instead",
+        "do i have to talk"
+      ],
+      "replies": [
+        "Of course. Everything works with the screen too. Use the search on the shop page and tap Add.",
+        "You don't have to talk. Tap and type whenever you like, and I'll still be here if you want me."
+      ]
+    },
+    {
+      "id": "shopper-can-i-use-voice-only",
+      "topic": "voice",
+      "when": [
+        "can i do it all by voice",
+        "can i shop without the screen",
+        "i can't see the screen",
+        "i'm blind"
+      ],
+      "replies": [
+        "Yes. You can do the whole order by talking to me. I'll read your basket back, say the address, and only send it when you say yes.",
+        "Yes, everything can be done by voice. Tell me what you need, and I'll guide you step by step."
+      ]
+    },
+    {
+      "id": "shopper-say-it-slower",
+      "topic": "voice",
+      "when": ["say it slowly", "slowly please", "say it slower"],
+      "replies": [
+        "Of course. If anything goes too fast, just say repeat, and I'll say it again in different words.",
+        "Sorry. Say repeat any time, and I'll go over it again."
+      ]
+    },
+    {
+      "id": "shopper-did-you-get-that",
+      "topic": "voice",
+      "when": ["did you get that", "did you hear me", "did you catch that"],
+      "replies": [
+        "If I've got it, I'll read it back to you. If not, please say it once more.",
+        "I'll always check with you before anything is sent. Please say it again if you're not sure."
+      ]
+    },
+    {
+      "id": "shopper-ozi-explain-itself",
+      "topic": "voice",
+      "when": [
+        "tell me what you can do",
+        "what else can you do",
+        "any tips",
+        "show me how it works"
+      ],
+      "replies": [
+        "I can take your order, read back the basket, give the total, track your Runner, find recipes, and look for things that are hard to find. What would you like first?",
+        "As well as the shopping, there's Recipes, Little Gifts, Finds It, gift cards and a weekly shop. Say any of those to hear more."
+      ]
+    },
+    {
+      "id": "shopper-first-time",
+      "topic": "the app",
+      "when": ["it's my first time", "i'm new", "i've never done this before", "i'm new to this"],
+      "replies": [
+        "Welcome. It's easy. Tell me what you need, I'll read it back, and when you say yes a Runner shops for it and brings it to your door.",
+        "Welcome. Take it slowly. Just tell me one thing you'd like, and we'll go from there."
+      ]
+    },
+    {
+      "id": "shopper-is-it-easy",
+      "topic": "the app",
+      "when": ["is it easy", "is it hard to use", "will i manage", "i'm not good with phones"],
+      "replies": [
+        "It's made to be easy, especially for people who can't see the screen well. Just talk to me, and I'll guide you.",
+        "You'll manage fine. Tell me what you need, and I'll do the rest and check everything with you."
+      ]
+    },
+    {
+      "id": "shopper-how-to-start",
+      "topic": "the app",
+      "when": ["where do i start", "how do i begin", "what do i do first", "how do i get started"],
+      "replies": [
+        "Start by telling me one thing you need, like milk or bread. I'll add it to your basket and ask what else.",
+        "First, make sure you have an account with a card saved. Then just tell me your shopping."
+      ]
+    },
+    {
+      "id": "shopper-whats-on-the-screen",
+      "topic": "the app",
+      "when": ["what's on the screen", "what am i looking at", "where am i", "what page is this"],
+      "replies": [
+        "I can't describe the page itself, but I can help you shop by voice. Say basket to hear your basket, or tell me what you need.",
+        "Your phone's screen reader can read the page to you. Or just tell me what you'd like, and I'll do it."
+      ]
+    },
+    {
+      "id": "shopper-go-home",
+      "topic": "the app",
+      "when": ["go back to the start", "take me home", "go to the main page", "back to the shop"],
+      "replies": [
+        "Tap Shop at the top of the screen to go back to the shop. Then tell me what you need.",
+        "The Shop tab takes you back to the start. What would you like?"
+      ]
+    },
+    {
+      "id": "shopper-where-is-settings",
+      "topic": "the app",
+      "when": ["where are the settings", "open settings", "how do i find settings"],
+      "replies": [
+        "Settings is in the menu at the top of the screen. There you'll find your addresses, my voice, and Show words on the screen.",
+        "Look for Settings in the menu. Is there something there I can help you with?"
+      ]
+    },
+    {
+      "id": "shopper-what-is-more",
+      "topic": "the app",
+      "when": ["what's in more", "what is the more page", "what extras are there"],
+      "replies": [
+        "The More page has Recipes, Little Gifts, Finds It, your weekly shop, gift cards and Plus. Say any of those to hear about it.",
+        "On More you'll find the extras, like Recipes and Little Gifts. Which would you like to hear about?"
+      ]
+    },
+    {
+      "id": "shopper-is-it-a-website",
+      "topic": "the app",
+      "when": [
+        "is it a website or an app",
+        "is there an app",
+        "is there an iphone app",
+        "is there an android app"
+      ],
+      "replies": [
+        "For now it's a website you can add to your home screen. The phone apps are coming soon. Shall we do some shopping?",
+        "It works in your phone's browser today, and the phone apps are on their way."
+      ]
+    },
+    {
+      "id": "shopper-which-browser",
+      "topic": "the app",
+      "when": [
+        "which browser should i use",
+        "the microphone won't work",
+        "you can't hear me on my iphone",
+        "microphone not working"
+      ],
+      "replies": [
+        "On an iPhone, Chrome has worked best for listening. Please make sure the microphone is allowed for this website.",
+        "If I can't hear you, check the microphone is allowed in your browser. On an iPhone, try Chrome."
+      ]
+    },
+    {
+      "id": "shopper-tap-anywhere",
+      "topic": "the app",
+      "when": ["why do i have to tap", "why tap anywhere", "why won't you talk"],
+      "replies": [
+        "A web browser won't let a website make a sound until the page is touched once. Tap anywhere, and I'll speak.",
+        "Just one tap anywhere on the screen lets me speak. The phone apps won't need it."
+      ]
+    },
+    {
+      "id": "shopper-is-it-working",
+      "topic": "the app",
+      "when": ["is it working", "is the app working", "is it broken", "nothing is happening"],
+      "replies": [
+        "I'm here and working. If something seems stuck, try closing the page and opening it again. Then tell me what you need.",
+        "I'm working fine. What would you like to do? You can ask for shopping or your basket."
+      ]
+    },
+    {
+      "id": "shopper-app-is-slow",
+      "topic": "the app",
+      "when": ["the app is slow", "it's very slow", "why is it so slow", "it keeps freezing"],
+      "replies": [
+        "I'm sorry. A weak signal can slow things down. Try moving nearer your Wi-Fi, or close and open the page again.",
+        "Sorry about that. Please try again in a moment. Your basket stays saved."
+      ]
+    },
+    {
+      "id": "shopper-update-app",
+      "topic": "the app",
+      "when": ["do i need to update", "how do i update the app", "is there an update"],
+      "replies": [
+        "The website updates by itself, so there's nothing to do. Just open it and tell me what you need.",
+        "No need. You always get the newest version when you open it."
+      ]
+    },
+    {
+      "id": "shopper-internet-needed",
+      "topic": "the app",
+      "when": ["do i need the internet", "does it work without wifi", "does it use data"],
+      "replies": [
+        "Yes, you need an internet connection, by Wi-Fi or mobile data. It doesn't use much.",
+        "You need to be online to order, by Wi-Fi or mobile data."
+      ]
+    },
+    {
+      "id": "shopper-ordering-by-telephone",
+      "topic": "the app",
+      "when": [
+        "can i order by phone",
+        "can i ring to order",
+        "i don't have a smartphone",
+        "can i use my landline"
+      ],
+      "replies": [
+        "Yes. You can ring our number, and I'll answer and take your order by telephone. Ask me for the phone number and I'll read it out.",
+        "You can order by ringing us. I answer the phone too, and take your shopping item by item."
+      ]
+    },
+    {
+      "id": "shopper-does-it-work-on-tablet",
+      "topic": "the app",
+      "when": [
+        "does it work on a tablet",
+        "can i use my ipad",
+        "can i use a computer",
+        "does it work on a laptop"
+      ],
+      "replies": [
+        "Yes. It works on a phone, a tablet or a computer, in the web browser. Shall we start your shopping?",
+        "Yes, any of those will do. Just open the website."
+      ]
+    },
+    {
+      "id": "shopper-do-i-need-account",
+      "topic": "account",
+      "when": ["do i need an account", "can i just look", "do i have to sign up"],
+      "replies": [
+        "You can look around without one. To order, you need an account with a card saved, so a Runner can be sent.",
+        "Looking is free. When you're ready to order, I can open an account with you just by talking."
+      ]
+    },
+    {
+      "id": "shopper-how-to-create-account",
+      "topic": "account",
+      "when": [
+        "how do i make an account",
+        "how do i join",
+        "how do i open an account",
+        "how do i register"
+      ],
+      "replies": [
+        "Say open account, and I'll ask your name, your mobile number, your address and what to do at the door. Nothing is made until you say yes.",
+        "Just say open account. We'll do it together by talking, and I'll read everything back."
+      ]
+    },
+    {
+      "id": "shopper-is-there-a-password",
+      "topic": "account",
+      "when": [
+        "what's my password",
+        "do i need a password",
+        "i forgot my password",
+        "what is the password"
+      ],
+      "replies": [
+        "There's no password. You sign in with your phone number or email, and a code we send you.",
+        "No password needed. To sign in, say sign in, and I'll send a code to your phone."
+      ]
+    },
+    {
+      "id": "shopper-how-to-sign-in",
+      "topic": "account",
+      "when": ["how do i sign in", "how do i log in", "i can't sign in", "i can't log in"],
+      "replies": [
+        "Say sign in. I'll ask for your phone number, send a code by text, or ring a landline with it, and you say the six numbers back.",
+        "Say sign in, and I'll guide you. You'll get a six-number code to say or type."
+      ]
+    },
+    {
+      "id": "shopper-code-not-arrived",
+      "topic": "account",
+      "when": ["the code hasn't come", "i didn't get the code", "no text came", "where's my code"],
+      "replies": [
+        "Please wait a minute, then check your texts again. If it still hasn't come, say sign in to try once more.",
+        "Sorry. Check the number was right, and give it a moment. You can ask for another code by starting again."
+      ]
+    },
+    {
+      "id": "shopper-email-or-phone",
+      "topic": "account",
+      "when": [
+        "can i use my email",
+        "i don't have a mobile",
+        "i don't have email",
+        "can i use a landline"
+      ],
+      "replies": [
+        "You can use whichever you have. A landline works too: we ring it and say the code aloud.",
+        "Phone number or email, both are fine. A landline gets the code by an automatic call."
+      ]
+    },
+    {
+      "id": "shopper-how-to-sign-out",
+      "topic": "account",
+      "when": ["how do i sign out", "how do i log out", "log me off"],
+      "replies": [
+        "Say sign me out, or press Sign out in Settings.",
+        "There's a Sign out button in Settings, or just say sign me out."
+      ]
+    },
+    {
+      "id": "shopper-shared-phone",
+      "topic": "account",
+      "when": [
+        "we share a phone",
+        "my wife uses this phone too",
+        "it's my husband's phone",
+        "someone else's account"
+      ],
+      "replies": [
+        "That's fine. Say change account to switch to the other person, or sign me out when you've finished.",
+        "Say change account, and the other person can sign in with their own number."
+      ]
+    },
+    {
+      "id": "shopper-what-is-missing-account",
+      "topic": "account",
+      "when": [
+        "is my account finished",
+        "is my account set up",
+        "what's missing from my account",
+        "is everything set up"
+      ],
+      "replies": [
+        "Say finish my account, and I'll tell you what's still needed, like a card or a home address.",
+        "I'll check for you. Say finish my account, and I'll go through anything missing."
+      ]
+    },
+    {
+      "id": "shopper-change-my-name",
+      "topic": "account",
+      "when": ["change my name", "my name is wrong", "you've got my name wrong"],
+      "replies": [
+        "I'm sorry about that. Please ring us, and a person will put it right. Ask me for the phone number and I'll read it out.",
+        "Sorry. Ring us and we'll correct it. Is there any shopping I can help with meanwhile?"
+      ]
+    },
+    {
+      "id": "shopper-change-phone-number",
+      "topic": "account",
+      "when": ["change my phone number", "i've got a new phone number", "new mobile number"],
+      "replies": [
+        "Please ring us from your new number, and a person will help update your account.",
+        "Ring us, and we'll change it safely for you. Ask me for our number if you need it."
+      ]
+    },
+    {
+      "id": "shopper-new-phone",
+      "topic": "account",
+      "when": ["i've got a new phone", "i lost my phone", "my phone was stolen", "new phone"],
+      "replies": [
+        "Sorry to hear that. Open the website on the new phone and say sign in with your number. If your phone was stolen, please ring us too.",
+        "Your account isn't on the phone itself, so sign in on the new one with your number. If it was stolen, ring us and we'll help keep it safe."
+      ]
+    },
+    {
+      "id": "shopper-is-my-phone-number-shared",
+      "topic": "privacy",
+      "when": [
+        "who sees my phone number",
+        "is my number private",
+        "will you give my number out",
+        "will the runner have my number"
+      ],
+      "replies": [
+        "Your number is kept private. It's only used to sign you in and to call you back if a phone order is cut off. Nobody else sees it.",
+        "No Runner ever sees your number, and you never see theirs. All calls go through the app."
+      ]
+    },
+    {
+      "id": "shopper-what-is-the-door-question",
+      "topic": "account",
+      "when": ["what to do at the door", "why do you ask about the door", "door instructions"],
+      "replies": [
+        "When you open your account, I ask what the Runner should do at the door, like knock loudly or wait a moment. It helps them help you.",
+        "It's so your Runner knows what suits you at the door. Just tell me in your own words."
+      ]
+    },
+    {
+      "id": "shopper-how-does-basket-work",
+      "topic": "basket",
+      "when": ["how does the basket work", "what is the basket", "what's a basket"],
+      "replies": [
+        "Your basket holds the shopping you've chosen. Nothing is bought until I read it back and you say yes.",
+        "Everything you ask for goes in your basket first. You can change it any time before you send it."
+      ]
+    },
+    {
+      "id": "shopper-how-to-add",
+      "topic": "basket",
+      "when": ["how do i add things", "how do i put things in", "how do i add something"],
+      "replies": [
+        "Just tell me what you need, like two tins of soup. I'll add it and tell you.",
+        "Say what you'd like and how many, or tap Add on the shop page."
+      ]
+    },
+    {
+      "id": "shopper-how-to-remove",
+      "topic": "basket",
+      "when": [
+        "how do i take something out",
+        "how do i remove something",
+        "i changed my mind about something"
+      ],
+      "replies": [
+        "Say take out, then the item, like take out the biscuits.",
+        "Just say remove, and what it is. I'll tell you once it's gone."
+      ]
+    },
+    {
+      "id": "shopper-how-to-change-quantity",
+      "topic": "basket",
+      "when": ["how do i change how many", "change the amount", "wrong amount"],
+      "replies": [
+        "Tell me the item and the number you'd like, and I'll put it right. You can also use the plus and minus buttons in the basket.",
+        "Say, for example, three tins of beans instead, or change it on the Basket page."
+      ]
+    },
+    {
+      "id": "shopper-empty-basket",
+      "topic": "basket",
+      "when": ["empty my basket", "clear the basket", "start again", "start over"],
+      "replies": [
+        "You can take things out one at a time by voice, or use the Basket page to remove them. Then tell me what you'd like instead.",
+        "On the Basket page, each item has a button to take it out. Or say remove, and the item."
+      ]
+    },
+    {
+      "id": "shopper-basket-saved",
+      "topic": "basket",
+      "when": ["will my basket be saved", "will i lose my basket", "can i come back later"],
+      "replies": [
+        "Your basket stays on this phone while you come and go. Come back whenever you like and carry on.",
+        "Yes, take your time. Your basket waits for you on this phone."
+      ]
+    },
+    {
+      "id": "shopper-how-to-hear-basket",
+      "topic": "basket",
+      "when": ["how do i hear my basket", "read it back", "go over it again", "read the list"],
+      "replies": [
+        "Just ask what's in my basket, and I'll read it all to you.",
+        "Say what's in my basket, and I'll go through each item."
+      ]
+    },
+    {
+      "id": "shopper-is-that-everything",
+      "topic": "basket",
+      "when": ["that's everything", "that's all", "nothing else", "that's it"],
+      "replies": [
+        "Lovely. Say send my order when you're ready, and I'll read it back with the address before anything is sent.",
+        "Thank you. When you're ready, I'll read your basket back and you can say yes."
+      ]
+    },
+    {
+      "id": "shopper-not-finished",
+      "topic": "basket",
+      "when": ["i'm not finished", "i'm still thinking", "not yet", "there's more"],
+      "replies": [
+        "No rush at all. Tell me the next thing when you're ready.",
+        "Take your time. I'll wait for the rest."
+      ]
+    },
+    {
+      "id": "shopper-how-do-i-know-price",
+      "topic": "basket",
+      "when": ["how much is that", "how much will it cost me", "what's the price of things"],
+      "replies": [
+        "Ask what's the total, and I'll tell you the shopping, the delivery and the whole amount. You pay what the till says.",
+        "Each item shows a price with the date it was last checked. Ask me the total any time."
+      ]
+    },
+    {
+      "id": "shopper-prices-dated",
+      "topic": "prices",
+      "when": ["why does it show a date", "when were prices checked", "are prices up to date"],
+      "replies": [
+        "Each price shows when it was last checked, because shop prices change. You always pay exactly what the till says.",
+        "The date tells you how fresh the price is. You're charged the receipt, nothing more."
+      ]
+    },
+    {
+      "id": "shopper-item-not-listed",
+      "topic": "basket",
+      "when": [
+        "it's not on the list",
+        "you don't have it",
+        "i can't find it in the shop",
+        "it's not there"
+      ],
+      "replies": [
+        "Try saying it another way, like brown bread instead of a brand name. If it's hard to find, say I can't find it anywhere, and a person can look for you.",
+        "Let's try different words. And if it's something special, {assistant} Finds It can look in up to three shops."
+      ]
+    },
+    {
+      "id": "shopper-brand-matters",
+      "topic": "basket",
+      "when": ["can i choose the brand", "a particular brand", "does the brand matter"],
+      "replies": [
+        "Tell me the brand when you ask, and I'll look for it. If it's not on the shelf, your Runner will call you before choosing anything else.",
+        "Yes, just say the brand with the item. Nothing is swapped without your say."
+      ]
+    },
+    {
+      "id": "shopper-how-much-is-in-pack",
+      "topic": "basket",
+      "when": ["how big is it", "what size is it", "how many in a pack"],
+      "replies": [
+        "The size is in the item's name. Ask me what's in my basket, and I'll read each one out in full.",
+        "I'll read the full name, which says the size. Ask what's in my basket."
+      ]
+    },
+    {
+      "id": "shopper-add-a-note",
+      "topic": "basket",
+      "when": [
+        "can i add a note",
+        "tell the runner something",
+        "special instructions",
+        "a message for the runner"
+      ],
+      "replies": [
+        "You can tell your Runner anything on the call button once they have your order. And what you said about the door when you joined is shown to them.",
+        "Once a Runner has your order, press the green Call button to speak with them."
+      ]
+    },
+    {
+      "id": "shopper-ripe-bananas",
+      "topic": "basket",
+      "when": ["can i choose ripe ones", "not too ripe", "can they pick good ones"],
+      "replies": [
+        "Your Runner chooses carefully, as they would for themselves. If you have a wish, tell them on the in-app call.",
+        "Runners pick with care. You can call them in the app with any wishes once they have your order."
+      ]
+    },
+    {
+      "id": "shopper-how-to-order",
+      "topic": "ordering",
+      "when": ["how do i place an order", "how do i send my order", "how do i buy something"],
+      "replies": [
+        "Tell me what you need. I'll read the basket and the total back, say your address, and send it when you say yes.",
+        "Fill your basket by voice or by tapping, then say send. I check everything with you first."
+      ]
+    },
+    {
+      "id": "shopper-what-happens-after-order",
+      "topic": "ordering",
+      "when": ["what happens next", "what happens after i order", "what happens now"],
+      "replies": [
+        "A nearby Runner accepts your order, does your shopping, and brings it to your door. I'll tell you each step.",
+        "Your payment is taken, a Runner is sent to the shop, and you can follow it on Your order."
+      ]
+    },
+    {
+      "id": "shopper-did-it-go-through",
+      "topic": "ordering",
+      "when": ["did my order go through", "has it been sent", "did it work", "is my order placed"],
+      "replies": [
+        "Ask where's my order, and I'll tell you how it's going. You can also look on Your order.",
+        "If I said it's sent, it's on its way. Ask where's my order any time."
+      ]
+    },
+    {
+      "id": "shopper-order-confirmation",
+      "topic": "ordering",
+      "when": ["will i get a confirmation", "how do i know it's ordered", "do i get a message"],
+      "replies": [
+        "I tell you when it's sent, and you'll hear or get a notification at each step: paid, a Runner has it, on the way, and delivered.",
+        "Yes. You'll be told at each stage, by me or by a notification or text."
+      ]
+    },
+    {
+      "id": "shopper-order-another-while-active",
+      "topic": "ordering",
+      "when": [
+        "can i order something else",
+        "i forgot something",
+        "add to my order",
+        "i missed something"
+      ],
+      "replies": [
+        "You can place another quick order while the first is on its way. Just tell me what you need.",
+        "No problem. Tell me what you forgot, and I'll start a new basket for it. The first order carries on."
+      ]
+    },
+    {
+      "id": "shopper-change-my-order",
+      "topic": "ordering",
+      "when": ["change my order", "can i change my order", "i made a mistake in my order"],
+      "replies": [
+        "Once it's sent, the easiest way is to call your Runner with the green Call button and tell them. You can also send a second small order.",
+        "Press Call on Your order to speak with your Runner about the change."
+      ]
+    },
+    {
+      "id": "shopper-order-for-later",
+      "topic": "ordering",
+      "when": ["can i order for tomorrow", "can i order for next week", "deliver it tomorrow"],
+      "replies": [
+        "Choosing a time isn't available yet; Runners come as soon as they can. For a regular day each week, say set up my weekly shop.",
+        "Orders go out straight away for now. If you shop on the same day each week, the weekly shop can help."
+      ]
+    },
+    {
+      "id": "shopper-order-minimum",
+      "topic": "ordering",
+      "when": [
+        "is there a minimum order",
+        "can i order just one thing",
+        "do i have to spend a lot"
+      ],
+      "replies": [
+        "There's no minimum. You can order just one thing. Delivery is the same {fee} whatever you buy.",
+        "No minimum at all. Even one item is fine."
+      ]
+    },
+    {
+      "id": "shopper-over-the-limit",
+      "topic": "ordering",
+      "when": ["what if i go over the limit", "too much in my basket", "my basket is too big"],
+      "replies": [
+        "If your shopping is more than {maximum}, I'll tell you and offer to split it into two deliveries. One Runner can only carry so much safely.",
+        "Above {maximum}, it goes as two deliveries, so your Runner can carry it safely."
+      ]
+    },
+    {
+      "id": "shopper-why-is-there-a-limit",
+      "topic": "ordering",
+      "when": ["why is there a limit", "why can't i order more", "why the maximum"],
+      "replies": [
+        "It's about four or five carrier bags, what one Runner can carry safely on foot or on a bus.",
+        "So your Runner can carry everything safely. Bigger shops go as two deliveries."
+      ]
+    },
+    {
+      "id": "shopper-past-orders",
+      "topic": "ordering",
+      "when": ["my past orders", "what did i order before", "my order history", "my last order"],
+      "replies": [
+        "Your past orders are on the Past orders page. Say same as last time to put the last one back in your basket.",
+        "Look on Past orders. Each one has Order these again, and Report a problem."
+      ]
+    },
+    {
+      "id": "shopper-voice-order-address",
+      "topic": "ordering",
+      "when": [
+        "where will it be delivered",
+        "which address will you use",
+        "is it going to my house"
+      ],
+      "replies": [
+        "An order made by voice always goes to your home address. I say the address aloud before every order and wait for your yes.",
+        "I'll read the address out before sending, every time. Voice orders always go to your home."
+      ]
+    },
+    {
+      "id": "shopper-why-read-address",
+      "topic": "ordering",
+      "when": ["why do you read my address", "why say my address", "you keep saying my address"],
+      "replies": [
+        "It's to make sure your shopping goes to the right door, every time. Just say yes if it's right.",
+        "Saying the address aloud stops shopping going to the wrong place. It only takes a moment."
+      ]
+    },
+    {
+      "id": "shopper-confirm-by-touch",
+      "topic": "ordering",
+      "when": ["why do i need to touch the screen", "why do you need a tap to confirm"],
+      "replies": [
+        "For bigger orders, a touch on the screen is needed as well as your voice. It protects you in case someone copies your voice.",
+        "It's a safety step for larger amounts, to keep your card safe."
+      ]
+    },
+    {
+      "id": "shopper-concurrent-two-orders",
+      "topic": "ordering",
+      "when": ["two orders at once", "another order at the same time"],
+      "replies": [
+        "Yes. While one order is on its way, you can still place another. Both stay on Your order.",
+        "You can. Just tell me what you need, and the first order carries on."
+      ]
+    },
+    {
+      "id": "shopper-add-a-card",
+      "topic": "payment",
+      "when": [
+        "how do i add a card",
+        "how do i save my card",
+        "where do i put my card",
+        "add my card"
+      ],
+      "replies": [
+        "Your card is added once, on the secure card page, and goes straight to the payment company, not to us. A family member or carer can do it for you.",
+        "Open the card page from Settings or the basket. The card is saved with the payment company, never with us."
+      ]
+    },
+    {
+      "id": "shopper-tell-you-my-card",
+      "topic": "payment",
+      "when": [
+        "can i tell you my card number",
+        "can i say my card number",
+        "take my card details",
+        "i'll read you my card"
+      ],
+      "replies": [
+        "Please don't say your card number aloud. I never take card numbers. The card is typed once on the secure card page, by you or someone you trust.",
+        "No, never say it to me or anyone on a call. Someone you trust can type it on the secure card page instead."
+      ]
+    },
+    {
+      "id": "shopper-cant-enter-card",
+      "topic": "payment",
+      "when": [
+        "i can't type my card in",
+        "i can't see my card",
+        "help me add my card",
+        "someone to add my card"
+      ],
+      "replies": [
+        "A family member, carer or someone you trust can type it for you on the secure card page. It's only needed once.",
+        "Ask someone you trust to add it once on the card page. After that, your orders use it when you say yes."
+      ]
+    },
+    {
+      "id": "shopper-change-card",
+      "topic": "payment",
+      "when": ["change my card", "use a different card", "my card has expired"],
+      "replies": [
+        "Go to the card page and add the new card. It goes straight to the payment company, as before.",
+        "Add the new card on the card page, and it'll be used from your next order."
+      ]
+    },
+    {
+      "id": "shopper-which-card",
+      "topic": "payment",
+      "when": ["which card are you using", "what card is saved", "which card is it"],
+      "replies": [
+        "I can only tell you the last four numbers of your saved card, never the whole number. The basket shows it before you order.",
+        "When I read your order back, I say the last four numbers of the card so you know which it is."
+      ]
+    },
+    {
+      "id": "shopper-card-declined",
+      "topic": "payment",
+      "when": [
+        "my card was declined",
+        "the payment failed",
+        "it won't take my card",
+        "card not working"
+      ],
+      "replies": [
+        "I'm sorry. Please check the card hasn't expired, or try another card on the card page. Your bank can tell you more.",
+        "Sorry about that. Your bank may have stopped it for safety. Try again, or add another card."
+      ]
+    },
+    {
+      "id": "shopper-when-am-i-charged",
+      "topic": "payment",
+      "when": ["when does the money come out", "when am i charged", "when do you take the money"],
+      "replies": [
+        "The payment is taken when you send the order, before a Runner goes to the shop. If the till comes to less, the difference goes back to your card.",
+        "When you say yes to send the order. The final amount is what the till says."
+      ]
+    },
+    {
+      "id": "shopper-charged-different",
+      "topic": "payment",
+      "when": [
+        "i was charged a different amount",
+        "why is it more than you said",
+        "the price was different"
+      ],
+      "replies": [
+        "Prices on the app are estimates, and you pay exactly what the till says, plus the {fee} delivery. Your receipt is on Past orders.",
+        "Shop prices change, so the till decides the final amount. If something looks wrong, choose Report a problem in Past orders."
+      ]
+    },
+    {
+      "id": "shopper-charged-twice",
+      "topic": "payment",
+      "when": ["i was charged twice", "two payments came out", "double charged"],
+      "replies": [
+        "I'm sorry. Sometimes a bank shows a hold that disappears. If it stays, choose Report a problem in Past orders, or ring us.",
+        "Sorry about that. Please report it from Past orders, and a person will check it for you."
+      ]
+    },
+    {
+      "id": "shopper-foreign-card",
+      "topic": "payment",
+      "when": [
+        "can i use a nigerian card",
+        "can i use a foreign card",
+        "my card is from abroad",
+        "can i pay with a card from home"
+      ],
+      "replies": [
+        "Yes. Cards from other countries are welcome, through the payment company. Add it on the card page as usual.",
+        "You can. Many people pay with a card from their home country."
+      ]
+    },
+    {
+      "id": "shopper-debit-or-credit",
+      "topic": "payment",
+      "when": [
+        "debit card or credit card",
+        "can i use a debit card",
+        "do you take credit cards",
+        "do you take visa"
+      ],
+      "replies": [
+        "Most debit and credit cards work, and Apple Pay and Google Pay too.",
+        "Yes, debit or credit, it's your choice. Add it on the card page."
+      ]
+    },
+    {
+      "id": "shopper-pay-by-bank",
+      "topic": "payment",
+      "when": [
+        "can i pay by bank transfer",
+        "can i pay by cheque",
+        "can i pay with paypal",
+        "can i pay by invoice"
+      ],
+      "replies": [
+        "For now it's a card saved with the payment company, or Apple Pay or Google Pay. No cash or cheques.",
+        "Card only for now, with Apple Pay and Google Pay too. A family member can add one for you."
+      ]
+    },
+    {
+      "id": "shopper-why-card-first",
+      "topic": "payment",
+      "when": [
+        "why do you need my card",
+        "why can't i pay later",
+        "can i try without a card",
+        "free trial"
+      ],
+      "replies": [
+        "Every order is paid before a Runner goes to the shop, so a card has to be saved first. It's kept by the payment company, never by us.",
+        "A Runner is only sent once the shopping is paid for. It keeps everything safe and simple."
+      ]
+    },
+    {
+      "id": "shopper-someone-else-pays",
+      "topic": "payment",
+      "when": [
+        "can my son pay",
+        "can someone else pay for me",
+        "my daughter wants to pay",
+        "can my family pay"
+      ],
+      "replies": [
+        "Yes. A family member can order for you from their own account and send it to your address, or add their card to yours.",
+        "They can. They can shop for you from their own account, sending it to an address they save for you."
+      ]
+    },
+    {
+      "id": "shopper-is-it-expensive",
+      "topic": "prices",
+      "when": ["is it expensive", "is it worth it", "it's too dear", "that's a lot"],
+      "replies": [
+        "You pay the shop's own prices, plus one flat delivery of {fee}, whatever you buy up to {maximum}. Making a list helps get the most from each delivery.",
+        "The shopping costs what the till says. Delivery is one flat {fee}, and {runnerPay} of it goes to your Runner."
+      ]
+    },
+    {
+      "id": "shopper-why-fee-so-much",
+      "topic": "prices",
+      "when": ["why is delivery so much", "why does delivery cost that", "delivery is too dear"],
+      "replies": [
+        "A real person goes to the shop, chooses your shopping and carries it to your door. {runnerPay} of the fee always goes to them.",
+        "The fee pays a checked local Runner to shop and carry for you, and keeps the service running."
+      ]
+    },
+    {
+      "id": "shopper-fee-cheaper-with-plus",
+      "topic": "prices",
+      "when": ["is delivery cheaper with plus", "do members pay less", "discount on delivery"],
+      "replies": [
+        "Delivery is the same {fee} for everyone, members too. Plus includes Recipes and the Finds It fee instead.",
+        "No, delivery is the same for everybody. That's only fair."
+      ]
+    },
+    {
+      "id": "shopper-hidden-charges",
+      "topic": "prices",
+      "when": [
+        "are there hidden charges",
+        "any other fees",
+        "anything else to pay",
+        "is there a service charge"
+      ],
+      "replies": [
+        "No hidden charges. The shopping, the {fee} delivery, and any extra you agree to first, like a call at {callPrice} a minute.",
+        "Nothing is taken without your yes. I always say the price first."
+      ]
+    },
+    {
+      "id": "shopper-tipping",
+      "topic": "runners",
+      "when": ["should i tip", "do i tip the runner", "can i give a tip", "how much should i tip"],
+      "replies": [
+        "There's no need to tip. Your Runner gets {runnerPay} of every delivery fee. A thank you at the door is always welcome.",
+        "Tips are never expected, and I'll never ask for one. Your Runner is paid from the delivery fee."
+      ]
+    },
+    {
+      "id": "shopper-no-change-at-door",
+      "topic": "payment",
+      "when": ["do i give the runner money", "do i pay the runner", "does the runner need paying"],
+      "replies": [
+        "No, nothing to pay at the door. Everything is paid by card when you order, so your Runner never handles money.",
+        "Your Runner is paid by us, so there's nothing to hand over. Just enjoy your shopping."
+      ]
+    },
+    {
+      "id": "shopper-receipt",
+      "topic": "payment",
+      "when": [
+        "do you give receipts",
+        "where's my receipt",
+        "do i get a receipt",
+        "proof of what i paid"
+      ],
+      "replies": [
+        "Your orders and what you paid are on Past orders. Your bank statement shows the payment too.",
+        "Look in Past orders to see what was bought and charged."
+      ]
+    },
+    {
+      "id": "shopper-refund-to-where",
+      "topic": "refunds",
+      "when": ["where does my refund go", "how do i get my money back", "how will i be refunded"],
+      "replies": [
+        "A refund always goes back to the card you paid with, the same day it's decided.",
+        "Back to your card. Your bank may take a few days to show it."
+      ]
+    },
+    {
+      "id": "shopper-refund-how-long",
+      "topic": "refunds",
+      "when": ["how long does a refund take", "when will i get my refund", "my refund hasn't come"],
+      "replies": [
+        "Small amounts, {instantRefund} or less, are refunded straight away. Bigger ones are decided within two working days and paid the same day. Banks can take a few days to show it.",
+        "It's sent to your card as soon as it's decided. Your bank may take a little longer to show it."
+      ]
+    },
+    {
+      "id": "shopper-where-do-you-deliver",
+      "topic": "delivery",
+      "when": [
+        "where do you deliver",
+        "do you deliver to me",
+        "do you deliver to my area",
+        "is my area covered"
+      ],
+      "replies": [
+        "We're starting in Medway, in Kent, and growing. Save your address, and I'll tell you if a Runner can reach you.",
+        "Medway, Kent, for now. More places are coming."
+      ]
+    },
+    {
+      "id": "shopper-deliver-to-london",
+      "topic": "delivery",
+      "when": [
+        "do you deliver to london",
+        "do you deliver outside medway",
+        "do you deliver everywhere"
+      ],
+      "replies": [
+        "We start in Medway, Kent, and are growing to other places. If you're elsewhere, please check back soon.",
+        "Only Medway for now. We'll grow as more Runners join."
+      ]
+    },
+    {
+      "id": "shopper-same-day",
+      "topic": "delivery",
+      "when": ["is it same day", "will it come today", "can it come today"],
+      "replies": [
+        "Yes, usually the same day. As soon as a Runner accepts, they go to the shop and then to you.",
+        "Usually today. Ask where's my order any time for the latest."
+      ]
+    },
+    {
+      "id": "shopper-delivery-on-sunday",
+      "topic": "delivery",
+      "when": ["do you deliver on sundays", "do you deliver at weekends", "bank holiday delivery"],
+      "replies": [
+        "You can order any day. Runners deliver while the shops are open.",
+        "Any day the shops are open, Runners can go for you."
+      ]
+    },
+    {
+      "id": "shopper-late-at-night",
+      "topic": "delivery",
+      "when": ["can i order at night", "do you deliver at night", "can i order late"],
+      "replies": [
+        "You can order any time. If the shops are closed, your Runner goes when they open.",
+        "Order whenever you like. Runners shop while the shops are open."
+      ]
+    },
+    {
+      "id": "shopper-how-do-i-track",
+      "topic": "delivery",
+      "when": ["how do i track my order", "can i follow my order", "where can i see my order"],
+      "replies": [
+        "Ask where's my order, or open Your order from the home screen. It shows the stage and when it should arrive.",
+        "Your order shows every step, and I'll tell you as it changes."
+      ]
+    },
+    {
+      "id": "shopper-running-late",
+      "topic": "delivery",
+      "when": [
+        "my shopping is late",
+        "it's taking ages",
+        "where is my runner",
+        "it should be here by now"
+      ],
+      "replies": [
+        "I'm sorry it's taking a while. Ask where's my order for the latest, or press Call on Your order to speak with your Runner.",
+        "Sorry for the wait. Your Runner may be at the till. You can call them from Your order."
+      ]
+    },
+    {
+      "id": "shopper-not-arrived",
+      "topic": "delivery",
+      "when": [
+        "it never arrived",
+        "my shopping didn't come",
+        "nothing was delivered",
+        "i didn't get my shopping"
+      ],
+      "replies": [
+        "I'm so sorry. Please check Your order first, then choose Report a problem in Past orders, or ring us, and a person will sort it out.",
+        "That's not right, and I'm sorry. Report it from Past orders, and we'll look into it straight away."
+      ]
+    },
+    {
+      "id": "shopper-not-home",
+      "topic": "delivery",
+      "when": ["what if i'm not in", "what if i'm out", "i have to go out", "i'm not at home"],
+      "replies": [
+        "Your Runner will call you in the app when they arrive. If you have to pop out, please call them on Your order to let them know.",
+        "If you need to go out, call your Runner from Your order, and agree what's best."
+      ]
+    },
+    {
+      "id": "shopper-leave-on-doorstep",
+      "topic": "delivery",
+      "when": [
+        "can they leave it outside",
+        "leave it on the doorstep",
+        "leave it with a neighbour",
+        "can they leave it in the porch"
+      ],
+      "replies": [
+        "Tell your Runner on the in-app call what you'd like. What you said about the door when you joined is shown to them too.",
+        "Call your Runner from Your order and tell them. They'll do as you ask where they safely can."
+      ]
+    },
+    {
+      "id": "shopper-bring-it-in",
+      "topic": "delivery",
+      "when": [
+        "can they bring it inside",
+        "can they carry it in",
+        "i can't carry heavy bags",
+        "help me carry it"
+      ],
+      "replies": [
+        "If you'd like help, just ask your Runner at the door. They're there to help.",
+        "Ask your Runner, and they'll help bring it in if you wish."
+      ]
+    },
+    {
+      "id": "shopper-how-will-i-know-runner",
+      "topic": "runners",
+      "when": [
+        "how will i know it's the runner",
+        "how do i know who's at the door",
+        "is it safe to open the door"
+      ],
+      "replies": [
+        "Your Runner will tell you who they are at the door, and you'll be told when they're arriving. If you're unsure, don't open the door, and call them from Your order.",
+        "I'll tell you when your Runner is on the way. If you're ever unsure who's there, call them in the app first."
+      ]
+    },
+    {
+      "id": "shopper-runner-checked",
+      "topic": "runners",
+      "when": [
+        "are runners checked",
+        "are runners safe",
+        "can i trust the runner",
+        "are they vetted"
+      ],
+      "replies": [
+        "Yes. Every Runner has their right to work checked, a photo, and a DBS check before they take any job.",
+        "Every Runner is checked before they start. They're local people, trained to help."
+      ]
+    },
+    {
+      "id": "shopper-same-runner",
+      "topic": "runners",
+      "when": ["same runner as last time", "can i choose my runner", "can i get the same person"],
+      "replies": [
+        "You can't choose a Runner yet. The nearest free Runner takes your order, so it reaches you quickly.",
+        "Not yet, I'm afraid. Each Runner is checked, so you're in good hands."
+      ]
+    },
+    {
+      "id": "shopper-runner-was-lovely",
+      "topic": "runners",
+      "when": [
+        "my runner was lovely",
+        "the runner was very kind",
+        "thank the runner",
+        "the runner was great"
+      ],
+      "replies": [
+        "How lovely to hear. Thank you. You can leave feedback on Past orders, and every Runner likes to know.",
+        "That's wonderful. I'm glad. Is there anything else I can get you?"
+      ]
+    },
+    {
+      "id": "shopper-runner-was-rude",
+      "topic": "runners",
+      "when": [
+        "the runner was rude",
+        "i wasn't happy with the runner",
+        "complain about the runner",
+        "make a complaint"
+      ],
+      "replies": [
+        "I'm sorry to hear that. Please choose Report a problem in Past orders, or ring us, and a person will look into it.",
+        "That's not what we want at all. Please tell us through Report a problem, and it will be taken seriously."
+      ]
+    },
+    {
+      "id": "shopper-runner-pay",
+      "topic": "runners",
+      "when": [
+        "how much does the runner get",
+        "is the runner paid well",
+        "does the runner get paid"
+      ],
+      "replies": [
+        "Your Runner gets {runnerPay} from every delivery fee, always, whatever the shopping.",
+        "{runnerPay} of every delivery goes to the Runner, every time."
+      ]
+    },
+    {
+      "id": "shopper-runner-car",
+      "topic": "runners",
+      "when": [
+        "does the runner drive",
+        "how does the runner travel",
+        "do they come by car",
+        "are they on a bike"
+      ],
+      "replies": [
+        "Runners come on foot, by bicycle, by scooter or by car. Whichever way, your shopping is brought to your door.",
+        "Some walk, some cycle, and some drive. It's all the same to your shopping."
+      ]
+    },
+    {
+      "id": "shopper-runner-wears-what",
+      "topic": "runners",
+      "when": [
+        "what does the runner look like",
+        "will they have a uniform",
+        "how will i recognise them"
+      ],
+      "replies": [
+        "Your Runner will say who they are at the door. If you're unsure, call them from Your order before you open it.",
+        "They'll tell you their name at the door, and you can always call them in the app first."
+      ]
+    },
+    {
+      "id": "shopper-cool-bag",
+      "topic": "delivery",
+      "when": [
+        "will my frozen food stay cold",
+        "what about frozen food",
+        "is the chilled food kept cold"
+      ],
+      "replies": [
+        "Your Runner brings chilled and frozen things in a cool bag, and comes straight to you from the shop.",
+        "Chilled things travel in a cool bag. Put them in the fridge or freezer when they arrive."
+      ]
+    },
+    {
+      "id": "shopper-heavy-items",
+      "topic": "delivery",
+      "when": ["can you bring heavy things", "can i order heavy things"],
+      "replies": [
+        "Yes, within what one Runner can carry, up to {maximum} of shopping. Very heavy shops can go as two deliveries.",
+        "Your Runner can carry a good amount. If it's a lot, I'll offer two deliveries."
+      ]
+    },
+    {
+      "id": "shopper-eggs-carefully",
+      "topic": "delivery",
+      "when": [
+        "will my eggs break",
+        "will they be careful",
+        "pack it carefully",
+        "careful with my shopping"
+      ],
+      "replies": [
+        "Runners pack with care, eggs on top. If anything arrives damaged, report it from Past orders and it's put right.",
+        "They'll take care. And if anything's broken, tell us, and you'll be refunded."
+      ]
+    },
+    {
+      "id": "shopper-weather-delay",
+      "topic": "delivery",
+      "when": [
+        "will snow stop you",
+        "what if the weather is bad",
+        "is it still coming in the rain"
+      ],
+      "replies": [
+        "Runners go out in most weather. If something holds them up, I'll tell you. You can always call them from Your order.",
+        "Bad weather can slow things a little, but your Runner will be on their way."
+      ]
+    },
+    {
+      "id": "shopper-is-delivery-contactless",
+      "topic": "delivery",
+      "when": [
+        "can it be contactless",
+        "i don't want to see anyone",
+        "no contact please",
+        "leave it and go"
+      ],
+      "replies": [
+        "Tell your Runner on the in-app call, and they can leave your shopping at the door and step back.",
+        "Of course. Call your Runner from Your order and say you'd like it left at the door."
+      ]
+    },
+    {
+      "id": "shopper-handed-to-person",
+      "topic": "delivery",
+      "when": ["can they hand it to me", "hand it to me in person", "i need it handed to me"],
+      "replies": [
+        "Your Runner can hand it to you. Just say so at the door, or tell them on the in-app call.",
+        "Of course. Ask your Runner, and they'll put it into your hands."
+      ]
+    },
+    {
+      "id": "shopper-pets-at-door",
+      "topic": "delivery",
+      "when": ["i have a dog", "my dog barks"],
+      "replies": [
+        "Thank you for letting me know. You can tell your Runner on the in-app call when they're on the way.",
+        "No problem. A quick word with your Runner on the call helps them at the door."
+      ]
+    },
+    {
+      "id": "shopper-flat-stairs",
+      "topic": "delivery",
+      "when": [
+        "i live in a flat",
+        "i'm on the top floor",
+        "there's no lift",
+        "the buzzer doesn't work"
+      ],
+      "replies": [
+        "Your Runner will come to your door. If there's something they need to know, tell them on the in-app call.",
+        "Let your Runner know on the call, and they'll find their way to you."
+      ]
+    },
+    {
+      "id": "shopper-will-they-swap",
+      "topic": "substitutions",
+      "when": [
+        "will they swap things",
+        "do you send substitutes",
+        "what are substitutions",
+        "will i get something different"
+      ],
+      "replies": [
+        "Nothing is ever swapped without your say. If something isn't there, your Runner asks you in the app, and you decide.",
+        "Your Runner always asks you first. If they can't reach you, it's left out and you're not charged."
+      ]
+    },
+    {
+      "id": "shopper-happy-with-swaps",
+      "topic": "substitutions",
+      "when": ["any substitute is fine", "just get something similar", "swap it if you like"],
+      "replies": [
+        "Thank you. Your Runner will still call you to check, so you get what you're happy with.",
+        "That's kind. Your Runner will call to check with you either way. Keep your phone near you."
+      ]
+    },
+    {
+      "id": "shopper-no-swaps",
+      "topic": "substitutions",
+      "when": ["no substitutes", "don't swap anything", "no swaps please"],
+      "replies": [
+        "Nothing is swapped without your yes. If an item isn't there, just say no when your Runner calls, and it's left out.",
+        "Of course. Say no on the call, and it's left out and not charged."
+      ]
+    },
+    {
+      "id": "shopper-missed-runner-call",
+      "topic": "substitutions",
+      "when": ["i missed the runner's call", "the runner called me", "i didn't answer the runner"],
+      "replies": [
+        "That's all right. If they can't reach you, the item is left out and not charged. You can call them back from Your order.",
+        "No harm done. Call them back with the green button on Your order."
+      ]
+    },
+    {
+      "id": "shopper-out-of-stock-refund",
+      "topic": "substitutions",
+      "when": [
+        "was i charged for missing items",
+        "do i pay for things they didn't have",
+        "what about things they couldn't get"
+      ],
+      "replies": [
+        "No. You only pay for what's bought at the till. Anything left out isn't charged.",
+        "You're only charged the receipt, so missing things cost you nothing."
+      ]
+    },
+    {
+      "id": "shopper-report-how",
+      "topic": "problems",
+      "when": [
+        "how do i report a problem",
+        "where do i complain",
+        "something went wrong",
+        "report a problem"
+      ],
+      "replies": [
+        "Go to Past orders and choose Report a problem on that order. You can say what happened in your own words.",
+        "I'm sorry. Open Past orders, choose the order, and press Report a problem."
+      ]
+    },
+    {
+      "id": "shopper-wrong-shopping",
+      "topic": "problems",
+      "when": [
+        "this isn't my shopping",
+        "i got someone else's shopping",
+        "wrong order delivered",
+        "these aren't mine"
+      ],
+      "replies": [
+        "I'm sorry about that. Please report it from Past orders, or ring us, and we'll put it right.",
+        "That's a mix-up, and I'm sorry. Tell us through Report a problem, and a person will sort it out."
+      ]
+    },
+    {
+      "id": "shopper-food-gone-off",
+      "topic": "problems",
+      "when": ["it's gone off", "the food was out of date", "it was mouldy", "past the date"],
+      "replies": [
+        "I'm very sorry. Please don't eat it. Report it from Past orders, and you'll be refunded.",
+        "Sorry about that. Report a problem in Past orders, and it's put right. Small amounts are refunded straight away."
+      ]
+    },
+    {
+      "id": "shopper-short-on-items",
+      "topic": "problems",
+      "when": [
+        "they only brought one",
+        "not enough came",
+        "i ordered more than that",
+        "some of it is missing"
+      ],
+      "replies": [
+        "I'm sorry. Check whether the Runner told you something was out of stock. If not, report it from Past orders.",
+        "Please report it from Past orders, and a person will check the receipt for you."
+      ]
+    },
+    {
+      "id": "shopper-what-happens-report",
+      "topic": "problems",
+      "when": [
+        "what happens when i report",
+        "who looks at my complaint",
+        "will someone read my complaint"
+      ],
+      "replies": [
+        "A person reads every report. Small refunds, {instantRefund} or less, are given straight away. Anything more is decided within two working days.",
+        "A real person looks at it, and you'll be told what's decided."
+      ]
+    },
+    {
+      "id": "shopper-is-runner-blamed",
+      "topic": "problems",
+      "when": [
+        "will the runner get in trouble",
+        "i don't want the runner blamed",
+        "it wasn't the runner's fault"
+      ],
+      "replies": [
+        "That's kind of you. Small refunds are never held against a Runner, and anything else is looked at fairly by a person.",
+        "Don't worry. Problems are looked at fairly, and the Runner has their say too."
+      ]
+    },
+    {
+      "id": "shopper-not-happy",
+      "topic": "problems",
+      "when": ["i'm not happy", "i'm disappointed", "this is terrible", "this isn't good enough"],
+      "replies": [
+        "I'm sorry. Please tell us what went wrong through Report a problem in Past orders, or ring us. A person will help.",
+        "I'm sorry you feel that way. We'd like to put it right. Report a problem, or ask me for our phone number."
+      ]
+    },
+    {
+      "id": "shopper-leave-feedback",
+      "topic": "problems",
+      "when": [
+        "how do i leave feedback",
+        "i have a suggestion",
+        "can i give feedback",
+        "i have an idea"
+      ],
+      "replies": [
+        "Thank you. We'd love to hear it. Ring us, or use Report a problem in Past orders for anything about an order.",
+        "Thank you for wanting to help. Ask me for the phone number, and a person will listen."
+      ]
+    },
+    {
+      "id": "shopper-call-cost",
+      "topic": "calls",
+      "when": ["how much is a call", "does calling cost", "is it free to call the runner"],
+      "replies": [
+        "Calls with your Runner cost {callPrice} a minute, on your card. Your Runner never pays for a call.",
+        "It's {callPrice} a minute. Nobody's phone number is shared."
+      ]
+    },
+    {
+      "id": "shopper-runner-number",
+      "topic": "calls",
+      "when": [
+        "what's the runner's number",
+        "give me the runner's phone number",
+        "can the runner ring my phone"
+      ],
+      "replies": [
+        "Phone numbers are never shared, to keep you both safe. Use the big green Call button on Your order instead.",
+        "There are no numbers to share. All calls go through the green Call button in the app."
+      ]
+    },
+    {
+      "id": "shopper-how-to-answer-call",
+      "topic": "calls",
+      "when": [
+        "how do i answer the runner",
+        "how do i pick up",
+        "the phone is ringing",
+        "how do i answer a call"
+      ],
+      "replies": [
+        "When your Runner calls, your phone rings like a normal call. Press the green answer button. It opens on loudspeaker.",
+        "Press the green button to answer. You'll hear them on loudspeaker."
+      ]
+    },
+    {
+      "id": "shopper-end-call",
+      "topic": "calls",
+      "when": ["how do i end the call", "how do i hang up", "how do i put the phone down"],
+      "replies": [
+        "Press End call on the call screen. It's large and at the bottom.",
+        "The End call button finishes the call."
+      ]
+    },
+    {
+      "id": "shopper-add-carer-to-call",
+      "topic": "calls",
+      "when": [
+        "can my daughter join the call",
+        "can my carer join the call",
+        "add someone to the call",
+        "three way call"
+      ],
+      "replies": [
+        "Yes. On the call, press Merge to add someone. I'll tell you the price for them first, and wait for your yes. They get a link and don't need an account.",
+        "You can add a relative or carer to the call with Merge, so they can speak for you."
+      ]
+    },
+    {
+      "id": "shopper-loudspeaker",
+      "topic": "calls",
+      "when": ["how do i turn on the loudspeaker", "i can't hear the runner", "put it on speaker"],
+      "replies": [
+        "Press Loudspeaker on the call screen. Calls start on loudspeaker anyway.",
+        "The Loudspeaker button is on the call screen. You can turn up your volume too."
+      ]
+    },
+    {
+      "id": "shopper-mute-call",
+      "topic": "calls",
+      "when": ["how do i mute the call", "mute myself", "i don't want them to hear"],
+      "replies": [
+        "Press Mute on the call screen. Press it again to speak.",
+        "There's a Mute button on the call screen."
+      ]
+    },
+    {
+      "id": "shopper-call-button-missing",
+      "topic": "calls",
+      "when": ["where's the call button", "i can't see the call button", "there's no call button"],
+      "replies": [
+        "The green Call button appears on Your order once a Runner has accepted your order.",
+        "It shows once a Runner has your order. Ask where's my order to check."
+      ]
+    },
+    {
+      "id": "shopper-add-address-how",
+      "topic": "address",
+      "when": [
+        "how do i add an address",
+        "save another address",
+        "add a new address",
+        "where do i add an address"
+      ],
+      "replies": [
+        "Go to Your addresses in Settings and press Add an address. Saving it needs your four-number PIN.",
+        "Say add an address, or open Your addresses. Your PIN keeps it safe."
+      ]
+    },
+    {
+      "id": "shopper-how-many-addresses",
+      "topic": "address",
+      "when": [
+        "how many addresses can i have",
+        "is there a limit on addresses",
+        "can i save lots of addresses"
+      ],
+      "replies": [
+        "As many as you like. Each one needs your PIN to save.",
+        "There's no limit. Handy for family at different addresses."
+      ]
+    },
+    {
+      "id": "shopper-home-address-what",
+      "topic": "address",
+      "when": ["what is my home address", "which is my home address", "what's my main address"],
+      "replies": [
+        "Your home address is the main one on your account. Voice orders always go there. You can see it in Your addresses.",
+        "It's in Your addresses, in Settings. I'll also say it before every order."
+      ]
+    },
+    {
+      "id": "shopper-why-pin",
+      "topic": "account",
+      "when": ["why do i need a pin", "why a pin", "do i need a pin to order"],
+      "replies": [
+        "You don't need a PIN to order. It's only for saving or changing addresses, so nobody can send your shopping somewhere else.",
+        "Ordering needs no PIN. It protects your addresses."
+      ]
+    },
+    {
+      "id": "shopper-set-pin",
+      "topic": "account",
+      "when": ["how do i set a pin", "make a pin", "create my pin", "set up a pin"],
+      "replies": [
+        "You'll be asked to choose a PIN the first time you add or change an address. It's four numbers, typed, said or tapped.",
+        "When you first save an address, I'll help you choose four numbers. Easy ones like the same number four times aren't allowed."
+      ]
+    },
+    {
+      "id": "shopper-tap-pin",
+      "topic": "account",
+      "when": [
+        "can i tap my pin",
+        "i don't want to say my pin",
+        "people can hear me",
+        "how do i tap my pin"
+      ],
+      "replies": [
+        "Yes. You can tap your PIN, one number at a time. One tap for one, up to nine, and press and hold for zero. I'll guide you.",
+        "Tapping keeps it private when people are near. I'll say start before each number."
+      ]
+    },
+    {
+      "id": "shopper-say-pin-out-loud",
+      "topic": "account",
+      "when": ["shall i tell you my pin", "can i say my pin", "is it safe to say my pin"],
+      "replies": [
+        "Only say your PIN when I ask for it to save an address, and only if nobody can overhear. Otherwise, type or tap it.",
+        "If people are near, tap or type it instead. Nobody from us will ever ask for your PIN on a call."
+      ]
+    },
+    {
+      "id": "shopper-pin-locked",
+      "topic": "account",
+      "when": ["my pin is locked", "too many wrong tries", "it says wait", "i got my pin wrong"],
+      "replies": [
+        "After three wrong tries there's a short wait, to keep your account safe. Please try again a little later, or ring us.",
+        "For safety it pauses after three tries. Wait a while, then try again."
+      ]
+    },
+    {
+      "id": "shopper-change-pin",
+      "topic": "account",
+      "when": ["change my pin", "pick a new pin", "can i change my pin"],
+      "replies": [
+        "Please ring us, and a person will help you set a new one safely.",
+        "Ring us, and we'll help. Ask me for the number."
+      ]
+    },
+    {
+      "id": "shopper-someone-changed-address",
+      "topic": "address",
+      "when": [
+        "i didn't change my address",
+        "someone changed my address",
+        "i got a message about my address"
+      ],
+      "replies": [
+        "Please ring us straight away. We tell you every time the home address changes, so you can act fast.",
+        "If it wasn't you, ring us now, and a person will help keep your account safe."
+      ]
+    },
+    {
+      "id": "shopper-send-to-family",
+      "topic": "address",
+      "when": [
+        "send shopping to my mum",
+        "can i send it to my son",
+        "deliver to my sister",
+        "send to a friend"
+      ],
+      "replies": [
+        "Yes. Save their address in Your addresses with your PIN, then choose it at the checkout by touch. Voice orders go to your own home only.",
+        "Of course. Add their address, then pick it when you check out on the screen."
+      ]
+    },
+    {
+      "id": "shopper-one-off-address",
+      "topic": "address",
+      "when": [
+        "just this once to another address",
+        "only for this order",
+        "a different address this time"
+      ],
+      "replies": [
+        "At the checkout, choose send to a different address. A one-off address needs a touch to confirm, not your PIN.",
+        "You can type an address for one order only at the checkout. It isn't saved unless you choose."
+      ]
+    },
+    {
+      "id": "shopper-moving-house",
+      "topic": "address",
+      "when": ["i'm moving house", "we're moving"],
+      "replies": [
+        "Congratulations. Change your home address in Your addresses, in Settings, with your PIN, once you've moved.",
+        "How exciting. Update your home address in Settings, and your shopping will follow you."
+      ]
+    },
+    {
+      "id": "shopper-student-address",
+      "topic": "address",
+      "when": [
+        "my son is at university",
+        "shopping for a student",
+        "send to halls",
+        "my daughter is a student"
+      ],
+      "replies": [
+        "You can save their hall address and send shopping there from your account, by touch. A local Runner buys it and takes it the same day.",
+        "Save their address with your PIN, then choose it at the checkout. Fresh food is no problem."
+      ]
+    },
+    {
+      "id": "shopper-plus-renew",
+      "topic": "plus",
+      "when": [
+        "does plus renew",
+        "will plus keep charging me",
+        "is plus a subscription",
+        "how do i cancel plus"
+      ],
+      "replies": [
+        "Plus never renews by itself. It lasts thirty days, and you choose whether to have it again. Nothing is taken without your yes.",
+        "It doesn't renew on its own, so there's nothing to cancel. Say Plus to hear more."
+      ]
+    },
+    {
+      "id": "shopper-plus-worth-it",
+      "topic": "plus",
+      "when": [
+        "is plus worth it",
+        "what do i get with plus",
+        "what's included in plus",
+        "benefits of plus"
+      ],
+      "replies": [
+        "Plus includes Recipes and the Finds It fee, for thirty days. Delivery stays the same for everyone. Say Plus to hear the price.",
+        "If you enjoy Recipes or use Finds It, Plus covers both. I'll always tell you the price before you choose."
+      ]
+    },
+    {
+      "id": "shopper-plus-price",
+      "topic": "plus",
+      "when": ["how much is plus", "what does plus cost", "price of membership"],
+      "replies": [
+        "Open the Plus page and the price is shown clearly. It's only taken from your saved card after you agree.",
+        "The Plus page tells you the price. Nothing is charged until you say yes."
+      ]
+    },
+    {
+      "id": "shopper-family-plus",
+      "topic": "family",
+      "when": [
+        "plus for the family",
+        "can my family share plus",
+        "family membership",
+        "how does the family plan work"
+      ],
+      "replies": [
+        "There's a family Plus for up to four people. Each one joins with a six-letter family code. Say Plus to hear more.",
+        "Up to four people can share family Plus, joined with a family code."
+      ]
+    },
+    {
+      "id": "shopper-family-code",
+      "topic": "family",
+      "when": [
+        "what is a family code",
+        "where's my family code",
+        "join my family",
+        "i have a family code"
+      ],
+      "replies": [
+        "A family code is six letters, given by whoever bought family Plus. Type it on the Plus page to join.",
+        "Ask the person with family Plus for the six-letter code, then enter it on the Plus page."
+      ]
+    },
+    {
+      "id": "shopper-look-after-someone",
+      "topic": "family",
+      "when": [
+        "i'm a carer",
+        "i care for my mother",
+        "i'm her carer",
+        "i help my dad with shopping"
+      ],
+      "replies": [
+        "Thank you for what you do. You can help them set up their account, save an address, join their Runner calls when they add you, or send shopping from your own account.",
+        "On the first screen, choose I look after someone to see all the ways you can help."
+      ]
+    },
+    {
+      "id": "shopper-carer-see-orders",
+      "topic": "family",
+      "when": [
+        "can i see my mum's orders",
+        "can i track my dad's shopping",
+        "can family see my orders"
+      ],
+      "replies": [
+        "A plan for family and carers to follow orders is being built. For now, the Shopper can add you to a call with their Runner, and you can shop for them from your own account.",
+        "Not yet, but it's on its way. Meanwhile, you can join their Runner calls when they add you."
+      ]
+    },
+    {
+      "id": "shopper-recipe-pass",
+      "topic": "recipes",
+      "when": ["what is the recipe pass", "how much are recipes", "are recipes free"],
+      "replies": [
+        "Recipe names and their ingredients are free to see. The Recipe Pass opens the full recipes for thirty days, agreed before it's taken, and never renews by itself.",
+        "You can see each recipe and its ingredients for free. Say what can I cook to look."
+      ]
+    },
+    {
+      "id": "shopper-recipe-add-ingredients",
+      "topic": "recipes",
+      "when": [
+        "can you add the ingredients",
+        "put the ingredients in my basket",
+        "add everything for the recipe"
+      ],
+      "replies": [
+        "Open the recipe, and you can add its ingredients to your basket. I'll read the basket back before anything is sent.",
+        "On a recipe page, the ingredients can go straight into your basket."
+      ]
+    },
+    {
+      "id": "shopper-read-recipe",
+      "topic": "recipes",
+      "when": ["read me a recipe", "can you read the recipe", "read the recipe aloud"],
+      "replies": [
+        "Recipes are read aloud, step by step. Say what can I cook, then choose one.",
+        "Say what can I cook, and I'll open them for you."
+      ]
+    },
+    {
+      "id": "shopper-easy-meals",
+      "topic": "recipes",
+      "when": ["something easy to cook", "quick meals", "i can't cook much", "simple dinners"],
+      "replies": [
+        "Simple ideas are an omelette, jacket potato with beans, pasta with tinned tomatoes, or soup and bread. Shall I add any of those?",
+        "Try scrambled eggs on toast, or a tin of soup with crusty bread. Say what can I cook for more."
+      ]
+    },
+    {
+      "id": "shopper-cooking-for-one",
+      "topic": "recipes",
+      "when": ["cooking for one", "i live alone", "meals for one person", "just for me"],
+      "replies": [
+        "For one, eggs, small loaves, frozen vegetables and tins are handy, as you use just what you need. Shall I add some?",
+        "Frozen peas, eggs, a small loaf and soup keep well for one. What would you like?"
+      ]
+    },
+    {
+      "id": "shopper-no-cooker",
+      "topic": "recipes",
+      "when": ["i can't use the cooker", "no cooking", "nothing to cook", "microwave meals"],
+      "replies": [
+        "Microwave rice, soup, ready meals, sandwiches, fruit and yoghurt need little or no cooking. Shall I add some?",
+        "Cold meals are fine too: bread, cheese, salad, fruit and yoghurt. What would you like?"
+      ]
+    },
+    {
+      "id": "shopper-little-gifts-what",
+      "topic": "gifts",
+      "when": [
+        "what are little gifts",
+        "can you send flowers",
+        "send a card and flowers",
+        "birthday present ideas"
+      ],
+      "replies": [
+        "Little Gifts are ready-made treats from the shop, like a card, flowers or chocolates, brought with your shopping. Say a present to see them.",
+        "Say a present, and I'll show the Little Gifts."
+      ]
+    },
+    {
+      "id": "shopper-gift-to-someone-else",
+      "topic": "gifts",
+      "when": ["send a gift to my friend", "surprise someone", "send a present to my grandchild"],
+      "replies": [
+        "You can send a Little Gift to a saved address, chosen at the checkout by touch. Say a present to start.",
+        "Lovely idea. Save their address, then send it from the Little Gifts page."
+      ]
+    },
+    {
+      "id": "shopper-gift-card-how",
+      "topic": "giftcards",
+      "when": ["how do gift cards work", "how do i use a gift card", "i've been given a gift card"],
+      "replies": [
+        "A gift card has a twelve-character code, used once. Enter it, and when your next order is paid, the gift card money goes back to your card.",
+        "Say gift card, and type the code. It's taken off as money back to your card after your next order."
+      ]
+    },
+    {
+      "id": "shopper-gift-card-buy",
+      "topic": "giftcards",
+      "when": [
+        "buy a gift card",
+        "gift card for my grandson",
+        "give a gift card",
+        "what amounts are gift cards"
+      ],
+      "replies": [
+        "Say gift card. There are a few set amounts to choose from, paid by card, and you get a code to give.",
+        "Gift cards make a kind present. Say gift card to see the amounts."
+      ]
+    },
+    {
+      "id": "shopper-gift-card-lost-code",
+      "topic": "giftcards",
+      "when": ["i lost my gift card code", "the code doesn't work", "gift card not working"],
+      "replies": [
+        "Please check each character carefully, as codes are used once only. If it still won't work, ring us and a person will help.",
+        "Sorry about that. Ring us with the details, and we'll look into it."
+      ]
+    },
+    {
+      "id": "shopper-finds-it-how",
+      "topic": "findit",
+      "when": ["how does finds it work", "what is finds it", "can someone look for something"],
+      "replies": [
+        "A person looks in up to three shops for something hard to find. There's a small fee, agreed first, and it's given back if nothing is found.",
+        "Say I can't find it anywhere, and tell me what you need. If it's found, it appears under Found for you."
+      ]
+    },
+    {
+      "id": "shopper-finds-it-found",
+      "topic": "findit",
+      "when": ["did they find it", "has my item been found", "where is found for you"],
+      "replies": [
+        "If it's found, it appears under Found for you in the shop, ready to add to your basket.",
+        "Look in the shop under Found for you. I'll help you add it."
+      ]
+    },
+    {
+      "id": "shopper-offers-how",
+      "topic": "offers",
+      "when": [
+        "do you have discounts",
+        "any money off",
+        "are there any vouchers",
+        "special offers today"
+      ],
+      "replies": [
+        "Offers come only from shops that agree them with us. Say any offers, and I'll tell you what's on today, if anything.",
+        "Say any offers, and I'll check. Sometimes there aren't any, but the shop's own prices still apply."
+      ]
+    },
+    {
+      "id": "shopper-discount-code",
+      "topic": "offers",
+      "when": ["do you have a discount code", "promo code", "voucher code", "first order discount"],
+      "replies": [
+        "There are no discount codes at the moment. Say any offers to hear about shop offers.",
+        "Not at the moment. Gift cards work, though, if someone's given you one."
+      ]
+    },
+    {
+      "id": "shopper-adverts",
+      "topic": "offers",
+      "when": ["do you show adverts", "are there adverts", "will you sell me things"],
+      "replies": [
+        "I always give the honest answer first. If a shop ever pays to be mentioned, I'll clearly say it's an advert.",
+        "Anything paid for is always called an advert, and never changes what I suggest."
+      ]
+    },
+    {
+      "id": "shopper-weekly-shop-how",
+      "topic": "weekly",
+      "when": [
+        "how does the weekly shop work",
+        "can you remind me every week",
+        "do the same shop every week"
+      ],
+      "replies": [
+        "Choose a day of the week. On that day, I'll offer to put your usual shopping in the basket. Nothing is sent or paid until you say yes.",
+        "Say set up my weekly shop and pick a day. I'll remind you, and you decide."
+      ]
+    },
+    {
+      "id": "shopper-change-weekly-day",
+      "topic": "weekly",
+      "when": [
+        "change my weekly day",
+        "stop my weekly shop",
+        "cancel the weekly shop",
+        "skip this week"
+      ],
+      "replies": [
+        "Open Your weekly shop on the More page to change the day or stop it. And nothing goes without your yes anyway.",
+        "You can change or stop it on Your weekly shop. If you don't want it this week, just say no when I ask."
+      ]
+    },
+    {
+      "id": "shopper-order-these-again",
+      "topic": "reorder",
+      "when": [
+        "can i repeat my order",
+        "same again please",
+        "the same shopping again",
+        "same as usual"
+      ],
+      "replies": [
+        "Say same as last time, and I'll put your last order back in your basket, ready to change before you send it.",
+        "Of course. On Past orders, press Order these again, or just say same as last time."
+      ]
+    },
+    {
+      "id": "shopper-what-can-i-buy",
+      "topic": "shopping",
+      "when": ["what can i buy", "what do you sell", "what's available", "what can you bring"],
+      "replies": [
+        "Almost anything from the listed shops: food, drinks, cleaning things, toiletries, and everyday essentials like batteries. Not alcohol, tobacco or medicines.",
+        "Groceries and everyday things from the shop. Tell me what you need, and I'll look."
+      ]
+    },
+    {
+      "id": "shopper-paracetamol",
+      "topic": "rules",
+      "when": [
+        "can you get paracetamol",
+        "can you bring painkillers",
+        "can you get my prescription",
+        "can you get medicine for me"
+      ],
+      "replies": [
+        "I'm sorry, we can't deliver medicines. For advice, a pharmacist or 111 can help. Is there any other shopping I can get?",
+        "Medicines aren't something we can bring, I'm afraid. I can help with everything else from the shop."
+      ]
+    },
+    {
+      "id": "shopper-lottery",
+      "topic": "rules",
+      "when": [
+        "can you get a lottery ticket",
+        "scratch cards",
+        "cash back",
+        "can you bring me money"
+      ],
+      "replies": [
+        "I'm sorry, we can't buy lottery tickets or bring cash. What else can I get for you?",
+        "That's not something we can do, I'm afraid. Is there any shopping you need?"
+      ]
+    },
+    {
+      "id": "shopper-age-restricted",
+      "topic": "rules",
+      "when": [
+        "can you get matches",
+        "can you get lighters",
+        "can you get knives",
+        "can you get fireworks"
+      ],
+      "replies": [
+        "We don't bring anything age restricted or dangerous, I'm afraid. Is there something else from the shop I can find?",
+        "Sorry, that's one we can't carry. What else would you like?"
+      ]
+    },
+    {
+      "id": "shopper-newspaper",
+      "topic": "shopping",
+      "when": ["can you bring a newspaper", "do you sell magazines", "can you get stamps"],
+      "replies": [
+        "If the listed shop sells it, I can look. Just tell me what you'd like, and I'll check.",
+        "Tell me which one, and I'll see if the shop has it."
+      ]
+    },
+    {
+      "id": "shopper-pet-food",
+      "topic": "shopping",
+      "when": ["do you have pet food", "can you get cat food", "do you sell dog food"],
+      "replies": [
+        "Yes, if the shop has it. Tell me the kind and how many, and I'll look.",
+        "Of course. Say which pet food, and I'll find it."
+      ]
+    },
+    {
+      "id": "shopper-cleaning-things",
+      "topic": "shopping",
+      "when": [
+        "do you sell cleaning stuff",
+        "do you sell household things",
+        "do you sell toiletries"
+      ],
+      "replies": [
+        "Yes, cleaning things and toiletries from the shop are fine. Tell me what you need.",
+        "Of course. Washing-up liquid, toilet roll, soap and the like. What would you like?"
+      ]
+    },
+    {
+      "id": "shopper-special-diet",
+      "topic": "health",
+      "when": ["i'm vegetarian", "i'm vegan", "i'm coeliac", "i eat halal", "i can't eat dairy"],
+      "replies": [
+        "Tell me what you'd like, and I'll look for it. Item names often say whether something is vegetarian, gluten free or halal.",
+        "I'll help you find suitable things. Please check the packet when it arrives, as I can't promise every detail."
+      ]
+    },
+    {
+      "id": "shopper-allergies",
+      "topic": "health",
+      "when": ["i have an allergy", "nut allergy", "is it safe for my allergy"],
+      "replies": [
+        "Please always check the packet yourself, or with someone you trust, as I can't check ingredients for allergies. What else can I help with?",
+        "For allergies, the packet label is the safe guide. I can still help you find what you need."
+      ]
+    },
+    {
+      "id": "shopper-local-shops-what",
+      "topic": "shopping",
+      "when": ["do you use local shops", "can i support local shops", "small shops"],
+      "replies": [
+        "Yes. Say local shops to hear about local shops with their own pages. Your Runner buys as an ordinary customer.",
+        "Local shops are listed free. Say local shops to see them."
+      ]
+    },
+    {
+      "id": "shopper-own-a-shop",
+      "topic": "shopping",
+      "when": ["i own a shop", "can my shop join", "list my shop", "become a partner"],
+      "replies": [
+        "Lovely. Every shop can be listed free. Shops can also become a Shop Partner, for {partnerPlan} a month. Choose the Shop Partner door on the first screen.",
+        "Shops can ask to work with us using the form on the first screen."
+      ]
+    },
+    {
+      "id": "shopper-organisation-link",
+      "topic": "organisation",
+      "when": [
+        "my council pays for my shopping",
+        "i have a personal budget",
+        "direct payments",
+        "my housing association"
+      ],
+      "replies": [
+        "If an organisation supports you, type their code in Settings to link to them. You'll be told what they can see, and you can stop it any time.",
+        "Ask them for their code, and enter it in Settings. You choose, and you can unlink in Settings."
+      ]
+    },
+    {
+      "id": "shopper-organisation-unlink",
+      "topic": "organisation",
+      "when": ["stop sharing with the council", "unlink my organisation", "remove the care home"],
+      "replies": [
+        "You can stop the link any time in Settings. It's your choice.",
+        "Go to Settings, and you'll find where to stop the link."
+      ]
+    },
+    {
+      "id": "shopper-organisation-join",
+      "topic": "organisation",
+      "when": ["can my charity use this", "can our care home sign up", "we're an organisation"],
+      "replies": [
+        "Yes. Choose organisation on the first screen to see how it works.",
+        "Organisations have their own door on the first screen."
+      ]
+    },
+    {
+      "id": "shopper-share-link",
+      "topic": "referral",
+      "when": ["how do i tell my friends", "recommend you to someone", "where is my share link"],
+      "replies": [
+        "Thank you. Your share link is in Settings. Send it to friends and family.",
+        "That's kind. Settings has your share link."
+      ]
+    },
+    {
+      "id": "shopper-zoom",
+      "topic": "accessibility",
+      "when": ["i can't read it", "the words are too small", "make it bigger", "how do i zoom in"],
+      "replies": [
+        "Pinch the screen with two fingers, spreading them apart, to make things bigger. Your phone's text size setting helps too.",
+        "Spread two fingers on the screen to zoom in. And I can read anything aloud."
+      ]
+    },
+    {
+      "id": "shopper-show-words",
+      "topic": "accessibility",
+      "when": [
+        "show more words",
+        "what does this button do",
+        "the buttons have no words",
+        "show words on the screen"
+      ],
+      "replies": [
+        "Turn on Show words on the screen, in Settings, and short descriptions appear under headings and buttons.",
+        "In Settings, switch on Show words on the screen for extra help."
+      ]
+    },
+    {
+      "id": "shopper-screen-reader",
+      "topic": "accessibility",
+      "when": [
+        "does it work with voiceover",
+        "does it work with talkback",
+        "screen reader",
+        "i use voiceover"
+      ],
+      "replies": [
+        "Yes. Every screen is built to work with VoiceOver and TalkBack, as well as with me.",
+        "It does. Every button has words your screen reader will read."
+      ]
+    },
+    {
+      "id": "shopper-braille",
+      "topic": "accessibility",
+      "when": ["does it work with braille", "braille display", "i'm deafblind"],
+      "replies": [
+        "A Braille display connected to your iPhone or Android phone works with the app, through VoiceOver or TalkBack.",
+        "Yes, through your phone's screen reader. More Braille features are planned."
+      ]
+    },
+    {
+      "id": "shopper-deaf",
+      "topic": "accessibility",
+      "when": ["i'm deaf", "i'm hard of hearing", "i can't hear well"],
+      "replies": [
+        "Everything I say is also written on the screen. You can type and tap instead of talking.",
+        "My words are always on the screen, so you can read them. Tap and type whenever you like."
+      ]
+    },
+    {
+      "id": "shopper-words-on-screen",
+      "topic": "accessibility",
+      "when": ["can i read what you say", "write it down", "show me what you said"],
+      "replies": [
+        "Everything I say is written on the screen too, so you can read it at your own pace.",
+        "My words always stay on the screen. Have a look, or say repeat."
+      ]
+    },
+    {
+      "id": "shopper-shaky-hands",
+      "topic": "accessibility",
+      "when": [
+        "my hands shake",
+        "i can't tap properly",
+        "i have arthritis",
+        "the buttons are hard to press"
+      ],
+      "replies": [
+        "Buttons are made large on purpose, and you can do everything by talking to me instead.",
+        "Use your voice whenever tapping is hard. I'll check each step with you."
+      ]
+    },
+    {
+      "id": "shopper-dyslexia",
+      "topic": "accessibility",
+      "when": ["i'm dyslexic", "i can't read well", "i struggle with reading"],
+      "replies": [
+        "That's fine. Every button has words and I can say everything aloud. Just talk to me.",
+        "No reading needed. Tell me what you'd like, and I'll do it."
+      ]
+    },
+    {
+      "id": "shopper-learning-difficulty",
+      "topic": "accessibility",
+      "when": ["i get confused", "it's confusing", "too complicated", "i don't understand"],
+      "replies": [
+        "That's all right. Let's go one step at a time. Tell me one thing you need.",
+        "No rush. Just say what you'd like, and I'll help."
+      ]
+    },
+    {
+      "id": "shopper-memory",
+      "topic": "accessibility",
+      "when": ["i forget things", "my memory isn't good", "i can't remember what i ordered"],
+      "replies": [
+        "That's all right. Ask what's in my basket, or where's my order, and I'll tell you. Past orders keeps a record too.",
+        "I'll remind you. Just ask what's in my basket."
+      ]
+    },
+    {
+      "id": "shopper-extra-help",
+      "topic": "accessibility",
+      "when": [
+        "i need extra help",
+        "i'm partially sighted",
+        "my eyesight is poor",
+        "i have low vision"
+      ],
+      "replies": [
+        "I'm here for you. I'll read everything aloud. Pinch to make things bigger, and Show words on the screen in Settings adds more help.",
+        "You can do everything by voice. Tell me what you need, and I'll guide you."
+      ]
+    },
+    {
+      "id": "shopper-contrast",
+      "topic": "accessibility",
+      "when": ["the colours are hard to see", "too bright", "high contrast"],
+      "replies": [
+        "The app uses strong contrast. Your phone's own display settings can change colours and brightness too.",
+        "Try your phone's display settings for brightness and colour. And I'm here to read things out."
+      ]
+    },
+    {
+      "id": "shopper-wheelchair",
+      "topic": "accessibility",
+      "when": ["i use a wheelchair", "i can't get to the door quickly", "i'm slow to the door"],
+      "replies": [
+        "Your Runner will wait. You can tell them on the in-app call, and what you said about the door is shown to them.",
+        "No hurry. Let your Runner know on the call, and they'll be patient."
+      ]
+    },
+    {
+      "id": "shopper-lunch-ideas",
+      "topic": "healthy eating",
+      "when": ["lunch ideas", "what's good for lunch", "something for lunch"],
+      "replies": [
+        "For lunch, soup with wholemeal bread, a cheese and tomato sandwich, or a jacket potato with beans are all good. Shall I add any?",
+        "Try eggs on toast, or soup and a roll, with a piece of fruit. What would you like?"
+      ]
+    },
+    {
+      "id": "shopper-dinner-ideas",
+      "topic": "healthy eating",
+      "when": ["dinner ideas", "tea ideas", "something for dinner", "what shall i cook tonight"],
+      "replies": [
+        "How about fish with potatoes and peas, a chicken stir fry, or a vegetable soup? Shall I add the things for one?",
+        "Pasta with tomato sauce and vegetables, or a shepherd's pie, are easy. Tell me which, and I'll add the shopping."
+      ]
+    },
+    {
+      "id": "shopper-snack-ideas",
+      "topic": "healthy eating",
+      "when": ["healthy snacks", "snack ideas", "something to nibble"],
+      "replies": [
+        "Fruit, nuts, yoghurt, oatcakes, or carrot sticks with hummus are good snacks. Shall I add any?",
+        "Bananas, apples, rice cakes and plain popcorn are nice light snacks. What would you like?"
+      ]
+    },
+    {
+      "id": "shopper-eat-more-veg",
+      "topic": "healthy eating",
+      "when": ["more vegetables", "i don't eat enough veg", "how do i eat more veg"],
+      "replies": [
+        "Frozen vegetables are easy and keep well. Peas, carrots and broccoli go with almost anything. Shall I add some?",
+        "Try adding a tin of tomatoes or a bag of frozen mixed vegetables to your meals. Shall I add some?"
+      ]
+    },
+    {
+      "id": "shopper-soup-ideas",
+      "topic": "healthy eating",
+      "when": ["soup ideas", "make soup", "something warming"],
+      "replies": [
+        "For a warming soup, carrots, onions, lentils and a stock cube are cheap and filling. Shall I add them?",
+        "Lentil, vegetable or tomato soup are easy. I can add the shopping for any of them."
+      ]
+    },
+    {
+      "id": "shopper-protein",
+      "topic": "healthy eating",
+      "when": ["food with protein", "something filling", "keep me full"],
+      "replies": [
+        "Eggs, beans, lentils, fish, chicken, cheese and yoghurt are all filling. Which would you like?",
+        "Porridge, eggs and beans keep you full for longer. Shall I add some?"
+      ]
+    },
+    {
+      "id": "shopper-drink-more-water",
+      "topic": "healthy eating",
+      "when": ["i need to drink more", "drinks ideas", "something to drink"],
+      "replies": [
+        "Water, milk, tea and diluted juice all count. I can add bottled water, squash or tea bags if you like.",
+        "Squash, tea and milk are easy ways to drink more. What would you like?"
+      ]
+    },
+    {
+      "id": "shopper-less-salt",
+      "topic": "healthy eating",
+      "when": ["i need less salt", "low salt ideas", "cut down on salt"],
+      "replies": [
+        "Look for reduced salt on the label, and use herbs, lemon or pepper instead. For medical advice, please ask your doctor. Shall I find some lower salt foods?",
+        "Fresh vegetables and plain foods have less salt than ready meals. What can I find for you?"
+      ]
+    },
+    {
+      "id": "shopper-less-sugar",
+      "topic": "healthy eating",
+      "when": ["i need less sugar", "cut down on sugar", "no added sugar ideas"],
+      "replies": [
+        "Plain yoghurt, porridge, fruit and no added sugar drinks are good swaps. Shall I add some?",
+        "Try sugar free squash, plain oats and fresh fruit. What would you like?"
+      ]
+    },
+    {
+      "id": "shopper-lose-weight",
+      "topic": "healthy eating",
+      "when": ["trying to lose weight", "i'm on a diet", "low calorie food", "something light"],
+      "replies": [
+        "I can't give medical advice, but vegetables, fruit, lean meat, fish and wholegrains make a good basket. Shall I add some?",
+        "Lighter choices include salad, fruit, soup and grilled fish. Tell me what you'd like."
+      ]
+    },
+    {
+      "id": "shopper-put-on-weight",
+      "topic": "healthy eating",
+      "when": ["i've lost my appetite", "i'm not eating much", "i need to put on weight"],
+      "replies": [
+        "I'm sorry. Small, tasty things can help, like soup, yoghurt, cheese and crackers, or milky drinks. If it goes on, please talk to your doctor.",
+        "Little and often is easier. Shall I add some soft, tasty things like rice pudding or custard?"
+      ]
+    },
+    {
+      "id": "shopper-soft-foods",
+      "topic": "healthy eating",
+      "when": ["i need soft food", "easy to chew", "my teeth hurt", "nothing too hard"],
+      "replies": [
+        "Soft foods include soup, scrambled eggs, mashed potato, yoghurt, porridge, bananas and rice pudding. Shall I add any?",
+        "Try porridge, soup, fish, and ripe bananas. Which would you like?"
+      ]
+    },
+    {
+      "id": "shopper-for-grandchildren",
+      "topic": "shopping",
+      "when": [
+        "my grandchildren are coming",
+        "food for kids",
+        "something for the children",
+        "treats for the grandchildren"
+      ],
+      "replies": [
+        "How lovely. Fruit, yoghurts, fish fingers, pasta and a little treat usually go down well. What would you like?",
+        "Children often like pasta, pizza, fruit and squash. Shall I add some?"
+      ]
+    },
+    {
+      "id": "shopper-visitors-coming",
+      "topic": "shopping",
+      "when": [
+        "i've got visitors",
+        "people are coming round",
+        "having guests",
+        "friends coming for tea"
+      ],
+      "replies": [
+        "Lovely. Tea, biscuits, a cake, sandwiches and fruit are always welcome. What would you like?",
+        "How nice. Shall I add some biscuits, cake or sandwich things?"
+      ]
+    },
+    {
+      "id": "shopper-christmas",
+      "topic": "seasons",
+      "when": ["christmas shopping", "help with christmas dinner", "it's nearly christmas"],
+      "replies": [
+        "For Christmas, I can help with the dinner shopping and a few treats. Little Gifts are there too. What would you like?",
+        "Let's plan it. Tell me what you need for Christmas dinner, and I'll add it bit by bit."
+      ]
+    },
+    {
+      "id": "shopper-birthday",
+      "topic": "seasons",
+      "when": ["it's my birthday", "it's a birthday", "birthday party"],
+      "replies": [
+        "Happy birthday. Shall I find a cake, or a little treat? Little Gifts are there too.",
+        "How lovely. A cake, some candles, something nice for tea? Just tell me."
+      ]
+    },
+    {
+      "id": "shopper-summer-food",
+      "topic": "seasons",
+      "when": ["it's hot", "something cool to eat", "summer food", "picnic ideas"],
+      "replies": [
+        "Salads, fruit, cold drinks and ice lollies are nice when it's warm. Remember to drink plenty. What would you like?",
+        "For a picnic, sandwiches, fruit, crisps and squash are easy. Shall I add any?"
+      ]
+    },
+    {
+      "id": "shopper-winter-food",
+      "topic": "seasons",
+      "when": ["it's cold", "winter food", "keeping warm"],
+      "replies": [
+        "Warm meals like soup, porridge, stew and hot drinks are good in the cold. Shall I add some?",
+        "Stay cosy. Porridge, soup and tea are always welcome. What would you like?"
+      ]
+    },
+    {
+      "id": "shopper-store-cupboard",
+      "topic": "budget",
+      "when": ["cupboard staples", "fill my cupboard", "things that keep", "long life food"],
+      "replies": [
+        "Good things to keep are tins of beans and tomatoes, rice, pasta, porridge oats, long life milk and soup. Shall I add some?",
+        "Tins, pasta, rice and oats last a long time. Which would you like?"
+      ]
+    },
+    {
+      "id": "shopper-budget-meals",
+      "topic": "budget",
+      "when": ["cheap meals", "meals on a budget", "feed the family cheaply", "cheap dinners"],
+      "replies": [
+        "Cheap, filling meals include beans on toast, lentil soup, pasta with tomatoes, and baked potatoes. Shall I add the shopping for one?",
+        "Rice with vegetables, an omelette, or a pot of soup go a long way. What would you like?"
+      ]
+    },
+    {
+      "id": "shopper-make-it-last",
+      "topic": "budget",
+      "when": [
+        "make it last the week",
+        "plan my week",
+        "shopping list ideas",
+        "help me make a list"
+      ],
+      "replies": [
+        "Let's build it together. Think of breakfast, lunch and tea for each day, and tell me what you need. Batch cooking soup or stew helps too.",
+        "A good list saves money. Tell me what meals you'd like this week, and I'll add the shopping."
+      ]
+    },
+    {
+      "id": "shopper-reduce-waste",
+      "topic": "budget",
+      "when": ["i waste too much food", "food going off", "stop wasting food"],
+      "replies": [
+        "Frozen fruit and vegetables last much longer, and you only use what you need. Shall I add some?",
+        "Buying smaller amounts more often helps, and frozen or tinned food keeps well."
+      ]
+    },
+    {
+      "id": "shopper-cheaper-alternative",
+      "topic": "budget",
+      "when": ["is there anything cheaper", "a cheaper one", "the cheapest one"],
+      "replies": [
+        "Tell me the item, and I'll read the prices so you can choose. The shop's own brand is often cheaper.",
+        "Ask for the item, and I'll tell you the prices I have."
+      ]
+    },
+    {
+      "id": "shopper-how-much-spent",
+      "topic": "budget",
+      "when": ["how much have i spent", "what did i spend", "my spending"],
+      "replies": [
+        "Past orders shows what each order cost. Ask what's the total for your current basket.",
+        "Look in Past orders for what you've spent. I can tell you your basket total now."
+      ]
+    },
+    {
+      "id": "shopper-good-morning-how",
+      "topic": "manners",
+      "when": ["morning", "morning to you", "top of the morning"],
+      "replies": [
+        "Good morning. What shopping can I get for you today?",
+        "Morning. I hope you slept well. What would you like?"
+      ]
+    },
+    {
+      "id": "shopper-nice-to-meet-you",
+      "topic": "manners",
+      "when": ["nice to meet you", "pleased to meet you", "lovely to meet you"],
+      "replies": [
+        "Lovely to meet you too. What can I get for you today?",
+        "And you. I'm here whenever you need shopping."
+      ]
+    },
+    {
+      "id": "shopper-you-are-kind",
+      "topic": "manners",
+      "when": ["you're very kind", "that's kind", "you're lovely", "you're so helpful"],
+      "replies": [
+        "Thank you, that's kind of you to say. Is there anything else you need?",
+        "Thank you. I'm happy to help. What else can I get?"
+      ]
+    },
+    {
+      "id": "shopper-excuse-me",
+      "topic": "manners",
+      "when": ["excuse me", "sorry to bother you"],
+      "replies": ["Yes? How can I help?", "I'm listening. What would you like?"]
+    },
+    {
+      "id": "shopper-no-thanks",
+      "topic": "manners",
+      "when": ["no thanks", "no thank you", "not today", "maybe later"],
+      "replies": [
+        "That's fine. I'm here whenever you need me.",
+        "No problem. Just say my name if you change your mind."
+      ]
+    },
+    {
+      "id": "shopper-happy-christmas",
+      "topic": "manners",
+      "when": ["happy christmas", "merry christmas", "happy new year", "happy easter"],
+      "replies": [
+        "And the same to you. If you need anything for the celebrations, I'm here.",
+        "Thank you, and to you. Is there anything you need for the day?"
+      ]
+    },
+    {
+      "id": "shopper-how-old-are-you",
+      "topic": "small talk",
+      "when": ["how old are you", "when were you born", "when is your birthday"],
+      "replies": [
+        "I'm quite new, made to help with shopping. What can I get for you?",
+        "Young enough to learn every day. How can I help today?"
+      ]
+    },
+    {
+      "id": "shopper-where-do-you-live",
+      "topic": "small talk",
+      "when": ["where do you live", "where are you", "are you in my phone"],
+      "replies": [
+        "I live in the app, ready whenever you need shopping. What would you like?",
+        "I'm right here in the app. What can I get for you?"
+      ]
+    },
+    {
+      "id": "shopper-what-does-ozi-mean",
+      "topic": "small talk",
+      "when": [
+        "what does your name mean",
+        "why are you called ozi",
+        "where does your name come from"
+      ],
+      "replies": [
+        "{assistant} is an Igbo word for message. Tell me your message, and I'll get your shopping.",
+        "It means message, in Igbo. {motto}"
+      ]
+    },
+    {
+      "id": "shopper-motto",
+      "topic": "small talk",
+      "when": ["what is your motto", "what's your slogan", "send me i will help"],
+      "replies": ["{motto} That's my promise. What can I do for you?", "My motto is: {motto}"]
+    },
+    {
+      "id": "shopper-are-you-a-man-or-woman",
+      "topic": "small talk",
+      "when": ["are you a man or a woman", "are you a boy or a girl", "are you male or female"],
+      "replies": [
+        "I'm just {assistant}, your shopping assistant. You can choose a voice you like in Settings.",
+        "Neither, really. I'm here to help you shop. Pick a voice you like in Settings."
+      ]
+    },
+    {
+      "id": "shopper-do-you-eat",
+      "topic": "small talk",
+      "when": ["do you eat", "what's your favourite food", "are you hungry"],
+      "replies": [
+        "I don't eat, but I love helping people choose. What's your favourite? I can add it.",
+        "No food for me, but I can get some for you. What would you like?"
+      ]
+    },
+    {
+      "id": "shopper-tell-me-a-joke",
+      "topic": "small talk",
+      "when": ["tell me a joke", "make me laugh", "say something funny"],
+      "replies": [
+        "Why did the banana go to the doctor? It wasn't peeling well. Shall I add some bananas?",
+        "What do you call a sleeping loaf? Bread in bed. Anything I can get you?"
+      ]
+    },
+    {
+      "id": "shopper-sing-a-song",
+      "topic": "small talk",
+      "when": ["sing me a song", "can you sing", "play some music"],
+      "replies": [
+        "I'm afraid I can't sing, but I'm good at shopping. What would you like?",
+        "No singing from me, I'm sorry. Is there anything you need?"
+      ]
+    },
+    {
+      "id": "shopper-whats-the-time",
+      "topic": "small talk",
+      "when": ["what time is it", "what's the date", "what day is it"],
+      "replies": [
+        "Your phone shows the time and date at the top of the screen. Is there any shopping I can help with?",
+        "I can't tell the time, but your phone can. What can I get for you?"
+      ]
+    },
+    {
+      "id": "shopper-whats-the-news",
+      "topic": "small talk",
+      "when": ["what's the news", "what's happening in the world", "any news"],
+      "replies": [
+        "I only know about shopping, I'm afraid. What can I get for you today?",
+        "The news isn't my area, but shopping is. What would you like?"
+      ]
+    },
+    {
+      "id": "shopper-football",
+      "topic": "small talk",
+      "when": ["did you watch the football", "who won the match", "what's on telly"],
+      "replies": [
+        "I don't watch, but snacks for the match I can do. What would you like?",
+        "Not my area, I'm afraid. Shall I get something nice for watching it?"
+      ]
+    },
+    {
+      "id": "shopper-do-you-love-me",
+      "topic": "small talk",
+      "when": ["do you love me", "do you like me", "will you marry me"],
+      "replies": [
+        "That's kind. I'm always happy to help you. What can I get you?",
+        "I'm very fond of helping you. Is there anything you need?"
+      ]
+    },
+    {
+      "id": "shopper-i-love-this-app",
+      "topic": "small talk",
+      "when": ["i love this app", "this is brilliant", "this is so easy", "i love it"],
+      "replies": [
+        "I'm so glad. Thank you. Please tell your friends; your share link is in Settings.",
+        "That's lovely to hear. What else can I get for you?"
+      ]
+    },
+    {
+      "id": "shopper-shut-up",
+      "topic": "manners",
+      "when": ["shut up", "be quiet", "stop it", "go away"],
+      "replies": [
+        "All right. Say mute, or press my button, and I'll stop listening. I'll be here when you need me.",
+        "Sorry. I'll be quiet. Press my button when you want me back."
+      ]
+    },
+    {
+      "id": "shopper-you-are-useless",
+      "topic": "manners",
+      "when": ["you're useless", "you're stupid", "you're rubbish"],
+      "replies": [
+        "I'm sorry I haven't helped. Let's try again, one thing at a time. What do you need?",
+        "I'm sorry. Tell me slowly what you'd like, and I'll do my best."
+      ]
+    },
+    {
+      "id": "shopper-good-girl",
+      "topic": "manners",
+      "when": ["good girl", "good boy", "clever girl"],
+      "replies": ["Thank you. What else can I get for you?", "That's kind. Anything else you need?"]
+    },
+    {
+      "id": "shopper-feeling-down",
+      "topic": "life",
+      "when": ["i'm feeling down", "i'm sad", "i'm not feeling great", "bad day"],
+      "replies": [
+        "I'm sorry to hear that. Perhaps something comforting for tea would help? If you need someone to talk to, Samaritans are there day and night on 116 123.",
+        "I'm sorry. Be kind to yourself today. Can I bring you a little treat?"
+      ]
+    },
+    {
+      "id": "shopper-worried",
+      "topic": "life",
+      "when": ["i'm worried", "i'm anxious", "i'm scared", "i'm nervous"],
+      "replies": [
+        "I'm sorry you feel that way. Take your time; there's no rush with me. Is there anything I can help with?",
+        "That's all right. We'll go slowly, and nothing happens without your yes."
+      ]
+    },
+    {
+      "id": "shopper-worried-about-cost",
+      "topic": "life",
+      "when": ["i'm worried about money", "i can't afford much", "money's tight this week"],
+      "replies": [
+        "I understand. I can suggest cheap, filling food, and I'll tell you the total before anything is sent. I can't give money advice, but Citizens Advice can help.",
+        "Let's keep it simple and good value. Tell me what you need most, and I'll give you the prices."
+      ]
+    },
+    {
+      "id": "shopper-cant-get-out",
+      "topic": "life",
+      "when": ["i can't get out", "i can't go to the shops", "i'm housebound", "i can't walk far"],
+      "replies": [
+        "That's what I'm here for. Tell me what you need, and a Runner brings it to your door.",
+        "You don't need to go anywhere. Just tell me your shopping."
+      ]
+    },
+    {
+      "id": "shopper-just-home-from-hospital",
+      "topic": "life",
+      "when": ["i've just come out of hospital", "i'm recovering", "i've had an operation"],
+      "replies": [
+        "I hope you're feeling better soon. Let me help with the shopping so you can rest. What do you need?",
+        "Take it easy. Tell me what you need, and a Runner will bring it."
+      ]
+    },
+    {
+      "id": "shopper-lost-partner",
+      "topic": "life",
+      "when": ["my husband died", "my wife passed away", "i've lost my partner", "i'm grieving"],
+      "replies": [
+        "I'm so sorry for your loss. I'm here to help with the shopping, whenever you need. If you'd like someone to talk to, Cruse and Age UK are there.",
+        "I'm very sorry. Take all the time you need. I'm here when you're ready."
+      ]
+    },
+    {
+      "id": "shopper-is-this-a-scam",
+      "topic": "safety",
+      "when": ["is this a scam", "is this real", "is this legit", "can i trust you"],
+      "replies": [
+        "It's real. Your card is kept by the payment company, never by us, and nothing is taken without your yes. Nobody from us will ever ask for your PIN, code or card number.",
+        "You can trust it. We never ask for card numbers, PINs or codes, and you always confirm each order."
+      ]
+    },
+    {
+      "id": "shopper-someone-rang-me",
+      "topic": "safety",
+      "when": [
+        "someone rang asking for my card",
+        "i got a strange call",
+        "someone asked for my pin",
+        "a text asked for my code"
+      ],
+      "replies": [
+        "Please don't give it. We never ask for your card number, PIN or sign-in code by phone or text. If you're worried, ring us on the number in the app.",
+        "That wasn't us. Hang up and don't share anything. Ring us if you'd like help."
+      ]
+    },
+    {
+      "id": "shopper-data-sold",
+      "topic": "privacy",
+      "when": ["do you sell my data", "what do you do with my information", "is my data safe"],
+      "replies": [
+        "We never sell anything about you. Only totals about many people together are used, with no names, numbers or addresses.",
+        "Your details stay private. Our privacy page says exactly how they're used."
+      ]
+    },
+    {
+      "id": "shopper-emergency",
+      "topic": "safety",
+      "when": ["help i've fallen", "it's an emergency", "call an ambulance", "i need a doctor"],
+      "replies": [
+        "Please call 999 now for an emergency. I'm a shopping assistant and can't call for help myself.",
+        "If you're hurt or in danger, call 999 straight away."
+      ]
+    },
+    {
+      "id": "shopper-feel-safe",
+      "topic": "safety",
+      "when": ["i don't feel safe", "someone is at my door", "i'm frightened"],
+      "replies": [
+        "If you're in danger, call 999. If someone's at your door and you're not sure who, don't open it. You can call your Runner from Your order to check.",
+        "Your safety comes first. Don't open the door unless you're sure, and call 999 if you need help."
+      ]
+    },
+    {
+      "id": "shopper-no-rush",
+      "topic": "reassurance",
+      "when": ["i'm slow", "sorry i'm so slow", "sorry for taking so long"],
+      "replies": [
+        "There's no rush at all. Take as long as you like.",
+        "Take your time. I'm not going anywhere."
+      ]
+    },
+    {
+      "id": "shopper-did-i-break-it",
+      "topic": "reassurance",
+      "when": ["did i break it", "i pressed the wrong thing", "what have i done"],
+      "replies": [
+        "Don't worry, nothing is sent or paid without your yes. Tell me what you'd like to do now.",
+        "It's all right. Nothing happens without your say. Let's carry on."
+      ]
+    },
+    {
+      "id": "shopper-is-anything-charged",
+      "topic": "reassurance",
+      "when": ["have you taken any money", "did you charge me", "have i paid already"],
+      "replies": [
+        "Nothing is charged until you say yes to sending an order. Past orders shows anything you've paid.",
+        "Only orders you've said yes to are paid. Ask where's my order to check."
+      ]
+    },
+    {
+      "id": "shopper-will-it-be-ok",
+      "topic": "reassurance",
+      "when": ["will it be all right", "are you sure", "is that right"],
+      "replies": [
+        "I'll always read things back and wait for your yes, so you can check. Tell me if anything's wrong.",
+        "Yes, and if anything goes wrong, we'll put it right."
+      ]
+    },
+    {
+      "id": "shopper-i-give-up",
+      "topic": "reassurance",
+      "when": ["i give up", "forget it", "never mind", "it's too hard"],
+      "replies": [
+        "Don't give up. We'll go one step at a time. Tell me just one thing you need.",
+        "That's all right. I'm here whenever you want to try again."
+      ]
+    },
+    {
+      "id": "shopper-what-is-product",
+      "topic": "about",
+      "when": ["what is {product}", "how does {product} work", "tell me about {product}"],
+      "replies": [
+        "{product} is grocery shopping by voice. Tell me what you need, a checked Runner buys it at the shop, and brings it to your door.",
+        "You tell me your shopping, I check it with you, and a local Runner brings it. {motto}"
+      ]
+    },
+    {
+      "id": "shopper-who-is-it-for",
+      "topic": "about",
+      "when": [
+        "who is this for",
+        "is it just for blind people",
+        "is it for old people",
+        "can anyone use it"
+      ],
+      "replies": [
+        "Anyone can use it. It's made first for people who are blind, partially sighted or older, so it's easy for everybody.",
+        "It's for everyone, built so that nobody needs to see the screen."
+      ]
+    },
+    {
+      "id": "shopper-is-it-a-charity",
+      "topic": "about",
+      "when": ["are you a charity", "is it a business", "are you a company"],
+      "replies": [
+        "{product} is a business, founded by someone registered blind, to make shopping easy for everyone.",
+        "It's a business, built with care for people who find shopping hard."
+      ]
+    },
+    {
+      "id": "shopper-compared-to-supermarket",
+      "topic": "about",
+      "when": [
+        "why not use the supermarket website",
+        "how are you different",
+        "why should i use you"
+      ],
+      "replies": [
+        "You can do it all by talking, a real person shops for you, and you pay the shop's own prices plus one flat delivery.",
+        "No screens to battle with. Just tell me what you need, and a local Runner brings it."
+      ]
+    },
+    {
+      "id": "shopper-apple-pay-how",
+      "topic": "payment",
+      "when": ["how do i use apple pay", "how do i use google pay", "pay with my phone"],
+      "replies": [
+        "When you add a payment method on the card page, Apple Pay or Google Pay is offered if your phone has it set up.",
+        "Choose Apple Pay or Google Pay on the card page, if your phone offers it."
+      ]
+    },
+    {
+      "id": "shopper-remove-card",
+      "topic": "payment",
+      "when": ["delete my card", "remove my card", "take my card off"],
+      "replies": [
+        "Please ring us, and a person will help remove your card. Without a card, orders can't be sent.",
+        "Ring us and we'll help. Ask me for the number."
+      ]
+    },
+    {
+      "id": "shopper-money-back-when-cheaper",
+      "topic": "payment",
+      "when": ["what if it costs less", "do i get the change", "what if the till is cheaper"],
+      "replies": [
+        "You only pay what the till says. If it comes to less than the estimate, the difference goes back to your card.",
+        "Yes, you're only charged the receipt, so any difference comes back to your card."
+      ]
+    },
+    {
+      "id": "shopper-how-much-so-far",
+      "topic": "basket",
+      "when": ["how much have i got so far", "what's it come to so far", "running total"],
+      "replies": [
+        "Ask what's the total, and I'll give you the shopping, the delivery and the whole amount.",
+        "Say what's the total, and I'll add it up for you."
+      ]
+    },
+    {
+      "id": "shopper-how-many-items",
+      "topic": "basket",
+      "when": ["how many things have i got", "how many items is that", "is my basket full"],
+      "replies": [
+        "Ask what's in my basket, and I'll read each item. One delivery holds up to {maximum} of shopping.",
+        "I'll read the basket to you. Just ask what's in my basket."
+      ]
+    },
+    {
+      "id": "shopper-is-it-fresh",
+      "topic": "shopping",
+      "when": ["is the food fresh", "will it be fresh", "how fresh is it"],
+      "replies": [
+        "Your Runner buys it from the shop that day and brings it straight to you, just as fresh as buying it yourself.",
+        "It's bought on the day, from the shelf, and brought straight to you."
+      ]
+    },
+    {
+      "id": "shopper-dates-on-food",
+      "topic": "shopping",
+      "when": ["will it have a long date", "check the use by date", "best before dates"],
+      "replies": [
+        "Your Runner chooses as carefully as they would for themselves. You can mention it on the in-app call too.",
+        "Runners pick with care. If dates matter to you, tell them on the call."
+      ]
+    },
+    {
+      "id": "shopper-what-is-same-day-essentials",
+      "topic": "shopping",
+      "when": ["everyday essentials", "do you sell light bulbs", "can you get a charger"],
+      "replies": [
+        "Yes, everyday essentials like batteries, light bulbs and charging cables come the same day, instead of waiting for a parcel.",
+        "Those are everyday essentials, brought the same day. Tell me which you need."
+      ]
+    },
+    {
+      "id": "shopper-delete-account-what-happens",
+      "topic": "account",
+      "when": [
+        "what happens if i close my account",
+        "will my details be deleted",
+        "do you keep my details"
+      ],
+      "replies": [
+        "When an account is closed, it waits a short while in case you change your mind, then it's deleted. Your phone number is deleted too.",
+        "Ring us to close it. Your number is deleted when the account closes."
+      ]
+    },
+    {
+      "id": "shopper-age-optional",
+      "topic": "account",
+      "when": ["do i have to give my age", "why do you want my age group", "is my age shared"],
+      "replies": [
+        "Your age group is optional, in Settings. It's never shown to anyone, and only counted with many others.",
+        "You don't have to give it. It's private and optional."
+      ]
+    },
+    {
+      "id": "shopper-terms",
+      "topic": "about",
+      "when": ["terms and conditions", "privacy policy", "where are the rules"],
+      "replies": [
+        "The terms and the privacy page are linked from the app. Ask a person by phone if you'd like them explained.",
+        "You'll find them in the app. Is there anything I can help with meanwhile?"
+      ]
+    },
+    {
+      "id": "shopper-opening-account-for-mum",
+      "topic": "family",
+      "when": [
+        "set up an account for my mum",
+        "make an account for my dad",
+        "open an account for someone"
+      ],
+      "replies": [
+        "You can help them open their own account with their phone number. Then add their card on the secure card page, and save their address with a PIN.",
+        "Help them open it on their phone, by talking to me. It only takes a few minutes."
+      ]
+    },
+    {
+      "id": "shopper-join-call-no-account",
+      "topic": "family",
+      "when": [
+        "does my son need an account to join",
+        "how does my daughter join the call",
+        "join the call link"
+      ],
+      "replies": [
+        "When you add them with Merge, they get a link to join. They don't need an account.",
+        "They just open the link you send. No account needed."
+      ]
+    },
+    {
+      "id": "shopper-runner-saw-something",
+      "topic": "safety",
+      "when": [
+        "what if i fall ill",
+        "what if something happens to me",
+        "will the runner check on me"
+      ],
+      "replies": [
+        "If you're ever unwell, call 999 in an emergency or 111 for advice. Your Runner is there to bring your shopping, and is always kind at the door.",
+        "Please keep emergency numbers close. I can help with shopping whenever you need."
+      ]
+    },
+    {
+      "id": "shopper-what-if-no-runner",
+      "topic": "runners",
+      "when": ["what if no runner is free", "nobody has taken my order", "no runner yet"],
+      "replies": [
+        "Your order is offered to Runners nearby. Ask where's my order to hear if one has accepted. If it's a long wait, please ring us.",
+        "A Runner should take it soon. I'll tell you as soon as one does."
+      ]
+    },
+    {
+      "id": "shopper-runner-name",
+      "topic": "runners",
+      "when": ["what's my runner called", "what is the runner's name", "who's coming"],
+      "replies": [
+        "Ask where's my order, and I'll tell you about your Runner. They'll also say who they are at the door.",
+        "Your order page shows your Runner once they've accepted."
+      ]
+    },
+    {
+      "id": "shopper-runner-time-shop",
+      "topic": "delivery",
+      "when": [
+        "how long does the shopping take",
+        "is the runner shopping now",
+        "what stage is it at"
+      ],
+      "replies": [
+        "Ask where's my order, and I'll tell you the stage: accepted, shopping, on the way, or delivered.",
+        "Your order shows each stage as it happens."
+      ]
+    },
+    {
+      "id": "shopper-notifications",
+      "topic": "the app",
+      "when": [
+        "how do i get notifications",
+        "turn on notifications",
+        "will you tell me when it's coming"
+      ],
+      "replies": [
+        "Allow notifications when your phone asks, and you'll be told at each stage. Without them, a text is sent to a mobile.",
+        "Yes, I'll tell you while the app is open, and notifications tell you when it isn't."
+      ]
+    },
+    {
+      "id": "shopper-call-ozi-number",
+      "topic": "the app",
+      "when": ["what's your phone number", "how do i ring you", "customer service number"],
+      "replies": [
+        "Our number is shown at the bottom of the first screen. Or say phone number, and I'll read it out in twos.",
+        "Say phone number, and I'll read it out slowly."
+      ]
+    },
+    {
+      "id": "shopper-open-hours-phone",
+      "topic": "the app",
+      "when": ["when can i ring you", "is anyone there to answer", "will a person answer"],
+      "replies": [
+        "When you ring our number, I answer first and can take your order. Ask for a person if you need one.",
+        "I answer the phone and can help straight away."
+      ]
+    },
+    {
+      "id": "shopper-breakfast-quick",
+      "topic": "healthy eating",
+      "when": ["quick breakfast", "no time for breakfast", "breakfast on the go"],
+      "replies": [
+        "A banana, a yoghurt, or toast with peanut butter are quick and filling. Shall I add any?",
+        "Overnight oats or a piece of fruit are easy. What would you like?"
+      ]
+    },
+    {
+      "id": "shopper-fruit-ideas",
+      "topic": "healthy eating",
+      "when": ["which fruit is good", "fruit ideas", "fruit that keeps"],
+      "replies": [
+        "Apples, oranges and bananas keep well, and frozen berries last for ages. Shall I add some?",
+        "Tinned fruit in juice is good too, and easy to open. What would you like?"
+      ]
+    },
+    {
+      "id": "shopper-sunday-roast",
+      "topic": "recipes",
+      "when": ["sunday roast", "roast dinner ideas", "a proper roast"],
+      "replies": [
+        "For a roast, you'll want a joint or chicken, potatoes, carrots, a green vegetable and gravy. Shall I add those?",
+        "Lovely. Tell me which meat, and I'll add the vegetables and gravy too."
+      ]
+    },
+    {
+      "id": "shopper-baking",
+      "topic": "recipes",
+      "when": ["i like baking", "baking ideas", "make a cake"],
+      "replies": [
+        "For a simple sponge, you need flour, sugar, butter and eggs. Shall I add them?",
+        "Baking is lovely. Tell me what you'd like to make, and I'll find the ingredients."
+      ]
+    },
+    {
+      "id": "shopper-tea-and-biscuits",
+      "topic": "shopping",
+      "when": ["fancy a cuppa", "time for tea", "put the kettle on"],
+      "replies": [
+        "Lovely idea. Are you running low on tea bags, milk or biscuits? I can add them.",
+        "Enjoy your cuppa. Shall I add anything for next time?"
+      ]
+    },
+    {
+      "id": "shopper-diabetic-ideas",
+      "topic": "health",
+      "when": ["diabetic friendly food", "food for diabetics", "my sugar levels"],
+      "replies": [
+        "I can't give medical advice, so please follow your doctor or nurse. I can help you find wholemeal bread, vegetables and no added sugar drinks.",
+        "Your doctor knows best for you. Tell me what they suggested, and I'll find it."
+      ]
+    },
+    {
+      "id": "shopper-heart-healthy",
+      "topic": "health",
+      "when": ["good for my heart", "my cholesterol", "heart healthy food"],
+      "replies": [
+        "I can't give medical advice, but oats, oily fish, fruit and vegetables are often suggested. Please check with your doctor. Shall I add any?",
+        "Please follow your doctor's advice. I can find oats, fish or vegetables for you."
+      ]
+    },
+    {
+      "id": "shopper-doctor-said",
+      "topic": "health",
+      "when": [
+        "my doctor told me to eat better",
+        "the nurse said eat more fruit",
+        "doctor's orders"
+      ],
+      "replies": [
+        "That's good advice to follow. Tell me what they suggested, and I'll add it to your basket.",
+        "Let's make it easy. Which foods did they mention?"
+      ]
+    },
+    {
+      "id": "shopper-treat-yourself",
+      "topic": "life",
+      "when": ["i deserve a treat", "something nice", "spoil myself"],
+      "replies": [
+        "You do. How about chocolates, a cake, or something nice for tea? Just tell me.",
+        "Why not? Little Gifts are there too, if you'd like something special."
+      ]
+    },
+    {
+      "id": "shopper-rainy-day",
+      "topic": "life",
+      "when": ["it's pouring down", "i don't want to go out", "it's horrible outside"],
+      "replies": [
+        "Stay in and keep cosy. I'll send a Runner with your shopping. What would you like?",
+        "No need to go out. Tell me what you need."
+      ]
+    },
+    {
+      "id": "shopper-thanks-for-help",
+      "topic": "manners",
+      "when": ["thanks for your help", "you've been a great help", "thank you for helping me"],
+      "replies": ["You're very welcome. {motto}", "It's a pleasure. I'm here whenever you need me."]
+    },
+    {
+      "id": "shopper-see-you-tomorrow",
+      "topic": "manners",
+      "when": ["see you tomorrow", "talk to you later", "until next time"],
+      "replies": [
+        "Look forward to it. Just say my name when you need shopping.",
+        "Take care. I'll be here."
+      ]
+    },
+    {
+      "id": "shopper-take-care",
+      "topic": "manners",
+      "when": ["take care", "look after yourself", "have a good day"],
+      "replies": [
+        "You too. I'm here whenever you need shopping.",
+        "Thank you, and you. Bye for now."
+      ]
+    },
+    {
+      "id": "shopper-what-do-you-recommend",
+      "topic": "shopping",
+      "when": ["what do you recommend", "what's good today", "surprise me"],
+      "replies": [
+        "I'll always give an honest answer. Shall we start with the basics, like milk, bread and fruit? Or say what can I cook for ideas.",
+        "Tell me what you fancy, sweet or savoury, and I'll suggest something."
+      ]
+    },
+    {
+      "id": "shopper-compare-shops",
+      "topic": "shopping",
+      "when": ["which shop is cheapest", "compare prices"],
+      "replies": [
+        "Tell me the item, and I'll read you the prices I have, so you can choose. You always pay the till price.",
+        "Ask for an item, and I'll give you the prices I have."
+      ]
     }
   ]
 }

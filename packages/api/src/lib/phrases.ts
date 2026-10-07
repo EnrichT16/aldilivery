@@ -15,7 +15,14 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { formatPence, type StoreConfig } from '@aldilivery/core';
+import {
+  formatPence,
+  normalisePhrase,
+  phraseFingerprint,
+  phraseWithoutName,
+  type PhraseNames,
+  type StoreConfig,
+} from '@aldilivery/core';
 import { loadStoreConfig, storeConfigPath } from '@aldilivery/core/node';
 
 export const PHRASE_ACCOUNTS = [
@@ -64,33 +71,13 @@ export const BLANKS = [
 const OWNER_OPENINGS = ['Yes, sir.', 'Okay, sir.', 'All right, sir.'];
 
 /** The names a file's blanks stand for, and every way Ozi's name is heard. */
-export interface Names {
-  product: string;
-  assistant: string;
-  heardAs: readonly string[];
-}
-
-function escape(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+export type Names = PhraseNames;
 
 /** Compared without Ozi's name in it, however it was heard ("hey Ozzy, thank you"). */
-export function withoutName(text: string, names: Names): string {
-  const all = [names.assistant, ...names.heardAs].filter((name) => name.trim() !== '');
-  if (all.length === 0) return normalise(text);
-  const pattern = all.map(escape).join('|');
-  return normalise(text.replace(new RegExp(`\\b(hey\\s+)?(?:${pattern})\\b`, 'ig'), ' '));
-}
+export const withoutName = phraseWithoutName;
 
 /** Lower case, no punctuation, single spaces: how phrases are compared. */
-export function normalise(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[’']/g, "'")
-    .replace(/[^a-z0-9' ]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+export const normalise = normalisePhrase;
 
 /** Checks a file, throwing a sentence that says exactly which entry is wrong. */
 export function parsePhrases(
@@ -200,9 +187,98 @@ export function fillIn(reply: string, config: StoreConfig, ownerAddress: string)
   );
 }
 
+/** Little words that say nothing about what was asked, left out of keyword matching. */
+const STOP_WORDS = new Set(
+  (
+    'a an the and or but if so to of for in on at by with from up out about into over is are was ' +
+    'were be been am do does did done have has had i im ive id me my mine you your yours we our us ' +
+    'it its this that these those there here what whats when where which who whom why how can ' +
+    'could would should will shall may might must please thanks thank just really very much more ' +
+    'some any all get got go going want like need tell know say said let lets ok okay yes no not ' +
+    'dont doesnt cant hey hi hello oh well also too then than as'
+  ).split(' '),
+);
+
+/** The words that carry the meaning: "how do refunds work" → refund, work. */
+export function keywords(text: string): string[] {
+  return normalise(text)
+    .replace(/'/g, '')
+    .split(' ')
+    .filter((word) => word.length >= 3 && !STOP_WORDS.has(word))
+    .map((word) =>
+      word.length > 4 && word.endsWith('s') && !word.endsWith('ss') ? word.slice(0, -1) : word,
+    );
+}
+
+interface PhraseIndex {
+  size: number;
+  /** Every whole "when" phrase, for an instant exact answer. */
+  exact: Map<string, Phrase>;
+  /** Each "when" phrase's keywords, and how many phrases each keyword appears in. */
+  keyed: Array<{ phrase: Phrase; words: Set<string> }>;
+  spread: Map<string, number>;
+}
+
+const indexes = new WeakMap<Phrase[], PhraseIndex>();
+
+/** Built once per collection, and again only if phrases were added since (ruling 49). */
+function indexOf(collection: Phrase[]): PhraseIndex {
+  const known = indexes.get(collection);
+  if (known && known.size === collection.length) return known;
+  const exact = new Map<string, Phrase>();
+  const keyed: PhraseIndex['keyed'] = [];
+  const spread = new Map<string, number>();
+  for (const phrase of collection) {
+    const seen = new Set<string>();
+    for (const when of phrase.when) {
+      if (!exact.has(when)) exact.set(when, phrase);
+      const words = new Set(keywords(when));
+      if (words.size > 0) keyed.push({ phrase, words });
+      for (const word of words) seen.add(word);
+    }
+    for (const word of seen) spread.set(word, (spread.get(word) ?? 0) + 1);
+  }
+  const built = { size: collection.length, exact, keyed, spread };
+  indexes.set(collection, built);
+  return built;
+}
+
+/**
+ * The phrase whose keywords best match what was said (Anthony, 7 October 2026: "pick it up by
+ * keyword"). Two or more of a phrase's keywords, covering at least half of them; or, in a
+ * short sentence, one word that only a few phrases use. Null when nothing is close enough.
+ */
+function byKeywords(said: string, index: PhraseIndex): Phrase | null {
+  const heard = new Set(keywords(said));
+  if (heard.size === 0) return null;
+  let best: { phrase: Phrase; score: number } | null = null;
+  for (const { phrase, words } of index.keyed) {
+    let shared = 0;
+    let weight = 0;
+    for (const word of words) {
+      if (!heard.has(word)) continue;
+      shared += 1;
+      weight += 1 / (index.spread.get(word) ?? 1);
+    }
+    if (shared === 0) continue;
+    const cover = shared / words.size;
+    const enough =
+      (shared >= 2 && cover >= 0.5) ||
+      (shared === 1 &&
+        words.size === 1 &&
+        heard.size <= 3 &&
+        (index.spread.get([...words][0]!) ?? 99) <= 3);
+    if (!enough) continue;
+    const score = shared * 2 + cover + weight;
+    if (!best || score > best.score) best = { phrase, score };
+  }
+  return best?.phrase ?? null;
+}
+
 /**
  * A reply, if the words are an everyday phrase for this account. `exact`: the whole sentence,
- * apart from Ozi's name, is one of them. `within`: one of them is somewhere in the sentence.
+ * apart from Ozi's name, is one of them, found at once from an index. `within`: one of them is
+ * somewhere in the sentence, or failing that, enough of a phrase's keywords are (ruling 49).
  * Replies are taken in turn, so Ozi does not sound like a recording.
  */
 export function phraseReply(
@@ -219,16 +295,27 @@ export function phraseReply(
     heardAs: config.assistantHeardAs,
   });
   if (said === '') return null;
-  for (const phrase of book.collections[account]) {
-    const hit = phrase.when.some((when) =>
-      mode === 'exact' ? said === when : ` ${said} `.includes(` ${when} `),
-    );
-    if (!hit) continue;
-    const reply = fillIn(phrase.replies[turn % phrase.replies.length]!, config, book.ownerAddress);
-    if (account === 'owner' && phrase.borrowed) {
-      return `${OWNER_OPENINGS[turn % OWNER_OPENINGS.length]} ${reply}`;
-    }
-    return reply;
+  const collection = book.collections[account];
+  const index = indexOf(collection);
+  let found: Phrase | null = index.exact.get(said) ?? null;
+  if (!found && mode === 'within') {
+    const padded = ` ${said} `;
+    found =
+      collection.find((phrase) => phrase.when.some((when) => padded.includes(` ${when} `))) ?? null;
+    found ??= byKeywords(said, index);
   }
-  return null;
+  if (!found) return null;
+  const reply = fillIn(found.replies[turn % found.replies.length]!, config, book.ownerAddress);
+  if (account === 'owner' && found.borrowed) {
+    return `${OWNER_OPENINGS[turn % OWNER_OPENINGS.length]} ${reply}`;
+  }
+  return reply;
+}
+
+/** The fingerprints of every whole phrase this account's Ozi knows, for the app (ruling 49). */
+export function phraseFingerprints(
+  account: PhraseAccount,
+  book: PhraseBook = phraseBook(),
+): string[] {
+  return [...indexOf(book.collections[account]).exact.keys()].map(phraseFingerprint);
 }

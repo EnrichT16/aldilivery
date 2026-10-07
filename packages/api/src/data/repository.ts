@@ -13,6 +13,7 @@
 import type {
   AccountRole,
   IncomeRecord,
+  LearnedPhrase,
   AnalyticsEvent,
   PartnerPayment,
   SpotlightMention,
@@ -477,6 +478,18 @@ export interface Repository {
   };
 
   /** Money in and out, by gateway. */
+  /** What Ozi could not answer, waiting for a person (ruling 49). */
+  learned: {
+    /** Counts it once more, or keeps it for the first time, whatever was decided before. */
+    heard(input: { account: string; text: string; at: Date }): Promise<void>;
+    list(status: LearnedPhrase['status']): Promise<LearnedPhrase[]>;
+    findById(id: string): Promise<LearnedPhrase | null>;
+    decide(
+      id: string,
+      patch: Pick<LearnedPhrase, 'status' | 'reply' | 'decidedBy' | 'decidedAt'>,
+    ): Promise<LearnedPhrase>;
+  };
+
   income: {
     record(input: Omit<IncomeRecord, 'id'>): Promise<void>;
     /** Oldest first. */

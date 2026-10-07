@@ -28,7 +28,9 @@ export type StaffArea =
   | 'analytics'
   | 'overview'
   | 'money'
-  | 'team';
+  | 'team'
+  /** What Ozi was asked and could not answer, for a person to approve an answer (ruling 49). */
+  | 'learning';
 
 export type StaffRole =
   | 'founder'
@@ -55,14 +57,15 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
       'analytics',
       'overview',
       'team',
+      'learning',
     ],
   },
   operations_manager: {
     title: 'Operations manager',
-    areas: ['documents', 'problems', 'feedback', 'finds', 'enquiries', 'partners'],
+    areas: ['documents', 'problems', 'feedback', 'finds', 'enquiries', 'partners', 'learning'],
   },
   onboarding: { title: 'Runner onboarding officer', areas: ['documents'] },
-  customer_care: { title: 'Customer care officer', areas: ['problems', 'feedback'] },
+  customer_care: { title: 'Customer care officer', areas: ['problems', 'feedback', 'learning'] },
   finance: { title: 'Finance officer', areas: ['owed'] },
   sourcing: { title: 'Finds It shopper', areas: ['finds'] },
   partnerships: { title: 'Partnerships officer', areas: ['enquiries', 'partners'] },

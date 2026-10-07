@@ -971,3 +971,21 @@ model IncomeRecord {
 
   @@index([at])
 }
+
+/// What Ozi was asked and could not answer, for a person to approve an answer (ruling 49).
+/// Never anything with a banned word or anything that looks personal; who said it is not kept.
+model LearnedPhrase {
+  id           String    @id @default(cuid())
+  account      String
+  text         String
+  timesHeard   Int       @default(1)
+  firstHeardAt DateTime
+  lastHeardAt  DateTime
+  status       String    @default("waiting")
+  reply        String?
+  decidedBy    String?
+  decidedAt    DateTime?
+
+  @@unique([account, text])
+  @@index([status, timesHeard])
+}

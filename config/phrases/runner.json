@@ -449,6 +449,3477 @@
         "Enter what the till says. The Shopper pays the till price, not the estimate.",
         "The receipt decides. Just enter the true total."
       ]
+    },
+    {
+      "id": "runner-am-i-on-shift",
+      "topic": "shift",
+      "when": ["am i on shift", "is my shift on", "am i working right now"],
+      "replies": [
+        "Your Today tab says at the top whether you're on shift or off shift.",
+        "Look at the top of your Runner page. It says you are on shift, or you are off shift."
+      ]
+    },
+    {
+      "id": "runner-ready-to-work",
+      "topic": "shift",
+      "when": ["i'm ready to work", "i'm ready for jobs", "put me on shift"],
+      "replies": [
+        "Lovely. Press go on shift on your Today tab, and jobs near you will start to appear.",
+        "Press go on shift, and keep your Runner page open. Offers will come to you."
+      ]
+    },
+    {
+      "id": "runner-done-for-the-day",
+      "topic": "shift",
+      "when": [
+        "i'm done for the day",
+        "that's me finished",
+        "i'm finishing now",
+        "i'm calling it a day"
+      ],
+      "replies": [
+        "Well done today. Press go off shift so no new jobs come.",
+        "Thank you for today. Go off shift, and rest well."
+      ]
+    },
+    {
+      "id": "runner-stop-mid-job",
+      "topic": "shift",
+      "when": ["can i go off shift during a job", "can i stop in the middle of a job"],
+      "replies": [
+        "A Shopper is counting on the job in your hands, so please finish it first. If you truly can't, report a problem on the job straight away.",
+        "Finish the job you've taken, then go off shift. If something stops you, report a problem so the Shopper isn't left waiting."
+      ]
+    },
+    {
+      "id": "runner-do-i-need-to-refresh",
+      "topic": "shift",
+      "when": ["do i need to refresh", "should i keep refreshing", "do i keep pressing refresh"],
+      "replies": [
+        "No. While you're on shift, your page checks for jobs every few seconds by itself.",
+        "There's no need. New offers appear on their own while you're on shift."
+      ]
+    },
+    {
+      "id": "runner-choose-my-hours",
+      "topic": "shift",
+      "when": [
+        "can i choose my hours",
+        "do i have set hours",
+        "do i have to work certain days",
+        "how many hours do i have to work"
+      ],
+      "replies": [
+        "You choose. Go on shift when it suits you, and off when you're done.",
+        "There are no set hours. You switch your shift on and off yourself."
+      ]
+    },
+    {
+      "id": "runner-back-from-break",
+      "topic": "shift",
+      "when": ["i'm back from my break", "break's over", "i'm back now"],
+      "replies": [
+        "Welcome back. Press go on shift when you're ready for the next job.",
+        "Good to have you back. Switch your shift on and offers will come."
+      ]
+    },
+    {
+      "id": "runner-forgot-to-go-off-shift",
+      "topic": "shift",
+      "when": ["i forgot to go off shift", "i left my shift on"],
+      "replies": [
+        "No harm done. Press go off shift now. Any offer you missed simply went to the next Runner.",
+        "Switch it off now. An offer nobody accepts moves on to someone else after its time runs out."
+      ]
+    },
+    {
+      "id": "runner-quiet-day",
+      "topic": "shift",
+      "when": ["it's quiet today", "no jobs today", "it's really slow today"],
+      "replies": [
+        "Some days are quieter. Stay on shift and a job will come to you in turn.",
+        "Jobs come when Shoppers order. Keep your shift on, and you'll be offered one in turn."
+      ]
+    },
+    {
+      "id": "runner-busy-day",
+      "topic": "shift",
+      "when": ["it's busy today", "loads of jobs today", "it's non stop today"],
+      "replies": [
+        "Busy days are good days. Take them one at a time, and look after yourself.",
+        "Well done for keeping up. One job at a time, and take a break when you need one."
+      ]
+    },
+    {
+      "id": "runner-keep-page-open",
+      "topic": "shift",
+      "when": [
+        "does the app need to stay open",
+        "can i close the app on shift",
+        "do i keep the page open"
+      ],
+      "replies": [
+        "Keep your Runner page open while you're on shift, so offers can reach you.",
+        "Yes, keep it open. Offers appear on your Today tab while you're on shift."
+      ]
+    },
+    {
+      "id": "runner-first-day",
+      "topic": "encouragement",
+      "when": ["it's my first day", "this is my first shift", "i'm new here"],
+      "replies": [
+        "Welcome. Go on shift, take one job at a time, and ask me anything as you go.",
+        "Welcome aboard. There's no rush. Read each step on your job, and I'm here if you need me."
+      ]
+    },
+    {
+      "id": "runner-nervous",
+      "topic": "encouragement",
+      "when": ["i'm nervous", "i'm worried about my first job", "i'm a bit anxious about this"],
+      "replies": [
+        "That's natural. Each job has clear steps, one button at a time. You'll be fine.",
+        "Everyone feels that at first. Take it slowly, ask the Shopper when unsure, and ask me anything."
+      ]
+    },
+    {
+      "id": "runner-tired",
+      "topic": "shift",
+      "when": ["i'm tired", "i'm exhausted", "i'm worn out"],
+      "replies": [
+        "Rest matters. Go off shift and come back when you're ready.",
+        "Look after yourself first. Go off shift for a while. The jobs will still be here."
+      ]
+    },
+    {
+      "id": "runner-lunch",
+      "topic": "shift",
+      "when": ["i need lunch", "time for lunch", "i'm hungry", "i need something to eat"],
+      "replies": [
+        "Go off shift while you eat, so no offers come. Enjoy it.",
+        "Of course. Switch your shift off, eat well, and come back when you're ready."
+      ]
+    },
+    {
+      "id": "runner-toilet",
+      "topic": "shift",
+      "when": ["i need the toilet", "i need the loo"],
+      "replies": [
+        "Of course. If you're between jobs, go off shift for a few minutes.",
+        "No problem. Go off shift if you're not on a job, and back on when you're ready."
+      ]
+    },
+    {
+      "id": "runner-battery-low",
+      "topic": "shift",
+      "when": ["my battery is low", "my phone is dying", "my phone is about to die"],
+      "replies": [
+        "Charge up before you take another job. If you're on a job, finish the handover first if you can.",
+        "Go off shift and charge your phone. You'll need it for calls and the job steps."
+      ]
+    },
+    {
+      "id": "runner-no-signal",
+      "topic": "app",
+      "when": ["i've got no signal", "bad signal", "the app isn't loading", "the page won't load"],
+      "replies": [
+        "Move somewhere with better signal and try again. If a step won't go through, report a problem once you're back online.",
+        "Try near a window or outside. When the signal returns, carry on from where you were."
+      ]
+    },
+    {
+      "id": "runner-weekend-work",
+      "topic": "shift",
+      "when": ["can i work weekends", "can i work evenings", "can i work at night"],
+      "replies": [
+        "You go on shift whenever you like. Jobs come when Shoppers order.",
+        "Any time you choose. Stay on shift, and jobs are offered when there are some."
+      ]
+    },
+    {
+      "id": "runner-how-long-on-shift",
+      "topic": "shift",
+      "when": ["how long have i been on shift", "how long have i been working"],
+      "replies": [
+        "I can't time your shift, but your Money tab shows what you've earned today.",
+        "I don't keep a clock on you. Your Money tab shows today's earnings, which is a good guide."
+      ]
+    },
+    {
+      "id": "runner-offer-how-long",
+      "topic": "offers",
+      "when": [
+        "how long do i have to accept",
+        "how long is the offer open",
+        "how many seconds do i have",
+        "how long does an offer last"
+      ],
+      "replies": [
+        "You have sixty seconds to say yes. The seconds left are shown on the offer.",
+        "Sixty seconds. If nobody accepts in time, it moves on to the next Runner."
+      ]
+    },
+    {
+      "id": "runner-offer-missed",
+      "topic": "offers",
+      "when": [
+        "i missed a job",
+        "the offer disappeared",
+        "the job went away",
+        "the offer vanished"
+      ],
+      "replies": [
+        "The sixty seconds ran out, so it went to the next Runner. Stay on shift and another will come.",
+        "Don't worry. Offers move on after sixty seconds. Another will reach you in turn."
+      ]
+    },
+    {
+      "id": "runner-offer-what-shown",
+      "topic": "offers",
+      "when": ["what does the offer show", "what's in the offer", "what does a job offer tell me"],
+      "replies": [
+        "How many things are on the list, about how much shopping, how far away, and your pay of {runnerPay}.",
+        "The number of things, roughly what the shopping costs, the distance, and what you earn: {runnerPay}."
+      ]
+    },
+    {
+      "id": "runner-offer-distance",
+      "topic": "offers",
+      "when": ["how far is the job", "how far away is it", "is the job far"],
+      "replies": [
+        "The offer shows the distance in miles before you accept.",
+        "Look at the offer. The distance is there, so you can decide before saying yes."
+      ]
+    },
+    {
+      "id": "runner-this-job-pay",
+      "topic": "offers",
+      "when": ["what does this job pay", "how much is this job", "what will i get for this one"],
+      "replies": [
+        "This job pays {runnerPay}, like every standard delivery.",
+        "{runnerPay}, the same as every standard job, whatever is in the basket."
+      ]
+    },
+    {
+      "id": "runner-accept-now",
+      "topic": "offers",
+      "when": ["i'll take it", "yes i'll take it", "accept the job", "i accept"],
+      "replies": [
+        "Press take this job on the offer. Once you do, it's yours.",
+        "Great. Press take this job, then head to the shop."
+      ]
+    },
+    {
+      "id": "runner-decline-now",
+      "topic": "offers",
+      "when": ["not this one", "skip this job", "i'll pass", "pass on this one"],
+      "replies": [
+        "Press not this one, and it goes to somebody else. No problem.",
+        "That's fine. Press not this one, and it moves on to the next Runner."
+      ]
+    },
+    {
+      "id": "runner-declining-penalty",
+      "topic": "offers",
+      "when": [
+        "will i get in trouble for saying no",
+        "does declining count against me",
+        "is there a penalty for declining"
+      ],
+      "replies": [
+        "Saying not this one is fine. It simply goes to the next Runner.",
+        "You can let an offer go. Take the jobs you can do well."
+      ]
+    },
+    {
+      "id": "runner-how-jobs-shared",
+      "topic": "offers",
+      "when": ["how are jobs given out", "why was i offered this job", "who gets the jobs"],
+      "replies": [
+        "Jobs go round in turn to Runners on shift near the shop.",
+        "Fairly, one Runner after another, among those on shift nearby."
+      ]
+    },
+    {
+      "id": "runner-two-jobs-at-once",
+      "topic": "offers",
+      "when": [
+        "can i take two jobs",
+        "can i do two orders at once",
+        "can i take another job while on this one"
+      ],
+      "replies": [
+        "One job at a time. As soon as this one is delivered, you can take the next.",
+        "Just one at a time, so each Shopper gets your full care."
+      ]
+    },
+    {
+      "id": "runner-jobs-near-me",
+      "topic": "offers",
+      "when": ["are there jobs near me", "any jobs nearby", "any jobs going"],
+      "replies": [
+        "Stay on shift. Jobs near you appear on your Today tab as soon as they're offered.",
+        "When there's one near you, it pops up on your Today tab. Keep your shift on."
+      ]
+    },
+    {
+      "id": "runner-car-jobs",
+      "topic": "offers",
+      "when": ["why don't i get car jobs", "why only walking jobs"],
+      "replies": [
+        "Only jobs that suit how you're travelling today are offered. Car jobs need valid insurance on file.",
+        "Check how you're delivering today, on your Today tab. Driving needs your licence and insurance checked and in date."
+      ]
+    },
+    {
+      "id": "runner-basket-size",
+      "topic": "offers",
+      "when": [
+        "how big are the baskets",
+        "how much shopping is in a job",
+        "how many bags will there be"
+      ],
+      "replies": [
+        "One delivery carries up to {maximum} of shopping, about four or five carrier bags.",
+        "At most {maximum} of shopping. That's what one Runner can carry safely on foot or onto a bus."
+      ]
+    },
+    {
+      "id": "runner-kinds-of-jobs",
+      "topic": "offers",
+      "when": ["what kind of jobs are there", "what jobs do runners do", "what will i be doing"],
+      "replies": [
+        "Shopping jobs: you buy the Shopper's list at the shop and bring it to their door.",
+        "You shop the list, pay at the till, and deliver it with care to the Shopper."
+      ]
+    },
+    {
+      "id": "runner-accepted-by-mistake",
+      "topic": "offers",
+      "when": ["i accepted by mistake", "can i cancel a job i accepted", "i can't do this job now"],
+      "replies": [
+        "Report a problem on the job straight away, so it can be passed on and the Shopper isn't left waiting.",
+        "Tell us at once with report a problem on the job. The sooner we know, the sooner we can sort it."
+      ]
+    },
+    {
+      "id": "runner-how-know-offer",
+      "topic": "offers",
+      "when": [
+        "how will i know about a job",
+        "will i be told when there's a job",
+        "how do offers arrive"
+      ],
+      "replies": [
+        "A new offer appears on your Runner page as an alert, and a screen reader reads it out.",
+        "It shows on your Today tab while you're on shift, with the seconds left to say yes."
+      ]
+    },
+    {
+      "id": "runner-order-reference",
+      "topic": "jobs",
+      "when": [
+        "what's the reference number",
+        "what is the job reference",
+        "what's the order number"
+      ],
+      "replies": [
+        "Each job has a reference that links it to the order. Use it if you report a problem.",
+        "It's the job's own number. You'll see it in your Jobs tab with the date, area and pay."
+      ]
+    },
+    {
+      "id": "runner-job-steps",
+      "topic": "jobs",
+      "when": ["what are the steps", "what happens after i accept", "walk me through a job"],
+      "replies": [
+        "Start shopping, put in what the till said, set off, and delivered. One button for each.",
+        "Press I have started shopping, then put in the till total, then I am on my way, then I have delivered it."
+      ]
+    },
+    {
+      "id": "runner-next-step",
+      "topic": "jobs",
+      "when": ["what do i do next", "what's next", "what now"],
+      "replies": [
+        "Look under Next on your job. It shows the one button for the step you're on.",
+        "Your job shows the next step as a single button. Press it when you've done that part."
+      ]
+    },
+    {
+      "id": "runner-at-the-shop",
+      "topic": "shopping",
+      "when": ["i'm at the shop", "i've arrived at the shop", "i'm in the shop now"],
+      "replies": [
+        "Press I have started shopping, then work through the list.",
+        "Great. Start shopping on your job, and go through the list one thing at a time."
+      ]
+    },
+    {
+      "id": "runner-where-is-the-list",
+      "topic": "shopping",
+      "when": ["where's the list", "show me the list", "what's on the list", "read me the list"],
+      "replies": [
+        "The list is on your job, under The list, with each thing and how many.",
+        "Open your job. Every thing to buy is listed there with its quantity."
+      ]
+    },
+    {
+      "id": "runner-how-many",
+      "topic": "shopping",
+      "when": ["how many do they want", "how many of each", "what quantity"],
+      "replies": [
+        "The number is beside each thing on the list.",
+        "Each line on the list starts with how many to buy."
+      ]
+    },
+    {
+      "id": "runner-which-shop",
+      "topic": "shopping",
+      "when": ["which shop do i go to", "where am i shopping", "which shop is it"],
+      "replies": [
+        "The shop is on your job. Go there, and only there, unless we ask otherwise.",
+        "Check your job for the shop. If it's closed, report it rather than going elsewhere."
+      ]
+    },
+    {
+      "id": "runner-different-shop",
+      "topic": "shopping",
+      "when": [
+        "can i go to a different shop",
+        "can i use another shop",
+        "the other shop is closer"
+      ],
+      "replies": [
+        "Please use the shop on the job. If there's a real problem with it, report it and we'll sort it out.",
+        "Stick to the shop on the job unless we ask you to change."
+      ]
+    },
+    {
+      "id": "runner-brand",
+      "topic": "shopping",
+      "when": ["does the brand matter", "can i get a different brand", "it's not the same brand"],
+      "replies": [
+        "Buy what's on the list. If it isn't there, press cannot find it and let the Shopper decide.",
+        "The Shopper chose it, so it matters to them. Ask before buying anything different."
+      ]
+    },
+    {
+      "id": "runner-different-size",
+      "topic": "shopping",
+      "when": [
+        "they only have a bigger size",
+        "it's a different size",
+        "they only have a smaller pack"
+      ],
+      "replies": [
+        "Ask the Shopper with cannot find it. They decide.",
+        "Don't guess. Ask the Shopper from your job, and they'll say what they'd like."
+      ]
+    },
+    {
+      "id": "runner-shelf-price-different",
+      "topic": "shopping",
+      "when": [
+        "the price is different on the shelf",
+        "the shelf price is higher",
+        "it costs more than the app said"
+      ],
+      "replies": [
+        "That's fine. Prices in the app are estimates. The Shopper pays what the till says.",
+        "Buy it as normal. The Shopper is charged the till total, not the estimate."
+      ]
+    },
+    {
+      "id": "runner-on-offer",
+      "topic": "shopping",
+      "when": [
+        "it's on offer",
+        "there's a deal on",
+        "can i get the reduced one",
+        "there's a multibuy"
+      ],
+      "replies": [
+        "Buy what's on the list. The Shopper pays the till price, so any saving at the till is theirs.",
+        "Stick to the list. If the till gives a saving, the Shopper gets it, because they pay what the till says."
+      ]
+    },
+    {
+      "id": "runner-picking-fruit",
+      "topic": "shopping",
+      "when": ["how do i pick good fruit", "choosing fruit and veg", "picking fresh food"],
+      "replies": [
+        "Choose as you would for someone you love. Firm, fresh, no bruises, and the longest date you can find.",
+        "Take a moment over it. Many of our Shoppers can't check it themselves, so pick the best there is."
+      ]
+    },
+    {
+      "id": "runner-dates",
+      "topic": "shopping",
+      "when": [
+        "which use by date",
+        "check the dates",
+        "best before date",
+        "should i check the dates"
+      ],
+      "replies": [
+        "Pick the longest date on the shelf. Our Shoppers may not be able to read the label.",
+        "Yes, always. Reach to the back for the longest date."
+      ]
+    },
+    {
+      "id": "runner-damaged-item",
+      "topic": "shopping",
+      "when": ["the box is damaged", "it's dented", "the packet is torn", "it's all squashed"],
+      "replies": [
+        "Pick an undamaged one. If they're all damaged, ask the Shopper with cannot find it.",
+        "Leave the damaged one. Take a good one, or ask the Shopper if there isn't one."
+      ]
+    },
+    {
+      "id": "runner-check-eggs",
+      "topic": "shopping",
+      "when": ["check the eggs", "are the eggs ok", "some eggs are cracked"],
+      "replies": [
+        "Open the box and check none are cracked before you buy.",
+        "Swap the box for one with every egg whole. Then pack them on top."
+      ]
+    },
+    {
+      "id": "runner-cold-things-last",
+      "topic": "shopping",
+      "when": [
+        "when do i pick up frozen food",
+        "what order do i shop in",
+        "what should i pick up last"
+      ],
+      "replies": [
+        "Pick up chilled and frozen things last, and pack them straight into the cool bag.",
+        "Cupboard things first, fresh next, chilled and frozen last."
+      ]
+    },
+    {
+      "id": "runner-packing",
+      "topic": "shopping",
+      "when": ["how do i pack the bags", "packing the shopping", "how should i bag it up"],
+      "replies": [
+        "Heavy things at the bottom, soft things and eggs on top, cold things in the cool bag.",
+        "Tins and bottles first, bread and eggs on top, and keep cleaning things away from food."
+      ]
+    },
+    {
+      "id": "runner-long-list",
+      "topic": "encouragement",
+      "when": ["this list is long", "there's loads on the list", "this is a big shop"],
+      "replies": [
+        "One thing at a time. You've got this.",
+        "Take it aisle by aisle. A big shop done well makes someone's whole week."
+      ]
+    },
+    {
+      "id": "runner-unknown-item",
+      "topic": "shopping",
+      "when": [
+        "i don't know what this item is",
+        "i don't recognise this item",
+        "what is this thing on the list"
+      ],
+      "replies": [
+        "Ask a member of shop staff, or press cannot find it to ask the Shopper.",
+        "Shop staff are usually glad to help. If they're not sure either, ask the Shopper."
+      ]
+    },
+    {
+      "id": "runner-ask-shop-staff",
+      "topic": "shopping",
+      "when": [
+        "can i ask the staff",
+        "should i ask someone in the shop",
+        "can i ask a shop assistant"
+      ],
+      "replies": [
+        "Yes. You're buying as an ordinary customer, so ask as anyone would.",
+        "Of course. A quick question to the staff can save a lot of time."
+      ]
+    },
+    {
+      "id": "runner-how-fast",
+      "topic": "shopping",
+      "when": ["how long should shopping take", "how fast should i be", "am i taking too long"],
+      "replies": [
+        "Take the care it needs. Getting it right matters more than speed.",
+        "Steady is fine. A careful shop is better than a quick one."
+      ]
+    },
+    {
+      "id": "runner-limit-per-customer",
+      "topic": "shopping",
+      "when": [
+        "there's a limit per customer",
+        "they'll only let me buy two",
+        "the shop has a limit"
+      ],
+      "replies": [
+        "Buy what the shop allows, and ask the Shopper about the rest with cannot find it.",
+        "Follow the shop's limit. Let the Shopper know from your job."
+      ]
+    },
+    {
+      "id": "runner-finished-shopping",
+      "topic": "shopping",
+      "when": ["i've finished shopping", "i've got everything", "that's everything on the list"],
+      "replies": [
+        "Well done. Pay at the till, then put in the till total from the receipt.",
+        "Brilliant. Check the list once more, pay, and put in what the till said."
+      ]
+    },
+    {
+      "id": "runner-forgot-item",
+      "topic": "shopping",
+      "when": ["i forgot something", "i missed an item", "i've left something off"],
+      "replies": [
+        "Go back for it before you pay if you can. Check the list once more before the till.",
+        "No problem. If you've already paid, tell the Shopper honestly and report a problem on the job."
+      ]
+    },
+    {
+      "id": "runner-check-list",
+      "topic": "shopping",
+      "when": ["have i got everything", "check my list", "did i miss anything"],
+      "replies": [
+        "Go through the list on your job one more time, item by item.",
+        "Read down the list on your job and tick each one off in your head."
+      ]
+    },
+    {
+      "id": "runner-loose-items",
+      "topic": "shopping",
+      "when": ["it's sold by weight", "loose fruit", "how many is a bag of loose"],
+      "replies": [
+        "Get as close as you can to what's asked. The Shopper pays the till price.",
+        "Weigh it close to what's on the list. If you're unsure, ask the Shopper."
+      ]
+    },
+    {
+      "id": "runner-restricted-on-list",
+      "topic": "rules",
+      "when": [
+        "there's alcohol on the list",
+        "there's cigarettes on the list",
+        "they've asked for paracetamol",
+        "there's medicine on the list"
+      ],
+      "replies": [
+        "Leave it out. We never buy alcohol, tobacco or medicines. Report it from your job so we know.",
+        "Don't buy it. Alcohol, tobacco and medicines are never part of a job."
+      ]
+    },
+    {
+      "id": "runner-lottery",
+      "topic": "rules",
+      "when": ["can i buy a lottery ticket for them", "they want a scratch card"],
+      "replies": [
+        "No. Nothing age restricted is ever bought on a job.",
+        "That one's not allowed. Leave it out, kindly."
+      ]
+    },
+    {
+      "id": "runner-cashback",
+      "topic": "rules",
+      "when": ["can i get cashback", "they want cash back", "can i get them some cash"],
+      "replies": [
+        "No. We never carry cash, so there's no cashback.",
+        "Cash is never part of a job, not even cashback."
+      ]
+    },
+    {
+      "id": "runner-own-shopping",
+      "topic": "shopping",
+      "when": ["can i do my own shopping at the same time", "can i buy my own stuff too"],
+      "replies": [
+        "Please keep the Shopper's shopping on its own, with its own receipt, so the till total is only theirs.",
+        "Do your own shop separately, afterwards. The Shopper's receipt must be only their things."
+      ]
+    },
+    {
+      "id": "runner-shop-busy",
+      "topic": "shopping",
+      "when": ["the queue is huge", "the shop is packed", "the tills are really busy"],
+      "replies": [
+        "Stay patient. If it will make you much later, a quick call to the Shopper through the app helps.",
+        "Queues happen. Let the Shopper know through the app if it's a long wait."
+      ]
+    },
+    {
+      "id": "runner-shopping-for-elderly",
+      "topic": "shopping",
+      "when": ["any tips for shopping", "how do i shop well", "how do i do a good job"],
+      "replies": [
+        "Follow the list exactly, pick the freshest, ask before any swap, and pack with care.",
+        "Shop as if it were for your own family. That's the whole secret."
+      ]
+    },
+    {
+      "id": "runner-item-heavy",
+      "topic": "shopping",
+      "when": ["there's a lot of heavy stuff", "lots of bottles on the list"],
+      "replies": [
+        "Pack heavy things low and spread them between bags. Take two trips to the door if you need to.",
+        "Share the weight between bags, and lift with care."
+      ]
+    },
+    {
+      "id": "runner-how-ask-shopper",
+      "topic": "substitutions",
+      "when": [
+        "how do i ask the shopper about an item",
+        "ask the shopper",
+        "how do i send a question"
+      ],
+      "replies": [
+        "Press cannot find it beside the thing on the list. The Shopper is asked on their own screen.",
+        "Use the cannot find it button on that line. Their answer comes back to your job and is read out."
+      ]
+    },
+    {
+      "id": "runner-waiting-for-answer",
+      "topic": "substitutions",
+      "when": [
+        "they haven't answered",
+        "the shopper isn't answering my question",
+        "no reply from the shopper"
+      ],
+      "replies": [
+        "Carry on with the rest of the list. If time runs out with no answer, leave it out. They aren't charged for it.",
+        "Their answer will appear on your job. No answer in time means leave it out."
+      ]
+    },
+    {
+      "id": "runner-how-long-wait-answer",
+      "topic": "substitutions",
+      "when": ["how long do i wait for an answer", "how long do they have to answer"],
+      "replies": [
+        "The time left is shown under the question. Carry on shopping while you wait.",
+        "Your job shows how many minutes are left. Keep going with the rest of the list."
+      ]
+    },
+    {
+      "id": "runner-bring-similar",
+      "topic": "substitutions",
+      "when": ["they said bring something similar", "what counts as similar", "what's a good swap"],
+      "replies": [
+        "Pick the closest thing: same kind, similar size and price. If you're unsure, call them from the job.",
+        "Choose what they'd most likely pick themselves. When in doubt, a quick call settles it."
+      ]
+    },
+    {
+      "id": "runner-leave-it-out",
+      "topic": "substitutions",
+      "when": ["they said leave it out", "the shopper doesn't want a swap"],
+      "replies": [
+        "Then leave it out. They won't pay for it.",
+        "Leave it on the shelf. They're only charged for what you buy."
+      ]
+    },
+    {
+      "id": "runner-call-about-swap",
+      "topic": "substitutions",
+      "when": [
+        "can i call about a substitute",
+        "i'd rather call them",
+        "can i talk to the shopper about it"
+      ],
+      "replies": [
+        "Yes. Press the call button on your job. The Shopper decides.",
+        "Of course. Call them through the app and talk it through."
+      ]
+    },
+    {
+      "id": "runner-lots-missing",
+      "topic": "substitutions",
+      "when": [
+        "nothing on the list is here",
+        "half the list is missing",
+        "most of it is out of stock"
+      ],
+      "replies": [
+        "Ask about each one, and call the Shopper if it's a lot. Report a problem if the order can't sensibly go ahead.",
+        "Call the Shopper first. If the shop can't serve the order, report a problem from the job."
+      ]
+    },
+    {
+      "id": "runner-found-it-after-all",
+      "topic": "substitutions",
+      "when": ["i found it after all", "i found the item", "it was on another shelf"],
+      "replies": [
+        "Good. Buy it, unless the Shopper has already said leave it out.",
+        "Great. Pop it in, as long as they haven't told you otherwise."
+      ]
+    },
+    {
+      "id": "runner-shopper-wants-extra",
+      "topic": "substitutions",
+      "when": [
+        "the shopper wants to add something",
+        "they want something extra",
+        "can i add things to the list"
+      ],
+      "replies": [
+        "Only what's on the job is bought. The Shopper can place another order in the app, even while this one is going.",
+        "Stick to the list. They can order more in the app; it won't hold up this job."
+      ]
+    },
+    {
+      "id": "runner-can-i-choose",
+      "topic": "substitutions",
+      "when": ["can i just pick something", "can i choose for them", "can i use my judgement"],
+      "replies": [
+        "No. Never guess. The Shopper decides every swap.",
+        "Please don't. Ask first, every time. That's our promise to Shoppers."
+      ]
+    },
+    {
+      "id": "runner-cant-reach-shopper-swap",
+      "topic": "substitutions",
+      "when": ["i can't reach the shopper", "the shopper won't pick up about the swap"],
+      "replies": [
+        "If the Shopper can't be reached, the item isn't bought, and they aren't charged for it.",
+        "Then leave it out. Never swap without their yes."
+      ]
+    },
+    {
+      "id": "runner-enter-till-total",
+      "topic": "receipt",
+      "when": [
+        "how do i put in the till total",
+        "where do i type the total",
+        "enter the receipt total"
+      ],
+      "replies": [
+        "On your job, under what did the till say, type the total from the receipt in pounds and pence. Then press put in the till total.",
+        "Type the receipt total into your job, then press put in the till total."
+      ]
+    },
+    {
+      "id": "runner-total-before-leaving",
+      "topic": "receipt",
+      "when": ["do i have to enter the total first", "why do i enter the total before leaving"],
+      "replies": [
+        "Yes. The till total goes in before you set off, because that's what the Shopper is charged.",
+        "It must go in before I am on my way. The Shopper pays exactly that amount."
+      ]
+    },
+    {
+      "id": "runner-wrong-total",
+      "topic": "receipt",
+      "when": [
+        "i typed the wrong total",
+        "i made a mistake with the total",
+        "i put in the wrong amount"
+      ],
+      "replies": [
+        "Report a problem on the job straight away and give the right total. Keep the receipt.",
+        "Tell us at once through report a problem, with a photo of the receipt, and we'll put it right."
+      ]
+    },
+    {
+      "id": "runner-lost-receipt",
+      "topic": "receipt",
+      "when": ["i lost the receipt", "i didn't get a receipt", "the till didn't print a receipt"],
+      "replies": [
+        "Ask the till for a copy if you can. If not, report a problem on the job and explain.",
+        "Ask the shop to reprint it. If that's not possible, tell us in report a problem."
+      ]
+    },
+    {
+      "id": "runner-photo-of-receipt",
+      "topic": "receipt",
+      "when": ["should i photograph the receipt", "take a picture of the receipt"],
+      "replies": [
+        "It does no harm to keep a photo. If anything is questioned, you can add photos to a problem report.",
+        "A quick photo is a good habit. Then hand the receipt over with the shopping."
+      ]
+    },
+    {
+      "id": "runner-give-receipt",
+      "topic": "receipt",
+      "when": [
+        "do i give the receipt to the shopper",
+        "where does the receipt go",
+        "who keeps the receipt"
+      ],
+      "replies": [
+        "Hand it to the Shopper with the shopping. It's theirs.",
+        "The receipt goes to the Shopper, in with the bags."
+      ]
+    },
+    {
+      "id": "runner-how-type-amount",
+      "topic": "receipt",
+      "when": ["how do i type the amount", "pounds and pence", "what format for the total"],
+      "replies": [
+        "Type it as on the receipt: pounds, a dot, then pence. For example, twelve point three four.",
+        "Just the numbers from the receipt, with a dot before the pence."
+      ]
+    },
+    {
+      "id": "runner-came-to-less",
+      "topic": "receipt",
+      "when": ["the till price is lower", "it came to less", "it was cheaper than the estimate"],
+      "replies": [
+        "Good news for the Shopper. Enter what the till says. They pay the till price.",
+        "Put in the real total. The Shopper is charged exactly what the till said."
+      ]
+    },
+    {
+      "id": "runner-over-maximum",
+      "topic": "receipt",
+      "when": [
+        "the total is over the maximum",
+        "it came to more than the limit",
+        "the shopping is over the limit"
+      ],
+      "replies": [
+        "One delivery carries up to {maximum} of shopping. If the till is going well over, call the Shopper before you pay, and report a problem.",
+        "Stop and call the Shopper through the app before paying. Then tell us in report a problem."
+      ]
+    },
+    {
+      "id": "runner-what-shopper-pays",
+      "topic": "receipt",
+      "when": [
+        "what does the shopper pay",
+        "how much does the shopper pay",
+        "what's the delivery fee"
+      ],
+      "replies": [
+        "The till total for the shopping, plus the delivery fee of {fee}.",
+        "What the till says, and a flat delivery fee of {fee}. Of that fee, {runnerPay} is yours."
+      ]
+    },
+    {
+      "id": "runner-shopper-pays-me",
+      "topic": "rules",
+      "when": [
+        "does the shopper pay me",
+        "do i take money from the shopper",
+        "do i collect payment at the door"
+      ],
+      "replies": [
+        "No. Shoppers pay before you're sent. Never take money at the door.",
+        "Nothing changes hands at the door except the shopping. Payment is all done in advance."
+      ]
+    },
+    {
+      "id": "runner-pay-with-cash",
+      "topic": "receipt",
+      "when": ["can i pay with cash", "pay with cash at the till", "how do i pay at the till"],
+      "replies": [
+        "Follow the payment steps on your job. And never take cash from a Shopper.",
+        "Your job explains how to pay at the till. Cash from Shoppers is never part of it."
+      ]
+    },
+    {
+      "id": "runner-payment-declined",
+      "topic": "receipt",
+      "when": [
+        "the payment didn't go through",
+        "my card was declined at the till",
+        "the till won't take payment"
+      ],
+      "replies": [
+        "Don't worry. Report a problem on your job straight away, and we'll help.",
+        "Stay calm, step aside, and report a problem from the job. Don't leave the shopping unpaid in the bag."
+      ]
+    },
+    {
+      "id": "runner-till-overcharged",
+      "topic": "receipt",
+      "when": [
+        "the till charged wrong",
+        "i've been overcharged at the till",
+        "the price scanned wrong"
+      ],
+      "replies": [
+        "Ask the till staff to put it right before you leave, then enter the final total.",
+        "Shops fix scanning mistakes at the till or the service desk. Enter the corrected total."
+      ]
+    },
+    {
+      "id": "runner-paid-at-till",
+      "topic": "receipt",
+      "when": ["i've paid", "i've paid at the till", "all paid"],
+      "replies": [
+        "Great. Put in the till total, then press I am on my way.",
+        "Well done. Till total in, then set off."
+      ]
+    },
+    {
+      "id": "runner-when-shopper-charged",
+      "topic": "receipt",
+      "when": ["when is the shopper charged", "has the shopper paid"],
+      "replies": [
+        "Payment is taken before you're sent, and the final charge is set to what the till said.",
+        "Every job is paid for before it reaches you. Nobody is sent to an unpaid order."
+      ]
+    },
+    {
+      "id": "runner-on-my-way",
+      "topic": "delivery",
+      "when": ["i'm on my way", "i'm setting off", "heading to the shopper now"],
+      "replies": [
+        "Press I am on my way on your job, so the Shopper knows you're coming.",
+        "Safe travels. Press I am on my way if you haven't yet."
+      ]
+    },
+    {
+      "id": "runner-where-delivering",
+      "topic": "delivery",
+      "when": ["where am i delivering", "what's the address", "where does it go"],
+      "replies": [
+        "The address is on your job, under where it goes.",
+        "Open your job. The delivery address is under where it goes."
+      ]
+    },
+    {
+      "id": "runner-directions",
+      "topic": "delivery",
+      "when": ["how do i get there", "give me directions", "which way do i go"],
+      "replies": [
+        "Use your usual map app with the address on your job.",
+        "Put the address from your job into your map app, and take the safest route."
+      ]
+    },
+    {
+      "id": "runner-cant-find-address",
+      "topic": "delivery",
+      "when": ["i can't find the address", "i'm lost", "i can't find the house"],
+      "replies": [
+        "Check the address on your job, and call the Shopper through the app if you need help finding the door.",
+        "A quick call through the app often helps. Shoppers know their own doors best."
+      ]
+    },
+    {
+      "id": "runner-flats",
+      "topic": "delivery",
+      "when": ["it's a block of flats", "which flat is it", "how do i get into the building"],
+      "replies": [
+        "The flat number is in the address. Read the doorstep note too; it may say how to get in.",
+        "Check the doorstep note, and call the Shopper through the app if the entrance is locked."
+      ]
+    },
+    {
+      "id": "runner-buzzer",
+      "topic": "delivery",
+      "when": ["the buzzer doesn't work", "the intercom isn't working", "the doorbell is broken"],
+      "replies": [
+        "Knock firmly, then call the Shopper through the app to say you're outside.",
+        "Call them from your job and let them know you're at the door."
+      ]
+    },
+    {
+      "id": "runner-delivered-now",
+      "topic": "delivery",
+      "when": ["i've delivered it", "job done", "all delivered", "it's delivered"],
+      "replies": [
+        "Press I have delivered it. You've earned {runnerPay} for this one.",
+        "Well done. Press I have delivered it, and you're free for the next job."
+      ]
+    },
+    {
+      "id": "runner-when-press-delivered",
+      "topic": "delivery",
+      "when": ["when do i press delivered", "when is it delivered"],
+      "replies": [
+        "Once the shopping is in the Shopper's hands, or where they asked for it.",
+        "After the handover, not before. Then press I have delivered it."
+      ]
+    },
+    {
+      "id": "runner-leave-on-doorstep",
+      "topic": "delivery",
+      "when": [
+        "can i leave it on the doorstep",
+        "can i leave it outside",
+        "can i leave it by the door"
+      ],
+      "replies": [
+        "Only if the doorstep note says so. Otherwise hand it over in person.",
+        "Follow the doorstep note. If it doesn't say leave it, wait and hand it over."
+      ]
+    },
+    {
+      "id": "runner-neighbour",
+      "topic": "delivery",
+      "when": ["can i leave it with a neighbour", "the neighbour will take it"],
+      "replies": [
+        "Only if the Shopper tells you to. Call them through the app to check.",
+        "Ask the Shopper first, through the app. Never hand it to someone they haven't named."
+      ]
+    },
+    {
+      "id": "runner-doorstep-note",
+      "topic": "delivery",
+      "when": [
+        "what's the doorstep note",
+        "doorstep instructions",
+        "what do they want at the door"
+      ],
+      "replies": [
+        "It's what the Shopper asked for at the door, in their own words. It's on your job under where it goes.",
+        "Look under where it goes on your job. It says, in their words, what they'd like at the door."
+      ]
+    },
+    {
+      "id": "runner-no-doorstep-note",
+      "topic": "delivery",
+      "when": ["there's no doorstep note", "there are no instructions"],
+      "replies": [
+        "Knock, say your name and that you're from {product}, and wait patiently.",
+        "Then keep it simple: knock, introduce yourself, and give them time to reach the door."
+      ]
+    },
+    {
+      "id": "runner-put-it-away",
+      "topic": "delivery",
+      "when": [
+        "they want me to put it away",
+        "can i put the shopping in the fridge",
+        "they asked me to unpack"
+      ],
+      "replies": [
+        "If they ask and you're comfortable, yes, only as far as they need. Tell them where each thing goes.",
+        "That's a kind help. Say what you're putting where, then say goodbye."
+      ]
+    },
+    {
+      "id": "runner-stairs",
+      "topic": "delivery",
+      "when": ["do i carry it upstairs", "there are loads of stairs", "there's no lift"],
+      "replies": [
+        "Yes, to their door. Take care on the stairs; two trips is better than a fall.",
+        "Bring it to the door, one safe trip at a time."
+      ]
+    },
+    {
+      "id": "runner-dog",
+      "topic": "safety",
+      "when": ["there's a dog", "i'm scared of the dog", "the dog won't stop barking"],
+      "replies": [
+        "Wait outside and call the Shopper through the app. Ask them to put the dog away first.",
+        "Stay back and call them. Never go near a dog you're unsure of."
+      ]
+    },
+    {
+      "id": "runner-guide-dog",
+      "topic": "delivery",
+      "when": ["there's a guide dog", "can i stroke the guide dog"],
+      "replies": [
+        "Please don't stroke or distract a guide dog. It's working.",
+        "Leave the dog be, however friendly. Speak to the Shopper, not the dog."
+      ]
+    },
+    {
+      "id": "runner-wrong-address",
+      "topic": "delivery",
+      "when": ["it's the wrong address", "the address is wrong", "they don't live here"],
+      "replies": [
+        "Don't hand it to anyone else. Call the Shopper through the app, then report a problem if it can't be sorted.",
+        "Keep hold of the shopping and call the Shopper from your job."
+      ]
+    },
+    {
+      "id": "runner-someone-else-answers",
+      "topic": "delivery",
+      "when": [
+        "someone else answered the door",
+        "a relative answered",
+        "it's not the shopper at the door"
+      ],
+      "replies": [
+        "If the doorstep note says that's fine, hand it over. If you're unsure, call the Shopper through the app.",
+        "Check with the Shopper first, by calling through the app."
+      ]
+    },
+    {
+      "id": "runner-safe-word",
+      "topic": "delivery",
+      "when": ["what is the safe word", "door safe word", "the two word code"],
+      "replies": [
+        "A door safe word is planned: a two word code you'd say at the door, so a blind Shopper knows it's you.",
+        "It's coming. When it's switched on, your job will show the words to say at the door."
+      ]
+    },
+    {
+      "id": "runner-signature",
+      "topic": "delivery",
+      "when": ["do they need to sign", "do i need a signature", "do i check their id"],
+      "replies": [
+        "No signatures and no identity checks, ever. Just a kind, quick handover.",
+        "Never. Handovers stay quick and simple."
+      ]
+    },
+    {
+      "id": "runner-handed-to-person",
+      "topic": "delivery",
+      "when": [
+        "what is handed to the person",
+        "handed to the person job",
+        "do i take a photo at the door"
+      ],
+      "replies": [
+        "It's an extra the Shopper chooses, so it goes into a named person's hands. You note their first name and, if they agree, take a photo of the items with them. All of that extra goes to you.",
+        "Only on a handed to the person job. Ask first. If they say no to a photo, that's fine: the time and their first name are the record."
+      ]
+    },
+    {
+      "id": "runner-slow-to-door",
+      "topic": "delivery",
+      "when": [
+        "they're taking ages to answer",
+        "should i wait longer",
+        "how long should i wait at the door"
+      ],
+      "replies": [
+        "Yes, wait. Many of our Shoppers take a while to reach the door. Knock again gently.",
+        "Give them several minutes. Then call through the app before you give up."
+      ]
+    },
+    {
+      "id": "runner-guiding",
+      "topic": "delivery",
+      "when": [
+        "how do i guide someone",
+        "how do i hand things to a blind person",
+        "how do i talk to a blind shopper"
+      ],
+      "replies": [
+        "Say your name as you arrive, say what you're handing over as you do it, and let them take your arm if they want to. Never grab theirs.",
+        "Speak first so they know where you are. Describe what you're doing, and say when you're leaving."
+      ]
+    },
+    {
+      "id": "runner-describe-bags",
+      "topic": "delivery",
+      "when": ["should i say what's in the bags", "should i describe the shopping"],
+      "replies": [
+        "Yes, if they'd like that. Tell them what's in each bag and where you've put it.",
+        "It helps a lot. Say where the cold things are first."
+      ]
+    },
+    {
+      "id": "runner-deaf-shopper",
+      "topic": "delivery",
+      "when": ["the shopper is deaf", "they can't hear me", "the shopper is hard of hearing"],
+      "replies": [
+        "Face them, speak clearly, and use your screen or a written note if it helps. Be patient.",
+        "Don't shout. Look at them as you speak, and use your phone screen to show words."
+      ]
+    },
+    {
+      "id": "runner-confused-shopper",
+      "topic": "delivery",
+      "when": [
+        "the shopper seems confused",
+        "they don't remember ordering",
+        "the shopper is muddled"
+      ],
+      "replies": [
+        "Be calm and kind. Say who you are and what you've brought. If you're worried about them, tell us in report a problem.",
+        "Take it gently. Remind them who you are, and show them the shopping they chose."
+      ]
+    },
+    {
+      "id": "runner-shopper-unwell",
+      "topic": "safety",
+      "when": ["the shopper looks unwell", "they've fallen", "the shopper needs help"],
+      "replies": [
+        "If someone is hurt or very unwell, call 999 now. Stay with them if it's safe.",
+        "Call 999 if it's an emergency. Then tell us in report a problem when you can."
+      ]
+    },
+    {
+      "id": "runner-rude-shopper",
+      "topic": "delivery",
+      "when": ["the shopper was rude", "the shopper shouted at me", "the shopper was horrible"],
+      "replies": [
+        "I'm sorry. Stay calm and polite, finish the handover if it's safe, and tell us in report a problem.",
+        "That's not okay. Keep yourself safe, and tell us what happened. A person reads every report."
+      ]
+    },
+    {
+      "id": "runner-offered-tip-cash",
+      "topic": "rules",
+      "when": [
+        "they offered me cash",
+        "the shopper wants to give me money",
+        "they're trying to give me a tip"
+      ],
+      "replies": [
+        "Thank them kindly, but we never take cash. Tips aren't switched on yet.",
+        "Say thank you warmly, and explain you can't take cash. Their kindness is the tip."
+      ]
+    },
+    {
+      "id": "runner-cup-of-tea",
+      "topic": "manners",
+      "when": [
+        "they offered me a cup of tea",
+        "they want me to stay for a chat",
+        "the shopper wants to chat"
+      ],
+      "replies": [
+        "That's kind. A friendly word means a lot. When it's time, say warmly that you need to get to your next job.",
+        "Be kind and keep it short, so the next Shopper isn't waiting."
+      ]
+    },
+    {
+      "id": "runner-rejected-item",
+      "topic": "delivery",
+      "when": [
+        "they don't want an item",
+        "the shopper rejected something",
+        "they say it's the wrong thing"
+      ],
+      "replies": [
+        "Don't argue. Note what happened in report a problem, and any refund is sorted from there.",
+        "Stay kind. Tell us in report a problem, with a photo if you can."
+      ]
+    },
+    {
+      "id": "runner-left-item-behind",
+      "topic": "delivery",
+      "when": ["i left an item at the shop", "i forgot a bag", "i've left a bag behind"],
+      "replies": [
+        "Tell the Shopper honestly, then report a problem on the job. We'll put it right.",
+        "Mistakes happen. Be honest with the Shopper, and report it from the job."
+      ]
+    },
+    {
+      "id": "runner-something-broke",
+      "topic": "delivery",
+      "when": ["something broke", "the eggs broke", "i dropped the bag", "something got squashed"],
+      "replies": [
+        "Accidents happen. Tell the Shopper, then report a problem with a photo. The Shopper is refunded first.",
+        "Don't worry. Report it from the job with a photo. Accidents aren't taken from your pay automatically."
+      ]
+    },
+    {
+      "id": "runner-knock-or-ring",
+      "topic": "delivery",
+      "when": ["should i knock or ring", "how do i announce myself"],
+      "replies": [
+        "Knock or ring, then say your name and that you're from {product}.",
+        "Ring or knock clearly, and introduce yourself through the door."
+      ]
+    },
+    {
+      "id": "runner-shopper-not-ready",
+      "topic": "delivery",
+      "when": ["the shopper isn't ready", "they asked me to come back later"],
+      "replies": [
+        "Call them through the app to agree what's best. If it can't be done, report a problem.",
+        "Talk it through on an in-app call, then report a problem if you can't hand over."
+      ]
+    },
+    {
+      "id": "runner-cool-box-deposit",
+      "topic": "cool bag",
+      "when": [
+        "how does the cool box deposit work",
+        "cool box deposit",
+        "when do i get my deposit back"
+      ],
+      "replies": [
+        "A small part of each of your first ten payouts goes towards your cool box. You get it all back on your twentieth delivery.",
+        "It's taken a little at a time from your first ten payouts, and returned to you on your twentieth delivery."
+      ]
+    },
+    {
+      "id": "runner-how-much-deposit",
+      "topic": "cool bag",
+      "when": ["how much is the cool bag deposit", "how much has gone to my cool box"],
+      "replies": [
+        "Your Money tab shows what's gone towards your cool box, payout by payout.",
+        "Look at paid out to you on your Money tab. Each payout says what went towards the cool box."
+      ]
+    },
+    {
+      "id": "runner-what-goes-in-cool-bag",
+      "topic": "cool bag",
+      "when": [
+        "what goes in the cool bag",
+        "where do i put frozen food",
+        "where does the chilled stuff go"
+      ],
+      "replies": [
+        "Anything chilled or frozen: meat, fish, dairy and frozen food. Keep it closed until the door.",
+        "Cold things in the cool bag, zipped shut, straight to the Shopper."
+      ]
+    },
+    {
+      "id": "runner-clean-cool-bag",
+      "topic": "cool bag",
+      "when": ["how do i clean the cool bag", "cleaning the cool box"],
+      "replies": [
+        "Wipe it inside after each shift, and let it dry open.",
+        "A wipe inside after every shift keeps it fresh. Let it air dry."
+      ]
+    },
+    {
+      "id": "runner-lost-cool-bag",
+      "topic": "cool bag",
+      "when": ["i lost my cool bag", "my cool bag is broken", "the cool bag zip is broken"],
+      "replies": [
+        "Tell us through tell us something on your More tab, and we'll help.",
+        "Let us know on your More tab, so we can sort it out with you."
+      ]
+    },
+    {
+      "id": "runner-deposit-refundable",
+      "topic": "cool bag",
+      "when": [
+        "do i get the deposit back",
+        "is the deposit refundable",
+        "is the cool box money mine"
+      ],
+      "replies": [
+        "Yes. It's yours, returned on your twentieth delivery.",
+        "It all comes back to you after twenty deliveries."
+      ]
+    },
+    {
+      "id": "runner-raw-meat",
+      "topic": "cool bag",
+      "when": ["where does raw meat go", "keep raw meat separate"],
+      "replies": [
+        "Keep raw meat away from ready to eat food, at the bottom of the cool bag.",
+        "Raw meat low and separate, so nothing can drip onto other food."
+      ]
+    },
+    {
+      "id": "runner-hot-day",
+      "topic": "cool bag",
+      "when": ["it's really hot", "it's a heatwave", "the ice cream is melting"],
+      "replies": [
+        "Keep the cool bag shut and go straight to the door. Drink water and look after yourself too.",
+        "Cold things last, cool bag closed, no detours. And take care in the heat."
+      ]
+    },
+    {
+      "id": "runner-big-orders-pay",
+      "topic": "pay",
+      "when": ["do big orders pay more", "is it more for a heavy basket", "do small jobs pay less"],
+      "replies": [
+        "No. Every job pays {runnerPay}, whatever the basket.",
+        "The same {runnerPay} every time, big shop or small."
+      ]
+    },
+    {
+      "id": "runner-pay-per-job",
+      "topic": "pay",
+      "when": ["what's my pay per job", "how much per delivery", "what's the rate"],
+      "replies": [
+        "{runnerPay} for every standard delivery.",
+        "Each job pays you {runnerPay}, untouched by the size of the basket."
+      ]
+    },
+    {
+      "id": "runner-fee-split",
+      "topic": "pay",
+      "when": [
+        "how much does {product} take",
+        "how is the fee split",
+        "where does the delivery fee go"
+      ],
+      "replies": [
+        "The Shopper pays a flat delivery fee of {fee}. Of that, {runnerPay} is yours.",
+        "From each {fee} delivery fee, {runnerPay} goes to you."
+      ]
+    },
+    {
+      "id": "runner-deductions",
+      "topic": "pay",
+      "when": [
+        "do you take anything from my pay",
+        "are there deductions",
+        "will money come off my pay"
+      ],
+      "replies": [
+        "Nothing is ever taken automatically. A deduction only follows a staff decision on the evidence, written down and given to you.",
+        "Only two things: a little towards your cool box at first, which you get back, and, rarely, a repayment decided by staff on the evidence."
+      ]
+    },
+    {
+      "id": "runner-how-much-recovered",
+      "topic": "pay",
+      "when": [
+        "how much is taken if i'm at fault",
+        "will you take my whole pay",
+        "how much comes off for a mistake"
+      ],
+      "replies": [
+        "Never the whole. Up to 10 percent of each job's pay, until it's repaid. You always keep the rest.",
+        "A small part of each job's pay, up to 10 percent, never all of it."
+      ]
+    },
+    {
+      "id": "runner-challenge-decision",
+      "topic": "problems",
+      "when": ["can i challenge a decision", "i disagree with the decision", "can i appeal"],
+      "replies": [
+        "Yes. Every decision is written down and given to you, and you can answer it.",
+        "You can. Reply to the decision with your side, and add any evidence you have."
+      ]
+    },
+    {
+      "id": "runner-leave-owing",
+      "topic": "pay",
+      "when": ["what if i leave owing money", "i'm leaving and i owe money"],
+      "replies": [
+        "Small amounts are written off. Anything larger, you'd be asked to repay.",
+        "If it's small, it's written off. Larger amounts are asked for, plainly and fairly."
+      ]
+    },
+    {
+      "id": "runner-set-up-stripe",
+      "topic": "payouts",
+      "when": ["how do i set up stripe", "set up my bank details", "set up how i get paid"],
+      "replies": [
+        "On your Today tab, press set up how you get paid. You give your bank details to Stripe on their own page. We never see them.",
+        "Press set up how you get paid. Stripe's own secure page asks for your bank details."
+      ]
+    },
+    {
+      "id": "runner-stripe-unfinished",
+      "topic": "payouts",
+      "when": [
+        "stripe needs more information",
+        "my stripe setup isn't finished",
+        "stripe wants more details"
+      ],
+      "replies": [
+        "Press finish setting up how you get paid, and give Stripe what it asks for.",
+        "Stripe needs a little more before it can send money. Finish it from your Today tab."
+      ]
+    },
+    {
+      "id": "runner-not-paid-yet",
+      "topic": "payouts",
+      "when": ["why haven't i been paid", "my money hasn't arrived", "where's my money"],
+      "replies": [
+        "Check your Money tab. If your bank details aren't set up, what you're owed is sent as soon as they are.",
+        "A new Stripe account can have a short first payout delay that Stripe sets. Your Money tab shows what's been sent."
+      ]
+    },
+    {
+      "id": "runner-earned-this-week",
+      "topic": "pay",
+      "when": ["what have i earned this week", "how much this week", "how much today"],
+      "replies": [
+        "Your Money tab shows today, this week, and in all, big and bold.",
+        "Open the Money tab. Today's and this week's earnings are at the top."
+      ]
+    },
+    {
+      "id": "runner-payouts-list",
+      "topic": "payouts",
+      "when": ["how much has been paid out", "my payouts", "what's been sent to my bank"],
+      "replies": [
+        "Your Money tab, under paid out to you, lists each payout and when.",
+        "Look under paid out to you on the Money tab."
+      ]
+    },
+    {
+      "id": "runner-change-bank",
+      "topic": "payouts",
+      "when": ["change my bank account", "update my bank details", "i have a new bank account"],
+      "replies": [
+        "Your bank details are held by Stripe, never by us. Tell us on your More tab if they need changing, and we'll help.",
+        "Stripe keeps your bank details safely. Send us a note from your More tab and we'll point you the right way."
+      ]
+    },
+    {
+      "id": "runner-tax",
+      "topic": "pay",
+      "when": ["do i pay tax", "what about tax", "do i need to tell hmrc"],
+      "replies": [
+        "I can't give tax advice. HMRC's website, or an accountant, can help with that.",
+        "That's one for HMRC or an accountant, not me. Your Jobs tab has the records you'll need."
+      ]
+    },
+    {
+      "id": "runner-earnings-record",
+      "topic": "pay",
+      "when": [
+        "can i get a record of my earnings",
+        "my earnings history",
+        "where are my past earnings"
+      ],
+      "replies": [
+        "Your Jobs tab lists every job with its date, area, pay and reference.",
+        "Every job is in your Jobs tab, newest first, with what you earned."
+      ]
+    },
+    {
+      "id": "runner-tips-when",
+      "topic": "pay",
+      "when": ["when will tips start", "will tips come", "are tips coming"],
+      "replies": [
+        "Tips are planned. When they're switched on, every penny of a tip will be yours.",
+        "Not yet. When they come, Shoppers can choose to tip, and it all goes to you."
+      ]
+    },
+    {
+      "id": "runner-waiting-paid",
+      "topic": "pay",
+      "when": ["do i get paid for waiting", "is waiting time paid"],
+      "replies": [
+        "You earn {runnerPay} per job. Take the time each Shopper needs.",
+        "The pay is per job, {runnerPay}. Patience at the door is part of the care."
+      ]
+    },
+    {
+      "id": "runner-calls-cost-me",
+      "topic": "calls",
+      "when": ["do calls cost me", "do i pay for calls", "will calling use my money"],
+      "replies": ["No. A Runner never pays for a call.", "Never. Calls never cost you anything."]
+    },
+    {
+      "id": "runner-who-pays-calls",
+      "topic": "calls",
+      "when": ["who pays for the call", "how much do calls cost"],
+      "replies": [
+        "The Shopper pays {callPrice} a minute. A Runner never pays.",
+        "Calls cost the Shopper {callPrice} a minute. You pay nothing."
+      ]
+    },
+    {
+      "id": "runner-petrol",
+      "topic": "pay",
+      "when": ["do you pay for petrol", "do i get mileage", "do you pay travel costs"],
+      "replies": [
+        "Your pay for each job is {runnerPay}. There's no separate travel payment.",
+        "Each job pays {runnerPay}, with no extra for travel."
+      ]
+    },
+    {
+      "id": "runner-bonuses",
+      "topic": "pay",
+      "when": ["are there bonuses", "do you pay bonuses", "can i earn more"],
+      "replies": [
+        "Every job pays {runnerPay}, the same every time. The more jobs you take, the more you earn.",
+        "Your earnings grow with each job you do, at {runnerPay} a time."
+      ]
+    },
+    {
+      "id": "runner-referral-reward",
+      "topic": "share",
+      "when": [
+        "do i get paid for referrals",
+        "is there a referral bonus",
+        "do i get anything for inviting people"
+      ],
+      "replies": [
+        "Everyone who signs up with your link is linked to you. Nothing about rewards has been announced.",
+        "Your link links people to you. There's no announcement about rewards."
+      ]
+    },
+    {
+      "id": "runner-paid-per-job",
+      "topic": "payouts",
+      "when": ["am i paid per job", "is it paid per delivery"],
+      "replies": [
+        "Yes. Each delivered job earns {runnerPay}, sent through Stripe to your bank.",
+        "Per job. Your Money tab lists each payout with its order reference."
+      ]
+    },
+    {
+      "id": "runner-job-not-paid",
+      "topic": "payouts",
+      "when": ["this job says not paid yet", "why does a job say not paid"],
+      "replies": [
+        "It's waiting to be sent. If your pay setup isn't finished, finish it and it will go.",
+        "Check your pay setup on the Today tab. Once Stripe is ready, it's sent."
+      ]
+    },
+    {
+      "id": "runner-stripe-who",
+      "topic": "payouts",
+      "when": ["what is stripe", "who is stripe", "is stripe safe"],
+      "replies": [
+        "Stripe is our payment company. It sends your pay to your bank and keeps your bank details safe.",
+        "Stripe handles the money. We never see or hold your bank details."
+      ]
+    },
+    {
+      "id": "runner-right-to-work",
+      "topic": "documents",
+      "when": ["what is right to work", "how do i prove right to work", "right to work check"],
+      "replies": [
+        "A Home Office share code, or a passport photo if you're British or Irish.",
+        "Send a share code from gov.uk, or a photo of your British or Irish passport."
+      ]
+    },
+    {
+      "id": "runner-get-share-code",
+      "topic": "documents",
+      "when": ["where do i get a share code", "how do i get a share code"],
+      "replies": [
+        "From the government's prove your right to work service on gov.uk.",
+        "Go to gov.uk and search for prove your right to work. It gives you a share code."
+      ]
+    },
+    {
+      "id": "runner-passport",
+      "topic": "documents",
+      "when": ["can i use my passport", "passport photo"],
+      "replies": [
+        "British and Irish citizens can send a clear photo of their passport for right to work.",
+        "Yes, if it's British or Irish. Otherwise use a Home Office share code."
+      ]
+    },
+    {
+      "id": "runner-basic-or-enhanced",
+      "topic": "documents",
+      "when": ["basic or enhanced dbs", "what kind of dbs", "do i need an enhanced dbs"],
+      "replies": [
+        "A basic DBS is needed by every Runner. An enhanced one, with the adults' barred list, is needed for some jobs, such as handing to the person.",
+        "Basic for everyone. Enhanced only for certain jobs, which will say so."
+      ]
+    },
+    {
+      "id": "runner-get-dbs",
+      "topic": "documents",
+      "when": ["how do i get a dbs check", "where do i apply for dbs"],
+      "replies": [
+        "You can apply for a basic DBS check on gov.uk. Then send the certificate, or its share code, in the app.",
+        "Search gov.uk for a basic DBS check. When it comes, add it under your documents."
+      ]
+    },
+    {
+      "id": "runner-already-dbs",
+      "topic": "documents",
+      "when": ["i already have a dbs", "can i use my old dbs"],
+      "replies": [
+        "Send it in the app, the certificate or its share code, and staff will check it.",
+        "Add it under your documents on the More tab. Staff will say if it's suitable."
+      ]
+    },
+    {
+      "id": "runner-why-photo",
+      "topic": "documents",
+      "when": ["why do you need my photo", "photo of my face", "who sees my photo"],
+      "replies": [
+        "It's matched to your documents, and shown to the Shopper at the door so they know it's you.",
+        "It keeps Shoppers safe. It's checked against your documents."
+      ]
+    },
+    {
+      "id": "runner-blurry-photo",
+      "topic": "documents",
+      "when": [
+        "my photo is blurry",
+        "the document photo won't go through",
+        "the photo was rejected"
+      ],
+      "replies": [
+        "Use good light, hold steady, and fill the frame. The app checks each photo is clear.",
+        "Try again by a window, flat on a table, with no glare."
+      ]
+    },
+    {
+      "id": "runner-when-approved",
+      "topic": "documents",
+      "when": ["when will i be approved", "how long do checks take", "are my checks done"],
+      "replies": [
+        "Staff check your documents. Your More tab shows where each one is.",
+        "Each document's status is on your More tab. While you wait, look at your Training tab."
+      ]
+    },
+    {
+      "id": "runner-cant-go-on-shift",
+      "topic": "documents",
+      "when": [
+        "why can't i go on shift",
+        "why can't i take jobs yet",
+        "why is my shift button missing"
+      ],
+      "replies": [
+        "Jobs open once your right to work and your DBS check are verified. Your More tab shows where each one is.",
+        "You'll be able to go on shift once both checks are verified."
+      ]
+    },
+    {
+      "id": "runner-driving-licence",
+      "topic": "documents",
+      "when": ["do i need a driving licence", "driving licence check", "what do drivers need"],
+      "replies": [
+        "Only for a car or motorbike: photos front and back, plus a DVLA check code, and insurance for business use.",
+        "For driving: your licence, a DVLA check code, your registration, and business insurance."
+      ]
+    },
+    {
+      "id": "runner-dvla-code",
+      "topic": "documents",
+      "when": ["what is a dvla check code", "dvla code"],
+      "replies": [
+        "It's a code from the DVLA's view your driving licence service on gov.uk, so your licence can be checked.",
+        "Get it from gov.uk, under view or share your driving licence."
+      ]
+    },
+    {
+      "id": "runner-mot-tax",
+      "topic": "documents",
+      "when": ["do you check my mot", "road tax", "why do you need my registration"],
+      "replies": [
+        "Your registration number lets MOT and road tax be checked automatically.",
+        "So MOT and tax can be checked without more paperwork from you."
+      ]
+    },
+    {
+      "id": "runner-insurance-type",
+      "topic": "documents",
+      "when": ["what insurance do i need", "hire and reward", "business insurance"],
+      "replies": [
+        "Business use or hire and reward cover. Ordinary private car insurance doesn't cover carrying goods for payment.",
+        "For a car or motorbike, cover for delivering goods for payment. Walking and cycling need none."
+      ]
+    },
+    {
+      "id": "runner-insurance-expired",
+      "topic": "documents",
+      "when": ["my insurance has expired", "my insurance ran out", "insurance renewal"],
+      "replies": [
+        "Upload the new certificate. Until then, walk or cycle; those need no insurance.",
+        "Switch to walking or bicycle for now, and add your new certificate under your documents."
+      ]
+    },
+    {
+      "id": "runner-update-documents",
+      "topic": "documents",
+      "when": ["how do i update my documents", "upload a new document", "where are my documents"],
+      "replies": [
+        "Under your documents, on the More tab.",
+        "Open the More tab. Your documents are listed there, each with its status."
+      ]
+    },
+    {
+      "id": "runner-document-rejected",
+      "topic": "documents",
+      "when": ["my document was rejected", "why was my document refused"],
+      "replies": [
+        "Your documents list says what's needed. Take a fresh, clear photo and send it again.",
+        "Look at the note on that document, then send a clearer or newer one."
+      ]
+    },
+    {
+      "id": "runner-who-sees-documents",
+      "topic": "documents",
+      "when": ["who sees my documents", "is my data safe", "what happens to my documents"],
+      "replies": [
+        "Only the staff who check them. Shoppers never see your documents.",
+        "They're for checking only. Shoppers see your photo at the door, nothing more."
+      ]
+    },
+    {
+      "id": "runner-office-visit",
+      "topic": "documents",
+      "when": [
+        "do i need to come to an office",
+        "is there an interview",
+        "do i have to go anywhere to sign up"
+      ],
+      "replies": [
+        "No. Everything is done in the app, anywhere in the UK.",
+        "No office visit. You sign up and send documents from your phone."
+      ]
+    },
+    {
+      "id": "runner-sign-up-steps",
+      "topic": "documents",
+      "when": [
+        "how do i sign up as a runner",
+        "what are the sign up steps",
+        "how do i become a runner"
+      ],
+      "replies": [
+        "Your name and phone, how you'll travel, a photo of your face, right to work, a DBS check, and for drivers, licence and insurance. Then bank details through Stripe.",
+        "All in the app: a few photos and checks, then you set up your pay with Stripe."
+      ]
+    },
+    {
+      "id": "runner-travel-modes",
+      "topic": "travel",
+      "when": ["what ways can i deliver", "can i deliver on foot", "how can i travel"],
+      "replies": [
+        "On foot, by bicycle, by motorbike or scooter, or by car.",
+        "Walk, cycle, ride or drive. Walking and cycling need no insurance."
+      ]
+    },
+    {
+      "id": "runner-bus",
+      "topic": "travel",
+      "when": ["can i use the bus", "can i use public transport", "can i get the train"],
+      "replies": [
+        "Yes. Choose walking in the app; no insurance is needed. Baskets are sized to carry onto a bus.",
+        "Of course. Many Runners walk and take the bus."
+      ]
+    },
+    {
+      "id": "runner-cycle",
+      "topic": "travel",
+      "when": ["can i use a bike", "can i cycle", "can i deliver by bike"],
+      "replies": [
+        "Yes. Bicycle needs no insurance, and you can switch to it any time.",
+        "Of course. Choose bicycle on your Today tab."
+      ]
+    },
+    {
+      "id": "runner-switch-walking",
+      "topic": "travel",
+      "when": ["switch to walking", "i'm walking today", "change to walking"],
+      "replies": [
+        "Press switch to walking on your Today tab. It's instant, and needs no insurance.",
+        "Done in one press on your Today tab. Only jobs that suit walking will be offered."
+      ]
+    },
+    {
+      "id": "runner-switch-driving",
+      "topic": "travel",
+      "when": ["i'm driving today", "change to car", "switch to driving"],
+      "replies": [
+        "Switch to car on your Today tab. It needs your licence and insurance checked and in date.",
+        "Press switch to car. If your insurance isn't on file, the app will say so."
+      ]
+    },
+    {
+      "id": "runner-switch-motorbike",
+      "topic": "travel",
+      "when": ["switch to motorbike", "can i use my moped", "can i use my scooter"],
+      "replies": [
+        "Yes, with insurance on file. Press switch to motorbike or moped on your Today tab.",
+        "A motorbike, moped or scooter needs insurance checked first. Then switch on your Today tab."
+      ]
+    },
+    {
+      "id": "runner-travel-today",
+      "topic": "travel",
+      "when": ["how am i travelling today", "what's my travel mode", "how am i set to deliver"],
+      "replies": [
+        "Your Today tab says: today you are delivering, and then how.",
+        "Look at the Today tab. It names how you're delivering today."
+      ]
+    },
+    {
+      "id": "runner-parking",
+      "topic": "travel",
+      "when": ["where do i park", "can i park on double yellows", "there's nowhere to park"],
+      "replies": [
+        "Park legally and safely, even for a quick drop. A fine isn't worth it.",
+        "Find a proper space, even if it's a short walk. Safety first."
+      ]
+    },
+    {
+      "id": "runner-bike-lock",
+      "topic": "travel",
+      "when": ["where do i leave my bike", "do i lock my bike"],
+      "replies": [
+        "Lock it somewhere safe and in sight if you can.",
+        "Always lock it, even for a minute at the door."
+      ]
+    },
+    {
+      "id": "runner-breakdown",
+      "topic": "travel",
+      "when": ["my car broke down", "my bike has a puncture", "my car won't start"],
+      "replies": [
+        "Stay safe first. Call the Shopper through the app to let them know, and report a problem on the job.",
+        "Get somewhere safe, then let the Shopper know through the app. Report it so we can help."
+      ]
+    },
+    {
+      "id": "runner-running-late",
+      "topic": "travel",
+      "when": ["i'm running late", "i'm stuck in traffic", "i'll be late"],
+      "replies": [
+        "Call the Shopper through the app and let them know. A quick word means a lot.",
+        "Let them know through the app. Shoppers worry less when they're told."
+      ]
+    },
+    {
+      "id": "runner-dark",
+      "topic": "safety",
+      "when": ["it's getting dark", "delivering at night", "it's dark out"],
+      "replies": [
+        "Wear something bright, keep to well lit routes, and keep your phone charged.",
+        "Be seen, stay on lit streets, and trust your instincts."
+      ]
+    },
+    {
+      "id": "runner-phone-driving",
+      "topic": "safety",
+      "when": [
+        "can i use my phone while driving",
+        "can i call while driving",
+        "can i check the app while driving"
+      ],
+      "replies": [
+        "Never while driving. Pull over safely first.",
+        "No. Stop somewhere safe, then use your phone."
+      ]
+    },
+    {
+      "id": "runner-ice-snow",
+      "topic": "safety",
+      "when": ["it's icy", "it's snowing", "the roads are icy"],
+      "replies": [
+        "Go carefully. If it's not safe to travel, go off shift.",
+        "Take it slowly, and don't risk a fall for any job."
+      ]
+    },
+    {
+      "id": "runner-sos",
+      "topic": "safety",
+      "when": ["is there an sos button", "sos", "emergency button"],
+      "replies": [
+        "If you're in danger, call 999 now. An SOS button that shares your live location is planned for the Runner app.",
+        "For any emergency, call 999. An SOS button is coming."
+      ]
+    },
+    {
+      "id": "runner-feels-wrong",
+      "topic": "safety",
+      "when": [
+        "i don't feel safe at this address",
+        "something feels wrong",
+        "i don't like this place"
+      ],
+      "replies": [
+        "Trust your instinct. Leave, get somewhere safe, and report it. Call 999 if you're in danger.",
+        "You never have to stay somewhere that feels unsafe. Go, then tell us."
+      ]
+    },
+    {
+      "id": "runner-threatened",
+      "topic": "safety",
+      "when": ["someone is threatening me", "someone's following me", "i'm being followed"],
+      "replies": [
+        "Get to a busy place and call 999. Your safety comes before any job.",
+        "Call 999 now, and go somewhere with people around."
+      ]
+    },
+    {
+      "id": "runner-hurt-myself",
+      "topic": "safety",
+      "when": ["i've hurt myself", "i've had an accident", "i fell off my bike"],
+      "replies": [
+        "If you're badly hurt, call 999. If not, stop, look after yourself, and report it on the job when you can.",
+        "Your wellbeing first. Get help if you need it, then tell us."
+      ]
+    },
+    {
+      "id": "runner-dog-bite",
+      "topic": "safety",
+      "when": ["i've been bitten by a dog", "a dog bit me"],
+      "replies": [
+        "If it's serious, call 999. Otherwise NHS 111 can advise you. Then report it on the job.",
+        "Get yourself looked after first, with 111 or 999. Then tell us what happened."
+      ]
+    },
+    {
+      "id": "runner-lone-working",
+      "topic": "safety",
+      "when": ["is it safe to work alone", "working alone", "any safety tips"],
+      "replies": [
+        "Tell someone where you're working, keep your phone charged, and never go in anywhere you're not comfortable.",
+        "Trust your instincts, stay in touch with someone you know, and leave if anything feels wrong."
+      ]
+    },
+    {
+      "id": "runner-dont-want-inside",
+      "topic": "safety",
+      "when": ["i don't want to go inside", "do i have to go in"],
+      "replies": [
+        "You never have to. Hand it over at the door.",
+        "No. The door is enough. Go in only if you're asked and comfortable."
+      ]
+    },
+    {
+      "id": "runner-suspicious-package",
+      "topic": "safety",
+      "when": [
+        "something in the package looks wrong",
+        "i think there are drugs in the parcel",
+        "i found something dodgy"
+      ],
+      "replies": [
+        "Don't challenge anyone. Get yourself safe first, then report it from the job. We handle what comes next.",
+        "Your safety comes first. Step away, then report it. You're never expected to confront anyone."
+      ]
+    },
+    {
+      "id": "runner-lifting",
+      "topic": "safety",
+      "when": ["how do i lift safely", "my back hurts", "the bags hurt my hands"],
+      "replies": [
+        "Bend your knees, keep the load close, and take two trips if you need to. If pain doesn't ease, speak to a doctor or pharmacist.",
+        "Spread the weight and take your time. Look after your back."
+      ]
+    },
+    {
+      "id": "runner-uncomfortable",
+      "topic": "safety",
+      "when": ["the shopper made me uncomfortable", "the shopper was inappropriate"],
+      "replies": [
+        "Leave if you need to, and report it from the job. A person reads every report.",
+        "Your safety and dignity matter. Tell us what happened in report a problem."
+      ]
+    },
+    {
+      "id": "runner-call-shopper",
+      "topic": "calls",
+      "when": ["how do i call the shopper", "call the shopper", "ring the shopper"],
+      "replies": [
+        "Press the big green call button on your job. Neither of you sees the other's number.",
+        "Use the call button on your job. It's free for you."
+      ]
+    },
+    {
+      "id": "runner-not-picking-up",
+      "topic": "calls",
+      "when": [
+        "the shopper isn't picking up",
+        "no answer on the call",
+        "they won't answer the phone"
+      ],
+      "replies": [
+        "Try again in a minute. If they don't use the app, press ring their phone instead.",
+        "Give them a moment and call again. Many Shoppers are slow to the phone."
+      ]
+    },
+    {
+      "id": "runner-ring-their-phone",
+      "topic": "calls",
+      "when": [
+        "ring their phone instead",
+        "what is ring their phone instead",
+        "they don't have the app"
+      ],
+      "replies": [
+        "On an in-app call, press ring their phone instead. We ring their telephone for you, and you never see the number.",
+        "It rings the Shopper's own phone from our number. It costs them nothing, and the number stays hidden."
+      ]
+    },
+    {
+      "id": "runner-give-my-number",
+      "topic": "calls",
+      "when": [
+        "can i give the shopper my number",
+        "can i text the shopper",
+        "can i whatsapp the shopper"
+      ],
+      "replies": [
+        "Please don't. All contact goes through the in-app call, for everyone's safety.",
+        "Keep it in the app. No numbers are ever shared, either way."
+      ]
+    },
+    {
+      "id": "runner-shopper-asks-number",
+      "topic": "calls",
+      "when": ["the shopper wants my number", "they asked for my number"],
+      "replies": [
+        "Kindly say all calls go through the app. It keeps you both safe.",
+        "Explain that numbers are never shared, and they can call you through the app."
+      ]
+    },
+    {
+      "id": "runner-merge",
+      "topic": "calls",
+      "when": ["what is merge", "can a carer join the call", "add someone to the call"],
+      "replies": [
+        "Merge lets the Shopper add a carer or relative to the call, to speak for them. Only the Shopper can add someone, and you never pay.",
+        "The Shopper can bring a carer or relative into the call. That's their choice."
+      ]
+    },
+    {
+      "id": "runner-mute-call",
+      "topic": "calls",
+      "when": ["how do i mute the call", "mute myself"],
+      "replies": [
+        "Press mute on the call panel. Press unmute to talk again.",
+        "There's a mute button on the call. Press it again to unmute."
+      ]
+    },
+    {
+      "id": "runner-end-call",
+      "topic": "calls",
+      "when": ["how do i end the call", "hang up", "end the call"],
+      "replies": ["Press end call on the call panel.", "Press end call when you're done."]
+    },
+    {
+      "id": "runner-call-bad",
+      "topic": "calls",
+      "when": ["the call keeps dropping", "i can't hear them on the call", "the line is bad"],
+      "replies": [
+        "Move somewhere with better signal and call again.",
+        "Find a quieter spot with good signal, then try again."
+      ]
+    },
+    {
+      "id": "runner-call-shop-staff",
+      "topic": "calls",
+      "when": ["can i call the shop", "can i phone the shop"],
+      "replies": [
+        "Go in and ask, as any customer would. Shops don't take orders from us by phone.",
+        "Ask in person at the shop. You're buying as an ordinary customer."
+      ]
+    },
+    {
+      "id": "runner-report-attachments",
+      "topic": "problems",
+      "when": ["can i send photos", "can i send a video", "can i send a voice note"],
+      "replies": [
+        "Yes. Report a problem takes voice notes, typing, photos and video.",
+        "All of those. Add whatever shows what happened."
+      ]
+    },
+    {
+      "id": "runner-where-report",
+      "topic": "problems",
+      "when": ["where is report a problem", "find report a problem", "where do i report"],
+      "replies": [
+        "On each job in your Jobs tab.",
+        "Open your Jobs tab and choose the job. Report a problem is right there."
+      ]
+    },
+    {
+      "id": "runner-decision-time",
+      "topic": "problems",
+      "when": ["how long until a decision", "when will i hear back", "how long does a report take"],
+      "replies": [
+        "Staff aim to decide within two working days, and five at the most.",
+        "Usually within two working days. Never more than five."
+      ]
+    },
+    {
+      "id": "runner-small-refund",
+      "topic": "problems",
+      "when": ["will a small refund count against me", "does a small refund go on my record"],
+      "replies": [
+        "No. Items under {instantRefund} are refunded straight away, and never counted against you.",
+        "Small things are refunded at once, without investigation, and never held against a Runner."
+      ]
+    },
+    {
+      "id": "runner-who-pays-refunds",
+      "topic": "problems",
+      "when": ["who pays for refunds", "do i pay for mistakes", "will i pay for breakages"],
+      "replies": [
+        "The platform refunds the Shopper first. You only repay if staff decide, on the evidence, that you were at fault.",
+        "Refunds are the platform's to give. Only a written decision of fault can lead to a small repayment."
+      ]
+    },
+    {
+      "id": "runner-not-my-fault",
+      "topic": "problems",
+      "when": ["it wasn't my fault", "the shop gave me the wrong item", "the shop made a mistake"],
+      "replies": [
+        "Say so in report a problem, with any photos. If you're not at fault, you pay nothing.",
+        "Tell us exactly what happened. If the fault isn't yours, it costs you nothing."
+      ]
+    },
+    {
+      "id": "runner-complaint-about-me",
+      "topic": "problems",
+      "when": ["the shopper complained about me", "i got a complaint", "someone complained"],
+      "replies": [
+        "Staff look at the evidence. You'll be told in writing, and you can answer.",
+        "Nothing is decided without evidence, and you always get to give your side."
+      ]
+    },
+    {
+      "id": "runner-shop-problem",
+      "topic": "problems",
+      "when": ["the shop staff were rude", "problem at the shop", "the shop wouldn't serve me"],
+      "replies": [
+        "I'm sorry. Tell us in report a problem, or through tell us something on your More tab.",
+        "Let us know on the job. We want to hear about it."
+      ]
+    },
+    {
+      "id": "runner-report-later",
+      "topic": "problems",
+      "when": ["can i report later", "can i report an old job", "i forgot to report something"],
+      "replies": [
+        "Yes, from the job in your Jobs tab.",
+        "Any job in your Jobs tab can have a problem reported."
+      ]
+    },
+    {
+      "id": "runner-need-help-now",
+      "topic": "problems",
+      "when": ["i need help now", "it's urgent", "i need someone now"],
+      "replies": [
+        "If you're in danger, call 999. Otherwise, report a problem on your job and say it's urgent.",
+        "Call 999 for any emergency. For a job problem, report it on the job straight away."
+      ]
+    },
+    {
+      "id": "runner-speak-to-person",
+      "topic": "problems",
+      "when": ["can i speak to a person", "is there a real person", "can i talk to someone"],
+      "replies": [
+        "Report a problem on the job, or use tell us something on your More tab. A person reads every one.",
+        "A real person reads every report and every message from your More tab."
+      ]
+    },
+    {
+      "id": "runner-send-feedback",
+      "topic": "feedback",
+      "when": [
+        "how do i send feedback",
+        "i've got something to tell you",
+        "where do i give feedback"
+      ],
+      "replies": [
+        "Use tell us something on your More tab. A person reads every one.",
+        "Open the More tab, write it under tell us something, and press send."
+      ]
+    },
+    {
+      "id": "runner-anonymous-feedback",
+      "topic": "feedback",
+      "when": [
+        "can i send feedback anonymously",
+        "can i leave my name off",
+        "send it without my name"
+      ],
+      "replies": [
+        "Yes. Tick send it without my name before you send.",
+        "Of course. There's a box to send it without your name."
+      ]
+    },
+    {
+      "id": "runner-app-broken",
+      "topic": "feedback",
+      "when": ["something in the app is broken", "the app crashed", "the app is confusing"],
+      "replies": [
+        "Sorry about that. Tell us through tell us something on your More tab, and say what happened.",
+        "Thank you for spotting it. Describe it on your More tab, and we'll look into it."
+      ]
+    },
+    {
+      "id": "runner-love-job",
+      "topic": "encouragement",
+      "when": ["i love this job", "this job is great", "i really enjoy this"],
+      "replies": [
+        "That's wonderful to hear. Shoppers can feel it when someone cares.",
+        "And we love having you. Thank you."
+      ]
+    },
+    {
+      "id": "runner-idea-app",
+      "topic": "feedback",
+      "when": ["the app should have", "you should add", "it would be good if"],
+      "replies": [
+        "Good thinking. Send it from tell us something on your More tab.",
+        "Please tell us on the More tab. Ideas from Runners make the app better."
+      ]
+    },
+    {
+      "id": "runner-where-runner-id",
+      "topic": "share",
+      "when": ["where is my runner id", "what's my id", "find my runner id"],
+      "replies": [
+        "On your More tab, under your ID and your link.",
+        "Open the More tab. Your Runner ID is at the top."
+      ]
+    },
+    {
+      "id": "runner-share-link",
+      "topic": "share",
+      "when": ["how do i share my link", "share my link", "where's my share link"],
+      "replies": [
+        "Press share my link on your More tab, and send it in a message.",
+        "Your link is on the More tab. Share it with anyone who'd like to be a Runner."
+      ]
+    },
+    {
+      "id": "runner-invite-runner",
+      "topic": "share",
+      "when": [
+        "invite a friend to be a runner",
+        "my friend wants to be a runner",
+        "how can my mate join"
+      ],
+      "replies": [
+        "Send them your link from the More tab. They sign up in the app, and they're linked to you.",
+        "Share your link. Everything else they do in the app."
+      ]
+    },
+    {
+      "id": "runner-recommend-shoppers",
+      "topic": "share",
+      "when": [
+        "can i tell people about {product}",
+        "can i recommend shoppers",
+        "my nan could use this"
+      ],
+      "replies": [
+        "Please do. Anyone who finds shopping hard can sign up as a Shopper in the app.",
+        "Yes, tell them. Shoppers sign up in the app, by voice if they like."
+      ]
+    },
+    {
+      "id": "runner-runner-id-for",
+      "topic": "share",
+      "when": ["what's my runner id for", "why do i have an id"],
+      "replies": [
+        "It's yours alone. Anyone who signs up with your link is linked to you.",
+        "It identifies you, and links the people you invite."
+      ]
+    },
+    {
+      "id": "runner-beer-wine",
+      "topic": "rules",
+      "when": ["can i buy beer", "they want wine", "can i buy alcohol for them"],
+      "replies": [
+        "No alcohol, ever. Leave it out, even if they ask.",
+        "Alcohol is never bought on a job. Kindly explain and leave it out."
+      ]
+    },
+    {
+      "id": "runner-tobacco-vapes",
+      "topic": "rules",
+      "when": ["can i buy tobacco", "they want vapes", "can i get them a lighter"],
+      "replies": [
+        "No tobacco, and nothing age restricted.",
+        "That's not allowed on a job. Leave it out, kindly."
+      ]
+    },
+    {
+      "id": "runner-medicines",
+      "topic": "rules",
+      "when": ["can i buy medicine", "they need painkillers", "can i pick up a prescription"],
+      "replies": [
+        "We don't carry medicines. Prescriptions are only collected for a pharmacy that has signed up with us, under its own rules.",
+        "Medicines are never bought on a job. Leave them out, and suggest they speak to their pharmacy."
+      ]
+    },
+    {
+      "id": "runner-cash-rule",
+      "topic": "rules",
+      "when": [
+        "can i carry cash for them",
+        "they want me to take money to someone",
+        "can i give them change"
+      ],
+      "replies": [
+        "No cash, ever. Not to carry, not to take, not as change.",
+        "Cash is never part of a job."
+      ]
+    },
+    {
+      "id": "runner-why-no-alcohol",
+      "topic": "rules",
+      "when": ["why no alcohol", "why can't i buy alcohol"],
+      "replies": [
+        "Alcohol needs age checks, and we never do identity checks at the door. So it's left out completely.",
+        "To keep handovers quick and free of identity checks. It's not part of version one."
+      ]
+    },
+    {
+      "id": "runner-sending-job",
+      "topic": "rules",
+      "when": ["can i carry a parcel", "what is a sending job", "how does sending work"],
+      "replies": [
+        "A sending job carries something from one place to another. The sender shows you what's inside, open, at the door.",
+        "You carry it from one address to another, after the sender has shown you the contents."
+      ]
+    },
+    {
+      "id": "runner-show-contents",
+      "topic": "rules",
+      "when": ["do i have to see what's in the parcel", "they won't show me what's inside"],
+      "replies": [
+        "The sender shows you, open, at the door. If they won't, don't take it.",
+        "No showing, no carrying. You can decline any sending job without a reason."
+      ]
+    },
+    {
+      "id": "runner-decline-sending",
+      "topic": "rules",
+      "when": ["can i refuse a sending job", "i don't want to carry this"],
+      "replies": [
+        "Yes. You may decline any sending job without a reason, and without penalty.",
+        "Always. No reason needed."
+      ]
+    },
+    {
+      "id": "runner-size-rule",
+      "topic": "rules",
+      "when": ["how big can a parcel be", "it's too big to carry", "is there a size limit"],
+      "replies": [
+        "If it doesn't fit in the boot of a saloon car, we don't carry it.",
+        "Boot of a saloon car: that's the limit."
+      ]
+    },
+    {
+      "id": "runner-prohibited",
+      "topic": "rules",
+      "when": ["prohibited items", "what can't i carry", "what's not allowed in a parcel"],
+      "replies": [
+        "No cash, medicines, alcohol, tobacco, fireworks, flammable liquids, aerosols, illegal drugs, weapons or loose lithium batteries.",
+        "Nothing dangerous, illegal or age restricted, and nothing the sender won't show you."
+      ]
+    },
+    {
+      "id": "runner-batteries",
+      "topic": "rules",
+      "when": ["can i carry batteries", "lithium batteries"],
+      "replies": [
+        "Packaged batteries bought from a shop are fine. Loose lithium batteries are never carried.",
+        "Shop packs are fine. Loose lithium ones, never."
+      ]
+    },
+    {
+      "id": "runner-aerosols",
+      "topic": "rules",
+      "when": ["can i carry aerosols", "can i carry gas"],
+      "replies": [
+        "No aerosols or compressed gases in a sending job.",
+        "Not in a parcel. They're on the list we never carry."
+      ]
+    },
+    {
+      "id": "runner-keep-details",
+      "topic": "rules",
+      "when": [
+        "can i keep the shopper's address",
+        "can i save their details",
+        "can i write down their address"
+      ],
+      "replies": [
+        "No. Use their details only for the job. Old jobs show just the area, not the full address.",
+        "Please don't keep them. Privacy is part of our promise."
+      ]
+    },
+    {
+      "id": "runner-photos-online",
+      "topic": "rules",
+      "when": [
+        "can i post about a delivery online",
+        "can i take photos of the shopper",
+        "can i film the delivery"
+      ],
+      "replies": [
+        "Please don't. Shoppers' privacy matters. Photos are only for a handover record or a problem report.",
+        "Keep Shoppers out of social media, always."
+      ]
+    },
+    {
+      "id": "runner-shopper-name",
+      "topic": "jobs",
+      "when": ["what's the shopper's name", "who am i shopping for"],
+      "replies": [
+        "It's at the top of your job while you're doing it.",
+        "Your job says who you're shopping for."
+      ]
+    },
+    {
+      "id": "runner-customer-word",
+      "topic": "manners",
+      "when": [
+        "is it customer or shopper",
+        "what do i call the customer",
+        "what do we call the people we deliver to"
+      ],
+      "replies": ["We say Shopper. Never customer.", "Shoppers, always. And you're a Runner."]
+    },
+    {
+      "id": "runner-bring-children",
+      "topic": "rules",
+      "when": ["can i bring my child", "can i bring my kids on a job"],
+      "replies": [
+        "Jobs are done by the Runner whose checks we've made, so please come on your own.",
+        "Please do jobs on your own. Only you have been checked."
+      ]
+    },
+    {
+      "id": "runner-how-am-i-doing",
+      "topic": "encouragement",
+      "when": ["how am i doing", "did i do well", "am i doing alright"],
+      "replies": [
+        "You're doing well. Every delivery helps someone eat well this week.",
+        "Very well. Keep going, one kind job at a time."
+      ]
+    },
+    {
+      "id": "runner-hard-day",
+      "topic": "encouragement",
+      "when": ["i'm fed up", "today's been hard", "i'm having a bad day"],
+      "replies": [
+        "I'm sorry it's been hard. Take a breath. What you do really matters to people.",
+        "Be kind to yourself. Go off shift if you need to. Tomorrow's a new day."
+      ]
+    },
+    {
+      "id": "runner-joke",
+      "topic": "manners",
+      "when": ["tell me a joke", "make me laugh"],
+      "replies": [
+        "Why did the banana go to the doctor? It wasn't peeling well.",
+        "Why did the tomato blush? It saw the salad dressing."
+      ]
+    },
+    {
+      "id": "runner-sorry",
+      "topic": "manners",
+      "when": ["sorry", "my mistake", "my bad"],
+      "replies": [
+        "No need to apologise. Let's carry on.",
+        "That's all right. What would you like to do?"
+      ]
+    },
+    {
+      "id": "runner-hiya",
+      "topic": "manners",
+      "when": ["hiya", "hey there", "hello there"],
+      "replies": ["Hello. Ready for a run?", "Hi. How can I help?"]
+    },
+    {
+      "id": "runner-goodbye",
+      "topic": "manners",
+      "when": ["goodbye", "see you tomorrow", "catch you later"],
+      "replies": ["Goodbye. Take care.", "See you soon. Rest well."]
+    },
+    {
+      "id": "runner-thanks-more",
+      "topic": "manners",
+      "when": ["thanks a lot", "much appreciated", "ta very much"],
+      "replies": ["You're welcome. Safe travels.", "Any time."]
+    },
+    {
+      "id": "runner-who-made-you",
+      "topic": "about",
+      "when": ["who made you", "who created you", "who built you"],
+      "replies": [
+        "I was made for {product}, founded by Anthony. {motto}",
+        "{product} built me to help its Runners and Shoppers."
+      ]
+    },
+    {
+      "id": "runner-are-you-real",
+      "topic": "about",
+      "when": ["are you a real person", "are you a robot", "am i talking to a person"],
+      "replies": [
+        "I'm {assistant}, a voice assistant, not a person. A person reads every report and message you send.",
+        "I'm an assistant. For a person, report a problem or use tell us something."
+      ]
+    },
+    {
+      "id": "runner-listening",
+      "topic": "manners",
+      "when": ["are you listening", "can you hear me"],
+      "replies": ["Yes, I'm listening.", "I'm here. Go ahead."]
+    },
+    {
+      "id": "runner-cant-hear-you",
+      "topic": "manners",
+      "when": ["i can't hear you", "speak up", "you're too quiet"],
+      "replies": [
+        "Turn up your phone's volume, then ask me again.",
+        "Try your volume buttons, and I'll say it again."
+      ]
+    },
+    {
+      "id": "runner-stop-talking",
+      "topic": "manners",
+      "when": ["stop talking", "be quiet", "turn off talking"],
+      "replies": [
+        "Of course. Use the switch at the bottom of the screen, or Settings. Say hey {assistant}, turn on, to bring me back.",
+        "I'll be quiet. The switch at the bottom of the screen turns me back on."
+      ]
+    },
+    {
+      "id": "runner-your-name",
+      "topic": "about",
+      "when": ["what's your name", "what are you called"],
+      "replies": ["I'm {assistant}. {motto}", "{assistant}. I'm here to help Runners."]
+    },
+    {
+      "id": "runner-name-meaning",
+      "topic": "about",
+      "when": ["what does your name mean", "what does the name mean"],
+      "replies": ["{assistant} is Igbo for message.", "It's an Igbo word. It means message."]
+    },
+    {
+      "id": "runner-motto",
+      "topic": "about",
+      "when": ["what's the motto", "what's your motto"],
+      "replies": ["{motto}", "Our motto is: {motto}"]
+    },
+    {
+      "id": "runner-founder",
+      "topic": "about",
+      "when": ["who runs {product}", "who's the boss", "who started {product}"],
+      "replies": [
+        "{product} was founded by Anthony.",
+        "Anthony founded {product}, for people who find shopping hard."
+      ]
+    },
+    {
+      "id": "runner-why-called-runner",
+      "topic": "about",
+      "when": ["why am i called a runner", "why runner"],
+      "replies": [
+        "Because you run the shopping that makes someone's week. Shoppers and Runners: that's us.",
+        "You're the one who runs it to their door."
+      ]
+    },
+    {
+      "id": "runner-tough-one",
+      "topic": "encouragement",
+      "when": ["that was a tough one", "that was hard", "that job was difficult"],
+      "replies": [
+        "You did it. Well done. Take a moment before the next one.",
+        "Hard jobs matter most. Thank you for sticking with it."
+      ]
+    },
+    {
+      "id": "runner-first-delivery-done",
+      "topic": "encouragement",
+      "when": ["i did my first delivery", "first job done", "i finished my first job"],
+      "replies": [
+        "Congratulations! The first is the hardest. You've earned {runnerPay}.",
+        "Brilliant. That's your first of many."
+      ]
+    },
+    {
+      "id": "runner-helped-someone",
+      "topic": "encouragement",
+      "when": ["i helped someone today", "i made someone's day"],
+      "replies": [
+        "You did. That's what this is all about.",
+        "That's the best part of the job. Thank you."
+      ]
+    },
+    {
+      "id": "runner-shopper-lovely",
+      "topic": "encouragement",
+      "when": ["the shopper was lovely", "the shopper thanked me", "they were so grateful"],
+      "replies": [
+        "That's lovely to hear. Moments like that are why we do this.",
+        "You earned that thanks. Well done."
+      ]
+    },
+    {
+      "id": "runner-bored",
+      "topic": "encouragement",
+      "when": ["i'm bored", "nothing's happening"],
+      "replies": [
+        "Stay on shift; a job will come. Have a look at your Training tab meanwhile.",
+        "Quiet spells pass. Keep your shift on."
+      ]
+    },
+    {
+      "id": "runner-youre-the-best",
+      "topic": "manners",
+      "when": ["you're the best", "you're brilliant", "good bot"],
+      "replies": [
+        "That's kind. You're doing brilliant work yourself.",
+        "Thank you. Right back at you."
+      ]
+    },
+    {
+      "id": "runner-ok-thanks",
+      "topic": "manners",
+      "when": ["okay thanks", "ok got it", "understood"],
+      "replies": ["Good. I'm here if you need me.", "Great. Carry on, and ask any time."]
+    },
+    {
+      "id": "runner-what-should-i-ask",
+      "topic": "about",
+      "when": ["what should i ask you", "what do you know", "what can you help with"],
+      "replies": [
+        "Pay, shifts, offers, the shop, the till, the door, documents, travel, calls and problems.",
+        "Ask about anything in a Runner's day, from the offer to the doorstep."
+      ]
+    },
+    {
+      "id": "runner-tabs",
+      "topic": "app",
+      "when": ["what tabs are there", "where is everything", "how is the app laid out"],
+      "replies": [
+        "Today, Jobs, Money, Training and More.",
+        "Five tabs: Today for shifts and jobs, Jobs for history, Money for pay, Training, and More for your ID, documents and feedback."
+      ]
+    },
+    {
+      "id": "runner-job-history",
+      "topic": "app",
+      "when": ["where's my job history", "past jobs", "jobs i've done"],
+      "replies": [
+        "Your Jobs tab, newest first: date, area, pay and reference.",
+        "Open the Jobs tab to see every job you've done."
+      ]
+    },
+    {
+      "id": "runner-show-words",
+      "topic": "app",
+      "when": ["show words on the screen", "the screen has no words", "can i see the words"],
+      "replies": [
+        "Turn on show words on the screen, under The screen on your Runner page.",
+        "There's a switch under The screen to show the words."
+      ]
+    },
+    {
+      "id": "runner-text-bigger",
+      "topic": "app",
+      "when": ["make the text bigger", "the text is too small", "i can't read the screen"],
+      "replies": [
+        "Pinch to zoom, or make text bigger in your phone's settings.",
+        "Spread two fingers on the screen to zoom in."
+      ]
+    },
+    {
+      "id": "runner-training-what",
+      "topic": "training",
+      "when": ["what training is there", "training modules", "do i have to do training"],
+      "replies": [
+        "Short lessons are coming: guiding a blind Shopper, food hygiene and the cool box, working alone safely, and more. Some jobs will need them.",
+        "Your Training tab lists them. They're being written now, each read aloud and written."
+      ]
+    },
+    {
+      "id": "runner-stop-being-runner",
+      "topic": "app",
+      "when": [
+        "how do i stop being a runner",
+        "close my runner account",
+        "delete my runner account"
+      ],
+      "replies": [
+        "Sorry to see you go. Tell us through tell us something on your More tab, and we'll help.",
+        "Send us a message from the More tab, and we'll sort it out with you."
+      ]
+    },
+    {
+      "id": "runner-who-are-shoppers",
+      "topic": "about",
+      "when": ["who are the shoppers", "who do we deliver to", "who uses {product}"],
+      "replies": [
+        "Mostly people who find it hard to get out: blind, partially sighted and elderly people first.",
+        "People who need a hand with shopping. For many, you're their lifeline."
+      ]
+    },
+    {
+      "id": "runner-where-deliver",
+      "topic": "about",
+      "when": ["where do we deliver", "which areas", "is it only medway"],
+      "replies": ["We start in Medway.", "Medway first, with more areas to come."]
+    },
+    {
+      "id": "runner-errands",
+      "topic": "about",
+      "when": ["what are errands", "what is an errand"],
+      "replies": [
+        "An errand is time spent on a Shopper's behalf, like queuing at the post office or returning an item.",
+        "Doing a task for a Shopper, such as dropping clothes at a charity shop."
+      ]
+    },
+    {
+      "id": "runner-finds-it",
+      "topic": "about",
+      "when": ["what is finds it", "how does finds it work"],
+      "replies": [
+        "{assistant} Finds It is where someone looks in up to three shops for something hard to find, for a Shopper.",
+        "It's a search for hard to find things, across up to three shops."
+      ]
+    },
+    {
+      "id": "runner-why-patience",
+      "topic": "about",
+      "when": ["why are shoppers slow", "why does it take so long at the door"],
+      "replies": [
+        "Many of our Shoppers are elderly or can't see. Getting to the door takes time. Your patience is part of the service.",
+        "They may be finding their way by touch. Wait kindly."
+      ]
+    },
+    {
+      "id": "runner-order-cancelled",
+      "topic": "jobs",
+      "when": ["the job disappeared", "the order was cancelled", "my job has gone"],
+      "replies": [
+        "Look at your Today tab. If you've already paid at the till, report a problem straight away with the receipt.",
+        "If a job is gone after you've shopped, report a problem with a photo of the receipt."
+      ]
+    },
+    {
+      "id": "runner-headphones",
+      "topic": "safety",
+      "when": ["can i wear headphones", "can i listen to music while delivering"],
+      "replies": [
+        "Keep one ear free, so you hear traffic and the Shopper's calls.",
+        "Keep the volume low and stay aware of the road around you."
+      ]
+    },
+    {
+      "id": "runner-what-to-say-at-door",
+      "topic": "delivery",
+      "when": [
+        "what should i say when they open the door",
+        "how do i introduce myself",
+        "should i give my name"
+      ],
+      "replies": [
+        "Say: hello, I'm your first name, from {product}, with your shopping.",
+        "Your first name and that you're from {product}. Simple and warm."
+      ]
+    },
+    {
+      "id": "runner-worried-about-shopper",
+      "topic": "safety",
+      "when": [
+        "i'm worried about the shopper",
+        "the shopper doesn't seem okay",
+        "the house is in a bad state"
+      ],
+      "replies": [
+        "If a life is at risk, call 999. Otherwise tell us in report a problem. A wellbeing check, with the Shopper's agreement, is planned.",
+        "Thank you for caring. Call 999 in an emergency; otherwise report it from the job."
+      ]
+    },
+    {
+      "id": "runner-who-checks-documents",
+      "topic": "documents",
+      "when": ["who checks my documents", "who approves runners"],
+      "replies": [
+        "Our Runner onboarding staff check them, in the admin panel.",
+        "A member of our team checks each one."
+      ]
+    },
+    {
+      "id": "runner-shop-at-chain",
+      "topic": "shopping",
+      "when": [
+        "can i shop at a big supermarket",
+        "is the shop a partner",
+        "does the shop know i'm from {product}"
+      ],
+      "replies": [
+        "You buy as an ordinary customer. Big chains are listed by name, with no partnership.",
+        "No need to say. You shop like anyone else."
+      ]
+    },
+    {
+      "id": "runner-estimate-wrong",
+      "topic": "shopping",
+      "when": [
+        "the app prices are wrong",
+        "the estimate was way off",
+        "why are the prices different"
+      ],
+      "replies": [
+        "App prices are estimates, many from Runners' receipts. The till decides what the Shopper pays.",
+        "Prices change. What the till says is what counts."
+      ]
+    },
+    {
+      "id": "runner-two-trips",
+      "topic": "delivery",
+      "when": ["can i make two trips", "it's too much to carry in one go"],
+      "replies": [
+        "Yes. Two safe trips are better than one heavy one.",
+        "Of course. Take what you can carry safely each time."
+      ]
+    },
+    {
+      "id": "runner-shopper-upset",
+      "topic": "delivery",
+      "when": ["the shopper is upset", "the shopper is crying"],
+      "replies": [
+        "Be gentle and kind. If you're worried for their safety, call 999; otherwise, tell us in report a problem.",
+        "A kind word goes a long way. Tell us afterwards if you're concerned."
+      ]
+    },
+    {
+      "id": "runner-extra-favour",
+      "topic": "delivery",
+      "when": [
+        "they asked me to post a letter",
+        "can i do an extra job for the shopper",
+        "they want me to take their bins out"
+      ],
+      "replies": [
+        "Stick to the job in the app. Kindly say you can only do what's booked.",
+        "That's kind of you to consider, but only the job in the app is covered."
+      ]
+    },
+    {
+      "id": "runner-lend-money",
+      "topic": "rules",
+      "when": ["can i lend them money", "they asked to borrow money"],
+      "replies": [
+        "No. Cash is never part of a job, however kind the reason.",
+        "Kindly say no. We never handle money at the door."
+      ]
+    },
+    {
+      "id": "runner-no-runner-accepts",
+      "topic": "offers",
+      "when": ["what happens if no runner accepts", "what if nobody takes the job"],
+      "replies": [
+        "It moves on to the next Runner in turn until someone takes it.",
+        "The offer keeps going round Runners on shift nearby."
+      ]
+    },
+    {
+      "id": "runner-training-ready",
+      "topic": "training",
+      "when": ["when will training be ready", "is training ready yet"],
+      "replies": [
+        "The lessons are being written now. Each will show on your Training tab, with a mark when you pass it.",
+        "Soon. Keep an eye on your Training tab."
+      ]
+    },
+    {
+      "id": "runner-training-needed",
+      "topic": "training",
+      "when": ["do i need training to start", "do i need to pass anything"],
+      "replies": [
+        "Some jobs will only be offered after the lessons they need.",
+        "Not for ordinary jobs yet. Some jobs will need lessons later."
+      ]
+    },
+    {
+      "id": "runner-barred-list",
+      "topic": "documents",
+      "when": ["what is the barred list", "what is the adults barred list"],
+      "replies": [
+        "It's a list of people barred from certain work with adults. An enhanced DBS check looks at it.",
+        "An enhanced DBS check includes it. It's needed for some jobs."
+      ]
+    },
+    {
+      "id": "runner-stolen",
+      "topic": "safety",
+      "when": ["someone stole my bike", "the shopping was stolen", "i've been robbed"],
+      "replies": [
+        "Don't chase anyone. Get safe, call 999 if you're in danger or 101 if not, then report a problem.",
+        "Your safety first. Call the police, then tell us on the job."
+      ]
+    },
+    {
+      "id": "runner-boost",
+      "topic": "encouragement",
+      "when": ["motivate me", "give me some encouragement", "i need a boost"],
+      "replies": [
+        "Every bag you carry is a week of good food for someone who can't get out. That's a big deal.",
+        "You're the reason someone eats well today. Keep going."
+      ]
+    },
+    {
+      "id": "runner-birthday",
+      "topic": "manners",
+      "when": ["it's my birthday", "today's my birthday"],
+      "replies": [
+        "Happy birthday! Do something nice for yourself today.",
+        "Happy birthday. I hope the day treats you well."
+      ]
+    },
+    {
+      "id": "runner-festive",
+      "topic": "manners",
+      "when": ["merry christmas", "happy new year", "eid mubarak", "happy diwali"],
+      "replies": ["And to you. Thank you for all you do.", "Warm wishes to you and yours."]
+    },
+    {
+      "id": "runner-good-luck",
+      "topic": "manners",
+      "when": ["wish me luck", "good luck"],
+      "replies": ["Good luck. You'll do brilliantly.", "Best of luck. Take care out there."]
+    },
+    {
+      "id": "runner-well-done",
+      "topic": "manners",
+      "when": ["well done", "nice work"],
+      "replies": ["Thank you. And well done to you.", "Thanks. You're the one doing the real work."]
+    },
+    {
+      "id": "runner-nice-to-meet",
+      "topic": "manners",
+      "when": ["nice to meet you", "pleased to meet you"],
+      "replies": [
+        "Nice to meet you too. I'm here whenever you need me.",
+        "Likewise. Ask me anything."
+      ]
+    },
+    {
+      "id": "runner-cold-weather",
+      "topic": "safety",
+      "when": ["i'm cold", "it's freezing", "it's windy"],
+      "replies": [
+        "Wrap up warm and take breaks somewhere dry. Go off shift if it's not safe out.",
+        "Layers, gloves and care on the roads. Look after yourself."
+      ]
+    },
+    {
+      "id": "runner-carry-bags",
+      "topic": "delivery",
+      "when": ["how do i carry so many bags", "should i use a backpack"],
+      "replies": [
+        "A sturdy bag or backpack helps, with the cool bag for cold things. Spread the weight evenly.",
+        "Balance the bags across both hands, and take two trips if needed."
+      ]
+    },
+    {
+      "id": "runner-early",
+      "topic": "delivery",
+      "when": ["can i deliver early", "i'm early"],
+      "replies": [
+        "Yes. Shoppers are glad to get their shopping. Press I am on my way so they know.",
+        "Early is fine. Give them time to reach the door."
+      ]
+    },
+    {
+      "id": "runner-read-receipt",
+      "topic": "delivery",
+      "when": ["the shopper wants the receipt read out", "should i read the receipt to them"],
+      "replies": [
+        "Of course, if they'd like. Read each line slowly and clearly.",
+        "Yes. Read it calmly, and point out anything left out."
+      ]
+    },
+    {
+      "id": "runner-check-together",
+      "topic": "delivery",
+      "when": ["should i check the shopping with them", "go through the bags with them"],
+      "replies": [
+        "If they'd like, go through the bags together.",
+        "It's a kind touch, especially for a blind Shopper."
+      ]
+    },
+    {
+      "id": "runner-something-missing-door",
+      "topic": "delivery",
+      "when": ["they say something is missing", "the shopper says an item is missing"],
+      "replies": [
+        "Check the bags together. If it's really missing, report a problem on the job.",
+        "Look carefully with them. Then report it, and it'll be put right."
+      ]
+    },
+    {
+      "id": "runner-carer-present",
+      "topic": "delivery",
+      "when": ["the shopper's carer is there", "their carer answered"],
+      "replies": [
+        "Hand over as the doorstep note says, and be friendly to them too.",
+        "Follow the doorstep note. If unsure, call the Shopper through the app."
+      ]
+    },
+    {
+      "id": "runner-where-put-bags",
+      "topic": "delivery",
+      "when": ["where do i put the bags", "where should i leave the shopping"],
+      "replies": [
+        "Where the Shopper asks, or as the doorstep note says.",
+        "Ask them. For a blind Shopper, say exactly where you've put each bag."
+      ]
+    },
+    {
+      "id": "runner-call-before-arriving",
+      "topic": "delivery",
+      "when": ["should i call before i arrive", "do i let them know i'm coming"],
+      "replies": [
+        "Pressing I am on my way lets them know. A call helps if they're slow to the door.",
+        "A quick in-app call as you get close can help them be ready."
+      ]
+    },
+    {
+      "id": "runner-all-time-earnings",
+      "topic": "pay",
+      "when": ["what have i earned in all", "all time earnings", "how much have i made altogether"],
+      "replies": [
+        "Your Money tab shows today, this week, and in all.",
+        "The in all figure on your Money tab is your total."
+      ]
+    },
+    {
+      "id": "runner-being-repaid",
+      "topic": "pay",
+      "when": ["what am i repaying", "being repaid", "how much do i still owe"],
+      "replies": [
+        "Your Money tab, under being repaid, shows what's left on each one.",
+        "Look on the Money tab. Each amount has its order reference and reason."
+      ]
+    },
+    {
+      "id": "runner-found-at-fault",
+      "topic": "problems",
+      "when": ["how do i know if i was found at fault", "will i be told about a decision"],
+      "replies": [
+        "You're given every decision in writing, and you can answer it.",
+        "Yes. Decisions are written down and given to you."
+      ]
+    },
+    {
+      "id": "runner-shopper-wants-refund",
+      "topic": "problems",
+      "when": ["the shopper wants a refund", "the shopper wants their money back"],
+      "replies": [
+        "Don't give money yourself. Report what happened on the job, and the refund is sorted from there.",
+        "Say kindly that it will be looked at. Then report it on the job."
+      ]
+    },
+    {
+      "id": "runner-refund-speed",
+      "topic": "problems",
+      "when": ["how quickly are shoppers refunded", "when do shoppers get refunds"],
+      "replies": [
+        "A refund goes back to the card the same day it's decided.",
+        "Same day as the decision, back to their card."
+      ]
+    },
+    {
+      "id": "runner-discount",
+      "topic": "rules",
+      "when": ["can i give them a discount", "can i knock something off"],
+      "replies": [
+        "No. The Shopper pays the till total and the delivery fee, nothing else.",
+        "Prices aren't ours to change at the door."
+      ]
+    },
+    {
+      "id": "runner-max-basket",
+      "topic": "jobs",
+      "when": ["what's the maximum basket", "is there a basket limit"],
+      "replies": [
+        "One delivery carries up to {maximum} of shopping.",
+        "{maximum} of shopping at most, so it's safe for one Runner to carry."
+      ]
+    },
+    {
+      "id": "runner-instant-refund",
+      "topic": "problems",
+      "when": ["what is an instant refund", "are small items refunded straight away"],
+      "replies": [
+        "Items under {instantRefund} are refunded straight away, without investigation.",
+        "Under {instantRefund}, the Shopper gets it back at once. It's never counted against you."
+      ]
+    },
+    {
+      "id": "runner-pay-cut",
+      "topic": "pay",
+      "when": ["will my pay go down", "can you cut my pay"],
+      "replies": [
+        "Your pay is {runnerPay} for every standard delivery, untouched by the size of the basket.",
+        "{runnerPay} per standard job. Shoppers' extras never come out of it."
+      ]
+    },
+    {
+      "id": "runner-help-shift",
+      "topic": "help",
+      "when": ["help with shifts", "help with pay", "help with the door"],
+      "replies": [
+        "Ask me in your own words, like how do I go on shift, or when do I get paid.",
+        "Just ask the question as you'd say it. I'll do my best."
+      ]
+    },
+    {
+      "id": "runner-what-time-shops",
+      "topic": "shopping",
+      "when": ["what if the shop is about to close", "the shop is closing soon"],
+      "replies": [
+        "Don't take risks with time. If you can't finish before closing, report a problem from the job.",
+        "Shop quickly but carefully, and tell us if you can't finish."
+      ]
+    },
+    {
+      "id": "runner-self-checkout",
+      "topic": "shopping",
+      "when": ["can i use the self checkout", "self service till"],
+      "replies": [
+        "Yes, any till is fine. Keep the receipt and enter its total.",
+        "Of course. Just make sure you get a receipt."
+      ]
+    },
+    {
+      "id": "runner-bag-split",
+      "topic": "delivery",
+      "when": ["a bag split", "the bag broke", "the handle snapped"],
+      "replies": [
+        "Gather everything carefully. If anything's damaged, report a problem with a photo.",
+        "No harm. Repack it and carry on, and report anything damaged."
+      ]
+    },
+    {
+      "id": "runner-shopper-smell-gas",
+      "topic": "safety",
+      "when": ["i can smell gas", "there's a fire"],
+      "replies": [
+        "Get out and away, and call 999 now.",
+        "Leave straight away and call 999. Don't go back in."
+      ]
+    },
+    {
+      "id": "runner-crossing",
+      "topic": "safety",
+      "when": ["the road is busy", "is it safe to cross"],
+      "replies": [
+        "Use a crossing, take your time, and don't rush for any job.",
+        "Safety first. A minute's wait never hurt a delivery."
+      ]
+    },
+    {
+      "id": "runner-no-bags-shop",
+      "topic": "shopping",
+      "when": ["the shop has no bags", "i've run out of bags"],
+      "replies": [
+        "Ask the shop staff, and pack carefully. Tell us through tell us something if it keeps happening.",
+        "Carry spare bags next time. For now, use what the shop has."
+      ]
+    },
+    {
+      "id": "runner-shift-location",
+      "topic": "shift",
+      "when": ["do i need to be near the shop", "where should i wait for jobs"],
+      "replies": [
+        "Jobs are offered to Runners near the shop, so wait somewhere you can reach easily.",
+        "Be near the shops you'd like to work from, and keep your shift on."
+      ]
+    },
+    {
+      "id": "runner-hand-over-adult",
+      "topic": "delivery",
+      "when": ["a child answered the door", "can i give it to a child"],
+      "replies": [
+        "Ask for the Shopper, or call them through the app. Hand over as they tell you.",
+        "Check with the Shopper first by calling through the app."
+      ]
+    },
+    {
+      "id": "runner-help-me-think",
+      "topic": "help",
+      "when": ["i'm stuck", "i don't know what to do"],
+      "replies": [
+        "Tell me what's happening, in your own words. If it's a job problem, report it on the job.",
+        "Take a breath. Ask me about the step you're on, and we'll work it out."
+      ]
+    },
+    {
+      "id": "runner-good-runner",
+      "topic": "encouragement",
+      "when": ["what makes a good runner", "how do i become a great runner"],
+      "replies": [
+        "Care, patience and honesty. Ask before any swap, and treat every Shopper like family.",
+        "Get the list right, be kind at the door, and keep yourself safe."
+      ]
+    },
+    {
+      "id": "runner-bad-mistake",
+      "topic": "encouragement",
+      "when": ["i made a big mistake", "i messed up", "i got it wrong"],
+      "replies": [
+        "It happens. Be honest with the Shopper, report it on the job, and learn from it.",
+        "Everyone slips sometimes. Tell us, and we'll help put it right."
+      ]
+    },
+    {
+      "id": "runner-why-sixty",
+      "topic": "offers",
+      "when": ["why only sixty seconds", "why is the offer so short"],
+      "replies": [
+        "So Shoppers aren't kept waiting. If you miss it, it goes to the next Runner and another will come.",
+        "It keeps jobs moving quickly for Shoppers who need them."
+      ]
+    },
+    {
+      "id": "runner-deliver-for-family",
+      "topic": "rules",
+      "when": ["can i deliver to my own family", "can i do jobs for my friends"],
+      "replies": [
+        "Jobs come to you in turn, like anyone else's. Treat each one the same.",
+        "Any job you're offered, you do the same careful way."
+      ]
+    },
+    {
+      "id": "runner-phone-call-shopper-cost",
+      "topic": "calls",
+      "when": ["does ringing their phone cost them", "is ring their phone free"],
+      "replies": [
+        "No. Ringing their phone instead costs the Shopper nothing.",
+        "It's free for them, and free for you."
+      ]
+    },
+    {
+      "id": "runner-shopper-number-seen",
+      "topic": "calls",
+      "when": ["will the shopper see my number", "is my number private"],
+      "replies": [
+        "No. No Shopper ever sees a Runner's number. All calls go through the app.",
+        "Your number stays private, always."
+      ]
+    },
+    {
+      "id": "runner-insurance-walking",
+      "topic": "travel",
+      "when": ["do i need insurance to walk", "do i need insurance for a bike"],
+      "replies": [
+        "No. Walking and cycling need no insurance.",
+        "Not on foot or by bicycle. Only a car, motorbike or scooter needs it."
+      ]
+    },
+    {
+      "id": "runner-pace-yourself",
+      "topic": "encouragement",
+      "when": ["how many jobs should i do", "am i doing enough jobs"],
+      "replies": [
+        "As many as you can do well and safely. Quality matters more than numbers.",
+        "There's no target. Do what suits you, and do it with care."
+      ]
+    },
+    {
+      "id": "runner-frozen-thawed",
+      "topic": "cool bag",
+      "when": ["the frozen food has thawed", "the chilled stuff got warm"],
+      "replies": [
+        "Tell the Shopper honestly and report a problem with a photo. Don't hand over food that isn't safe.",
+        "Be honest about it, and report it on the job so the Shopper is looked after."
+      ]
+    },
+    {
+      "id": "runner-weather-ok",
+      "topic": "manners",
+      "when": ["lovely day", "nice weather today"],
+      "replies": ["It is. Enjoy it out there.", "A good day for a run."]
+    },
+    {
+      "id": "runner-shopper-thanks-ozi",
+      "topic": "manners",
+      "when": ["the shopper says thank you to {product}", "they said to thank you"],
+      "replies": [
+        "How kind. Please thank them from all of us.",
+        "That means a lot. Thank you for passing it on."
+      ]
+    },
+    {
+      "id": "runner-who-gets-my-info",
+      "topic": "documents",
+      "when": ["what do shoppers know about me", "what does the shopper see about me"],
+      "replies": [
+        "Your photo, so they know it's you at the door. Never your number.",
+        "Just enough to know it's you at the door. Your number is never shared."
+      ]
+    },
+    {
+      "id": "runner-multiple-shops",
+      "topic": "jobs",
+      "when": ["is there more than one shop", "do i go to two shops"],
+      "replies": [
+        "Your job shows where to shop. Follow it exactly.",
+        "Check your job. It tells you the shop to use."
+      ]
     }
   ]
 }
