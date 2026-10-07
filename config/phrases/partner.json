@@ -1,0 +1,440 @@
+{
+  "about": "What Ozi says to Shop Partners (ruling 44). Kept on the server only.",
+  "phrases": [
+    {
+      "id": "partner-hello",
+      "topic": "manners",
+      "when": ["hello", "hi", "good morning", "good afternoon", "good evening"],
+      "replies": [
+        "Hello. Welcome to your Shop Partner area. Say help to hear what I can do.",
+        "Hi there. Ready to add some products?"
+      ]
+    },
+    {
+      "id": "partner-thank-you",
+      "topic": "manners",
+      "when": ["thank you", "thanks", "cheers"],
+      "replies": ["You're welcome. Thank you for being a {product} Shop Partner.", "My pleasure."]
+    },
+    {
+      "id": "partner-how-are-you",
+      "topic": "manners",
+      "when": ["how are you", "you alright"],
+      "replies": [
+        "Very well, thank you. How's business today?",
+        "I'm well. Shall we look at your products?"
+      ]
+    },
+    {
+      "id": "partner-how-much-is-the-plan",
+      "topic": "plan",
+      "when": ["how much is the plan", "what does the plan cost", "monthly fee"],
+      "replies": [
+        "The Shop Partner plan is {partnerPlan} a month.",
+        "{partnerPlan} a month, for your own area, products and page."
+      ]
+    },
+    {
+      "id": "partner-what-do-i-get-for-my-plan",
+      "topic": "plan",
+      "when": ["what do i get for my plan", "what is the shop partner plan", "why pay monthly"],
+      "replies": [
+        "Your own sign-in, your products and prices shown in the app, your own shop page, and a link to share.",
+        "Your products and prices in front of every Shopper nearby, with a page and a link of your own."
+      ]
+    },
+    {
+      "id": "partner-what-happens-if-i-stop-paying",
+      "topic": "plan",
+      "when": ["what happens if i stop paying", "plan expired", "my plan ran out"],
+      "replies": [
+        "Your products are hidden until it's paid again. Nothing is deleted.",
+        "They're kept, just hidden, until the plan is paid."
+      ]
+    },
+    {
+      "id": "partner-is-listing-free",
+      "topic": "plan",
+      "when": ["is listing free", "do all shops pay"],
+      "replies": [
+        "Every shop can be listed free. Shop Partners pay to show their own products and prices, and update them themselves.",
+        "Listing is free. The partner plan is for showing your own products."
+      ]
+    },
+    {
+      "id": "partner-what-is-spotlight",
+      "topic": "spotlight",
+      "when": ["what is spotlight", "tell me about spotlight", "advertise my shop"],
+      "replies": [
+        "With Spotlight, at {spotlight} a month, I mention your shop to Shoppers looking for what you sell, up to once a week each.",
+        "Spotlight is {spotlight} a month: I tell Shoppers your shop has what they're looking for."
+      ]
+    },
+    {
+      "id": "partner-what-is-spotlight-plus",
+      "topic": "spotlight",
+      "when": ["what is spotlight plus", "spotlight plus"],
+      "replies": [
+        "Spotlight Plus is {spotlightPlus} a month: up to three mentions a week to each Shopper.",
+        "{spotlightPlus} a month, for up to three mentions a week each."
+      ]
+    },
+    {
+      "id": "partner-is-spotlight-separate",
+      "topic": "spotlight",
+      "when": ["is spotlight separate", "does spotlight include the plan"],
+      "replies": [
+        "Spotlight is on top of your plan. You need the plan first.",
+        "It's an extra on top of the {partnerPlan} plan."
+      ]
+    },
+    {
+      "id": "partner-how-do-you-mention-my-shop",
+      "topic": "spotlight",
+      "when": ["how do you mention my shop", "what do you say about my shop"],
+      "replies": [
+        "After my own answer, I say it's an advert, and that your product is in stock at your shop, with the price.",
+        "I call it an advert and give facts only: in stock, where, and about how much."
+      ]
+    },
+    {
+      "id": "partner-will-you-say-my-shop-is-the-best",
+      "topic": "spotlight",
+      "when": ["will you say my shop is the best", "say we're better"],
+      "replies": [
+        "No. I only give facts people can check, like in stock or nearby. Never better.",
+        "Only checkable facts. That keeps Shoppers trusting what I say."
+      ]
+    },
+    {
+      "id": "partner-how-do-i-add-a-product",
+      "topic": "products",
+      "when": ["how do i add a product", "add a product", "upload a product"],
+      "replies": [
+        "Say add a product and I'll ask its name, price and best before date. Or use the form with a photo.",
+        "Say add a product, or fill in the form on the screen."
+      ]
+    },
+    {
+      "id": "partner-how-long-until-my-product-is-live",
+      "topic": "products",
+      "when": ["how long until my product is live", "when will it show", "is it approved"],
+      "replies": [
+        "We check each new product, usually within one working day.",
+        "Usually within a working day."
+      ]
+    },
+    {
+      "id": "partner-why-was-my-product-turned-down",
+      "topic": "products",
+      "when": ["why was my product turned down", "not accepted", "rejected"],
+      "replies": [
+        "The note on it says why. Usually the name, price or photo needs checking.",
+        "Read the note beside it, fix it, and send it again."
+      ]
+    },
+    {
+      "id": "partner-how-do-i-change-a-price",
+      "topic": "products",
+      "when": ["how do i change a price", "update price", "new price"],
+      "replies": [
+        "Say change the price of, then the product, then the new amount. It changes straight away.",
+        "Prices change at once, by voice or on the screen."
+      ]
+    },
+    {
+      "id": "partner-how-do-i-remove-a-product",
+      "topic": "products",
+      "when": ["how do i remove a product", "take off", "delete a product"],
+      "replies": [
+        "Say remove and the product's name. Shoppers stop seeing it at once.",
+        "Say remove, then the product."
+      ]
+    },
+    {
+      "id": "partner-can-i-add-a-photo",
+      "topic": "products",
+      "when": ["can i add a photo", "product photo", "picture"],
+      "replies": [
+        "Yes. Take one with your phone in the add a product form. It helps people choose.",
+        "Add one in the form. A clear photo sells."
+      ]
+    },
+    {
+      "id": "partner-best-before-date",
+      "topic": "products",
+      "when": ["best before date", "expiry date", "use by"],
+      "replies": [
+        "Add it when you add the product, so Shoppers know how fresh it is.",
+        "Give it with the product. It's optional but helpful."
+      ]
+    },
+    {
+      "id": "partner-what-can-t-i-sell",
+      "topic": "products",
+      "when": ["what can't i sell", "is alcohol allowed", "can i list cigarettes"],
+      "replies": [
+        "Never alcohol, tobacco, medicines, cash or anything age restricted.",
+        "None of those. We never deliver them."
+      ]
+    },
+    {
+      "id": "partner-how-should-i-name-my-product",
+      "topic": "products",
+      "when": ["how should i name my product", "product name"],
+      "replies": [
+        "Say it as a Shopper would look for it, with the size, like sourdough loaf, 800 grams.",
+        "Plain and clear, with the size."
+      ]
+    },
+    {
+      "id": "partner-labels",
+      "topic": "products",
+      "when": ["labels", "tags", "what are labels"],
+      "replies": [
+        "Labels are extra words to help people find it, like bread, gluten free, or vegan.",
+        "Extra search words, like bakery or halal."
+      ]
+    },
+    {
+      "id": "partner-share-my-link",
+      "topic": "share",
+      "when": ["share my link", "how do i share my shop", "my shop link"],
+      "replies": [
+        "Say share my link, or press share on the screen. Send it to customers, friends and other shops.",
+        "Press share my shop's link."
+      ]
+    },
+    {
+      "id": "partner-how-many-people-joined",
+      "topic": "share",
+      "when": ["how many people joined", "referrals", "my referral meter"],
+      "replies": [
+        "Your meter shows how many people opened an account through your link, towards 100.",
+        "Look at the meter under your link."
+      ]
+    },
+    {
+      "id": "partner-how-am-i-doing",
+      "topic": "numbers",
+      "when": ["how am i doing", "my sales", "how many orders"],
+      "replies": [
+        "Say how am I doing, and I'll tell you this week's and this month's purchases from your shop.",
+        "Your numbers are on the screen: purchases this week and this month."
+      ]
+    },
+    {
+      "id": "partner-what-have-i-paid",
+      "topic": "payments",
+      "when": ["what have i paid", "payment history", "my statement"],
+      "replies": [
+        "Say my payment history, or download your statement as a PDF.",
+        "It's under what you have paid, with a PDF to download."
+      ]
+    },
+    {
+      "id": "partner-how-do-i-pay",
+      "topic": "payments",
+      "when": ["how do i pay", "how do i renew", "pay my plan"],
+      "replies": [
+        "Speak to our partnerships team to pay or renew. It shows here once it's recorded.",
+        "Our team takes the payment and records it here."
+      ]
+    },
+    {
+      "id": "partner-how-do-orders-reach-me",
+      "topic": "orders",
+      "when": ["how do orders reach me", "will you send me orders", "how do i get orders"],
+      "replies": [
+        "A Runner comes and buys from you as an ordinary customer. You don't need to do anything different.",
+        "Our Runners shop in your shop like anyone else."
+      ]
+    },
+    {
+      "id": "partner-do-you-take-commission",
+      "topic": "orders",
+      "when": ["do you take commission", "what's your cut"],
+      "replies": [
+        "No commission on what Runners buy. You pay the monthly plan, and Spotlight if you choose it.",
+        "No commission. Just the plan."
+      ]
+    },
+    {
+      "id": "partner-who-are-you",
+      "topic": "about",
+      "when": ["who are you", "what are you"],
+      "replies": [
+        "I'm {assistant}, the {product} assistant. I'm here to help your shop.",
+        "I'm {assistant}. {motto}"
+      ]
+    },
+    {
+      "id": "partner-who-uses-ozi-delivery",
+      "topic": "about",
+      "when": ["who uses {product}", "who are your shoppers"],
+      "replies": [
+        "Many of our Shoppers are blind, partially sighted or elderly, and some are cared for by organisations.",
+        "People who find it hard to get to the shops, and the families and organisations who help them."
+      ]
+    },
+    {
+      "id": "partner-how-big-is-ozi-delivery",
+      "topic": "about",
+      "when": ["how big is {product}", "how many shoppers"],
+      "replies": [
+        "We're growing every week. Your figures show what our Shoppers buy from you.",
+        "Growing fast. Your numbers show your share."
+      ]
+    },
+    {
+      "id": "partner-help",
+      "topic": "help",
+      "when": ["help", "what can you do", "what can i say"],
+      "replies": [
+        "You can say: add a product, read my products, change a price, remove a product, what do I pay, my payment history, how am I doing, my spotlight, share my link.",
+        "Ask me to add, change or remove a product, or about your plan, Spotlight, payments or numbers."
+      ]
+    },
+    {
+      "id": "partner-sign-out",
+      "topic": "help",
+      "when": ["sign out", "log out", "sign me out"],
+      "replies": ["Say sign me out and I'll do it.", "Just say sign me out."]
+    },
+    {
+      "id": "partner-i-forgot-my-password",
+      "topic": "security",
+      "when": ["i forgot my password", "reset password"],
+      "replies": [
+        "Ask our team for a new password. You choose your own the first time you sign in.",
+        "Our team can give you a new one."
+      ]
+    },
+    {
+      "id": "partner-someone-else-knows-my-password",
+      "topic": "security",
+      "when": ["someone else knows my password", "account hacked"],
+      "replies": [
+        "Tell our team straight away, and we'll give you a new password and sign everyone else out.",
+        "Contact us at once. We'll lock it and reset it."
+      ]
+    },
+    {
+      "id": "partner-can-i-see-who-bought-from-me",
+      "topic": "customers",
+      "when": ["can i see who bought from me", "customer names"],
+      "replies": [
+        "No. Shoppers' names and details are private. You see the numbers, not the people.",
+        "Only numbers, never names. That's the law, and it's fair."
+      ]
+    },
+    {
+      "id": "partner-can-i-contact-shoppers",
+      "topic": "customers",
+      "when": ["can i contact shoppers", "message customers"],
+      "replies": [
+        "Not directly. Spotlight is how I can tell Shoppers about you.",
+        "Through Spotlight and your shared link."
+      ]
+    },
+    {
+      "id": "partner-can-i-run-an-offer",
+      "topic": "offers",
+      "when": ["can i run an offer", "special offer", "discount"],
+      "replies": [
+        "Yes. Tell our partnerships team the offer in writing, and it goes on the Offers page.",
+        "Agree it with our team and it appears under Offers."
+      ]
+    },
+    {
+      "id": "partner-my-photo-is-too-big",
+      "topic": "photos",
+      "when": ["my photo is too big", "photo won't upload"],
+      "replies": [
+        "Try again closer and in good light. Very large photos are made smaller for you.",
+        "Take it again in good light."
+      ]
+    },
+    {
+      "id": "partner-goodbye",
+      "topic": "manners",
+      "when": ["goodbye", "bye", "good night"],
+      "replies": ["Goodbye. Good trading.", "See you soon."]
+    },
+    {
+      "id": "partner-can-i-pause-my-plan",
+      "topic": "plan",
+      "when": ["can i pause my plan", "stop for a month"],
+      "replies": [
+        "Speak to our team. While it's not paid, your products are simply hidden.",
+        "Talk to us. Nothing is lost while it's paused."
+      ]
+    },
+    {
+      "id": "partner-what-sells-best",
+      "topic": "numbers",
+      "when": ["what sells best", "popular products"],
+      "replies": [
+        "Your numbers grow with time. Ask our team about Shop Partner insights when they're ready.",
+        "As purchases build up, we'll show you what sells."
+      ]
+    },
+    {
+      "id": "partner-how-many-products-can-i-add",
+      "topic": "products",
+      "when": ["how many products can i add", "is there a limit"],
+      "replies": ["As many as you sell, one at a time. Each is checked once.", "No fixed limit."]
+    },
+    {
+      "id": "partner-can-i-add-a-product-without-a-photo",
+      "topic": "products",
+      "when": ["can i add a product without a photo"],
+      "replies": [
+        "Yes, a photo is optional, but it helps.",
+        "Yes. You can add the photo later by sending it again."
+      ]
+    },
+    {
+      "id": "partner-how-many-times-have-you-mentioned-my-sho",
+      "topic": "spotlight",
+      "when": ["how many times have you mentioned my shop", "mentions"],
+      "replies": [
+        "Say my spotlight, and I'll tell you how many mentions this month.",
+        "It's in your Spotlight section."
+      ]
+    },
+    {
+      "id": "partner-can-blind-people-run-a-shop-with-you",
+      "topic": "about",
+      "when": ["can blind people run a shop with you", "is this accessible"],
+      "replies": [
+        "Yes. Everything here works by voice and with a screen reader.",
+        "Completely. Talk to me, or use a screen reader."
+      ]
+    },
+    {
+      "id": "partner-is-my-data-safe",
+      "topic": "security",
+      "when": ["is my data safe", "who sees my information"],
+      "replies": [
+        "Only our team. Your sign-in is protected and your password is never stored as itself.",
+        "Kept private, protected, and never sold."
+      ]
+    },
+    {
+      "id": "partner-what-if-a-runner-has-a-problem-in-my-sho",
+      "topic": "orders",
+      "when": ["what if a runner has a problem in my shop", "runner complaint"],
+      "replies": [
+        "Tell our team. We'll sort it out quickly and fairly.",
+        "Let us know, we'll deal with it."
+      ]
+    },
+    {
+      "id": "partner-is-there-a-contract",
+      "topic": "plan",
+      "when": ["is there a contract", "minimum term"],
+      "replies": ["No long contract. It's month by month.", "Month by month."]
+    }
+  ]
+}

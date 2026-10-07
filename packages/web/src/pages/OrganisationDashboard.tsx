@@ -15,7 +15,7 @@ import {
 import { money } from '../lib/money';
 import { useOzi } from '../state/ozi';
 import { organisationHelp, understandOrganisation } from '../voice/business-voice';
-import { nameHeardIn } from '../voice/name';
+import { everydayOr } from '../voice/phrases';
 import { listWords } from '../voice/staff-voice';
 import { DAYS } from './WeeklyShop';
 
@@ -83,6 +83,7 @@ export function OrganisationDashboard(): JSX.Element {
   const [data, setData] = useState<Dashboard | null>(null);
   const [news, setNews] = useState('');
   const latest = useRef({ ozi, data, navigate });
+  const phraseTurn = useRef(0);
   latest.current = { ozi, data, navigate };
 
   const load = useCallback(
@@ -105,7 +106,13 @@ export function OrganisationDashboard(): JSX.Element {
       const command = understandOrganisation(text);
       const current = latest.current.data;
       if (!command) {
-        if (nameHeardIn(text)) say(`Sorry, I didn't catch that. ${organisationHelp()}`);
+        everydayOr(
+          text,
+          phraseTurn,
+          { kind: 'business' },
+          say,
+          `Sorry, I didn't catch that. ${organisationHelp()}`,
+        );
         return true;
       }
       if (command.kind === 'help') return (say(organisationHelp()), true);

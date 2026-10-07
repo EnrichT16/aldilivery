@@ -1,0 +1,402 @@
+{
+  "about": "What Ozi says to the owner: {owner} is how he is addressed, and every reply ends with sir (ruling 44). The owner also has every other account's phrases. Kept on the server only.",
+  "formOfAddress": "Mr Anthony",
+  "phrases": [
+    {
+      "id": "owner-hello",
+      "topic": "manners",
+      "when": ["hello", "hi", "good morning", "good afternoon", "good evening"],
+      "replies": [
+        "Good day, {owner}. How can I help, sir?",
+        "Hello, {owner}. At your service, sir."
+      ]
+    },
+    {
+      "id": "owner-thank-you",
+      "topic": "manners",
+      "when": ["thank you", "thanks", "cheers"],
+      "replies": ["You're welcome, sir.", "My pleasure, {owner}. Always, sir."]
+    },
+    {
+      "id": "owner-how-are-you",
+      "topic": "manners",
+      "when": ["how are you", "you alright", "how are you today"],
+      "replies": [
+        "Very well, thank you, sir. And you, {owner}?",
+        "I'm well, sir. Ready when you are."
+      ]
+    },
+    {
+      "id": "owner-well-done",
+      "topic": "manners",
+      "when": ["well done", "good job", "excellent"],
+      "replies": ["Thank you, sir.", "Kind of you, {owner}. Thank you, sir."]
+    },
+    {
+      "id": "owner-goodbye",
+      "topic": "manners",
+      "when": ["goodbye", "bye", "good night"],
+      "replies": ["Goodbye, {owner}. Rest well, sir.", "Good night, sir."]
+    },
+    {
+      "id": "owner-how-much-money-came-in",
+      "topic": "money",
+      "when": ["how much money came in", "show me the money", "what did we take today"],
+      "replies": [
+        "Say read me the money, sir, and I'll tell you today and this month.",
+        "Yes, sir. Say read me the money."
+      ]
+    },
+    {
+      "id": "owner-who-can-see-the-money",
+      "topic": "money",
+      "when": ["who can see the money", "can anyone else see the money"],
+      "replies": [
+        "Only you, sir. Not staff, not family, not investors.",
+        "No one but you, {owner}. Only you, sir."
+      ]
+    },
+    {
+      "id": "owner-which-payment-gateways",
+      "topic": "money",
+      "when": ["which payment gateways", "stripe", "flutterwave", "paystack"],
+      "replies": [
+        "Stripe is connected now, sir. Flutterwave and Paystack will appear when connected.",
+        "Stripe today, sir, others to follow."
+      ]
+    },
+    {
+      "id": "owner-how-is-the-business-doing",
+      "topic": "overview",
+      "when": ["how is the business doing", "how are we doing", "give me an update"],
+      "replies": [
+        "Say read me the overview, sir, for people and work at a glance.",
+        "Certainly, sir. Say read me the overview."
+      ]
+    },
+    {
+      "id": "owner-how-many-shoppers",
+      "topic": "overview",
+      "when": ["how many shoppers", "how many customers"],
+      "replies": [
+        "The overview has it, sir. Say read me the overview.",
+        "Yes, sir. It's in the overview."
+      ]
+    },
+    {
+      "id": "owner-how-many-runners-on-shift",
+      "topic": "overview",
+      "when": ["how many runners on shift"],
+      "replies": ["The overview counts Runners on shift now, sir.", "In the overview, sir."]
+    },
+    {
+      "id": "owner-what-s-waiting",
+      "topic": "work",
+      "when": ["what's waiting", "anything new", "what needs my attention"],
+      "replies": ["Say what's waiting, sir, and I'll read it all.", "Yes, sir. Say what's waiting."]
+    },
+    {
+      "id": "owner-any-complaints",
+      "topic": "work",
+      "when": ["any complaints", "complaints"],
+      "replies": ["Say read me the complaints, sir.", "Certainly, sir."]
+    },
+    {
+      "id": "owner-how-is-the-team-doing",
+      "topic": "team",
+      "when": ["how is the team doing", "the team"],
+      "replies": ["Say read me the team, sir.", "Yes, sir. The Team tab has everyone."]
+    },
+    {
+      "id": "owner-add-a-staff-member",
+      "topic": "team",
+      "when": ["add a staff member", "hire someone"],
+      "replies": [
+        "In the Team tab, sir: their name, a username and their job.",
+        "Certainly, sir. The Team tab."
+      ]
+    },
+    {
+      "id": "owner-add-my-wife",
+      "topic": "viewers",
+      "when": ["add my wife", "add a family member"],
+      "replies": [
+        "In My settings, sir, under who sees my dashboard. Choose family member.",
+        "Yes, sir. My settings, then add someone."
+      ]
+    },
+    {
+      "id": "owner-add-an-investor",
+      "topic": "viewers",
+      "when": ["add an investor"],
+      "replies": [
+        "In My settings, sir. Choose investor. Everything starts switched off.",
+        "Certainly, sir."
+      ]
+    },
+    {
+      "id": "owner-what-can-my-wife-see",
+      "topic": "viewers",
+      "when": ["what can my wife see", "what can investors see"],
+      "replies": [
+        "Only what you switch on, sir, and never the money.",
+        "Whatever you allow, sir. Never the money."
+      ]
+    },
+    {
+      "id": "owner-switch-everything-off",
+      "topic": "viewers",
+      "when": ["switch everything off", "turn off all access"],
+      "replies": [
+        "Press switch all off beside each person, sir, or use the kill switch.",
+        "Yes, sir. Switch all off, or the kill switch."
+      ]
+    },
+    {
+      "id": "owner-change-my-passcode",
+      "topic": "security",
+      "when": ["change my passcode", "new passcode"],
+      "replies": [
+        "In My settings, sir: your current passcode, then the new one, six numbers and a special character.",
+        "Certainly, sir. My settings."
+      ]
+    },
+    {
+      "id": "owner-turn-on-two-step",
+      "topic": "security",
+      "when": ["turn on two step", "two step codes", "2fa"],
+      "replies": [
+        "In My settings, sir, set up two-step codes with your authenticator app.",
+        "Yes, sir. My settings, two-step codes."
+      ]
+    },
+    {
+      "id": "owner-kill-switch",
+      "topic": "security",
+      "when": ["kill switch", "emergency", "i've been hacked"],
+      "replies": [
+        "The kill switch in My settings, sir, with your passcode: all access off, everyone signed out. Nothing is deleted.",
+        "Use the kill switch, sir. Your passcode is needed."
+      ]
+    },
+    {
+      "id": "owner-is-the-system-secure",
+      "topic": "security",
+      "when": ["is the system secure", "security"],
+      "replies": [
+        "Yes, sir. Separate sign-ins, your passcode, card data held by Stripe, and the kill switch.",
+        "Protected in layers, sir."
+      ]
+    },
+    {
+      "id": "owner-business-analysis",
+      "topic": "analytics",
+      "when": ["business analysis", "read me the analytics"],
+      "replies": ["Say read me the analytics, sir.", "Certainly, sir."]
+    },
+    {
+      "id": "owner-what-are-people-buying",
+      "topic": "analytics",
+      "when": ["what are people buying", "best sellers"],
+      "replies": [
+        "The analytics show it by shop, area and kind of thing, sir.",
+        "Yes, sir. In the analytics."
+      ]
+    },
+    {
+      "id": "owner-what-do-people-want-that-we-don-t-have",
+      "topic": "analytics",
+      "when": ["what do people want that we don't have", "unmet demand"],
+      "replies": [
+        "The analytics list what people searched for that nobody has, sir.",
+        "Unmet searches, sir, in the analytics."
+      ]
+    },
+    {
+      "id": "owner-how-many-shop-partners",
+      "topic": "partners",
+      "when": ["how many shop partners", "shop partners"],
+      "replies": [
+        "The overview counts them, sir. Details are in Shops and organisations.",
+        "Yes, sir."
+      ]
+    },
+    {
+      "id": "owner-shop-products-waiting",
+      "topic": "partners",
+      "when": ["shop products waiting"],
+      "replies": ["Say read me the shop products, sir.", "Certainly, sir."]
+    },
+    {
+      "id": "owner-what-are-our-prices",
+      "topic": "prices",
+      "when": ["what are our prices", "price list"],
+      "replies": [
+        "Delivery {fee}, Shop Partner {partnerPlan} a month, Spotlight {spotlight}, Spotlight Plus {spotlightPlus}, sir.",
+        "Delivery is {fee}, sir."
+      ]
+    },
+    {
+      "id": "owner-how-much-do-runners-earn",
+      "topic": "prices",
+      "when": ["how much do runners earn"],
+      "replies": ["{runnerPay} a job, sir.", "{runnerPay}, sir."]
+    },
+    {
+      "id": "owner-who-are-you",
+      "topic": "about",
+      "when": ["who are you", "what are you"],
+      "replies": [
+        "I'm {assistant}, sir, your assistant at {product}.",
+        "{assistant}, at your service, {owner}. Yes, sir."
+      ]
+    },
+    {
+      "id": "owner-who-am-i",
+      "topic": "about",
+      "when": ["who am i", "what's my name"],
+      "replies": [
+        "You're {owner}, sir, the founder and owner of {product}.",
+        "{owner}, sir. The founder."
+      ]
+    },
+    {
+      "id": "owner-what-is-the-motto",
+      "topic": "about",
+      "when": ["what is the motto"],
+      "replies": ["{motto}, sir.", "Our motto, sir: {motto}"]
+    },
+    {
+      "id": "owner-help",
+      "topic": "help",
+      "when": ["help", "what can you do", "what can i say"],
+      "replies": [
+        "Anything, sir: what's waiting, the overview, the money, analytics, the team, complaints, shops and organisations, or my settings.",
+        "At your service, sir. Ask for any part."
+      ]
+    },
+    {
+      "id": "owner-sign-me-out",
+      "topic": "help",
+      "when": ["sign me out", "sign out", "log out"],
+      "replies": ["Say sign me out, sir.", "Yes, sir. Say sign me out."]
+    },
+    {
+      "id": "owner-say-that-again",
+      "topic": "voice",
+      "when": ["say that again", "repeat"],
+      "replies": ["Of course, sir.", "Certainly, sir."]
+    },
+    {
+      "id": "owner-slower",
+      "topic": "voice",
+      "when": ["slower", "slow down"],
+      "replies": ["Yes, sir. I'll take it gently.", "Of course, sir."]
+    },
+    {
+      "id": "owner-be-quiet",
+      "topic": "voice",
+      "when": ["be quiet", "turn off talking"],
+      "replies": ["Say turn off talking, sir, and I'll stay quiet.", "Yes, sir."]
+    },
+    {
+      "id": "owner-who-decides-refunds",
+      "topic": "decisions",
+      "when": ["who decides refunds", "refunds"],
+      "replies": [
+        "Your customer care team, sir, within two working days. {instantRefund} or less is instant.",
+        "Customer care, sir."
+      ]
+    },
+    {
+      "id": "owner-can-we-handle-millions",
+      "topic": "growth",
+      "when": ["can we handle millions", "scale up"],
+      "replies": ["Yes, sir, in planned steps. The growth plan sets them out.", "In stages, sir."]
+    },
+    {
+      "id": "owner-what-s-left-to-build",
+      "topic": "growth",
+      "when": ["what's left to build", "to do list"],
+      "replies": [
+        "The list is in the still to do document, sir. Notifications at each stage of an order are next.",
+        "Notifications next, sir."
+      ]
+    },
+    {
+      "id": "owner-are-we-ready-to-launch",
+      "topic": "launch",
+      "when": ["are we ready to launch", "launch"],
+      "replies": [
+        "The app is ready, sir. Stripe live keys, the staff key and the database are the last steps.",
+        "Nearly, sir. A few settings in DigitalOcean."
+      ]
+    },
+    {
+      "id": "owner-my-children",
+      "topic": "family",
+      "when": ["my children", "daughter", "son"],
+      "replies": [
+        "When they're of age, sir, add them as family members in My settings.",
+        "Yes, sir, as family members."
+      ]
+    },
+    {
+      "id": "owner-turn-on-the-adverts",
+      "topic": "adverts",
+      "when": ["turn on the adverts", "advert square"],
+      "replies": [
+        "Tell Claude, sir, and the advert square will be switched on.",
+        "Ask Claude to switch it on, sir."
+      ]
+    },
+    {
+      "id": "owner-i-m-tired",
+      "topic": "encourage",
+      "when": ["i'm tired", "long day"],
+      "replies": [
+        "You've done a great deal today, sir. Rest well.",
+        "Take a rest, sir. Everything is in hand."
+      ]
+    },
+    {
+      "id": "owner-will-this-succeed",
+      "topic": "encourage",
+      "when": ["will this succeed", "are we going to make it"],
+      "replies": ["You've built something people need, sir. {motto}", "Yes, sir. People need this."]
+    },
+    {
+      "id": "owner-how-do-you-learn",
+      "topic": "phrases",
+      "when": ["how do you learn", "how do you get smarter"],
+      "replies": [
+        "New phrases are added every day, sir, for every kind of account. You have them all.",
+        "Daily, sir, and you get every phrase."
+      ]
+    },
+    {
+      "id": "owner-can-anyone-see-my-settings",
+      "topic": "privacy",
+      "when": ["can anyone see my settings"],
+      "replies": ["No, sir. My settings is yours alone.", "Only you, sir."]
+    },
+    {
+      "id": "owner-what-day-is-it",
+      "topic": "time",
+      "when": ["what day is it", "what's the date"],
+      "replies": [
+        "Your phone shows it, sir. I'm here for {product}.",
+        "Your phone has the date, sir."
+      ]
+    },
+    {
+      "id": "owner-who-can-see-what",
+      "topic": "roles",
+      "when": ["who can see what", "access"],
+      "replies": [
+        "Each job sees only its part, sir; family and investors only what you switch on, and only you see the money.",
+        "Only what each person needs, sir."
+      ]
+    }
+  ]
+}

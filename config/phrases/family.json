@@ -1,0 +1,371 @@
+{
+  "about": "What Ozi says to family members the owner lets see his dashboard (ruling 44). Kept on the server only.",
+  "phrases": [
+    {
+      "id": "family-hello",
+      "topic": "manners",
+      "when": ["hello", "hi", "good morning", "good afternoon", "good evening"],
+      "replies": [
+        "Hello. Welcome. Say help to hear what you can see.",
+        "Hello. Shall I read the overview?"
+      ]
+    },
+    {
+      "id": "family-thank-you",
+      "topic": "manners",
+      "when": ["thank you", "thanks", "cheers"],
+      "replies": ["You're welcome.", "My pleasure."]
+    },
+    {
+      "id": "family-how-are-you",
+      "topic": "manners",
+      "when": ["how are you", "you alright"],
+      "replies": ["Very well, thank you. And you?", "I'm well, thank you."]
+    },
+    {
+      "id": "family-what-can-i-see",
+      "topic": "access",
+      "when": ["what can i see", "what am i allowed to see"],
+      "replies": [
+        "Only what the owner has switched on for you. The tabs above show which.",
+        "Whatever the owner switched on. The tabs list it."
+      ]
+    },
+    {
+      "id": "family-why-can-t-i-see-the-money",
+      "topic": "access",
+      "when": ["why can't i see the money", "show me the money"],
+      "replies": [
+        "The money is for the owner only. Nobody else sees it.",
+        "Only the owner sees the money."
+      ]
+    },
+    {
+      "id": "family-can-i-change-things",
+      "topic": "access",
+      "when": ["can i change things", "can i decide"],
+      "replies": ["Your account can look, but not change anything.", "You can look, not change."]
+    },
+    {
+      "id": "family-i-want-to-see-more",
+      "topic": "access",
+      "when": ["i want to see more", "switch more on"],
+      "replies": [
+        "Ask the owner. He switches each part on or off.",
+        "The owner decides what's switched on."
+      ]
+    },
+    {
+      "id": "family-how-many-shoppers",
+      "topic": "overview",
+      "when": ["how many shoppers", "how many customers"],
+      "replies": ["Say read me the overview, if it's switched on for you.", "The overview has it."]
+    },
+    {
+      "id": "family-how-many-runners",
+      "topic": "overview",
+      "when": ["how many runners"],
+      "replies": ["The overview counts Runners, and how many are on shift now.", "In the overview."]
+    },
+    {
+      "id": "family-how-is-the-business-doing",
+      "topic": "overview",
+      "when": ["how is the business doing", "how are we doing"],
+      "replies": [
+        "Say read me the overview to hear people and work at a glance.",
+        "The overview shows it."
+      ]
+    },
+    {
+      "id": "family-who-are-you",
+      "topic": "about",
+      "when": ["who are you", "what are you"],
+      "replies": ["I'm {assistant}, the {product} assistant. {motto}", "I'm {assistant}."]
+    },
+    {
+      "id": "family-what-does-the-business-do",
+      "topic": "about",
+      "when": ["what does the business do", "what is {product}"],
+      "replies": [
+        "{product} brings shopping to people who find it hard to get out, many blind or elderly.",
+        "Shopping, brought to the door with care."
+      ]
+    },
+    {
+      "id": "family-who-started-the-business",
+      "topic": "about",
+      "when": ["who started the business", "who is the founder"],
+      "replies": ["The founder is {owner}.", "{owner} founded it."]
+    },
+    {
+      "id": "family-why-did-he-start-it",
+      "topic": "about",
+      "when": ["why did he start it", "why this business"],
+      "replies": [
+        "To make shopping easy for people who can't easily see or get out, with dignity.",
+        "So no one goes without their shopping."
+      ]
+    },
+    {
+      "id": "family-how-does-it-work",
+      "topic": "about",
+      "when": ["how does it work", "explain the business"],
+      "replies": [
+        "A Shopper orders, a checked Runner buys it at the shop, and brings it to the door. Delivery is {fee}.",
+        "Order, shop, deliver. {fee} each time."
+      ]
+    },
+    {
+      "id": "family-how-do-runners-get-paid",
+      "topic": "about",
+      "when": ["how do runners get paid"],
+      "replies": ["{runnerPay} for every job.", "Each job pays the Runner {runnerPay}."]
+    },
+    {
+      "id": "family-help",
+      "topic": "help",
+      "when": ["help", "what can you do", "what can i say"],
+      "replies": [
+        "Say the name of a tab, like read me the overview, and I'll read it. Say sign me out when you finish.",
+        "Ask for any tab that's switched on."
+      ]
+    },
+    {
+      "id": "family-sign-out",
+      "topic": "help",
+      "when": ["sign out", "log out", "sign me out"],
+      "replies": ["Say sign me out.", "Just say sign me out."]
+    },
+    {
+      "id": "family-i-forgot-my-password",
+      "topic": "security",
+      "when": ["i forgot my password", "reset password"],
+      "replies": ["Ask the owner for a new password.", "The owner can reset it."]
+    },
+    {
+      "id": "family-keep-it-private",
+      "topic": "security",
+      "when": ["keep it private", "is this private"],
+      "replies": [
+        "Please keep what you see private. It's the business's and its customers'.",
+        "Private, please."
+      ]
+    },
+    {
+      "id": "family-someone-asked-to-see-my-screen",
+      "topic": "security",
+      "when": ["someone asked to see my screen", "share my login"],
+      "replies": [
+        "Please never share your sign-in. Ask the owner to add them instead.",
+        "Never share it."
+      ]
+    },
+    {
+      "id": "family-read-me-the-analytics",
+      "topic": "analytics",
+      "when": ["read me the analytics", "business analysis"],
+      "replies": [
+        "If it's switched on, say read me the analytics.",
+        "Only if the owner switched it on."
+      ]
+    },
+    {
+      "id": "family-who-works-here",
+      "topic": "team",
+      "when": ["who works here", "the team"],
+      "replies": ["If the team is switched on, say read me the team.", "Ask for the team tab."]
+    },
+    {
+      "id": "family-any-complaints",
+      "topic": "problems",
+      "when": ["any complaints", "complaints"],
+      "replies": [
+        "If complaints are switched on, say read me the complaints.",
+        "Only if switched on."
+      ]
+    },
+    {
+      "id": "family-what-is-a-family-member-account",
+      "topic": "family",
+      "when": ["what is a family member account", "why do i have this"],
+      "replies": [
+        "It lets the owner share parts of his dashboard with family, to help him see the business.",
+        "A view of the dashboard, chosen by the owner."
+      ]
+    },
+    {
+      "id": "family-can-my-children-have-an-account",
+      "topic": "family",
+      "when": ["can my children have an account", "daughter", "son"],
+      "replies": [
+        "When they're of age, the owner can add them as family members.",
+        "The owner can add them later."
+      ]
+    },
+    {
+      "id": "family-how-can-i-help-him",
+      "topic": "support",
+      "when": ["how can i help him", "how can i help"],
+      "replies": [
+        "Read the overview with him, and tell him anything that needs his attention.",
+        "Keep an eye on things with him."
+      ]
+    },
+    {
+      "id": "family-something-looks-wrong",
+      "topic": "support",
+      "when": ["something looks wrong", "i noticed a problem"],
+      "replies": ["Tell the owner straight away. You can look, but he decides.", "Tell the owner."]
+    },
+    {
+      "id": "family-goodbye",
+      "topic": "manners",
+      "when": ["goodbye", "bye", "good night"],
+      "replies": ["Goodbye. Take care.", "See you soon."]
+    },
+    {
+      "id": "family-read-it-again",
+      "topic": "voice",
+      "when": ["read it again", "repeat"],
+      "replies": ["Of course. Ask again and I'll read it.", "Say it once more."]
+    },
+    {
+      "id": "family-slower-please",
+      "topic": "voice",
+      "when": ["slower please", "slow down"],
+      "replies": ["I'll go gently. Ask again.", "Of course."]
+    },
+    {
+      "id": "family-is-it-accessible",
+      "topic": "about",
+      "when": ["is it accessible", "can blind people use it"],
+      "replies": [
+        "Yes. The whole of {product} works by voice, so the owner can run it without seeing.",
+        "Completely, by voice."
+      ]
+    },
+    {
+      "id": "family-how-much-is-delivery",
+      "topic": "about",
+      "when": ["how much is delivery"],
+      "replies": ["{fee} a delivery, for everyone.", "Always {fee}."]
+    },
+    {
+      "id": "family-what-can-t-be-delivered",
+      "topic": "about",
+      "when": ["what can't be delivered"],
+      "replies": ["Never alcohol, tobacco, medicines or cash.", "None of those."]
+    },
+    {
+      "id": "family-what-is-ozi-plus",
+      "topic": "about",
+      "when": ["what is ozi plus"],
+      "replies": [
+        "A membership that includes Recipes and Finds It, for one or a whole family.",
+        "Recipes and Finds It, included."
+      ]
+    },
+    {
+      "id": "family-what-are-shop-partners",
+      "topic": "about",
+      "when": ["what are shop partners"],
+      "replies": [
+        "Local shops that pay monthly to show their own products and prices.",
+        "Shops on a monthly plan."
+      ]
+    },
+    {
+      "id": "family-what-organisations-use-it",
+      "topic": "about",
+      "when": ["what organisations use it"],
+      "replies": [
+        "Councils, care homes, hospitals and charities, for the people they support.",
+        "Organisations that support people."
+      ]
+    },
+    {
+      "id": "family-how-many-shop-partners",
+      "topic": "overview",
+      "when": ["how many shop partners"],
+      "replies": ["The overview counts Shop Partners.", "It's in the overview."]
+    },
+    {
+      "id": "family-how-many-orders-today",
+      "topic": "overview",
+      "when": ["how many orders today"],
+      "replies": ["The overview has orders in the last day and week.", "Say read me the overview."]
+    },
+    {
+      "id": "family-why-did-everything-switch-off",
+      "topic": "access",
+      "when": ["why did everything switch off", "i lost access"],
+      "replies": [
+        "The owner may have used the kill switch, or changed what you see. Ask him.",
+        "Ask the owner."
+      ]
+    },
+    {
+      "id": "family-two-step-codes",
+      "topic": "security",
+      "when": ["two step codes", "extra security"],
+      "replies": ["Ask the owner if you'd like extra protection.", "Talk to the owner."]
+    },
+    {
+      "id": "family-well-done",
+      "topic": "manners",
+      "when": ["well done", "good job"],
+      "replies": ["Thank you. I'll pass it on.", "That's kind of you."]
+    },
+    {
+      "id": "family-what-should-i-check-daily",
+      "topic": "support",
+      "when": ["what should i check daily", "daily routine"],
+      "replies": ["The overview, and anything waiting, if it's switched on.", "Overview first."]
+    },
+    {
+      "id": "family-what-is-the-motto",
+      "topic": "about",
+      "when": ["what is the motto"],
+      "replies": ["{motto}", "Our motto is: {motto}"]
+    },
+    {
+      "id": "family-where-does-it-operate",
+      "topic": "about",
+      "when": ["where does it operate", "which areas"],
+      "replies": ["Medway first, growing to more areas.", "Starting in Medway."]
+    },
+    {
+      "id": "family-can-i-see-investors",
+      "topic": "access",
+      "when": ["can i see investors", "investor accounts"],
+      "replies": ["Only the owner manages who sees the dashboard.", "The owner manages that."]
+    },
+    {
+      "id": "family-turn-off-talking",
+      "topic": "voice",
+      "when": ["turn off talking", "be quiet"],
+      "replies": ["Say turn off talking, and I'll stay quiet.", "Say turn off talking."]
+    },
+    {
+      "id": "family-who-answers-the-phone",
+      "topic": "about",
+      "when": ["who answers the phone", "customer phone"],
+      "replies": ["Customers can ring the number on the website.", "The number's on the website."]
+    },
+    {
+      "id": "family-what-can-t-family-see",
+      "topic": "family",
+      "when": ["what can't family see"],
+      "replies": [
+        "Family never sees the money, and can never change anything.",
+        "Not the money, not changes."
+      ]
+    },
+    {
+      "id": "family-i-love-you",
+      "topic": "manners",
+      "when": ["i love you", "you're lovely"],
+      "replies": ["That's very kind. I'm happy to help.", "Thank you. That's kind."]
+    }
+  ]
+}

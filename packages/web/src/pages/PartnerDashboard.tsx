@@ -17,7 +17,7 @@ import { money } from '../lib/money';
 import { preparePhoto } from '../lib/photo';
 import { useOzi } from '../state/ozi';
 import { partnerHelp, understandPartner } from '../voice/business-voice';
-import { nameHeardIn } from '../voice/name';
+import { everydayOr } from '../voice/phrases';
 import { listWords, spokenMoney } from '../voice/staff-voice';
 import { spokenDate } from '../components/StaffVoice';
 
@@ -51,6 +51,7 @@ export function PartnerDashboard(): JSX.Element {
   const [news, setNews] = useState('');
   const [busy, setBusy] = useState(false);
   const latest = useRef({ ozi, data, navigate });
+  const phraseTurn = useRef(0);
   latest.current = { ozi, data, navigate };
 
   const load = useCallback(
@@ -100,7 +101,13 @@ export function PartnerDashboard(): JSX.Element {
       const command = understandPartner(text);
       const current = latest.current.data;
       if (!command) {
-        if (nameHeardIn(text)) say(`Sorry, I didn't catch that. ${partnerHelp()}`);
+        everydayOr(
+          text,
+          phraseTurn,
+          { kind: 'business' },
+          say,
+          `Sorry, I didn't catch that. ${partnerHelp()}`,
+        );
         return true;
       }
       switch (command.kind) {

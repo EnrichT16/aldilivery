@@ -29,6 +29,7 @@ import {
 import { money } from '../lib/money';
 import { useOzi } from '../state/ozi';
 import { nameHeardIn } from '../voice/name';
+import { phraseReply } from '../voice/phrases';
 import {
   analyticsWords,
   moneyWords,
@@ -39,6 +40,8 @@ import {
   spokenMoney,
   summary,
   understand,
+  OWNER_ACKNOWLEDGEMENTS,
+  toOwner,
   waiting,
   type StaffLists,
 } from '../voice/staff-voice';
@@ -104,6 +107,7 @@ export function StaffVoice({
   name,
   title,
   areas,
+  address = null,
   onOpen,
   onChanged,
   onSignOut,
@@ -113,6 +117,8 @@ export function StaffVoice({
   name: string;
   title: string;
   areas: readonly StaffArea[];
+  /** The owner only: how he is addressed, "Mr Anthony", and every reply ends with sir. */
+  address?: string | null;
   /** Show this tab on the screen too. */
   onOpen: (area: StaffArea) => void;
   /** Something was decided: the screen loads its lists again. */
@@ -122,8 +128,32 @@ export function StaffVoice({
   const ozi = useOzi();
   const lists = useRef<StaffLists>({});
   const cursor = useRef<{ area: StaffArea; index: number } | null>(null);
-  const latest = useRef({ ozi, staffKey, by, name, title, areas, onOpen, onChanged, onSignOut });
-  latest.current = { ozi, staffKey, by, name, title, areas, onOpen, onChanged, onSignOut };
+  const latest = useRef({
+    ozi,
+    staffKey,
+    by,
+    name,
+    title,
+    areas,
+    address,
+    onOpen,
+    onChanged,
+    onSignOut,
+  });
+  latest.current = {
+    ozi,
+    staffKey,
+    by,
+    name,
+    title,
+    areas,
+    address,
+    onOpen,
+    onChanged,
+    onSignOut,
+  };
+  const turn = useRef(0);
+  const acknowledge = useRef(false);
 
   useEffect(() => {
     const { ozi: voice } = latest.current;
@@ -191,8 +221,24 @@ export function StaffVoice({
       lists.current = next;
     }
 
+    /** For the owner, "sir" at the end, and "Yes, sir." first when he asked for something. */
+    function words(text: string): string {
+      if (!latest.current.address) return text;
+      const first = acknowledge.current
+        ? OWNER_ACKNOWLEDGEMENTS[turn.current++ % OWNER_ACKNOWLEDGEMENTS.length]!
+        : null;
+      acknowledge.current = false;
+      return toOwner(text, first);
+    }
+
     function say(text: string): void {
-      void latest.current.ozi.say(text);
+      void latest.current.ozi.say(words(text));
+    }
+
+    /** The opening words, by the owner's form of address when it is him. */
+    function opening(): string {
+      const { address: owner, name: who, title: job, areas: mine } = latest.current;
+      return summary(owner ?? who, job, mine, lists.current);
     }
 
     function current(): unknown {
@@ -215,7 +261,7 @@ export function StaffVoice({
 
     /** Reads a decision back, and does it only after a yes. */
     function confirm(question: string, run: () => Promise<string>): void {
-      latest.current.ozi.listenFor(`${question} Say yes to confirm.`, (answer) => {
+      latest.current.ozi.listenFor(words(`${question} Say yes to confirm.`), (answer) => {
         if (!YES.test(answer)) {
           say('All right, nothing was done.');
           return;
@@ -256,18 +302,30 @@ export function StaffVoice({
       const { staffKey: key, by: who, areas: mine } = latest.current;
       const command = understand(text);
       if (!command) {
-        if (nameHeardIn(text)) say(`Sorry, I didn't catch that. ${help(mine)}`);
-        // Nothing said in the admin panel is ever taken as a shopping order.
+        // An everyday phrase for this account, from the server (ruling 44): the owner's has
+        // everybody's. Nothing said in the admin panel is ever taken as a shopping order.
+        const named = nameHeardIn(text);
+        void (async () => {
+          const as = { kind: 'staff', key } as const;
+          const reply =
+            (await phraseReply(text, turn.current, 'exact', as)) ??
+            (named ? await phraseReply(text, turn.current, 'within', as) : null);
+          if (reply) {
+            turn.current += 1;
+            void latest.current.ozi.say(reply);
+          } else if (named) {
+            say(`Sorry, I didn't catch that. ${help(mine)}`);
+          }
+        })();
         return true;
       }
+      acknowledge.current = command.kind !== 'help' && command.kind !== 'summary';
       switch (command.kind) {
         case 'help':
           say(help(mine));
           return true;
         case 'summary':
-          void load().then(() =>
-            say(summary(latest.current.name, latest.current.title, mine, lists.current)),
-          );
+          void load().then(() => say(opening()));
           return true;
         case 'sign-out':
           say('Signing you out. Goodbye.');
@@ -453,10 +511,7 @@ export function StaffVoice({
 
     voice.setPageCommands(handle);
     void load().then(() => {
-      if (!cancelled)
-        say(
-          summary(latest.current.name, latest.current.title, latest.current.areas, lists.current),
-        );
+      if (!cancelled) say(opening());
     });
     return () => {
       cancelled = true;

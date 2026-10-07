@@ -176,6 +176,30 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
 
       if (path.startsWith('/catalogue/search')) return reply(FAKE_CATALOGUE);
 
+      if (path === '/share') {
+        return reply({ link: 'https://example.test/join?via=shopper-margaret', joined: 2 });
+      }
+
+      // Ozi's everyday replies live on the server (ruling 44); a few stand in for them here.
+      if (path === '/ozi/reply' && method === 'POST') {
+        const asked = (body ?? {}) as { text?: string; mode?: string };
+        const said = (asked.text ?? '')
+          .toLowerCase()
+          .replace(/\b(hey\s+)?(ozi|ozzy|ozzie)\b/g, ' ')
+          .replace(/[^a-z' ]+/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        const known: Record<string, string> = {
+          'thank you': "You're welcome. Send me, I will help.",
+          thanks: "You're welcome. Send me, I will help.",
+          'who are you': "I'm Ozi, your shopping assistant.",
+        };
+        const hit = Object.keys(known).find((when) =>
+          asked.mode === 'exact' ? said === when : ` ${said} `.includes(` ${when} `),
+        );
+        return reply({ reply: hit ? known[hit] : null });
+      }
+
       if (path.startsWith('/config')) {
         return reply({
           payments: {

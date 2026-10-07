@@ -12,7 +12,7 @@ import { App } from '../src/App';
 import { spokenDate } from '../src/components/StaffVoice';
 import type { StaffProblem } from '../src/lib/api';
 import { setVoiceEngine } from '../src/voice';
-import { readItem, spokenMoney, summary, understand } from '../src/voice/staff-voice';
+import { readItem, spokenMoney, summary, toOwner, understand } from '../src/voice/staff-voice';
 import { fakeEngine, type FakeEngine } from './fake-voice';
 
 const COMPLAINT: StaffProblem = {
@@ -226,6 +226,98 @@ describe('using the admin panel by voice', () => {
     await say(engine, 'open the team');
     await waitFor(() => {
       expect(spoken(engine)).toContain("Team isn't part of your job, so I can't open it.");
+    });
+  });
+});
+
+describe('Ozi and the owner (ruling 44)', () => {
+  it('ends with sir, and says yes sir first when he asked for something', () => {
+    expect(toOwner('There are no complaints right now.')).toBe(
+      'There are no complaints right now, sir.',
+    );
+    expect(toOwner('Signing you out. Goodbye.', 'Okay, sir.')).toBe(
+      'Okay, sir. Signing you out. Goodbye, sir.',
+    );
+    expect(toOwner('Only you, sir.', 'Yes, sir.')).toBe('Yes, sir. Only you, sir.');
+    expect(toOwner('Accept this? Say yes to confirm')).toBe(
+      'Accept this? Say yes to confirm, sir.',
+    );
+  });
+
+  it('greets him as Mr Anthony, and answers everyday words from the server', async () => {
+    window.sessionStorage.clear();
+    window.localStorage.setItem('ozidelivery.voice.settings', JSON.stringify({ introHeard: true }));
+    const asked: unknown[] = [];
+    const reply = (body: unknown): Response =>
+      ({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => Promise.resolve(body),
+      }) as unknown as Response;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const path = String(url)
+          .replace(/^https?:\/\/[^/]+/, '')
+          .replace(/^\/api(?=\/|$)/, '');
+        if (path === '/staff/sign-in') {
+          return reply({
+            token: 'st1.owner.sig',
+            name: 'Anthony',
+            role: 'founder',
+            title: 'Founder',
+            areas: ['team'],
+            mustChangePassword: false,
+          });
+        }
+        if (path === '/staff/me') {
+          return reply({
+            name: 'Anthony',
+            role: 'founder',
+            title: 'Founder',
+            areas: ['team'],
+            account: true,
+            mustChangePassword: false,
+            isOwner: true,
+            address: 'Mr Anthony',
+          });
+        }
+        if (path === '/staff/team') return reply({ members: [] });
+        if (path === '/ozi/reply') {
+          asked.push({ headers: init?.headers, body: JSON.parse(String(init?.body)) });
+          return reply({ reply: 'My pleasure, Mr Anthony. Always, sir.' });
+        }
+        return reply({});
+      }),
+    );
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const user = userEvent.setup({ delay: null });
+    render(
+      <MemoryRouter initialEntries={['/staff']}>
+        <App />
+      </MemoryRouter>,
+    );
+    await user.type(await screen.findByLabelText('Username'), 'anthony');
+    await user.type(screen.getByLabelText('Password'), 'a long password');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+
+    await waitFor(() => {
+      expect(engine.spoken.map((s) => s.text).join(' ')).toMatch(
+        /, Mr Anthony\. You're signed in as Founder\..*, sir\./,
+      );
+    });
+    await waitFor(() => {
+      expect(engine.listening).not.toBeNull();
+    });
+    engine.hear('thank you');
+    await waitFor(() => {
+      expect(engine.spoken.at(-1)?.text).toBe('My pleasure, Mr Anthony. Always, sir.');
+    });
+    expect(asked[0]).toMatchObject({
+      headers: expect.objectContaining({ 'x-staff-token': 'st1.owner.sig' }),
+      body: { text: 'thank you', mode: 'exact', turn: 0 },
     });
   });
 });

@@ -8,11 +8,9 @@ Soon, worth doing next
 3. Shopper feedback after delivery, with delivery credit for feedback of any kind (Section O).
 4. Ozi reading the receipt aloud: what was bought, what was left out, the charge and the fee (T10).
 5. The family and carer plan: someone ordering for a relative (T1). The page says "coming soon"; the data model is ready.
-6. Admin views of the business: today's orders, Runners active, money taken and paid out, sign-ups, cancellations; and Ozi answering "how many orders today" (Section Q).
-7. An audit log of every admin decision, and two-step sign-in for staff (Section Q).
-8. Insurance expiry reminders for Runners (2 October proposals).
-9. Unmet demand: recording searches for things no shop has (Section O).
-10. Ozi mentions for Shop Partners ("Ozi Recommends"), once Anthony chooses the price and frequency (ruling 41).
+6. The security steps in docs/SECURITY_PROPOSAL.md marked "to do": an audit log sent to a one-way store, two-step sign-in for all staff, alerts to the owner, Dependabot and secret scanning, a locked weekly backup, Cloudflare in front (rulings 43, 44).
+7. Insurance expiry reminders for Runners (2 October proposals).
+8. Ozi's phrases: from about 2,000 per account, add phrases for questions people actually asked that Ozi could not answer, which means recording those questions without names (ruling 44).
 
 Bigger pieces
 - Errands, Sending and Business emergency runs as services, with their prices: extra shop, handed to the person, tipping (Sections B, C, K, L).
@@ -45,3 +43,5 @@ Needs Anthony before launch
 - VAPID keys, for notifications (step 10).
 - Public liability insurance (step 11).
 - A real accessibility check by people using screen readers (Section R).
+- Database backups and point-in-time recovery switched on, two-step codes on the owner account, an uptime check (docs/SECURITY_PROPOSAL.md, section 6).
+- Cyber Essentials before signing councils or the NHS; a penetration test before about 10,000 Shoppers.
