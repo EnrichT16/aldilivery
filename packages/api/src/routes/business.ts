@@ -604,8 +604,9 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       deliveryFeePence: config.fees.standardDeliveryPence,
       sharePath: organisation.joinCode ? `/join/organisation/${organisation.joinCode}` : null,
       referrals:
-        (organisation.joinCode ? await countJoinedVia(`organisation:${organisation.joinCode}`) : 0) +
-        people.length,
+        (organisation.joinCode
+          ? await countJoinedVia(`organisation:${organisation.joinCode}`)
+          : 0) + people.length,
     };
   });
 

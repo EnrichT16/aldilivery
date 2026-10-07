@@ -19,6 +19,7 @@ import { rehearsalGateway, stripeGateway, type PaymentsGateway } from './lib/pay
 import { livekitProvider } from './lib/livekit.js';
 import { webPushSender } from './lib/push.js';
 import { callScript, codeMessage, twilioCaller, twilioSender } from './lib/sms.js';
+import { twilioDialler } from './lib/twilio-voice.js';
 import { sweepOffers } from './services/dispatch.js';
 import { sweepPayouts } from './services/pay-runner.js';
 
@@ -78,6 +79,14 @@ async function main(): Promise<void> {
           }),
       )
     : undefined;
+  // Ozi ringing back a telephone caller who was cut off (ruling 28), from the same number.
+  const placeCall = callReady
+    ? twilioDialler({
+        accountSid: env.twilioAccountSid as string,
+        authToken: env.twilioAuthToken as string,
+        from: env.twilioVoiceFrom as string,
+      })
+    : undefined;
 
   // Notifications. The push services want somebody to contact about our messages: the
   // address given, or else the site itself when it is served over https.
@@ -102,6 +111,7 @@ async function main(): Promise<void> {
           url: env.livekitUrl,
           apiKey: env.livekitApiKey,
           apiSecret: env.livekitApiSecret,
+          sipTrunkId: env.livekitSipTrunkId,
         })
       : null;
 
@@ -114,6 +124,7 @@ async function main(): Promise<void> {
     logger: true,
     ...push,
     ...(sendText ? { sendText } : {}),
+    ...(placeCall ? { placeCall } : {}),
     ...(callCode ? { callDelivery: 'call' as const, callCode } : {}),
     ...(sendText
       ? {

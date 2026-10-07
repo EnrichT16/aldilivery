@@ -3,7 +3,7 @@ What the blueprint asks for that is not built yet
 Checked against docs/BUILD_PROMPT.md on 7 October 2026. Everything here is extra: Ozi Delivery works without it. In rough order of value.
 
 Soon, worth doing next
-1. A push notification at each stage of an order (paid, Runner found, shopping, on the way, delivered), and Ozi saying it aloud when the page is open (Section G).
+1. Ozi saying each stage of an order aloud when the page is open (Section G); notifications and texts at each stage are built (ruling 46).
 2. An estimated arrival time on the order page (Section G).
 3. Shopper feedback after delivery, with delivery credit for feedback of any kind (Section O).
 4. Ozi reading the receipt aloud: what was bought, what was left out, the charge and the fee (T10).
@@ -21,7 +21,7 @@ Bigger pieces
 - Welsh, then Igbo, Hausa, Yoruba and Swahili: a language layer for the screens (Section E).
 - A region selector and marketplace switching (Section P).
 - Many shops, with listings and price dates shown (Section N, ruling 16).
-- Telephone ordering answered by Ozi on the Twilio number (T9, ruling 45).
+- Card entry on the phone keypad during a telephone order (Twilio Pay with Stripe), ruling 28; telephone ordering itself is built (ruling 46).
 - Email sign-up with an emailed code (ruling 33).
 - Flutterwave and Paystack (rulings 17, 18, 35).
 - Delivery bundles, 4 for £48 (T3); weekly spoken summary (T7); wellbeing checks (T8).

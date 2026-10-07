@@ -68,8 +68,7 @@ export function distanceMiles(a: JobLocation, b: JobLocation): number | null {
   const lat1 = toRadians(a.latitude);
   const lat2 = toRadians(b.latitude);
 
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  const h = Math.sin(dLat / 2) ** 2 + Math.sin(dLon / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
   return 2 * EARTH_RADIUS_MILES * Math.asin(Math.sqrt(h));
 }
 
@@ -108,8 +107,10 @@ export function buildOfferQueue(
 
   scored.sort((a, b) => {
     // A Runner whose position is unknown sorts after everyone whose position is known.
-    const bucketA = a.distance === null ? Number.POSITIVE_INFINITY : Math.floor(a.distance / bucketMiles);
-    const bucketB = b.distance === null ? Number.POSITIVE_INFINITY : Math.floor(b.distance / bucketMiles);
+    const bucketA =
+      a.distance === null ? Number.POSITIVE_INFINITY : Math.floor(a.distance / bucketMiles);
+    const bucketB =
+      b.distance === null ? Number.POSITIVE_INFINITY : Math.floor(b.distance / bucketMiles);
     if (bucketA !== bucketB) return bucketA - bucketB;
 
     // Inside a bucket, longest wait wins. This is the rotation.
@@ -137,7 +138,10 @@ export function nextRunnerToOffer(
 }
 
 /** An offer has expired when the hold has elapsed and nobody has answered. */
-export function isOfferExpired(offer: { expiresAt: Date; respondedAt: Date | null }, now: Date): boolean {
+export function isOfferExpired(
+  offer: { expiresAt: Date; respondedAt: Date | null },
+  now: Date,
+): boolean {
   return offer.respondedAt === null && now.getTime() >= offer.expiresAt.getTime();
 }
 

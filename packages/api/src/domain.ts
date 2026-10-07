@@ -340,7 +340,8 @@ export interface BasketLine {
  * telephone number is part of it: people join a room by an identity of ours, never a number.
  */
 export type CallStatus = 'ringing' | 'live' | 'ended';
-export type CallRole = 'shopper' | 'runner' | 'guest';
+/** `phone`: the Shopper's own telephone, rung through LiveKit and Twilio (ruling 46). */
+export type CallRole = 'shopper' | 'runner' | 'guest' | 'phone';
 /**
  * `not_due`: nothing to pay. `paid`: taken from the Shopper's card. `outstanding`: the card could
  * not be charged, so it waits and is taken the next time a charge succeeds (ruling, 2 Oct 2026).
@@ -374,7 +375,7 @@ export interface CallLeg {
   id: string;
   callId: string;
   role: CallRole;
-  /** The LiveKit identity: `shopper-…`, `runner-…` or `guest-…`. Never a number. */
+  /** The LiveKit identity: `shopper-…`, `runner-…`, `guest-…` or `phone-…`. Never a number. */
   identity: string;
   /** The name others hear and see: a first name, or what the Shopper called their guest. */
   name: string;

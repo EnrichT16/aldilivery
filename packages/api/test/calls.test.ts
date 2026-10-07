@@ -393,3 +393,48 @@ describe('the real LiveKit library', () => {
     ).rejects.toThrow();
   });
 });
+
+describe('ringing the Shopper’s own phone (ruling 46)', () => {
+  it('rings it through LiveKit, never shows the number, and never charges for it', async () => {
+    const dialled: Array<{ roomName: string; phone: string; identity: string; name: string }> = [];
+    livekit.dialPhone = async (input) => {
+      dialled.push(input);
+    };
+    const started = await call(runner, 'POST', `/orders/${orderId}/calls`);
+    const callId = (started.json() as { call: { id: string } }).call.id;
+    const room = livekit.tokens[0]!.roomName;
+
+    const rung = await call(runner, 'POST', `/calls/${callId}/phone`);
+    expect(rung.statusCode, rung.body).toBe(200);
+    expect(rung.body).not.toContain('7700900001');
+    expect(rung.json().message).toMatch(
+      /^Ringing Margaret's phone now\. Their number is never shown/,
+    );
+    expect(dialled).toEqual([
+      {
+        roomName: room,
+        phone: '+447700900001',
+        identity: `phone-${shopper.shopperId}`,
+        name: 'Margaret',
+      },
+    ]);
+
+    // The phone answers: the call is live. Five minutes later everyone hangs up.
+    await webhook('participant_joined', room, `runner-${runner.runnerId}`, 0);
+    await webhook('participant_joined', room, `phone-${shopper.shopperId}`, 5);
+    expect((await harness.repository.calls.findById(callId))!.status).toBe('live');
+    await webhook('participant_left', room, `phone-${shopper.shopperId}`, 305);
+    await webhook('room_finished', room, null, 310);
+    const ended = (await harness.repository.calls.findById(callId))!;
+    expect(ended.billedMinutes).toBe(0);
+    expect(ended.chargePence).toBe(0);
+  });
+
+  it('is only for the Runner, and says so when it is not switched on', async () => {
+    const started = await call(runner, 'POST', `/orders/${orderId}/calls`);
+    const callId = (started.json() as { call: { id: string } }).call.id;
+    expect((await call(runner, 'POST', `/calls/${callId}/phone`)).statusCode).toBe(503);
+    livekit.dialPhone = async () => undefined;
+    expect((await call(shopper, 'POST', `/calls/${callId}/phone`)).statusCode).toBe(401);
+  });
+});

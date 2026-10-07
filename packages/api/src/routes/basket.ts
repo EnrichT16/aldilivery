@@ -28,7 +28,9 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
   app.post('/basket/price', async (request) => {
     const { lines } = basketSchema.parse(request.body);
 
-    const items = await repository.catalogue.findManyByIds(lines.map((line) => line.catalogueItemId));
+    const items = await repository.catalogue.findManyByIds(
+      lines.map((line) => line.catalogueItemId),
+    );
 
     // Throws on an age restricted item (Rule Six) and on a basket over the maximum.
     const priced = priceLines(lines, items, config.fees);

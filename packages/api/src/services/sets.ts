@@ -50,11 +50,7 @@ export function isSkipped(set: ScheduledSet): boolean {
 }
 
 export type FireRefusal =
-  | 'not_active'
-  | 'not_yet_due'
-  | 'skipped_by_shopper'
-  | 'notice_not_sent'
-  | 'notice_sent_too_late';
+  'not_active' | 'not_yet_due' | 'skipped_by_shopper' | 'notice_not_sent' | 'notice_sent_too_late';
 
 export interface FireDecision {
   mayFire: boolean;
@@ -97,7 +93,10 @@ export function mayFire(
  * longer is a conversation, not a skip, and is not treated as one.
  */
 export function isSkipInstruction(reply: string, skipWord: string): boolean {
-  const cleaned = reply.trim().replace(/[.!,]+$/, '').toLowerCase();
+  const cleaned = reply
+    .trim()
+    .replace(/[.!,]+$/, '')
+    .toLowerCase();
   return cleaned === skipWord.trim().toLowerCase();
 }
 
@@ -148,7 +147,9 @@ export function firstFireAt(from: Date, dayOfWeek: number, timeOfDay: string): D
     throw new TypeError(`A time of day must look like "09:30", received "${timeOfDay}".`);
   }
   if (!Number.isInteger(dayOfWeek) || dayOfWeek < 1 || dayOfWeek > 7) {
-    throw new TypeError(`A day of week must be 1 (Monday) through 7 (Sunday), received ${dayOfWeek}.`);
+    throw new TypeError(
+      `A day of week must be 1 (Monday) through 7 (Sunday), received ${dayOfWeek}.`,
+    );
   }
 
   const hours = Number(match[1]);

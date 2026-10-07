@@ -947,6 +947,11 @@ export function endCall(callId: string, as: 'shopper' | 'runner'): Promise<unkno
   return request<unknown>(`/calls/${encodeURIComponent(callId)}/end`, { method: 'POST' }, as);
 }
 
+/** The Runner rings the Shopper's own telephone into the call; the number is never shown. */
+export function ringShopperPhone(callId: string): Promise<{ ringing: true; message: string }> {
+  return request(`/calls/${encodeURIComponent(callId)}/phone`, { method: 'POST' }, 'runner');
+}
+
 export function addCallGuest(
   callId: string,
   name: string,

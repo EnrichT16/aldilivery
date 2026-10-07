@@ -16,6 +16,7 @@ import { requireSession, requireStaff } from '../app.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 import { isOfferExpired, poolOrders } from '../services/allocation.js';
 import { offerOrder } from '../services/dispatch.js';
+import { tellShopper } from '../services/order-updates.js';
 import { assertTransitionAllowed } from '../services/orders.js';
 
 export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
@@ -144,6 +145,7 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
       runnerId: runner.id,
       acceptedAt: at,
     });
+    void tellShopper(app.ctx, updated, 'accepted', request.log);
 
     return {
       order: updated,

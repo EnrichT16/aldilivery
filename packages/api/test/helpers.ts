@@ -54,6 +54,7 @@ export const testEnv: Env = {
   livekitUrl: undefined,
   livekitApiKey: undefined,
   livekitApiSecret: undefined,
+  livekitSipTrunkId: undefined,
   seedOnStart: true,
 };
 
@@ -100,6 +101,10 @@ export interface TestAppOptions {
   sendPush?: SendPush;
   /** LiveKit. Off unless a test hands in a stand-in. */
   calls?: CallProvider;
+  /** Settings that differ from `testEnv`, such as a Twilio Auth Token. */
+  env?: Partial<Env>;
+  /** Ringing someone from our Twilio number. Off unless a test hands in a stand-in. */
+  placeCall?: (to: string, url: string, statusCallback: string) => Promise<void>;
 }
 
 export async function buildTestApp(
@@ -123,7 +128,7 @@ export async function buildTestApp(
     config,
     repository,
     payments,
-    env: testEnv,
+    env: { ...testEnv, ...options.env },
     // Pinned so the tests never shell out to git, and never depend on which commit is
     // checked out. `resolveGitCommit` itself is proved separately, in health.test.ts.
     gitCommit: null,
@@ -138,6 +143,7 @@ export async function buildTestApp(
     ...(options.sendPush ? { sendPush: options.sendPush, pushPublicKey: 'test-public-key' } : {}),
     ...(options.sendText ? { sendText: options.sendText } : {}),
     ...(options.calls ? { calls: options.calls } : {}),
+    ...(options.placeCall ? { placeCall: options.placeCall } : {}),
     deliverCode:
       options.deliverCode ??
       (async (phone, code) => {

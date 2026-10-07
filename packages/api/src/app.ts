@@ -24,6 +24,7 @@ import type { CallProvider } from './lib/livekit.js';
 import type { PaymentsGateway } from './lib/payments.js';
 import type { SendPush } from './lib/push.js';
 import type { SendText } from './lib/sms.js';
+import type { PlaceCall } from './lib/twilio-voice.js';
 import { verifySession } from './lib/tokens.js';
 import { gitCommit } from './lib/version.js';
 import { registerAuthRoutes } from './routes/auth.js';
@@ -43,6 +44,7 @@ import { registerBusinessRoutes } from './routes/business.js';
 import { registerOwnerRoutes } from './routes/owner.js';
 import { registerOziRoutes } from './routes/ozi.js';
 import { registerShareRoutes } from './routes/share.js';
+import { registerTelephoneRoutes } from './routes/telephone.js';
 import { registerStaffRoutes } from './routes/staff.js';
 import { registerExtrasRoutes } from './routes/extras.js';
 import { registerProblemRoutes } from './routes/problems.js';
@@ -94,6 +96,8 @@ export interface AppContext {
    * without notifications switched on — such as the home address changing. Null without Twilio.
    */
   sendText: SendText | null;
+  /** Rings someone from our Twilio number: Ozi calling back a cut-off caller (ruling 28). */
+  placeCall: PlaceCall | null;
   /** LiveKit, for in-app calls (Section F). Null until its three settings are given. */
   calls: CallProvider | null;
 }
@@ -126,6 +130,7 @@ export interface BuildAppOptions extends Partial<
     | 'sendPush'
     | 'pushPublicKey'
     | 'sendText'
+    | 'placeCall'
     | 'calls'
   >
 > {
@@ -186,6 +191,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     sendPush: options.sendPush ?? null,
     pushPublicKey: options.sendPush ? (options.pushPublicKey ?? null) : null,
     sendText: options.sendText ?? null,
+    placeCall: options.placeCall ?? null,
     calls: options.calls ?? null,
   };
 
@@ -229,6 +235,15 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   );
 
   const tries = limiter();
+  // Twilio sends its webhooks as a form, not JSON (rulings 28 and 45).
+  app.addContentTypeParser(
+    'application/x-www-form-urlencoded',
+    { parseAs: 'string' },
+    (_request, body: string, done) => {
+      done(null, Object.fromEntries(new URLSearchParams(body)));
+    },
+  );
+
   app.addHook('onRequest', async (request) => {
     const session = readSession(request, ctx.env.authTokenSecret, ctx.now());
     if (session) request.session = session;
@@ -407,6 +422,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerOwnerRoutes(app);
   await registerOziRoutes(app);
   await registerShareRoutes(app);
+  await registerTelephoneRoutes(app);
 }
 
 /**

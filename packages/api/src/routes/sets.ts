@@ -128,9 +128,9 @@ export async function registerSetRoutes(app: FastifyInstance): Promise<void> {
   app.post('/sets/:id/skip', async (request) => {
     const session = requireSession(request, 'shopper');
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
-    const body = z.object({ reply: z.string().trim().min(1).max(50).optional() }).parse(
-      request.body ?? {},
-    );
+    const body = z
+      .object({ reply: z.string().trim().min(1).max(50).optional() })
+      .parse(request.body ?? {});
 
     const set = await repository.sets.findById(id);
     if (!set) throw new NotFoundError('regular order');

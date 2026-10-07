@@ -27,6 +27,7 @@ import { applyCredit } from '../services/credit.js';
 import { recordOrder } from '../lib/analytics.js';
 import { recordOrderIncome } from '../lib/ledger.js';
 import { offerOrder } from '../services/dispatch.js';
+import { tellShopper } from '../services/order-updates.js';
 import { payOutOrder } from '../services/pay-runner.js';
 import {
   assertConfirmedBeforePayment,
@@ -309,6 +310,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     if (succeeded) {
       await recordOrder(app.ctx, placed, 'order_paid', request.log);
       await recordOrderIncome(repository, payments, placed, now());
+      void tellShopper(app.ctx, placed, 'paid', request.log);
     }
 
     void reply.status(201);
@@ -405,6 +407,9 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
     const updated = await repository.orders.update(order.id, patch);
     if (status === 'delivered') await recordOrder(app.ctx, updated, 'order_delivered', request.log);
+    if (status === 'delivering' || status === 'delivered') {
+      void tellShopper(app.ctx, updated, status, request.log);
+    }
 
     // Delivered is the end of the Runner's job, so it is where their place in the rotation
     // moves on. Waiting for the payout would leave it stuck until Stripe Connect exists.

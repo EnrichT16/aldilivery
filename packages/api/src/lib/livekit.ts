@@ -12,7 +12,7 @@
  * provider, and the call routes say plainly that calls are not switched on yet.
  */
 
-import { AccessToken, RoomServiceClient, WebhookReceiver } from 'livekit-server-sdk';
+import { AccessToken, RoomServiceClient, SipClient, WebhookReceiver } from 'livekit-server-sdk';
 
 export interface CallWebhookEvent {
   /** LiveKit's own id for the event, for ignoring a repeat. */
@@ -36,12 +36,24 @@ export interface CallProvider {
   /** Throws when the signature does not check out. */
   verifyWebhook(body: string, authorization: string | undefined): Promise<CallWebhookEvent>;
   endRoom(roomName: string): Promise<void>;
+  /**
+   * Rings a telephone into the room, through the SIP trunk to our Twilio number (ruling 46).
+   * The number never appears to anyone in the room. Absent without LIVEKIT_SIP_TRUNK_ID.
+   */
+  dialPhone?(input: {
+    roomName: string;
+    phone: string;
+    identity: string;
+    name: string;
+  }): Promise<void>;
 }
 
 export function livekitProvider(settings: {
   url: string;
   apiKey: string;
   apiSecret: string;
+  /** LiveKit's id for the outbound trunk to Twilio, `ST_…`, for ringing telephones. */
+  sipTrunkId?: string | undefined;
 }): CallProvider {
   const receiver = new WebhookReceiver(settings.apiKey, settings.apiSecret);
   // The room service speaks https to the same host the app reaches over wss.
@@ -51,7 +63,10 @@ export function livekitProvider(settings: {
     settings.apiSecret,
   );
 
-  return {
+  const host = settings.url.replace(/^wss:/, 'https:').replace(/^ws:/, 'http:');
+  const sip = settings.sipTrunkId ? new SipClient(host, settings.apiKey, settings.apiSecret) : null;
+
+  const provider: CallProvider = {
     url: settings.url,
 
     async issueToken({ roomName, identity, name, ttlSeconds }) {
@@ -86,4 +101,19 @@ export function livekitProvider(settings: {
       await rooms.deleteRoom(roomName);
     },
   };
+
+  if (sip && settings.sipTrunkId) {
+    const trunk = settings.sipTrunkId;
+    provider.dialPhone = async ({ roomName, phone, identity, name }) => {
+      await sip.createSipParticipant(trunk, phone, roomName, {
+        participantIdentity: identity,
+        participantName: name,
+        // Nobody in the room is told the number.
+        hidePhoneNumber: true,
+        playDialtone: true,
+        ringingTimeout: 40,
+      });
+    };
+  }
+  return provider;
 }
