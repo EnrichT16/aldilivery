@@ -3,7 +3,7 @@ What the blueprint asks for that is not built yet
 Checked against docs/BUILD_PROMPT.md (Sections A to T and rulings 1 to 49) and against the code itself on 7 October 2026. Everything that is now built has been taken off. docs/MASTER_BLUEPRINT.md has the full picture of what is built. In rough order of value.
 
 Soon, worth doing next
-1. Charging the till total. The Runner types the till total and the order is repriced to it, but the difference from the estimate charged up front is not refunded or taken from the card, so a Shopper can pay more than the till said. Items left out at the shelf are only refunded this way too (Section H, Section R, ruling 48).
+1. Settling the till total is built (ruling 52); still to do: the owner's own screen for the orders that need a person (a large extra, or a bank transfer).
 2. Recurring orders on a clock. The rules for Sets (notice thirty minutes before, the one word skip) are written and tested, but nothing runs them and the notice is not sent by notification or text. Orders booked for one future time are not built (Section I, Rule Five).
 3. Ozi saying each stage of an order aloud when the order page is open (Section G); notifications and texts at each stage are built (ruling 46).
 4. An estimated arrival time on the order page that updates (Section G).

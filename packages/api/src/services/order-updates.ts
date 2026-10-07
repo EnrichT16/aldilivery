@@ -21,6 +21,35 @@ function firstName(name: string): string {
   return name.trim().split(/\s+/)[0] ?? name;
 }
 
+/** Any message about an order, by notification where allowed, otherwise by text to a mobile. */
+export async function tellShopperWords(
+  ctx: AppContext,
+  order: Order,
+  body: string,
+  log: FastifyBaseLogger,
+): Promise<void> {
+  try {
+    const { repository, config } = ctx;
+    const shopper = await repository.shoppers.findById(order.shopperId);
+    if (!shopper) return;
+    const devices = await repository.pushSubscriptions.listForShopper(shopper.id);
+    if (devices.length > 0 && ctx.sendPush) {
+      await notifyShopper({ repository, sendPush: ctx.sendPush, log }, shopper.id, {
+        title: config.productName,
+        body,
+        url: '/my-order',
+        tag: `order-${order.id}-till`,
+      });
+      return;
+    }
+    if (ctx.sendText && isUkMobile(shopper.phone)) {
+      await ctx.sendText(shopper.phone, `${config.productName}: ${body}`);
+    }
+  } catch (failure) {
+    log.warn({ err: failure, orderId: order.id }, 'The Shopper could not be told.');
+  }
+}
+
 export async function tellShopper(
   ctx: AppContext,
   order: Order,
