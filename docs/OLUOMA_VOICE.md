@@ -2,8 +2,10 @@
 
 For the team building Oluoma Voice, the separate voice product (docs/BUILD_PROMPT.md, Section E).
 Ozi Delivery does not recognise or synthesise speech itself. It calls an engine through the
-interface below, and nothing else in Ozi knows which engine is behind it. When Oluoma Voice is
-ready, it replaces the stand-in by changing one file: `packages/web/src/voice/index.ts`.
+interface below, and nothing else in Ozi knows which engine is behind it. Oluoma Voice is now
+connected (ruling 53): `packages/web/src/voice/oluoma-engine.ts` is chosen in
+`packages/web/src/voice/index.ts` when the server hands out a pass, and the phone's own speech is
+the fallback.
 
 The interface is defined in TypeScript in `packages/web/src/voice/engine.ts`. That file is the
 source of truth; this document explains it.
@@ -70,7 +72,23 @@ point of collection, before storage (Section R). That stripping is Ozi's job, no
 but an engine that sends audio off the device must say so, in `name` or in its documentation, so
 Ozi can tell the Shopper.
 
-## The stand-in, until Oluoma Voice exists
+## How Ozi reaches Oluoma Voice (ruling 53)
+
+- The server holds the engine's key (OLUOMA_VOICE_KEY) and never sends it anywhere else.
+  `GET /voice/session` answers `{ enabled, url, token, expiresAt }`: a token the engine made
+  from the key, lasting five minutes. With no engine set up, or none answering, it answers
+  `{ enabled: false }`. One internet address may ask sixty times in ten minutes.
+- Speaking: `POST /v1/speak` with `format: "wav"` and Ozi's usual pace (`SPEAKING_RATE` in
+  engine.ts), played with Web Audio as it streams in. A voice the engine does not know (one
+  chosen while the phone's own speech was in use) is retried with the engine's default.
+- Hearing: the microphone is recorded with MediaRecorder until about a second of quiet after
+  talking, then sent to `POST /v1/transcribe?language=…`. The live socket is not used yet.
+- Any failure of the engine hands the sentence, or the listening, to the phone's own speech, which
+  is then used for the rest of the visit. A microphone the Shopper has refused is reported as it
+  is, not treated as the engine failing.
+- The site's address must be in the engine's list of websites allowed to call it from a browser.
+
+## The fallback: the phone's own speech
 
 `packages/web/src/voice/browser-engine.ts` uses the phone's own speech, through the browser's Web
 Speech API:

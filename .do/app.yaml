@@ -239,6 +239,18 @@ services:
         scope: RUN_TIME
         value: replace_with_the_livekit_sip_trunk_id
 
+      # Oluoma Voice (ruling 53), so Ozi speaks and hears through our own voice engine rather
+      # than the phone's. DEPLOY.md, "Switching on Oluoma Voice". Until both are real, the app
+      # uses the phone's own speech, as before. The key never leaves the server.
+      - key: OLUOMA_VOICE_URL
+        scope: RUN_TIME
+        value: replace_with_the_oluoma_voice_address
+
+      - key: OLUOMA_VOICE_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: replace_with_the_oluoma_voice_key
+
 # ---------------------------------------------------------------------------
 # The web app
 # ---------------------------------------------------------------------------

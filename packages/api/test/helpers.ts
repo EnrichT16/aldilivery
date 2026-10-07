@@ -20,6 +20,7 @@ import {
   type RehearsalGateway,
 } from '../src/lib/payments.js';
 import type { CallProvider } from '../src/lib/livekit.js';
+import type { VoiceEngineLink } from '../src/lib/oluoma-voice.js';
 import type { SendPush } from '../src/lib/push.js';
 
 export const TEST_SECRET = 'test-secret-that-is-long-enough-for-hmac';
@@ -57,6 +58,8 @@ export const testEnv: Env = {
   livekitSipTrunkId: undefined,
   ownerAlertPhone: undefined,
   humanLinePhone: undefined,
+  oluomaVoiceUrl: undefined,
+  oluomaVoiceKey: undefined,
   seedOnStart: true,
 };
 
@@ -103,6 +106,8 @@ export interface TestAppOptions {
   sendPush?: SendPush;
   /** LiveKit. Off unless a test hands in a stand-in. */
   calls?: CallProvider;
+  /** Oluoma Voice. Off unless a test hands in a stand-in. */
+  voice?: VoiceEngineLink;
   /** Settings that differ from `testEnv`, such as a Twilio Auth Token. */
   env?: Partial<Env>;
   /** Ringing someone from our Twilio number. Off unless a test hands in a stand-in. */
@@ -145,6 +150,7 @@ export async function buildTestApp(
     ...(options.sendPush ? { sendPush: options.sendPush, pushPublicKey: 'test-public-key' } : {}),
     ...(options.sendText ? { sendText: options.sendText } : {}),
     ...(options.calls ? { calls: options.calls } : {}),
+    ...(options.voice ? { voice: options.voice } : {}),
     ...(options.placeCall ? { placeCall: options.placeCall } : {}),
     deliverCode:
       options.deliverCode ??

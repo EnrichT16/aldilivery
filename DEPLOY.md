@@ -196,6 +196,20 @@ To check it worked, visit your site's address followed by slash api slash health
 
 What a call costs is set in config slash store dot json, under calls: 5p a minute for each person, paid by the Shopper, and the most that may wait unpaid, £10, before nobody more can be added to a call. A Runner never pays for a call.
 
+Switching on Oluoma Voice
+
+Ozi can speak and listen through Oluoma Voice, our own voice engine, instead of the phone's own speech. It sounds the same on every phone, and no speech goes to Google or Apple. Until it is switched on, and whenever it cannot be reached, the app simply uses the phone's own speech, as it always has, so nothing stops working.
+
+First, the engine has to be running on its own server. Its own instructions are in the OluomaApp repository, in voice-engine slash README dot md. When you make the key for this product there, it prints the key once: copy it straight into DigitalOcean as below. Treat it like a password.
+
+While you are in the engine's config slash clients dot json, add the site's address, https colon slash slash ozidelivery dot co dot uk, to the website addresses allowed to call it from a browser. Without that, phones are turned away and the app quietly goes back to the phone's own speech.
+
+Then, in DigitalOcean, open the app, go to the Settings tab, choose the api component, and open Environment Variables. Press edit and add two variables: OLUOMA_VOICE_URL with the engine's address, starting https, and OLUOMA_VOICE_KEY with the key, ticking Encrypt for the key. Save. The app redeploys by itself.
+
+The key stays on our server. Each phone is given a pass that lasts five minutes and can do nothing but speak and listen.
+
+To check it worked, visit your site's address followed by slash api slash health. It now says voiceEnabled true. Then open Settings in the app: under the voice it says Speech by: Oluoma Voice. If it still names the phone's own speech, the engine did not answer: check that its address is right and that the site's address is in its list.
+
 Approving a Runner
 
 Somebody signs up to run from the Runner page on the site. That makes their account, but they cannot be offered any job until a person has seen two things: their right to work in the United Kingdom, and a criminal record check. Nothing in Ozi Delivery decides that for you. The approval tool only writes down what you decided, who you are, when, and what you saw, and then lets the job queue include them.

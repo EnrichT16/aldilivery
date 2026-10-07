@@ -1,6 +1,6 @@
 What the blueprint asks for that is not built yet
 
-Checked against docs/BUILD_PROMPT.md (Sections A to T and rulings 1 to 49) and against the code itself on 7 October 2026. Everything that is now built has been taken off. docs/MASTER_BLUEPRINT.md has the full picture of what is built. In rough order of value.
+Checked against docs/BUILD_PROMPT.md (Sections A to T and rulings 1 to 53) and against the code itself on 7 October 2026. Everything that is now built has been taken off. docs/MASTER_BLUEPRINT.md has the full picture of what is built. In rough order of value.
 
 Soon, worth doing next
 1. Settling the till total is built (ruling 52); still to do: the owner's own screen for the orders that need a person (a large extra, or a bank transfer).
@@ -38,7 +38,10 @@ Bigger pieces
 - Email sign-up with an emailed code (ruling 33).
 - Flutterwave, Paystack and mobile money such as MTN, Orange and EcoCash (rulings 17, 18, 35).
 - Welsh, then Igbo, Hausa, Yoruba and Swahili: a language layer for every screen and everything Ozi says, the admin panel included (Section E).
-- Two or three chosen output voices per language; today Settings lists whatever voices the phone has (Section E).
+- Two or three chosen output voices per language; Settings lists Oluoma Voice's voices when it is switched on (ruling 53), and otherwise whatever voices the phone has (Section E).
+- Oluoma Voice's live connection, so words appear as they are spoken and Ozi stops the moment the Shopper talks over it; today the app records until the Shopper stops, then sends it (ruling 53).
+- The Oluoma phone bridge, being built in EnrichT16/OluomaApp, to replace Twilio's voice (Polly) on the telephone line (ruling 53).
+- "Hey Ozi" while muted: needs a wake word on the device itself, which Oluoma Voice does not have yet, and the phone apps.
 - A region selector and marketplace switching (Section P).
 - Many shops: OpenStreetMap shop data, a list linking items to kinds of shop, prices from Runners' receipts, Open Food Facts and Open Prices (Section N, ruling 16).
 - Seven-year retention of order and money records, then anonymisation, done automatically (ruling 16).

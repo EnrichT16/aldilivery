@@ -1,6 +1,7 @@
 /**
  * The stand-in voice engine: the phone's own speech recognition and voice, behind the Oluoma
- * Voice interface, until Oluoma Voice exists (docs/BUILD_PROMPT.md, Section E).
+ * Voice interface (docs/BUILD_PROMPT.md, Section E). Used when Oluoma Voice is not set up, and
+ * whenever it fails (ruling 53).
  *
  * It uses the browser's Web Speech API. Recognition is in Chrome, Edge and Safari, usually by
  * sending audio to the browser maker's own service; Firefox has none, and says so through
@@ -10,15 +11,16 @@
  * Nothing in Ozi is tuned to this engine's mistakes. When it mishears, it mishears.
  */
 
-import type {
-  LanguageTag,
-  ListenOptions,
-  OutputVoice,
-  SpeakOptions,
-  SpeakOutcome,
-  VoiceEngine,
-  VoiceErrorKind,
-  VoiceReadiness,
+import {
+  SPEAKING_RATE,
+  type LanguageTag,
+  type ListenOptions,
+  type OutputVoice,
+  type SpeakOptions,
+  type SpeakOutcome,
+  type VoiceEngine,
+  type VoiceErrorKind,
+  type VoiceReadiness,
 } from './engine';
 
 /* The parts of the Web Speech API used here. Not in every TypeScript DOM library. */
@@ -115,7 +117,7 @@ export function browserVoiceEngine(): VoiceEngine {
   }
 
   return {
-    name: 'The phone’s own speech (stand-in until Oluoma Voice)',
+    name: 'The phone’s own speech',
     wakeWordOnDevice: false,
 
     async readiness(): Promise<VoiceReadiness> {
@@ -184,7 +186,7 @@ export function browserVoiceEngine(): VoiceEngine {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = options.language;
       // Even pacing (Section E): the platform's normal rate, not hurried.
-      utterance.rate = 1;
+      utterance.rate = SPEAKING_RATE;
       const voices = await loadVoices(speech);
       const chosen =
         voices.find((voice) => voice.voiceURI === options.voiceId) ??

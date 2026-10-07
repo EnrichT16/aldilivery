@@ -127,6 +127,13 @@ export interface Env {
   /** Where "speak to a person" on the telephone line is put through to, +44 form (ruling 51). */
   humanLinePhone: string | undefined;
   /**
+   * Oluoma Voice, which Ozi speaks and hears through (ruling 53): where it runs, and this
+   * product's key for it. Both, or none; with none, the app uses the phone's own speech. The
+   * key stays on this server: browsers get five-minute tokens made from it.
+   */
+  oluomaVoiceUrl: string | undefined;
+  oluomaVoiceKey: string | undefined;
+  /**
    * Fill an empty catalogue at startup. On by default, because a deployed service with
    * no catalogue looks broken. Set `SEED_ON_START=false` once the catalogue comes from
    * somewhere else.
@@ -244,6 +251,8 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     livekitSipTrunkId: realValue(source['LIVEKIT_SIP_TRUNK_ID']),
     ownerAlertPhone: realValue(source['OWNER_ALERT_PHONE']),
     humanLinePhone: realValue(source['HUMAN_LINE_PHONE']),
+    oluomaVoiceUrl: realValue(source['OLUOMA_VOICE_URL']),
+    oluomaVoiceKey: realValue(source['OLUOMA_VOICE_KEY']),
     seedOnStart: source['SEED_ON_START'] !== 'false',
   };
 }

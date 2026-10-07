@@ -916,6 +916,26 @@ export function fetchCallsConfig(): Promise<CallsConfig> {
   );
 }
 
+/** A pass to Oluoma Voice (ruling 53): where it runs, and a token that lasts five minutes. */
+export interface VoiceSession {
+  url: string;
+  token: string;
+  /** When the token stops working, as an ISO date. */
+  expiresAt: string;
+}
+
+/**
+ * A fresh pass to Oluoma Voice, or null when the server has none to give: not set up, or the
+ * engine did not answer. The engine's key is never sent here; only the server holds it.
+ */
+export function fetchVoiceSession(): Promise<VoiceSession | null> {
+  return request<{ enabled?: boolean } & Partial<VoiceSession>>('/voice/session').then((body) =>
+    body.enabled === true && body.url && body.token && body.expiresAt
+      ? { url: body.url, token: body.token, expiresAt: body.expiresAt }
+      : null,
+  );
+}
+
 export interface CallInfo {
   id: string;
   orderId: string;

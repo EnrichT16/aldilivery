@@ -17,6 +17,7 @@ import { seedOnStartup, type StartupSeedOutcome } from './data/startup-seed.js';
 import { readEnv } from './env.js';
 import { rehearsalGateway, stripeGateway, type PaymentsGateway } from './lib/payments.js';
 import { livekitProvider } from './lib/livekit.js';
+import { oluomaVoice } from './lib/oluoma-voice.js';
 import { webPushSender } from './lib/push.js';
 import { callScript, codeMessage, twilioCaller, twilioSender } from './lib/sms.js';
 import { twilioDialler } from './lib/twilio-voice.js';
@@ -115,9 +116,16 @@ async function main(): Promise<void> {
         })
       : null;
 
+  // Oluoma Voice (ruling 53), when both settings are real. The key never leaves this server.
+  const voice =
+    env.oluomaVoiceUrl && env.oluomaVoiceKey
+      ? oluomaVoice({ url: env.oluomaVoiceUrl, key: env.oluomaVoiceKey })
+      : null;
+
   const app = await buildApp({
     config,
     calls,
+    voice,
     repository,
     payments,
     env,
@@ -162,6 +170,12 @@ async function main(): Promise<void> {
   if (!calls) {
     app.log.info(
       'In-app calls are off: LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET are not all set.',
+    );
+  }
+
+  if (!voice) {
+    app.log.info(
+      "Oluoma Voice is off: OLUOMA_VOICE_URL and OLUOMA_VOICE_KEY are not both set. The app uses the phone's own speech.",
     );
   }
 

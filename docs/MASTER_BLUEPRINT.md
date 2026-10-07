@@ -227,7 +227,7 @@ goods, no new price (Section J).
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Oluoma Voice interface, phone's own speech behind it | BUILT | packages/web/src/voice/engine.ts; docs/OLUOMA_VOICE.md. Swappable by changing one file. |
+| Ozi speaks and hears through Oluoma Voice; the phone's own speech as the fallback | BUILT | Ruling 53. packages/web/src/voice/oluoma-engine.ts behind the interface in engine.ts (docs/OLUOMA_VOICE.md); GET /voice/session gives the app a five-minute token, never the key. On when OLUOMA_VOICE_URL and OLUOMA_VOICE_KEY are set; the phone's own speech otherwise, and the moment the engine fails. The telephone line still uses Polly until the Oluoma phone bridge. |
 | Ozi speaks first; "Tap anywhere" on the website | BUILT | Rulings 3 (1 Oct), 20. |
 | Round green button: glows while listening, moveable by drag or arrow keys, "Muted" not by colour alone, gentle reminders while muted (2 min, then 3, then every 3) | BUILT | 1 October ruling 3. |
 | Talking switch at the bottom of every screen; "turn off talking"; Settings | BUILT | Ruling 21. |
@@ -650,8 +650,9 @@ Encrypt ticked, never into a chat or the code.
 - **LiveKit**: in-app calls, MERGE guests, minute counting by webhook at
   /api/webhooks/livekit, and a SIP trunk to Twilio for "Ring their phone instead".
 - **Web Push** (VAPID): notifications at each order stage and for Runner questions.
-- **Oluoma Voice**: the separate voice product, through the interface in
-  packages/web/src/voice/engine.ts; the phone's own speech stands in until it exists.
+- **Oluoma Voice**: the separate voice product (EnrichT16/OluomaApp), through the interface in
+  packages/web/src/voice/engine.ts. The server swaps OLUOMA_VOICE_KEY for five-minute tokens at
+  /api/voice/session; the phone's own speech is the fallback (ruling 53).
 
 ### Security measures (docs/SECURITY_PROPOSAL.md)
 
