@@ -1,0 +1,28 @@
+{
+  "name": "tofadachi-helpers",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tofadachi Helpers: a teachable AI helper engine that runs on Cloudflare Workers, any Node server, or a home computer.",
+  "license": "UNLICENSED",
+  "author": "Anthony Tochukwu Ibe, Tofadachi AI and IT Solutions UK Ltd",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "start": "node dist/src/platform/node-server.js",
+    "check": "npm run typecheck && npm test"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.11"
+  }
+}
