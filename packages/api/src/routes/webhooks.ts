@@ -14,6 +14,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { BadRequestError } from '../errors.js';
 import { chargeCalls } from '../services/calls.js';
 import { applyCredit } from '../services/credit.js';
+import { recordOrder } from '../lib/analytics.js';
 import { offerOrder } from '../services/dispatch.js';
 
 interface PaymentIntentLike {
@@ -61,6 +62,8 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
             // taken now too (ruling, 2 October 2026).
             await chargeCalls(app.ctx, order.shopperId, request.log).catch(() => undefined);
             await applyCredit(app.ctx, order.id, request.log).catch(() => 0);
+            const paid = await repository.orders.findById(order.id);
+            if (paid) await recordOrder(app.ctx, paid, 'order_paid', request.log);
           }
         }
         break;

@@ -8,7 +8,9 @@ import {
   decideStaffPartnerProduct,
   fetchStaffPartnerProducts,
   fetchStaffPartners,
-  renewStaffPartner,
+  fetchStaffAnalytics,
+  recordStaffPartnerPayment,
+  type StaffAnalytics,
   changeStaffPassword,
   checkStaffKey,
   fetchStaffMe,
@@ -66,6 +68,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'finds', label: 'Finds It' },
   { key: 'enquiries', label: 'Enquiries' },
   { key: 'partners', label: 'Shops and organisations' },
+  { key: 'analytics', label: 'Analytics' },
   { key: 'feedback', label: 'Feedback' },
   { key: 'team', label: 'Team' },
 ];
@@ -200,6 +203,7 @@ export function Staff(): JSX.Element {
             {shown === 'enquiries' && <Enquiries staffKey={key} onNews={setNews} />}
             {shown === 'feedback' && <Feedback staffKey={key} />}
             {shown === 'partners' && <Partners staffKey={key} onNews={setNews} />}
+            {shown === 'analytics' && <Analytics staffKey={key} />}
             {shown === 'team' && <Team staffKey={key} onNews={setNews} />}
           </div>
         </>
@@ -1332,26 +1336,41 @@ function Partners({
                 {shop.paid && shop.paidUntil
                   ? `Paid until ${new Date(shop.paidUntil).toLocaleDateString('en-GB')}.`
                   : 'Not paid: their products are hidden.'}{' '}
+                {shop.spotlightActive ? 'On Spotlight. ' : ''}
                 {shop.live} live, {shop.waiting} waiting. Sign-ins:{' '}
                 {shop.users.length
                   ? shop.users.map((user) => user.username).join(', ')
                   : 'none yet'}
                 .
               </p>
-              <button
-                type="button"
-                onClick={() =>
-                  void renewStaffPartner(staffKey, shop.id, 1)
-                    .then(() => {
-                      onNews(`${shop.name}: one more month recorded as paid.`);
-                      list.reload();
-                    })
-                    .catch(fail)
-                }
-                className="control bg-paper text-ink"
-              >
-                Record a month paid<span className="visually-hidden"> for {shop.name}</span>
-              </button>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ['plan', `Plan, ${money(list.data?.partnerMonthlyPence ?? 0)}`],
+                    ['spotlight', `Spotlight, ${money(list.data?.spotlightPence ?? 0)}`],
+                    ['plus', `Spotlight Plus, ${money(list.data?.spotlightPlusPence ?? 0)}`],
+                  ] as const
+                ).map(([kind, label]) => (
+                  <button
+                    key={kind}
+                    type="button"
+                    onClick={() =>
+                      void recordStaffPartnerPayment(staffKey, shop.id, kind)
+                        .then(() => {
+                          onNews(
+                            `${shop.name}: a month of ${label.split(',')[0]} recorded as paid.`,
+                          );
+                          list.reload();
+                        })
+                        .catch(fail)
+                    }
+                    className="control bg-paper text-ink"
+                  >
+                    Record a month paid: {label}
+                    <span className="visually-hidden"> for {shop.name}</span>
+                  </button>
+                ))}
+              </div>
               <form
                 onSubmit={(event) => {
                   const value = values(event);
@@ -1534,6 +1553,212 @@ function Partners({
           </button>
         </form>
       </section>
+    </section>
+  );
+}
+
+/**
+ * Business analysis (ruling 42): what is bought, where and when, with no names. Any group of
+ * fewer than ten people is left out, so nobody can be picked out.
+ */
+function Analytics({ staffKey }: { staffKey: string }): JSX.Element {
+  const [period, setPeriod] = useState<StaffAnalytics['period']>('month');
+  const [data, setData] = useState<StaffAnalytics | null>(null);
+  const [problem, setProblem] = useState('');
+
+  useEffect(() => {
+    fetchStaffAnalytics(staffKey, period)
+      .then(setData)
+      .catch((failure: unknown) =>
+        setProblem(failure instanceof Error ? failure.message : 'The numbers could not be loaded.'),
+      );
+  }, [staffKey, period]);
+
+  const download = (): void => {
+    if (!data) return;
+    const rows = [
+      'Section,Name,Purchases,Items,Shopping (GBP),People',
+      ...data.shops.map(
+        (row) =>
+          `Shop,"${row.shop}",${row.purchases},${row.items},${(row.goodsPence / 100).toFixed(2)},${row.people ?? 'fewer than 10'}`,
+      ),
+      ...data.ageBands.rows.map(
+        (row) =>
+          `Age group,${row.key},${row.purchases},${row.items},${(row.goodsPence / 100).toFixed(2)},${row.people}`,
+      ),
+      ...data.areas.rows.map(
+        (row) =>
+          `Area,${row.key},${row.purchases},${row.items},${(row.goodsPence / 100).toFixed(2)},${row.people}`,
+      ),
+      ...data.categories.map((row) => `Category,"${row.category}",${row.purchases},${row.items},,`),
+      ...data.routes.map((row) => `Route,"${row.route}",${row.deliveries},,,`),
+      ...data.unmetSearches.map((row) => `Wanted but not found,"${row.term}",${row.count},,,`),
+    ];
+    const url = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `analysis, last ${period}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const table = (
+    caption: string,
+    head: string[],
+    rows: Array<Array<string | number>>,
+  ): JSX.Element => (
+    <table className="w-full border-collapse">
+      <caption className="text-left font-bold py-2">{caption}</caption>
+      <thead>
+        <tr>
+          {head.map((cell) => (
+            <th key={cell} scope="col" className="text-left border-b-2 border-paper p-2">
+              {cell}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0 ? (
+          <tr>
+            <td colSpan={head.length} className="p-2">
+              Nothing yet.
+            </td>
+          </tr>
+        ) : (
+          rows.map((row, index) => (
+            <tr key={index}>
+              {row.map((cell, cellIndex) =>
+                cellIndex === 0 ? (
+                  <th
+                    key={cellIndex}
+                    scope="row"
+                    className="text-left font-normal border-b border-paper/40 p-2"
+                  >
+                    {cell}
+                  </th>
+                ) : (
+                  <td key={cellIndex} className="border-b border-paper/40 p-2">
+                    {cell}
+                  </td>
+                ),
+              )}
+            </tr>
+          ))
+        )}
+      </tbody>
+    </table>
+  );
+
+  return (
+    <section aria-labelledby="analytics-heading" className="space-y-6 max-w-3xl">
+      <h2 id="analytics-heading" className="text-lead font-bold">
+        Business analysis
+      </h2>
+      <p className="m-0">
+        No names, telephone numbers or addresses: people are one-way codes, places are postcode
+        districts. A group of fewer than {data?.minimumGroup ?? 10} people is left out.
+      </p>
+      <Failure text={problem} />
+      <label htmlFor="analytics-period" className="block font-bold">
+        Period
+      </label>
+      <select
+        id="analytics-period"
+        value={period}
+        onChange={(event) => setPeriod(event.target.value as StaffAnalytics['period'])}
+        className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+      >
+        <option value="day">The last day</option>
+        <option value="week">The last week</option>
+        <option value="month">The last month</option>
+        <option value="year">The last year</option>
+      </select>
+      {data && (
+        <>
+          <p className="m-0 text-lead">
+            {data.totals.purchases} purchases, {money(data.totals.goodsPence)} of shopping
+            {data.totals.shoppers !== null ? `, ${data.totals.shoppers} Shoppers` : ''},{' '}
+            {data.totals.runners} Runners, {data.totals.throughOrganisations} through organisations.
+          </p>
+          <button type="button" onClick={download} className="control bg-highlight text-ink">
+            Download as a spreadsheet (CSV)
+          </button>
+          {table(
+            'Purchases in the last…',
+            ['Window', 'Purchases', 'Shopping'],
+            data.windows.map((row) => [row.window, row.purchases, money(row.goodsPence)]),
+          )}
+          {table(
+            'By shop',
+            ['Shop', 'Purchases', 'Items', 'Shopping', 'People'],
+            data.shops.map((row) => [
+              row.shop,
+              row.purchases,
+              row.items,
+              money(row.goodsPence),
+              row.people ?? 'fewer than 10',
+            ]),
+          )}
+          {table(
+            'By age group',
+            ['Age group', 'Purchases', 'Shopping', 'People'],
+            data.ageBands.rows.map((row) => [
+              row.key.replace('_', ' to ').replace('plus', 'and over'),
+              row.purchases,
+              money(row.goodsPence),
+              row.people,
+            ]),
+          )}
+          {table(
+            'By area (postcode district)',
+            ['Area', 'Purchases', 'Shopping', 'People'],
+            data.areas.rows.map((row) => [
+              row.key,
+              row.purchases,
+              money(row.goodsPence),
+              row.people,
+            ]),
+          )}
+          {table(
+            'By kind of thing',
+            ['Category', 'Purchases', 'Items'],
+            data.categories.map((row) => [row.category, row.purchases, row.items]),
+          )}
+          {table(
+            'By hour of the day',
+            ['Hour', 'Purchases'],
+            data.hours
+              .filter((row) => row.purchases > 0)
+              .map((row) => [`${row.hour}:00`, row.purchases]),
+          )}
+          {table(
+            'By day of the week',
+            ['Day', 'Purchases'],
+            data.weekdays.map((row) => [row.day, row.purchases]),
+          )}
+          {table(
+            'Runner routes: shop to area',
+            ['Route', 'Deliveries'],
+            data.routes.map((row) => [row.route, row.deliveries]),
+          )}
+          {table(
+            'How Runners travel',
+            ['Way', 'Deliveries'],
+            data.travel.map((row) => [row.mode, row.deliveries]),
+          )}
+          {table(
+            'Most searched',
+            ['Search', 'Times'],
+            data.topSearches.map((row) => [row.term, row.count]),
+          )}
+          {table(
+            'Wanted, but nobody has it',
+            ['Search', 'Times'],
+            data.unmetSearches.map((row) => [row.term, row.count]),
+          )}
+        </>
+      )}
     </section>
   );
 }

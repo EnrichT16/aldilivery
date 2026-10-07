@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { storeConfig } from '../config';
-import { fetchMyOrganisation, joinOrganisation, leaveOrganisation } from '../lib/api';
+import { fetchMyOrganisation, joinOrganisation, leaveOrganisation, updateMe } from '../lib/api';
 import { useSession } from '../state/session';
 import { useVoice } from '../state/voice';
 import type { OutputVoice, VoiceReadiness } from '../voice';
@@ -152,6 +152,8 @@ export function Settings(): JSX.Element {
 
       {shopper && <OrganisationLink />}
 
+      {shopper && <AgeGroup />}
+
       {shopper && (
         // A shared phone (Anthony, 4 October 2026). By voice: "sign me out", "change account".
         <section aria-labelledby="account-heading" className="space-y-3 max-w-xl">
@@ -272,6 +274,60 @@ function OrganisationLink(): JSX.Element {
           </button>
         </form>
       )}
+    </section>
+  );
+}
+
+const AGE_GROUPS: Array<{ value: '' | 'under_25' | '25_44' | '45_64' | '65_plus'; label: string }> =
+  [
+    { value: '', label: 'I would rather not say' },
+    { value: 'under_25', label: 'Under 25' },
+    { value: '25_44', label: '25 to 44' },
+    { value: '45_64', label: '45 to 64' },
+    { value: '65_plus', label: '65 and over' },
+  ];
+
+/**
+ * An age group, if the person wants to give one (7 October 2026): used only, with no names, to
+ * understand what different groups need, and always taken away again here.
+ */
+function AgeGroup(): JSX.Element {
+  const { shopper, replaceShopper } = useSession();
+  const [news, setNews] = useState('');
+  const current = shopper?.ageBand ?? '';
+  return (
+    <section aria-labelledby="age-heading" className="space-y-3 max-w-xl">
+      <h2 id="age-heading" className="text-lead font-bold">
+        Your age group (optional)
+      </h2>
+      <p className="m-0">
+        It helps us understand what different people need. It is never shown to anyone, never sold
+        with your name, and you can take it away here at any time.
+      </p>
+      <label htmlFor="age-group" className="block font-bold">
+        Age group
+      </label>
+      <select
+        id="age-group"
+        value={current}
+        onChange={(event) => {
+          const value = event.target.value as (typeof AGE_GROUPS)[number]['value'];
+          void updateMe({ ageBand: value === '' ? null : value }).then((result) => {
+            replaceShopper(result.shopper);
+            setNews(value === '' ? 'Taken away.' : 'Saved. Thank you.');
+          });
+        }}
+        className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+      >
+        {AGE_GROUPS.map((group) => (
+          <option key={group.value} value={group.value}>
+            {group.label}
+          </option>
+        ))}
+      </select>
+      <p role="status" className="m-0">
+        {news}
+      </p>
     </section>
   );
 }

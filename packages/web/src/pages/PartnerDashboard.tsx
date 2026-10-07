@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { storeConfig } from '../config';
 import {
   addPartnerProduct,
+  downloadBusinessStatement,
   fetchPartnerDashboard,
   rememberBusinessToken,
   removePartnerProduct,
@@ -122,6 +123,32 @@ export function PartnerDashboard(): JSX.Element {
           return true;
         case 'share':
           void share().then(say);
+          return true;
+        case 'payments':
+          if (current) {
+            say(
+              current.payments.length === 0
+                ? 'No payments are recorded yet.'
+                : `${listWords(current.payments.slice(0, 5).map((row) => `${longDate(row.paidAt)}, ${row.what}, ${money(row.amountPence)}`))}. To download your statement, use the button on the screen.`,
+            );
+          }
+          return true;
+        case 'numbers':
+          if (current) {
+            say(
+              `This week, ${current.numbers.purchasesThisWeek} purchase${current.numbers.purchasesThisWeek === 1 ? '' : 's'} from your shop. This month, ${current.numbers.purchasesThisMonth}, with ${current.numbers.itemsThisMonth} items. ${current.referrals} ${current.referrals === 1 ? 'person has' : 'people have'} joined through your link.`,
+            );
+          }
+          return true;
+        case 'spotlight':
+          if (current) {
+            const level = current.spotlight.level;
+            say(
+              level === 'none'
+                ? `You are not on Spotlight. With Spotlight, at ${money(current.spotlight.prices.spotlightPence)} a month, I mention your shop to Shoppers looking for what you sell, up to once a week each; Spotlight Plus, at ${money(current.spotlight.prices.plusPence)}, up to ${current.spotlight.prices.plusPerWeek} times. Speak to us to add it.`
+                : `You are on ${level === 'plus' ? 'Spotlight Plus' : 'Spotlight'}${current.spotlight.until ? ` until ${longDate(current.spotlight.until)}` : ''}. I have mentioned your shop ${current.spotlight.mentionsThisMonth} time${current.spotlight.mentionsThisMonth === 1 ? '' : 's'} this month.`,
+            );
+          }
           return true;
         case 'products': {
           if (!current) return true;
@@ -304,6 +331,78 @@ export function PartnerDashboard(): JSX.Element {
         </p>
       </section>
 
+      <section aria-labelledby="numbers-heading" className="space-y-2">
+        <h2 id="numbers-heading" className="text-lead font-bold m-0">
+          How your shop is doing
+        </h2>
+        <p className="m-0">
+          This week, {data.numbers.purchasesThisWeek} purchase
+          {data.numbers.purchasesThisWeek === 1 ? '' : 's'} from your shop. This month,{' '}
+          {data.numbers.purchasesThisMonth}, with {data.numbers.itemsThisMonth} items.
+        </p>
+      </section>
+
+      <section
+        aria-labelledby="spotlight-heading"
+        className="space-y-2 border-2 border-paper rounded-xl p-4"
+      >
+        <h2 id="spotlight-heading" className="text-lead font-bold m-0">
+          Spotlight: {storeConfig.assistantName} mentions your shop
+        </h2>
+        {data.spotlight.level === 'none' ? (
+          <p className="m-0">
+            Not on Spotlight. Spotlight, {money(data.spotlight.prices.spotlightPence)} a month:{' '}
+            {storeConfig.assistantName} mentions your shop to Shoppers looking for what you sell, up
+            to{' '}
+            {data.spotlight.prices.spotlightPerWeek === 1
+              ? 'once'
+              : `${data.spotlight.prices.spotlightPerWeek} times`}{' '}
+            a week each. Spotlight Plus, {money(data.spotlight.prices.plusPence)} a month: up to{' '}
+            {data.spotlight.prices.plusPerWeek} times a week. On top of your plan; speak to us to
+            add it.
+          </p>
+        ) : (
+          <p className="m-0">
+            On {data.spotlight.level === 'plus' ? 'Spotlight Plus' : 'Spotlight'}
+            {data.spotlight.until ? ` until ${longDate(data.spotlight.until)}` : ''}. Mentioned{' '}
+            {data.spotlight.mentionsThisMonth} time
+            {data.spotlight.mentionsThisMonth === 1 ? '' : 's'} this month. Each mention is called
+            an advert, after {storeConfig.assistantName}'s own answer.
+          </p>
+        )}
+      </section>
+
+      <section aria-labelledby="payments-heading" className="space-y-2">
+        <h2 id="payments-heading" className="text-lead font-bold m-0">
+          What you have paid
+        </h2>
+        {data.payments.length === 0 ? (
+          <p className="m-0">No payments recorded yet.</p>
+        ) : (
+          <ul className="m-0 ps-6 space-y-1">
+            {data.payments.map((row) => (
+              <li key={row.id}>
+                {longDate(row.paidAt)}: {row.what}, {row.months} month{row.months === 1 ? '' : 's'},{' '}
+                {money(row.amountPence)}. Covers until {longDate(row.coversUntil)}.
+              </li>
+            ))}
+          </ul>
+        )}
+        <button
+          type="button"
+          onClick={() =>
+            void downloadBusinessStatement('partner', data.shop.name)
+              .then(() => setNews('Your statement is downloading, as a PDF.'))
+              .catch((failure: unknown) =>
+                setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
+              )
+          }
+          className="control bg-paper text-ink"
+        >
+          Download my statement (PDF)
+        </button>
+      </section>
+
       <section aria-labelledby="share-heading" className="space-y-2">
         <h2 id="share-heading" className="text-lead font-bold m-0">
           Share your shop
@@ -313,6 +412,16 @@ export function PartnerDashboard(): JSX.Element {
           Runner brings it to their door.
         </p>
         <p className="m-0 break-all">{shareUrl}</p>
+        <label htmlFor="referral-meter" className="block font-bold">
+          {data.referrals} of 100 people have joined through your link
+        </label>
+        <meter
+          id="referral-meter"
+          min={0}
+          max={100}
+          value={Math.min(100, data.referrals)}
+          className="w-full h-6"
+        />
         <button
           type="button"
           onClick={() => void share().then((words) => setNews(words))}

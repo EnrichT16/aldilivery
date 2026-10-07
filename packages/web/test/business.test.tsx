@@ -48,6 +48,8 @@ const ORG: OrganisationDashboard = {
   ],
   upcoming: [{ person: 'Mr Table', office: 'Ward B', dayOfWeek: 2, estimatePence: 1600 }],
   deliveryFeePence: 1350,
+  sharePath: '/join/organisation/K7M3QX',
+  referrals: 1,
 };
 
 let sent: Array<{ method: string; path: string; body: unknown; headers: Record<string, string> }>;
@@ -114,6 +116,34 @@ beforeEach(() => {
             },
           ],
           sharePath: '/shops/shop-1',
+          spotlight: {
+            level: 'spotlight',
+            until: '2026-11-07T10:00:00.000Z',
+            mentionsThisMonth: 4,
+            prices: { spotlightPence: 1999, plusPence: 3999, spotlightPerWeek: 1, plusPerWeek: 3 },
+          },
+          payments: [
+            {
+              id: 'pay1',
+              kind: 'plan',
+              what: 'Shop Partner plan',
+              amountPence: 2999,
+              months: 1,
+              coversUntil: '2026-11-07T10:00:00.000Z',
+              paidAt: '2026-10-07T10:00:00.000Z',
+            },
+            {
+              id: 'pay2',
+              kind: 'spotlight',
+              what: 'Spotlight',
+              amountPence: 1999,
+              months: 1,
+              coversUntil: '2026-11-07T10:00:00.000Z',
+              paidAt: '2026-10-07T10:00:00.000Z',
+            },
+          ],
+          referrals: 7,
+          numbers: { purchasesThisWeek: 3, purchasesThisMonth: 9, itemsThisMonth: 14 },
         });
       }
       if (path === '/partner/products') {
@@ -154,7 +184,36 @@ beforeEach(() => {
           },
         });
       }
+      if (path === '/me' && method === 'PATCH') {
+        return reply({ shopper: { ...FAKE_SHOPPER, ...(body as object) } });
+      }
       if (path === '/me') return reply({ role: 'shopper', shopper: FAKE_SHOPPER });
+      if (path.startsWith('/spotlight')) {
+        return reply({
+          advert: {
+            shopId: 'shop-1',
+            shopName: 'Corner Bakery',
+            productName: 'Sourdough loaf',
+            pricePence: 350,
+            catalogueItemId: 'c1',
+            words: 'Advert: Sourdough loaf is in stock at Corner Bakery, about £3.50.',
+          },
+        });
+      }
+      if (path.startsWith('/catalogue/search')) {
+        return reply({
+          items: [
+            {
+              id: 'b1',
+              name: 'White sliced bread, 800g',
+              category: 'Bakery',
+              estimatedPricePence: 89,
+            },
+          ],
+          attribution: '',
+          source: 'community',
+        });
+      }
       if (path === '/me/organisation' && method === 'GET') return reply({ organisation: null });
       if (path === '/me/organisation' && method === 'POST') {
         return reply({
@@ -205,6 +264,12 @@ describe('a Shop Partner', () => {
       await screen.findByRole('heading', { level: 1, name: 'Corner Bakery' }),
     ).toBeInTheDocument();
     expect(screen.getByText(/£29\.99 a month\. Paid until/)).toBeInTheDocument();
+    expect(screen.getByText(/Spotlight, 1 month, £19\.99/)).toBeInTheDocument();
+    expect(screen.getByText(/Mentioned 4 times this month/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('meter', { name: '7 of 100 people have joined through your link' }),
+    ).toHaveAttribute('value', '7');
+    expect(screen.getByRole('button', { name: 'Download my statement (PDF)' })).toBeInTheDocument();
     await waitFor(() => {
       expect(spoken(engine)).toMatch(
         /Shop Partner area for Corner Bakery\. You have 1 product live and 0 waiting/,
@@ -309,6 +374,44 @@ describe('what each dashboard understands', () => {
     ]);
     expect(savedWords({ ...ORG, totals: { ...ORG.totals, savedThisMonthPence: null } })).toMatch(
       /tell me what one of your own staff/,
+    );
+  });
+});
+
+describe('Spotlight, age group and share links for Shoppers', () => {
+  it('shows one advert after the genuine results, called an advert, and Ozi says so', async () => {
+    window.localStorage.setItem('ozidelivery.session.token', 'test-token');
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    renderAt('/shop?q=bread');
+    expect(await screen.findByText('White sliced bread, 800g')).toBeInTheDocument();
+    const advert = await screen.findByRole('complementary', { name: 'Advert' });
+    expect(advert).toHaveTextContent('Sourdough loaf is in stock at Corner Bakery, about £3.50.');
+    expect(advert).toHaveTextContent('Corner Bakery pays for this mention.');
+    await waitFor(() =>
+      expect(spoken(engine)).toContain('Advert: Sourdough loaf is in stock at Corner Bakery'),
+    );
+  });
+
+  it('lets a Shopper give an age group, or take it away', async () => {
+    window.localStorage.setItem('ozidelivery.session.token', 'test-token');
+    const user = userEvent.setup({ delay: null });
+    renderAt('/settings');
+    await user.selectOptions(await screen.findByLabelText('Age group'), '65_plus');
+    expect(await screen.findByText('Saved. Thank you.')).toBeInTheDocument();
+    expect(sent.find((r) => r.path === '/me' && r.method === 'PATCH')?.body).toEqual({
+      ageBand: '65_plus',
+    });
+  });
+
+  it('counts a new account for the shop whose link brought them', async () => {
+    window.localStorage.removeItem('ozidelivery.session.token');
+    renderAt('/shops/shop-1');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Corner Bakery' }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(window.localStorage.getItem('ozidelivery.joined.via')).toBe('partner:shop-1'),
     );
   });
 });

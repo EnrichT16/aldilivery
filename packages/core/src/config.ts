@@ -126,6 +126,14 @@ export interface StoreConfig {
     readonly giftCardPence: readonly number[];
     /** What a partner shop pays a month for its own dashboard, products and promotion. */
     readonly partnerMonthlyPence: number;
+    /**
+     * Ozi mentions, extras on top of the partner plan, a month at a time: Spotlight and
+     * Spotlight Plus, and how many times a week each may be mentioned to the same Shopper.
+     */
+    readonly spotlightPence: number;
+    readonly spotlightPlusPence: number;
+    readonly spotlightPerWeek: number;
+    readonly spotlightPlusPerWeek: number;
   };
   /** In-app calls (docs/BUILD_PROMPT.md, Sections B and F; rulings of 2 October 2026). */
   readonly calls: {
@@ -470,6 +478,10 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       findItShops: wholeNumber(extras['findItShops'] ?? 3, 'extras.findItShops', 1),
       giftCardPence: giftCardAmounts(extras['giftCardPence'] ?? [1000, 2000, 3000, 5000]),
       partnerMonthlyPence: wholeNumber(extras['partnerMonthlyPence'] ?? 2999, 'extras.partnerMonthlyPence', 1),
+      spotlightPence: wholeNumber(extras['spotlightPence'] ?? 1999, 'extras.spotlightPence', 1),
+      spotlightPlusPence: wholeNumber(extras['spotlightPlusPence'] ?? 3999, 'extras.spotlightPlusPence', 1),
+      spotlightPerWeek: wholeNumber(extras['spotlightPerWeek'] ?? 1, 'extras.spotlightPerWeek', 1),
+      spotlightPlusPerWeek: wholeNumber(extras['spotlightPlusPerWeek'] ?? 3, 'extras.spotlightPlusPerWeek', 1),
     },
     calls: {
       pencePerMinute: wholeNumber(calls['pencePerMinute'], 'calls.pencePerMinute', 0),

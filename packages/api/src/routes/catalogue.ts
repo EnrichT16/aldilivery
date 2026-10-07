@@ -14,6 +14,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { recordSearch } from '../lib/analytics.js';
 
 const searchSchema = z.object({
   q: z.string().trim().max(100).optional().default(''),
@@ -33,6 +34,15 @@ export async function registerCatalogueRoutes(app: FastifyInstance): Promise<voi
       ...(category ? { category } : {}),
       limit,
     });
+    // Business analysis: what people look for, and what nobody has (Section O, unmet demand).
+    if (q.trim()) {
+      void recordSearch(
+        app.ctx,
+        q,
+        items.length,
+        request.session?.role === 'shopper' ? request.session.accountId : null,
+      );
+    }
 
     return {
       query: q,

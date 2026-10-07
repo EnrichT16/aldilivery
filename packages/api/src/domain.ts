@@ -61,6 +61,10 @@ export interface Shopper {
   organisationId: string | null;
   /** Which office or team at the organisation looks after this person. */
   organisationOffice: string | null;
+  /** Optional, given by the person for analysis only. */
+  ageBand: AgeBand | null;
+  /** The share link they came by, such as partner:<id> or organisation:<id>. */
+  joinedVia: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -555,8 +559,13 @@ export interface PartnerShop {
   /** The plan is paid up to here. Products show only while it is. */
   paidUntil: Date | null;
   active: boolean;
+  /** Ozi mentions, an extra on top of the plan. */
+  spotlight: SpotlightLevel;
+  spotlightUntil: Date | null;
   createdAt: Date;
 }
+
+export type SpotlightLevel = 'none' | 'spotlight' | 'plus';
 
 export type PartnerProductStatus = 'pending' | 'approved' | 'rejected' | 'removed';
 
@@ -596,4 +605,49 @@ export interface BusinessUser {
   lockedUntil: Date | null;
   lastSignInAt: Date | null;
   createdAt: Date;
+}
+
+export type AgeBand = 'under_25' | '25_44' | '45_64' | '65_plus';
+
+/** What a Shop Partner has paid us, a month or more at a time. */
+export interface PartnerPayment {
+  id: string;
+  partnerShopId: string;
+  kind: 'plan' | 'spotlight' | 'plus';
+  amountPence: number;
+  months: number;
+  coversUntil: Date;
+  recordedBy: string;
+  paidAt: Date;
+}
+
+/** Ozi mentioned a Spotlight shop to a Shopper. */
+export interface SpotlightMention {
+  id: string;
+  partnerShopId: string;
+  shopperKey: string;
+  query: string;
+  at: Date;
+}
+
+/**
+ * Business analysis: something that happened, with no names, numbers or addresses. People are
+ * one-way codes; places are postcode districts such as ME7.
+ */
+export interface AnalyticsEvent {
+  id: string;
+  at: Date;
+  kind: 'order_paid' | 'order_delivered' | 'search' | 'search_unmet' | 'spotlight_mention';
+  shopperKey: string | null;
+  runnerKey: string | null;
+  shop: string | null;
+  area: string | null;
+  toArea: string | null;
+  ageBand: string | null;
+  viaOrganisation: boolean;
+  itemCount: number;
+  goodsPence: number;
+  categories: string;
+  query: string | null;
+  travelMode: string | null;
 }

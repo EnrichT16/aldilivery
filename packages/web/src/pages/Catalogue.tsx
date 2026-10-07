@@ -1,10 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
 import { storeConfig } from '../config';
-import { ApiUnavailableError, searchCatalogue, type CatalogueItem } from '../lib/api';
+import {
+  ApiUnavailableError,
+  fetchAdvert,
+  fetchCatalogueItem,
+  searchCatalogue,
+  type Advert,
+  type CatalogueItem,
+} from '../lib/api';
 import { money } from '../lib/money';
 import { useBasket } from '../state/basket';
+import { useOzi } from '../state/ozi';
+import { useSession } from '../state/session';
 
 type LoadState =
   | { kind: 'loading' }
@@ -26,6 +35,30 @@ export function Catalogue(): JSX.Element {
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [lastAdded, setLastAdded] = useState('');
   const basket = useBasket();
+  const ozi = useOzi();
+  const { shopper } = useSession();
+  const signedIn = Boolean(shopper);
+  const [advert, setAdvert] = useState<Advert | null>(null);
+  const voice = useRef(ozi);
+  voice.current = ozi;
+
+  // Spotlight (ruling 42): after the genuine results, at most one advert, clearly called one,
+  // and only for something the Shopper is looking for.
+  useEffect(() => {
+    setAdvert(null);
+    if (!signedIn || query.trim().length < 2) return;
+    let cancelled = false;
+    fetchAdvert(query)
+      .then((result) => {
+        if (cancelled || !result.advert) return;
+        setAdvert(result.advert);
+        void voice.current.say(result.advert.words);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [query, signedIn]);
 
   useEffect(() => {
     let cancelled = false;
@@ -143,6 +176,37 @@ export function Catalogue(): JSX.Element {
             ))}
           </ul>
         </section>
+      )}
+
+      {advert && (
+        <aside
+          aria-labelledby="advert-heading"
+          className="border-2 border-highlight rounded-xl p-4 space-y-2"
+        >
+          <h2 id="advert-heading" className="text-lead font-bold m-0">
+            Advert
+          </h2>
+          <p className="m-0">{advert.words.replace(/^Advert: /, '')}</p>
+          <p className="m-0 text-paper/90">
+            {advert.shopName} pays for this mention. It does not change what{' '}
+            {storeConfig.assistantName} recommends.
+          </p>
+          {advert.catalogueItemId && (
+            <button
+              type="button"
+              className="control bg-highlight text-ink"
+              onClick={() =>
+                void fetchCatalogueItem(advert.catalogueItemId ?? '').then(({ item }) => {
+                  if (!item) return;
+                  basket.add(item);
+                  setLastAdded(item.name);
+                })
+              }
+            >
+              Add {advert.productName} from {advert.shopName}
+            </button>
+          )}
+        </aside>
       )}
     </div>
   );

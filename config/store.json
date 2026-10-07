@@ -78,7 +78,11 @@
     "findItPence": 200,
     "findItShops": 3,
     "giftCardPence": [1000, 2000, 3000, 5000],
-    "partnerMonthlyPence": 2999
+    "partnerMonthlyPence": 2999,
+    "spotlightPence": 1999,
+    "spotlightPlusPence": 3999,
+    "spotlightPerWeek": 1,
+    "spotlightPlusPerWeek": 3
   },
   "calls": {
     "pencePerMinute": 5,

@@ -6,6 +6,7 @@ import {
   decideStaffPartnerProduct,
   fetchStaffPartnerProducts,
   fetchStaffDocuments,
+  fetchStaffAnalytics,
   fetchStaffEnquiries,
   fetchStaffFeedback,
   fetchStaffFinds,
@@ -27,6 +28,7 @@ import { money } from '../lib/money';
 import { useOzi } from '../state/ozi';
 import { nameHeardIn } from '../voice/name';
 import {
+  analyticsWords,
   AREA_WORDS,
   help,
   readItem,
@@ -273,6 +275,12 @@ export function StaffVoice({
             return true;
           }
           latest.current.onOpen(command.area);
+          if (command.area === 'analytics') {
+            void fetchStaffAnalytics(key, 'month')
+              .then((data) => say(analyticsWords(data)))
+              .catch(() => say('The numbers could not be loaded just now.'));
+            return true;
+          }
           void load().then(() => readAt(command.area, 0));
           return true;
         case 'next':

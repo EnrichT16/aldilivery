@@ -14,6 +14,9 @@ import type { OrderStatus } from '@aldilivery/core';
 
 import type {
   AccountRole,
+  AnalyticsEvent,
+  PartnerPayment,
+  SpotlightMention,
   BusinessUser,
   PartnerProduct,
   PartnerShop,
@@ -107,6 +110,9 @@ export function memoryRepository(): Repository {
   const partnerShops = new Map<string, PartnerShop>();
   const partnerProducts = new Map<string, PartnerProduct>();
   const businessUsers = new Map<string, BusinessUser>();
+  const partnerPayments: PartnerPayment[] = [];
+  const spotlightMentions: SpotlightMention[] = [];
+  const analyticsEvents: AnalyticsEvent[] = [];
 
   const now = (): Date => new Date();
 
@@ -137,6 +143,8 @@ export function memoryRepository(): Repository {
           deletionScheduledFor: null,
           organisationId: input.organisationId ?? null,
           organisationOffice: null,
+          ageBand: null,
+          joinedVia: null,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -152,6 +160,9 @@ export function memoryRepository(): Repository {
           if (shopper.familyCode === code) return clone(shopper);
         }
         return null;
+      },
+      async countJoinedVia(via) {
+        return [...shoppers.values()].filter((shopper) => shopper.joinedVia === via).length;
       },
       async listFamily(ownerId) {
         return [...shoppers.values()]
@@ -1073,6 +1084,8 @@ export function memoryRepository(): Repository {
           id: id(),
           paidUntil: null,
           active: true,
+          spotlight: 'none',
+          spotlightUntil: null,
           createdAt: now(),
         };
         partnerShops.set(row.id, row);
@@ -1175,6 +1188,55 @@ export function memoryRepository(): Repository {
               (where.organisationId === undefined || row.organisationId === where.organisationId),
           )
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+    },
+
+    partnerPayments: {
+      async create(input) {
+        const row: PartnerPayment = { ...input, id: id() };
+        partnerPayments.push(row);
+        return clone(row);
+      },
+      async listForShop(partnerShopId) {
+        return partnerPayments
+          .filter((row) => row.partnerShopId === partnerShopId)
+          .sort((a, b) => b.paidAt.getTime() - a.paidAt.getTime())
+          .map(clone);
+      },
+    },
+
+    spotlightMentions: {
+      async create(input) {
+        const row: SpotlightMention = { ...input, id: id() };
+        spotlightMentions.push(row);
+        return clone(row);
+      },
+      async listForShopperSince(shopperKey, since) {
+        return spotlightMentions
+          .filter((row) => row.shopperKey === shopperKey && row.at >= since)
+          .map(clone);
+      },
+      async countForShopSince(partnerShopId, since) {
+        return spotlightMentions.filter(
+          (row) => row.partnerShopId === partnerShopId && row.at >= since,
+        ).length;
+      },
+    },
+
+    analytics: {
+      async record(input) {
+        analyticsEvents.push({ ...input, id: id() });
+      },
+      async list(where) {
+        return analyticsEvents
+          .filter(
+            (row) =>
+              row.at >= where.since &&
+              (where.until === undefined || row.at < where.until) &&
+              (where.kind === undefined || row.kind === where.kind),
+          )
+          .sort((a, b) => a.at.getTime() - b.at.getTime())
           .map(clone);
       },
     },
