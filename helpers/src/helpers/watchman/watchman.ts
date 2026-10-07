@@ -35,11 +35,21 @@ function seconds(milliseconds: number): string {
 }
 
 function readField(body: unknown, path: string): unknown {
-  return path.split('.').reduce<unknown>((value, key) => (value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined), body);
+  return path
+    .split('.')
+    .reduce<unknown>(
+      (value, key) =>
+        value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : undefined,
+      body,
+    );
 }
 
 /** One check, once. Never throws: every failure becomes a plain English problem. */
-export async function checkOnce(runtime: Runtime, check: WatchCheck, now: () => number = Date.now): Promise<CheckResult> {
+export async function checkOnce(
+  runtime: Runtime,
+  check: WatchCheck,
+  now: () => number = Date.now,
+): Promise<CheckResult> {
   const timeout = check.timeoutMs ?? 10_000;
   const slow = check.slowMs ?? 5_000;
   const started = now();
@@ -72,11 +82,13 @@ export async function checkOnce(runtime: Runtime, check: WatchCheck, now: () => 
       }
       for (const [field, wanted] of Object.entries(check.expectJson)) {
         const actual = readField(parsed, field);
-        if (actual !== wanted) return result(`says ${field} is "${String(actual)}" instead of "${String(wanted)}"`);
+        if (actual !== wanted)
+          return result(`says ${field} is "${String(actual)}" instead of "${String(wanted)}"`);
       }
     }
     const done = result(null);
-    if (done.milliseconds > slow) return { ...done, ok: false, problem: `is slow: it took ${seconds(done.milliseconds)}` };
+    if (done.milliseconds > slow)
+      return { ...done, ok: false, problem: `is slow: it took ${seconds(done.milliseconds)}` };
     return done;
   } catch (error) {
     if (controller.signal.aborted) return result(`did not answer within ${seconds(timeout)}`);
@@ -93,7 +105,11 @@ function since(fromIso: string, to: Date): string {
   return `${hours} hour${hours === 1 ? '' : 's'}`;
 }
 
-async function watchOne(runtime: Runtime, helper: TeachableHelper, now: () => number): Promise<CheckResult[]> {
+async function watchOne(
+  runtime: Runtime,
+  helper: TeachableHelper,
+  now: () => number,
+): Promise<CheckResult[]> {
   const settings = helper.config.watchman;
   if (!settings) return [];
   const threshold = Math.max(1, settings.alertAfterFailures ?? 2);
@@ -112,10 +128,22 @@ async function watchOne(runtime: Runtime, helper: TeachableHelper, now: () => nu
     let after: WatchState = before;
     if (result.ok) {
       if (before.status === 'down' || before.failures > 0) {
-        after = { status: 'up', failures: 0, since: at.toISOString(), lastProblem: null, alerted: false };
+        after = {
+          status: 'up',
+          failures: 0,
+          since: at.toISOString(),
+          lastProblem: null,
+          alerted: false,
+        };
         if (before.alerted) {
-          await helper.log('watch.recovered', `${result.name} is working again, after ${since(before.since, at)}.`);
-          await runtime.textOwner(helper, `Good news, ${runtime.ownerName}: ${result.name} is working again after ${since(before.since, at)}.`);
+          await helper.log(
+            'watch.recovered',
+            `${result.name} is working again, after ${since(before.since, at)}.`,
+          );
+          await runtime.textOwner(
+            helper,
+            `Good news, ${runtime.ownerName}: ${result.name} is working again after ${since(before.since, at)}.`,
+          );
         } else if (before.status === 'down') {
           await helper.log('watch.recovered', `${result.name} is working again.`);
         }
@@ -130,13 +158,18 @@ async function watchOne(runtime: Runtime, helper: TeachableHelper, now: () => nu
         lastProblem: result.problem,
         alerted: before.alerted,
       };
-      if (startedNow) await helper.log('watch.down', `${result.name} ${result.problem}.`, { check: result.name });
+      if (startedNow)
+        await helper.log('watch.down', `${result.name} ${result.problem}.`, { check: result.name });
       if (!before.alerted && failures >= threshold) {
-        await runtime.textOwner(helper, `${runtime.ownerName}, ${result.name} ${result.problem}. It has failed ${failures} checks in a row. From the Watchman.`);
+        await runtime.textOwner(
+          helper,
+          `${runtime.ownerName}, ${result.name} ${result.problem}. It has failed ${failures} checks in a row. From the Watchman.`,
+        );
         after.alerted = true;
       }
     }
-    if (JSON.stringify(after) !== JSON.stringify(before)) await runtime.records.saveState(key, after);
+    if (JSON.stringify(after) !== JSON.stringify(before))
+      await runtime.records.saveState(key, after);
   }
 
   const statsKey = `watchman/stats/${at.toISOString().slice(0, 10)}`;
@@ -155,17 +188,27 @@ export async function runWatchman(runtime: Runtime, now: () => number = Date.now
     if (!(await helper.allowed('check-websites', 'check the websites'))) continue;
     const results = await watchOne(runtime, helper, now);
     const bad = results.filter((r) => !r.ok);
-    lines.push(bad.length === 0 ? `all ${results.length} working` : bad.map((r) => `${r.name} ${r.problem}`).join('; '));
+    lines.push(
+      bad.length === 0
+        ? `all ${results.length} working`
+        : bad.map((r) => `${r.name} ${r.problem}`).join('; '),
+    );
   }
   return lines.join(' | ') || 'nothing was checked';
 }
 
 /** What every check looks like now, for the Briefing and the admin page. */
-export async function currentWatch(runtime: Runtime): Promise<Array<{ helperId: string; name: string; state: WatchState | null }>> {
+export async function currentWatch(
+  runtime: Runtime,
+): Promise<Array<{ helperId: string; name: string; state: WatchState | null }>> {
   const out: Array<{ helperId: string; name: string; state: WatchState | null }> = [];
   for (const helper of runtime.ofType('watchman')) {
     for (const check of helper.config.watchman?.checks ?? []) {
-      out.push({ helperId: helper.id, name: check.name, state: await runtime.records.state<WatchState>(`watchman/${helper.id}/${check.name}`) });
+      out.push({
+        helperId: helper.id,
+        name: check.name,
+        state: await runtime.records.state<WatchState>(`watchman/${helper.id}/${check.name}`),
+      });
     }
   }
   return out;

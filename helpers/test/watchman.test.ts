@@ -7,7 +7,8 @@ import { appHarness, harness } from './support.js';
 /** A pretend internet: each address answers as told. */
 function sites(answers: Record<string, () => Response | Promise<Response>>): FetchLike {
   return async (input) => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+    const url =
+      typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
     const answer = answers[url];
     if (!answer) throw new Error('getaddrinfo ENOTFOUND');
     return answer();
@@ -22,8 +23,24 @@ const healthy = {
 describe('one check', () => {
   it('passes a working page and a healthy health address', async () => {
     const { runtime } = harness({ fetch: sites(healthy) });
-    expect((await checkOnce(runtime, { name: 'site', url: 'https://example.com', expectText: 'Welcome' })).ok).toBe(true);
-    expect((await checkOnce(runtime, { name: 'api', url: 'https://api.example.com/health', expectJson: { status: 'ok' } })).ok).toBe(true);
+    expect(
+      (
+        await checkOnce(runtime, {
+          name: 'site',
+          url: 'https://example.com',
+          expectText: 'Welcome',
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      (
+        await checkOnce(runtime, {
+          name: 'api',
+          url: 'https://api.example.com/health',
+          expectJson: { status: 'ok' },
+        })
+      ).ok,
+    ).toBe(true);
   });
 
   it('describes each kind of problem in plain English', async () => {
@@ -34,23 +51,37 @@ describe('one check', () => {
         'https://c.example': () => Response.json({ status: 'degraded' }),
       }),
     });
-    const problem = async (url: string, extra = {}) => (await checkOnce(runtime, { name: 'x', url, ...extra })).problem;
+    const problem = async (url: string, extra = {}) =>
+      (await checkOnce(runtime, { name: 'x', url, ...extra })).problem;
     expect(await problem('https://a.example')).toBe('answered with error 503');
-    expect(await problem('https://b.example', { expectText: 'Welcome' })).toBe('answered, but the page did not say "Welcome"');
-    expect(await problem('https://c.example', { expectJson: { status: 'ok' } })).toBe('says status is "degraded" instead of "ok"');
-    expect(await problem('https://gone.example')).toBe('could not be reached (getaddrinfo ENOTFOUND)');
+    expect(await problem('https://b.example', { expectText: 'Welcome' })).toBe(
+      'answered, but the page did not say "Welcome"',
+    );
+    expect(await problem('https://c.example', { expectJson: { status: 'ok' } })).toBe(
+      'says status is "degraded" instead of "ok"',
+    );
+    expect(await problem('https://gone.example')).toBe(
+      'could not be reached (getaddrinfo ENOTFOUND)',
+    );
   });
 
   it('notices a slow site, and one that never answers', async () => {
     let tick = 0;
     const clock = () => (tick += 3_000);
     const { runtime } = harness({ fetch: sites(healthy) });
-    expect((await checkOnce(runtime, { name: 's', url: 'https://example.com', slowMs: 2_000 }, clock)).problem).toBe('is slow: it took 3.0 seconds');
+    expect(
+      (await checkOnce(runtime, { name: 's', url: 'https://example.com', slowMs: 2_000 }, clock))
+        .problem,
+    ).toBe('is slow: it took 3.0 seconds');
 
     const hanging: FetchLike = (_input, init) =>
-      new Promise((_resolve, reject) => init?.signal?.addEventListener('abort', () => reject(new Error('aborted'))));
+      new Promise((_resolve, reject) =>
+        init?.signal?.addEventListener('abort', () => reject(new Error('aborted'))),
+      );
     const { runtime: stuck } = harness({ fetch: hanging });
-    expect((await checkOnce(stuck, { name: 's', url: 'https://example.com', timeoutMs: 20 })).problem).toBe('did not answer within 0.0 seconds');
+    expect(
+      (await checkOnce(stuck, { name: 's', url: 'https://example.com', timeoutMs: 20 })).problem,
+    ).toBe('did not answer within 0.0 seconds');
   });
 });
 
@@ -59,7 +90,8 @@ describe('the Watchman', () => {
     let apiUp = true;
     const fetcher = sites({
       ...healthy,
-      'https://api.example.com/health': () => (apiUp ? Response.json({ status: 'ok' }) : new Response('down', { status: 502 })),
+      'https://api.example.com/health': () =>
+        apiUp ? Response.json({ status: 'ok' }) : new Response('down', { status: 502 }),
     });
     const { runtime, sms, now } = harness({ fetch: fetcher });
 
@@ -82,17 +114,23 @@ describe('the Watchman', () => {
     apiUp = true;
     now.value = new Date('2026-10-07T09:40:00Z');
     await runWatchman(runtime);
-    expect(sms.sentForReal[1]!.text).toBe('Good news, Anthony: the app server is working again after 40 minutes.');
+    expect(sms.sentForReal[1]!.text).toBe(
+      'Good news, Anthony: the app server is working again after 40 minutes.',
+    );
 
     const log = (await runtime.records.recentLog()).map((e) => e.event);
     expect(log.filter((e) => e === 'watch.down')).toHaveLength(1);
     expect(log.filter((e) => e === 'watch.recovered')).toHaveLength(1);
-    expect((await currentWatch(runtime)).every((c) => c.state === null || c.state.status === 'up')).toBe(true);
+    expect(
+      (await currentWatch(runtime)).every((c) => c.state === null || c.state.status === 'up'),
+    ).toBe(true);
   });
 
   it('runs on its timer and on demand', async () => {
     const { app } = appHarness({ fetch: sites(healthy) });
-    expect(await app.scheduled(new Date('2026-10-07T09:05:00Z'))).toEqual(['watchman: all 2 working']);
+    expect(await app.scheduled(new Date('2026-10-07T09:05:00Z'))).toEqual([
+      'watchman: all 2 working',
+    ]);
     expect(await app.scheduled(new Date('2026-10-07T09:06:00Z'))).toEqual([]);
     expect(await app.scheduled(new Date(), '*/5 * * * *')).toEqual(['watchman: all 2 working']);
     expect(await app.tasks.watchman!()).toBe('all 2 working');
