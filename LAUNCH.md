@@ -50,7 +50,9 @@ The admin panel is at ozidelivery.co.uk/staff. It is where documents are checked
 Make a key: in DigitalOcean, open the api component's Console and type: openssl rand -base64 32
 Then add it as an environment variable on the api component, named STAFF_API_KEY, ticking Encrypt. Keep the key somewhere safe, such as a password manager, and give it only to the people who run the service. Do not paste it into a chat, including this one.
 
-To sign in, open /staff, type your name (it is recorded with each decision) and the key.
+To sign in, open /staff, press "Founder: sign in with the staff key", and type your name (it is recorded with each decision) and the key.
+
+Then give each person who works for you their own sign-in, in the Team tab, with their job. Each job sees only its own part of the panel, and only you can manage the team. docs/STAFF_ROLES.md has the jobs, what each one sees, and who to hire first.
 
 
 Step 7. Stripe, for real money. Anthony.

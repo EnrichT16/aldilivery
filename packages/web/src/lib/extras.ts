@@ -1,4 +1,5 @@
 import rawGifts from '@gifts';
+import rawOffers from '@offers';
 import rawRecipes from '@recipes';
 
 import { searchCatalogue, type CatalogueItem } from './api';
@@ -30,6 +31,26 @@ function list<T>(raw: unknown, key: string, file: string): T[] {
   if (!Array.isArray(value) || value.length === 0)
     throw new Error(`${file} needs a "${key}" list.`);
   return value as T[];
+}
+
+/** A shop's offer, agreed in writing with the shop (config/offers.json). */
+export interface Offer {
+  id: string;
+  shop: string;
+  title: string;
+  details: string;
+  /** The last day, YYYY-MM-DD. */
+  until: string;
+  /** The exact name of a catalogue item, when it can be added to the basket. */
+  item?: string;
+}
+
+/** Offers still running today. An empty list is allowed: there may be none just now. */
+export function currentOffers(now = new Date()): Offer[] {
+  const value = (rawOffers as Record<string, unknown>)?.['offers'];
+  if (!Array.isArray(value)) throw new Error('offers.json needs an "offers" list.');
+  const today = now.toISOString().slice(0, 10);
+  return (value as Offer[]).filter((offer) => offer.until >= today);
 }
 
 export const RECIPES: Recipe[] = list<Recipe>(rawRecipes, 'recipes', 'recipes.json');

@@ -70,7 +70,14 @@
   },
   "extras": {
     "recipePassPence": 199,
-    "recipePassDays": 30
+    "recipePassDays": 30,
+    "plusPence": 799,
+    "plusFamilyPence": 1199,
+    "plusDays": 30,
+    "familyMaximum": 4,
+    "findItPence": 200,
+    "findItShops": 3,
+    "giftCardPence": [1000, 2000, 3000, 5000]
   },
   "calls": {
     "pencePerMinute": 5,

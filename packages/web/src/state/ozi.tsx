@@ -14,7 +14,7 @@ import { useNavigate } from 'react-router-dom';
 import { storeConfig } from '../config';
 import { inPairs, pairsAloud } from '../lib/phone-aloud';
 import { fetchMyOrder, fetchMyOrders } from '../lib/api';
-import { addNamedItems, listInWords } from '../lib/extras';
+import { addNamedItems, currentOffers, listInWords } from '../lib/extras';
 import { nameHeardIn, onlyName } from '../voice/name';
 import { phraseReply } from '../voice/phrases';
 import { answerShoppingQuestion, orderWhere } from '../voice/shopping-questions';
@@ -85,6 +85,23 @@ const REORDER =
 const RECIPES =
   /\brecipes?\b|\bwhat (can|could|shall|should) i (cook|make)\b|\bsomething to cook\b/;
 
+/** "Ozi Finds It", "I can't find it anywhere", "something hard to find". */
+const FIND_IT =
+  /\bfinds? it\b|\bhard to find\b|\bcan'?t find (it|that|one|them)? ?anywhere\b|\blook in other shops\b|\btrack (it|something|one) down\b/;
+
+/** "A gift card", "gift voucher". */
+const GIFT_CARD = /\bgift ?(cards?|vouchers?)\b/;
+
+/** "Ozi Plus", "membership", "the family plan". Not "milk plus bread". */
+const PLUS = /\b(ozi|ozzy|ozzie|osi|ozie) plus\b|\bmembership\b|\bfamily plan\b/;
+
+/** "Any offers?", "special offers", "deals". */
+const OFFERS =
+  /\b(any|special|the|what)\s+(offers?|deals?|discounts?)\b|\boffers? (today|this week|on)\b/;
+
+/** "My weekly shop", "the same day every week". */
+const WEEKLY = /\bweekly shop\b|\b(same day|shop) every week\b|\bbook (a|my) (regular|weekly)\b/;
+
 /** "I need a gift", "a present for my wife". */
 const GIFTS = /\b(gift|gifts|present|presents)\b(?!\s+(bag|card))/;
 
@@ -149,6 +166,12 @@ interface OziValue {
    * will start the introduction. The page says so in big letters meanwhile.
    */
   waitingForTouch: boolean;
+  /**
+   * A page's own spoken commands, such as the admin panel's "read me the complaints". Tried
+   * before anything about shopping; returns true when it has dealt with what was said. Pass
+   * null to stop. Only one page at a time.
+   */
+  setPageCommands: (handler: ((text: string) => boolean) | null) => void;
 }
 
 const OziContext = createContext<OziValue | null>(null);
@@ -335,6 +358,10 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
 
   // Something on the screen is waiting for the next words, a PIN say: they go there only.
   const captureRef = useRef<((text: string) => void) | null>(null);
+  const pageCommandsRef = useRef<((text: string) => boolean) | null>(null);
+  const setPageCommands = useCallback((handler: ((text: string) => boolean) | null) => {
+    pageCommandsRef.current = handler;
+  }, []);
 
   const listenFor = useCallback(
     (prompt: string, handler: (text: string) => void) => {
@@ -394,6 +421,8 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       return;
     }
     setHeard(text);
+    // The page's own commands come before anything about shopping.
+    if (pageCommandsRef.current?.(text)) return;
     // "Create my account": set one up by talking, on the sign-up page.
     if (!ordering.busy() && CREATE_ACCOUNT.test(words)) {
       navigate('/sign-up?talk=1');
@@ -467,6 +496,44 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       navigate('/recipes');
       void sayRef.current(
         'Here are the recipes. Each one tells you what you need, and I can read it out and put everything in your basket.',
+      );
+      return;
+    }
+    if (!ordering.busy() && GIFT_CARD.test(words)) {
+      navigate('/gift-cards');
+      void sayRef.current(
+        'Here are gift cards. You can buy one for someone, or type in a code you were given.',
+      );
+      return;
+    }
+    if (!ordering.busy() && FIND_IT.test(words)) {
+      navigate('/find-it');
+      void sayRef.current(
+        `${storeConfig.assistantName} Finds It: tell me what you're looking for, and a person will look in up to ${storeConfig.extras.findItShops} shops for you. What is it?`,
+      );
+      return;
+    }
+    if (!ordering.busy() && PLUS.test(words)) {
+      navigate('/plus');
+      void sayRef.current(
+        `${storeConfig.assistantName} Plus includes Recipes and Finds It, for you or your whole family. It never renews by itself.`,
+      );
+      return;
+    }
+    if (!ordering.busy() && OFFERS.test(words)) {
+      navigate('/offers');
+      const count = currentOffers().length;
+      void sayRef.current(
+        count === 0
+          ? 'There are no offers just now. When local shops have one, I will tell you.'
+          : `There ${count === 1 ? 'is one offer' : `are ${count} offers`} today. They're on the screen now.`,
+      );
+      return;
+    }
+    if (!ordering.busy() && WEEKLY.test(words)) {
+      navigate('/weekly-shop');
+      void sayRef.current(
+        "Let's set up your weekly shop. Choose a day, and on that day I'll remind you and put your usual in the basket.",
       );
       return;
     }
@@ -788,6 +855,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       voiceOn: !settings.muted,
       setVoiceOn,
       waitingForTouch,
+      setPageCommands,
     }),
     [
       presence,
@@ -802,6 +870,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       settings.muted,
       setVoiceOn,
       waitingForTouch,
+      setPageCommands,
     ],
   );
 

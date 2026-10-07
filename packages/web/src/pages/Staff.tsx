@@ -1,8 +1,20 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 
 import {
+  addTeamMember,
+  changeStaffPassword,
   checkStaffKey,
+  fetchStaffMe,
+  fetchStaffRoles,
+  fetchTeam,
+  resetTeamPassword,
+  staffSignIn,
+  updateTeamMember,
+  decideFind,
   decideProblem,
+  fetchStaffEnquiries,
+  fetchStaffFinds,
+  markEnquiryHandled,
   fetchStaffDocuments,
   fetchStaffFeedback,
   fetchStaffFile,
@@ -11,12 +23,20 @@ import {
   reviewDocument,
   writeOffRunner,
   type ProblemDecision,
+  type StaffArea,
+  type StaffRoleInfo,
+  type TeamMember,
+  type StaffEnquiry,
+  type StaffFindRequest,
   type StaffDocument,
   type StaffFeedback,
   type StaffProblem,
   type StaffRecovery,
 } from '../lib/api';
+import { StaffVoice } from '../components/StaffVoice';
 import { money } from '../lib/money';
+import { useOzi } from '../state/ozi';
+import { nameHeardIn } from '../voice/name';
 
 /**
  * The admin panel, for the people who run the service: Runner documents waiting, problems to
@@ -30,12 +50,16 @@ import { money } from '../lib/money';
 const KEY = 'ozidelivery.staff.key';
 const NAME = 'ozidelivery.staff.name';
 
-type TabKey = 'documents' | 'problems' | 'owed' | 'feedback';
+type TabKey = StaffArea;
+type StaffMe = Awaited<ReturnType<typeof fetchStaffMe>>;
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'documents', label: 'Documents' },
   { key: 'problems', label: 'Problems' },
   { key: 'owed', label: 'Money owed' },
+  { key: 'finds', label: 'Finds It' },
+  { key: 'enquiries', label: 'Enquiries' },
   { key: 'feedback', label: 'Feedback' },
+  { key: 'team', label: 'Team' },
 ];
 
 function remembered(name: string): string {
@@ -58,8 +82,32 @@ function remember(name: string, value: string | null): void {
 export function Staff(): JSX.Element {
   const [key, setKey] = useState(() => remembered(KEY));
   const [by, setBy] = useState(() => remembered(NAME));
-  const [tab, setTab] = useState<TabKey>('documents');
+  const [me, setMe] = useState<StaffMe | null>(null);
+  const [tab, setTab] = useState<TabKey | null>(null);
   const [news, setNews] = useState('');
+  // Bumped after a decision made by voice, so the lists on the screen load again too.
+  const [refresh, setRefresh] = useState(0);
+
+  const signOut = useCallback(() => {
+    remember(KEY, null);
+    remember(NAME, null);
+    setKey('');
+    setBy('');
+    setMe(null);
+    setTab(null);
+  }, []);
+
+  // Who this is and what their job lets them see, asked of the server each time: a role
+  // changed, or an account turned off, applies straight away.
+  useEffect(() => {
+    if (key === '') return;
+    fetchStaffMe(key)
+      .then((result) => {
+        setMe(result);
+        if (result.account) setBy(result.name);
+      })
+      .catch(signOut);
+  }, [key, signOut]);
 
   if (key === '' || by === '') {
     return (
@@ -74,97 +122,181 @@ export function Staff(): JSX.Element {
     );
   }
 
+  if (!me) {
+    return (
+      <p role="status" className="m-0">
+        One moment.
+      </p>
+    );
+  }
+
+  const tabs = TABS.filter((item) => me.areas.includes(item.key));
+  const shown = tab && me.areas.includes(tab) ? tab : (tabs[0]?.key ?? null);
+
   return (
     <div className="space-y-6">
       <h1 className="text-display font-bold m-0">Admin</h1>
       <p className="m-0">
-        Signed in as {by}.{' '}
-        <button
-          type="button"
-          onClick={() => {
-            remember(KEY, null);
-            remember(NAME, null);
-            setKey('');
-            setBy('');
-          }}
-          className="underline bg-transparent text-paper"
-        >
+        Signed in as {by}, {me.title}.{' '}
+        <button type="button" onClick={signOut} className="underline bg-transparent text-paper">
           Sign out
         </button>
       </p>
       <p role="status" className="m-0 min-h-control">
         {news}
       </p>
-      <nav aria-label="Admin pages">
-        <ul className="flex flex-wrap gap-2 list-none m-0 p-0">
-          {TABS.map((item) => (
-            <li key={item.key}>
-              <button
-                type="button"
-                aria-current={tab === item.key ? 'page' : undefined}
-                onClick={() => setTab(item.key)}
-                className={`control ${tab === item.key ? 'bg-highlight text-ink' : 'bg-paper/10 text-paper'}`}
-              >
-                {item.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </nav>
-      {tab === 'documents' && <Documents staffKey={key} by={by} onNews={setNews} />}
-      {tab === 'problems' && <Problems staffKey={key} by={by} onNews={setNews} />}
-      {tab === 'owed' && <Owed staffKey={key} by={by} onNews={setNews} />}
-      {tab === 'feedback' && <Feedback staffKey={key} />}
+      {me.mustChangePassword ? (
+        <ChangePassword
+          staffKey={key}
+          onChanged={(message) => {
+            setNews(message);
+            setMe({ ...me, mustChangePassword: false });
+          }}
+        />
+      ) : (
+        <>
+          <StaffVoice
+            staffKey={key}
+            by={by}
+            name={me.account ? me.name : by}
+            title={me.title}
+            areas={me.areas}
+            onOpen={setTab}
+            onChanged={(text) => {
+              setNews(text);
+              setRefresh((value) => value + 1);
+            }}
+            onSignOut={signOut}
+          />
+          <nav aria-label="Admin pages">
+            <ul className="flex flex-wrap gap-2 list-none m-0 p-0">
+              {tabs.map((item) => (
+                <li key={item.key}>
+                  <button
+                    type="button"
+                    aria-current={shown === item.key ? 'page' : undefined}
+                    onClick={() => setTab(item.key)}
+                    className={`control ${shown === item.key ? 'bg-highlight text-ink' : 'bg-paper/10 text-paper'}`}
+                  >
+                    {item.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <div key={refresh}>
+            {shown === 'documents' && <Documents staffKey={key} by={by} onNews={setNews} />}
+            {shown === 'problems' && <Problems staffKey={key} by={by} onNews={setNews} />}
+            {shown === 'owed' && <Owed staffKey={key} by={by} onNews={setNews} />}
+            {shown === 'finds' && <Finds staffKey={key} onNews={setNews} />}
+            {shown === 'enquiries' && <Enquiries staffKey={key} onNews={setNews} />}
+            {shown === 'feedback' && <Feedback staffKey={key} />}
+            {shown === 'team' && <Team staffKey={key} onNews={setNews} />}
+          </div>
+        </>
+      )}
     </div>
   );
 }
 
 function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => void }): JSX.Element {
-  const [key, setKey] = useState('');
-  const [name, setName] = useState('');
+  const [withKey, setWithKey] = useState(false);
+  const ozi = useOzi();
+  const voice = useRef(ozi);
+  voice.current = ozi;
+
+  // Ozi says what to do here. Nothing said on this screen is taken as a shopping order, and a
+  // password is never asked for aloud, so nobody nearby hears it.
+  useEffect(() => {
+    const words =
+      'Admin sign in. Type your username, then your password. For your privacy, I never ask you to say a password out loud.';
+    voice.current.setPageCommands((text) => {
+      if (nameHeardIn(text) || /\b(help|what do i do|how)\b/i.test(text))
+        void voice.current.say(words);
+      return true;
+    });
+    void voice.current.say(words);
+    return () => voice.current.setPageCommands(null);
+  }, []);
   const [problem, setProblem] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const submit = (event: FormEvent): void => {
+  const submit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
-    if (name.trim() === '' || key.trim() === '') {
-      setProblem('Please give your name and the staff key.');
+    const data = new FormData(event.currentTarget);
+    const value = (name: string): string => String(data.get(name) ?? '').trim();
+    setProblem('');
+    if (withKey) {
+      if (value('staff-name') === '' || value('staff-key') === '') {
+        setProblem('Please give your name and the staff key.');
+        return;
+      }
+      setBusy(true);
+      checkStaffKey(value('staff-key'))
+        .then(() => onSignedIn(value('staff-key'), value('staff-name')))
+        .catch(() => {
+          setProblem('That staff key was not accepted.');
+          setBusy(false);
+        });
+      return;
+    }
+    if (value('staff-username') === '' || value('staff-password') === '') {
+      setProblem('Please give your username and password.');
       return;
     }
     setBusy(true);
-    setProblem('');
-    checkStaffKey(key.trim())
-      .then(() => onSignedIn(key.trim(), name.trim()))
-      .catch(() => {
-        setProblem('That staff key was not accepted.');
+    staffSignIn(value('staff-username'), String(data.get('staff-password') ?? ''))
+      .then((result) => onSignedIn(result.token, result.name))
+      .catch((failure: unknown) => {
+        setProblem(failure instanceof Error ? failure.message : 'That did not work.');
         setBusy(false);
       });
   };
 
+  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
   return (
     <form onSubmit={submit} className="space-y-4 max-w-xl">
       <h1 className="text-display font-bold m-0">Admin sign in</h1>
-      <label htmlFor="staff-name" className="block font-bold">
-        Your name, recorded with each decision
-      </label>
-      <input
-        id="staff-name"
-        autoComplete="name"
-        value={name}
-        onChange={(event) => setName(event.target.value)}
-        className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
-      />
-      <label htmlFor="staff-key" className="block font-bold">
-        Staff key
-      </label>
-      <input
-        id="staff-key"
-        type="password"
-        autoComplete="current-password"
-        value={key}
-        onChange={(event) => setKey(event.target.value)}
-        className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
-      />
+      {withKey ? (
+        <>
+          <label htmlFor="staff-name" className="block font-bold">
+            Your name, recorded with each decision
+          </label>
+          <input id="staff-name" name="staff-name" autoComplete="name" className={field} />
+          <label htmlFor="staff-key" className="block font-bold">
+            Staff key
+          </label>
+          <input
+            id="staff-key"
+            name="staff-key"
+            type="password"
+            autoComplete="current-password"
+            className={field}
+          />
+        </>
+      ) : (
+        <>
+          <label htmlFor="staff-username" className="block font-bold">
+            Username
+          </label>
+          <input
+            id="staff-username"
+            name="staff-username"
+            autoComplete="username"
+            className={field}
+          />
+          <label htmlFor="staff-password" className="block font-bold">
+            Password
+          </label>
+          <input
+            id="staff-password"
+            name="staff-password"
+            type="password"
+            autoComplete="current-password"
+            className={field}
+          />
+        </>
+      )}
       {problem !== '' && (
         <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
           {problem}
@@ -173,17 +305,91 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
       <button type="submit" disabled={busy} className="control w-full bg-highlight text-ink">
         Sign in
       </button>
+      <button
+        type="button"
+        onClick={() => {
+          setWithKey(!withKey);
+          setProblem('');
+        }}
+        className="control bg-paper/10 text-paper underline"
+      >
+        {withKey ? 'Sign in with a username instead' : 'Founder: sign in with the staff key'}
+      </button>
     </form>
   );
 }
 
-interface PanelProps {
+/** The first sign-in with a password someone was given: they choose their own. */
+function ChangePassword({
+  staffKey,
+  onChanged,
+}: {
   staffKey: string;
-  by: string;
-  onNews: (news: string) => void;
+  onChanged: (message: string) => void;
+}): JSX.Element {
+  const [problem, setProblem] = useState('');
+  const submit = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const current = String(data.get('current-password') ?? '');
+    const chosen = String(data.get('new-password') ?? '');
+    if (chosen !== String(data.get('repeat-password') ?? '')) {
+      setProblem('The two new passwords are not the same.');
+      return;
+    }
+    changeStaffPassword(staffKey, current, chosen)
+      .then((result) => onChanged(result.message))
+      .catch((failure: unknown) =>
+        setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
+      );
+  };
+  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  return (
+    <form onSubmit={submit} className="space-y-4 max-w-xl" aria-labelledby="choose-heading">
+      <h2 id="choose-heading" className="text-lead font-bold m-0">
+        Choose your own password
+      </h2>
+      <p className="m-0">
+        At least 10 characters. Nobody else, including the founder, will know it.
+      </p>
+      <Failure text={problem} />
+      <label htmlFor="current-password" className="block font-bold">
+        The password you were given
+      </label>
+      <input
+        id="current-password"
+        name="current-password"
+        type="password"
+        autoComplete="current-password"
+        className={field}
+      />
+      <label htmlFor="new-password" className="block font-bold">
+        Your new password
+      </label>
+      <input
+        id="new-password"
+        name="new-password"
+        type="password"
+        autoComplete="new-password"
+        className={field}
+      />
+      <label htmlFor="repeat-password" className="block font-bold">
+        Your new password again
+      </label>
+      <input
+        id="repeat-password"
+        name="repeat-password"
+        type="password"
+        autoComplete="new-password"
+        className={field}
+      />
+      <button type="submit" className="control w-full bg-highlight text-ink">
+        Save my password
+      </button>
+    </form>
+  );
 }
 
-/** Loads a list, and loads it again after each decision. */
 function useList<T>(load: () => Promise<T>): {
   data: T | null;
   problem: string;
@@ -647,4 +853,343 @@ function Feedback({ staffKey }: { staffKey: string }): JSX.Element {
       </ul>
     </section>
   );
+}
+
+/** Ozi Finds It: what Shoppers asked for, found or not. Found goes in the catalogue. */
+function Finds({
+  staffKey,
+  onNews,
+}: {
+  staffKey: string;
+  onNews: (text: string) => void;
+}): JSX.Element {
+  const list = useList(() => fetchStaffFinds(staffKey));
+  const rows: StaffFindRequest[] | undefined = list.data?.requests;
+  const [problem, setProblem] = useState('');
+
+  const decide = (
+    row: StaffFindRequest,
+    event: FormEvent<HTMLFormElement>,
+    found: boolean,
+  ): void => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const value = (name: string): string => String(data.get(name) ?? '').trim();
+    const pounds = Number(value('price').replace(/[£\s]/g, ''));
+    if (
+      found &&
+      (!Number.isFinite(pounds) || pounds <= 0 || value('name') === '' || value('shop') === '')
+    ) {
+      setProblem('Please give what was found, the shop, and the price in pounds, like 2.50.');
+      return;
+    }
+    setProblem('');
+    decideFind(
+      staffKey,
+      row.id,
+      found
+        ? {
+            found: true,
+            name: value('name'),
+            shop: value('shop'),
+            pricePence: Math.round(pounds * 100),
+            note: value('note') || undefined,
+          }
+        : { found: false, note: value('note') || undefined },
+    )
+      .then(() => {
+        onNews(found ? `Marked found: ${value('name')}.` : 'Marked not found. The fee goes back.');
+        list.reload();
+      })
+      .catch((failure: unknown) =>
+        setProblem(failure instanceof Error ? failure.message : 'That could not be saved.'),
+      );
+  };
+
+  return (
+    <section aria-labelledby="finds-heading" className="space-y-4 max-w-2xl">
+      <h2 id="finds-heading" className="text-lead font-bold">
+        Finds It: still looking
+      </h2>
+      <Failure text={list.problem || problem} />
+      {rows?.length === 0 && <p className="m-0">Nothing waiting.</p>}
+      <ul className="m-0 p-0 list-none space-y-4">
+        {rows?.map((row) => (
+          <li key={row.id} className="border-2 border-paper rounded-xl p-4 space-y-3">
+            <h3 className="m-0 font-bold">{row.description}</h3>
+            <p className="m-0">
+              For {row.shopperName}
+              {row.area ? `, near ${row.area}` : ''}. Look in up to {list.data?.shops ?? 3} shops.
+              {row.feePence > 0 ? ` They paid ${money(row.feePence)}.` : ' Included in Plus.'}
+            </p>
+            <form onSubmit={(event) => decide(row, event, true)} className="space-y-2">
+              <label className="block">
+                What was found
+                <input
+                  name="name"
+                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                />
+              </label>
+              <label className="block">
+                Which shop
+                <input
+                  name="shop"
+                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                />
+              </label>
+              <label className="block">
+                Price in pounds
+                <input
+                  name="price"
+                  inputMode="decimal"
+                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                />
+              </label>
+              <label className="block">
+                Note for the Shopper (optional)
+                <input
+                  name="note"
+                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                />
+              </label>
+              <button type="submit" className="control bg-highlight text-ink">
+                Found it<span className="visually-hidden">: {row.description}</span>
+              </button>
+            </form>
+            <form onSubmit={(event) => decide(row, event, false)}>
+              <input type="hidden" name="note" value="None of the shops had it." />
+              <button type="submit" className="control bg-paper/10 text-paper underline">
+                Not found, give the fee back
+                <span className="visually-hidden">: {row.description}</span>
+              </button>
+            </form>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Organisations and shops asking to work with us. A person rings each one back. */
+function Enquiries({
+  staffKey,
+  onNews,
+}: {
+  staffKey: string;
+  onNews: (text: string) => void;
+}): JSX.Element {
+  const list = useList(() => fetchStaffEnquiries(staffKey));
+  const rows: StaffEnquiry[] | undefined = list.data?.enquiries;
+  return (
+    <section aria-labelledby="enquiries-heading" className="space-y-4 max-w-2xl">
+      <h2 id="enquiries-heading" className="text-lead font-bold">
+        Enquiries
+      </h2>
+      <Failure text={list.problem} />
+      {rows?.length === 0 && <p className="m-0">No enquiries yet.</p>}
+      <ul className="m-0 p-0 list-none space-y-3">
+        {rows?.map((row) => (
+          <li key={row.id} className="border-2 border-paper rounded-xl p-4 space-y-1">
+            <h3 className="m-0 font-bold">
+              {row.organisation}
+              {row.handled ? ', rung back' : ''}
+            </h3>
+            <p className="m-0">
+              {row.contactName},{' '}
+              <a href={`tel:${row.telephone.replace(/\s/g, '')}`}>{row.telephone}</a>
+              {row.email ? `, ${row.email}` : ''}.
+            </p>
+            {row.people && <p className="m-0">People supported: {row.people}.</p>}
+            {row.message && <p className="m-0">{row.message}</p>}
+            {!row.handled && (
+              <button
+                type="button"
+                onClick={() =>
+                  void markEnquiryHandled(staffKey, row.id).then(() => {
+                    onNews(`${row.organisation} marked as rung back.`);
+                    list.reload();
+                  })
+                }
+                className="control bg-paper text-ink"
+              >
+                Mark as rung back<span className="visually-hidden">: {row.organisation}</span>
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** The founder's tab: everybody who runs the service, their job, and their sign-in. */
+function Team({
+  staffKey,
+  onNews,
+}: {
+  staffKey: string;
+  onNews: (text: string) => void;
+}): JSX.Element {
+  const list = useList(() => fetchTeam(staffKey));
+  const roles = useList(fetchStaffRoles);
+  const rows: TeamMember[] | undefined = list.data?.team;
+  const jobs: StaffRoleInfo[] = roles.data?.roles ?? [];
+  const [problem, setProblem] = useState('');
+  const [password, setPassword] = useState('');
+  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+
+  const add = (event: FormEvent<HTMLFormElement>): void => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const value = (name: string): string => String(data.get(name) ?? '').trim();
+    setProblem('');
+    addTeamMember(staffKey, {
+      name: value('member-name'),
+      username: value('member-username'),
+      role: value('member-role'),
+    })
+      .then((result) => {
+        setPassword(result.message);
+        onNews(`${result.member.name} added.`);
+        form.reset();
+        list.reload();
+      })
+      .catch((failure: unknown) =>
+        setProblem(failure instanceof Error ? failure.message : 'That could not be saved.'),
+      );
+  };
+
+  const change = (member: TeamMember, patch: { role?: string; active?: boolean }): void => {
+    setProblem('');
+    updateTeamMember(staffKey, member.id, patch)
+      .then(() => {
+        onNews(
+          patch.active === false
+            ? `${member.name} can no longer sign in.`
+            : patch.active === true
+              ? `${member.name} can sign in again.`
+              : `${member.name}'s job is changed.`,
+        );
+        list.reload();
+      })
+      .catch((failure: unknown) =>
+        setProblem(failure instanceof Error ? failure.message : 'That could not be saved.'),
+      );
+  };
+
+  return (
+    <section aria-labelledby="team-heading" className="space-y-6 max-w-2xl">
+      <h2 id="team-heading" className="text-lead font-bold">
+        Your team
+      </h2>
+      <Failure text={list.problem || problem} />
+      {password !== '' && (
+        <p role="status" className="border-2 border-highlight rounded-xl p-4 m-0">
+          {password}
+        </p>
+      )}
+      <section aria-labelledby="jobs-heading" className="space-y-2">
+        <h3 id="jobs-heading" className="font-bold m-0">
+          The jobs, and what each one sees
+        </h3>
+        <ul className="m-0 ps-6 space-y-1">
+          {jobs.map((job) => (
+            <li key={job.role}>
+              {job.title}:{' '}
+              {job.areas
+                .map((area) => TABS.find((item) => item.key === area)?.label ?? area)
+                .join(', ')}
+              .
+            </li>
+          ))}
+        </ul>
+      </section>
+      {rows?.length === 0 && <p className="m-0">Nobody added yet.</p>}
+      <ul className="m-0 p-0 list-none space-y-3">
+        {rows?.map((member) => (
+          <li key={member.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+            <h3 className="m-0 font-bold">
+              {member.name}, {member.title}
+              {member.active ? '' : ', turned off'}
+            </h3>
+            <p className="m-0">
+              Signs in as {member.username}.{' '}
+              {member.lastSignInAt
+                ? `Last signed in ${new Date(member.lastSignInAt).toLocaleDateString('en-GB')}.`
+                : 'Has not signed in yet.'}
+            </p>
+            <label className="block">
+              Job
+              <select
+                value={member.role}
+                onChange={(event) => change(member, { role: event.target.value })}
+                className={field}
+              >
+                {jobs.map((job) => (
+                  <option key={job.role} value={job.role}>
+                    {job.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  void resetTeamPassword(staffKey, member.id)
+                    .then((result) => setPassword(result.message))
+                    .catch((failure: unknown) =>
+                      setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
+                    )
+                }
+                className="control bg-paper text-ink"
+              >
+                New password<span className="visually-hidden"> for {member.name}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => change(member, { active: !member.active })}
+                className="control bg-paper/10 text-paper underline"
+              >
+                {member.active ? 'Turn off' : 'Turn back on'}
+                <span className="visually-hidden"> {member.name}</span>
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <form onSubmit={add} className="space-y-3" aria-labelledby="add-heading">
+        <h3 id="add-heading" className="font-bold m-0">
+          Add someone
+        </h3>
+        <label htmlFor="member-name" className="block">
+          Their name
+        </label>
+        <input id="member-name" name="member-name" className={field} />
+        <label htmlFor="member-username" className="block">
+          Their username, for signing in (letters, numbers or dots)
+        </label>
+        <input id="member-username" name="member-username" autoComplete="off" className={field} />
+        <label htmlFor="member-role" className="block">
+          Their job
+        </label>
+        <select id="member-role" name="member-role" className={field} defaultValue="customer_care">
+          {jobs.map((job) => (
+            <option key={job.role} value={job.role}>
+              {job.title}
+            </option>
+          ))}
+        </select>
+        <button type="submit" className="control bg-highlight text-ink">
+          Add to the team
+        </button>
+      </form>
+    </section>
+  );
+}
+interface PanelProps {
+  staffKey: string;
+  by: string;
+  onNews: (news: string) => void;
 }

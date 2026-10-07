@@ -20,7 +20,8 @@ import { z } from 'zod';
 
 import { RUNNER_PAYMENT_PENCE, formatPence } from '@aldilivery/core';
 
-import { requireSession, requireStaff } from '../app.js';
+import { requireSession } from '../app.js';
+import { decidedBy, staffActor } from '../lib/staff.js';
 import type { Runner, RunnerDocument, RunnerDocumentKind, VehicleType } from '../domain.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
 import { recordRunnerCheck } from '../services/runner-checks.js';
@@ -342,7 +343,7 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
   /* ------------------------------------------------------------------ staff */
 
   app.get('/staff/documents', async (request) => {
-    requireStaff(request, env.staffKey);
+    await staffActor(request, 'documents');
     const waiting = await repository.runnerDocuments.listSubmitted();
     const rows = [];
     for (const document of waiting) {
@@ -357,7 +358,7 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
   });
 
   app.get('/staff/documents/:id/image', async (request, reply) => {
-    requireStaff(request, env.staffKey);
+    await staffActor(request, 'documents');
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const document = await repository.runnerDocuments.findById(id);
     if (!document?.image || !document.contentType) throw new NotFoundError('photo');
@@ -367,7 +368,7 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
   });
 
   app.post('/staff/documents/:id/review', async (request) => {
-    requireStaff(request, env.staffKey);
+    const actor = await staffActor(request, 'documents');
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const body = z
       .object({
@@ -392,7 +393,7 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
     const decided = await repository.runnerDocuments.update(document.id, {
       status: body.decision === 'accept' ? 'accepted' : 'rejected',
       reviewNote: body.note ?? null,
-      reviewedBy: body.by,
+      reviewedBy: decidedBy(actor, body.by),
       reviewedAt: at,
       expiresOn,
       // Kept only until decided, apart from the face photo the Shopper sees at the door.
@@ -409,7 +410,7 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
           kind: document.kind === 'right_to_work' ? 'right_to_work' : 'criminal_record',
           outcome: 'verified',
           evidence,
-          checkedBy: body.by,
+          checkedBy: decidedBy(actor, body.by),
           note: body.note ?? '',
           checkedAt: at,
         });
@@ -433,12 +434,12 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
 
   /** The admin panel signing in: is this the staff key? */
   app.get('/staff/check', async (request) => {
-    requireStaff(request, env.staffKey);
+    await staffActor(request);
     return { ok: true };
   });
 
   app.get('/staff/feedback', async (request) => {
-    requireStaff(request, env.staffKey);
+    await staffActor(request, 'feedback');
     const rows = [];
     for (const item of await repository.runnerFeedback.list()) {
       const runner = item.runnerId ? await repository.runners.findById(item.runnerId) : null;
@@ -454,7 +455,7 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
 
   /** What Runners still owe after being found at fault, one row per Runner. */
   app.get('/staff/recoveries', async (request) => {
-    requireStaff(request, env.staffKey);
+    await staffActor(request, 'owed');
     const byRunner = new Map<string, number>();
     for (const row of await repository.recoveries.listAllOutstanding()) {
       byRunner.set(
@@ -479,7 +480,7 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
    * (ruling of 2 October 2026). Above it, a person asks the Runner for it instead.
    */
   app.post('/staff/runners/:id/write-off', async (request) => {
-    requireStaff(request, env.staffKey);
+    const actor = await staffActor(request, 'owed');
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const body = z
       .object({ by: z.string().trim().min(1, 'Please say who decided.').max(80) })
@@ -497,7 +498,7 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
     for (const row of owed) {
       await repository.recoveries.update(row.id, {
         writtenOff: true,
-        writtenOffBy: body.by,
+        writtenOffBy: decidedBy(actor, body.by),
         writtenOffAt: at,
       });
     }

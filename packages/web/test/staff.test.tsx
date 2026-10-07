@@ -52,6 +52,16 @@ beforeEach(() => {
         return reply({ error: { message: 'Staff only.' } }, 403);
       }
       if (path === '/staff/check') return reply({ ok: true });
+      if (path === '/staff/me') {
+        return reply({
+          name: 'Founder',
+          role: 'founder',
+          title: 'Founder',
+          areas: ['documents', 'problems', 'feedback', 'owed', 'finds', 'enquiries', 'team'],
+          account: false,
+          mustChangePassword: false,
+        });
+      }
       if (path === '/staff/documents') {
         return reply({
           documents: documentsDecided
@@ -157,6 +167,7 @@ function renderStaff() {
 }
 
 async function signIn(user: ReturnType<typeof userEvent.setup>, key = 'right-key') {
+  await user.click(screen.getByRole('button', { name: 'Founder: sign in with the staff key' }));
   await user.type(screen.getByLabelText('Your name, recorded with each decision'), 'Anthony');
   await user.type(screen.getByLabelText('Staff key'), key);
   await user.click(screen.getByRole('button', { name: 'Sign in' }));

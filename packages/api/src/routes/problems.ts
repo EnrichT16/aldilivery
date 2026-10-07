@@ -18,7 +18,8 @@ import { z } from 'zod';
 
 import { formatPence } from '@aldilivery/core';
 
-import { requireSession, requireStaff, type Session } from '../app.js';
+import { requireSession, type Session } from '../app.js';
+import { decidedBy, staffActor } from '../lib/staff.js';
 import type { Order, ProblemDecision, ProblemEvidence, ProblemReport } from '../domain.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
 
@@ -66,7 +67,7 @@ function publicEvidence(evidence: ProblemEvidence) {
 }
 
 export async function registerProblemRoutes(app: FastifyInstance): Promise<void> {
-  const { repository, config, payments, env, now } = app.ctx;
+  const { repository, config, payments, now } = app.ctx;
   const symbol = config.store.currencySymbol;
 
   /** The order, if this person is its Shopper or its Runner. */
@@ -81,7 +82,8 @@ export async function registerProblemRoutes(app: FastifyInstance): Promise<void>
   }
 
   function orderTotal(order: Order): number {
-    return order.finalTotalPence ?? order.totalEstimatePence;
+    // Gift card money already went back to the card, so it cannot be refunded twice.
+    return (order.finalTotalPence ?? order.totalEstimatePence) - order.creditAppliedPence;
   }
 
   async function withEvidence(report: ProblemReport) {
@@ -249,21 +251,30 @@ export async function registerProblemRoutes(app: FastifyInstance): Promise<void>
   /* ------------------------------------------------------------------ staff */
 
   app.get('/staff/problems', async (request) => {
-    requireStaff(request, env.staffKey);
+    await staffActor(request, 'problems');
     const at = now();
     const open = await repository.problems.listOpen();
     return {
       reports: await Promise.all(
-        open.map(async (report) => ({
-          ...(await withEvidence(report)),
-          overdue: report.decideBy.getTime() < at.getTime(),
-        })),
+        open.map(async (report) => {
+          // Who sent it, by name, so the panel (and Ozi reading it out) can say so.
+          const order = await repository.orders.findById(report.orderId);
+          const from =
+            report.reportedBy === 'shopper'
+              ? order && (await repository.shoppers.findById(order.shopperId))?.displayName
+              : order?.runnerId && (await repository.runners.findById(order.runnerId))?.name;
+          return {
+            ...(await withEvidence(report)),
+            reporterName: from || null,
+            overdue: report.decideBy.getTime() < at.getTime(),
+          };
+        }),
       ),
     };
   });
 
   app.get('/staff/evidence/:id', async (request, reply) => {
-    requireStaff(request, env.staffKey);
+    await staffActor(request, 'problems');
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const evidence = await repository.problemEvidence.findById(id);
     if (!evidence?.data || !evidence.contentType) throw new NotFoundError('file');
@@ -273,7 +284,7 @@ export async function registerProblemRoutes(app: FastifyInstance): Promise<void>
   });
 
   app.post('/staff/problems/:id/decide', async (request) => {
-    requireStaff(request, env.staffKey);
+    const actor = await staffActor(request, 'problems');
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const body = z
       .object({
@@ -318,7 +329,7 @@ export async function registerProblemRoutes(app: FastifyInstance): Promise<void>
       refundPence: body.refundPence,
       refundReference: reference,
       decisionNote: body.note,
-      decidedBy: body.by,
+      decidedBy: decidedBy(actor, body.by),
       decidedAt: at,
     });
 
