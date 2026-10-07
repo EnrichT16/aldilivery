@@ -3,6 +3,8 @@ import { useEffect, useRef } from 'react';
 import {
   decideFind,
   decideProblem,
+  decideStaffPartnerProduct,
+  fetchStaffPartnerProducts,
   fetchStaffDocuments,
   fetchStaffEnquiries,
   fetchStaffFeedback,
@@ -17,6 +19,7 @@ import {
   type StaffDocument,
   type StaffEnquiry,
   type StaffFindRequest,
+  type StaffPartnerProduct,
   type StaffProblem,
   type StaffRecovery,
 } from '../lib/api';
@@ -169,6 +172,11 @@ export function StaffVoice({
         (r) => r.enquiries,
       );
       add(
+        'partners',
+        () => fetchStaffPartnerProducts(key),
+        (r) => r.products,
+      );
+      add(
         'team',
         () => fetchTeam(key),
         (r) => r.team,
@@ -313,6 +321,18 @@ export function StaffVoice({
         }
         case 'accept':
         case 'reject': {
+          if (cursor.current?.area === 'partners' && current()) {
+            const product = current() as StaffPartnerProduct;
+            const approve = command.kind === 'accept';
+            confirm(
+              `${approve ? 'Accept' : 'Turn down'} ${product.name} from ${product.shopName}${approve ? ', so Shoppers can see it' : ''}?`,
+              () =>
+                decideStaffPartnerProduct(key, product.id, approve).then(() =>
+                  approve ? 'Accepted. It is live now.' : 'Turned down.',
+                ),
+            );
+            return true;
+          }
           if (!needs('documents')) return true;
           const doc = current() as StaffDocument;
           const decision = command.kind;

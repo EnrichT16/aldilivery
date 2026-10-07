@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { moneyIn, moneyOut } from '../lib/alert';
 
 import { PriceConfirm } from '../components/PriceConfirm';
 import { storeConfig } from '../config';
@@ -57,6 +58,8 @@ export function GiftCards(): JSX.Element {
       const result = await action();
       after(result);
       setNews(result.message);
+      if (/was taken from your card/.test(result.message)) moneyOut();
+      else if (/has been added/.test(result.message)) moneyIn();
       void ozi.say(spoken(result));
     } catch (failure) {
       const message = failure instanceof Error ? failure.message : 'That did not work.';

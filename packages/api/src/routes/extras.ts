@@ -14,6 +14,7 @@ import { formatPence } from '@aldilivery/core';
 import { z } from 'zod';
 
 import { requireSession } from '../app.js';
+import { NEVER_FOUND } from '../lib/restricted.js';
 import { staffActor } from '../lib/staff.js';
 import type { FindRequest, GiftCard, Shopper } from '../domain.js';
 import { BadRequestError, ConflictError, NotFoundError, UnavailableError } from '../errors.js';
@@ -36,10 +37,6 @@ export function normaliseGiftCode(said: string): string {
   const letters = said.toUpperCase().replace(/[^A-Z0-9]/g, '');
   return letters.match(/.{1,4}/g)?.join('-') ?? '';
 }
-
-/** Things never brought (Section K), so never looked for either. */
-const NEVER_FOUND =
-  /\b(alcohol|wine|beer|lager|cider|spirits?|vodka|whisky|whiskey|gin|rum|prosecco|champagne|cigarettes?|cigars?|tobacco|vapes?|vaping|e-?cig|lighter fluid|medicines?|medication|paracetamol|ibuprofen|aspirin|pills|tablets|prescriptions?|cash|knife|knives|blades?|fireworks|lottery|scratch ?cards?)\b/i;
 
 function longDate(when: Date): string {
   return when.toLocaleDateString('en-GB', {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { storeConfig } from '../config';
+import { fetchMyOrganisation, joinOrganisation, leaveOrganisation } from '../lib/api';
 import { useSession } from '../state/session';
 import { useVoice } from '../state/voice';
 import type { OutputVoice, VoiceReadiness } from '../voice';
@@ -149,6 +150,8 @@ export function Settings(): JSX.Element {
         <p className="m-0 text-paper/80">Speech by: {voice.engine.name}.</p>
       </section>
 
+      {shopper && <OrganisationLink />}
+
       {shopper && (
         // A shared phone (Anthony, 4 October 2026). By voice: "sign me out", "change account".
         <section aria-labelledby="account-heading" className="space-y-3 max-w-xl">
@@ -172,5 +175,103 @@ export function Settings(): JSX.Element {
         </section>
       )}
     </div>
+  );
+}
+
+/**
+ * Letting an organisation that supports you, such as a care home or the council, see your
+ * orders (7 October 2026). Only the person does this, with the organisation's code, after being
+ * told what it means; and they can stop it here at any time.
+ */
+function OrganisationLink(): JSX.Element {
+  const [linked, setLinked] = useState<{ name: string } | null>(null);
+  const [agreed, setAgreed] = useState(false);
+  const [news, setNews] = useState('');
+  const [problem, setProblem] = useState('');
+
+  useEffect(() => {
+    fetchMyOrganisation()
+      .then((result) => setLinked(result.organisation))
+      .catch(() => undefined);
+  }, []);
+
+  return (
+    <section aria-labelledby="organisation-heading" className="space-y-3 max-w-xl">
+      <h2 id="organisation-heading" className="text-lead font-bold">
+        An organisation that supports you
+      </h2>
+      <p role="status" className="m-0">
+        {news}
+      </p>
+      {problem !== '' && (
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+          {problem}
+        </p>
+      )}
+      {linked ? (
+        <>
+          <p className="m-0">{linked.name} can see your orders and what they cost.</p>
+          <button
+            type="button"
+            onClick={() =>
+              void leaveOrganisation().then((result) => {
+                setLinked(null);
+                setNews(result.message);
+              })
+            }
+            className="control bg-paper text-ink"
+          >
+            Stop {linked.name} seeing my orders
+          </button>
+        </>
+      ) : (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            const code = String(new FormData(event.currentTarget).get('organisation-code') ?? '');
+            setProblem('');
+            joinOrganisation(code)
+              .then((result) => {
+                setLinked(result.organisation);
+                setNews(result.message);
+              })
+              .catch((failure: unknown) =>
+                setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
+              );
+          }}
+          className="space-y-3"
+        >
+          <p className="m-0">
+            If a care home, the council or another organisation helps you with your shopping, they
+            may give you a code. Typing it here lets them see your orders and what they cost.
+          </p>
+          <label htmlFor="organisation-code" className="block font-bold">
+            The organisation’s code
+          </label>
+          <input
+            id="organisation-code"
+            name="organisation-code"
+            autoComplete="off"
+            className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3 uppercase"
+          />
+          <label className="flex items-center gap-3 min-h-control">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(event) => setAgreed(event.target.checked)}
+              className="w-6 h-6"
+            />
+            I agree that they will see my orders and what they cost.
+          </label>
+          <button
+            type="submit"
+            disabled={!agreed}
+            className="control bg-paper text-ink disabled:opacity-70"
+          >
+            Link my account
+          </button>
+        </form>
+      )}
+    </section>
   );
 }

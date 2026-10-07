@@ -12,6 +12,9 @@
 
 import type {
   AccountRole,
+  BusinessUser,
+  PartnerProduct,
+  PartnerShop,
   StaffMember,
   FindRequest,
   GiftCard,
@@ -269,6 +272,10 @@ export interface Repository {
     create(input: CreateOrganisation): Promise<Organisation>;
     findById(id: string): Promise<Organisation | null>;
     listServiceUsers(organisationId: string): Promise<Shopper[]>;
+    findByJoinCode(code: string): Promise<Organisation | null>;
+    /** Oldest first. */
+    list(): Promise<Organisation[]>;
+    update(id: string, patch: Partial<Omit<Organisation, 'id'>>): Promise<Organisation>;
   };
 
   circles: {
@@ -291,6 +298,7 @@ export interface Repository {
     findById(id: string): Promise<CatalogueItem | null>;
     findManyByIds(ids: string[]): Promise<CatalogueItem[]>;
     search(query: string, options?: CatalogueSearchOptions): Promise<CatalogueItem[]>;
+    update(id: string, patch: Partial<Omit<CatalogueItem, 'id'>>): Promise<CatalogueItem>;
   };
 
   paymentMethods: {
@@ -389,6 +397,50 @@ export interface Repository {
     /** Oldest first. */
     list(): Promise<StaffMember[]>;
     update(id: string, patch: Partial<Omit<StaffMember, 'id'>>): Promise<StaffMember>;
+  };
+
+  partnerShops: {
+    create(
+      input: Pick<PartnerShop, 'name' | 'address' | 'telephone' | 'about' | 'monthlyPence'>,
+    ): Promise<PartnerShop>;
+    findById(id: string): Promise<PartnerShop | null>;
+    /** Oldest first. */
+    list(): Promise<PartnerShop[]>;
+    update(id: string, patch: Partial<Omit<PartnerShop, 'id'>>): Promise<PartnerShop>;
+  };
+
+  partnerProducts: {
+    create(
+      input: Pick<
+        PartnerProduct,
+        'partnerShopId' | 'name' | 'pricePence' | 'tags' | 'expiresOn' | 'photo' | 'photoType'
+      >,
+    ): Promise<PartnerProduct>;
+    findById(id: string): Promise<PartnerProduct | null>;
+    update(id: string, patch: Partial<Omit<PartnerProduct, 'id'>>): Promise<PartnerProduct>;
+    /** Newest first. */
+    listForShop(partnerShopId: string): Promise<PartnerProduct[]>;
+    /** Waiting for a person, oldest first. */
+    listPending(): Promise<PartnerProduct[]>;
+  };
+
+  businessUsers: {
+    create(
+      input: Pick<
+        BusinessUser,
+        | 'kind'
+        | 'partnerShopId'
+        | 'organisationId'
+        | 'name'
+        | 'office'
+        | 'username'
+        | 'passwordHash'
+      >,
+    ): Promise<BusinessUser>;
+    findById(id: string): Promise<BusinessUser | null>;
+    findByUsername(username: string): Promise<BusinessUser | null>;
+    update(id: string, patch: Partial<Omit<BusinessUser, 'id'>>): Promise<BusinessUser>;
+    listFor(where: { partnerShopId?: string; organisationId?: string }): Promise<BusinessUser[]>;
   };
 
   /** Close any underlying connection. */

@@ -160,8 +160,10 @@ model Shopper {
   /// and is removed afterwards. Deleting is never immediate and never silent.
   deletionScheduledFor DateTime?
 
-  organisationId String?
-  organisation   Organisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
+  /// Which office or team at the organisation looks after this person.
+  organisationOffice String?
+  organisationId     String?
+  organisation       Organisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -224,14 +226,20 @@ model Runner {
 
 /// A council, charity or care provider that pays for Shoppers as service users.
 model Organisation {
-  id           String  @id @default(cuid())
-  name         String
-  contactName  String
-  contactEmail String
-  contactPhone String?
+  id                 String  @id @default(cuid())
+  name               String
+  contactName        String
+  contactEmail       String
+  contactPhone       String?
   /// Free text, for example "30 days from invoice, purchase order required".
-  invoiceTerms String  @default("")
-  active       Boolean @default(true)
+  invoiceTerms       String  @default("")
+  active             Boolean @default(true)
+  /// The code a person types in Settings to let this organisation see their orders.
+  joinCode           String? @unique
+  /// What the organisation means to spend in a month, if it says.
+  monthlyBudgetPence Int?
+  /// What one of their own staff going to the shops costs them, for the savings figure.
+  staffTripCostPence Int?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -290,6 +298,8 @@ model CatalogueItem {
   /// A reference from the upstream feed, when there is one.
   externalRef         String?
   lastSeenAt          DateTime            @default(now())
+  /// Taken off sale, for example by a partner shop: never in a search, never in a basket.
+  retired             Boolean             @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -819,6 +829,59 @@ model StaffMember {
   /// scrypt, salted. Never the password.
   passwordHash       String
   role               String
+  active             Boolean   @default(true)
+  mustChangePassword Boolean   @default(true)
+  failedAttempts     Int       @default(0)
+  lockedUntil        DateTime?
+  lastSignInAt       DateTime?
+  createdAt          DateTime  @default(now())
+}
+
+/// A local shop on the monthly partner plan (7 October 2026): its own sign-in, its own
+/// products, approved by us before Shoppers see them.
+model PartnerShop {
+  id           String    @id @default(cuid())
+  name         String
+  address      String    @default("")
+  telephone    String    @default("")
+  about        String    @default("")
+  monthlyPence Int
+  /// The plan is paid up to here. Products show only while it is.
+  paidUntil    DateTime?
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+}
+
+/// A product a partner shop sent in. Shoppers see it once a person has approved it.
+model PartnerProduct {
+  id              String    @id @default(cuid())
+  partnerShopId   String
+  name            String
+  pricePence      Int
+  tags            String    @default("")
+  expiresOn       DateTime?
+  photo           Bytes?
+  photoType       String?
+  status          String    @default("pending")
+  note            String?
+  catalogueItemId String?
+  createdAt       DateTime  @default(now())
+  decidedAt       DateTime?
+
+  @@index([partnerShopId])
+  @@index([status])
+}
+
+/// Somebody signing in for a partner shop or an organisation, each with their own password.
+model BusinessUser {
+  id                 String    @id @default(cuid())
+  kind               String
+  partnerShopId      String?
+  organisationId     String?
+  name               String
+  office             String    @default("")
+  username           String    @unique
+  passwordHash       String
   active             Boolean   @default(true)
   mustChangePassword Boolean   @default(true)
   failedAttempts     Int       @default(0)

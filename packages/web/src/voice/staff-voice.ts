@@ -15,6 +15,7 @@ import type {
   StaffFeedback,
   StaffFindRequest,
   StaffProblem,
+  StaffPartnerProduct,
   StaffRecovery,
   TeamMember,
 } from '../lib/api';
@@ -29,6 +30,8 @@ export interface StaffLists {
   owed?: StaffRecovery[];
   finds?: StaffFindRequest[];
   enquiries?: StaffEnquiry[];
+  /** Partner shop products waiting to be checked. */
+  partners?: StaffPartnerProduct[];
   team?: TeamMember[];
 }
 
@@ -44,6 +47,11 @@ export const AREA_WORDS: Record<StaffArea, { one: string; many: string; tab: str
   owed: { one: 'Runner who owes money', many: 'Runners who owe money', tab: 'Money owed' },
   finds: { one: 'Finds It request', many: 'Finds It requests', tab: 'Finds It' },
   enquiries: { one: 'enquiry to ring back', many: 'enquiries to ring back', tab: 'Enquiries' },
+  partners: {
+    one: 'shop product to check',
+    many: 'shop products to check',
+    tab: 'Shops and organisations',
+  },
   team: { one: 'person on the team', many: 'people on the team', tab: 'Team' },
 };
 
@@ -99,6 +107,7 @@ function firstNoun(areas: readonly StaffArea[], lists: StaffLists): string {
     owed: 'money owed',
     finds: 'Finds It requests',
     enquiries: 'enquiries',
+    partners: 'shop products',
     team: 'team',
   }[area];
 }
@@ -179,6 +188,15 @@ export function readItem(area: StaffArea, item: unknown, position: string): stri
         ' When you have rung them, say "rung back".'
       );
     }
+    case 'partners': {
+      const row = item as StaffPartnerProduct;
+      return (
+        `Shop product ${position}. ${row.shopName} sent ${row.name}, at ${money(row.pricePence)}` +
+        (row.tags ? `, labelled ${row.tags}` : '') +
+        (row.expiresOn ? `, best before ${longDate(row.expiresOn)}` : '') +
+        `. ${row.hasPhoto ? 'It has a photo.' : 'It has no photo.'} Say "accept" or "turn it down", or "next".`
+      );
+    }
     case 'team': {
       const row = item as TeamMember;
       return `${position}. ${row.name}, ${row.title}, signs in as ${row.username}${row.active ? '' : '. Their account is turned off'}.`;
@@ -209,10 +227,8 @@ const AREA_PATTERNS: Array<[StaffArea, RegExp]> = [
   ['documents', /\b(documents?|dbs|right to work|share codes?|insurance|licen[cs]es?|checks)\b/],
   ['owed', /\b(money owed|owed|owes|debts?|write[ -]?offs?)\b/],
   ['finds', /\b(finds? it|finds|searches|looking for)\b/],
-  [
-    'enquiries',
-    /\b(enquir(y|ies)|inquir(y|ies)|messages?|emails?|web ?mail|organisations?|partners?|shops?)\b/,
-  ],
+  ['enquiries', /\b(enquir(y|ies)|inquir(y|ies)|messages?|emails?|web ?mail|organisations?)\b/],
+  ['partners', /\b(shop products?|products?|partner shops?|partners?|shops?)\b/],
   ['team', /\b(team|staff|colleagues?)\b/],
 ];
 

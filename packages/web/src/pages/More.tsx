@@ -28,6 +28,11 @@ export function More(): JSX.Element {
       about: 'Recipes and Finds It included, for you or your family.',
     },
     { to: '/gift-cards', name: 'Gift cards', about: 'Give someone their shopping.' },
+    {
+      to: '/shops',
+      name: 'Local shops',
+      about: 'Shop Partners, with their own products and prices.',
+    },
     { to: '/offers', name: 'Offers', about: 'From local shops we work with.' },
     {
       to: '/shop?q=essentials',

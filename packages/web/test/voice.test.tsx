@@ -167,7 +167,7 @@ describe('the first launch', () => {
     const view = renderAt('/');
     await waitFor(() => {
       expect(engine.spoken.map((s) => s.text).join(' ')).toMatch(
-        /^Hello, I'm Ozi, your shopping assistant\. Send me, I will help\. Who are you\? Shopper: I want my shopping brought to me\. Runner: .* Organisation: .* I look after someone: /,
+        /^Hello, I'm Ozi, your shopping assistant\. Send me, I will help\. Who are you\? Shopper: You want shopping brought to you\. .* Runner: .* Shop Partner: .* Organisation: .* I look after someone: /,
       );
     });
     view.unmount();

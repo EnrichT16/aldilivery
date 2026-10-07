@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { moneyOut } from '../lib/alert';
 
 import { PriceConfirm } from '../components/PriceConfirm';
 import { storeConfig } from '../config';
@@ -50,6 +51,7 @@ export function FindIt(): JSX.Element {
       const result = await askToFind(what.trim());
       setRequests((before) => [result.request, ...(before ?? [])]);
       setNews(result.message);
+      if (/was taken from your card/.test(result.message)) moneyOut();
       setWhat('');
       void ozi.say(result.message);
     } catch (failure) {

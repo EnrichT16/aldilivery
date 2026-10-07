@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { moneyIn, moneyOut } from '../lib/alert';
 
 import { NotifyMe } from '../components/NotifyMe';
 import { PinGate } from '../components/PinGate';
@@ -160,6 +161,9 @@ export function Confirm(): JSX.Element {
       }
 
       clear();
+      // A till's "ka-ching": the money has gone. And coins back, if gift card money returned.
+      moneyOut();
+      if (result.order.creditAppliedPence) window.setTimeout(moneyIn, 700);
       setPlaced({ order: result.order, message: result.message });
     } catch (failure) {
       setError(

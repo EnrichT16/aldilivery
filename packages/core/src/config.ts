@@ -124,6 +124,8 @@ export interface StoreConfig {
     readonly findItShops: number;
     /** The gift card amounts on offer. */
     readonly giftCardPence: readonly number[];
+    /** What a partner shop pays a month for its own dashboard, products and promotion. */
+    readonly partnerMonthlyPence: number;
   };
   /** In-app calls (docs/BUILD_PROMPT.md, Sections B and F; rulings of 2 October 2026). */
   readonly calls: {
@@ -467,6 +469,7 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       findItPence: wholeNumber(extras['findItPence'] ?? 200, 'extras.findItPence', 1),
       findItShops: wholeNumber(extras['findItShops'] ?? 3, 'extras.findItShops', 1),
       giftCardPence: giftCardAmounts(extras['giftCardPence'] ?? [1000, 2000, 3000, 5000]),
+      partnerMonthlyPence: wholeNumber(extras['partnerMonthlyPence'] ?? 2999, 'extras.partnerMonthlyPence', 1),
     },
     calls: {
       pencePerMinute: wholeNumber(calls['pencePerMinute'], 'calls.pencePerMinute', 0),

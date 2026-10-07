@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { moneyOut } from '../lib/alert';
 
 import { storeConfig } from '../config';
 import { buyRecipePass } from '../lib/api';
@@ -36,6 +37,7 @@ export function Recipes(): JSX.Element {
       if (shopper) replaceShopper({ ...shopper, recipePassUntil: result.recipePassUntil });
       setConfirming(false);
       setNews(result.message);
+      moneyOut();
       void ozi.say(`${result.message} Which recipe would you like?`);
     } catch (failure) {
       const message = failure instanceof Error ? failure.message : 'That did not work.';

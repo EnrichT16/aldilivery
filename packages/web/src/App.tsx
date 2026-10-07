@@ -9,6 +9,7 @@ import { Basket } from './pages/Basket';
 import { Card } from './pages/Card';
 import { Catalogue } from './pages/Catalogue';
 import { Confirm } from './pages/Confirm';
+import { BusinessSignIn } from './pages/BusinessSignIn';
 import { FindIt } from './pages/FindIt';
 import { GiftCards } from './pages/GiftCards';
 import { Gifts } from './pages/Gifts';
@@ -19,7 +20,9 @@ import { Landing } from './pages/Landing';
 import { LookingAfter } from './pages/LookingAfter';
 import { MyOrder } from './pages/MyOrder';
 import { Orders } from './pages/Orders';
+import { OrganisationDashboard } from './pages/OrganisationDashboard';
 import { Organisations } from './pages/Organisations';
+import { PartnerDashboard } from './pages/PartnerDashboard';
 import { ReportProblem } from './pages/ReportProblem';
 import { Plus } from './pages/Plus';
 import { Privacy } from './pages/Privacy';
@@ -28,6 +31,7 @@ import { RunnerDoor } from './pages/Runner';
 import { RunnerHome } from './pages/RunnerHome';
 import { RunnerSignUp } from './pages/RunnerSignUp';
 import { Settings } from './pages/Settings';
+import { ShopPage, Shops } from './pages/Shops';
 import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
 import { Terms } from './pages/Terms';
@@ -139,6 +143,11 @@ export function App(): JSX.Element {
                 <Route path="/plus" element={<Plus />} />
                 <Route path="/offers" element={<Offers />} />
                 <Route path="/weekly-shop" element={<WeeklyShop />} />
+                <Route path="/business" element={<BusinessSignIn />} />
+                <Route path="/partner" element={<PartnerDashboard />} />
+                <Route path="/organisation" element={<OrganisationDashboard />} />
+                <Route path="/shops" element={<Shops />} />
+                <Route path="/shops/:id" element={<ShopPage />} />
                 <Route path="/confirm" element={<Confirm />} />
                 <Route path="/my-order" element={<MyOrder />} />
                 <Route path="/orders" element={<Orders />} />

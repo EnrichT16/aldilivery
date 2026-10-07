@@ -713,6 +713,8 @@ export interface PlacedOrder {
   totalEstimatePence: number;
   feePence: number;
   goodsEstimatePence: number;
+  /** Gift card money given straight back to the card once it was paid. */
+  creditAppliedPence?: number;
 }
 
 export interface CreateOrderResult {
@@ -960,7 +962,7 @@ export function checkStaffKey(key: string): Promise<{ ok: true }> {
 
 /** What each staff job is, and which parts of the panel it sees. */
 export type StaffArea =
-  'documents' | 'problems' | 'feedback' | 'owed' | 'finds' | 'enquiries' | 'team';
+  'documents' | 'problems' | 'feedback' | 'owed' | 'finds' | 'enquiries' | 'partners' | 'team';
 
 export interface StaffSignedIn {
   token: string;
@@ -1342,5 +1344,296 @@ export function markEnquiryHandled(key: string, id: string): Promise<unknown> {
   return staffRequest(key, `/staff/enquiries/${encodeURIComponent(id)}/handled`, {
     method: 'POST',
     body: JSON.stringify({}),
+  });
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * Partner shops and organisations (7 October 2026): their own sign-in, sent as an
+ * x-business-token header, so it can never be mistaken for a Shopper, Runner or staff.
+ * ------------------------------------------------------------------------------------- */
+
+const BUSINESS = 'ozidelivery.business.token';
+
+export function businessToken(): string {
+  try {
+    return window.sessionStorage.getItem(BUSINESS) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+export function rememberBusinessToken(token: string | null): void {
+  try {
+    if (token === null) window.sessionStorage.removeItem(BUSINESS);
+    else window.sessionStorage.setItem(BUSINESS, token);
+  } catch {
+    // Private browsing: they sign in again next time.
+  }
+}
+
+function businessRequest<T>(path: string, init?: RequestInit): Promise<T> {
+  return request<T>(path, { ...init, headers: { 'x-business-token': businessToken() } });
+}
+
+export interface BusinessMe {
+  kind: 'partner' | 'organisation';
+  name: string;
+  office: string;
+  business: string;
+  mustChangePassword: boolean;
+}
+
+export function businessSignIn(
+  username: string,
+  password: string,
+): Promise<BusinessMe & { token: string }> {
+  return request('/business/sign-in', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+}
+
+export function fetchBusinessMe(): Promise<BusinessMe> {
+  return businessRequest('/business/me');
+}
+
+export function changeBusinessPassword(
+  current: string,
+  password: string,
+): Promise<{ message: string }> {
+  return businessRequest('/business/password', {
+    method: 'POST',
+    body: JSON.stringify({ current, password }),
+  });
+}
+
+export interface PartnerProductRow {
+  id: string;
+  name: string;
+  pricePence: number;
+  tags: string;
+  expiresOn: string | null;
+  hasPhoto: boolean;
+  status: 'pending' | 'approved' | 'rejected' | 'removed';
+  note: string | null;
+  catalogueItemId: string | null;
+  createdAt: string;
+}
+
+export interface PartnerDashboard {
+  shop: { id: string; name: string; address: string; telephone: string; about: string };
+  plan: { monthlyPence: number; paidUntil: string | null; paid: boolean };
+  counts: { live: number; waiting: number; notAccepted: number };
+  products: PartnerProductRow[];
+  sharePath: string;
+}
+
+export function fetchPartnerDashboard(): Promise<PartnerDashboard> {
+  return businessRequest('/partner/dashboard');
+}
+
+export function addPartnerProduct(input: {
+  name: string;
+  pricePence: number;
+  tags: string;
+  expiresOn?: string;
+  photo?: string;
+  photoType?: string;
+}): Promise<{ product: PartnerProductRow; message: string }> {
+  return businessRequest('/partner/products', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function setPartnerPrice(id: string, pricePence: number): Promise<{ message: string }> {
+  return businessRequest(`/partner/products/${encodeURIComponent(id)}/price`, {
+    method: 'POST',
+    body: JSON.stringify({ pricePence }),
+  });
+}
+
+export function removePartnerProduct(id: string): Promise<{ message: string }> {
+  return businessRequest(`/partner/products/${encodeURIComponent(id)}/remove`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export interface PublicShop {
+  id: string;
+  name: string;
+  about: string;
+  products: number;
+}
+
+export function fetchShops(): Promise<{ shops: PublicShop[] }> {
+  return request('/shops');
+}
+
+export interface PublicShopProduct {
+  id: string;
+  name: string;
+  pricePence: number;
+  tags: string;
+  expiresOn: string | null;
+  hasPhoto: boolean;
+  catalogueItemId: string | null;
+}
+
+export function fetchShop(id: string): Promise<{
+  shop: { id: string; name: string; about: string; address: string };
+  products: PublicShopProduct[];
+}> {
+  return request(`/shops/${encodeURIComponent(id)}`);
+}
+
+/** Where a shop's product photo can be shown from. */
+export function shopPhotoUrl(shopId: string, productId: string): string {
+  return `${BASE_URL}/shops/${encodeURIComponent(shopId)}/products/${encodeURIComponent(productId)}/photo`;
+}
+
+export interface OrganisationDashboard {
+  organisation: {
+    id: string;
+    name: string;
+    joinCode: string | null;
+    monthlyBudgetPence: number | null;
+    staffTripCostPence: number | null;
+  };
+  totals: {
+    spentThisMonthPence: number;
+    spentLastMonthPence: number;
+    spentAllTimePence: number;
+    deliveriesThisMonth: number;
+    budgetLeftPence: number | null;
+    savedThisMonthPence: number | null;
+    upcomingWeeklyPence: number;
+  };
+  byOffice: Array<{ office: string; pence: number }>;
+  people: Array<{ id: string; name: string; office: string }>;
+  orders: Array<{
+    id: string;
+    person: string;
+    office: string;
+    createdAt: string;
+    status: string;
+    items: number;
+    paidPence: number;
+  }>;
+  upcoming: Array<{ person: string; office: string; dayOfWeek: number; estimatePence: number }>;
+  deliveryFeePence: number;
+}
+
+export function fetchOrganisationDashboard(): Promise<OrganisationDashboard> {
+  return businessRequest('/organisation/dashboard');
+}
+
+export function saveOrganisationSettings(input: {
+  monthlyBudgetPence?: number | null;
+  staffTripCostPence?: number | null;
+}): Promise<{ message: string }> {
+  return businessRequest('/organisation/settings', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function setPersonOffice(id: string, office: string): Promise<{ message: string }> {
+  return businessRequest(`/organisation/people/${encodeURIComponent(id)}/office`, {
+    method: 'POST',
+    body: JSON.stringify({ office }),
+  });
+}
+
+export function fetchMyOrganisation(): Promise<{ organisation: { name: string } | null }> {
+  return request('/me/organisation');
+}
+
+export function joinOrganisation(
+  code: string,
+): Promise<{ organisation: { name: string }; message: string }> {
+  return request('/me/organisation', {
+    method: 'POST',
+    body: JSON.stringify({ code, agreed: true }),
+  });
+}
+
+export function leaveOrganisation(): Promise<{ message: string }> {
+  return request('/me/organisation/leave', { method: 'POST', body: JSON.stringify({}) });
+}
+
+export interface StaffPartners {
+  shops: Array<{
+    id: string;
+    name: string;
+    monthlyPence: number;
+    paidUntil: string | null;
+    paid: boolean;
+    active: boolean;
+    live: number;
+    waiting: number;
+    users: Array<{ id: string; name: string; username: string }>;
+  }>;
+  organisations: Array<{
+    id: string;
+    name: string;
+    joinCode: string | null;
+    people: number;
+    users: Array<{ id: string; name: string; username: string; office: string }>;
+  }>;
+  partnerMonthlyPence: number;
+}
+
+export function fetchStaffPartners(key: string): Promise<StaffPartners> {
+  return staffRequest(key, '/staff/partners');
+}
+
+export function addStaffPartner(
+  key: string,
+  input: { name: string; address: string; telephone: string; about: string; paidMonths: number },
+): Promise<unknown> {
+  return staffRequest(key, '/staff/partners', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function renewStaffPartner(key: string, id: string, paidMonths: number): Promise<unknown> {
+  return staffRequest(key, `/staff/partners/${encodeURIComponent(id)}`, {
+    method: 'POST',
+    body: JSON.stringify({ paidMonths }),
+  });
+}
+
+export function addBusinessUser(
+  key: string,
+  kind: 'partners' | 'organisations',
+  id: string,
+  input: { name: string; username: string; office?: string },
+): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/${kind}/${encodeURIComponent(id)}/users`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function addStaffOrganisation(
+  key: string,
+  input: { name: string; contactName: string; contactEmail: string; contactPhone?: string },
+): Promise<unknown> {
+  return staffRequest(key, '/staff/organisations', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export interface StaffPartnerProduct extends PartnerProductRow {
+  shopName: string;
+}
+
+export function fetchStaffPartnerProducts(
+  key: string,
+): Promise<{ products: StaffPartnerProduct[] }> {
+  return staffRequest(key, '/staff/partner-products');
+}
+
+export function decideStaffPartnerProduct(
+  key: string,
+  id: string,
+  approve: boolean,
+  note?: string,
+): Promise<unknown> {
+  return staffRequest(key, `/staff/partner-products/${encodeURIComponent(id)}/decide`, {
+    method: 'POST',
+    body: JSON.stringify({ approve, ...(note ? { note } : {}) }),
   });
 }

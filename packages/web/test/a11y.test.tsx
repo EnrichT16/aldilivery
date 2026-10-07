@@ -47,6 +47,8 @@ const SCREENS: Array<{ name: string; path: string }> = [
   { name: 'plus, signed out', path: '/plus' },
   { name: 'offers', path: '/offers' },
   { name: 'the weekly shop, signed out', path: '/weekly-shop' },
+  { name: 'shop partners and organisations signing in', path: '/business' },
+  { name: 'local shops', path: '/shops' },
   { name: 'a page that does not exist', path: '/nowhere' },
 ];
 

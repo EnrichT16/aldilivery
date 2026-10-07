@@ -15,7 +15,12 @@
 import { priceBasket, type BasketPricing, type DeliveryFees } from '@aldilivery/core';
 
 import type { BasketLine, CatalogueItem } from '../domain.js';
-import { AgeRestrictedItemError, BadRequestError, BasketTooLargeError, NotFoundError } from '../errors.js';
+import {
+  AgeRestrictedItemError,
+  BadRequestError,
+  BasketTooLargeError,
+  NotFoundError,
+} from '../errors.js';
 
 export interface PricedLine {
   catalogueItemId: string;
@@ -48,7 +53,10 @@ export function priceLines(
     throw new BadRequestError('There is nothing in the basket yet.');
   }
 
-  const byId = new Map(catalogueItems.map((item) => [item.id, item]));
+  // Something taken off sale is treated as gone.
+  const byId = new Map(
+    catalogueItems.filter((item) => !item.retired).map((item) => [item.id, item]),
+  );
 
   const missing = lines.filter((line) => !byId.has(line.catalogueItemId));
   if (missing.length > 0) {
@@ -66,7 +74,9 @@ export function priceLines(
   const pricedLines: PricedLine[] = lines.map((line) => {
     const item = byId.get(line.catalogueItemId) as CatalogueItem;
     if (!Number.isInteger(line.quantity) || line.quantity < 1) {
-      throw new BadRequestError(`How many ${item.name} would you like? Please give a whole number.`);
+      throw new BadRequestError(
+        `How many ${item.name} would you like? Please give a whole number.`,
+      );
     }
     return {
       catalogueItemId: item.id,

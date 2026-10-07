@@ -59,6 +59,8 @@ export interface Shopper {
   creditPence: number;
   deletionScheduledFor: Date | null;
   organisationId: string | null;
+  /** Which office or team at the organisation looks after this person. */
+  organisationOffice: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -150,6 +152,11 @@ export interface Organisation {
   contactPhone: string | null;
   invoiceTerms: string;
   active: boolean;
+  /** The code a person types in Settings to let this organisation see their orders. */
+  joinCode: string | null;
+  monthlyBudgetPence: number | null;
+  /** What one of their own staff going to the shops costs them, for the savings figure. */
+  staffTripCostPence: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -181,6 +188,8 @@ export interface CatalogueItem {
   source: CatalogueItemSource;
   externalRef: string | null;
   lastSeenAt: Date;
+  /** Taken off sale: never in a search, never in a basket. */
+  retired: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -528,6 +537,60 @@ export interface StaffMember {
   role: string;
   active: boolean;
   /** True until they choose their own password, after the one they were given. */
+  mustChangePassword: boolean;
+  failedAttempts: number;
+  lockedUntil: Date | null;
+  lastSignInAt: Date | null;
+  createdAt: Date;
+}
+
+/** A local shop on the monthly partner plan (7 October 2026). */
+export interface PartnerShop {
+  id: string;
+  name: string;
+  address: string;
+  telephone: string;
+  about: string;
+  monthlyPence: number;
+  /** The plan is paid up to here. Products show only while it is. */
+  paidUntil: Date | null;
+  active: boolean;
+  createdAt: Date;
+}
+
+export type PartnerProductStatus = 'pending' | 'approved' | 'rejected' | 'removed';
+
+/** A product a partner shop sent in. Shoppers see it once a person has approved it. */
+export interface PartnerProduct {
+  id: string;
+  partnerShopId: string;
+  name: string;
+  pricePence: number;
+  tags: string;
+  expiresOn: Date | null;
+  photo: Uint8Array | null;
+  photoType: string | null;
+  status: PartnerProductStatus;
+  note: string | null;
+  catalogueItemId: string | null;
+  createdAt: Date;
+  decidedAt: Date | null;
+}
+
+export type BusinessKind = 'partner' | 'organisation';
+
+/** Somebody signing in for a partner shop or an organisation. */
+export interface BusinessUser {
+  id: string;
+  kind: BusinessKind;
+  partnerShopId: string | null;
+  organisationId: string | null;
+  name: string;
+  /** For an organisation: their office or team, shown with what they do. */
+  office: string;
+  username: string;
+  passwordHash: string;
+  active: boolean;
   mustChangePassword: boolean;
   failedAttempts: number;
   lockedUntil: Date | null;
