@@ -25,6 +25,7 @@ import {
   type StaffPartnerProduct,
   type StaffProblem,
   type StaffRecovery,
+  fetchLearning,
 } from '../lib/api';
 import { money } from '../lib/money';
 import { useOzi } from '../state/ozi';
@@ -211,6 +212,11 @@ export function StaffVoice({
         'partners',
         () => fetchStaffPartnerProducts(key),
         (r) => r.products,
+      );
+      add(
+        'learning',
+        () => fetchLearning(key),
+        (r) => r.waiting,
       );
       add(
         'team',

@@ -48,3 +48,10 @@ export {
   splitItems,
   wantsToStop,
 } from './spoken-order.js';
+
+export {
+  normalisePhrase,
+  phraseFingerprint,
+  phraseWithoutName,
+  type PhraseNames,
+} from './phrase-text.js';

@@ -10,7 +10,7 @@ Soon, worth doing next
 5. The family and carer plan: someone ordering for a relative (T1). The page says "coming soon"; the data model is ready.
 6. The security steps in docs/SECURITY_PROPOSAL.md marked "to do": an audit log sent to a one-way store, two-step sign-in for all staff, alerts to the owner, Dependabot and secret scanning, a locked weekly backup, Cloudflare in front (rulings 43, 44).
 7. Insurance expiry reminders for Runners (2 October proposals).
-8. Ozi's phrases: from about 2,000 per account, add phrases for questions people actually asked that Ozi could not answer, which means recording those questions without names (ruling 44).
+8. Ozi's phrases: the Learning list records what Ozi could not answer (ruling 49); next, the daily task could suggest answers for the most asked ones, for a person to approve.
 
 Bigger pieces
 - Errands, Sending and Business emergency runs as services, with their prices: extra shop, handed to the person, tipping (Sections B, C, K, L).

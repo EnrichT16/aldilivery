@@ -672,3 +672,24 @@ export interface IncomeRecord {
   amountPence: number;
   reference: string;
 }
+
+/**
+ * Something said to Ozi that it could not answer (ruling 49), kept for a person to approve an
+ * answer for. Never anything with a banned word, and never anything that looks like a phone
+ * number, a card, a code or an email address. Who said it is not kept.
+ */
+export interface LearnedPhrase {
+  id: string;
+  /** Which Ozi was asked: shopper, runner, partner, organisation, staff, family, investor, owner. */
+  account: string;
+  /** What was said, in lower case, without Ozi's name. */
+  text: string;
+  timesHeard: number;
+  firstHeardAt: Date;
+  lastHeardAt: Date;
+  status: 'waiting' | 'approved' | 'rejected';
+  /** The answer a person approved. */
+  reply: string | null;
+  decidedBy: string | null;
+  decidedAt: Date | null;
+}

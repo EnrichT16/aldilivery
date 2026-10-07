@@ -15,6 +15,7 @@ import type { OrderStatus } from '@aldilivery/core';
 import type {
   AccountRole,
   IncomeRecord,
+  LearnedPhrase,
   AnalyticsEvent,
   PartnerPayment,
   SpotlightMention,
@@ -115,6 +116,7 @@ export function memoryRepository(): Repository {
   const spotlightMentions: SpotlightMention[] = [];
   const analyticsEvents: AnalyticsEvent[] = [];
   const incomeRecords: IncomeRecord[] = [];
+  const learned: LearnedPhrase[] = [];
 
   const now = (): Date => new Date();
 
@@ -1249,6 +1251,48 @@ export function memoryRepository(): Repository {
           )
           .sort((a, b) => a.at.getTime() - b.at.getTime())
           .map(clone);
+      },
+    },
+
+    learned: {
+      async heard({ account, text, at }) {
+        const known = learned.find((row) => row.account === account && row.text === text);
+        if (known) {
+          known.timesHeard += 1;
+          known.lastHeardAt = at;
+          return;
+        }
+        learned.push({
+          id: id(),
+          account,
+          text,
+          timesHeard: 1,
+          firstHeardAt: at,
+          lastHeardAt: at,
+          status: 'waiting',
+          reply: null,
+          decidedBy: null,
+          decidedAt: null,
+        });
+      },
+      async list(status) {
+        return learned
+          .filter((row) => row.status === status)
+          .sort(
+            (a, b) =>
+              b.timesHeard - a.timesHeard || b.lastHeardAt.getTime() - a.lastHeardAt.getTime(),
+          )
+          .map(clone);
+      },
+      async findById(key) {
+        const row = learned.find((candidate) => candidate.id === key);
+        return row ? clone(row) : null;
+      },
+      async decide(key, patch) {
+        const row = learned.find((candidate) => candidate.id === key);
+        if (!row) throw new NotFoundError('Learned phrase', key);
+        Object.assign(row, patch);
+        return clone(row);
       },
     },
 

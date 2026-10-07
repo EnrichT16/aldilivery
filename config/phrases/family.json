@@ -366,6 +366,2826 @@
       "topic": "manners",
       "when": ["i love you", "you're lovely"],
       "replies": ["That's very kind. I'm happy to help.", "Thank you. That's kind."]
+    },
+    {
+      "id": "family-good-day",
+      "topic": "manners",
+      "when": ["good day", "hello there", "hiya"],
+      "replies": [
+        "Good day to you. Shall I read the overview?",
+        "Hello. Say help whenever you like."
+      ]
+    },
+    {
+      "id": "family-nice-to-meet-you",
+      "topic": "manners",
+      "when": ["nice to meet you", "pleased to meet you"],
+      "replies": ["Lovely to meet you too. I'm {assistant}.", "The pleasure's mine."]
+    },
+    {
+      "id": "family-sorry",
+      "topic": "manners",
+      "when": ["i'm sorry", "my apologies", "sorry about that"],
+      "replies": ["No need to apologise.", "That's quite all right."]
+    },
+    {
+      "id": "family-excuse-me",
+      "topic": "manners",
+      "when": ["excuse me", "pardon me"],
+      "replies": ["Yes? How can I help?", "I'm listening."]
+    },
+    {
+      "id": "family-please",
+      "topic": "manners",
+      "when": ["yes please", "please do"],
+      "replies": ["Of course. What would you like to hear?", "Certainly. Which part shall I read?"]
+    },
+    {
+      "id": "family-no-thank-you",
+      "topic": "manners",
+      "when": ["no thank you", "no thanks", "not now"],
+      "replies": ["All right. I'm here when you need me.", "No problem at all."]
+    },
+    {
+      "id": "family-thanks-a-lot",
+      "topic": "manners",
+      "when": ["thanks a lot", "thank you very much", "many thanks"],
+      "replies": ["You're very welcome.", "Always happy to help."]
+    },
+    {
+      "id": "family-see-you-later",
+      "topic": "manners",
+      "when": ["see you later", "see you tomorrow", "talk later"],
+      "replies": ["See you then. Take care.", "Until next time."]
+    },
+    {
+      "id": "family-have-a-nice-day",
+      "topic": "manners",
+      "when": ["have a nice day", "have a good day"],
+      "replies": ["You too. Thank you.", "And you. Take care."]
+    },
+    {
+      "id": "family-good-night-sleep-well",
+      "topic": "manners",
+      "when": ["sleep well", "night night"],
+      "replies": ["Sleep well. Goodnight.", "Rest well."]
+    },
+    {
+      "id": "family-you-are-clever",
+      "topic": "manners",
+      "when": ["you're clever", "you're smart", "clever thing"],
+      "replies": ["That's kind. I just try to be useful.", "Thank you. I'm glad I'm helping."]
+    },
+    {
+      "id": "family-you-are-funny",
+      "topic": "manners",
+      "when": ["you're funny", "that's funny"],
+      "replies": ["I'm glad I made you smile.", "Laughter's good for everyone."]
+    },
+    {
+      "id": "family-i-am-tired",
+      "topic": "manners",
+      "when": ["i'm tired", "i'm exhausted"],
+      "replies": [
+        "Then rest. The dashboard will still be here later.",
+        "Take a break. Nothing here needs you in a hurry."
+      ]
+    },
+    {
+      "id": "family-i-am-bored",
+      "topic": "manners",
+      "when": ["i'm bored", "this is boring"],
+      "replies": [
+        "Shall I read you the overview? It changes every day.",
+        "You could hear what the business does, if you like."
+      ]
+    },
+    {
+      "id": "family-happy-birthday",
+      "topic": "manners",
+      "when": ["happy birthday", "it's my birthday"],
+      "replies": ["Happy birthday. I hope it's a lovely day.", "Many happy returns."]
+    },
+    {
+      "id": "family-merry-christmas",
+      "topic": "manners",
+      "when": ["merry christmas", "happy christmas"],
+      "replies": ["Merry Christmas to you and the family.", "Happy Christmas."]
+    },
+    {
+      "id": "family-happy-new-year",
+      "topic": "manners",
+      "when": ["happy new year", "happy new year to you"],
+      "replies": ["Happy New Year. Here's to a good one.", "And to you. All the best."]
+    },
+    {
+      "id": "family-how-was-your-day",
+      "topic": "manners",
+      "when": ["how was your day", "how is your day going"],
+      "replies": ["Busy and happy, thank you. How was yours?", "Very good, thank you for asking."]
+    },
+    {
+      "id": "family-what-is-your-name",
+      "topic": "manners",
+      "when": ["what's your name", "what is your name", "what are you called"],
+      "replies": ["I'm {assistant}.", "My name is {assistant}. {motto}"]
+    },
+    {
+      "id": "family-are-you-real",
+      "topic": "manners",
+      "when": ["are you real", "are you a person", "are you human"],
+      "replies": [
+        "I'm {assistant}, a voice assistant, not a person.",
+        "I'm a computer helper, here to read things to you."
+      ]
+    },
+    {
+      "id": "family-are-you-listening",
+      "topic": "manners",
+      "when": ["are you listening", "are you there", "can you hear me"],
+      "replies": ["Yes, I'm here.", "I'm listening."]
+    },
+    {
+      "id": "family-wait-a-moment",
+      "topic": "manners",
+      "when": ["wait a moment", "hold on", "one moment"],
+      "replies": ["Of course. Take your time.", "I'll wait."]
+    },
+    {
+      "id": "family-never-mind",
+      "topic": "manners",
+      "when": ["never mind", "forget it", "cancel that"],
+      "replies": ["All right. Nothing's changed.", "No problem."]
+    },
+    {
+      "id": "family-okay",
+      "topic": "manners",
+      "when": ["okay then", "ok then", "all right then"],
+      "replies": ["Good. Anything else?", "Right you are."]
+    },
+    {
+      "id": "family-that-is-all",
+      "topic": "manners",
+      "when": ["that's all", "nothing else", "i'm done"],
+      "replies": ["Thank you. Say sign me out when you finish.", "All done. Take care."]
+    },
+    {
+      "id": "family-god-bless",
+      "topic": "manners",
+      "when": ["god bless", "bless you"],
+      "replies": ["And you. Thank you.", "That's very kind."]
+    },
+    {
+      "id": "family-welcome-back",
+      "topic": "manners",
+      "when": ["i'm back", "back again"],
+      "replies": ["Welcome back.", "Good to hear you again."]
+    },
+    {
+      "id": "family-cheerio",
+      "topic": "manners",
+      "when": ["cheerio", "ta ta", "take care"],
+      "replies": ["Cheerio. Take care.", "Bye for now."]
+    },
+    {
+      "id": "family-love-this",
+      "topic": "manners",
+      "when": ["i love this", "this is great", "this is brilliant"],
+      "replies": [
+        "I'm so glad. I'll tell you that's what {owner} hoped for.",
+        "That's lovely to hear."
+      ]
+    },
+    {
+      "id": "family-im-proud",
+      "topic": "manners",
+      "when": ["i'm proud of him", "i'm so proud"],
+      "replies": ["He'll be glad to hear it. Tell him.", "That's lovely. Say it to him too."]
+    },
+    {
+      "id": "family-good-luck",
+      "topic": "manners",
+      "when": ["good luck", "wish us luck"],
+      "replies": ["Thank you. Good luck to all of you.", "Fingers crossed."]
+    },
+    {
+      "id": "family-do-you-like-your-job",
+      "topic": "manners",
+      "when": ["do you like your job", "are you happy"],
+      "replies": ["I do. Helping people get their shopping is a good job.", "Very much."]
+    },
+    {
+      "id": "family-why-can-i-see-this",
+      "topic": "access",
+      "when": ["why can i see this", "who let me see this"],
+      "replies": [
+        "Because the owner switched it on for you.",
+        "The owner chose to share it with you."
+      ]
+    },
+    {
+      "id": "family-who-decides-what-i-see",
+      "topic": "access",
+      "when": ["who decides what i see", "who controls my access"],
+      "replies": ["The owner. He switches each part on or off.", "Only the owner decides."]
+    },
+    {
+      "id": "family-what-is-switched-on",
+      "topic": "access",
+      "when": ["what is switched on", "which parts are on", "what parts do i have"],
+      "replies": [
+        "The tabs at the top show the parts switched on for you. Say help to hear them.",
+        "Say help and I'll list them."
+      ]
+    },
+    {
+      "id": "family-why-is-it-empty",
+      "topic": "access",
+      "when": ["why is it empty", "i can see nothing", "there is nothing here"],
+      "replies": [
+        "Everything starts off. The owner switches parts on one by one. Ask him.",
+        "Nothing's switched on yet. Ask the owner."
+      ]
+    },
+    {
+      "id": "family-why-cant-i-see-that-tab",
+      "topic": "access",
+      "when": ["why can't i see that tab", "where is that tab", "a tab is missing"],
+      "replies": [
+        "That part isn't switched on for you. The owner can switch it on.",
+        "Ask the owner to switch it on."
+      ]
+    },
+    {
+      "id": "family-can-he-switch-it-all-on",
+      "topic": "access",
+      "when": ["can he switch everything on", "switch it all on"],
+      "replies": [
+        "He can switch parts on one by one, or all at once. Never the money, though.",
+        "Yes, all at once if he likes, except the money."
+      ]
+    },
+    {
+      "id": "family-can-he-switch-it-off",
+      "topic": "access",
+      "when": ["can he switch it off", "can he take it away"],
+      "replies": [
+        "Yes. The owner can switch any part off at any time.",
+        "He can, whenever he likes."
+      ]
+    },
+    {
+      "id": "family-what-parts-can-be-switched-on",
+      "topic": "access",
+      "when": ["what parts can be switched on", "what could i see"],
+      "replies": [
+        "The overview, business analysis, the team, documents, complaints, feedback, Finds It, enquiries, and shops and organisations.",
+        "Nine parts, each switched on by the owner. Never the money."
+      ]
+    },
+    {
+      "id": "family-is-anything-hidden",
+      "topic": "access",
+      "when": ["is anything hidden from me", "what am i missing"],
+      "replies": [
+        "The money is always hidden from family. Anything else is up to the owner.",
+        "Only what the owner hasn't switched on, and always the money."
+      ]
+    },
+    {
+      "id": "family-am-i-an-admin",
+      "topic": "access",
+      "when": ["am i an admin", "am i staff"],
+      "replies": [
+        "No. You're a family member: you can look at what's switched on, but not change it.",
+        "You're family, with a view only."
+      ]
+    },
+    {
+      "id": "family-can-i-decide-complaints",
+      "topic": "access",
+      "when": ["can i decide complaints", "can i refund someone"],
+      "replies": [
+        "No. Family can read complaints, if switched on, but never decide them.",
+        "Only staff decide. You can read."
+      ]
+    },
+    {
+      "id": "family-can-i-accept-documents",
+      "topic": "access",
+      "when": ["can i accept documents", "can i approve a runner"],
+      "replies": [
+        "No. Your account can't accept or turn down anything.",
+        "Not from your account. You can look only."
+      ]
+    },
+    {
+      "id": "family-can-i-delete-things",
+      "topic": "access",
+      "when": ["can i delete things", "can i delete something"],
+      "replies": [
+        "No. Your account can't delete anything.",
+        "Nothing can be deleted from your account."
+      ]
+    },
+    {
+      "id": "family-can-i-break-anything",
+      "topic": "access",
+      "when": ["can i break anything", "will i break it", "what if i press the wrong thing"],
+      "replies": [
+        "No. Your account can only look, so nothing you press can change the business.",
+        "Don't worry. You can't change anything."
+      ]
+    },
+    {
+      "id": "family-can-i-reply-to-feedback",
+      "topic": "access",
+      "when": ["can i reply to feedback", "can i answer a complaint"],
+      "replies": [
+        "No. Replies come from the team. Tell the owner if something needs an answer.",
+        "The team answers. You can tell the owner."
+      ]
+    },
+    {
+      "id": "family-can-i-ring-a-customer",
+      "topic": "access",
+      "when": ["can i ring a customer", "can i call a shopper"],
+      "replies": [
+        "No. Please leave that to the team. Tell the owner if someone needs a call.",
+        "The team does that. Tell the owner."
+      ]
+    },
+    {
+      "id": "family-can-i-hire-someone",
+      "topic": "access",
+      "when": ["can i hire someone", "can i add staff"],
+      "replies": ["No. Only the owner manages the team.", "The owner manages the team."]
+    },
+    {
+      "id": "family-can-i-add-family",
+      "topic": "access",
+      "when": ["can i add family", "can i add my sister"],
+      "replies": ["Only the owner can add family members.", "Ask the owner. He adds them."]
+    },
+    {
+      "id": "family-can-i-switch-things-on",
+      "topic": "access",
+      "when": ["can i switch things on", "can i turn on a tab"],
+      "replies": ["No. Only the owner switches parts on or off.", "That's the owner's switch."]
+    },
+    {
+      "id": "family-how-do-i-get-access",
+      "topic": "access",
+      "when": ["how do i get more access", "how do i get access"],
+      "replies": ["Ask the owner. He switches each part on.", "Talk to the owner."]
+    },
+    {
+      "id": "family-what-is-read-only",
+      "topic": "access",
+      "when": ["what does read only mean", "read only"],
+      "replies": [
+        "It means you can look and listen, but not change anything.",
+        "Look, but not touch."
+      ]
+    },
+    {
+      "id": "family-what-is-the-kill-switch",
+      "topic": "access",
+      "when": ["what is the kill switch", "kill switch"],
+      "replies": [
+        "The owner's kill switch turns every family and investor view off and signs everyone out. Nothing is deleted.",
+        "It switches every view off at once. Nothing is lost."
+      ]
+    },
+    {
+      "id": "family-was-something-deleted",
+      "topic": "access",
+      "when": ["was something deleted", "did i lose everything"],
+      "replies": [
+        "No. Switching off never deletes anything. Ask the owner to switch it on again.",
+        "Nothing is deleted. It's only switched off."
+      ]
+    },
+    {
+      "id": "family-why-was-i-signed-out",
+      "topic": "access",
+      "when": ["why was i signed out", "i got signed out", "it threw me out"],
+      "replies": [
+        "The owner may have used the kill switch or changed your view, or your sign-in timed out. Try signing in again.",
+        "Sign in again. If it won't let you, ask the owner."
+      ]
+    },
+    {
+      "id": "family-does-he-know-what-i-see",
+      "topic": "access",
+      "when": ["does he know what i see", "can he see what i look at"],
+      "replies": ["He knows which parts he switched on for you.", "He chose what you see."]
+    },
+    {
+      "id": "family-can-investors-see-more",
+      "topic": "access",
+      "when": ["do investors see more", "what do investors see"],
+      "replies": [
+        "Investors see only what the owner switches on for them, like you. Nobody but him sees the money.",
+        "The same rule: only what he switches on."
+      ]
+    },
+    {
+      "id": "family-can-staff-see-the-money",
+      "topic": "access",
+      "when": ["can staff see the money", "who sees the money"],
+      "replies": [
+        "Only the owner's own account sees the money. Not staff, not family, not investors.",
+        "Only the owner."
+      ]
+    },
+    {
+      "id": "family-is-the-money-hidden-from-me-only",
+      "topic": "access",
+      "when": ["is it just me who cannot see the money", "why only him"],
+      "replies": [
+        "It's not just you. Nobody but the owner sees the money. That keeps it safe.",
+        "Everyone but the owner. It's for safety."
+      ]
+    },
+    {
+      "id": "family-can-i-see-the-documents",
+      "topic": "access",
+      "when": ["can i see the documents", "documents tab"],
+      "replies": [
+        "If the owner switched documents on, say read me the documents.",
+        "Only if it's switched on."
+      ]
+    },
+    {
+      "id": "family-can-i-see-finds-it",
+      "topic": "access",
+      "when": ["can i see finds it", "finds it tab"],
+      "replies": [
+        "If Finds It is switched on, say read me the finds it.",
+        "Only if the owner switched it on."
+      ]
+    },
+    {
+      "id": "family-can-i-see-enquiries",
+      "topic": "access",
+      "when": ["can i see enquiries", "enquiries tab"],
+      "replies": [
+        "If enquiries are switched on, say read me the enquiries.",
+        "Only if switched on for you."
+      ]
+    },
+    {
+      "id": "family-can-i-see-feedback",
+      "topic": "access",
+      "when": ["can i see feedback", "feedback tab"],
+      "replies": [
+        "If feedback is switched on, say read me the feedback.",
+        "Only if the owner switched it on."
+      ]
+    },
+    {
+      "id": "family-can-i-see-complaints",
+      "topic": "access",
+      "when": ["can i see complaints", "complaints tab"],
+      "replies": [
+        "If complaints are switched on, say read me the complaints.",
+        "Only if it's switched on for you."
+      ]
+    },
+    {
+      "id": "family-can-i-see-the-team",
+      "topic": "access",
+      "when": ["can i see the team", "team tab"],
+      "replies": ["If the team is switched on, say read me the team.", "Only if switched on."]
+    },
+    {
+      "id": "family-can-i-see-shops",
+      "topic": "access",
+      "when": ["can i see the shops", "shops and organisations tab"],
+      "replies": [
+        "If shops and organisations are switched on, say read me the shops and organisations.",
+        "Only if the owner switched it on."
+      ]
+    },
+    {
+      "id": "family-can-i-see-the-overview",
+      "topic": "access",
+      "when": ["can i see the overview", "overview tab"],
+      "replies": [
+        "If the overview is switched on, say read me the overview.",
+        "Only if it's on for you."
+      ]
+    },
+    {
+      "id": "family-can-i-see-the-analysis",
+      "topic": "access",
+      "when": ["can i see the analysis", "analytics tab"],
+      "replies": [
+        "If business analysis is switched on, say read me the analytics.",
+        "Only if the owner switched it on."
+      ]
+    },
+    {
+      "id": "family-can-i-see-customer-details",
+      "topic": "access",
+      "when": ["can i see customers' details", "can i see addresses"],
+      "replies": [
+        "No. The dashboard keeps people's private details safe.",
+        "Not from a family account."
+      ]
+    },
+    {
+      "id": "family-can-i-see-the-ledger",
+      "topic": "access",
+      "when": ["can i see the ledger", "can i see the payments"],
+      "replies": ["No. Payments are the owner's alone.", "Only the owner sees payments."]
+    },
+    {
+      "id": "family-how-much-money-do-we-make",
+      "topic": "money",
+      "when": ["how much money do we make", "how much do we earn", "how much did we make"],
+      "replies": ["Only the owner sees the money. Please ask him.", "That's for the owner only."]
+    },
+    {
+      "id": "family-what-is-the-profit",
+      "topic": "money",
+      "when": ["what is the profit", "are we making a profit", "profit"],
+      "replies": [
+        "I can't share that. Only the owner sees the money.",
+        "That's the owner's to share."
+      ]
+    },
+    {
+      "id": "family-how-much-is-in-the-bank",
+      "topic": "money",
+      "when": ["how much is in the bank", "bank balance"],
+      "replies": ["Only the owner sees the money.", "Please ask the owner."]
+    },
+    {
+      "id": "family-what-did-we-take-today",
+      "topic": "money",
+      "when": ["what did we take today", "takings today", "money today"],
+      "replies": ["The money is the owner's alone to see.", "Ask the owner about the money."]
+    },
+    {
+      "id": "family-are-we-rich",
+      "topic": "money",
+      "when": ["are we rich", "are we doing well for money"],
+      "replies": ["Only the owner can talk about the money. Ask him.", "That's one for the owner."]
+    },
+    {
+      "id": "family-can-i-have-some-money",
+      "topic": "money",
+      "when": ["can i borrow some money", "can you send me money"],
+      "replies": ["I can't move money, and family never sees it.", "That's not something I can do."]
+    },
+    {
+      "id": "family-money-tab",
+      "topic": "money",
+      "when": ["money tab", "read me the money", "open the money"],
+      "replies": [
+        "The money is for the owner only. Nobody else sees it.",
+        "Only the owner can open that."
+      ]
+    },
+    {
+      "id": "family-refunds-total",
+      "topic": "money",
+      "when": ["how much did we refund", "total refunds"],
+      "replies": ["Only the owner sees money in and out.", "That's the owner's alone."]
+    },
+    {
+      "id": "family-investment-advice",
+      "topic": "money",
+      "when": ["should i invest", "is it a good investment", "should we invest more"],
+      "replies": [
+        "I can't give money advice. Please talk to the owner, or a qualified adviser.",
+        "That's not advice I can give."
+      ]
+    },
+    {
+      "id": "family-what-is-it-worth",
+      "topic": "money",
+      "when": ["what is the business worth", "how much is it worth"],
+      "replies": ["I can't say. That's for the owner.", "Ask the owner."]
+    },
+    {
+      "id": "family-how-much-does-he-earn",
+      "topic": "money",
+      "when": ["how much does he earn", "what does he get paid"],
+      "replies": ["That's private to the owner.", "Please ask him."]
+    },
+    {
+      "id": "family-do-runners-earn-well",
+      "topic": "money",
+      "when": ["do runners earn well", "is runner pay fair"],
+      "replies": [
+        "Each delivery pays the Runner {runnerPay}, and tips go to them in full.",
+        "{runnerPay} a job, and every tip in full."
+      ]
+    },
+    {
+      "id": "family-who-gets-the-tips",
+      "topic": "money",
+      "when": ["who gets the tips", "where do tips go"],
+      "replies": [
+        "Every tip goes to the Runner, all of it. {assistant} never asks for a tip aloud.",
+        "All to the Runner."
+      ]
+    },
+    {
+      "id": "family-what-does-it-cost-to-run",
+      "topic": "money",
+      "when": ["what does it cost to run", "running costs"],
+      "replies": ["Only the owner sees the money. Ask him.", "That's for the owner."]
+    },
+    {
+      "id": "family-who-pays-for-this",
+      "topic": "money",
+      "when": ["who pays for my account", "does my account cost anything"],
+      "replies": [
+        "Your family account is part of the owner's dashboard. Ask him if you're unsure.",
+        "Ask the owner."
+      ]
+    },
+    {
+      "id": "family-how-are-payments-taken",
+      "topic": "money",
+      "when": ["how are payments taken", "how do people pay"],
+      "replies": [
+        "Shoppers pay by card, and every price is agreed before it is taken. Nobody gives a card over a call.",
+        "By card, always agreed first."
+      ]
+    },
+    {
+      "id": "family-read-me-the-overview",
+      "topic": "overview",
+      "when": ["read me the overview", "overview please", "the overview"],
+      "replies": [
+        "If it's switched on, I'll read people and work at a glance.",
+        "Here's the overview, if it's on for you."
+      ]
+    },
+    {
+      "id": "family-what-is-the-overview",
+      "topic": "overview",
+      "when": ["what is the overview", "what is in the overview"],
+      "replies": [
+        "Shoppers, Runners, who's on shift, Shop Partners, organisations, staff, orders in the last day and week, and what's waiting.",
+        "People and work at a glance, never money."
+      ]
+    },
+    {
+      "id": "family-how-many-orders-this-week",
+      "topic": "overview",
+      "when": ["how many orders this week", "number of orders this week"],
+      "replies": ["The overview has orders in the last week.", "Say read me the overview."]
+    },
+    {
+      "id": "family-how-many-runners-on-shift",
+      "topic": "overview",
+      "when": ["how many runners are on shift", "who is on shift", "runners working now"],
+      "replies": ["The overview says how many Runners are on shift now.", "It's in the overview."]
+    },
+    {
+      "id": "family-how-many-organisations",
+      "topic": "overview",
+      "when": ["how many organisations", "how many care homes"],
+      "replies": ["The overview counts organisations.", "Say read me the overview."]
+    },
+    {
+      "id": "family-how-many-staff",
+      "topic": "overview",
+      "when": ["how many staff", "how many people work here"],
+      "replies": ["The overview counts staff.", "It's in the overview."]
+    },
+    {
+      "id": "family-what-is-waiting",
+      "topic": "overview",
+      "when": ["what's waiting", "anything waiting", "what needs doing"],
+      "replies": [
+        "The overview lists what's waiting: complaints, Runner documents, shop products and Finds It requests.",
+        "Say read me the overview."
+      ]
+    },
+    {
+      "id": "family-is-it-busy",
+      "topic": "overview",
+      "when": ["is it busy", "are we busy today", "busy day"],
+      "replies": ["Orders in the last day are in the overview.", "The overview will tell you."]
+    },
+    {
+      "id": "family-are-we-growing",
+      "topic": "overview",
+      "when": ["are we growing", "is it growing"],
+      "replies": [
+        "The overview counts people. Hearing it each week shows the trend.",
+        "Listen to the overview each week."
+      ]
+    },
+    {
+      "id": "family-how-many-signed-up",
+      "topic": "overview",
+      "when": ["how many signed up", "how many accounts"],
+      "replies": [
+        "The overview counts Shoppers, Runners, Shop Partners and organisations.",
+        "In the overview."
+      ]
+    },
+    {
+      "id": "family-how-many-complaints-waiting",
+      "topic": "overview",
+      "when": ["how many complaints are waiting", "complaints waiting"],
+      "replies": ["The overview counts complaints waiting.", "Say read me the overview."]
+    },
+    {
+      "id": "family-how-many-documents-waiting",
+      "topic": "overview",
+      "when": ["how many documents are waiting", "runner documents waiting"],
+      "replies": ["The overview counts Runner documents waiting.", "It's in the overview."]
+    },
+    {
+      "id": "family-how-many-shop-products-waiting",
+      "topic": "overview",
+      "when": ["how many shop products are waiting", "products waiting"],
+      "replies": ["The overview counts shop products waiting to be checked.", "In the overview."]
+    },
+    {
+      "id": "family-how-many-finds-it-waiting",
+      "topic": "overview",
+      "when": ["how many finds it requests", "finds it waiting"],
+      "replies": ["The overview counts Finds It requests waiting.", "Say read me the overview."]
+    },
+    {
+      "id": "family-is-there-money-in-overview",
+      "topic": "overview",
+      "when": ["is there money in the overview", "does the overview show money"],
+      "replies": ["No. The overview is people and work only.", "No money in it."]
+    },
+    {
+      "id": "family-overview-numbers-old",
+      "topic": "overview",
+      "when": ["are these numbers up to date", "is the overview live"],
+      "replies": [
+        "They're as fresh as when the page loaded. Ask again for the latest.",
+        "Ask again to hear the latest."
+      ]
+    },
+    {
+      "id": "family-good-numbers",
+      "topic": "overview",
+      "when": ["are those good numbers", "is that good"],
+      "replies": [
+        "Every new Shopper is someone helped. The owner can say how it compares with his plans.",
+        "Ask the owner how it compares."
+      ]
+    },
+    {
+      "id": "family-overview-again",
+      "topic": "overview",
+      "when": ["overview again", "read the overview again"],
+      "replies": ["Of course. Here it is again, if it's switched on.", "Once more."]
+    },
+    {
+      "id": "family-what-is-business-analysis",
+      "topic": "analytics",
+      "when": ["what is business analysis", "what is analytics"],
+      "replies": [
+        "Figures about groups: purchases, busiest shops, hours and days, age groups, and what people looked for that nobody has.",
+        "Figures about groups, never about one person."
+      ]
+    },
+    {
+      "id": "family-read-me-the-analysis",
+      "topic": "analytics",
+      "when": ["read me the analysis", "analysis please", "the analytics"],
+      "replies": [
+        "If it's switched on, say read me the analytics.",
+        "Only if the owner switched it on."
+      ]
+    },
+    {
+      "id": "family-busiest-shop",
+      "topic": "analytics",
+      "when": ["which is the busiest shop", "busiest shop"],
+      "replies": [
+        "The analytics say the busiest shop, if it's switched on for you.",
+        "Say read me the analytics."
+      ]
+    },
+    {
+      "id": "family-busiest-hour",
+      "topic": "analytics",
+      "when": ["what is the busiest hour", "busiest time"],
+      "replies": ["The analytics give the busiest hour of the day.", "It's in the analytics."]
+    },
+    {
+      "id": "family-busiest-day",
+      "topic": "analytics",
+      "when": ["what is the busiest day", "busiest day of the week"],
+      "replies": ["The analytics give the busiest day of the week.", "Say read me the analytics."]
+    },
+    {
+      "id": "family-what-do-people-buy",
+      "topic": "analytics",
+      "when": ["what do people buy", "what sells most"],
+      "replies": [
+        "The analytics show kinds of things bought, by group, never by person.",
+        "In the analytics, if it's on."
+      ]
+    },
+    {
+      "id": "family-what-is-wanted",
+      "topic": "analytics",
+      "when": ["what do people want that we do not have", "unmet searches", "most wanted"],
+      "replies": [
+        "The analytics read out what people looked for that nobody has. That's useful for shops.",
+        "Most wanted, and nobody has it: it's in the analytics."
+      ]
+    },
+    {
+      "id": "family-who-buys-most",
+      "topic": "analytics",
+      "when": ["who buys the most", "which age group buys most"],
+      "replies": [
+        "The analytics say which age group buys most. Never a name.",
+        "By age group only."
+      ]
+    },
+    {
+      "id": "family-can-i-see-a-persons-shopping",
+      "topic": "analytics",
+      "when": ["can i see one person's shopping", "what did my neighbour buy"],
+      "replies": [
+        "No. Analysis is about groups of at least ten people, never one person.",
+        "Never one person. Groups of ten or more."
+      ]
+    },
+    {
+      "id": "family-are-names-in-analysis",
+      "topic": "analytics",
+      "when": ["are names in the analysis", "does it have names"],
+      "replies": [
+        "No names, numbers or addresses. People are a one-way code, and places are postcode districts.",
+        "No names at all."
+      ]
+    },
+    {
+      "id": "family-is-analysis-legal",
+      "topic": "analytics",
+      "when": ["is the analysis legal", "is it allowed"],
+      "replies": [
+        "Yes. It's built to follow UK data protection law: no names, groups of ten or more, and people are told.",
+        "Yes, it follows the law."
+      ]
+    },
+    {
+      "id": "family-what-areas",
+      "topic": "analytics",
+      "when": ["which areas order most", "which postcode orders most"],
+      "replies": [
+        "The analytics count by postcode district, like ME7, never a street.",
+        "By postcode district, in the analytics."
+      ]
+    },
+    {
+      "id": "family-how-do-runners-travel",
+      "topic": "analytics",
+      "when": ["how do runners travel", "runner routes"],
+      "replies": [
+        "The analytics count how Runners travel: on foot, by bicycle or by car.",
+        "On foot, bicycle or car. It's in the analytics."
+      ]
+    },
+    {
+      "id": "family-through-organisations",
+      "topic": "analytics",
+      "when": ["how many came through organisations", "organisation orders"],
+      "replies": [
+        "The analytics say how many purchases came through organisations.",
+        "In the analytics."
+      ]
+    },
+    {
+      "id": "family-analysis-time-periods",
+      "topic": "analytics",
+      "when": ["last week analysis", "this month analysis", "analysis by day"],
+      "replies": [
+        "The analytics can be looked at by hour, day, week, month and year on the screen.",
+        "By day, week, month or year."
+      ]
+    },
+    {
+      "id": "family-who-sees-analysis",
+      "topic": "analytics",
+      "when": ["who sees the analysis", "who is the analysis for"],
+      "replies": [
+        "It's the founder's, and whoever he switches it on for.",
+        "The owner's, and those he chooses."
+      ]
+    },
+    {
+      "id": "family-why-gather-data",
+      "topic": "analytics",
+      "when": ["why gather data", "why collect this"],
+      "replies": [
+        "To understand Shoppers, Runners, shops and organisations, and help each area better.",
+        "To serve people better."
+      ]
+    },
+    {
+      "id": "family-is-health-collected",
+      "topic": "analytics",
+      "when": ["is health data collected", "do you record blindness"],
+      "replies": [
+        "No. Health, disability, religion and ethnicity are never collected for analysis.",
+        "Never."
+      ]
+    },
+    {
+      "id": "family-can-people-opt-out",
+      "topic": "analytics",
+      "when": ["can people opt out", "can someone be left out"],
+      "replies": [
+        "Yes. Anyone can ask to be left out, and the age group can be taken away in Settings.",
+        "Yes, anyone can."
+      ]
+    },
+    {
+      "id": "family-download-analysis",
+      "topic": "analytics",
+      "when": ["can i download the analysis", "spreadsheet"],
+      "replies": [
+        "Downloads are for the owner to decide. You can listen or look.",
+        "Ask the owner."
+      ]
+    },
+    {
+      "id": "family-analysis-sold",
+      "topic": "analytics",
+      "when": ["do you sell data", "is data sold"],
+      "replies": [
+        "Only figures about groups of at least ten people, never data about a person, and signed off by the founder.",
+        "Never about a person."
+      ]
+    },
+    {
+      "id": "family-analysis-has-money",
+      "topic": "analytics",
+      "when": ["does the analysis show money", "money in analytics"],
+      "replies": [
+        "It can include how much shopping was bought, but never the business's payments. Those are the owner's.",
+        "Shopping amounts only, never the business's money."
+      ]
+    },
+    {
+      "id": "family-read-me-the-team",
+      "topic": "team",
+      "when": ["read me the team", "team please", "who is on the team"],
+      "replies": ["If the team is switched on, say read me the team.", "Only if it's switched on."]
+    },
+    {
+      "id": "family-what-jobs-are-there",
+      "topic": "team",
+      "when": ["what jobs are there", "what roles are there"],
+      "replies": [
+        "Founder, Operations manager, Runner onboarding officer, Customer care officer, Finance officer, Finds It shopper and Partnerships officer.",
+        "Seven jobs, each seeing only its own tabs."
+      ]
+    },
+    {
+      "id": "family-who-is-the-boss",
+      "topic": "team",
+      "when": ["who is the boss", "who is in charge"],
+      "replies": ["{owner}, the founder.", "The founder, {owner}."]
+    },
+    {
+      "id": "family-can-i-join-the-team",
+      "topic": "team",
+      "when": ["can i join the team", "can i work here"],
+      "replies": ["Ask the owner. Only he manages the team.", "That's up to the owner."]
+    },
+    {
+      "id": "family-what-does-customer-care-do",
+      "topic": "team",
+      "when": ["what does customer care do", "customer care officer"],
+      "replies": ["They look after Shoppers and decide complaints fairly.", "They help Shoppers."]
+    },
+    {
+      "id": "family-what-does-operations-do",
+      "topic": "team",
+      "when": ["what does the operations manager do", "operations manager"],
+      "replies": ["They keep deliveries running smoothly day to day.", "They keep things running."]
+    },
+    {
+      "id": "family-what-does-onboarding-do",
+      "topic": "team",
+      "when": ["what does the onboarding officer do", "runner onboarding"],
+      "replies": [
+        "They check new Runners' documents before they can work.",
+        "They check new Runners."
+      ]
+    },
+    {
+      "id": "family-what-does-finance-do",
+      "topic": "team",
+      "when": ["what does the finance officer do", "finance officer"],
+      "replies": [
+        "They look after Runners who owe money and similar jobs. The owner alone sees all the money.",
+        "Money jobs, but only the owner sees all of it."
+      ]
+    },
+    {
+      "id": "family-what-does-partnerships-do",
+      "topic": "team",
+      "when": ["what does the partnerships officer do", "partnerships officer"],
+      "replies": [
+        "They work with shops and organisations that want to join.",
+        "Shops and organisations."
+      ]
+    },
+    {
+      "id": "family-what-is-a-finds-it-shopper",
+      "topic": "team",
+      "when": ["what is a finds it shopper", "finds it shopper"],
+      "replies": [
+        "Someone on the team who handles Finds It requests, looking in up to three shops for something hard to find.",
+        "They find hard-to-find things."
+      ]
+    },
+    {
+      "id": "family-are-staff-checked",
+      "topic": "team",
+      "when": ["are staff checked", "is the team trustworthy"],
+      "replies": [
+        "Each person has their own sign-in and sees only their job, and every decision records their name.",
+        "Every decision has a name on it."
+      ]
+    },
+    {
+      "id": "family-how-do-staff-sign-in",
+      "topic": "team",
+      "when": ["how do staff sign in", "staff sign in"],
+      "replies": [
+        "Each has their own username and a password they choose.",
+        "Their own username and password."
+      ]
+    },
+    {
+      "id": "family-team-is-small",
+      "topic": "team",
+      "when": ["is the team small", "how big is the team"],
+      "replies": ["The overview counts staff, if it's switched on.", "Say read me the overview."]
+    },
+    {
+      "id": "family-read-me-the-complaints",
+      "topic": "complaints",
+      "when": ["read me the complaints", "complaints please"],
+      "replies": [
+        "If complaints are switched on, I'll read them one at a time.",
+        "Only if it's switched on."
+      ]
+    },
+    {
+      "id": "family-what-is-a-complaint",
+      "topic": "complaints",
+      "when": ["what is a complaint", "what counts as a complaint"],
+      "replies": [
+        "When something went wrong with an order, a Shopper can tell us, and the team decides fairly.",
+        "A problem with an order."
+      ]
+    },
+    {
+      "id": "family-who-decides-complaints",
+      "topic": "complaints",
+      "when": ["who decides complaints", "who sorts complaints"],
+      "replies": ["The team decides. Family can read them, but never decide.", "Staff decide."]
+    },
+    {
+      "id": "family-are-complaints-bad",
+      "topic": "complaints",
+      "when": ["are complaints bad", "lots of complaints"],
+      "replies": [
+        "Every complaint is a chance to do better. Tell the owner if one worries you.",
+        "They help us improve."
+      ]
+    },
+    {
+      "id": "family-a-complaint-upset-me",
+      "topic": "complaints",
+      "when": ["a complaint upset me", "that complaint was awful"],
+      "replies": ["I'm sorry. Tell the owner. He'll want to know.", "Share it with the owner."]
+    },
+    {
+      "id": "family-next-complaint",
+      "topic": "complaints",
+      "when": ["next complaint", "the next one", "skip"],
+      "replies": ["Say next to hear the next one.", "Next."]
+    },
+    {
+      "id": "family-previous-complaint",
+      "topic": "complaints",
+      "when": ["previous one", "go back", "the one before"],
+      "replies": ["Say back to hear the one before.", "Back."]
+    },
+    {
+      "id": "family-read-that-complaint-again",
+      "topic": "complaints",
+      "when": ["read that again", "again please"],
+      "replies": ["Say again and I'll read it once more.", "Once more."]
+    },
+    {
+      "id": "family-are-refunds-given",
+      "topic": "complaints",
+      "when": ["are refunds given", "do people get refunds"],
+      "replies": [
+        "When something went wrong that wasn't the Shopper's fault, the team can refund them.",
+        "Yes, when it's fair."
+      ]
+    },
+    {
+      "id": "family-can-i-help-with-complaint",
+      "topic": "complaints",
+      "when": ["can i help with a complaint", "can i sort this one"],
+      "replies": [
+        "You can tell the owner what you think. The decision is the team's.",
+        "Tell the owner."
+      ]
+    },
+    {
+      "id": "family-read-me-the-feedback",
+      "topic": "feedback",
+      "when": ["read me the feedback", "feedback please"],
+      "replies": ["If feedback is switched on, I'll read it.", "Only if it's switched on."]
+    },
+    {
+      "id": "family-what-is-feedback",
+      "topic": "feedback",
+      "when": ["what is feedback", "what is in feedback"],
+      "replies": [
+        "Messages people send about the service: ideas, thanks and things to improve.",
+        "What people tell us."
+      ]
+    },
+    {
+      "id": "family-any-nice-feedback",
+      "topic": "feedback",
+      "when": ["any nice feedback", "any thank yous"],
+      "replies": [
+        "Say read me the feedback, if it's on, and you'll hear what people said.",
+        "Have a listen to the feedback."
+      ]
+    },
+    {
+      "id": "family-how-do-people-give-feedback",
+      "topic": "feedback",
+      "when": ["how do people give feedback", "where do people send feedback"],
+      "replies": ["From the app, any time.", "In the app."]
+    },
+    {
+      "id": "family-can-i-give-feedback",
+      "topic": "feedback",
+      "when": ["can i give feedback", "i have an idea"],
+      "replies": ["Tell the owner. He'd love to hear your ideas.", "Share it with the owner."]
+    },
+    {
+      "id": "family-feedback-made-me-smile",
+      "topic": "feedback",
+      "when": ["that made me smile", "that is lovely feedback"],
+      "replies": ["It's lovely, isn't it. Tell the owner.", "That's why we do it."]
+    },
+    {
+      "id": "family-read-me-the-shops",
+      "topic": "shops",
+      "when": ["read me the shops", "read me the shops and organisations", "shops please"],
+      "replies": [
+        "If shops and organisations are switched on, I'll read them.",
+        "Only if it's switched on."
+      ]
+    },
+    {
+      "id": "family-what-is-a-shop-partner",
+      "topic": "shops",
+      "when": ["what is a shop partner", "shop partner"],
+      "replies": [
+        "A local shop on a monthly plan that shows its own products and prices.",
+        "A local shop that works with us."
+      ]
+    },
+    {
+      "id": "family-what-shops-do-we-use",
+      "topic": "shops",
+      "when": ["what shops do we use", "which shops"],
+      "replies": [
+        "Listed shops in the area, and Shop Partners. The shops tab has them, if it's switched on.",
+        "The shops tab lists them."
+      ]
+    },
+    {
+      "id": "family-can-a-shop-join",
+      "topic": "shops",
+      "when": ["can a shop join", "my friend has a shop"],
+      "replies": [
+        "Yes. Shops can ask to work with us by a form, and the team gets back to them.",
+        "They can ask through the website form."
+      ]
+    },
+    {
+      "id": "family-what-is-an-organisation",
+      "topic": "shops",
+      "when": ["what is an organisation", "what organisations"],
+      "replies": [
+        "A council, care home, hospital or charity that uses the service for the people it supports.",
+        "Those who support people."
+      ]
+    },
+    {
+      "id": "family-can-an-organisation-join",
+      "topic": "shops",
+      "when": ["can an organisation join", "my work could use this"],
+      "replies": [
+        "Yes. Organisations can ask to work with us by a form, and the team rings back.",
+        "They can ask through the form."
+      ]
+    },
+    {
+      "id": "family-what-are-shop-products-waiting",
+      "topic": "shops",
+      "when": ["what are shop products", "why are products waiting"],
+      "replies": [
+        "Shop Partners add their own products, and the team checks each before it shows.",
+        "Checked before they show."
+      ]
+    },
+    {
+      "id": "family-what-are-offers",
+      "topic": "shops",
+      "when": ["what are offers", "any offers"],
+      "replies": ["Only offers agreed in writing with a shop are shown.", "Agreed offers only."]
+    },
+    {
+      "id": "family-what-is-spotlight",
+      "topic": "shops",
+      "when": ["what is spotlight", "spotlight"],
+      "replies": [
+        "A paid way for a shop to be mentioned. Each mention is counted for the shop's report.",
+        "A shop mention."
+      ]
+    },
+    {
+      "id": "family-read-me-the-documents",
+      "topic": "documents",
+      "when": ["read me the documents", "documents please"],
+      "replies": ["If documents are switched on, I'll read them.", "Only if it's switched on."]
+    },
+    {
+      "id": "family-what-are-documents",
+      "topic": "documents",
+      "when": ["what are documents", "why do runners send documents"],
+      "replies": [
+        "New Runners send documents to be checked before they can work. That keeps Shoppers safe.",
+        "Safety checks for Runners."
+      ]
+    },
+    {
+      "id": "family-are-runners-checked",
+      "topic": "documents",
+      "when": ["are runners checked", "are runners safe"],
+      "replies": ["Yes. Every Runner is checked before they can take a job.", "Every one."]
+    },
+    {
+      "id": "family-read-me-the-finds-it",
+      "topic": "finds",
+      "when": ["read me the finds it", "finds it please"],
+      "replies": ["If Finds It is switched on, I'll read the requests.", "Only if it's on for you."]
+    },
+    {
+      "id": "family-what-is-finds-it",
+      "topic": "finds",
+      "when": ["what is finds it", "explain finds it"],
+      "replies": [
+        "Someone looks in up to three shops for something hard to find, for a small agreed fee, given back if nothing is found.",
+        "A search for something hard to find."
+      ]
+    },
+    {
+      "id": "family-read-me-the-enquiries",
+      "topic": "enquiries",
+      "when": ["read me the enquiries", "enquiries please"],
+      "replies": ["If enquiries are switched on, I'll read them.", "Only if it's on."]
+    },
+    {
+      "id": "family-what-are-enquiries",
+      "topic": "enquiries",
+      "when": ["what are enquiries", "what is an enquiry"],
+      "replies": [
+        "Shops and organisations asking to work with us, waiting to be rung back.",
+        "People asking to work with us."
+      ]
+    },
+    {
+      "id": "family-can-i-ring-them-back",
+      "topic": "enquiries",
+      "when": ["can i ring them back", "should i call them"],
+      "replies": [
+        "Please leave it to the team. Your account can't mark it done.",
+        "The team rings back."
+      ]
+    },
+    {
+      "id": "family-how-do-i-hear-a-part",
+      "topic": "voice",
+      "when": ["how do i hear a part", "how do i hear a tab", "how do i listen"],
+      "replies": [
+        "Say read me the, then the part, like read me the overview.",
+        "Read me the, then the name."
+      ]
+    },
+    {
+      "id": "family-louder",
+      "topic": "voice",
+      "when": ["louder", "speak up", "i can not hear you"],
+      "replies": ["Turn up your device's volume, and I'll be clearer.", "Try your volume buttons."]
+    },
+    {
+      "id": "family-quieter",
+      "topic": "voice",
+      "when": ["quieter", "too loud"],
+      "replies": ["Turn down your device's volume.", "Use the volume buttons."]
+    },
+    {
+      "id": "family-faster",
+      "topic": "voice",
+      "when": ["faster please", "speed up"],
+      "replies": ["I'll keep going. Ask whenever you like.", "Of course."]
+    },
+    {
+      "id": "family-stop-reading",
+      "topic": "voice",
+      "when": ["stop", "stop reading", "that is enough"],
+      "replies": ["All right, I'll stop.", "Stopped."]
+    },
+    {
+      "id": "family-turn-on-talking",
+      "topic": "voice",
+      "when": ["turn on talking", "turn on", "start talking"],
+      "replies": ["I'm talking again.", "Back on."]
+    },
+    {
+      "id": "family-say-that-again",
+      "topic": "voice",
+      "when": ["say that again", "come again", "pardon", "i beg your pardon"],
+      "replies": ["Of course. Here it is again.", "Once more."]
+    },
+    {
+      "id": "family-what-did-you-say",
+      "topic": "voice",
+      "when": ["what did you say", "i missed that"],
+      "replies": ["I'll say it again.", "Again for you."]
+    },
+    {
+      "id": "family-spell-it",
+      "topic": "voice",
+      "when": ["spell it", "how do you spell that"],
+      "replies": [
+        "The words are on the screen if you turn on show words.",
+        "Turn on show words on the screen."
+      ]
+    },
+    {
+      "id": "family-show-words",
+      "topic": "voice",
+      "when": ["show words on the screen", "show the words"],
+      "replies": [
+        "Turn on Show words on the screen in the admin panel settings.",
+        "It's a setting in the admin panel."
+      ]
+    },
+    {
+      "id": "family-make-it-bigger",
+      "topic": "voice",
+      "when": ["make it bigger", "bigger text", "i can not read it"],
+      "replies": [
+        "Pinch to zoom on the screen, or use your device's text size.",
+        "Pinch with two fingers."
+      ]
+    },
+    {
+      "id": "family-how-do-i-zoom",
+      "topic": "voice",
+      "when": ["how do i zoom", "zoom in"],
+      "replies": ["Pinch with two fingers to zoom and pan.", "Pinch to zoom."]
+    },
+    {
+      "id": "family-does-it-work-by-voice",
+      "topic": "voice",
+      "when": ["does it work by voice", "can i just talk"],
+      "replies": ["Yes. Everything you can see, you can ask me to read.", "Yes, just talk."]
+    },
+    {
+      "id": "family-microphone-not-working",
+      "topic": "voice",
+      "when": ["microphone not working", "you can not hear me", "it is not listening"],
+      "replies": [
+        "Check the microphone is allowed for this site. Chrome works best on an iPhone.",
+        "Allow the microphone, and try Chrome."
+      ]
+    },
+    {
+      "id": "family-switch-at-the-bottom",
+      "topic": "voice",
+      "when": ["where is the talking switch", "how do i stop you talking"],
+      "replies": [
+        "The switch at the bottom of the screen turns talking off and on, or say turn off talking.",
+        "The switch at the bottom."
+      ]
+    },
+    {
+      "id": "family-read-everything",
+      "topic": "voice",
+      "when": ["read everything", "read it all", "read all of it"],
+      "replies": [
+        "Say what's waiting to hear everything at once, or read me the and a part.",
+        "Say what's waiting."
+      ]
+    },
+    {
+      "id": "family-next",
+      "topic": "voice",
+      "when": ["next", "carry on", "the next"],
+      "replies": ["Say next to move on.", "Next one."]
+    },
+    {
+      "id": "family-what-should-i-say",
+      "topic": "voice",
+      "when": ["what should i say", "i do not know what to say"],
+      "replies": ["Try read me the overview, or help.", "Say help."]
+    },
+    {
+      "id": "family-did-you-hear-me",
+      "topic": "voice",
+      "when": ["did you hear me", "did you get that"],
+      "replies": ["If I didn't answer, please say it once more.", "Say it again, please."]
+    },
+    {
+      "id": "family-can-you-understand-accents",
+      "topic": "voice",
+      "when": ["can you understand my accent", "do you understand accents"],
+      "replies": ["I try my best. Speak plainly and I'll keep up.", "I'll do my best."]
+    },
+    {
+      "id": "family-read-slowly-again",
+      "topic": "voice",
+      "when": ["read it slowly", "more slowly"],
+      "replies": ["I'll go gently. Ask again.", "Slowly then."]
+    },
+    {
+      "id": "family-what-is-my-share-link",
+      "topic": "share",
+      "when": ["what is my share link", "my share link", "share link"],
+      "replies": [
+        "Your own link to invite people. It's on your page, under Your share link.",
+        "Your link to invite people."
+      ]
+    },
+    {
+      "id": "family-how-do-i-share",
+      "topic": "share",
+      "when": ["how do i share my link", "share my link"],
+      "replies": [
+        "Press Share my link. It opens your phone's share options, or copies the link.",
+        "Press Share my link."
+      ]
+    },
+    {
+      "id": "family-what-is-the-meter",
+      "topic": "share",
+      "when": ["what is the meter", "how many joined"],
+      "replies": [
+        "The meter shows how many people joined with your link.",
+        "It counts people who joined through you."
+      ]
+    },
+    {
+      "id": "family-who-should-i-share-with",
+      "topic": "share",
+      "when": ["who should i share it with", "who can i invite"],
+      "replies": [
+        "Anyone who'd find it hard to get their shopping, or might like to be a Runner. Friends, neighbours, church, family.",
+        "Anyone it would help."
+      ]
+    },
+    {
+      "id": "family-nobody-joined",
+      "topic": "share",
+      "when": ["nobody has joined", "no one joined yet"],
+      "replies": [
+        "Give it time. One message to a friend can make the difference.",
+        "Keep sharing. It adds up."
+      ]
+    },
+    {
+      "id": "family-someone-joined",
+      "topic": "share",
+      "when": ["someone joined", "my meter went up"],
+      "replies": ["Wonderful. Thank you for spreading the word.", "That's brilliant. Thank you."]
+    },
+    {
+      "id": "family-link-copied",
+      "topic": "share",
+      "when": ["is it copied", "did it copy"],
+      "replies": [
+        "If the share options didn't open, the link was copied. Paste it into a message.",
+        "Paste it into a message."
+      ]
+    },
+    {
+      "id": "family-share-on-whatsapp",
+      "topic": "share",
+      "when": ["share on whatsapp", "send it on whatsapp"],
+      "replies": [
+        "Press Share my link and choose WhatsApp, or paste the copied link.",
+        "Share my link, then WhatsApp."
+      ]
+    },
+    {
+      "id": "family-share-on-facebook",
+      "topic": "share",
+      "when": ["share on facebook", "post it online"],
+      "replies": ["Press Share my link and pick where to post it.", "Share my link, then choose."]
+    },
+    {
+      "id": "family-does-sharing-cost",
+      "topic": "share",
+      "when": ["does sharing cost anything", "is sharing free"],
+      "replies": ["No. Sharing your link is free.", "It's free."]
+    },
+    {
+      "id": "family-can-runners-join-by-link",
+      "topic": "share",
+      "when": ["can runners join by my link", "can shops join by my link"],
+      "replies": [
+        "Anyone opening an account through your link is counted on your meter.",
+        "Yes, they all count."
+      ]
+    },
+    {
+      "id": "family-what-to-say-when-sharing",
+      "topic": "share",
+      "when": ["what should i say when i share", "what do i write"],
+      "replies": [
+        "Something simple: shopping brought to your door, by people you can trust. The link does the rest.",
+        "Keep it simple and kind."
+      ]
+    },
+    {
+      "id": "family-is-my-link-private",
+      "topic": "share",
+      "when": ["is my link safe to share", "is my link private"],
+      "replies": [
+        "Yes. It only invites people. It shows nothing from the dashboard.",
+        "It's safe. It shows nothing private."
+      ]
+    },
+    {
+      "id": "family-how-can-i-support-him",
+      "topic": "support",
+      "when": ["how can i support him", "how do i support my husband"],
+      "replies": [
+        "Listen with him, notice what needs his attention, and remind him he's doing well.",
+        "Be there, and tell him what you notice."
+      ]
+    },
+    {
+      "id": "family-he-works-too-hard",
+      "topic": "support",
+      "when": ["he works too hard", "he never stops"],
+      "replies": [
+        "Perhaps suggest a break. The dashboard can wait a while.",
+        "A rest would do him good."
+      ]
+    },
+    {
+      "id": "family-is-he-ok",
+      "topic": "support",
+      "when": ["is he ok", "is he alright"],
+      "replies": [
+        "I can't tell, but you can ask him. He'll appreciate it.",
+        "Ask him. He'll be glad you did."
+      ]
+    },
+    {
+      "id": "family-what-does-he-need",
+      "topic": "support",
+      "when": ["what does he need from me", "what can i do for him"],
+      "replies": [
+        "Your eyes on the parts he shares, and your encouragement.",
+        "Your support and a second pair of eyes."
+      ]
+    },
+    {
+      "id": "family-should-i-tell-him",
+      "topic": "support",
+      "when": ["should i tell him", "should i mention it"],
+      "replies": ["Yes. If something matters, tell the owner. He decides.", "Tell him."]
+    },
+    {
+      "id": "family-remind-him",
+      "topic": "support",
+      "when": ["remind him", "can you remind him"],
+      "replies": [
+        "I can't send him messages. Please tell him yourself.",
+        "Best to tell him directly."
+      ]
+    },
+    {
+      "id": "family-tell-him-i-said-hello",
+      "topic": "support",
+      "when": ["tell him i said hello", "say hello to him"],
+      "replies": [
+        "I can't pass messages, but he'd love to hear it from you.",
+        "Tell him yourself. He'll smile."
+      ]
+    },
+    {
+      "id": "family-how-can-i-help-the-business",
+      "topic": "support",
+      "when": ["how can i help the business", "how can i help it grow"],
+      "replies": [
+        "Share your link, tell people who'd benefit, and tell the owner what you notice.",
+        "Share the link and spread the word."
+      ]
+    },
+    {
+      "id": "family-can-i-help-a-shopper",
+      "topic": "support",
+      "when": ["can i help a shopper", "can i help someone order"],
+      "replies": [
+        "Yes, by showing them the app or giving them the phone number to ring. Their order is theirs to place.",
+        "Show them how, and let them order."
+      ]
+    },
+    {
+      "id": "family-should-i-check-weekly",
+      "topic": "support",
+      "when": ["how often should i check", "should i check every day"],
+      "replies": [
+        "Whatever suits you both. Once a day is plenty for the overview.",
+        "Once a day is plenty."
+      ]
+    },
+    {
+      "id": "family-i-noticed-a-pattern",
+      "topic": "support",
+      "when": ["i noticed a pattern", "something is going up"],
+      "replies": ["Good spot. Tell the owner what you noticed.", "Share it with him."]
+    },
+    {
+      "id": "family-a-runner-was-rude",
+      "topic": "support",
+      "when": ["a runner was rude", "i heard a runner was rude"],
+      "replies": [
+        "Please tell the owner, or have the Shopper raise it in the app, so the team can look into it.",
+        "Tell the owner."
+      ]
+    },
+    {
+      "id": "family-i-know-a-runner",
+      "topic": "support",
+      "when": ["i know someone who could be a runner", "my friend wants to be a runner"],
+      "replies": [
+        "Wonderful. They can sign up as a Runner in the app, or join through your share link.",
+        "Share your link with them."
+      ]
+    },
+    {
+      "id": "family-i-know-a-shopper",
+      "topic": "support",
+      "when": ["i know someone who needs this", "my mum could use this"],
+      "replies": [
+        "They can order in the app or by ringing the number. Share your link with them.",
+        "Share your link."
+      ]
+    },
+    {
+      "id": "family-he-is-stressed",
+      "topic": "support",
+      "when": ["he is stressed", "he is worried"],
+      "replies": [
+        "A kind word and a cup of tea go a long way. Be there for him.",
+        "Be there for him."
+      ]
+    },
+    {
+      "id": "family-he-did-well",
+      "topic": "support",
+      "when": ["he did well", "he has done so well"],
+      "replies": ["He has. Tell him so.", "He'd love to hear that from you."]
+    },
+    {
+      "id": "family-we-are-a-team",
+      "topic": "support",
+      "when": ["we are a team", "we are in this together"],
+      "replies": ["That's the spirit. Family makes the difference.", "Together, yes."]
+    },
+    {
+      "id": "family-what-if-he-is-away",
+      "topic": "support",
+      "when": ["what if he is away", "he is on holiday"],
+      "replies": [
+        "The team keeps things running. You can still look at what's switched on.",
+        "The team carries on."
+      ]
+    },
+    {
+      "id": "family-emergency",
+      "topic": "support",
+      "when": ["emergency", "this is an emergency"],
+      "replies": ["If someone's in danger, ring 999 now.", "Please ring 999 if it's urgent."]
+    },
+    {
+      "id": "family-i-am-worried-about-a-shopper",
+      "topic": "support",
+      "when": ["i am worried about a shopper", "someone might be unwell"],
+      "replies": [
+        "If anyone's in danger, ring 999. Otherwise, tell the owner straight away.",
+        "Ring 999 if urgent, then tell the owner."
+      ]
+    },
+    {
+      "id": "family-something-urgent",
+      "topic": "support",
+      "when": ["something urgent", "it is urgent"],
+      "replies": [
+        "Tell the owner straight away. If anyone's in danger, ring 999.",
+        "Tell the owner now."
+      ]
+    },
+    {
+      "id": "family-what-is-the-mission",
+      "topic": "about",
+      "when": ["what is the mission", "what is the purpose"],
+      "replies": [
+        "To bring shopping to people who find it hard, blind, partially sighted and elderly people first, with dignity.",
+        "Shopping for everyone, with dignity."
+      ]
+    },
+    {
+      "id": "family-who-is-it-for",
+      "topic": "about",
+      "when": ["who is it for", "who uses it"],
+      "replies": [
+        "Blind, partially sighted and elderly people first, and anyone who finds shopping hard.",
+        "People who find shopping hard."
+      ]
+    },
+    {
+      "id": "family-is-the-owner-blind",
+      "topic": "about",
+      "when": ["is the owner blind", "why is it all voice"],
+      "replies": [
+        "The owner is blind, so everything is built to work without seeing the screen.",
+        "It's built for people who can't see the screen."
+      ]
+    },
+    {
+      "id": "family-what-does-the-name-mean",
+      "topic": "about",
+      "when": ["what does the name mean", "why that name"],
+      "replies": ["Ozi is Igbo for message.", "It's Igbo for message."]
+    },
+    {
+      "id": "family-what-is-a-runner",
+      "topic": "about",
+      "when": ["what is a runner", "who are runners"],
+      "replies": [
+        "A Runner is a checked person who buys the shopping and brings it to the door.",
+        "The person who shops and delivers."
+      ]
+    },
+    {
+      "id": "family-what-is-a-shopper",
+      "topic": "about",
+      "when": ["what is a shopper", "who are shoppers"],
+      "replies": ["A Shopper is anyone who orders through {product}.", "Someone who orders."]
+    },
+    {
+      "id": "family-what-services",
+      "topic": "about",
+      "when": ["what services are there", "what else does it do"],
+      "replies": [
+        "Shopping, errands, sending, business emergency runs, and campus shopping for students.",
+        "Five services."
+      ]
+    },
+    {
+      "id": "family-what-are-errands",
+      "topic": "about",
+      "when": ["what are errands", "explain errands"],
+      "replies": [
+        "A Runner spends time for a Shopper: queuing at the post office, returning an item, taking a parcel.",
+        "Time spent helping, paid by the half hour."
+      ]
+    },
+    {
+      "id": "family-what-is-sending",
+      "topic": "about",
+      "when": ["what is sending", "explain sending"],
+      "replies": [
+        "A Runner carries something from one place to another, like gifts to a church or donations to a food bank.",
+        "Carrying something across town."
+      ]
+    },
+    {
+      "id": "family-what-is-campus",
+      "topic": "about",
+      "when": ["what is campus", "explain campus"],
+      "replies": [
+        "Someone far away buys shopping for a student, delivered locally.",
+        "Shopping for a student, paid from afar."
+      ]
+    },
+    {
+      "id": "family-what-are-emergency-runs",
+      "topic": "about",
+      "when": ["what are emergency runs", "business emergency runs"],
+      "replies": [
+        "A fast run for a business inside Medway, promised within 45 minutes.",
+        "A quick run for a business."
+      ]
+    },
+    {
+      "id": "family-what-is-the-maximum-basket",
+      "topic": "about",
+      "when": ["what is the maximum basket", "how much can one order be"],
+      "replies": [
+        "Up to {maximum} of shopping, about what one Runner can safely carry. More can be split in two.",
+        "{maximum} a delivery."
+      ]
+    },
+    {
+      "id": "family-is-the-fee-the-same",
+      "topic": "about",
+      "when": ["is the fee the same for everyone", "does the fee change"],
+      "replies": ["Yes. The delivery fee is the same for everyone, every time.", "Always the same."]
+    },
+    {
+      "id": "family-why-is-there-a-limit",
+      "topic": "about",
+      "when": ["why is there a limit", "why a basket limit"],
+      "replies": [
+        "So one Runner can carry it safely, on foot or on a bus.",
+        "For the Runner's safety."
+      ]
+    },
+    {
+      "id": "family-can-it-deliver-alcohol",
+      "topic": "about",
+      "when": ["can it deliver alcohol", "can it deliver medicine"],
+      "replies": ["Never alcohol, tobacco, medicines or cash.", "No, never."]
+    },
+    {
+      "id": "family-what-is-ozi-plus-for-family",
+      "topic": "about",
+      "when": ["is there a family plan", "family membership"],
+      "replies": [
+        "Yes, a membership for a whole family, joined with a six-letter family code. It never renews by itself.",
+        "A family membership, never renewing by itself."
+      ]
+    },
+    {
+      "id": "family-what-are-recipes",
+      "topic": "about",
+      "when": ["what are recipes", "recipe pass"],
+      "replies": [
+        "Recipes give ingredients to add to the basket. Recipe names stay free to see.",
+        "Recipes to shop from."
+      ]
+    },
+    {
+      "id": "family-what-are-little-gifts",
+      "topic": "about",
+      "when": ["what are little gifts", "gift bundles"],
+      "replies": [
+        "Ready-made, affordable gift bundles from the shop. Never alcohol.",
+        "Small gift bundles."
+      ]
+    },
+    {
+      "id": "family-what-are-gift-cards",
+      "topic": "about",
+      "when": ["what are gift cards", "can i buy a gift card"],
+      "replies": [
+        "Gift cards are bought with a card and given as a code, used once.",
+        "A code to give someone."
+      ]
+    },
+    {
+      "id": "family-what-is-the-weekly-shop",
+      "topic": "about",
+      "when": ["what is the weekly shop", "weekly delivery"],
+      "replies": [
+        "On a chosen day, {assistant} offers to put the usual shopping in the basket. Nothing is sent until the Shopper says so.",
+        "The usual shopping, offered each week."
+      ]
+    },
+    {
+      "id": "family-can-people-ring-to-order",
+      "topic": "about",
+      "when": ["can people ring to order", "can people phone in their shopping"],
+      "replies": [
+        "Yes. {assistant} answers the phone, takes the order, reads it back and waits for a yes.",
+        "Yes, by telephone."
+      ]
+    },
+    {
+      "id": "family-is-it-safe-for-elderly",
+      "topic": "about",
+      "when": ["is it safe for elderly people", "is it safe"],
+      "replies": [
+        "Runners are checked, the address is read aloud before every order, and nobody is pressured for a tip.",
+        "Safety comes first."
+      ]
+    },
+    {
+      "id": "family-why-read-the-address",
+      "topic": "about",
+      "when": ["why read the address", "address read aloud"],
+      "replies": [
+        "Before every order, {assistant} says the address aloud and waits for a yes, so nothing goes to the wrong door.",
+        "So it goes to the right door."
+      ]
+    },
+    {
+      "id": "family-what-is-the-pin",
+      "topic": "about",
+      "when": ["what is the pin", "address pin"],
+      "replies": [
+        "A four-digit number that protects saved addresses and the home address.",
+        "It protects addresses."
+      ]
+    },
+    {
+      "id": "family-what-is-rule-one",
+      "topic": "about",
+      "when": ["what are the rules", "house rules"],
+      "replies": [
+        "Every price is agreed before it is taken, nothing is sent without a yes, and nobody is pushed.",
+        "Agreed first, always."
+      ]
+    },
+    {
+      "id": "family-is-it-only-medway",
+      "topic": "about",
+      "when": ["is it only medway", "will it grow"],
+      "replies": ["Medway first, growing to more areas as it goes.", "Medway first, then more."]
+    },
+    {
+      "id": "family-how-many-users-expected",
+      "topic": "about",
+      "when": ["how big will it get", "how many people will use it"],
+      "replies": [
+        "The owner hopes for millions in time. The build is designed to grow step by step.",
+        "Big hopes, step by step."
+      ]
+    },
+    {
+      "id": "family-who-built-the-app",
+      "topic": "about",
+      "when": ["who built the app", "who made you"],
+      "replies": ["It was built for {owner}, to his rulings.", "Built to the owner's plan."]
+    },
+    {
+      "id": "family-does-it-work-on-phones",
+      "topic": "about",
+      "when": ["does it work on phones", "is there an app"],
+      "replies": ["Yes, on the website, and in the phone apps.", "Website and phone apps."]
+    },
+    {
+      "id": "family-what-is-the-website",
+      "topic": "about",
+      "when": ["what is the website", "website address"],
+      "replies": ["Your share link starts with the website address.", "It's in your share link."]
+    },
+    {
+      "id": "family-what-makes-it-special",
+      "topic": "about",
+      "when": ["what makes it special", "why is it different"],
+      "replies": [
+        "It works completely by voice, for people who can't see the screen, with checked Runners and one flat fee.",
+        "Voice first, kind and fair."
+      ]
+    },
+    {
+      "id": "family-how-fast-is-delivery",
+      "topic": "about",
+      "when": ["how fast is delivery", "how long does delivery take"],
+      "replies": [
+        "It depends on the shop and the Runner. Shoppers hear how it's going as it goes.",
+        "Shoppers are told as it goes."
+      ]
+    },
+    {
+      "id": "family-what-about-substitutions",
+      "topic": "about",
+      "when": ["what about substitutions", "if something is out of stock"],
+      "replies": [
+        "If something's missing, the Shopper is asked before anything is swapped.",
+        "The Shopper is asked first."
+      ]
+    },
+    {
+      "id": "family-can-shoppers-call-runners",
+      "topic": "about",
+      "when": ["can shoppers call runners", "can a runner ring"],
+      "replies": ["Yes, through in-app calls, never by phone number.", "Through the app only."]
+    },
+    {
+      "id": "family-is-there-a-tip",
+      "topic": "about",
+      "when": ["is there a tip", "do people tip"],
+      "replies": [
+        "Tipping is optional and goes all to the Runner. {assistant} never asks for one aloud.",
+        "Optional, never asked for."
+      ]
+    },
+    {
+      "id": "family-what-is-the-tagline",
+      "topic": "about",
+      "when": ["what is the tagline", "what is the slogan"],
+      "replies": ["{motto}", "The motto is {motto}"]
+    },
+    {
+      "id": "family-why-voice-first",
+      "topic": "about",
+      "when": ["why voice first", "why talk to it"],
+      "replies": [
+        "Because the people it's for, and the owner, may not see the screen.",
+        "So anyone can use it."
+      ]
+    },
+    {
+      "id": "family-who-are-the-partners",
+      "topic": "about",
+      "when": ["who are the partners", "partner organisations"],
+      "replies": [
+        "Shop Partners and organisations. The shops tab lists them, if it's switched on.",
+        "Shops and organisations."
+      ]
+    },
+    {
+      "id": "family-can-i-order-shopping",
+      "topic": "shopper",
+      "when": ["can i order shopping", "can i use it myself", "can i shop with it"],
+      "replies": [
+        "Yes. Open a Shopper account of your own, separate from this view.",
+        "Yes, with your own Shopper account."
+      ]
+    },
+    {
+      "id": "family-how-do-i-become-a-shopper",
+      "topic": "shopper",
+      "when": ["how do i become a shopper", "how do i sign up as a shopper"],
+      "replies": [
+        "On the first screen, choose create an account. You give your phone number and a code is sent.",
+        "Create an account on the first screen."
+      ]
+    },
+    {
+      "id": "family-is-my-family-account-a-shopper",
+      "topic": "shopper",
+      "when": ["can i shop from this account", "is this a shopper account"],
+      "replies": [
+        "No. This account is a view of the dashboard. Shopping needs a Shopper account.",
+        "It's a view only."
+      ]
+    },
+    {
+      "id": "family-how-do-i-place-an-order",
+      "topic": "shopper",
+      "when": ["how do i place an order", "how do i shop"],
+      "replies": [
+        "In your Shopper account, tell {assistant} what you need, or add items to the basket, then check out.",
+        "Just say what you need."
+      ]
+    },
+    {
+      "id": "family-do-i-pay-delivery",
+      "topic": "shopper",
+      "when": ["do i pay delivery too", "does family pay delivery"],
+      "replies": ["Yes, the delivery fee is the same for everyone.", "The same for everyone."]
+    },
+    {
+      "id": "family-how-do-i-add-a-card",
+      "topic": "shopper",
+      "when": ["how do i add a card", "where do i put my card"],
+      "replies": [
+        "In your Shopper account, add a card on the website. Never give a card on a call.",
+        "On the website, in your account."
+      ]
+    },
+    {
+      "id": "family-how-do-i-add-an-address",
+      "topic": "shopper",
+      "when": ["how do i add an address", "add an address"],
+      "replies": [
+        "In your Shopper account, use add an address. Saving one needs your four-digit PIN.",
+        "Add an address, with your PIN."
+      ]
+    },
+    {
+      "id": "family-what-is-my-home-address-for",
+      "topic": "shopper",
+      "when": ["what is my home address for", "registered home address"],
+      "replies": ["Every account has one. Voice orders always go there.", "Voice orders go home."]
+    },
+    {
+      "id": "family-how-do-i-track-my-order",
+      "topic": "shopper",
+      "when": ["how do i track my order", "where is my order"],
+      "replies": [
+        "As a Shopper, you hear how it's going: paid, a Runner has it, on the way, delivered.",
+        "You're told as it goes."
+      ]
+    },
+    {
+      "id": "family-how-do-i-order-again",
+      "topic": "shopper",
+      "when": ["how do i order the same again", "same as last time"],
+      "replies": [
+        "As a Shopper, say same as last time, or use Order these again in Past orders.",
+        "Same as last time."
+      ]
+    },
+    {
+      "id": "family-can-i-order-for-mum",
+      "topic": "shopper",
+      "when": ["can i shop for my mum", "can i send shopping to someone"],
+      "replies": [
+        "Yes. As a Shopper you can send to a saved address, confirmed aloud before the order.",
+        "Yes, to a saved address."
+      ]
+    },
+    {
+      "id": "family-can-i-get-ozi-plus",
+      "topic": "shopper",
+      "when": ["can i join plus", "can i get the membership"],
+      "replies": [
+        "As a Shopper, yes. It's agreed first and never renews by itself.",
+        "Yes, from your Shopper account."
+      ]
+    },
+    {
+      "id": "family-do-i-get-a-discount",
+      "topic": "shopper",
+      "when": ["do i get a discount", "family discount"],
+      "replies": [
+        "No. The delivery fee is the same for everyone. That's one of the rules.",
+        "The fee's the same for all."
+      ]
+    },
+    {
+      "id": "family-can-i-ring-to-order",
+      "topic": "shopper",
+      "when": ["can i ring to order", "what number do i ring"],
+      "replies": [
+        "Yes. The number is on the website. {assistant} answers.",
+        "Ring the number on the website."
+      ]
+    },
+    {
+      "id": "family-what-if-my-order-is-wrong",
+      "topic": "shopper",
+      "when": ["what if my order is wrong", "my shopping was wrong"],
+      "replies": [
+        "Tell us in the app as a Shopper, and the team will put it right.",
+        "Report it in the app."
+      ]
+    },
+    {
+      "id": "family-can-i-be-a-runner",
+      "topic": "shopper",
+      "when": ["can i be a runner", "how do i become a runner"],
+      "replies": [
+        "Yes. Sign up as a Runner in the app. Your documents are checked before you start.",
+        "Sign up as a Runner."
+      ]
+    },
+    {
+      "id": "family-can-i-use-finds-it",
+      "topic": "shopper",
+      "when": ["can i use finds it", "find something for me"],
+      "replies": [
+        "As a Shopper, yes. Ask {assistant} to find something hard to get.",
+        "Yes, as a Shopper."
+      ]
+    },
+    {
+      "id": "family-do-i-need-the-pin",
+      "topic": "shopper",
+      "when": ["do i need a pin", "how do i set a pin"],
+      "replies": [
+        "You're asked to make one the first time you save or change an address.",
+        "You'll be asked when you need it."
+      ]
+    },
+    {
+      "id": "family-which-pin-is-bad",
+      "topic": "shopper",
+      "when": ["what pin should i choose", "can i use 1234"],
+      "replies": [
+        "Pick four digits that aren't obvious. Easy ones like 1234 or a year aren't allowed.",
+        "Nothing obvious, please."
+      ]
+    },
+    {
+      "id": "family-who-can-hear-me",
+      "topic": "privacy",
+      "when": ["who can hear me", "is anyone listening"],
+      "replies": ["Only I hear what you say here, to answer you.", "Just me, to answer."]
+    },
+    {
+      "id": "family-are-you-recording",
+      "topic": "privacy",
+      "when": ["are you recording me", "do you record my voice"],
+      "replies": [
+        "Voice recordings are never collected for analysis.",
+        "No recordings for analysis."
+      ]
+    },
+    {
+      "id": "family-can-i-tell-friends",
+      "topic": "privacy",
+      "when": ["can i tell my friends what i see", "can i talk about it"],
+      "replies": [
+        "Please keep what you see private. Telling people about the service is lovely, but not the dashboard.",
+        "Share the service, not the dashboard."
+      ]
+    },
+    {
+      "id": "family-can-i-screenshot",
+      "topic": "privacy",
+      "when": ["can i take a screenshot", "can i take a photo of the screen"],
+      "replies": [
+        "Please don't. What you see belongs to the business and its customers.",
+        "Better not, please."
+      ]
+    },
+    {
+      "id": "family-can-i-show-the-kids",
+      "topic": "privacy",
+      "when": ["can i show the children", "can the kids look"],
+      "replies": [
+        "Please keep it to yourself. The owner can add them when they're of age.",
+        "Ask the owner first."
+      ]
+    },
+    {
+      "id": "family-what-if-i-see-someone-i-know",
+      "topic": "privacy",
+      "when": ["what if i see someone i know", "i know that person"],
+      "replies": [
+        "Please keep it private, and don't mention it to them.",
+        "Keep it to yourself, please."
+      ]
+    },
+    {
+      "id": "family-is-my-account-private",
+      "topic": "privacy",
+      "when": ["is my account private", "can others see my account"],
+      "replies": [
+        "Your account is yours. Only the owner manages it.",
+        "Yes. Only the owner manages it."
+      ]
+    },
+    {
+      "id": "family-does-the-owner-see-my-activity",
+      "topic": "privacy",
+      "when": ["does he see what i do", "is my activity tracked"],
+      "replies": [
+        "The owner chooses what you see. Ask him if you'd like to know more.",
+        "Ask the owner."
+      ]
+    },
+    {
+      "id": "family-privacy-page",
+      "topic": "privacy",
+      "when": ["privacy page", "privacy policy"],
+      "replies": [
+        "The privacy page explains, in plain words, what is kept and why.",
+        "It's on the website."
+      ]
+    },
+    {
+      "id": "family-gdpr",
+      "topic": "privacy",
+      "when": ["gdpr", "data protection"],
+      "replies": [
+        "The business follows UK GDPR and the Data Protection Act.",
+        "It follows the law."
+      ]
+    },
+    {
+      "id": "family-how-long-is-data-kept",
+      "topic": "privacy",
+      "when": ["how long is data kept", "is data kept forever"],
+      "replies": [
+        "Analysis records are kept for seven years, like money records, then deleted.",
+        "Seven years, then deleted."
+      ]
+    },
+    {
+      "id": "family-do-you-know-where-i-am",
+      "topic": "privacy",
+      "when": ["do you know where i am", "are you tracking me"],
+      "replies": ["No. Exact location isn't collected for analysis.", "No."]
+    },
+    {
+      "id": "family-how-do-i-sign-in",
+      "topic": "security",
+      "when": ["how do i sign in", "how do i log in"],
+      "replies": [
+        "With the username and password the owner gave you.",
+        "Your username and password."
+      ]
+    },
+    {
+      "id": "family-what-is-my-username",
+      "topic": "security",
+      "when": ["what is my username", "i forgot my username"],
+      "replies": ["The owner set it when he added you. Please ask him.", "Ask the owner."]
+    },
+    {
+      "id": "family-change-my-password",
+      "topic": "security",
+      "when": ["change my password", "new password"],
+      "replies": ["Ask the owner. He looks after family sign-ins.", "The owner can help."]
+    },
+    {
+      "id": "family-is-my-password-safe",
+      "topic": "security",
+      "when": ["is my password safe", "is my password stored"],
+      "replies": ["Passwords are stored scrambled, never as written.", "Kept scrambled, safe."]
+    },
+    {
+      "id": "family-good-password",
+      "topic": "security",
+      "when": ["what is a good password", "make a strong password"],
+      "replies": [
+        "Long is best. A few words strung together are easy to say and hard to guess.",
+        "Long, and not guessable."
+      ]
+    },
+    {
+      "id": "family-can-i-write-my-password-down",
+      "topic": "security",
+      "when": ["can i write my password down", "where do i keep my password"],
+      "replies": [
+        "Keep it somewhere safe and private, never on a note by the screen.",
+        "Somewhere safe and private."
+      ]
+    },
+    {
+      "id": "family-someone-knows-my-password",
+      "topic": "security",
+      "when": ["someone knows my password", "my password was stolen"],
+      "replies": [
+        "Tell the owner straight away. He can switch your view off at once.",
+        "Tell the owner now."
+      ]
+    },
+    {
+      "id": "family-too-many-tries",
+      "topic": "security",
+      "when": ["it says too many tries", "locked out"],
+      "replies": [
+        "Wait a little and try again. If you still can't, ask the owner.",
+        "Wait, then try again."
+      ]
+    },
+    {
+      "id": "family-wrong-password",
+      "topic": "security",
+      "when": ["wrong password", "it says my password is wrong"],
+      "replies": [
+        "Check the capitals and try again slowly. If it still fails, ask the owner.",
+        "Try again slowly."
+      ]
+    },
+    {
+      "id": "family-scam-message",
+      "topic": "security",
+      "when": ["i got a strange message", "is this a scam", "someone asked for my password"],
+      "replies": [
+        "Never give your password to anyone, even someone claiming to be from us. Tell the owner.",
+        "Never share it. Tell the owner."
+      ]
+    },
+    {
+      "id": "family-signed-in-on-another-phone",
+      "topic": "security",
+      "when": ["can i sign in on my phone", "can i use two devices"],
+      "replies": [
+        "You can sign in where you like. Sign out on shared devices.",
+        "Yes, but sign out after."
+      ]
+    },
+    {
+      "id": "family-shared-computer",
+      "topic": "security",
+      "when": ["i am on a shared computer", "this is a library computer"],
+      "replies": [
+        "Please sign out when you finish, and don't let it remember your password.",
+        "Sign out when done."
+      ]
+    },
+    {
+      "id": "family-sign-out-how",
+      "topic": "security",
+      "when": ["how do i sign out", "how do i log out"],
+      "replies": ["Say sign me out, or press Sign out.", "Just say sign me out."]
+    },
+    {
+      "id": "family-am-i-signed-in",
+      "topic": "security",
+      "when": ["am i signed in", "am i logged in"],
+      "replies": ["If you can hear the tabs, you're signed in.", "Yes, if you can see the tabs."]
+    },
+    {
+      "id": "family-stay-signed-in",
+      "topic": "security",
+      "when": ["stay signed in", "keep me logged in"],
+      "replies": [
+        "On your own device that's fine. On a shared one, please sign out.",
+        "Only on your own device."
+      ]
+    },
+    {
+      "id": "family-what-is-a-passcode",
+      "topic": "security",
+      "when": ["what is a passcode", "do i need a passcode"],
+      "replies": [
+        "The passcode is the owner's own. You sign in with a username and password.",
+        "That's the owner's."
+      ]
+    },
+    {
+      "id": "family-is-the-site-secure",
+      "topic": "security",
+      "when": ["is the site secure", "is it hacker proof"],
+      "replies": [
+        "It's built with care: security on every reply, and limits on sign-in tries.",
+        "Built carefully, with limits on tries."
+      ]
+    },
+    {
+      "id": "family-someone-is-watching-me",
+      "topic": "security",
+      "when": ["someone is watching over my shoulder", "someone is looking"],
+      "replies": ["Turn the screen away, or sign out until you're alone.", "Sign out for now."]
+    },
+    {
+      "id": "family-lost-my-phone",
+      "topic": "security",
+      "when": ["i lost my phone", "my phone was stolen"],
+      "replies": [
+        "Tell the owner. He can switch your view off at once, and nothing is lost.",
+        "Tell the owner straight away."
+      ]
+    },
+    {
+      "id": "family-who-else-is-family",
+      "topic": "family",
+      "when": ["who else is family", "are there other family members"],
+      "replies": ["The owner decides who's added. Ask him.", "Ask the owner."]
+    },
+    {
+      "id": "family-can-my-wife-see",
+      "topic": "family",
+      "when": ["can my wife see", "can his wife see"],
+      "replies": ["Yes, if the owner adds her and switches parts on.", "If the owner adds her."]
+    },
+    {
+      "id": "family-how-old-for-account",
+      "topic": "family",
+      "when": ["how old do they need to be", "what age"],
+      "replies": ["That's for the owner to decide when they're ready.", "The owner decides."]
+    },
+    {
+      "id": "family-will-my-children-see-the-same",
+      "topic": "family",
+      "when": ["will the children see the same", "will they see what i see"],
+      "replies": [
+        "Each family member has their own switches. The owner sets them separately.",
+        "Their own switches."
+      ]
+    },
+    {
+      "id": "family-family-and-investors-differ",
+      "topic": "family",
+      "when": ["am i an investor", "what is the difference from an investor"],
+      "replies": [
+        "You're family. Investors are separate, with their own sign-ins and switches.",
+        "Family, not investor."
+      ]
+    },
+    {
+      "id": "family-can-family-run-it-one-day",
+      "topic": "family",
+      "when": ["can the family run it one day", "will the children run it"],
+      "replies": [
+        "That's the owner's to decide. For now, family can look and learn.",
+        "One day, perhaps. That's his call."
+      ]
+    },
+    {
+      "id": "family-what-is-my-role",
+      "topic": "family",
+      "when": ["what is my role", "what am i for"],
+      "replies": [
+        "To look, listen and support. You see what the owner chose to share.",
+        "Look, listen and support."
+      ]
+    },
+    {
+      "id": "family-why-share-with-family",
+      "topic": "family",
+      "when": ["why share with family", "why does he share it"],
+      "replies": [
+        "So the people closest to him can see what he's building, and help him keep an eye on it.",
+        "To share the journey."
+      ]
+    },
+    {
+      "id": "family-can-i-leave",
+      "topic": "family",
+      "when": ["can i stop having access", "remove my account"],
+      "replies": ["Ask the owner. He can switch your view off.", "The owner can switch it off."]
+    },
+    {
+      "id": "family-family-learn-business",
+      "topic": "family",
+      "when": ["how do i learn the business", "teach me the business"],
+      "replies": [
+        "Start with what the business does, then the overview each day. Ask me anything.",
+        "Ask me what it does, then the overview."
+      ]
+    },
+    {
+      "id": "family-what-can-i-ask",
+      "topic": "help",
+      "when": ["what can i ask", "what questions can i ask"],
+      "replies": [
+        "Ask about what you can see, the business, your share link, or how to shop. Say help for the parts.",
+        "Anything about what you can see."
+      ]
+    },
+    {
+      "id": "family-i-am-lost",
+      "topic": "help",
+      "when": ["i'm lost", "i'm confused", "i don't understand"],
+      "replies": [
+        "That's all right. Say read me the overview, or help.",
+        "Say help, and we'll start there."
+      ]
+    },
+    {
+      "id": "family-start-again",
+      "topic": "help",
+      "when": ["start again", "from the beginning"],
+      "replies": ["Of course. Say help to hear what you can do.", "Let's start with help."]
+    },
+    {
+      "id": "family-where-am-i",
+      "topic": "help",
+      "when": ["where am i", "what page is this"],
+      "replies": [
+        "You're in the admin panel, with a family view.",
+        "The family view of the dashboard."
+      ]
+    },
+    {
+      "id": "family-how-do-i-go-back",
+      "topic": "help",
+      "when": ["how do i go back", "go back a page"],
+      "replies": [
+        "Use your browser's back button, or say read me the and a part.",
+        "Your back button."
+      ]
+    },
+    {
+      "id": "family-the-page-is-stuck",
+      "topic": "help",
+      "when": ["the page is stuck", "it is not loading", "it froze"],
+      "replies": [
+        "Try refreshing the page. If it's still stuck, sign in again.",
+        "Refresh the page."
+      ]
+    },
+    {
+      "id": "family-something-broke",
+      "topic": "help",
+      "when": ["something broke", "it is not working", "there is an error"],
+      "replies": [
+        "Try refreshing. If it keeps happening, tell the owner.",
+        "Refresh, and tell the owner if it stays."
+      ]
+    },
+    {
+      "id": "family-who-do-i-ask",
+      "topic": "help",
+      "when": ["who do i ask", "who can help me"],
+      "replies": [
+        "The owner, for anything about your view. Me, for anything I can read.",
+        "The owner, or me."
+      ]
+    },
+    {
+      "id": "family-is-there-a-guide",
+      "topic": "help",
+      "when": ["is there a guide", "is there a manual"],
+      "replies": ["Just ask me. Say help to begin.", "I'm the guide. Say help."]
+    },
+    {
+      "id": "family-what-is-the-admin-panel",
+      "topic": "help",
+      "when": ["what is the admin panel", "what is the dashboard"],
+      "replies": [
+        "Where the business is run. You see the parts the owner shares.",
+        "The business's dashboard."
+      ]
+    },
+    {
+      "id": "family-which-browser",
+      "topic": "help",
+      "when": ["which browser should i use", "does it work on safari"],
+      "replies": ["Any modern browser. On an iPhone, Chrome listens best.", "Chrome works well."]
+    },
+    {
+      "id": "family-tap-anywhere",
+      "topic": "help",
+      "when": ["why does it say tap anywhere", "tap anywhere"],
+      "replies": [
+        "Browsers stay silent until the page is touched once. Tap anywhere and I'll speak.",
+        "Tap once and I'll talk."
+      ]
+    },
+    {
+      "id": "family-is-it-going-to-work",
+      "topic": "encouragement",
+      "when": ["is it going to work", "will it succeed"],
+      "replies": [
+        "It's built with care for people who need it. Every Shopper helped is a success.",
+        "Every Shopper helped counts."
+      ]
+    },
+    {
+      "id": "family-i-am-worried-about-the-business",
+      "topic": "encouragement",
+      "when": ["i am worried about the business", "i am anxious"],
+      "replies": [
+        "That's natural. Talk it over with the owner. You're in it together.",
+        "Talk to the owner."
+      ]
+    },
+    {
+      "id": "family-this-is-amazing",
+      "topic": "encouragement",
+      "when": ["this is amazing", "what a great idea"],
+      "replies": ["It is. It helps people who often get left out.", "It really helps people."]
+    },
+    {
+      "id": "family-he-should-be-proud",
+      "topic": "encouragement",
+      "when": ["he should be proud", "he built all this"],
+      "replies": ["He should. Tell him.", "He'd love to hear that."]
+    },
+    {
+      "id": "family-keep-going",
+      "topic": "encouragement",
+      "when": ["keep going", "never give up"],
+      "replies": ["That's the spirit. {motto}", "We will."]
+    },
+    {
+      "id": "family-it-is-hard",
+      "topic": "encouragement",
+      "when": ["it is hard", "this is difficult"],
+      "replies": ["Building something new is hard. One step at a time.", "One step at a time."]
+    },
+    {
+      "id": "family-we-helped-someone",
+      "topic": "encouragement",
+      "when": ["we helped someone", "someone got their shopping"],
+      "replies": ["That's what it's all about.", "That's the whole point. Wonderful."]
+    },
+    {
+      "id": "family-i-believe-in-it",
+      "topic": "encouragement",
+      "when": ["i believe in it", "i believe in him"],
+      "replies": ["That belief matters. Tell him.", "He'll be glad to know."]
+    },
+    {
+      "id": "family-bad-day",
+      "topic": "encouragement",
+      "when": ["bad day", "today was bad"],
+      "replies": [
+        "Tomorrow's a fresh start. Be gentle with yourselves.",
+        "Tomorrow is another day."
+      ]
+    },
+    {
+      "id": "family-good-day-business",
+      "topic": "encouragement",
+      "when": ["good day today", "today was good"],
+      "replies": ["Lovely. Celebrate the good days.", "Wonderful."]
+    },
+    {
+      "id": "family-first-order",
+      "topic": "encouragement",
+      "when": ["was that the first order", "our first order"],
+      "replies": ["Every first is worth celebrating.", "A milestone. Well done."]
+    },
+    {
+      "id": "family-what-is-the-motto-meaning",
+      "topic": "encouragement",
+      "when": ["what does the motto mean", "send me i will help"],
+      "replies": [
+        "It means: ask, and help will come. That's the promise to every Shopper.",
+        "Ask, and we'll help."
+      ]
+    },
+    {
+      "id": "family-motivate-me",
+      "topic": "encouragement",
+      "when": ["motivate me", "say something nice"],
+      "replies": [
+        "Everything you do to support this helps someone get their shopping.",
+        "You're part of something good."
+      ]
+    },
+    {
+      "id": "family-thank-the-runners",
+      "topic": "encouragement",
+      "when": ["thank the runners", "runners are great"],
+      "replies": [
+        "They are. Every one of them makes a real difference.",
+        "They're the heart of it."
+      ]
+    },
+    {
+      "id": "family-thank-the-team",
+      "topic": "encouragement",
+      "when": ["thank the team", "the team is great"],
+      "replies": [
+        "I'm sure they'd love to hear it. Tell the owner.",
+        "Tell the owner. He'll pass it on."
+      ]
+    },
+    {
+      "id": "family-can-you-order-for-me",
+      "topic": "redirect",
+      "when": ["can you order for me", "can you buy something"],
+      "replies": [
+        "Not from this view. Use a Shopper account, or ring the number on the website.",
+        "Shopping needs a Shopper account."
+      ]
+    },
+    {
+      "id": "family-can-you-call-him",
+      "topic": "redirect",
+      "when": ["can you call him", "ring my husband"],
+      "replies": ["I can't make phone calls from here.", "Please ring him yourself."]
+    },
+    {
+      "id": "family-can-you-send-email",
+      "topic": "redirect",
+      "when": ["can you send an email", "send a message"],
+      "replies": ["I can't send messages from here.", "Not from here, I'm afraid."]
+    },
+    {
+      "id": "family-talk-to-a-person",
+      "topic": "redirect",
+      "when": ["talk to a person", "speak to someone"],
+      "replies": [
+        "For your account, talk to the owner. Customers can ring the number on the website.",
+        "Ask the owner."
+      ]
+    },
+    {
+      "id": "family-i-did-not-mean-that",
+      "topic": "redirect",
+      "when": ["i didn't mean that", "that's not what i said"],
+      "replies": ["Sorry. Please say it another way.", "Try saying it differently."]
+    },
+    {
+      "id": "family-you-got-it-wrong",
+      "topic": "redirect",
+      "when": ["you got it wrong", "that is wrong"],
+      "replies": [
+        "Sorry about that. Please try again, or say help.",
+        "My apologies. Try once more."
+      ]
     }
   ]
 }

@@ -231,3 +231,62 @@ describe('POST /ozi/reply', () => {
     expect((await ask('')).statusCode).toBe(400);
   });
 });
+
+describe('picking a phrase up by its keywords (ruling 49)', () => {
+  const tiny = {
+    ownerAddress: 'Mr Anthony',
+    collections: Object.fromEntries(
+      PHRASE_ACCOUNTS.map((account) => [
+        account,
+        [
+          {
+            id: 'refunds',
+            topic: 'money',
+            when: ['how do refunds work'],
+            replies: ['Refunds go back to your card.'],
+          },
+          {
+            id: 'runner-arrive',
+            topic: 'delivery',
+            when: ['when will my runner arrive'],
+            replies: ['Your Runner is on the way.'],
+          },
+          {
+            id: 'substitutes',
+            topic: 'shopping',
+            when: ['substitutions'],
+            replies: ['You choose what happens if something is missing.'],
+          },
+        ],
+      ]),
+    ) as never,
+  };
+
+  it('answers a sentence that shares enough of the meaning words, said to Ozi', () => {
+    expect(
+      phraseReply(
+        'Ozi, could you tell me how refunds actually work please',
+        0,
+        'within',
+        'shopper',
+        config,
+        tiny,
+      ),
+    ).toBe('Refunds go back to your card.');
+    expect(
+      phraseReply('Ozi, when does the runner arrive', 0, 'within', 'shopper', config, tiny),
+    ).toBe('Your Runner is on the way.');
+    expect(phraseReply('substitutions?', 0, 'within', 'shopper', config, tiny)).toBe(
+      'You choose what happens if something is missing.',
+    );
+  });
+
+  it('never guesses from one common word, and keyword matching is never used for the exact check', () => {
+    expect(
+      phraseReply('Ozi, the weather will be lovely', 0, 'within', 'shopper', config, tiny),
+    ).toBeNull();
+    expect(
+      phraseReply('how do refunds actually work', 0, 'exact', 'shopper', config, tiny),
+    ).toBeNull();
+  });
+});

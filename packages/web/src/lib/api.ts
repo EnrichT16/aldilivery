@@ -1001,7 +1001,8 @@ export type StaffArea =
   | 'analytics'
   | 'overview'
   | 'money'
-  | 'team';
+  | 'team'
+  | 'learning';
 
 export interface StaffSignedIn {
   token: string;
@@ -1962,6 +1963,13 @@ export function setViewer(
 export type OziAsker =
   { kind: 'shopper' } | { kind: 'runner' } | { kind: 'staff'; key: string } | { kind: 'business' };
 
+/** One-way fingerprints of the whole phrases this account's Ozi knows (ruling 49). */
+export function fetchKnownPhrases(as: OziAsker): Promise<{ fingerprints: string[] }> {
+  if (as.kind === 'staff') return staffRequest(as.key, '/ozi/known');
+  if (as.kind === 'business') return businessRequest('/ozi/known');
+  return request('/ozi/known', undefined, as.kind);
+}
+
 export function askOzi(
   text: string,
   mode: 'exact' | 'within',
@@ -1991,4 +1999,31 @@ export function fetchMyShareLink(): Promise<ShareLink> {
 /** A staff member's, the owner's, a family member's or an investor's link. */
 export function fetchStaffShareLink(key: string): Promise<ShareLink> {
   return staffRequest(key, '/share');
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * What Ozi could not answer, waiting for a person to approve an answer (ruling 49).
+ * ------------------------------------------------------------------------------------- */
+
+export interface LearningRow {
+  id: string;
+  account: string;
+  text: string;
+  timesHeard: number;
+  lastHeardAt: string;
+}
+
+export function fetchLearning(key: string): Promise<{ waiting: LearningRow[] }> {
+  return staffRequest(key, '/staff/learning');
+}
+
+export function decideLearning(
+  key: string,
+  id: string,
+  decision: { approve: boolean; reply?: string },
+): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/learning/${encodeURIComponent(id)}`, {
+    method: 'POST',
+    body: JSON.stringify(decision),
+  });
 }

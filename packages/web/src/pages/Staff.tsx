@@ -57,6 +57,9 @@ import {
   type StaffProblem,
   type StaffRecovery,
   fetchStaffShareLink,
+  decideLearning,
+  fetchLearning,
+  type LearningRow,
 } from '../lib/api';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { ShareCard } from '../components/ShareCard';
@@ -90,6 +93,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'partners', label: 'Shops and organisations' },
   { key: 'analytics', label: 'Analytics' },
   { key: 'feedback', label: 'Feedback' },
+  { key: 'learning', label: 'Learning' },
   { key: 'team', label: 'Team' },
   { key: 'mine', label: 'My settings' },
 ];
@@ -229,6 +233,7 @@ export function Staff(): JSX.Element {
             {shown === 'finds' && <Finds staffKey={key} onNews={setNews} />}
             {shown === 'enquiries' && <Enquiries staffKey={key} onNews={setNews} />}
             {shown === 'feedback' && <Feedback staffKey={key} />}
+            {shown === 'learning' && <Learning staffKey={key} onNews={setNews} />}
             {shown === 'partners' && <Partners staffKey={key} onNews={setNews} />}
             {shown === 'analytics' && <Analytics staffKey={key} />}
             {shown === 'overview' && <Overview staffKey={key} />}
@@ -1108,6 +1113,100 @@ function Enquiries({
                 Mark as rung back<span className="visually-hidden">: {row.organisation}</span>
               </button>
             )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Who each question was asked of, in words. */
+const ACCOUNT_WORDS: Record<string, string> = {
+  shopper: 'a Shopper',
+  runner: 'a Runner',
+  partner: 'a Shop Partner',
+  organisation: 'an organisation',
+  staff: 'staff',
+  family: 'family',
+  investor: 'an investor',
+  owner: 'the owner',
+};
+
+/**
+ * Learning (ruling 49): what Ozi was asked and could not answer, most asked first. A person
+ * writes the answer and approves it, and Ozi gives it from then on; or turns it down. Swearing
+ * and anything personal never reach this list.
+ */
+function Learning({
+  staffKey,
+  onNews,
+}: {
+  staffKey: string;
+  onNews: (text: string) => void;
+}): JSX.Element {
+  const list = useList(() => fetchLearning(staffKey));
+  const rows: LearningRow[] | undefined = list.data?.waiting;
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const decide = (row: LearningRow, approve: boolean): void => {
+    void decideLearning(
+      staffKey,
+      row.id,
+      approve ? { approve, reply: answers[row.id] ?? '' } : { approve },
+    )
+      .then((result) => {
+        onNews(result.message);
+        list.reload();
+      })
+      .catch((failure: unknown) =>
+        onNews(failure instanceof Error ? failure.message : 'That did not work.'),
+      );
+  };
+  return (
+    <section aria-labelledby="learning-heading" className="space-y-4 max-w-2xl">
+      <h2 id="learning-heading" className="text-lead font-bold">
+        Learning
+      </h2>
+      <p className="m-0 extra">
+        What people asked Ozi that it could not answer, most asked first. Write the answer and
+        approve it, and Ozi gives it from then on. Turn down anything Ozi should not learn.
+      </p>
+      <Failure text={list.problem} />
+      {rows?.length === 0 && <p className="m-0">Nothing waiting. Ozi understood everything.</p>}
+      <ul className="m-0 p-0 list-none space-y-3">
+        {rows?.map((row) => (
+          <li key={row.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+            <h3 className="m-0 font-bold">&ldquo;{row.text}&rdquo;</h3>
+            <p className="m-0">
+              Asked by {ACCOUNT_WORDS[row.account] ?? row.account}, {row.timesHeard}{' '}
+              {row.timesHeard === 1 ? 'time' : 'times'}.
+            </p>
+            <label htmlFor={`answer-${row.id}`} className="block font-bold">
+              Ozi&rsquo;s answer
+            </label>
+            <textarea
+              id={`answer-${row.id}`}
+              value={answers[row.id] ?? ''}
+              onChange={(event) => setAnswers({ ...answers, [row.id]: event.target.value })}
+              maxLength={400}
+              rows={2}
+              className="w-full rounded-xl p-3 text-ink"
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => decide(row, true)}
+                className="control bg-highlight text-ink"
+              >
+                Approve<span className="visually-hidden">: {row.text}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => decide(row, false)}
+                className="control bg-paper text-ink"
+              >
+                Turn down<span className="visually-hidden">: {row.text}</span>
+              </button>
+            </div>
           </li>
         ))}
       </ul>

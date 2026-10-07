@@ -387,6 +387,3272 @@
       "topic": "business",
       "when": ["what is the motto"],
       "replies": ["{motto}", "{motto}"]
+    },
+    {
+      "id": "investor-why-can-i-only-see-some-tabs",
+      "topic": "access",
+      "when": [
+        "why can i only see some tabs",
+        "why are some parts missing",
+        "where are the other tabs"
+      ],
+      "replies": [
+        "The founder switches each part on for you himself. Anything not shown is still switched off.",
+        "Only the parts the founder has switched on appear. Ask him if you'd like another."
+      ]
+    },
+    {
+      "id": "investor-is-it-read-only",
+      "topic": "access",
+      "when": ["is it read only", "am i view only", "is this view only"],
+      "replies": [
+        "Yes. You can look at everything switched on for you, but never change or decide anything.",
+        "Read only. Nothing you do here changes the service."
+      ]
+    },
+    {
+      "id": "investor-can-i-make-decisions",
+      "topic": "access",
+      "when": ["can i make decisions", "can i approve things", "can i decide a complaint"],
+      "replies": [
+        "No. Decisions are made by the staff whose job it is. Your account only looks.",
+        "Investors can look but never decide anything."
+      ]
+    },
+    {
+      "id": "investor-who-decides-what-i-see",
+      "topic": "access",
+      "when": ["who decides what i see", "who controls my access", "who switched this on"],
+      "replies": [
+        "The founder. Everything starts switched off, and he switches parts on one by one, or all at once.",
+        "The founder decides, part by part."
+      ]
+    },
+    {
+      "id": "investor-what-parts-can-be-switched-on",
+      "topic": "access",
+      "when": ["what parts can be switched on", "which parts exist", "what could i be shown"],
+      "replies": [
+        "The overview, business analysis, the team, Runner documents, complaints, feedback, Finds It, enquiries, and shops and organisations. Never the money.",
+        "Nine parts in all, chosen by the founder. The money is never among them."
+      ]
+    },
+    {
+      "id": "investor-why-cant-i-see-the-money",
+      "topic": "money",
+      "when": ["why can't i see the money", "why is the money hidden", "where is the money tab"],
+      "replies": [
+        "Only the owner's own account sees the money. Not staff, not family, not investors, ever. He shares figures with you directly.",
+        "The money is the founder's alone on the dashboard. Please ask him directly."
+      ]
+    },
+    {
+      "id": "investor-will-i-ever-see-the-money",
+      "topic": "money",
+      "when": [
+        "will i ever see the money",
+        "can the money be switched on",
+        "can he show me the money tab"
+      ],
+      "replies": [
+        "No. The money is never in the list of parts that can be switched on. The founder shares financial information personally.",
+        "It can't be switched on for anyone. Ask the founder for figures."
+      ]
+    },
+    {
+      "id": "investor-is-everything-switched-on",
+      "topic": "access",
+      "when": ["is everything switched on", "have i got full access", "do i have everything"],
+      "replies": [
+        "The tabs above show what is on for you. Anything missing is still switched off.",
+        "Whatever you can see is what's on. The money is never included."
+      ]
+    },
+    {
+      "id": "investor-everything-is-off",
+      "topic": "access",
+      "when": ["i can't see anything", "nothing is switched on", "the dashboard is empty"],
+      "replies": [
+        "Everything starts switched off. The founder switches parts on for you. Please ask him.",
+        "Nothing is on yet. The founder decides what to show you."
+      ]
+    },
+    {
+      "id": "investor-ask-for-a-part",
+      "topic": "access",
+      "when": [
+        "how do i ask for more access",
+        "how do i get another tab",
+        "can you switch it on for me"
+      ],
+      "replies": [
+        "I can't switch anything on. Please ask the founder; he does it from his own settings.",
+        "Only the founder can switch parts on. Please ask him."
+      ]
+    },
+    {
+      "id": "investor-does-the-founder-see-what-i-look-at",
+      "topic": "access",
+      "when": [
+        "does the founder know what i look at",
+        "is my viewing tracked",
+        "can he see what i read"
+      ],
+      "replies": [
+        "Your account is your own sign-in, kept apart from everyone else's. For anything about how it is watched, please ask the founder.",
+        "Please ask the founder about that."
+      ]
+    },
+    {
+      "id": "investor-can-staff-see-my-account",
+      "topic": "access",
+      "when": ["can staff see my account", "do staff know i'm here", "can other investors see me"],
+      "replies": [
+        "Each person has their own sign-in, and each sees only their own part. Ask the founder if you'd like to know more.",
+        "Accounts are kept apart. The founder can tell you more."
+      ]
+    },
+    {
+      "id": "investor-are-there-other-investors",
+      "topic": "access",
+      "when": ["are there other investors", "who else has access", "how many investors are there"],
+      "replies": [
+        "That's for the founder to share. Please ask him directly.",
+        "The founder can tell you that."
+      ]
+    },
+    {
+      "id": "investor-why-do-i-see-runner-documents",
+      "topic": "access",
+      "when": [
+        "why can i see runner documents",
+        "what are runner documents",
+        "what are the documents"
+      ],
+      "replies": [
+        "When it's switched on, the documents part shows Runner checks waiting, such as right to work and insurance. You can look, never approve.",
+        "Runner checks waiting for staff. Look only, please keep it confidential."
+      ]
+    },
+    {
+      "id": "investor-is-the-data-live",
+      "topic": "access",
+      "when": ["is the data live", "is this up to date", "how current is it"],
+      "replies": [
+        "The dashboard reads from the live service each time you open a part.",
+        "It's read from the service as you open each part."
+      ]
+    },
+    {
+      "id": "investor-can-i-download-anything",
+      "topic": "access",
+      "when": ["can i download anything", "can i export the data", "can i get a spreadsheet"],
+      "replies": [
+        "Please ask the founder for any download. Your account is for looking only.",
+        "Downloads and reports come from the founder directly."
+      ]
+    },
+    {
+      "id": "investor-can-i-print-it",
+      "topic": "access",
+      "when": ["can i print it", "can i take screenshots", "can i share screenshots"],
+      "replies": [
+        "What you see is confidential. Please ask the founder before sharing anything.",
+        "Please check with the founder first."
+      ]
+    },
+    {
+      "id": "investor-did-my-access-change",
+      "topic": "access",
+      "when": ["did my access change", "something has disappeared", "a tab has gone"],
+      "replies": [
+        "The founder may have switched a part off, or used the kill switch, which turns every investor switch off at once. Please ask him.",
+        "The founder may have changed it. Ask him directly."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-kill-switch",
+      "topic": "security",
+      "when": [
+        "what is the kill switch",
+        "why was i signed out suddenly",
+        "everything was switched off"
+      ],
+      "replies": [
+        "With his passcode, the founder can switch off every family and investor part and sign out every admin session, his own included. Nothing is deleted.",
+        "A safety switch the founder uses. Nothing is deleted; ask him to switch you back on."
+      ]
+    },
+    {
+      "id": "investor-why-only-some-figures",
+      "topic": "access",
+      "when": ["why only some figures", "why is some data hidden", "why are some numbers missing"],
+      "replies": [
+        "In business analysis, any group of fewer than ten people is left out, so nobody can be picked out. Other parts show what's switched on.",
+        "Small groups are hidden to protect people's privacy."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-turnover",
+      "topic": "money",
+      "when": ["what is the turnover", "how much has it made", "what are the sales figures"],
+      "replies": [
+        "Financial figures aren't on your dashboard. The founder shares them with you directly.",
+        "Please ask the founder for financial figures."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-burn-rate",
+      "topic": "money",
+      "when": ["what is the burn rate", "how much cash is left", "what is the runway"],
+      "replies": [
+        "That's a question for the founder directly. I don't hold financial figures.",
+        "The founder will discuss that with you."
+      ]
+    },
+    {
+      "id": "investor-what-are-the-margins",
+      "topic": "money",
+      "when": ["what are the margins", "gross margin", "unit economics"],
+      "replies": [
+        "The founder shares the numbers behind the business personally. Please ask him.",
+        "Please ask the founder for margins and costs."
+      ]
+    },
+    {
+      "id": "investor-how-much-per-order",
+      "topic": "money",
+      "when": ["how much does it make per order", "revenue per order", "average order value"],
+      "replies": [
+        "I can describe how the service earns, but not the figures. The founder shares those directly.",
+        "Ask the founder for per-order figures."
+      ]
+    },
+    {
+      "id": "investor-monthly-revenue",
+      "topic": "money",
+      "when": ["monthly revenue", "how much this month", "what came in this month"],
+      "replies": [
+        "Only the owner's account sees the money. Please ask the founder.",
+        "That's for the founder to share."
+      ]
+    },
+    {
+      "id": "investor-what-are-the-forecasts",
+      "topic": "money",
+      "when": ["what are the forecasts", "financial projections", "revenue forecast"],
+      "replies": [
+        "Forecasts are the founder's to share. Please ask him directly.",
+        "Please speak with the founder about projections."
+      ]
+    },
+    {
+      "id": "investor-can-i-see-the-accounts",
+      "topic": "money",
+      "when": ["can i see the accounts", "balance sheet", "profit and loss"],
+      "replies": [
+        "The founder shares financial statements directly, not through the dashboard.",
+        "Please ask the founder for the accounts."
+      ]
+    },
+    {
+      "id": "investor-how-much-has-been-raised",
+      "topic": "money",
+      "when": ["how much has been raised", "previous funding", "who has invested so far"],
+      "replies": [
+        "That's a conversation for the founder. Please ask him directly.",
+        "The founder can tell you about funding."
+      ]
+    },
+    {
+      "id": "investor-how-much-funding-is-needed",
+      "topic": "investment",
+      "when": ["how much funding is needed", "how much are you raising", "what is the ask"],
+      "replies": [
+        "Please speak with the founder about any funding. I don't discuss investment terms.",
+        "That's for the founder to discuss with you."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-money-for",
+      "topic": "investment",
+      "when": ["what is the money for", "use of funds", "where will investment go"],
+      "replies": [
+        "The founder will talk you through that personally.",
+        "Please ask the founder about plans for any investment."
+      ]
+    },
+    {
+      "id": "investor-what-are-the-running-costs",
+      "topic": "money",
+      "when": ["what are the running costs", "server costs", "how much does hosting cost"],
+      "replies": [
+        "The founder shares costs directly. In general, hosting grows step by step with the number of users, and Stripe, Twilio and LiveKit charge per use.",
+        "Ask the founder for cost figures."
+      ]
+    },
+    {
+      "id": "investor-how-much-do-runners-cost",
+      "topic": "money",
+      "when": ["how much do runners cost the business", "runner costs"],
+      "replies": [
+        "Each Runner is paid {runnerPay} for every job. The founder can explain the rest of the costs.",
+        "{runnerPay} a job to the Runner. Ask the founder for more."
+      ]
+    },
+    {
+      "id": "investor-who-pays-the-shopping",
+      "topic": "business",
+      "when": [
+        "who pays for the shopping",
+        "how is the shopping paid for",
+        "do you pay for the groceries"
+      ],
+      "replies": [
+        "The Shopper pays for their own shopping by card. The Runner pays the shelf price, and the Shopper is charged what's on the receipt.",
+        "The Shopper pays the receipt price, by card, through Stripe."
+      ]
+    },
+    {
+      "id": "investor-does-it-mark-up-prices",
+      "topic": "business",
+      "when": ["do you mark up prices", "are shop prices marked up", "is there a markup"],
+      "replies": [
+        "No. The Shopper is charged what's on the till receipt. The service earns from the delivery fee and its extras.",
+        "Receipt price only. Earnings come from the fee and the extras."
+      ]
+    },
+    {
+      "id": "investor-is-the-company-in-debt",
+      "topic": "money",
+      "when": ["is the company in debt", "any loans", "what are the liabilities"],
+      "replies": [
+        "Please ask the founder directly about the company's finances.",
+        "That's for the founder to discuss."
+      ]
+    },
+    {
+      "id": "investor-how-much-does-the-founder-earn",
+      "topic": "money",
+      "when": ["how much does the founder earn", "founder salary", "what do staff get paid"],
+      "replies": [
+        "Pay is a private matter for the founder to discuss directly.",
+        "Please ask the founder."
+      ]
+    },
+    {
+      "id": "investor-is-it-making-money-yet",
+      "topic": "money",
+      "when": ["is it making money yet", "is it break even", "when will it break even"],
+      "replies": [
+        "The founder shares financial results personally. Please ask him.",
+        "That's one for the founder."
+      ]
+    },
+    {
+      "id": "investor-how-much-did-it-cost-to-build",
+      "topic": "money",
+      "when": ["how much did it cost to build", "development costs", "what was spent so far"],
+      "replies": ["Please ask the founder about costs to date.", "The founder can tell you that."]
+    },
+    {
+      "id": "investor-what-are-gateway-fees",
+      "topic": "money",
+      "when": ["what are the payment fees", "what does stripe charge", "card processing costs"],
+      "replies": [
+        "Card processing is by Stripe, which charges per payment. The founder can give you the figures.",
+        "Stripe charges per payment. Ask the founder for detail."
+      ]
+    },
+    {
+      "id": "investor-how-many-gift-cards-sold",
+      "topic": "money",
+      "when": ["how many gift cards sold", "how many memberships sold", "how many plus members"],
+      "replies": [
+        "Sales figures are shared by the founder directly.",
+        "Please ask the founder for sales numbers."
+      ]
+    },
+    {
+      "id": "investor-how-many-partners-pay",
+      "topic": "money",
+      "when": [
+        "how many shops are paying",
+        "how many paid partners",
+        "how many spotlight customers"
+      ],
+      "replies": [
+        "The shops and organisations part may show who's signed up, if it's switched on. Payments are the founder's to share.",
+        "Ask the founder for payment figures."
+      ]
+    },
+    {
+      "id": "investor-should-i-invest",
+      "topic": "investment",
+      "when": ["should i invest", "is it a good investment", "would you invest"],
+      "replies": [
+        "I can't give investment advice. Please speak with the founder, and take your own independent advice.",
+        "That's not something I can advise on. Please take independent advice."
+      ]
+    },
+    {
+      "id": "investor-what-return-will-i-get",
+      "topic": "investment",
+      "when": ["what return will i get", "expected returns", "how much will i make"],
+      "replies": [
+        "I can't talk about returns. Please speak with the founder and your own adviser.",
+        "No promises from me. Please ask the founder."
+      ]
+    },
+    {
+      "id": "investor-is-it-risky",
+      "topic": "investment",
+      "when": ["is it risky to invest", "could i lose money", "is my money safe"],
+      "replies": [
+        "Every investment carries risk. I can't advise you; please take independent advice and speak with the founder.",
+        "I can't advise on that. Please take independent advice."
+      ]
+    },
+    {
+      "id": "investor-what-equity-is-offered",
+      "topic": "investment",
+      "when": ["what equity is offered", "what percentage", "how many shares"],
+      "replies": [
+        "Investment terms are discussed by the founder personally.",
+        "Please speak with the founder about terms."
+      ]
+    },
+    {
+      "id": "investor-is-there-a-pitch-deck",
+      "topic": "investment",
+      "when": ["is there a pitch deck", "can i see the deck", "business plan document"],
+      "replies": [
+        "Please ask the founder. He shares documents directly.",
+        "The founder can send that."
+      ]
+    },
+    {
+      "id": "investor-is-it-eis-eligible",
+      "topic": "investment",
+      "when": ["is it eis eligible", "seis", "tax relief"],
+      "replies": [
+        "Please ask the founder and your own tax adviser. I can't advise on tax.",
+        "That's for the founder and your adviser."
+      ]
+    },
+    {
+      "id": "investor-when-is-the-next-round",
+      "topic": "investment",
+      "when": ["when is the next round", "next funding round", "is there a deadline to invest"],
+      "replies": ["Please ask the founder directly.", "The founder will tell you."]
+    },
+    {
+      "id": "investor-who-are-the-shareholders",
+      "topic": "investment",
+      "when": ["who are the shareholders", "who owns the company", "cap table"],
+      "replies": ["The founder can tell you about ownership directly.", "Please ask the founder."]
+    },
+    {
+      "id": "investor-is-there-a-board",
+      "topic": "investment",
+      "when": ["is there a board", "board seat", "can i join the board"],
+      "replies": ["That's a conversation for the founder.", "Please ask the founder directly."]
+    },
+    {
+      "id": "investor-exit-strategy",
+      "topic": "investment",
+      "when": ["what is the exit strategy", "exit plans", "will it be sold"],
+      "replies": [
+        "The founder will discuss plans like that with you personally.",
+        "Please ask the founder."
+      ]
+    },
+    {
+      "id": "investor-due-diligence",
+      "topic": "investment",
+      "when": ["due diligence", "can i do due diligence", "data room"],
+      "replies": [
+        "The founder arranges anything for due diligence directly. Your dashboard shows only what he's switched on.",
+        "Please ask the founder; he arranges that."
+      ]
+    },
+    {
+      "id": "investor-is-the-company-registered",
+      "topic": "investment",
+      "when": ["is the company registered", "company number", "what is the legal entity"],
+      "replies": [
+        "The founder can give you the company's legal details directly.",
+        "Please ask the founder for the company details."
+      ]
+    },
+    {
+      "id": "investor-can-you-promise-growth",
+      "topic": "investment",
+      "when": ["can you promise growth", "is success guaranteed", "guaranteed returns"],
+      "replies": [
+        "No. Nothing is guaranteed, and I can't make promises. The founder can talk you through the plans.",
+        "No guarantees. Please speak with the founder."
+      ]
+    },
+    {
+      "id": "investor-what-would-you-recommend",
+      "topic": "investment",
+      "when": [
+        "what would you recommend",
+        "give me your advice",
+        "what's your opinion as an investment"
+      ],
+      "replies": [
+        "I can describe the service, but I don't give investment advice. Please take your own independent advice.",
+        "I can't advise. I can explain how the service works."
+      ]
+    },
+    {
+      "id": "investor-how-do-i-contact-the-founder",
+      "topic": "contact",
+      "when": ["how do i contact the founder", "how do i reach the owner", "contact the founder"],
+      "replies": [
+        "Please contact the founder directly, the way you usually do. I can't pass messages on.",
+        "Get in touch with the founder directly, please."
+      ]
+    },
+    {
+      "id": "investor-can-you-pass-a-message",
+      "topic": "contact",
+      "when": [
+        "can you pass a message on",
+        "tell the founder something",
+        "leave a message for the owner"
+      ],
+      "replies": [
+        "I'm sorry, I can't pass messages on. Please contact the founder directly.",
+        "Please speak with the founder yourself."
+      ]
+    },
+    {
+      "id": "investor-book-a-meeting",
+      "topic": "contact",
+      "when": ["book a meeting", "can we meet", "arrange a call with the founder"],
+      "replies": [
+        "Please arrange that with the founder directly.",
+        "The founder arranges his own meetings. Please contact him."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-phone-number",
+      "topic": "contact",
+      "when": [
+        "what is the phone number",
+        "phone number for the company",
+        "email address for the company"
+      ],
+      "replies": [
+        "Please use the contact details the founder gave you.",
+        "The founder can give you the best way to reach him."
+      ]
+    },
+    {
+      "id": "investor-who-is-the-owner",
+      "topic": "contact",
+      "when": ["who is the owner", "who owns {product}", "whose company is it"],
+      "replies": [
+        "{owner} is the founder and owner.",
+        "It's {owner}'s company. He can tell you about ownership."
+      ]
+    },
+    {
+      "id": "investor-can-i-speak-to-staff",
+      "topic": "contact",
+      "when": ["can i speak to staff", "can i talk to the team", "who can i speak to"],
+      "replies": [
+        "Please go through the founder; he'll put you in touch with the right person.",
+        "The founder is your contact."
+      ]
+    },
+    {
+      "id": "investor-i-have-feedback-for-the-founder",
+      "topic": "contact",
+      "when": ["i have feedback for the founder", "i have a suggestion", "i have an idea"],
+      "replies": [
+        "Thank you. Please share it with the founder directly; he'll want to hear it.",
+        "Please tell the founder. He welcomes ideas."
+      ]
+    },
+    {
+      "id": "investor-i-have-a-concern",
+      "topic": "contact",
+      "when": ["i have a concern", "something looks wrong", "i'm worried about something"],
+      "replies": [
+        "Please raise it with the founder directly, as soon as you can.",
+        "Thank you. Please speak with the founder."
+      ]
+    },
+    {
+      "id": "investor-how-do-i-sign-out",
+      "topic": "help",
+      "when": ["how do i sign out", "how do i log out", "how do i leave"],
+      "replies": ["Just say sign me out, or use the sign out button.", "Say sign me out."]
+    },
+    {
+      "id": "investor-i-am-done",
+      "topic": "help",
+      "when": ["i'm done", "i'm finished", "that's all for today"],
+      "replies": [
+        "Thank you. Say sign me out when you're ready, especially on a shared computer.",
+        "Thank you. Do sign out when you leave."
+      ]
+    },
+    {
+      "id": "investor-stay-signed-in",
+      "topic": "security",
+      "when": ["will i stay signed in", "do i need to sign in every time", "why was i signed out"],
+      "replies": [
+        "You may be signed out after a while, or if the founder uses the kill switch. Just sign in again.",
+        "Sign in again with your username and password."
+      ]
+    },
+    {
+      "id": "investor-change-my-password",
+      "topic": "security",
+      "when": ["change my password", "how do i change my password", "new password"],
+      "replies": [
+        "Please ask the founder; he looks after investor sign-ins.",
+        "The founder can set a new one for you."
+      ]
+    },
+    {
+      "id": "investor-change-my-username",
+      "topic": "security",
+      "when": ["change my username", "what is my username", "i forgot my username"],
+      "replies": [
+        "The founder made your sign-in and can tell you or change it.",
+        "Please ask the founder."
+      ]
+    },
+    {
+      "id": "investor-say-my-password",
+      "topic": "security",
+      "when": [
+        "can i say my password",
+        "should i say my password aloud",
+        "can you remember my password"
+      ],
+      "replies": [
+        "Please type it, never say it, so nobody nearby hears it. I never need it.",
+        "Type passwords, don't say them."
+      ]
+    },
+    {
+      "id": "investor-account-locked",
+      "topic": "security",
+      "when": ["my account is locked", "too many wrong passwords", "it won't let me in"],
+      "replies": [
+        "After several wrong tries, sign-in waits a while. Try again later, or ask the founder for a new password.",
+        "Wait a little, then try again, or ask the founder."
+      ]
+    },
+    {
+      "id": "investor-someone-asked-for-my-password",
+      "topic": "security",
+      "when": ["someone asked for my password", "i got a strange text", "is this email from you"],
+      "replies": [
+        "We never ask for a password, passcode or code by phone, text or email. Please don't reply, and tell the founder.",
+        "Never share it. We never ask. Please tell the founder."
+      ]
+    },
+    {
+      "id": "investor-using-a-shared-computer",
+      "topic": "security",
+      "when": ["i'm on a shared computer", "i'm on someone else's phone", "public computer"],
+      "replies": [
+        "Please sign out when you finish, so nobody else sees the dashboard.",
+        "Do say sign me out before you leave it."
+      ]
+    },
+    {
+      "id": "investor-two-step-codes",
+      "topic": "security",
+      "when": ["two step codes", "two factor", "authenticator app"],
+      "replies": [
+        "The founder's own account can use codes from an authenticator app. Two-step codes for every admin are on the security plan.",
+        "On the owner's account now, and planned for every admin."
+      ]
+    },
+    {
+      "id": "investor-what-is-my-share-link",
+      "topic": "share",
+      "when": ["what is my share link", "do i have a share link", "where is my share link"],
+      "replies": [
+        "Everybody signed in has a share link, with a meter of how many people joined through it. Yours is in the admin panel.",
+        "Yes, in the admin panel, with a meter showing who joined by it."
+      ]
+    },
+    {
+      "id": "investor-how-does-the-share-link-work",
+      "topic": "share",
+      "when": ["how does the share link work", "what is the meter", "what does the share link do"],
+      "replies": [
+        "Anyone who opens an account through your link is counted on your meter.",
+        "Each account opened through it adds one to your meter."
+      ]
+    },
+    {
+      "id": "investor-who-should-i-share-it-with",
+      "topic": "share",
+      "when": ["who should i share it with", "can i share the link", "where can i post my link"],
+      "replies": [
+        "Anyone who might find shopping hard, or who supports someone who does. It opens the app, not your dashboard.",
+        "Share it with anyone who could use the service. It never shows your dashboard."
+      ]
+    },
+    {
+      "id": "investor-does-the-link-show-my-dashboard",
+      "topic": "share",
+      "when": [
+        "does the link show my dashboard",
+        "is the link private",
+        "can people see my access through the link"
+      ],
+      "replies": [
+        "No. The link only brings people to the app to join. Your dashboard needs your own sign-in.",
+        "No, it just helps people join."
+      ]
+    },
+    {
+      "id": "investor-how-many-joined-by-my-link",
+      "topic": "share",
+      "when": ["how many joined by my link", "how many people used my link", "read my meter"],
+      "replies": [
+        "Under your share link in the admin panel, it says how many people have joined with it.",
+        "It's written just under your link."
+      ]
+    },
+    {
+      "id": "investor-do-i-get-paid-for-sharing",
+      "topic": "share",
+      "when": ["do i get paid for sharing", "is there a referral reward", "referral bonus"],
+      "replies": [
+        "The share link counts who joins. Please ask the founder about anything more.",
+        "It's a count, not a payment. Ask the founder."
+      ]
+    },
+    {
+      "id": "investor-copy-my-link",
+      "topic": "share",
+      "when": ["copy my link", "share my link", "send my link"],
+      "replies": [
+        "Your share link is in the admin panel, with a Share my link button beneath it.",
+        "Press Share my link, under your link in the admin panel."
+      ]
+    },
+    {
+      "id": "investor-explain-the-delivery-fee",
+      "topic": "business",
+      "when": [
+        "explain the delivery fee",
+        "is the fee the same for everyone",
+        "is there surge pricing"
+      ],
+      "replies": [
+        "One flat fee, {fee}, the same for everyone and every basket up to the limit, never surge priced.",
+        "Flat {fee} a delivery, never surge priced."
+      ]
+    },
+    {
+      "id": "investor-is-there-a-basket-limit",
+      "topic": "business",
+      "when": ["is there a basket limit", "what is the most per order", "is there a maximum order"],
+      "replies": [
+        "Each delivery takes shopping up to {maximum}. Anything bigger is offered as two deliveries.",
+        "Up to {maximum} of shopping a delivery."
+      ]
+    },
+    {
+      "id": "investor-does-plus-change-the-fee",
+      "topic": "business",
+      "when": [
+        "does plus change the delivery fee",
+        "do members pay less delivery",
+        "is delivery free for members"
+      ],
+      "replies": [
+        "No. The delivery fee is the same for everyone, by design. Ozi Plus includes Recipes and the Finds It fee instead.",
+        "No, the fee never depends on who the Shopper is."
+      ]
+    },
+    {
+      "id": "investor-how-much-is-ozi-plus",
+      "topic": "business",
+      "when": ["how much is ozi plus", "plus membership price", "what does plus cost"],
+      "replies": [
+        "Ozi Plus is a membership for thirty days at a time, for one person or a family. The founder can share the current prices.",
+        "Thirty days at a time. The prices are set in the store's settings."
+      ]
+    },
+    {
+      "id": "investor-ozi-plus-for-families",
+      "topic": "business",
+      "when": ["ozi plus for families", "family membership", "family plan"],
+      "replies": [
+        "Ozi Plus for a family covers up to four people, joined with a six-letter family code.",
+        "Up to four people, joined by a family code."
+      ]
+    },
+    {
+      "id": "investor-does-plus-renew-automatically",
+      "topic": "business",
+      "when": ["does plus renew automatically", "is it a subscription", "auto renewal"],
+      "replies": [
+        "No. Ozi Plus never renews by itself. Every price is agreed by the Shopper before it's taken.",
+        "Never renews by itself, by design."
+      ]
+    },
+    {
+      "id": "investor-what-is-ozi-recipes",
+      "topic": "business",
+      "when": ["what is ozi recipes", "what are recipes", "recipe pass"],
+      "replies": [
+        "A paid extra: the Recipe Pass, for thirty days, agreed before it's taken and never renewing by itself. Recipe names and ingredients stay free to see.",
+        "Recipes as a thirty-day pass, or included in Ozi Plus."
+      ]
+    },
+    {
+      "id": "investor-what-is-finds-it",
+      "topic": "business",
+      "when": ["what is finds it", "how does finds it work", "explain finds it"],
+      "replies": [
+        "A person checks up to three shops for something hard to find, for a small agreed fee, given back if nothing is found.",
+        "We look in up to three shops for something hard to find."
+      ]
+    },
+    {
+      "id": "investor-finds-it-restrictions",
+      "topic": "business",
+      "when": ["what can't finds it look for", "finds it rules", "finds it limits"],
+      "replies": [
+        "Never alcohol, tobacco, medicines, cash or anything age restricted.",
+        "Nothing restricted, ever."
+      ]
+    },
+    {
+      "id": "investor-what-are-gift-cards",
+      "topic": "business",
+      "when": ["what are gift cards", "do you sell gift cards", "how do gift cards work"],
+      "replies": [
+        "Gift cards are bought by card in four amounts, and given as a twelve-character code, used once on a next order.",
+        "Four amounts, a twelve-character code, used once."
+      ]
+    },
+    {
+      "id": "investor-what-are-little-gifts",
+      "topic": "business",
+      "when": ["what are little gifts", "gift bundles", "little gifts"],
+      "replies": [
+        "Ready-made, affordable gift bundles from the shop, never alcohol.",
+        "Small gift bundles, never alcohol."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-weekly-shop",
+      "topic": "business",
+      "when": ["what is the weekly shop", "repeat orders", "same as last time"],
+      "replies": [
+        "On a chosen day, Ozi offers to put the usual shopping in the basket. Nothing is sent or paid until the Shopper says so.",
+        "A weekly reminder of the usual shopping, sent only after a yes."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-partner-plan",
+      "topic": "business",
+      "when": ["what is the partner plan", "how much do shops pay", "shop partner price"],
+      "replies": [
+        "A shop that pays {partnerPlan} a month becomes a Shop Partner, with its own sign-in to add products and change prices.",
+        "{partnerPlan} a month for a Shop Partner."
+      ]
+    },
+    {
+      "id": "investor-are-shops-listed-free",
+      "topic": "business",
+      "when": ["are shops listed free", "do shops have to pay", "free listing"],
+      "replies": [
+        "Yes. Every shop is still listed free, by us. Paying monthly simply lets a shop manage its own products.",
+        "Listed free; the partner plan is optional."
+      ]
+    },
+    {
+      "id": "investor-how-are-partner-products-checked",
+      "topic": "business",
+      "when": [
+        "how are partner products checked",
+        "who checks shop products",
+        "can shops list anything"
+      ],
+      "replies": [
+        "Each new product is checked by a person before Shoppers see it, and nothing restricted is ever listed.",
+        "A person checks every new product first."
+      ]
+    },
+    {
+      "id": "investor-how-does-spotlight-work",
+      "topic": "business",
+      "when": ["how does spotlight work", "spotlight plus", "explain spotlight"],
+      "replies": [
+        "Spotlight at {spotlight} a month mentions a Shop Partner at most once a week to a Shopper looking for what it sells. Spotlight Plus at {spotlightPlus} allows up to three.",
+        "Paid mentions for Shop Partners, labelled as adverts, at {spotlight} or {spotlightPlus} a month."
+      ]
+    },
+    {
+      "id": "investor-are-adverts-honest",
+      "topic": "business",
+      "when": ["are adverts honest", "are adverts labelled", "do adverts mislead shoppers"],
+      "replies": [
+        "The genuine answer always comes first. An advert comes after, is called an advert, and states checkable facts only.",
+        "Genuine results first, adverts labelled, facts only."
+      ]
+    },
+    {
+      "id": "investor-how-many-adverts",
+      "topic": "business",
+      "when": ["how many adverts per search", "will shoppers get spammed", "too many adverts"],
+      "replies": [
+        "At most one advert per search, after the genuine results.",
+        "One at most, after the real results."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-advert-square",
+      "topic": "business",
+      "when": ["what is the advert square", "display adverts", "banner adverts"],
+      "replies": [
+        "A small square in the corner, called an advert, never on paying or card screens and never read aloud. It stays off until the founder switches it on.",
+        "Built, small, and off until the founder decides."
+      ]
+    },
+    {
+      "id": "investor-can-members-hide-adverts",
+      "topic": "business",
+      "when": ["can members hide adverts", "advert free", "no adverts option"],
+      "replies": [
+        "Ozi Plus members can choose to hide the advert square.",
+        "Yes, Ozi Plus members can hide it."
+      ]
+    },
+    {
+      "id": "investor-what-do-organisations-get",
+      "topic": "business",
+      "when": ["what do organisations get", "organisation dashboard", "how do councils use it"],
+      "replies": [
+        "Organisations see the people who chose to link to them, their orders, spending by office, budget left, savings against staff trips, and statements.",
+        "Their own dashboard for the people they support, who choose to link."
+      ]
+    },
+    {
+      "id": "investor-who-are-the-organisations",
+      "topic": "business",
+      "when": [
+        "who are the organisations",
+        "what kind of organisations",
+        "care homes and councils"
+      ],
+      "replies": [
+        "Councils, care homes, hospitals, charities and businesses.",
+        "Councils, care, health, charities and businesses."
+      ]
+    },
+    {
+      "id": "investor-can-organisations-pay-by-invoice",
+      "topic": "business",
+      "when": ["can organisations pay by invoice", "invoicing", "do councils get invoiced"],
+      "replies": [
+        "Not yet. Paying by invoice instead of each person's card isn't built, and needs the founder's decision.",
+        "Not built; that's for the founder to decide."
+      ]
+    },
+    {
+      "id": "investor-does-a-person-have-to-link",
+      "topic": "business",
+      "when": [
+        "does a person have to link",
+        "can an organisation see anyone",
+        "linking to an organisation"
+      ],
+      "replies": [
+        "Only the person links, with the organisation's code, after being told what it will see. They can stop it in Settings.",
+        "Only by the person's own choice, and they can stop it."
+      ]
+    },
+    {
+      "id": "investor-what-are-offers",
+      "topic": "business",
+      "when": ["what are offers", "shop offers", "discounts from shops"],
+      "replies": [
+        "Only offers agreed in writing with a shop are shown. Shops and organisations can ask to work with us through a form.",
+        "Written offers from shops only."
+      ]
+    },
+    {
+      "id": "investor-what-are-everyday-essentials",
+      "topic": "business",
+      "when": ["what are everyday essentials", "same day essentials", "batteries and bulbs"],
+      "replies": [
+        "Everyday essentials like batteries, a charging cable or light bulbs are brought the same day, instead of waiting for a parcel.",
+        "Same-day small essentials."
+      ]
+    },
+    {
+      "id": "investor-insight-for-sale",
+      "topic": "business",
+      "when": ["what insight can be sold", "selling insight", "data products"],
+      "replies": [
+        "Insight about groups, never people: reports for Shop Partners, organisations, brands and government, each covering at least ten people and signed off by the founder.",
+        "Group figures only, at least ten people each."
+      ]
+    },
+    {
+      "id": "investor-shop-partner-insights",
+      "topic": "business",
+      "when": ["shop partner insights", "insights add on", "reports for shops"],
+      "replies": [
+        "A planned add-on for Shop Partners: their customers by age group and area, busy times, and what people looked for that they don't stock.",
+        "Planned reports for shops, about groups only."
+      ]
+    },
+    {
+      "id": "investor-local-index",
+      "topic": "business",
+      "when": ["what is the local index", "ozi local index", "public report"],
+      "replies": [
+        "A planned monthly public report of what local people need, by area, for councils and the press. Groups only.",
+        "A planned public report by area."
+      ]
+    },
+    {
+      "id": "investor-all-the-ways-it-earns",
+      "topic": "business",
+      "when": ["list the ways it earns", "how many income streams", "what are the extras"],
+      "replies": [
+        "The delivery fee, Ozi Plus, Recipes, Finds It, gift cards, the Shop Partner plan, Spotlight, organisation contracts, and later, group insight.",
+        "The fee, memberships, extras, shop plans, Spotlight, organisations and insight."
+      ]
+    },
+    {
+      "id": "investor-are-prices-agreed-first",
+      "topic": "business",
+      "when": [
+        "are prices agreed first",
+        "can shoppers be charged without agreeing",
+        "hidden charges"
+      ],
+      "replies": [
+        "Every price is agreed by the Shopper before it's taken. Nothing renews by itself.",
+        "No hidden charges. Everything is agreed first."
+      ]
+    },
+    {
+      "id": "investor-who-sets-prices",
+      "topic": "business",
+      "when": ["who sets the prices", "can prices change", "how are fees set"],
+      "replies": [
+        "The founder sets them, in the store's settings. Ozi always reads them from there.",
+        "The founder decides prices."
+      ]
+    },
+    {
+      "id": "investor-how-are-runners-paid",
+      "topic": "business",
+      "when": ["how are runners paid", "runner pay", "is runner pay fair"],
+      "replies": ["{runnerPay} for every job, the same for everyone.", "A flat {runnerPay} a job."]
+    },
+    {
+      "id": "investor-what-is-a-runner",
+      "topic": "business",
+      "when": ["what is a runner", "who are the runners", "who does the deliveries"],
+      "replies": [
+        "Runners are checked people who shop and deliver, on foot, by bicycle or by car, and are paid {runnerPay} a job.",
+        "Checked people who shop and deliver."
+      ]
+    },
+    {
+      "id": "investor-how-are-runners-checked",
+      "topic": "business",
+      "when": ["how are runners checked", "runner vetting", "are runners safe"],
+      "replies": [
+        "Runners send documents such as right to work and insurance, checked by staff before they can take jobs.",
+        "Documents checked by staff before any job."
+      ]
+    },
+    {
+      "id": "investor-are-runners-employees",
+      "topic": "business",
+      "when": ["are runners employees", "gig economy", "runner contracts"],
+      "replies": [
+        "Please ask the founder about how Runners are engaged.",
+        "That's one for the founder."
+      ]
+    },
+    {
+      "id": "investor-how-does-ordering-work",
+      "topic": "business",
+      "when": [
+        "how does ordering work",
+        "walk me through an order",
+        "what happens when someone orders"
+      ],
+      "replies": [
+        "The Shopper says what they need, agrees the price, a checked Runner shops at the shelf price and delivers, and the card is charged the receipt.",
+        "Say it, Ozi shops it, a Runner brings it."
+      ]
+    },
+    {
+      "id": "investor-is-there-a-cool-bag",
+      "topic": "business",
+      "when": ["is there a cool bag", "how is chilled food kept", "cool bags for runners"],
+      "replies": [
+        "Runners use a cool bag, with a deposit held back a little at a time and released after a number of deliveries.",
+        "Yes, Runners carry cool bags."
+      ]
+    },
+    {
+      "id": "investor-age-restricted-goods",
+      "topic": "business",
+      "when": ["do you sell alcohol", "age restricted goods", "can you deliver tobacco"],
+      "replies": [
+        "Not in this first version. Age-restricted goods aren't allowed.",
+        "No, not in version one."
+      ]
+    },
+    {
+      "id": "investor-which-shops",
+      "topic": "business",
+      "when": ["which shops", "is it only one supermarket", "which supermarkets"],
+      "replies": [
+        "It starts with one supermarket chain, and every local shop can be listed free. Prices shown are community estimates, not supplied by the store.",
+        "One supermarket first, and local shops listed free."
+      ]
+    },
+    {
+      "id": "investor-are-you-partnered-with-the-supermarket",
+      "topic": "business",
+      "when": [
+        "are you partnered with the supermarket",
+        "is the supermarket involved",
+        "does the supermarket endorse this"
+      ],
+      "replies": [
+        "Prices are community estimates, not supplied by the store. For any agreement with a shop, please ask the founder.",
+        "Please ask the founder about any agreements."
+      ]
+    },
+    {
+      "id": "investor-how-do-calls-work",
+      "topic": "business",
+      "when": ["how do calls work", "can runners phone shoppers", "are phone numbers shared"],
+      "replies": [
+        "Shoppers and Runners talk through in-app calls, never by number. A Runner can ring a Shopper's phone through the app, and the number is never shown.",
+        "Through the app, numbers never shown."
+      ]
+    },
+    {
+      "id": "investor-telephone-ordering",
+      "topic": "business",
+      "when": ["telephone ordering", "can people order by phone", "phone line"],
+      "replies": [
+        "Yes. Ozi answers the telephone and takes the order, reading it back before anything is sent. A card is never given on a call.",
+        "Ozi answers the phone and takes the order."
+      ]
+    },
+    {
+      "id": "investor-no-account-phone-orders",
+      "topic": "business",
+      "when": [
+        "can someone order with no account",
+        "how do phone callers pay",
+        "texted payment link"
+      ],
+      "replies": [
+        "A caller from a mobile can order there and then: after a yes, Ozi texts a secure Stripe link to pay and give the address.",
+        "A secure payment link by text, never a card on the call."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-voice-ceiling",
+      "topic": "business",
+      "when": ["is there a voice spending limit", "voice ceiling", "limit on voice orders"],
+      "replies": [
+        "Yes. Spoken orders have a spending ceiling, as a safety measure.",
+        "There's a ceiling on what can be spent by voice."
+      ]
+    },
+    {
+      "id": "investor-what-happens-with-problems",
+      "topic": "business",
+      "when": ["what happens with problems", "how are complaints handled", "refund policy"],
+      "replies": [
+        "Small problems can be refunded straight away, up to {instantRefund}. Others are decided by staff within two working days.",
+        "Instant refunds up to {instantRefund}, others decided quickly."
+      ]
+    },
+    {
+      "id": "investor-payment-gateways",
+      "topic": "business",
+      "when": ["which payment gateways", "is it only stripe", "flutterwave and paystack"],
+      "replies": [
+        "Stripe now. Flutterwave, Paystack and others when connected, for new countries.",
+        "Stripe now, more later."
+      ]
+    },
+    {
+      "id": "investor-home-country-cards",
+      "topic": "business",
+      "when": ["can foreign cards be used", "international cards", "cards from abroad"],
+      "replies": [
+        "Cards from any region are supported through Stripe.",
+        "Yes, cards from any region."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-growth-plan",
+      "topic": "growth",
+      "when": ["what is the growth plan", "how will it grow", "growth stages"],
+      "replies": [
+        "Growing is a series of steps, each taken when the numbers call for it: before launch, around fifty thousand users, around half a million, and a million and above.",
+        "Four stages, each taken when the numbers call for it."
+      ]
+    },
+    {
+      "id": "investor-growth-stage-one",
+      "topic": "growth",
+      "when": ["what happens before launch", "growth stage one", "first growth step"],
+      "replies": [
+        "Before launch: a managed database with daily backups.",
+        "A managed database with backups."
+      ]
+    },
+    {
+      "id": "investor-growth-stage-two",
+      "topic": "growth",
+      "when": ["what happens at fifty thousand users", "growth stage two", "second growth step"],
+      "replies": [
+        "At about fifty thousand users: photos move to file storage, a proper product search index, lists loaded a page at a time, and monitoring with alerts.",
+        "File storage, better search, paged lists and monitoring."
+      ]
+    },
+    {
+      "id": "investor-growth-stage-three",
+      "topic": "growth",
+      "when": ["what happens at half a million", "growth stage three", "third growth step"],
+      "replies": [
+        "At about half a million users: several servers behind a load balancer, a connection pooler, a read-only database copy, a job queue, and load testing.",
+        "More servers, a read copy, a job queue and load tests."
+      ]
+    },
+    {
+      "id": "investor-growth-stage-four",
+      "topic": "growth",
+      "when": ["what happens at a million users", "growth stage four", "final growth step"],
+      "replies": [
+        "At a million and above: bigger database machines with a standby, data split by region, a content delivery network, and perhaps a larger cloud.",
+        "Bigger machines, regional data and a larger cloud."
+      ]
+    },
+    {
+      "id": "investor-why-not-build-for-millions-now",
+      "topic": "growth",
+      "when": ["why not build for millions now", "why grow in steps", "why not scale up now"],
+      "replies": [
+        "Each step costs money every month, so it's taken when the numbers call for it, not all at once.",
+        "Steps are taken only when they're needed."
+      ]
+    },
+    {
+      "id": "investor-can-it-handle-busy-times",
+      "topic": "growth",
+      "when": ["can it handle busy times", "peak load", "how many at once"],
+      "replies": [
+        "Usually only a small share of users are on at the same moment. The design allows many servers side by side to share the load.",
+        "Yes, by running more servers side by side."
+      ]
+    },
+    {
+      "id": "investor-why-the-design-scales",
+      "topic": "growth",
+      "when": ["why does the design scale", "is the architecture scalable", "stateless servers"],
+      "replies": [
+        "The server keeps no memory of who's signed in, so many copies can run side by side. The data is in PostgreSQL, and each region is its own marketplace.",
+        "Stateless servers, PostgreSQL, and regions kept separate."
+      ]
+    },
+    {
+      "id": "investor-what-cloud-do-you-use",
+      "topic": "growth",
+      "when": ["what cloud do you use", "where is it hosted", "digitalocean"],
+      "replies": [
+        "DigitalOcean today. At very large size, moving to a larger cloud is an option, and the code moves unchanged.",
+        "DigitalOcean now, larger clouds possible later."
+      ]
+    },
+    {
+      "id": "investor-which-countries-next",
+      "topic": "growth",
+      "when": ["which countries next", "international plans", "nigeria and kenya"],
+      "replies": [
+        "Medway first, then other areas, then countries such as Nigeria and Kenya, each as its own marketplace.",
+        "Medway, then more of the UK, then abroad."
+      ]
+    },
+    {
+      "id": "investor-why-medway",
+      "topic": "growth",
+      "when": ["why medway", "where is medway", "why start in kent"],
+      "replies": [
+        "Medway is where the service starts. The founder can tell you why.",
+        "It's the first area. Ask the founder for the reasoning."
+      ]
+    },
+    {
+      "id": "investor-when-is-launch",
+      "topic": "growth",
+      "when": ["when is launch", "when does it go live", "is it live yet"],
+      "replies": [
+        "Please ask the founder about launch timing.",
+        "The founder can tell you the timing."
+      ]
+    },
+    {
+      "id": "investor-phone-apps",
+      "topic": "growth",
+      "when": ["are there phone apps", "iphone app", "android app"],
+      "replies": [
+        "Phone apps are next. Today the website works on phones, and is built to become an app.",
+        "Apps are on the way."
+      ]
+    },
+    {
+      "id": "investor-more-languages",
+      "topic": "growth",
+      "when": ["more languages", "will it speak other languages", "translation"],
+      "replies": ["More languages are on the roadmap.", "Yes, on the roadmap."]
+    },
+    {
+      "id": "investor-better-voices",
+      "topic": "growth",
+      "when": ["will the voice improve", "better voice", "speech technology"],
+      "replies": [
+        "The app works on the phone's own voice today. Better voices and listening are improvements added later.",
+        "The phone's own voice now, better later."
+      ]
+    },
+    {
+      "id": "investor-medium-term-analysis",
+      "topic": "growth",
+      "when": ["what analysis comes next", "medium stage analysis", "future analytics"],
+      "replies": [
+        "With a few thousand orders: repeat buying, what's bought together, busy times by area, and unmet demand, always about groups.",
+        "Repeat buying, baskets, busy times and unmet demand."
+      ]
+    },
+    {
+      "id": "investor-long-term-analysis",
+      "topic": "growth",
+      "when": ["long term analysis", "forecasting", "complex analysis"],
+      "replies": [
+        "Later: forecasting demand by area and hour, route efficiency, and where a new Shop Partner or more Runners are needed most.",
+        "Forecasts and route planning, later."
+      ]
+    },
+    {
+      "id": "investor-who-builds-it",
+      "topic": "growth",
+      "when": ["who builds it", "who writes the code", "who are the developers"],
+      "replies": [
+        "The founder directs the work, and the code is written with Claude Code, an AI coding assistant, with automatic tests on every change.",
+        "Built with Claude Code, directed by the founder."
+      ]
+    },
+    {
+      "id": "investor-how-fast-can-it-change",
+      "topic": "growth",
+      "when": ["how fast can it change", "how quickly are features built", "development speed"],
+      "replies": [
+        "Changes are tested automatically before they go live. For timelines, please ask the founder.",
+        "Ask the founder for timelines."
+      ]
+    },
+    {
+      "id": "investor-what-is-still-to-do",
+      "topic": "growth",
+      "when": ["what is still to do", "what isn't built yet", "unfinished features"],
+      "replies": [
+        "Some parts are on the roadmap, such as phone apps, invoicing for organisations, and some security steps. The founder keeps the full list.",
+        "The founder has the full list."
+      ]
+    },
+    {
+      "id": "investor-user-targets",
+      "topic": "growth",
+      "when": ["what are the user targets", "how many users expected", "growth targets"],
+      "replies": [
+        "Targets are for the founder to share. The design is planned to grow in stages to millions of users.",
+        "Please ask the founder for targets."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-mission",
+      "topic": "mission",
+      "when": ["what is the mission", "why does it exist", "what is the purpose"],
+      "replies": [
+        "To bring shopping to people who find it hard to get out, so they can shop independently, by voice, with care built in.",
+        "Independence in shopping for people who find shops hard."
+      ]
+    },
+    {
+      "id": "investor-who-is-it-for",
+      "topic": "mission",
+      "when": ["who is it for", "who benefits", "target users"],
+      "replies": [
+        "Blind and partially sighted people, older people, and anyone who finds shops hard, along with the families and organisations who support them.",
+        "People with sight loss, older people, and their supporters."
+      ]
+    },
+    {
+      "id": "investor-why-voice-first",
+      "topic": "mission",
+      "when": ["why voice first", "why voice", "why not just an app"],
+      "replies": [
+        "Because many of the people it serves can't see a screen. Everything can be done by voice, from the shopping to the payment agreement.",
+        "So people who can't see the screen can do everything."
+      ]
+    },
+    {
+      "id": "investor-can-it-be-used-without-sight",
+      "topic": "mission",
+      "when": [
+        "can it be used without sight",
+        "can a blind person use it alone",
+        "fully accessible"
+      ],
+      "replies": [
+        "Yes. It's built to work fully by voice and with screen readers.",
+        "Yes, fully by voice."
+      ]
+    },
+    {
+      "id": "investor-what-accessibility-standard",
+      "topic": "mission",
+      "when": ["which accessibility standard", "wcag level", "is it wcag compliant"],
+      "replies": [
+        "The target is WCAG two point two, level double A, with large text and large buttons throughout.",
+        "WCAG two point two, double A."
+      ]
+    },
+    {
+      "id": "investor-screen-reader-support",
+      "topic": "mission",
+      "when": [
+        "screen reader support",
+        "does it work with voiceover",
+        "does it work with talkback"
+      ],
+      "replies": [
+        "Every screen is built for screen readers such as VoiceOver and TalkBack.",
+        "Yes, every screen."
+      ]
+    },
+    {
+      "id": "investor-braille-support",
+      "topic": "mission",
+      "when": ["braille support", "what about braille", "deafblind users"],
+      "replies": [
+        "Today a Braille display connected to a phone works with the app. A deafblind mode, a Braille connector and Ozi's own Braille pad are on the roadmap.",
+        "Braille displays work now; more is planned."
+      ]
+    },
+    {
+      "id": "investor-braille-roadmap",
+      "topic": "mission",
+      "when": ["braille roadmap", "deafblind mode", "braille device"],
+      "replies": [
+        "In order: a guide for today's Braille displays, a deafblind mode, a Braille connector with an open interface, a Braille pad on screen, and perhaps a device of our own.",
+        "Five steps, starting with what works today."
+      ]
+    },
+    {
+      "id": "investor-can-staff-be-blind",
+      "topic": "mission",
+      "when": ["can staff be blind", "accessible jobs", "inclusive employment"],
+      "replies": [
+        "Yes. Ozi speaks throughout the admin panel, so a blind person can do any job, the IT role included.",
+        "Every job can be done by voice."
+      ]
+    },
+    {
+      "id": "investor-older-people",
+      "topic": "mission",
+      "when": [
+        "what about older people",
+        "elderly users",
+        "people who aren't good with technology"
+      ],
+      "replies": [
+        "Ozi talks people through everything, and they can also order by telephone.",
+        "By voice, or simply by phone."
+      ]
+    },
+    {
+      "id": "investor-people-without-smartphones",
+      "topic": "mission",
+      "when": ["people without smartphones", "can landline users order", "no internet"],
+      "replies": [
+        "Anyone can ring and order by telephone. A caller with no account can order from a mobile and pay by a texted link; from a landline, they're sent to the website first.",
+        "Telephone ordering helps those without apps."
+      ]
+    },
+    {
+      "id": "investor-how-is-it-different-for-blind-people",
+      "topic": "mission",
+      "when": ["how is it different for blind people", "what problem does it solve", "pain point"],
+      "replies": [
+        "Most delivery apps assume you can see the screen. Here, a checked Runner shops for you, you talk privately through the app, and Ozi reads everything aloud.",
+        "It doesn't assume sight."
+      ]
+    },
+    {
+      "id": "investor-is-it-tested-with-users",
+      "topic": "mission",
+      "when": ["is it tested with real users", "user testing", "testing with blind people"],
+      "replies": [
+        "Testing with people is planned and written up. The founder, who is registered blind, uses it himself.",
+        "The founder uses it himself, and testing with people is planned."
+      ]
+    },
+    {
+      "id": "investor-pinch-to-zoom",
+      "topic": "mission",
+      "when": ["can text be made bigger", "pinch to zoom", "large text"],
+      "replies": [
+        "Yes. The text is large by default, and pinch to zoom works on the website.",
+        "Large text, and pinch to zoom."
+      ]
+    },
+    {
+      "id": "investor-show-words-on-screen",
+      "topic": "mission",
+      "when": ["show words on the screen", "are screens cluttered", "tidy screens"],
+      "replies": [
+        "Screens are kept tidy. Descriptions are there for screen readers, and can be shown on screen with a setting.",
+        "Tidy by default, with more words on request."
+      ]
+    },
+    {
+      "id": "investor-does-it-reduce-isolation",
+      "topic": "mission",
+      "when": ["does it reduce isolation", "loneliness", "wellbeing"],
+      "replies": [
+        "It helps people shop independently. Measuring wider effects is for future studies about groups.",
+        "It supports independence. Studies are planned."
+      ]
+    },
+    {
+      "id": "investor-does-it-help-councils",
+      "topic": "mission",
+      "when": ["does it help councils", "savings for care providers", "staff trips to the shops"],
+      "replies": [
+        "Organisations see savings worked out against their own figure for a staff trip to the shops.",
+        "Organisations can compare it with their own staff trips."
+      ]
+    },
+    {
+      "id": "investor-work-for-runners",
+      "topic": "mission",
+      "when": ["does it create jobs", "flexible work", "local work"],
+      "replies": [
+        "Yes, flexible paid work for Runners, at {runnerPay} a job.",
+        "Flexible local work for Runners."
+      ]
+    },
+    {
+      "id": "investor-how-is-data-protected",
+      "topic": "data",
+      "when": ["how is data protected", "data protection", "privacy"],
+      "replies": [
+        "Analysis records have no names, numbers or addresses. People are one-way codes, places are postcode districts, and groups under ten are hidden.",
+        "No names in analysis, and small groups hidden."
+      ]
+    },
+    {
+      "id": "investor-what-is-a-one-way-code",
+      "topic": "data",
+      "when": ["what is a one way code", "pseudonymised", "how are people anonymised"],
+      "replies": [
+        "Each person appears in analysis only as a code made with a server secret, which can't be turned back into a name.",
+        "A code that can't be turned back into a name."
+      ]
+    },
+    {
+      "id": "investor-why-groups-of-ten",
+      "topic": "data",
+      "when": ["why groups of ten", "why are small groups hidden", "minimum group size"],
+      "replies": [
+        "Every figure covers at least ten different people, so nobody can be picked out. Smaller groups are left out of every table and download.",
+        "So no one person can ever be identified."
+      ]
+    },
+    {
+      "id": "investor-what-is-never-collected",
+      "topic": "data",
+      "when": ["what is never collected", "do you collect health data", "sensitive data"],
+      "replies": [
+        "Never health, disability, religion, ethnicity, exact location or journeys, voice recordings, or card details.",
+        "No sensitive data, no recordings, no cards."
+      ]
+    },
+    {
+      "id": "investor-do-you-record-voices",
+      "topic": "data",
+      "when": ["do you record voices", "are calls recorded", "voice recordings"],
+      "replies": [
+        "Voice recordings are never collected for analysis.",
+        "No voice recordings in analysis."
+      ]
+    },
+    {
+      "id": "investor-what-is-collected",
+      "topic": "data",
+      "when": ["what is collected", "what data is gathered", "what does the analysis record"],
+      "replies": [
+        "Every purchase, delivery and search: which shop and when, the postcode district, what kinds of things, and the Shopper's and Runner's codes.",
+        "Purchases, deliveries and searches, without names."
+      ]
+    },
+    {
+      "id": "investor-unmet-searches",
+      "topic": "data",
+      "when": ["what are unmet searches", "wanted but not found", "unmet demand"],
+      "replies": [
+        "Searches where nobody had the item. That list is especially valuable to shops, and always about groups.",
+        "What people looked for and couldn't find."
+      ]
+    },
+    {
+      "id": "investor-age-groups",
+      "topic": "data",
+      "when": ["do you collect age", "age groups", "is age optional"],
+      "replies": [
+        "An age group is optional. The person gives it in Settings and can take it away.",
+        "Optional, and can be removed any time."
+      ]
+    },
+    {
+      "id": "investor-can-people-opt-out",
+      "topic": "data",
+      "when": ["can people opt out", "can someone be left out", "right to object"],
+      "replies": [
+        "Yes. People are told in plain words on the privacy page, and anyone can ask to be left out.",
+        "Yes, anyone can ask to be left out."
+      ]
+    },
+    {
+      "id": "investor-how-long-is-data-kept",
+      "topic": "data",
+      "when": ["how long is data kept", "data retention", "when is data deleted"],
+      "replies": [
+        "Analysis records are kept for seven years, like money records, then deleted.",
+        "Seven years, then deleted."
+      ]
+    },
+    {
+      "id": "investor-where-is-analysis-stored",
+      "topic": "data",
+      "when": ["where is analysis stored", "analytics database", "is analysis separate"],
+      "replies": [
+        "In its own table, separate from the running service, moving to its own database at volume so reports never slow orders.",
+        "Kept apart from the running service."
+      ]
+    },
+    {
+      "id": "investor-can-a-person-be-identified",
+      "topic": "data",
+      "when": ["can a person be identified", "could someone be re identified", "re identification"],
+      "replies": [
+        "The analysis is designed so they can't: no names, numbers or addresses, postcode districts only, and groups of at least ten.",
+        "It's designed so nobody can be picked out."
+      ]
+    },
+    {
+      "id": "investor-do-you-sell-personal-data",
+      "topic": "data",
+      "when": [
+        "do you sell personal data",
+        "is personal data shared",
+        "do you share data with brands"
+      ],
+      "replies": [
+        "No. Only figures about groups. Anything about an identifiable person would need explicit consent, and that isn't planned.",
+        "Never personal data. Group figures only."
+      ]
+    },
+    {
+      "id": "investor-who-signs-off-insight",
+      "topic": "data",
+      "when": ["who signs off insight", "who approves reports", "who checks data sales"],
+      "replies": [
+        "Every sale of insight is signed off by the founder, and covers at least ten people.",
+        "The founder signs off each one."
+      ]
+    },
+    {
+      "id": "investor-is-the-ico-involved",
+      "topic": "data",
+      "when": [
+        "is the company registered with the ico",
+        "ico registration",
+        "information commissioner"
+      ],
+      "replies": ["Yes, there's an ICO registration.", "Registered with the ICO."]
+    },
+    {
+      "id": "investor-what-if-data-leaks",
+      "topic": "data",
+      "when": ["what if data leaks", "data breach plan", "do you tell people"],
+      "replies": [
+        "If personal data may have been taken, the ICO is told within seventy-two hours, and people affected are told if it could harm them.",
+        "The ICO within seventy-two hours, and people affected."
+      ]
+    },
+    {
+      "id": "investor-why-not-full-postcodes",
+      "topic": "data",
+      "when": ["why not full postcodes", "postcode districts", "location data"],
+      "replies": [
+        "Places appear only as postcode districts, never a full postcode or street, to protect privacy.",
+        "Districts only, never streets."
+      ]
+    },
+    {
+      "id": "investor-what-does-a-shop-see",
+      "topic": "data",
+      "when": ["what does a shop see", "do shops see customers", "partner privacy"],
+      "replies": [
+        "Shop Partners see their own figures, such as purchases this week and month, never who bought.",
+        "Their own figures, no names."
+      ]
+    },
+    {
+      "id": "investor-what-does-an-organisation-see",
+      "topic": "data",
+      "when": [
+        "what does an organisation see",
+        "organisation privacy",
+        "can a council see everyone"
+      ],
+      "replies": [
+        "Only the people who chose to link to it, and their orders and spending.",
+        "Only those who chose to link."
+      ]
+    },
+    {
+      "id": "investor-ozi-phrases-private",
+      "topic": "data",
+      "when": [
+        "are your answers private",
+        "where are your phrases kept",
+        "can the app read your phrases"
+      ],
+      "replies": [
+        "My phrases are kept on the server and never sent to the app. Each account has its own.",
+        "On the server only."
+      ]
+    },
+    {
+      "id": "investor-security-approach",
+      "topic": "security",
+      "when": ["what is the security approach", "security strategy", "defence in depth"],
+      "replies": [
+        "Many small locked doors rather than one wall: each account opens only its own area, cards stay with Stripe, and passwords are only kept as hashes.",
+        "Layers of protection, and least privilege."
+      ]
+    },
+    {
+      "id": "investor-what-is-least-privilege",
+      "topic": "security",
+      "when": ["what is least privilege", "role based access", "who can see what"],
+      "replies": [
+        "Every account can only do the smallest set of things its job needs, checked by the server on every request.",
+        "Each role sees only its own job."
+      ]
+    },
+    {
+      "id": "investor-are-cards-stored",
+      "topic": "security",
+      "when": ["are cards stored", "card data", "pci"],
+      "replies": [
+        "No. Card numbers go straight to Stripe and never come into our systems.",
+        "Never. Stripe holds them."
+      ]
+    },
+    {
+      "id": "investor-how-are-passwords-kept",
+      "topic": "security",
+      "when": ["how are passwords kept", "password hashing", "are passwords encrypted"],
+      "replies": [
+        "Passwords, PINs and passcodes are kept only as hashes, which can't be turned back into the password.",
+        "Only as hashes."
+      ]
+    },
+    {
+      "id": "investor-what-if-an-account-is-stolen",
+      "topic": "security",
+      "when": ["what if an account is stolen", "stolen account", "compromised account"],
+      "replies": [
+        "A stolen account opens only its own small area. An investor's, for example, can only look at what's switched on, never change anything or see the money.",
+        "One key opens one room only."
+      ]
+    },
+    {
+      "id": "investor-what-if-the-server-is-hacked",
+      "topic": "security",
+      "when": ["what if the server is hacked", "worst case", "server compromise"],
+      "replies": [
+        "Even then, card numbers aren't there, and passwords are only hashes. The recovery plan covers stopping it, changing keys, restoring and telling people.",
+        "No cards, hashed passwords, and a written recovery plan."
+      ]
+    },
+    {
+      "id": "investor-is-traffic-encrypted",
+      "topic": "security",
+      "when": ["is traffic encrypted", "https", "is it encrypted"],
+      "replies": [
+        "Yes. Everything travels over HTTPS, and the database is encrypted at rest.",
+        "Encrypted in transit and at rest."
+      ]
+    },
+    {
+      "id": "investor-sign-in-limits",
+      "topic": "security",
+      "when": ["are sign in attempts limited", "brute force", "password guessing"],
+      "replies": [
+        "Yes. One internet address can only try so many sign-ins, and an account waits after several wrong passwords.",
+        "Limits on tries, and lock-outs."
+      ]
+    },
+    {
+      "id": "investor-owner-account-protection",
+      "topic": "security",
+      "when": ["how is the owner's account protected", "owner passcode", "founder security"],
+      "replies": [
+        "The owner signs in with a password, a seven-character passcode, and can add two-step codes.",
+        "Password, passcode and two-step codes."
+      ]
+    },
+    {
+      "id": "investor-what-is-a-data-diode",
+      "topic": "security",
+      "when": ["what is a data diode", "one way logs", "write only records"],
+      "replies": [
+        "The idea of data that can only flow one way. It's planned for logs and backups, so a thief can't cover their tracks or delete copies.",
+        "One-way logs and locked backups, planned."
+      ]
+    },
+    {
+      "id": "investor-backups",
+      "topic": "security",
+      "when": ["are there backups", "backup plan", "disaster recovery"],
+      "replies": [
+        "Daily backups and point-in-time recovery on the managed database, with a locked weekly copy elsewhere, are in the plan.",
+        "Daily backups, plus a locked copy, are planned."
+      ]
+    },
+    {
+      "id": "investor-ransomware",
+      "topic": "security",
+      "when": ["what about ransomware", "what if data is wiped", "can it be restored"],
+      "replies": [
+        "Locked backups that even our own server can't delete are in the plan, so yesterday's copy can be restored.",
+        "Restore from a locked backup."
+      ]
+    },
+    {
+      "id": "investor-ddos-protection",
+      "topic": "security",
+      "when": ["ddos protection", "cloudflare", "web application firewall"],
+      "replies": [
+        "Putting Cloudflare in front of the website, to block floods of fake visitors and known attacks, is a next step.",
+        "Cloudflare is a planned next step."
+      ]
+    },
+    {
+      "id": "investor-pen-test",
+      "topic": "security",
+      "when": ["has it been pen tested", "penetration test", "security audit"],
+      "replies": [
+        "A penetration test is recommended before taking large numbers of Shoppers. Please ask the founder about timing.",
+        "Recommended, and planned. Ask the founder."
+      ]
+    },
+    {
+      "id": "investor-cyber-essentials",
+      "topic": "security",
+      "when": ["cyber essentials", "security certification", "iso certification"],
+      "replies": [
+        "Cyber Essentials is recommended before signing councils or the NHS.",
+        "Planned before signing public bodies."
+      ]
+    },
+    {
+      "id": "investor-how-are-secrets-kept",
+      "topic": "security",
+      "when": ["how are secrets kept", "api keys", "where are the keys stored"],
+      "replies": [
+        "Secrets live only in the hosting settings, encrypted, never in the code. Changing them regularly is in the plan.",
+        "Encrypted in settings, never in code."
+      ]
+    },
+    {
+      "id": "investor-are-dependencies-checked",
+      "topic": "security",
+      "when": ["are dependencies checked", "supply chain security", "dependabot"],
+      "replies": [
+        "Weekly dependency scanning and secret scanning on GitHub are planned next steps.",
+        "Planned, with GitHub's tools."
+      ]
+    },
+    {
+      "id": "investor-is-the-code-tested",
+      "topic": "security",
+      "when": ["is the code tested", "automated tests", "quality control"],
+      "replies": [
+        "Every change is tested automatically before it can go live.",
+        "Yes, automatically, on every change."
+      ]
+    },
+    {
+      "id": "investor-monitoring",
+      "topic": "security",
+      "when": ["is it monitored", "uptime", "alerts"],
+      "replies": [
+        "Uptime checks and alerts to the owner for unusual activity are in the security plan.",
+        "Monitoring and alerts are planned."
+      ]
+    },
+    {
+      "id": "investor-audit-log",
+      "topic": "security",
+      "when": ["is there an audit log", "who did what", "decision records"],
+      "replies": [
+        "Every decision already records who made it. A full one-way audit log is planned.",
+        "Decisions are recorded by name."
+      ]
+    },
+    {
+      "id": "investor-phishing",
+      "topic": "security",
+      "when": ["what about phishing", "scam messages", "fake emails"],
+      "replies": [
+        "We never ask for a password, passcode or code by phone, text or email. Every staff member is told this too.",
+        "We never ask for passwords. Ever."
+      ]
+    },
+    {
+      "id": "investor-security-plan-document",
+      "topic": "security",
+      "when": ["is there a security plan", "security proposal", "incident response plan"],
+      "replies": [
+        "Yes, a written security plan in plain words, including what a stolen account can reach and how to recover. The founder can share it.",
+        "Yes. Ask the founder for it."
+      ]
+    },
+    {
+      "id": "investor-are-security-headers-on",
+      "topic": "security",
+      "when": ["security headers", "hsts", "clickjacking"],
+      "replies": [
+        "Yes. Security headers are on every reply, including strict HTTPS.",
+        "Done, on every reply."
+      ]
+    },
+    {
+      "id": "investor-twilio-signatures",
+      "topic": "security",
+      "when": ["are phone requests verified", "can calls be faked", "caller id spoofing"],
+      "replies": [
+        "Every request from Twilio must carry its signature. And no account is made from a call alone, because a caller's number can be faked.",
+        "Signed requests, and no accounts from a call alone."
+      ]
+    },
+    {
+      "id": "investor-can-staff-see-cards",
+      "topic": "security",
+      "when": ["can staff see cards", "can staff see the money", "what can staff see"],
+      "replies": [
+        "No. Staff see only their job's tabs. The money is the owner's alone, and card numbers are with Stripe.",
+        "Only their own job."
+      ]
+    },
+    {
+      "id": "investor-what-roles-are-there",
+      "topic": "team",
+      "when": ["what roles are there", "what jobs are there", "how is the team organised"],
+      "replies": [
+        "Founder, Operations manager, Runner onboarding officer, Customer care officer, Finance officer, Finds It shopper and Partnerships officer.",
+        "Seven jobs, each seeing only its own part."
+      ]
+    },
+    {
+      "id": "investor-what-does-operations-do",
+      "topic": "team",
+      "when": ["what does the operations manager do", "operations role", "who runs operations"],
+      "replies": [
+        "The Operations manager keeps the day-to-day service running, seeing only the parts that job needs.",
+        "Day-to-day running of the service."
+      ]
+    },
+    {
+      "id": "investor-what-does-onboarding-do",
+      "topic": "team",
+      "when": ["what does the onboarding officer do", "runner onboarding", "who checks runners"],
+      "replies": [
+        "The Runner onboarding officer checks Runners' documents before they can take jobs.",
+        "Checks Runners' documents."
+      ]
+    },
+    {
+      "id": "investor-what-does-customer-care-do",
+      "topic": "team",
+      "when": ["what does customer care do", "customer care officer", "who handles complaints"],
+      "replies": [
+        "The Customer care officer decides complaints and looks after feedback.",
+        "Complaints and feedback."
+      ]
+    },
+    {
+      "id": "investor-what-does-finance-do",
+      "topic": "team",
+      "when": ["what does the finance officer do", "finance officer", "who handles money owed"],
+      "replies": [
+        "The Finance officer handles their own part, such as Runners who owe money. The full money view is the owner's alone.",
+        "Their own part only; the money is the owner's."
+      ]
+    },
+    {
+      "id": "investor-what-does-finds-it-shopper-do",
+      "topic": "team",
+      "when": ["what does the finds it shopper do", "finds it shopper", "who looks for items"],
+      "replies": [
+        "The Finds It shopper handles requests to find hard-to-find things in up to three shops.",
+        "Handles Finds It requests."
+      ]
+    },
+    {
+      "id": "investor-what-does-partnerships-do",
+      "topic": "team",
+      "when": [
+        "what does the partnerships officer do",
+        "partnerships officer",
+        "who signs up shops"
+      ],
+      "replies": [
+        "The Partnerships officer looks after Shop Partners and organisations, including checking new shop products.",
+        "Shops and organisations."
+      ]
+    },
+    {
+      "id": "investor-what-does-the-founder-do",
+      "topic": "team",
+      "when": ["what does the founder do", "founder's role", "who manages the team"],
+      "replies": [
+        "The founder sees everything, and is the only one who manages the team and sees the money.",
+        "Everything, including the team and the money."
+      ]
+    },
+    {
+      "id": "investor-business-analyst-role",
+      "topic": "team",
+      "when": ["is there a business analyst", "who does the analysis", "data analyst"],
+      "replies": [
+        "Business analysis is the founder's, and whoever he switches it on for. The separate analyst job was withdrawn.",
+        "The founder, and anyone he switches it on for."
+      ]
+    },
+    {
+      "id": "investor-how-big-is-the-team",
+      "topic": "team",
+      "when": ["how big is the team", "how many staff", "headcount"],
+      "replies": [
+        "If the team is switched on for you, say read me the team. Otherwise, please ask the founder.",
+        "The team part has it, if it's on for you."
+      ]
+    },
+    {
+      "id": "investor-is-the-team-hiring",
+      "topic": "team",
+      "when": ["is the team hiring", "are you recruiting", "job vacancies"],
+      "replies": [
+        "Please ask the founder about hiring. There's a hiring guide for each job.",
+        "The founder can tell you."
+      ]
+    },
+    {
+      "id": "investor-how-do-staff-sign-in",
+      "topic": "team",
+      "when": ["how do staff sign in", "staff accounts", "does everyone have their own login"],
+      "replies": [
+        "Each person has their own sign-in and password, and sees only their own job's tabs, checked by the server every time.",
+        "Each has their own, and sees only their job."
+      ]
+    },
+    {
+      "id": "investor-are-decisions-recorded",
+      "topic": "team",
+      "when": ["are decisions recorded by name", "accountability", "who made that decision"],
+      "replies": [
+        "Yes. Every decision records the signed-in person's own name.",
+        "Every decision has a name on it."
+      ]
+    },
+    {
+      "id": "investor-how-is-it-different-from-big-apps",
+      "topic": "competition",
+      "when": [
+        "how is it different from big apps",
+        "what about the big supermarkets",
+        "compared with other delivery apps"
+      ],
+      "replies": [
+        "Large delivery apps generally assume you can see the screen. This is built voice-first, with checked Runners and private calls, for people who find shops hard.",
+        "Voice-first, and built for people others overlook."
+      ]
+    },
+    {
+      "id": "investor-can-a-big-company-copy-it",
+      "topic": "competition",
+      "when": ["can a big company copy it", "what stops copying", "is there a moat"],
+      "replies": [
+        "Anyone can try. The difference is that accessibility and care run through everything, not added on. The founder can discuss strategy.",
+        "Accessibility runs through everything. Ask the founder for more."
+      ]
+    },
+    {
+      "id": "investor-are-there-other-accessible-services",
+      "topic": "competition",
+      "when": [
+        "are there other accessible services",
+        "who else helps blind shoppers",
+        "similar services"
+      ],
+      "replies": [
+        "There are other kinds of help, such as volunteers and general delivery apps. For a full comparison, please ask the founder.",
+        "The founder can talk you through the landscape."
+      ]
+    },
+    {
+      "id": "investor-why-would-shoppers-choose-it",
+      "topic": "competition",
+      "when": [
+        "why would shoppers choose it",
+        "why switch to this",
+        "what's the benefit for shoppers"
+      ],
+      "replies": [
+        "Shopping by voice or phone, one flat fee, the receipt price, checked Runners, and private calls through the app.",
+        "Simple, by voice, and fair."
+      ]
+    },
+    {
+      "id": "investor-why-would-shops-join",
+      "topic": "competition",
+      "when": ["why would shops join", "what's in it for shops", "benefit for shops"],
+      "replies": [
+        "Every shop is listed free. Shop Partners can manage their own products, and Spotlight brings them to people looking for what they sell.",
+        "Free listing, and paid tools if they want them."
+      ]
+    },
+    {
+      "id": "investor-why-would-runners-join",
+      "topic": "competition",
+      "when": ["why would runners join", "what's in it for runners", "benefit for runners"],
+      "replies": [
+        "Flexible local work, at {runnerPay} a job, the same for everyone.",
+        "Flexible work, flat pay."
+      ]
+    },
+    {
+      "id": "investor-is-the-market-big-enough",
+      "topic": "competition",
+      "when": ["is the market big enough", "market size", "how big is the market"],
+      "replies": [
+        "For market size and figures, please ask the founder. I don't quote numbers that aren't in the service.",
+        "The founder can share market figures."
+      ]
+    },
+    {
+      "id": "investor-barriers-to-entry",
+      "topic": "competition",
+      "when": ["barriers to entry", "competitive pressure", "price war"],
+      "replies": [
+        "The fee is flat and never surge priced. For strategy, please speak with the founder.",
+        "The founder can discuss strategy."
+      ]
+    },
+    {
+      "id": "investor-what-are-the-risks",
+      "topic": "risk",
+      "when": ["what are the risks", "main risks", "what could go wrong"],
+      "replies": [
+        "Like any young service: winning Shoppers, Runners and shops, keeping costs in step with growth, and keeping people's data safe. The founder can discuss them in detail.",
+        "The usual early risks. Please ask the founder for detail."
+      ]
+    },
+    {
+      "id": "investor-regulatory-risk",
+      "topic": "risk",
+      "when": ["regulatory risk", "legal risk", "compliance risk"],
+      "replies": [
+        "The service is designed for UK GDPR from the start, with anonymised analysis. For legal detail, please ask the founder.",
+        "Built for UK GDPR. Ask the founder for more."
+      ]
+    },
+    {
+      "id": "investor-runner-supply-risk",
+      "topic": "risk",
+      "when": [
+        "what if there aren't enough runners",
+        "runner shortage",
+        "can it find enough runners"
+      ],
+      "replies": [
+        "Planning where and when Runners are needed is part of the analysis to come. The founder can talk about recruitment.",
+        "Analysis will help plan Runners. Ask the founder."
+      ]
+    },
+    {
+      "id": "investor-key-person-risk",
+      "topic": "risk",
+      "when": ["key person risk", "what if the founder is unavailable", "succession"],
+      "replies": [
+        "Please speak with the founder about that directly.",
+        "That's a question for the founder."
+      ]
+    },
+    {
+      "id": "investor-technology-risk",
+      "topic": "risk",
+      "when": ["technology risk", "what if the servers go down", "outages"],
+      "replies": [
+        "The plan includes backups, monitoring and steps to grow capacity. For any past outages, please ask the founder.",
+        "Backups and monitoring are in the plan."
+      ]
+    },
+    {
+      "id": "investor-supplier-risk",
+      "topic": "risk",
+      "when": ["supplier risk", "dependence on stripe", "what if a supplier fails"],
+      "replies": [
+        "The service uses Stripe, Twilio, LiveKit and DigitalOcean, and is built so the code can move hosts unchanged. Please ask the founder for more.",
+        "Main suppliers are known, and hosting can move."
+      ]
+    },
+    {
+      "id": "investor-fraud-risk",
+      "topic": "risk",
+      "when": ["fraud risk", "what about fraud", "fake orders"],
+      "replies": [
+        "No card, no order, and nobody is sent to the shop until it's paid. Spoken orders have a ceiling, and new delivery addresses need a PIN.",
+        "Paid before shopping, with limits and checks."
+      ]
+    },
+    {
+      "id": "investor-reputation-risk",
+      "topic": "risk",
+      "when": ["reputation risk", "what if something goes wrong on a delivery", "safeguarding"],
+      "replies": [
+        "Runners are checked, calls are private, and problems are decided quickly. For safeguarding detail, please ask the founder.",
+        "Checked Runners and quick problem handling."
+      ]
+    },
+    {
+      "id": "investor-competition-risk",
+      "topic": "risk",
+      "when": ["competition risk", "what if a rival launches", "rival services"],
+      "replies": [
+        "Please ask the founder about competitive risk. I can describe what makes this service different.",
+        "The founder can discuss that."
+      ]
+    },
+    {
+      "id": "investor-is-there-insurance",
+      "topic": "risk",
+      "when": ["is there insurance", "company insurance", "liability cover"],
+      "replies": [
+        "Runners provide insurance documents. For the company's own cover, please ask the founder.",
+        "Ask the founder about company insurance."
+      ]
+    },
+    {
+      "id": "investor-what-isnt-proven-yet",
+      "topic": "risk",
+      "when": ["what isn't proven yet", "what are the unknowns", "biggest assumptions"],
+      "replies": [
+        "Please speak with the founder about that. He'll give you a straight answer.",
+        "A good question for the founder."
+      ]
+    },
+    {
+      "id": "investor-how-do-i-hear-the-dashboard",
+      "topic": "voice",
+      "when": ["how do i hear the dashboard", "can you read it to me", "read the dashboard"],
+      "replies": [
+        "Say read me the, then the part, such as the overview or the team. Say next, back or again to move through a list.",
+        "Say read me the, then a part."
+      ]
+    },
+    {
+      "id": "investor-read-me-everything",
+      "topic": "voice",
+      "when": ["read me everything", "what's waiting", "catch me up"],
+      "replies": [
+        "Say what's waiting, and I'll tell you what's in each part switched on for you.",
+        "Say what's waiting."
+      ]
+    },
+    {
+      "id": "investor-read-me-the-overview",
+      "topic": "voice",
+      "when": ["read me the overview", "read the overview", "the overview please"],
+      "replies": [
+        "Here's the overview: how many Shoppers, Runners, Shop Partners, organisations and staff, if it's switched on for you.",
+        "Opening the overview, if it's on for you."
+      ]
+    },
+    {
+      "id": "investor-what-is-in-the-overview",
+      "topic": "voice",
+      "when": ["what is in the overview", "what does the overview show"],
+      "replies": [
+        "How many Shoppers, Runners, Shop Partners, organisations and staff there are.",
+        "The headcount of each kind of account."
+      ]
+    },
+    {
+      "id": "investor-read-me-the-team",
+      "topic": "voice",
+      "when": ["read me the team", "read the team", "who works here"],
+      "replies": [
+        "If the team is switched on, I'll read each person and what they do.",
+        "The team part, if it's on for you."
+      ]
+    },
+    {
+      "id": "investor-read-me-the-complaints",
+      "topic": "voice",
+      "when": ["read me the complaints", "read the complaints", "any complaints"],
+      "replies": [
+        "If complaints are switched on for you, I'll read them one at a time. You can listen, not decide.",
+        "One at a time, if it's on for you."
+      ]
+    },
+    {
+      "id": "investor-read-me-the-feedback",
+      "topic": "voice",
+      "when": ["read me the feedback", "read the feedback", "any feedback"],
+      "replies": [
+        "If feedback is switched on, I'll read each message in turn.",
+        "Feedback, one message at a time."
+      ]
+    },
+    {
+      "id": "investor-read-me-the-documents",
+      "topic": "voice",
+      "when": ["read me the documents", "read the runner documents", "any documents"],
+      "replies": [
+        "If documents are switched on, I'll read the Runner checks waiting, one at a time.",
+        "Runner documents, if they're on for you."
+      ]
+    },
+    {
+      "id": "investor-read-me-finds-it",
+      "topic": "voice",
+      "when": ["read me finds it", "read the finds it requests", "any finds it requests"],
+      "replies": [
+        "If Finds It is switched on, I'll read the requests one at a time.",
+        "Finds It requests, if it's on."
+      ]
+    },
+    {
+      "id": "investor-read-me-the-enquiries",
+      "topic": "voice",
+      "when": ["read me the enquiries", "read the enquiries", "any enquiries"],
+      "replies": [
+        "If enquiries are switched on, I'll read them in turn, such as shops and organisations asking to work with us.",
+        "Enquiries, one by one."
+      ]
+    },
+    {
+      "id": "investor-read-me-the-shops",
+      "topic": "voice",
+      "when": ["read me the shops", "read the shops and organisations", "read me the partners"],
+      "replies": [
+        "If shops and organisations are switched on, I'll read them, including shop products waiting to be checked.",
+        "Shops and organisations, if it's on."
+      ]
+    },
+    {
+      "id": "investor-what-is-in-analytics",
+      "topic": "voice",
+      "when": [
+        "what is in the analytics",
+        "what does business analysis show",
+        "what's in business analysis"
+      ],
+      "replies": [
+        "Purchases, deliveries and searches by time, shop, area, age group and kind of thing, plus top and unmet searches. No names, and groups under ten hidden.",
+        "Group figures by shop, area, time and kind."
+      ]
+    },
+    {
+      "id": "investor-analytics-time-periods",
+      "topic": "voice",
+      "when": ["analytics time periods", "can i hear last month", "can i hear this week"],
+      "replies": [
+        "Business analysis covers the last second, minute, hour, four hours, day, week, month and year.",
+        "From the last minute to the last year."
+      ]
+    },
+    {
+      "id": "investor-how-do-i-move-through-a-list",
+      "topic": "voice",
+      "when": ["how do i move through a list", "how do i go back", "how do i skip"],
+      "replies": [
+        "Say next for the next item, back for the one before, and again to hear it once more.",
+        "Next, back, or again."
+      ]
+    },
+    {
+      "id": "investor-next-one-please",
+      "topic": "voice",
+      "when": ["next one please", "the next one", "carry on"],
+      "replies": ["Say next, and I'll read the next item.", "Next."]
+    },
+    {
+      "id": "investor-say-it-again",
+      "topic": "voice",
+      "when": ["say it again", "say that again", "pardon"],
+      "replies": [
+        "Of course. Say again, and I'll read it once more.",
+        "Say again, and I'll repeat it."
+      ]
+    },
+    {
+      "id": "investor-slow-down",
+      "topic": "voice",
+      "when": ["slow down", "speak slower", "too fast"],
+      "replies": [
+        "Sorry. You can change the speaking speed in your phone or browser settings, and say again to hear it once more.",
+        "Say again to hear it once more."
+      ]
+    },
+    {
+      "id": "investor-speak-louder",
+      "topic": "voice",
+      "when": ["speak louder", "i can't hear you", "too quiet"],
+      "replies": [
+        "Please turn up the volume on your device, then say again.",
+        "Turn the volume up, then say again."
+      ]
+    },
+    {
+      "id": "investor-stop-talking",
+      "topic": "voice",
+      "when": ["stop talking", "be quiet", "stop reading"],
+      "replies": ["Of course.", "Stopping."]
+    },
+    {
+      "id": "investor-can-i-type-instead",
+      "topic": "voice",
+      "when": ["can i type instead", "can i use the screen", "do i have to talk"],
+      "replies": [
+        "Yes. Everything works on the screen too, and with a screen reader.",
+        "Yes, the screen works just as well."
+      ]
+    },
+    {
+      "id": "investor-which-tab-am-i-on",
+      "topic": "voice",
+      "when": ["which tab am i on", "where am i", "what am i looking at"],
+      "replies": [
+        "You're in the admin panel, with only the parts switched on for you. Say help to hear them.",
+        "The admin panel. Say help for your parts."
+      ]
+    },
+    {
+      "id": "investor-can-i-decide-by-voice",
+      "topic": "voice",
+      "when": ["can i accept it", "can i reject it", "can i write it off"],
+      "replies": [
+        "No. Your account is read only, so decisions can't be made from it.",
+        "Read only, I'm afraid."
+      ]
+    },
+    {
+      "id": "investor-is-it-listening",
+      "topic": "voice",
+      "when": ["are you listening", "can you hear me", "are you there"],
+      "replies": ["Yes, I'm here.", "I'm listening."]
+    },
+    {
+      "id": "investor-microphone-not-working",
+      "topic": "voice",
+      "when": ["my microphone isn't working", "you can't hear me", "the microphone was refused"],
+      "replies": [
+        "Please allow the microphone in your browser. In testing, Chrome on an iPhone could listen when Safari and Edge could not.",
+        "Allow the microphone, or try Chrome."
+      ]
+    },
+    {
+      "id": "investor-what-will-you-not-read",
+      "topic": "voice",
+      "when": ["what won't you read", "is anything kept from me", "what can't you tell me"],
+      "replies": [
+        "Anything not switched on for you, and the money. Financial figures come from the founder directly.",
+        "Parts that are off, and the money."
+      ]
+    },
+    {
+      "id": "investor-how-many-users-can-it-hold",
+      "topic": "scale",
+      "when": ["how many users can it hold", "can it reach ten million users", "maximum users"],
+      "replies": [
+        "The design can grow to millions of users, step by step. The setup today is for the start, and grows as the numbers call for it.",
+        "Millions, in planned steps."
+      ]
+    },
+    {
+      "id": "investor-how-many-at-the-same-time",
+      "topic": "scale",
+      "when": ["how many at the same time", "concurrent users", "simultaneous users"],
+      "replies": [
+        "Usually only one to five in every hundred registered users are on at once. The plan grows the servers to match.",
+        "A small share at once, and servers grow to match."
+      ]
+    },
+    {
+      "id": "investor-is-postgresql-enough",
+      "topic": "scale",
+      "when": ["is postgresql enough", "which database", "will the database cope"],
+      "replies": [
+        "PostgreSQL holds tens of millions of accounts in many companies when it's set up and looked after properly.",
+        "PostgreSQL, which scales well when looked after."
+      ]
+    },
+    {
+      "id": "investor-does-growth-change-the-rules",
+      "topic": "scale",
+      "when": [
+        "does growth change the rules",
+        "will fees change with scale",
+        "do the money rules change"
+      ],
+      "replies": [
+        "No. Every rule about money is written once, with tests, and growing doesn't change it. Prices are set by the founder.",
+        "The rules stay the same as it grows."
+      ]
+    },
+    {
+      "id": "investor-how-is-search-scaled",
+      "topic": "scale",
+      "when": ["how is search scaled", "product search at scale", "millions of products"],
+      "replies": [
+        "A proper search index is added at around fifty thousand users, as today's search suits thousands of products, not millions.",
+        "A search index at the second stage."
+      ]
+    },
+    {
+      "id": "investor-regional-split",
+      "topic": "scale",
+      "when": ["regional split", "separate marketplaces", "how are regions kept apart"],
+      "replies": [
+        "Each region is its own marketplace, which is also how the data splits at very large size.",
+        "Each region is its own marketplace."
+      ]
+    },
+    {
+      "id": "investor-do-costs-rise-with-use",
+      "topic": "scale",
+      "when": ["do costs rise with use", "variable costs", "per use charges"],
+      "replies": [
+        "Stripe, Twilio and LiveKit charge per use, so they rise with orders and calls. The founder can give you figures.",
+        "Some costs rise with use. Ask the founder for figures."
+      ]
+    },
+    {
+      "id": "investor-what-is-your-name",
+      "topic": "about",
+      "when": ["what is your name", "what's your name", "who am i talking to"],
+      "replies": ["I'm {assistant}, the {product} assistant.", "{assistant}."]
+    },
+    {
+      "id": "investor-are-you-human",
+      "topic": "about",
+      "when": ["are you human", "are you a person", "are you a robot"],
+      "replies": [
+        "I'm {assistant}, a voice assistant, not a person.",
+        "A voice assistant, not a person."
+      ]
+    },
+    {
+      "id": "investor-are-you-ai",
+      "topic": "about",
+      "when": ["are you ai", "are you artificial intelligence", "how do you work"],
+      "replies": [
+        "I'm a voice assistant. For investors, I answer from phrases kept on the server, and read the parts of the dashboard switched on for you.",
+        "A voice assistant, with answers kept on the server."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-tagline",
+      "topic": "about",
+      "when": ["what is the tagline", "the slogan", "brand promise"],
+      "replies": [
+        "Say it, Ozi shops it, a Runner brings it.",
+        "Say it, Ozi shops it, a Runner brings it."
+      ]
+    },
+    {
+      "id": "investor-what-does-the-motto-mean",
+      "topic": "about",
+      "when": ["what does the motto mean", "why that motto", "meaning of the motto"],
+      "replies": ["{motto} It's the promise to help anyone who asks.", "{motto}"]
+    },
+    {
+      "id": "investor-what-are-the-brand-colours",
+      "topic": "about",
+      "when": ["what are the brand colours", "brand colours", "what does it look like"],
+      "replies": [
+        "Navy and gold, with white, and green when Ozi is listening.",
+        "Navy, gold and white."
+      ]
+    },
+    {
+      "id": "investor-why-is-it-called-ozi",
+      "topic": "about",
+      "when": ["why is it called that", "where does the name come from", "name origin"],
+      "replies": [
+        "The founder chose the name. He can tell you the story.",
+        "Ask the founder for the story."
+      ]
+    },
+    {
+      "id": "investor-what-are-the-rules",
+      "topic": "about",
+      "when": ["what are the rules", "are there core rules", "design principles"],
+      "replies": [
+        "The service follows written rules, such as one flat fee for everyone, nothing paid without agreement, and the receipt price charged.",
+        "Fair, agreed and simple, by rule."
+      ]
+    },
+    {
+      "id": "investor-founder-background",
+      "topic": "about",
+      "when": ["founder's background", "tell me about the founder", "founder experience"],
+      "replies": [
+        "{owner} is registered blind and built the service to work fully by voice. He can tell you more himself.",
+        "He knows the problem first hand. Ask him for more."
+      ]
+    },
+    {
+      "id": "investor-why-the-founder-started-it",
+      "topic": "about",
+      "when": ["why did the founder start it", "origin story", "how did it start"],
+      "replies": [
+        "The founder is registered blind and knows first hand how hard shopping can be. He can tell you the full story.",
+        "From the founder's own experience."
+      ]
+    },
+    {
+      "id": "investor-nice-to-meet-you",
+      "topic": "manners",
+      "when": ["nice to meet you", "pleased to meet you", "good to meet you"],
+      "replies": ["Nice to meet you too. Welcome.", "Likewise. How can I help?"]
+    },
+    {
+      "id": "investor-good-night",
+      "topic": "manners",
+      "when": ["good night", "night night"],
+      "replies": ["Good night. Thank you for your time.", "Good night."]
+    },
+    {
+      "id": "investor-see-you-later",
+      "topic": "manners",
+      "when": ["see you later", "speak soon", "until next time"],
+      "replies": ["Until next time. Thank you.", "Speak soon."]
+    },
+    {
+      "id": "investor-please",
+      "topic": "manners",
+      "when": ["yes please", "if you would"],
+      "replies": ["Of course. What would you like to hear?", "Certainly."]
+    },
+    {
+      "id": "investor-sorry",
+      "topic": "manners",
+      "when": ["sorry", "my apologies", "excuse me"],
+      "replies": ["Not at all. How can I help?", "No problem at all."]
+    },
+    {
+      "id": "investor-never-mind",
+      "topic": "manners",
+      "when": ["never mind", "forget it", "it doesn't matter"],
+      "replies": ["All right. Ask me anything when you're ready.", "No problem."]
+    },
+    {
+      "id": "investor-one-moment",
+      "topic": "manners",
+      "when": ["one moment", "hold on", "give me a minute"],
+      "replies": ["Of course. I'm here when you're ready.", "Take your time."]
+    },
+    {
+      "id": "investor-ok",
+      "topic": "manners",
+      "when": ["ok", "okay", "alright"],
+      "replies": ["Is there anything else you'd like to hear?", "Anything else?"]
+    },
+    {
+      "id": "investor-great",
+      "topic": "manners",
+      "when": ["great", "perfect", "lovely"],
+      "replies": ["Glad to help.", "Good."]
+    },
+    {
+      "id": "investor-impressive",
+      "topic": "manners",
+      "when": ["impressive", "very impressive", "well done"],
+      "replies": [
+        "Thank you. I'll leave the credit with the founder and the team.",
+        "Thank you, that's kind."
+      ]
+    },
+    {
+      "id": "investor-that-is-helpful",
+      "topic": "manners",
+      "when": ["that's helpful", "very helpful", "that helps"],
+      "replies": ["I'm glad. Anything else?", "Good to hear."]
+    },
+    {
+      "id": "investor-i-dont-understand",
+      "topic": "manners",
+      "when": ["i don't understand", "what do you mean", "i'm confused"],
+      "replies": [
+        "Sorry. Say help to hear what you can ask, or ask me again in other words.",
+        "Let me try again. Ask in other words."
+      ]
+    },
+    {
+      "id": "investor-you-didnt-understand",
+      "topic": "manners",
+      "when": ["you didn't understand", "that's not what i asked", "wrong answer"],
+      "replies": [
+        "Sorry about that. Please ask again in other words, or ask the founder directly.",
+        "Sorry. Try asking another way."
+      ]
+    },
+    {
+      "id": "investor-are-you-sure",
+      "topic": "manners",
+      "when": ["are you sure", "is that right", "is that accurate"],
+      "replies": [
+        "I answer only from what's in the service. For anything financial, the founder is the right person.",
+        "As far as the service knows. Check figures with the founder."
+      ]
+    },
+    {
+      "id": "investor-good-job-ozi",
+      "topic": "manners",
+      "when": ["good job", "nice one", "you're good"],
+      "replies": ["Thank you. Happy to help.", "Thank you."]
+    },
+    {
+      "id": "investor-how-is-your-day",
+      "topic": "manners",
+      "when": ["how's your day", "having a good day", "busy day"],
+      "replies": ["Very good, thank you. I hope yours is too.", "Good, thank you."]
+    },
+    {
+      "id": "investor-what-time-is-it",
+      "topic": "manners",
+      "when": ["what time is it", "what's the date", "what day is it"],
+      "replies": [
+        "Your device's clock has the time. I can tell you about the service.",
+        "Please check your device's clock."
+      ]
+    },
+    {
+      "id": "investor-tell-me-a-joke",
+      "topic": "manners",
+      "when": ["tell me a joke", "say something funny", "make me laugh"],
+      "replies": [
+        "Our Runners never lose their way. They just take the scenic aisle.",
+        "I'll stick to shopping, I'm better at it."
+      ]
+    },
+    {
+      "id": "investor-i-am-an-investor",
+      "topic": "manners",
+      "when": ["i'm an investor", "i'm new here", "first time here"],
+      "replies": [
+        "Welcome. Say help to hear what you can see, or ask me about the business.",
+        "Welcome. Ask about the business, or say help."
+      ]
+    },
+    {
+      "id": "investor-good-to-be-back",
+      "topic": "manners",
+      "when": ["i'm back", "good to be back", "back again"],
+      "replies": ["Welcome back. Say what's waiting to hear what's new.", "Welcome back."]
+    },
+    {
+      "id": "investor-you-are-welcome",
+      "topic": "manners",
+      "when": ["you're welcome", "no problem", "don't mention it"],
+      "replies": ["Thank you.", "Kind of you."]
+    },
+    {
+      "id": "investor-much-appreciated",
+      "topic": "manners",
+      "when": ["much appreciated", "thanks a lot", "thank you very much"],
+      "replies": ["You're very welcome.", "My pleasure."]
+    },
+    {
+      "id": "investor-bye-for-now",
+      "topic": "manners",
+      "when": ["bye for now", "take care", "have a good day"],
+      "replies": ["Thank you. Take care, and do sign out if you're finished.", "You too. Goodbye."]
+    },
+    {
+      "id": "investor-happy-weekend",
+      "topic": "manners",
+      "when": ["have a good weekend", "enjoy your weekend", "happy holidays"],
+      "replies": ["Thank you, and the same to you.", "And you."]
+    },
+    {
+      "id": "investor-what-should-i-ask",
+      "topic": "help",
+      "when": ["what should i ask", "where do i start", "give me some ideas"],
+      "replies": [
+        "Try: how does it make money, who is it for, what is the growth plan, how is data protected, or read me the overview.",
+        "Ask about the business, the plan, data, security, or a part of the dashboard."
+      ]
+    },
+    {
+      "id": "investor-tell-me-about-the-business",
+      "topic": "help",
+      "when": ["tell me about the business", "give me the summary", "elevator pitch"],
+      "replies": [
+        "A voice-first shopping delivery service for people who find shops hard. One flat fee, checked Runners, and extras for Shoppers, shops and organisations.",
+        "Voice-first shopping delivery, built for accessibility."
+      ]
+    },
+    {
+      "id": "investor-tell-me-more",
+      "topic": "help",
+      "when": ["tell me more", "go on", "more detail"],
+      "replies": [
+        "Happy to. Ask about the business model, growth, data, security or the team.",
+        "Which part would you like to hear about?"
+      ]
+    },
+    {
+      "id": "investor-where-are-the-documents",
+      "topic": "help",
+      "when": ["where are the business documents", "growth plan document", "security document"],
+      "replies": [
+        "The founder has written plans for growth, business analysis and security. Please ask him for copies.",
+        "Ask the founder for the written plans."
+      ]
+    },
+    {
+      "id": "investor-can-i-use-it-as-a-shopper",
+      "topic": "help",
+      "when": ["can i try it as a shopper", "can i see the app", "demo"],
+      "replies": [
+        "Yes, anyone can open a Shopper account in the app. Your investor sign-in is separate.",
+        "Open a Shopper account in the app to try it."
+      ]
+    },
+    {
+      "id": "investor-who-do-i-ask",
+      "topic": "help",
+      "when": ["who do i ask", "who can answer this", "who knows"],
+      "replies": [
+        "For anything I can't answer, and anything financial, please ask the founder.",
+        "The founder."
+      ]
+    },
+    {
+      "id": "investor-why-is-it-confidential",
+      "topic": "access",
+      "when": [
+        "why is it confidential",
+        "can i tell people what i saw",
+        "can i discuss this with others"
+      ],
+      "replies": [
+        "What you see is shared with you in confidence by the founder. Please check with him before discussing it.",
+        "Please keep it confidential, and ask the founder first."
+      ]
+    },
+    {
+      "id": "investor-can-family-see-the-same",
+      "topic": "access",
+      "when": [
+        "do family members see the same",
+        "who else can view the dashboard",
+        "who are viewers"
+      ],
+      "replies": [
+        "The founder can give family and investors their own sign-ins. Each sees only what he switches on for them.",
+        "Each viewer sees only their own switched-on parts."
+      ]
+    },
+    {
+      "id": "investor-is-my-access-temporary",
+      "topic": "access",
+      "when": ["is my access temporary", "how long do i have access", "will my access end"],
+      "replies": [
+        "Your access is the founder's to give and change. Please ask him.",
+        "The founder decides that."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-admin-panel",
+      "topic": "access",
+      "when": ["what is the admin panel", "what is this page", "where am i signed in"],
+      "replies": [
+        "The admin panel, where staff do their jobs. As an investor, you see only the parts switched on for you, read only.",
+        "The admin panel, in read-only view."
+      ]
+    },
+    {
+      "id": "investor-can-i-see-complaints-details",
+      "topic": "access",
+      "when": [
+        "can i see who complained",
+        "are names in the complaints",
+        "personal details in tabs"
+      ],
+      "replies": [
+        "Some parts, such as complaints, are about real people. Please treat anything you hear as confidential.",
+        "Please keep any personal details strictly confidential."
+      ]
+    },
+    {
+      "id": "investor-what-did-it-make-last-year",
+      "topic": "money",
+      "when": ["what did it make last year", "annual revenue", "yearly figures"],
+      "replies": [
+        "Financial figures come from the founder directly. Please ask him.",
+        "Please ask the founder."
+      ]
+    },
+    {
+      "id": "investor-how-much-do-organisations-pay",
+      "topic": "money",
+      "when": ["how much do organisations pay", "contract values", "council contracts"],
+      "replies": [
+        "Organisation contracts are agreed with the founder. Please ask him about them.",
+        "The founder can tell you about contracts."
+      ]
+    },
+    {
+      "id": "investor-how-much-does-insight-earn",
+      "topic": "money",
+      "when": ["how much does insight earn", "data sales figures", "how much is the data worth"],
+      "replies": [
+        "Selling insight is planned in stages. For any figures, please ask the founder.",
+        "Please ask the founder."
+      ]
+    },
+    {
+      "id": "investor-show-me-the-ledger",
+      "topic": "money",
+      "when": ["show me the ledger", "payments in and out", "refunds total"],
+      "replies": [
+        "The ledger of payments and refunds is the owner's alone. Please ask the founder directly.",
+        "Only the owner's account sees it."
+      ]
+    },
+    {
+      "id": "investor-customer-acquisition-cost",
+      "topic": "money",
+      "when": ["customer acquisition cost", "lifetime value", "cost per shopper"],
+      "replies": [
+        "Those figures are the founder's to share. Please ask him.",
+        "Please ask the founder for metrics like that."
+      ]
+    },
+    {
+      "id": "investor-what-stage-is-the-company",
+      "topic": "business",
+      "when": ["what stage is the company at", "is it early stage", "how mature is it"],
+      "replies": [
+        "The service is built and preparing to grow, starting in Medway. For detail on the company's stage, please ask the founder.",
+        "Please ask the founder for the latest."
+      ]
+    },
+    {
+      "id": "investor-what-are-the-key-metrics",
+      "topic": "business",
+      "when": ["what are the key metrics", "which numbers matter", "kpis"],
+      "replies": [
+        "On the dashboard: the people on each side in the overview, and purchases, deliveries and searches in business analysis. Money figures come from the founder.",
+        "The overview and analysis, if switched on."
+      ]
+    },
+    {
+      "id": "investor-is-it-a-marketplace",
+      "topic": "business",
+      "when": ["is it a marketplace", "two sided market", "four sides"],
+      "replies": [
+        "In a way. It connects Shoppers, Runners, Shop Partners and organisations.",
+        "Four sides: Shoppers, Runners, shops and organisations."
+      ]
+    },
+    {
+      "id": "investor-is-it-b2c-or-b2b",
+      "topic": "business",
+      "when": ["is it b2c", "consumer or business", "who pays"],
+      "replies": [
+        "Both. Shoppers pay the delivery fee and extras; shops and organisations have their own plans and contracts.",
+        "Shoppers, shops and organisations each pay for what they use."
+      ]
+    },
+    {
+      "id": "investor-how-do-shoppers-find-it",
+      "topic": "business",
+      "when": ["how do shoppers find it", "marketing", "how will people hear about it"],
+      "replies": [
+        "Through share links that everyone signed in has, organisations who support people, and shops. The founder can tell you more about marketing.",
+        "Share links, organisations and shops. Ask the founder for the plan."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-pricing-philosophy",
+      "topic": "business",
+      "when": ["what is the pricing philosophy", "why a flat fee", "why not charge more"],
+      "replies": [
+        "Simple and fair: one fee for everyone, agreed before it's taken, never depending on who the Shopper is.",
+        "One fair fee for everyone."
+      ]
+    },
+    {
+      "id": "investor-how-do-refunds-work",
+      "topic": "business",
+      "when": ["how do refunds work", "what if an item is missing", "what if shopping is damaged"],
+      "replies": [
+        "A Shopper reports it, small problems can be refunded straight away, and the rest are decided by staff. Refunds go back to the same card.",
+        "Reported, decided, and refunded to the card."
+      ]
+    },
+    {
+      "id": "investor-what-about-substitutions",
+      "topic": "business",
+      "when": ["what about substitutions", "if something is out of stock", "missing items"],
+      "replies": [
+        "The Runner can call the Shopper through the app to ask, and the Shopper only pays for what's on the receipt.",
+        "The Runner asks, and the receipt decides the charge."
+      ]
+    },
+    {
+      "id": "investor-is-it-only-groceries",
+      "topic": "business",
+      "when": ["is it only groceries", "what can be delivered", "what can shoppers buy"],
+      "replies": [
+        "Shopping from local shops, everyday essentials, gift bundles, and hard-to-find things through Finds It. Nothing age restricted.",
+        "Groceries and more, nothing restricted."
+      ]
+    },
+    {
+      "id": "investor-why-would-it-succeed",
+      "topic": "growth",
+      "when": ["why would it succeed", "why now", "what's the opportunity"],
+      "replies": [
+        "I can't promise success. It serves people others overlook, by voice, with a clear plan to grow. The founder can make the full case.",
+        "The founder can make the case. I won't make promises."
+      ]
+    },
+    {
+      "id": "investor-what-happens-after-launch",
+      "topic": "growth",
+      "when": ["what happens after launch", "the first year", "early plans"],
+      "replies": [
+        "Medway first, then the growth steps as users increase, with phone apps and more features on the roadmap. Ask the founder for timings.",
+        "Grow in Medway, then step by step."
+      ]
+    },
+    {
+      "id": "investor-who-are-the-suppliers",
+      "topic": "growth",
+      "when": ["who are the suppliers", "what services does it use", "third party services"],
+      "replies": [
+        "Stripe for payments, Twilio for texts and calls, LiveKit for calling, and DigitalOcean for hosting.",
+        "Stripe, Twilio, LiveKit and DigitalOcean."
+      ]
+    },
+    {
+      "id": "investor-does-it-work-abroad",
+      "topic": "growth",
+      "when": ["does it work abroad", "is it uk only", "other currencies"],
+      "replies": [
+        "It starts in the UK. Other countries come later as separate marketplaces, with local payment gateways.",
+        "UK first, abroad later."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-vision",
+      "topic": "mission",
+      "when": ["what is the vision", "long term vision", "where is it going"],
+      "replies": [
+        "A shopping service anyone can use, by voice, phone or Braille, wherever they live. The founder can tell you more.",
+        "Shopping for everyone, however they communicate."
+      ]
+    },
+    {
+      "id": "investor-is-it-a-charity",
+      "topic": "mission",
+      "when": ["is it a charity", "is it a social enterprise", "non profit"],
+      "replies": [
+        "Please ask the founder about how the company is set up.",
+        "The founder can tell you about the company's structure."
+      ]
+    },
+    {
+      "id": "investor-does-it-help-carers",
+      "topic": "mission",
+      "when": ["does it help carers", "families of blind people", "can family help"],
+      "replies": [
+        "Yes. Families can join an Ozi Plus family plan, and organisations can support the people who link to them.",
+        "Families and organisations can both help."
+      ]
+    },
+    {
+      "id": "investor-is-it-safe-for-vulnerable-people",
+      "topic": "mission",
+      "when": [
+        "is it safe for vulnerable people",
+        "protecting shoppers",
+        "can runners see addresses"
+      ],
+      "replies": [
+        "Runners are checked, see only the current job's drop-off, never phone numbers, and calls go through the app.",
+        "Checked Runners, private calls, and limited details."
+      ]
+    },
+    {
+      "id": "investor-is-it-gdpr-compliant",
+      "topic": "data",
+      "when": ["is it gdpr compliant", "data protection act", "uk gdpr"],
+      "replies": [
+        "It's designed for UK GDPR and the Data Protection Act from the start. For legal confirmation, please ask the founder.",
+        "Designed for UK GDPR. Ask the founder for detail."
+      ]
+    },
+    {
+      "id": "investor-who-can-see-analytics",
+      "topic": "data",
+      "when": ["who can see the analytics", "who sees the analysis", "is analytics shared"],
+      "replies": [
+        "The founder, and whoever he switches it on for.",
+        "The founder, and those he chooses."
+      ]
+    },
+    {
+      "id": "investor-what-if-i-lose-my-phone",
+      "topic": "security",
+      "when": ["what if i lose my phone", "my laptop was stolen", "lost device"],
+      "replies": [
+        "Please tell the founder straight away, so he can change your sign-in.",
+        "Tell the founder at once."
+      ]
+    },
+    {
+      "id": "investor-what-if-i-see-something-suspicious",
+      "topic": "security",
+      "when": [
+        "what if i see something suspicious",
+        "report a security issue",
+        "i think there's a bug"
+      ],
+      "replies": [
+        "Please tell the founder directly and promptly. Thank you.",
+        "Please let the founder know."
+      ]
+    },
+    {
+      "id": "investor-is-my-account-safe",
+      "topic": "security",
+      "when": ["is my account safe", "is my sign in secure", "how is my account protected"],
+      "replies": [
+        "Your password is kept only as a hash, sign-in tries are limited, and your account can only look. Do sign out on shared devices.",
+        "Hashed password, limited tries, read only."
+      ]
+    },
+    {
+      "id": "investor-what-can-you-tell-me",
+      "topic": "help",
+      "when": ["what can you tell me", "what do you know", "what topics"],
+      "replies": [
+        "The business model, the mission, growth, scale, data protection, security, the team, and the parts of the dashboard switched on for you.",
+        "The business, growth, data, security and your dashboard."
+      ]
+    },
+    {
+      "id": "investor-start-again",
+      "topic": "voice",
+      "when": ["start again", "from the beginning", "go to the first one"],
+      "replies": [
+        "Say back until the first item, or ask for the part again, such as read me the team.",
+        "Ask for the part again to start from the top."
+      ]
+    },
+    {
+      "id": "investor-is-that-all",
+      "topic": "voice",
+      "when": ["is that all", "is that everything", "anything else"],
+      "replies": [
+        "That's what's switched on for you. Ask me about the business any time.",
+        "That's all for now."
+      ]
+    },
+    {
+      "id": "investor-summarise-it",
+      "topic": "voice",
+      "when": ["summarise it", "the short version", "in brief"],
+      "replies": [
+        "Say what's waiting for a short summary of your parts.",
+        "Say what's waiting for the summary."
+      ]
+    },
+    {
+      "id": "investor-good-luck",
+      "topic": "manners",
+      "when": ["good luck", "best of luck", "all the best"],
+      "replies": ["Thank you. Do tell the founder too; he'd appreciate it.", "Thank you, kindly."]
+    },
+    {
+      "id": "investor-sounds-good",
+      "topic": "manners",
+      "when": ["sounds good", "makes sense", "understood"],
+      "replies": ["Good. Anything else you'd like to hear?", "Glad that's clear."]
+    },
+    {
+      "id": "investor-no-thank-you",
+      "topic": "manners",
+      "when": ["no thank you", "no thanks", "not now"],
+      "replies": ["All right. I'm here if you need me.", "Of course."]
+    },
+    {
+      "id": "investor-go-ahead",
+      "topic": "manners",
+      "when": ["go ahead", "yes go ahead"],
+      "replies": ["Of course. What would you like to hear?", "Go ahead."]
     }
   ]
 }

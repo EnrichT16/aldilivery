@@ -399,6 +399,3198 @@
       "topic": "voice",
       "when": ["stop", "quiet"],
       "replies": ["Say turn off talking to silence me.", "Say turn off talking."]
+    },
+    {
+      "id": "staff-how-do-i-move-through-a-list",
+      "topic": "voice",
+      "when": [
+        "how do i move through a list",
+        "how do i go through them",
+        "how do i hear the next one"
+      ],
+      "replies": [
+        "Say next for the next one, back for the one before, and again to hear it once more.",
+        "Next, back, or again."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-hear-it-again",
+      "topic": "voice",
+      "when": ["i didn't hear that", "what did you say", "pardon", "say that one more time"],
+      "replies": ["Say again, and I'll read it once more.", "Of course. Say again."]
+    },
+    {
+      "id": "staff-how-do-i-go-to-the-one-before",
+      "topic": "voice",
+      "when": [
+        "how do i go to the one before",
+        "i missed the last one",
+        "how do i hear the earlier one"
+      ],
+      "replies": ["Say back, and I'll read the one before.", "Say back."]
+    },
+    {
+      "id": "staff-how-do-i-skip-one",
+      "topic": "voice",
+      "when": ["how do i skip one", "can i leave this one for later"],
+      "replies": [
+        "Say next. It stays waiting, and nothing is decided.",
+        "Say next. Nothing changes until you decide."
+      ]
+    },
+    {
+      "id": "staff-what-do-i-say-to-decide",
+      "topic": "voice",
+      "when": [
+        "what do i say to decide",
+        "what are the words for a decision",
+        "what decisions can i say"
+      ],
+      "replies": [
+        "Say who was at fault and any refund, for example, nobody at fault, refund 2 pounds 50. I read it back and wait for your yes.",
+        "Say the decision in your own words. I'll read it back before anything happens."
+      ]
+    },
+    {
+      "id": "staff-do-i-have-to-say-yes",
+      "topic": "voice",
+      "when": ["do i have to say yes", "why do you read it back", "why do you ask me to confirm"],
+      "replies": [
+        "Yes. I read every decision back and only do it after your yes, so nothing happens by mistake.",
+        "So nothing is done by accident. Say yes to go ahead."
+      ]
+    },
+    {
+      "id": "staff-what-if-i-say-no",
+      "topic": "voice",
+      "when": ["what if i say no", "i don't want to confirm", "i changed my mind"],
+      "replies": [
+        "Then nothing is done. Say the decision again the way you want it.",
+        "Nothing happens without your yes. Just say it again."
+      ]
+    },
+    {
+      "id": "staff-you-misheard-me",
+      "topic": "voice",
+      "when": ["you misheard me", "you got it wrong", "that's not what i said"],
+      "replies": [
+        "Sorry. Don't say yes, and nothing is done. Say it again, a little slower.",
+        "My mistake. Say it again, and I'll read it back."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-say-an-amount",
+      "topic": "voice",
+      "when": [
+        "how do i say an amount",
+        "how do i say the refund amount",
+        "how do i say pounds and pence"
+      ],
+      "replies": [
+        "Say it as you would to a person, such as 2 pounds 50, or five pounds. I read it back first.",
+        "Pounds, then pence, the way you'd say it."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-accept-by-voice",
+      "topic": "voice",
+      "when": ["how do i accept by voice", "how do i say yes to a runner"],
+      "replies": [
+        "When I've read the item, say accept. I read it back and wait for your yes.",
+        "Say accept, then yes."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-turn-something-down",
+      "topic": "voice",
+      "when": [
+        "how do i turn something down",
+        "how do i say no to a runner",
+        "how do i refuse by voice"
+      ],
+      "replies": [
+        "Say turn it down. I read it back and wait for your yes.",
+        "Say turn it down, then yes."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-open-a-tab-by-voice",
+      "topic": "voice",
+      "when": [
+        "how do i open a tab by voice",
+        "how do i change tabs",
+        "how do i move to another part"
+      ],
+      "replies": [
+        "Say read me the, then the tab's name, such as read me the documents.",
+        "Say read me the documents, or whichever tab you need."
+      ]
+    },
+    {
+      "id": "staff-what-tabs-do-i-have",
+      "topic": "voice",
+      "when": ["what tabs do i have", "which parts can i see", "what's in my job"],
+      "replies": [
+        "Say help, and I'll name the tabs your job can see.",
+        "Your job decides your tabs. Say help to hear them."
+      ]
+    },
+    {
+      "id": "staff-what-is-waiting-for-me",
+      "topic": "voice",
+      "when": ["what's waiting for me", "what have i got today", "anything for me"],
+      "replies": [
+        "Say what's waiting, and I'll tell you everything that needs you.",
+        "Say what's waiting."
+      ]
+    },
+    {
+      "id": "staff-can-you-talk-faster",
+      "topic": "voice",
+      "when": ["can you talk faster", "speak faster", "speed up"],
+      "replies": [
+        "The speed is set by your phone or computer's voice settings. Change it there and I'll follow.",
+        "Your device's voice settings change my speed."
+      ]
+    },
+    {
+      "id": "staff-can-you-talk-louder",
+      "topic": "voice",
+      "when": ["can you talk louder", "i can't hear you", "speak up"],
+      "replies": [
+        "Turn up the volume on your device. Earphones help in a busy room, and keep things private.",
+        "Try the volume, or earphones."
+      ]
+    },
+    {
+      "id": "staff-can-you-be-quieter",
+      "topic": "voice",
+      "when": ["can you be quieter", "too loud"],
+      "replies": [
+        "Turn the volume down on your device. Say turn off talking if you'd like me silent.",
+        "Lower the volume, or say turn off talking."
+      ]
+    },
+    {
+      "id": "staff-turn-talking-back-on",
+      "topic": "voice",
+      "when": [
+        "how do i turn talking back on",
+        "start talking again",
+        "talk to me again",
+        "please speak aloud"
+      ],
+      "replies": [
+        "Turn the talking switch back on at the bottom of the screen, and I'll speak again.",
+        "Switch the talking back on."
+      ]
+    },
+    {
+      "id": "staff-do-you-listen-all-the-time",
+      "topic": "voice",
+      "when": ["do you listen all the time", "are you always listening"],
+      "replies": [
+        "I only act on what's said to me in the panel. Sign out when you leave, and I stop.",
+        "Only in the panel, while you're signed in."
+      ]
+    },
+    {
+      "id": "staff-can-i-type-instead",
+      "topic": "voice",
+      "when": ["can i type instead", "i'd rather use the keyboard", "can i use the mouse"],
+      "replies": [
+        "Yes. Everything I do by voice can be done on the screen with buttons too.",
+        "Yes, the screen works just as well."
+      ]
+    },
+    {
+      "id": "staff-do-i-have-to-use-voice",
+      "topic": "voice",
+      "when": ["do i have to use voice", "is voice compulsory"],
+      "replies": [
+        "Not at all. Voice is there if it helps. The screen does everything too.",
+        "No, it's your choice."
+      ]
+    },
+    {
+      "id": "staff-is-a-voice-decision-the-same",
+      "topic": "voice",
+      "when": ["is a voice decision the same as clicking", "does voice count the same"],
+      "replies": [
+        "Yes. A decision by voice is recorded with your name, exactly as one made on the screen.",
+        "Exactly the same, with your name on it."
+      ]
+    },
+    {
+      "id": "staff-can-voice-do-more-than-my-job",
+      "topic": "voice",
+      "when": ["can voice do more than my job", "can i reach other tabs by voice"],
+      "replies": [
+        "No. Your job's limits apply by voice exactly as on the screen.",
+        "Voice follows the same limits as the screen."
+      ]
+    },
+    {
+      "id": "staff-will-you-take-a-shopping-order",
+      "topic": "voice",
+      "when": ["will you take a shopping order here", "can i do my own shopping here"],
+      "replies": [
+        "Nothing said in the admin panel is ever taken as a shopping order. Use the Shopper app for your own shopping.",
+        "Not in here. Use the app for shopping."
+      ]
+    },
+    {
+      "id": "staff-do-i-say-my-password-aloud",
+      "topic": "voice",
+      "when": ["do i say my password aloud", "can i speak my password", "can you type my password"],
+      "replies": [
+        "Please never say your password aloud. Passwords are always typed, so nobody nearby hears them.",
+        "Never speak it. Always type it."
+      ]
+    },
+    {
+      "id": "staff-say-it-in-fewer-words",
+      "topic": "voice",
+      "when": ["say it in fewer words", "shorter please", "too long"],
+      "replies": ["Of course. I'll keep it short.", "Short it is."]
+    },
+    {
+      "id": "staff-what-does-overdue-mean",
+      "topic": "voice",
+      "when": ["what does overdue mean", "why is it overdue"],
+      "replies": [
+        "Overdue means it has waited past its two working days. Please do those first.",
+        "Past its deadline. Those come first."
+      ]
+    },
+    {
+      "id": "staff-can-you-read-the-date",
+      "topic": "voice",
+      "when": ["when must i decide this one", "what's the date to decide by"],
+      "replies": [
+        "I say the date with each complaint. Say again to hear it once more.",
+        "Say again, and listen for decide it by."
+      ]
+    },
+    {
+      "id": "staff-you-didn-t-understand-me",
+      "topic": "voice",
+      "when": ["you didn't understand me", "you're not listening", "why don't you understand"],
+      "replies": [
+        "Sorry. Try shorter words, such as read me the complaints, next, or accept. Say help for the list.",
+        "Sorry. Say help to hear the words I know best."
+      ]
+    },
+    {
+      "id": "staff-is-there-a-quicker-way",
+      "topic": "voice",
+      "when": ["is there a quicker way", "any shortcuts"],
+      "replies": [
+        "Say what's waiting when you start, then read me the, and the tab. It's the quickest way through.",
+        "What's waiting, then read me the, and the tab."
+      ]
+    },
+    {
+      "id": "staff-can-you-wake-up",
+      "topic": "voice",
+      "when": ["are you there", "are you awake", "can you hear me"],
+      "replies": ["I'm here. Say what's waiting when you're ready.", "Yes, I'm listening."]
+    },
+    {
+      "id": "staff-what-is-hey-ozi",
+      "topic": "voice",
+      "when": ["how do i get your attention", "do i say your name"],
+      "replies": [
+        "You can say {assistant} first, but in the panel you don't have to.",
+        "Just speak. My name is optional."
+      ]
+    },
+    {
+      "id": "staff-can-earphones-help",
+      "topic": "voice",
+      "when": ["should i use earphones", "headphones"],
+      "replies": [
+        "Earphones are a good idea. They keep names and details private and make me easier to hear.",
+        "Yes, they keep things private."
+      ]
+    },
+    {
+      "id": "staff-background-noise",
+      "topic": "voice",
+      "when": ["it's noisy here", "background noise"],
+      "replies": [
+        "A quiet room, or earphones with a microphone, helps me hear you clearly.",
+        "Somewhere quieter helps."
+      ]
+    },
+    {
+      "id": "staff-can-two-people-use-voice",
+      "topic": "voice",
+      "when": ["can my colleague talk to you on my sign in", "two people one computer"],
+      "replies": [
+        "Each person uses their own sign-in, so decisions carry the right name. Sign out before someone else starts.",
+        "Own sign-in for each person, please."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-hear-how-many",
+      "topic": "voice",
+      "when": ["how many are waiting", "how many are left"],
+      "replies": [
+        "Say what's waiting, and I'll give you the count for each tab.",
+        "Say what's waiting."
+      ]
+    },
+    {
+      "id": "staff-what-if-the-list-is-empty",
+      "topic": "voice",
+      "when": ["what if the list is empty", "there's nothing in the list"],
+      "replies": [
+        "Then it's all done for now. Well done. Say what's waiting later to check again.",
+        "Nothing waiting. Check again later."
+      ]
+    },
+    {
+      "id": "staff-am-i-at-the-end",
+      "topic": "voice",
+      "when": ["am i at the end", "is that the last one", "was that the last"],
+      "replies": [
+        "When the list ends I'll tell you. Say back to hear the one before.",
+        "I'll say when you reach the end."
+      ]
+    },
+    {
+      "id": "staff-can-i-start-from-the-beginning",
+      "topic": "voice",
+      "when": ["start from the beginning", "from the top"],
+      "replies": [
+        "Say read me the, and the tab again, and I'll start at the first one.",
+        "Say read me the, and the tab, to start over."
+      ]
+    },
+    {
+      "id": "staff-first-day",
+      "topic": "work",
+      "when": ["it's my first day", "i'm new here", "i've just started"],
+      "replies": [
+        "Welcome. Say what's waiting to hear your work, and help to hear what I can do. Ask the founder anything.",
+        "Welcome to the team. Say help to begin."
+      ]
+    },
+    {
+      "id": "staff-what-do-i-do-when-i-sign-in",
+      "topic": "work",
+      "when": ["what do i do when i sign in", "what happens when i sign in"],
+      "replies": [
+        "I tell you who you're signed in as and what's waiting. Then say read me the, and a tab.",
+        "I'll say what's waiting. Start there."
+      ]
+    },
+    {
+      "id": "staff-what-is-my-job",
+      "topic": "work",
+      "when": ["what is my job", "what's my role", "what am i signed in as"],
+      "replies": [
+        "I said your job when you signed in. Say what's waiting to hear it again.",
+        "Say what's waiting, and I'll tell you."
+      ]
+    },
+    {
+      "id": "staff-where-is-the-admin-panel",
+      "topic": "work",
+      "when": ["where is the admin panel", "how do i get to the panel"],
+      "replies": [
+        "It's the staff page of our website. Sign in with your own username and password.",
+        "The staff page, with your own sign-in."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-sign-in",
+      "topic": "account",
+      "when": ["how do i sign in", "how do i log in"],
+      "replies": [
+        "On the staff page, type your username and password. The first time, you'll choose your own password.",
+        "Username and password, on the staff page."
+      ]
+    },
+    {
+      "id": "staff-i-can-t-sign-in",
+      "topic": "account",
+      "when": ["i can't sign in", "it won't let me in", "sign in isn't working"],
+      "replies": [
+        "Check your username and type the password slowly. After five wrong tries, wait fifteen minutes. If it still fails, ask the founder.",
+        "Wait fifteen minutes after five tries, then ask the founder."
+      ]
+    },
+    {
+      "id": "staff-locked-out",
+      "topic": "account",
+      "when": ["i'm locked out", "too many tries"],
+      "replies": [
+        "After five wrong tries you wait fifteen minutes. It keeps your account safe. Then try again, or ask the founder for a new password.",
+        "Wait fifteen minutes, then try again."
+      ]
+    },
+    {
+      "id": "staff-what-is-my-username",
+      "topic": "account",
+      "when": ["what's my username", "i forgot my username"],
+      "replies": [
+        "The founder chose it when adding you, often your name with a dot. Ask the founder.",
+        "Ask the founder."
+      ]
+    },
+    {
+      "id": "staff-first-password",
+      "topic": "account",
+      "when": ["what about my first password", "the password i was given"],
+      "replies": [
+        "Your first password is shown once to the founder. At first sign-in you choose your own, and nobody else will know it.",
+        "Use it once, then choose your own."
+      ]
+    },
+    {
+      "id": "staff-how-long-should-my-password-be",
+      "topic": "account",
+      "when": ["how long should my password be", "password rules"],
+      "replies": [
+        "At least 10 characters. A short sentence that only you would think of works well.",
+        "At least 10 characters."
+      ]
+    },
+    {
+      "id": "staff-change-my-password",
+      "topic": "account",
+      "when": ["how do i change my password", "change password", "new password please"],
+      "replies": [
+        "Ask the founder for a new password. When you next sign in, you choose your own again.",
+        "The founder gives a new one, then you choose your own."
+      ]
+    },
+    {
+      "id": "staff-does-the-founder-know-my-password",
+      "topic": "account",
+      "when": ["does the founder know my password", "who knows my password"],
+      "replies": [
+        "Nobody knows your password, not even the founder. It's stored so no one can read it.",
+        "Only you."
+      ]
+    },
+    {
+      "id": "staff-the-passwords-don-t-match",
+      "topic": "account",
+      "when": ["the passwords don't match", "the two passwords are different"],
+      "replies": [
+        "Type your new password carefully in both boxes, exactly the same. A screen reader can help you check each letter.",
+        "Type the same password in both boxes."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-sign-me-out",
+      "topic": "account",
+      "when": ["how do i sign out", "how do i log out", "i'm finished for the day"],
+      "replies": [
+        "Say sign me out, or press Sign out at the top. Please always sign out when you finish.",
+        "Say sign me out."
+      ]
+    },
+    {
+      "id": "staff-signed-out-by-itself",
+      "topic": "account",
+      "when": ["i've been signed out", "why was i signed out"],
+      "replies": [
+        "The founder can sign everyone out for safety. Just sign in again. Nothing is lost.",
+        "Sign in again. Nothing is lost."
+      ]
+    },
+    {
+      "id": "staff-my-account-is-turned-off",
+      "topic": "account",
+      "when": ["my account is turned off", "my account doesn't work"],
+      "replies": [
+        "Only the founder can turn accounts on or off. Please speak to the founder.",
+        "Speak to the founder."
+      ]
+    },
+    {
+      "id": "staff-can-i-change-my-job",
+      "topic": "account",
+      "when": ["can i change my job", "can i see more tabs", "i need another tab"],
+      "replies": [
+        "Only the founder can change your job. Ask, and explain what you need it for.",
+        "Ask the founder."
+      ]
+    },
+    {
+      "id": "staff-can-i-add-someone",
+      "topic": "team",
+      "when": ["can i add someone to the team", "can i make an account for someone"],
+      "replies": ["Only the founder adds people to the team.", "The founder does that."]
+    },
+    {
+      "id": "staff-can-i-use-someone-else-s-sign-in",
+      "topic": "security",
+      "when": ["can i use someone else's sign in", "can i borrow a login", "can i share my login"],
+      "replies": [
+        "No, please. Every decision records who made it, so each person uses their own sign-in.",
+        "Your own sign-in only."
+      ]
+    },
+    {
+      "id": "staff-what-documents-do-runners-send",
+      "topic": "documents",
+      "when": [
+        "what do runners send us",
+        "which documents are needed",
+        "what checks do runners need"
+      ],
+      "replies": [
+        "Right to work, a DBS certificate, a driving licence and insurance. Check each one before accepting.",
+        "Right to work, DBS, licence and insurance."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-check-documents",
+      "topic": "documents",
+      "when": ["how do i check runner papers", "how do i do onboarding"],
+      "replies": [
+        "Say read me the documents. I read each one, then say accept or turn it down.",
+        "Read me the documents, then decide each one."
+      ]
+    },
+    {
+      "id": "staff-what-is-a-share-code",
+      "topic": "documents",
+      "when": ["what is a share code", "share code meaning", "what's the code from the government"],
+      "replies": [
+        "A code from the government that lets an employer check someone's right to work. I read it letter by letter.",
+        "The right to work code, checked on gov.uk."
+      ]
+    },
+    {
+      "id": "staff-the-share-code-is-wrong",
+      "topic": "documents",
+      "when": ["the share code is wrong", "share code doesn't work", "gov.uk says no"],
+      "replies": [
+        "Don't accept. Turn it down, so the Runner can send a new one. Ask the founder if you're unsure.",
+        "Turn it down, and they can send it again."
+      ]
+    },
+    {
+      "id": "staff-read-the-share-code-again",
+      "topic": "documents",
+      "when": ["read the code again", "spell the code", "slower letters"],
+      "replies": ["Say again, and I'll read the code once more, letter by letter.", "Say again."]
+    },
+    {
+      "id": "staff-what-is-a-dbs",
+      "topic": "documents",
+      "when": ["what is a dbs", "what is a dbs certificate", "criminal record check"],
+      "replies": [
+        "A check of someone's criminal record. Runners go into people's homes and handle their shopping, so it matters.",
+        "A record check. It keeps Shoppers safe."
+      ]
+    },
+    {
+      "id": "staff-what-to-look-for-on-a-dbs",
+      "topic": "documents",
+      "when": [
+        "what do i look for on a dbs",
+        "how do i check a dbs",
+        "what do i look for on a criminal record certificate"
+      ],
+      "replies": [
+        "The name matches the Runner, it's genuine and readable. If anything worries you, ask the founder before deciding.",
+        "Matching name, genuine, readable."
+      ]
+    },
+    {
+      "id": "staff-check-a-driving-licence",
+      "topic": "documents",
+      "when": [
+        "how do i check a driving licence",
+        "check the licence",
+        "how do i check someone can drive"
+      ],
+      "replies": [
+        "The name matches, it's in date and readable. If something looks wrong, turn it down or ask the founder.",
+        "Name, date, readable."
+      ]
+    },
+    {
+      "id": "staff-check-insurance",
+      "topic": "documents",
+      "when": ["how do i check insurance", "what about their insurance", "is their cover valid"],
+      "replies": [
+        "The name matches, and it covers them now. Give the end date when you accept.",
+        "Matching name, in date, and give the end date."
+      ]
+    },
+    {
+      "id": "staff-insurance-runs-out",
+      "topic": "documents",
+      "when": ["what if insurance runs out", "expired insurance", "what if their cover has ended"],
+      "replies": [
+        "Runners are reminded before it ends. An expired one shouldn't be accepted.",
+        "Don't accept an expired one."
+      ]
+    },
+    {
+      "id": "staff-photo-is-blurry",
+      "topic": "documents",
+      "when": ["the photo is blurry", "i can't read the document", "bad photo"],
+      "replies": [
+        "Turn it down, so the Runner can send a clearer photo.",
+        "Turn it down for a clearer one."
+      ]
+    },
+    {
+      "id": "staff-names-don-t-match",
+      "topic": "documents",
+      "when": ["the names don't match", "different name on the document"],
+      "replies": [
+        "Don't accept. Ask the founder. There may be a good reason, such as a married name, but it must be checked.",
+        "Check with the founder first."
+      ]
+    },
+    {
+      "id": "staff-fake-document",
+      "topic": "documents",
+      "when": ["i think it's fake", "this looks forged", "suspicious document"],
+      "replies": [
+        "Don't accept it. Tell the founder straight away, and say nothing to the Runner yet.",
+        "Don't accept. Tell the founder."
+      ]
+    },
+    {
+      "id": "staff-photo-document-blind",
+      "topic": "documents",
+      "when": ["i can't see the photo", "how do i check a photo document blind"],
+      "replies": [
+        "Share codes can be checked by voice. For photo documents, ask a sighted colleague or the founder to look with you.",
+        "Ask a colleague to look at photos with you."
+      ]
+    },
+    {
+      "id": "staff-how-quickly-check-documents",
+      "topic": "documents",
+      "when": [
+        "how quickly should i check documents",
+        "how long can documents wait",
+        "how fast should new runners be cleared"
+      ],
+      "replies": [
+        "As soon as you can. A Runner can't start until they're checked, and they're waiting to earn.",
+        "Soon. They're waiting to start."
+      ]
+    },
+    {
+      "id": "staff-what-happens-when-i-accept",
+      "topic": "documents",
+      "when": ["what happens when i accept", "what does accepting do"],
+      "replies": [
+        "That document is marked as checked, with your name. When all are done, the Runner can start work.",
+        "It's recorded with your name."
+      ]
+    },
+    {
+      "id": "staff-what-happens-when-i-turn-down",
+      "topic": "documents",
+      "when": ["what happens when i turn it down", "what does turning down do"],
+      "replies": [
+        "The Runner is asked to send it again. Nothing else changes.",
+        "They're asked to send it again."
+      ]
+    },
+    {
+      "id": "staff-can-i-undo-an-accept",
+      "topic": "documents",
+      "when": ["can i undo an accept", "i accepted the wrong one"],
+      "replies": [
+        "Tell the founder straight away. Every decision is recorded, so it can be put right.",
+        "Tell the founder now."
+      ]
+    },
+    {
+      "id": "staff-runner-is-my-friend",
+      "topic": "documents",
+      "when": ["the runner is my friend", "i know this runner", "it's my relative"],
+      "replies": [
+        "Please ask a colleague or the founder to check that one, so it's fair to everyone.",
+        "Pass it to someone else, to keep it fair."
+      ]
+    },
+    {
+      "id": "staff-runner-under-age",
+      "topic": "documents",
+      "when": ["how old must runners be", "the runner looks young"],
+      "replies": [
+        "If you're unsure about anything in a Runner's documents, ask the founder before accepting.",
+        "When in doubt, ask the founder."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-decide-a-complaint",
+      "topic": "problems",
+      "when": ["how do i decide a complaint", "how do complaints work", "how do i settle a case"],
+      "replies": [
+        "Listen to the complaint and the evidence, then say who was at fault and any refund. I read it back and wait for yes.",
+        "Hear it, check the evidence, then decide."
+      ]
+    },
+    {
+      "id": "staff-who-can-be-at-fault",
+      "topic": "problems",
+      "when": ["who can be at fault", "what are the choices", "fault options"],
+      "replies": [
+        "Nobody, the Runner, the shop, us, or the Shopper.",
+        "Nobody, Runner, shop, us, or Shopper."
+      ]
+    },
+    {
+      "id": "staff-nobody-at-fault",
+      "topic": "problems",
+      "when": [
+        "what does nobody at fault mean",
+        "when is it nobody's fault",
+        "what if nobody is to blame"
+      ],
+      "replies": [
+        "When things went wrong but no one was to blame, such as an item out of stock. We can still refund.",
+        "No one to blame, and we can still refund."
+      ]
+    },
+    {
+      "id": "staff-how-much-to-refund",
+      "topic": "problems",
+      "when": ["how much should i refund", "what refund do i give", "how much should i pay out"],
+      "replies": [
+        "What's fair for what went wrong, usually the cost of what was missing or damaged. Ask if unsure.",
+        "What's fair for what went wrong."
+      ]
+    },
+    {
+      "id": "staff-instant-refund-voice",
+      "topic": "problems",
+      "when": [
+        "what's the limit for instant refunds",
+        "instant refund limit",
+        "what's paid out at once"
+      ],
+      "replies": [
+        "{instantRefund} or less is refunded straight away, with no investigation.",
+        "{instantRefund} or less, at once."
+      ]
+    },
+    {
+      "id": "staff-refund-bigger-than-instant",
+      "topic": "problems",
+      "when": ["what about bigger refunds", "large refund", "what about larger amounts"],
+      "replies": [
+        "Above {instantRefund}, check the evidence carefully first. If it's large or unclear, ask the founder.",
+        "Check carefully, and ask the founder if unsure."
+      ]
+    },
+    {
+      "id": "staff-can-i-refund-more-than-asked",
+      "topic": "problems",
+      "when": ["can i refund more than they asked", "refund more", "can i pay out more than asked"],
+      "replies": [
+        "Refund what's fair. If you think more is due, check with the founder first.",
+        "What's fair. Check with the founder."
+      ]
+    },
+    {
+      "id": "staff-refund-less-than-asked",
+      "topic": "problems",
+      "when": [
+        "can i refund less than they asked",
+        "partial refund",
+        "can i pay out less than asked"
+      ],
+      "replies": [
+        "Yes, if that's what's fair. Say the amount when you decide.",
+        "Yes, say the amount you think is fair."
+      ]
+    },
+    {
+      "id": "staff-when-does-the-shopper-get-the-money",
+      "topic": "problems",
+      "when": [
+        "when does the shopper get the money",
+        "how long does a refund take",
+        "how long until it reaches their card"
+      ],
+      "replies": [
+        "It goes back to their card. The bank decides how fast it shows, often a few days.",
+        "Back to their card, in a few days."
+      ]
+    },
+    {
+      "id": "staff-complaint-from-a-runner",
+      "topic": "problems",
+      "when": ["a runner complained", "runner complaint"],
+      "replies": [
+        "Runners report problems too. Read it the same way, check the evidence, and decide fairly.",
+        "The same way. Be fair to both sides."
+      ]
+    },
+    {
+      "id": "staff-no-evidence",
+      "topic": "problems",
+      "when": ["there's no evidence", "nothing attached"],
+      "replies": [
+        "Decide on what you have. Small ones up to {instantRefund} are refunded at once. For bigger ones, ask the founder.",
+        "Decide fairly on what you have."
+      ]
+    },
+    {
+      "id": "staff-listen-to-a-voice-note",
+      "topic": "problems",
+      "when": ["how do i listen to the voice note", "play the voice note"],
+      "replies": [
+        "Press play on the voice note in the complaint. Use earphones, as it may be private.",
+        "Press play, with earphones."
+      ]
+    },
+    {
+      "id": "staff-photos-by-voice",
+      "topic": "problems",
+      "when": ["what's in the photo", "describe the photo"],
+      "replies": [
+        "I can't describe photos. Ask a sighted colleague, or read the written notes with it.",
+        "Ask a colleague to look."
+      ]
+    },
+    {
+      "id": "staff-shopper-is-upset",
+      "topic": "problems",
+      "when": ["the shopper is upset", "the shopper is angry", "angry customer"],
+      "replies": [
+        "Stay calm and kind. People are usually upset about the problem, not you. Put it right fairly.",
+        "Calm and kind. Fix what you can."
+      ]
+    },
+    {
+      "id": "staff-rude-complaint",
+      "topic": "problems",
+      "when": ["the complaint is rude", "they were abusive"],
+      "replies": [
+        "Decide it fairly all the same. If it's abusive or threatening, tell the founder.",
+        "Be fair, and tell the founder if it's abusive."
+      ]
+    },
+    {
+      "id": "staff-same-runner-again",
+      "topic": "problems",
+      "when": [
+        "same runner again",
+        "this runner keeps getting complaints",
+        "this runner keeps coming up"
+      ],
+      "replies": [
+        "Decide each one fairly, then tell the founder about the pattern.",
+        "Tell the founder about the pattern."
+      ]
+    },
+    {
+      "id": "staff-same-shop-again",
+      "topic": "problems",
+      "when": [
+        "same shop again",
+        "this shop keeps getting complaints",
+        "the same store keeps coming up"
+      ],
+      "replies": [
+        "Decide each one, then let the founder know, so we can talk to the shop.",
+        "Let the founder know."
+      ]
+    },
+    {
+      "id": "staff-shopper-keeps-complaining",
+      "topic": "problems",
+      "when": ["this shopper always complains", "too many complaints from one shopper"],
+      "replies": [
+        "Decide each one fairly on the evidence. If you're worried, tell the founder.",
+        "Fairly each time, and tell the founder."
+      ]
+    },
+    {
+      "id": "staff-missing-item",
+      "topic": "problems",
+      "when": ["an item was missing", "missing item"],
+      "replies": [
+        "Usually a refund for that item. Who was at fault depends on what happened.",
+        "Refund the item, and decide the fault."
+      ]
+    },
+    {
+      "id": "staff-damaged-item",
+      "topic": "problems",
+      "when": ["damaged item", "it arrived broken"],
+      "replies": [
+        "Check the photo if there is one, then refund what's fair and decide who was at fault.",
+        "Check, refund fairly, decide the fault."
+      ]
+    },
+    {
+      "id": "staff-wrong-item",
+      "topic": "problems",
+      "when": ["wrong item", "they got the wrong thing"],
+      "replies": [
+        "Refund the wrong item. Usually the Runner or the shop picked it, so decide from the evidence.",
+        "Refund, then decide who picked it."
+      ]
+    },
+    {
+      "id": "staff-late-delivery",
+      "topic": "problems",
+      "when": ["late delivery", "it came late"],
+      "replies": [
+        "Listen to what happened. Late isn't always anyone's fault, such as traffic or bad weather.",
+        "Find out why. It may be nobody's fault."
+      ]
+    },
+    {
+      "id": "staff-runner-was-rude",
+      "topic": "problems",
+      "when": ["the runner was rude", "rude runner"],
+      "replies": [
+        "Take it seriously. Decide it, and tell the founder, as it may need a word with the Runner.",
+        "Decide it, and tell the founder."
+      ]
+    },
+    {
+      "id": "staff-shopper-feels-unsafe",
+      "topic": "safeguarding",
+      "when": ["the shopper feels unsafe", "shopper is frightened", "safeguarding"],
+      "replies": [
+        "Tell the founder straight away. If anyone is in danger right now, ring 999.",
+        "Founder at once. 999 if there's danger now."
+      ]
+    },
+    {
+      "id": "staff-worried-about-a-shopper",
+      "topic": "safeguarding",
+      "when": ["i'm worried about a shopper", "the shopper sounds unwell", "vulnerable shopper"],
+      "replies": [
+        "Tell the founder today. If they may be in danger right now, ring 999.",
+        "Tell the founder. 999 in an emergency."
+      ]
+    },
+    {
+      "id": "staff-what-if-i-miss-the-deadline",
+      "topic": "problems",
+      "when": ["what if i miss the deadline", "i'm behind"],
+      "replies": [
+        "Do the overdue ones first, and tell the founder if you need help catching up.",
+        "Overdue first, and ask for help."
+      ]
+    },
+    {
+      "id": "staff-working-days",
+      "topic": "problems",
+      "when": ["what are working days", "do weekends count"],
+      "replies": [
+        "Saturdays and Sundays don't count. Two working days from a Friday means by Tuesday.",
+        "Monday to Friday."
+      ]
+    },
+    {
+      "id": "staff-can-i-contact-the-shopper",
+      "topic": "problems",
+      "when": ["can i ring the shopper", "can i call the shopper"],
+      "replies": [
+        "Phone numbers aren't shown to staff. Decide on the complaint and evidence, and ask the founder if you need more.",
+        "Numbers aren't shown. Ask the founder."
+      ]
+    },
+    {
+      "id": "staff-what-does-the-shopper-hear",
+      "topic": "problems",
+      "when": ["does the shopper hear my decision", "is the shopper told"],
+      "replies": ["Yes, they're told the outcome and any refund.", "Yes, they're told."]
+    },
+    {
+      "id": "staff-runner-pays-back",
+      "topic": "problems",
+      "when": ["does the runner pay it back", "runner pays"],
+      "replies": [
+        "When the Runner is at fault, up to 10 percent of that job is taken back. The Shopper is refunded by us.",
+        "Up to 10 percent of that job."
+      ]
+    },
+    {
+      "id": "staff-decided-a-complaint-wrongly",
+      "topic": "problems",
+      "when": ["i decided it wrongly", "can i change a decision"],
+      "replies": [
+        "Tell the founder straight away. It's recorded, so it can be put right.",
+        "Tell the founder now."
+      ]
+    },
+    {
+      "id": "staff-is-a-complaint-private",
+      "topic": "problems",
+      "when": ["are complaints private", "can i talk about a complaint", "are cases private"],
+      "replies": [
+        "Yes. Only talk about complaints in the panel or with the team, never outside.",
+        "Private. Keep it in the panel."
+      ]
+    },
+    {
+      "id": "staff-too-many-complaints",
+      "topic": "problems",
+      "when": ["there are too many complaints", "i can't keep up"],
+      "replies": [
+        "Do the overdue ones, then the oldest. Tell the founder; help can be arranged.",
+        "Overdue first, then tell the founder."
+      ]
+    },
+    {
+      "id": "staff-what-is-feedback-for",
+      "topic": "feedback",
+      "when": ["what is feedback for", "what's the feedback tab", "what do runners tell us"],
+      "replies": [
+        "It's what Runners tell us about the app and the work. Read it, and pass good ideas to the founder.",
+        "Runners' thoughts. Pass on good ideas."
+      ]
+    },
+    {
+      "id": "staff-do-i-reply-to-feedback",
+      "topic": "feedback",
+      "when": ["do i reply to feedback", "answer the feedback", "do i answer what runners say"],
+      "replies": [
+        "Feedback is for reading. Pass anything important to the founder.",
+        "Read it, and pass on what matters."
+      ]
+    },
+    {
+      "id": "staff-feedback-with-no-name",
+      "topic": "feedback",
+      "when": ["feedback with no name", "anonymous feedback", "a comment with no name"],
+      "replies": [
+        "Some people give no name. Treat it with the same respect.",
+        "Respect it all the same."
+      ]
+    },
+    {
+      "id": "staff-bad-feedback",
+      "topic": "feedback",
+      "when": ["the feedback is negative", "bad feedback", "a negative comment"],
+      "replies": [
+        "That's useful. It's how we get better. Pass it on to the founder.",
+        "Useful. Pass it on."
+      ]
+    },
+    {
+      "id": "staff-good-feedback",
+      "topic": "feedback",
+      "when": ["the feedback is lovely", "good feedback", "a lovely comment"],
+      "replies": ["Wonderful. Share it with the founder, it helps everyone.", "Lovely. Pass it on."]
+    },
+    {
+      "id": "staff-feedback-mentions-danger",
+      "topic": "feedback",
+      "when": ["feedback mentions danger", "feedback about safety", "a comment about safety"],
+      "replies": ["Tell the founder straight away.", "Founder, straight away."]
+    },
+    {
+      "id": "staff-feedback-is-a-bug",
+      "topic": "feedback",
+      "when": ["feedback about a bug", "the app isn't working for them"],
+      "replies": [
+        "Pass it to the founder with as much detail as you have.",
+        "Tell the founder, with details."
+      ]
+    },
+    {
+      "id": "staff-what-is-money-owed",
+      "topic": "owed",
+      "when": ["what is money owed", "what's the money owed tab", "what do runners owe us"],
+      "replies": [
+        "Money a Runner owes after a problem that was their fault. Small amounts can be written off.",
+        "What Runners owe after a problem."
+      ]
+    },
+    {
+      "id": "staff-read-me-who-owes",
+      "topic": "owed",
+      "when": ["who owes us", "who owes money", "which runners owe us"],
+      "replies": [
+        "Say read me the money owed, and I'll go through them.",
+        "Say read me the money owed."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-write-off",
+      "topic": "owed",
+      "when": ["how do i write something off", "how to write off"],
+      "replies": [
+        "When I read one that's small enough, say write it off. I read it back and wait for your yes.",
+        "Say write it off, then yes."
+      ]
+    },
+    {
+      "id": "staff-too-big-to-write-off",
+      "topic": "owed",
+      "when": ["it's too big to write off", "can't write it off", "it's too large to let go"],
+      "replies": [
+        "Then please ask the Runner for it, kindly. Ask the founder if they can't pay.",
+        "Ask the Runner, kindly."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-ask-a-runner-to-pay",
+      "topic": "owed",
+      "when": ["how do i ask a runner to pay", "chasing a runner"],
+      "replies": [
+        "Kindly and clearly: what happened, how much, and how they can pay. Ask the founder for the right way to contact them.",
+        "Kindly and clearly. Ask the founder how."
+      ]
+    },
+    {
+      "id": "staff-runner-can-t-pay",
+      "topic": "owed",
+      "when": ["the runner can't pay", "runner has no money"],
+      "replies": ["Tell the founder. We'll find a fair way.", "Tell the founder."]
+    },
+    {
+      "id": "staff-write-off-mistake",
+      "topic": "owed",
+      "when": ["i wrote off the wrong one", "undo write off"],
+      "replies": [
+        "Tell the founder straight away. It's recorded, so it can be put right.",
+        "Tell the founder now."
+      ]
+    },
+    {
+      "id": "staff-why-write-off",
+      "topic": "owed",
+      "when": ["why do we write off", "why not chase everything"],
+      "replies": [
+        "Chasing small amounts costs more in time and goodwill than it's worth.",
+        "Small amounts aren't worth the upset."
+      ]
+    },
+    {
+      "id": "staff-can-finance-see-the-money",
+      "topic": "owed",
+      "when": [
+        "can finance see the takings",
+        "can i see the income",
+        "can finance see what came in"
+      ],
+      "replies": [
+        "No. The takings are for the owner only. You see what Runners owe.",
+        "Owner only."
+      ]
+    },
+    {
+      "id": "staff-what-are-payouts",
+      "topic": "owed",
+      "when": ["what about payouts", "runner payouts"],
+      "replies": [
+        "Payouts and the accounts may come to the finance job later. For now, it's money owed.",
+        "Later. For now, money owed."
+      ]
+    },
+    {
+      "id": "staff-what-is-finds-it",
+      "topic": "finds",
+      "when": ["what is finds it", "what does finds it mean", "how does the special search work"],
+      "replies": [
+        "A Shopper asks us to find something. You look in up to three local shops and say what you found.",
+        "We look for something special for a Shopper."
+      ]
+    },
+    {
+      "id": "staff-how-many-shops-to-try",
+      "topic": "finds",
+      "when": ["how many shops do i try", "how many shops", "how many stores do i try"],
+      "replies": ["Up to three shops, by phone or in person.", "Up to three."]
+    },
+    {
+      "id": "staff-how-do-i-say-found",
+      "topic": "finds",
+      "when": ["how do i say i found it", "i found the item", "the item turned up what now"],
+      "replies": ["Say found it. Then give what you found, where, and the price.", "Say found it."]
+    },
+    {
+      "id": "staff-how-do-i-say-not-found",
+      "topic": "finds",
+      "when": ["how do i say i couldn't find it", "i couldn't find it", "what if nobody has it"],
+      "replies": [
+        "Say not found. The Shopper gets the fee back.",
+        "Say not found, and the fee goes back."
+      ]
+    },
+    {
+      "id": "staff-what-does-the-shopper-pay-for-finds",
+      "topic": "finds",
+      "when": ["what does finds it cost", "finds it fee", "what does the special search cost"],
+      "replies": [
+        "The Shopper pays a fee for the search, and it's given back if nothing is found.",
+        "The fee comes back if nothing is found."
+      ]
+    },
+    {
+      "id": "staff-can-i-go-to-more-shops",
+      "topic": "finds",
+      "when": ["can i go to more shops", "a fourth shop", "can i try a fourth store"],
+      "replies": [
+        "Three is the limit. If it's not found by then, say not found.",
+        "Three, then not found."
+      ]
+    },
+    {
+      "id": "staff-close-but-not-the-same",
+      "topic": "finds",
+      "when": ["it's similar but not the same", "a close match"],
+      "replies": [
+        "Record it as found, and say clearly how it's different, so the Shopper can choose.",
+        "Say exactly how it differs."
+      ]
+    },
+    {
+      "id": "staff-where-is-the-shopper",
+      "topic": "finds",
+      "when": ["where is the shopper", "which area"],
+      "replies": [
+        "I say the area with each request, so you can try shops near them.",
+        "I'll say the area."
+      ]
+    },
+    {
+      "id": "staff-finds-it-dangerous-item",
+      "topic": "finds",
+      "when": ["they want something dangerous", "they want a knife"],
+      "replies": [
+        "Tell the founder before looking. We never look for anything age restricted.",
+        "Ask the founder first."
+      ]
+    },
+    {
+      "id": "staff-they-want-tobacco",
+      "topic": "finds",
+      "when": ["they want cigarettes", "they want tobacco", "they want wine"],
+      "replies": [
+        "We never look for alcohol, tobacco, medicines or cash. Say not found, so the fee goes back, and the founder can explain.",
+        "Never. Say not found."
+      ]
+    },
+    {
+      "id": "staff-finds-it-taking-long",
+      "topic": "finds",
+      "when": ["finds it is taking long", "i'm still looking"],
+      "replies": [
+        "That's fine. Say found it or not found when you're done. It stays waiting until then.",
+        "It waits for you."
+      ]
+    },
+    {
+      "id": "staff-finds-it-shop-closed",
+      "topic": "finds",
+      "when": ["the shop is closed", "nobody answered the phone"],
+      "replies": ["Try another, up to three. If none have it, say not found.", "Try the next shop."]
+    },
+    {
+      "id": "staff-finds-it-price-changed",
+      "topic": "finds",
+      "when": ["the price might change", "price isn't fixed"],
+      "replies": [
+        "Give the price you were told today. Prices can change in shops.",
+        "Today's price."
+      ]
+    },
+    {
+      "id": "staff-who-sends-enquiries",
+      "topic": "enquiries",
+      "when": ["who sends enquiries", "who are enquiries from", "who asks to work with us"],
+      "replies": [
+        "Councils, charities, care providers and shops that want to work with us.",
+        "Organisations and shops."
+      ]
+    },
+    {
+      "id": "staff-how-quickly-ring-back",
+      "topic": "enquiries",
+      "when": ["how quickly do i ring back", "when do i call them"],
+      "replies": ["Within two working days.", "Two working days."]
+    },
+    {
+      "id": "staff-how-do-i-mark-rung-back",
+      "topic": "enquiries",
+      "when": ["how do i mark it done", "i've called them"],
+      "replies": [
+        "Say rung back, and I'll mark it. I read it back and wait for yes.",
+        "Say rung back."
+      ]
+    },
+    {
+      "id": "staff-read-the-number-again",
+      "topic": "enquiries",
+      "when": ["read the number again", "what was the number"],
+      "replies": ["Say again, and I'll read the number in pairs.", "Say again."]
+    },
+    {
+      "id": "staff-what-to-say-on-the-call",
+      "topic": "enquiries",
+      "when": ["what do i say on the call", "what do i tell them"],
+      "replies": [
+        "Thank them, ask what they need and how many people they support, and explain what we do. Note what they say.",
+        "Thank them, listen, explain."
+      ]
+    },
+    {
+      "id": "staff-they-didn-t-answer",
+      "topic": "enquiries",
+      "when": ["they didn't answer", "no answer"],
+      "replies": [
+        "Leave a short message with your name, and try again later. Only say rung back once you've spoken.",
+        "Try again later."
+      ]
+    },
+    {
+      "id": "staff-they-want-a-price",
+      "topic": "enquiries",
+      "when": ["they want a price", "they ask about cost"],
+      "replies": [
+        "Delivery is {fee}, the same for everyone. For anything special, say the founder will come back to them.",
+        "{fee} for delivery. The founder handles anything special."
+      ]
+    },
+    {
+      "id": "staff-can-i-promise-a-discount",
+      "topic": "enquiries",
+      "when": ["can i promise a discount", "can i offer a deal"],
+      "replies": [
+        "Please don't promise discounts or deals. The founder decides those.",
+        "Only the founder can."
+      ]
+    },
+    {
+      "id": "staff-a-council-is-interested",
+      "topic": "enquiries",
+      "when": ["a council is interested", "a charity is interested"],
+      "replies": [
+        "Lovely. Ring them back, find out what they need, and tell the founder.",
+        "Ring back, and tell the founder."
+      ]
+    },
+    {
+      "id": "staff-setting-up-an-organisation",
+      "topic": "enquiries",
+      "when": [
+        "how do i set up an organisation",
+        "new organisation account",
+        "how do i set up a council account"
+      ],
+      "replies": [
+        "Partnerships set up organisation accounts once they've agreed to work with us. Ask the founder if you're unsure how.",
+        "Ask the founder for the steps."
+      ]
+    },
+    {
+      "id": "staff-enquiry-is-spam",
+      "topic": "enquiries",
+      "when": ["the enquiry is spam", "it's a sales pitch", "junk enquiry"],
+      "replies": [
+        "No call needed. Tell the founder if it keeps happening.",
+        "Skip it, and tell the founder."
+      ]
+    },
+    {
+      "id": "staff-the-enquiry-is-from-the-press",
+      "topic": "enquiries",
+      "when": ["a journalist wants to talk", "it's the press"],
+      "replies": [
+        "Please pass anything from the press to the founder, and don't comment yourself.",
+        "Pass it to the founder."
+      ]
+    },
+    {
+      "id": "staff-what-are-shop-products",
+      "topic": "partners",
+      "when": [
+        "what are shop products",
+        "what's in shops and organisations",
+        "what are the items waiting to go on sale"
+      ],
+      "replies": [
+        "Products partner shops send to sell through us. You check each one before it goes on, usually within one working day.",
+        "Partner shops' products, to check."
+      ]
+    },
+    {
+      "id": "staff-read-me-the-shop-products",
+      "topic": "partners",
+      "when": ["read me the shop products", "products waiting"],
+      "replies": [
+        "I'll read each one: the shop, the name, the price, labels and best before date. Then accept or turn it down.",
+        "One at a time, then decide."
+      ]
+    },
+    {
+      "id": "staff-product-has-no-photo",
+      "topic": "partners",
+      "when": ["it has no photo", "no picture"],
+      "replies": [
+        "Ask yourself if the Shopper can tell what it is. If not, turn it down so the shop can add one.",
+        "Turn it down if it's unclear."
+      ]
+    },
+    {
+      "id": "staff-product-price-looks-wrong",
+      "topic": "partners",
+      "when": ["the price looks wrong", "too expensive"],
+      "replies": ["Turn it down, so the shop can check the price.", "Turn it down to be checked."]
+    },
+    {
+      "id": "staff-product-is-not-allowed",
+      "topic": "partners",
+      "when": ["the product isn't allowed", "it's alcohol"],
+      "replies": [
+        "Turn it down. We never sell alcohol, tobacco, medicines or anything age restricted.",
+        "Turn it down."
+      ]
+    },
+    {
+      "id": "staff-best-before-date",
+      "topic": "partners",
+      "when": ["what about the best before date", "it's going out of date"],
+      "replies": [
+        "If it's past its date or very close, turn it down.",
+        "Out of date means turn it down."
+      ]
+    },
+    {
+      "id": "staff-labels",
+      "topic": "partners",
+      "when": ["what are labels", "what does labelled mean"],
+      "replies": [
+        "What the shop says about it, such as halal, vegan or gluten free. Check they make sense.",
+        "The shop's description, such as vegan."
+      ]
+    },
+    {
+      "id": "staff-what-is-spotlight",
+      "topic": "partners",
+      "when": ["what is spotlight", "spotlight plus"],
+      "replies": [
+        "Spotlight shows a shop more prominently, for {spotlight} a month, or {spotlightPlus} for Spotlight Plus.",
+        "Extra visibility for a shop."
+      ]
+    },
+    {
+      "id": "staff-a-shop-wants-to-join",
+      "topic": "partners",
+      "when": ["a shop wants to join", "new partner shop", "a store wants to join"],
+      "replies": [
+        "Ring them back from Enquiries, and tell the founder.",
+        "Ring back, and tell the founder."
+      ]
+    },
+    {
+      "id": "staff-a-shop-is-unhappy",
+      "topic": "partners",
+      "when": ["a shop is unhappy", "partner complaint", "a store is unhappy"],
+      "replies": [
+        "Listen kindly, note what they say, and tell the founder.",
+        "Listen, and pass it to the founder."
+      ]
+    },
+    {
+      "id": "staff-what-is-analytics",
+      "topic": "analytics",
+      "when": ["what is analytics", "business analysis", "what are the business figures"],
+      "replies": [
+        "Numbers about how the business is doing: purchases, busiest shops, hours and days. No names, only groups of ten or more.",
+        "How the business is doing, without names."
+      ]
+    },
+    {
+      "id": "staff-who-sees-analytics",
+      "topic": "analytics",
+      "when": ["who sees analytics", "can i see analytics", "who sees the business figures"],
+      "replies": ["The founder, and anyone the founder switches it on for.", "The founder decides."]
+    },
+    {
+      "id": "staff-why-no-names-in-analytics",
+      "topic": "analytics",
+      "when": ["why are there no names", "why groups of ten"],
+      "replies": [
+        "So nobody can be picked out. That's how we protect people's privacy.",
+        "So nobody can be identified."
+      ]
+    },
+    {
+      "id": "staff-most-wanted",
+      "topic": "analytics",
+      "when": ["what is most wanted", "unmet searches"],
+      "replies": [
+        "What Shoppers searched for that nobody had. It helps us find new shops and products.",
+        "What people want and can't find yet."
+      ]
+    },
+    {
+      "id": "staff-what-is-the-overview",
+      "topic": "analytics",
+      "when": ["what is the overview", "how many runners do we have"],
+      "replies": [
+        "How many Shoppers, Runners, shops, organisations and staff, and what's waiting. It's for the founder and those it's switched on for.",
+        "People and work, no money."
+      ]
+    },
+    {
+      "id": "staff-the-team-tab",
+      "topic": "team",
+      "when": ["what is the team tab", "who manages the team", "who manages the people here"],
+      "replies": [
+        "The founder adds people, changes jobs, gives new passwords and turns accounts off there.",
+        "The founder's tab for the team."
+      ]
+    },
+    {
+      "id": "staff-someone-is-leaving",
+      "topic": "team",
+      "when": ["someone is leaving", "a colleague left"],
+      "replies": [
+        "The founder turns their account off. It works at once.",
+        "The founder turns it off."
+      ]
+    },
+    {
+      "id": "staff-cover-for-a-colleague",
+      "topic": "team",
+      "when": ["can i cover for a colleague", "someone is off sick"],
+      "replies": [
+        "The operations manager covers when someone is away. Ask the founder if you're asked to help.",
+        "Ask the founder."
+      ]
+    },
+    {
+      "id": "staff-what-jobs-are-there",
+      "topic": "team",
+      "when": ["what jobs are there", "what roles do we have"],
+      "replies": [
+        "Customer care, Runner onboarding, Finds It shopper, partnerships, finance, operations manager, and the founder.",
+        "Seven jobs, each with its own tabs."
+      ]
+    },
+    {
+      "id": "staff-what-does-customer-care-do",
+      "topic": "team",
+      "when": ["what does customer care do", "customer care job"],
+      "replies": [
+        "Decides complaints within two working days, and reads Runner feedback.",
+        "Complaints and feedback."
+      ]
+    },
+    {
+      "id": "staff-what-does-onboarding-do",
+      "topic": "team",
+      "when": ["what does onboarding do", "onboarding job"],
+      "replies": [
+        "Checks each new Runner's right to work, DBS, driving licence and insurance.",
+        "Runner documents."
+      ]
+    },
+    {
+      "id": "staff-what-does-finance-do",
+      "topic": "team",
+      "when": ["what does finance do", "finance job"],
+      "replies": ["Keeps track of money Runners owe, and writes off small amounts.", "Money owed."]
+    },
+    {
+      "id": "staff-what-does-partnerships-do",
+      "topic": "team",
+      "when": ["what does partnerships do", "partnerships job"],
+      "replies": [
+        "Rings back organisations and shops, and checks shop products.",
+        "Enquiries and shop products."
+      ]
+    },
+    {
+      "id": "staff-what-does-operations-do",
+      "topic": "team",
+      "when": ["what does the operations manager do", "operations job"],
+      "replies": [
+        "Runs the day to day: documents, complaints, feedback, Finds It, enquiries and shop products. Not money owed, not the team.",
+        "The day to day, and covering for others."
+      ]
+    },
+    {
+      "id": "staff-what-does-sourcing-do",
+      "topic": "team",
+      "when": ["what does the finds it shopper do", "sourcing job"],
+      "replies": [
+        "Looks in up to three local shops for what a Shopper asked for.",
+        "Finds It requests."
+      ]
+    },
+    {
+      "id": "staff-who-decided-this",
+      "topic": "team",
+      "when": ["who decided this", "who made this decision"],
+      "replies": [
+        "Every decision records the name of the person signed in. The founder can see who decided what.",
+        "It's recorded. Ask the founder."
+      ]
+    },
+    {
+      "id": "staff-how-much-money-today",
+      "topic": "money",
+      "when": [
+        "how much came in today",
+        "what are the takings",
+        "how is the business doing financially"
+      ],
+      "replies": [
+        "The money is for the owner only. Staff never see it.",
+        "Only the owner sees the money."
+      ]
+    },
+    {
+      "id": "staff-why-can-t-i-see-money",
+      "topic": "money",
+      "when": [
+        "why can't i see the money",
+        "why is money hidden",
+        "why are the figures hidden from me"
+      ],
+      "replies": [
+        "It keeps the business safe. Only the owner's own account sees the money.",
+        "For safety, owner only."
+      ]
+    },
+    {
+      "id": "staff-can-i-change-prices",
+      "topic": "money",
+      "when": ["can i change prices", "change the delivery fee"],
+      "replies": ["No. Only the owner changes prices.", "The owner does that."]
+    },
+    {
+      "id": "staff-what-is-the-maximum-shop",
+      "topic": "rules",
+      "when": ["what's the most someone can spend", "maximum shop"],
+      "replies": ["The most for one shop is {maximum}.", "{maximum}."]
+    },
+    {
+      "id": "staff-what-is-the-call-price",
+      "topic": "rules",
+      "when": ["how much are calls", "call price"],
+      "replies": ["Calls cost {callPrice} a minute.", "{callPrice} a minute."]
+    },
+    {
+      "id": "staff-what-is-personal-data",
+      "topic": "privacy",
+      "when": ["what is personal data", "what counts as personal information"],
+      "replies": [
+        "Anything that tells you who someone is or about their life: name, address, what they buy, their health. Treat it all as private.",
+        "Anything about a person. Keep it private."
+      ]
+    },
+    {
+      "id": "staff-why-does-privacy-matter",
+      "topic": "privacy",
+      "when": ["why does privacy matter", "why so strict about privacy"],
+      "replies": [
+        "Our Shoppers trust us with their homes and their lives. It's the law, and it's kindness.",
+        "Trust, and the law."
+      ]
+    },
+    {
+      "id": "staff-can-i-look-up-a-friend",
+      "topic": "privacy",
+      "when": ["can i look up a friend", "can i check on my neighbour", "can i look someone up"],
+      "replies": [
+        "No. Only look at what your work needs. Every action is recorded.",
+        "Only what your work needs."
+      ]
+    },
+    {
+      "id": "staff-can-i-write-details-down",
+      "topic": "privacy",
+      "when": ["can i write details down", "can i take notes on paper"],
+      "replies": [
+        "Keep notes in the panel where you can. Anything on paper must be kept safe and shredded after.",
+        "Keep it safe, and shred it after."
+      ]
+    },
+    {
+      "id": "staff-can-i-take-a-screenshot",
+      "topic": "privacy",
+      "when": ["can i take a screenshot", "can i photograph the screen"],
+      "replies": [
+        "Please don't. Screenshots of people's details can end up anywhere.",
+        "Please don't."
+      ]
+    },
+    {
+      "id": "staff-can-i-email-details",
+      "topic": "privacy",
+      "when": [
+        "can i email details to myself",
+        "forward to my personal email",
+        "send it to my phone"
+      ],
+      "replies": [
+        "No. People's details stay in the panel, never in personal email or messages.",
+        "Never. They stay in the panel."
+      ]
+    },
+    {
+      "id": "staff-someone-asks-about-a-shopper",
+      "topic": "privacy",
+      "when": [
+        "someone asked about a shopper",
+        "a relative wants information",
+        "the police want details"
+      ],
+      "replies": [
+        "Don't share anything. Take their name and number, and pass it to the founder.",
+        "Share nothing. Pass it to the founder."
+      ]
+    },
+    {
+      "id": "staff-someone-asks-what-a-shopper-bought",
+      "topic": "privacy",
+      "when": ["can i say what a shopper bought", "what they ordered is private"],
+      "replies": [
+        "What someone buys is private, and can reveal health or beliefs. Never share it.",
+        "Private. Never share it."
+      ]
+    },
+    {
+      "id": "staff-can-i-talk-about-work-at-home",
+      "topic": "privacy",
+      "when": ["can i talk about work at home", "can i tell my family about a case"],
+      "replies": [
+        "Talk about your day, but never names or details of Shoppers, Runners or shops.",
+        "Never names or details."
+      ]
+    },
+    {
+      "id": "staff-can-i-post-about-work",
+      "topic": "privacy",
+      "when": ["can i post about work online", "social media"],
+      "replies": [
+        "Never post anything about Shoppers, Runners or cases. Ask the founder before posting about the company.",
+        "Nothing about people. Ask the founder first."
+      ]
+    },
+    {
+      "id": "staff-data-breach",
+      "topic": "privacy",
+      "when": [
+        "i think there's been a data breach",
+        "data leak",
+        "details were sent to the wrong person"
+      ],
+      "replies": [
+        "Tell the founder straight away. Some must be reported within 72 hours, so every minute counts.",
+        "Tell the founder now."
+      ]
+    },
+    {
+      "id": "staff-someone-asks-for-their-data",
+      "topic": "privacy",
+      "when": [
+        "someone wants their data",
+        "subject access request",
+        "they want a copy of their information"
+      ],
+      "replies": [
+        "People have a right to their data. Pass the request to the founder the same day.",
+        "Pass it to the founder today."
+      ]
+    },
+    {
+      "id": "staff-someone-wants-to-be-deleted",
+      "topic": "privacy",
+      "when": ["someone wants to be deleted", "delete my account request", "right to be forgotten"],
+      "replies": [
+        "Pass it to the founder the same day. Don't delete anything yourself.",
+        "Pass it on. Don't delete anything."
+      ]
+    },
+    {
+      "id": "staff-what-is-the-ico",
+      "topic": "privacy",
+      "when": ["what is the ico", "information commissioner"],
+      "replies": [
+        "The Information Commissioner's Office looks after data protection law in the UK.",
+        "The UK's data protection regulator."
+      ]
+    },
+    {
+      "id": "staff-why-is-everything-recorded",
+      "topic": "privacy",
+      "when": ["why is everything recorded", "audit log"],
+      "replies": [
+        "So it's always clear who did what. It protects you as much as everyone else.",
+        "It protects everyone, you included."
+      ]
+    },
+    {
+      "id": "staff-health-information",
+      "topic": "privacy",
+      "when": ["health information", "medical details", "the shopper mentioned their health"],
+      "replies": [
+        "Health details need extra care. Use them only for the work in hand, and never repeat them.",
+        "Extra care. Never repeat it."
+      ]
+    },
+    {
+      "id": "staff-privacy-in-public",
+      "topic": "privacy",
+      "when": ["i'm on the train", "i'm in a cafe", "working in public"],
+      "replies": [
+        "Use earphones, keep your screen away from others, and say turn off talking if people are close.",
+        "Earphones, and screen away from others."
+      ]
+    },
+    {
+      "id": "staff-leaving-the-screen",
+      "topic": "privacy",
+      "when": ["i'm stepping away", "i need a break from the desk"],
+      "replies": [
+        "Lock your screen, or say sign me out, before you leave it.",
+        "Lock it or sign out."
+      ]
+    },
+    {
+      "id": "staff-shared-computer",
+      "topic": "privacy",
+      "when": ["shared computer", "library computer"],
+      "replies": [
+        "Always sign out when you finish, and don't let the browser save your password.",
+        "Sign out, and don't save the password."
+      ]
+    },
+    {
+      "id": "staff-where-do-shoppers-live",
+      "topic": "privacy",
+      "when": ["where does the shopper live", "shopper address"],
+      "replies": [
+        "Only see an address if your job needs it, and never share it.",
+        "Only if your work needs it."
+      ]
+    },
+    {
+      "id": "staff-how-long-do-we-keep-data",
+      "topic": "privacy",
+      "when": ["how long do we keep data", "data retention"],
+      "replies": [
+        "Only as long as we need it. Ask the founder about a particular case.",
+        "As long as needed, no longer."
+      ]
+    },
+    {
+      "id": "staff-we-never-ask-for-codes",
+      "topic": "security",
+      "when": [
+        "someone asked for my code",
+        "they want the code from my phone",
+        "verification code"
+      ],
+      "replies": [
+        "We never ask for codes, ever. Don't give it. Tell the founder.",
+        "Never give a code. Report it."
+      ]
+    },
+    {
+      "id": "staff-strange-email",
+      "topic": "security",
+      "when": ["i got a strange email", "suspicious email", "dodgy link"],
+      "replies": [
+        "Don't click links or open attachments. Tell the founder. Real messages from us never ask for passwords or codes.",
+        "Don't click. Tell the founder."
+      ]
+    },
+    {
+      "id": "staff-strange-phone-call",
+      "topic": "security",
+      "when": [
+        "someone rang claiming to be the founder",
+        "suspicious phone call",
+        "someone says they're from the bank"
+      ],
+      "replies": [
+        "Hang up, and contact the founder the usual way to check. Never share a password or code on a call.",
+        "Hang up and check."
+      ]
+    },
+    {
+      "id": "staff-someone-says-it-is-urgent",
+      "topic": "security",
+      "when": ["they say it's urgent", "they're rushing me"],
+      "replies": [
+        "Pressure is a warning sign. Stop, check with the founder, and never share passwords or codes.",
+        "Slow down and check."
+      ]
+    },
+    {
+      "id": "staff-someone-wants-a-refund-changed",
+      "topic": "security",
+      "when": ["someone asked me to send money", "change bank details request"],
+      "replies": [
+        "Never move money or change bank details on request. Tell the founder.",
+        "Tell the founder. Don't act on it."
+      ]
+    },
+    {
+      "id": "staff-my-password-was-seen",
+      "topic": "security",
+      "when": ["someone saw my password", "i think my password is known", "i've been hacked"],
+      "replies": [
+        "Tell the founder straight away. You'll be given a new password, and you'll choose your own again.",
+        "Tell the founder now."
+      ]
+    },
+    {
+      "id": "staff-can-i-write-my-password-down",
+      "topic": "security",
+      "when": ["can i write my password down", "where do i keep my password"],
+      "replies": [
+        "A password manager is best. Never on a note by the computer.",
+        "A password manager. Never on a note."
+      ]
+    },
+    {
+      "id": "staff-same-password-everywhere",
+      "topic": "security",
+      "when": ["can i use the same password everywhere", "reuse password"],
+      "replies": [
+        "Please use a password only for this panel. If another site is breached, this stays safe.",
+        "One just for here, please."
+      ]
+    },
+    {
+      "id": "staff-browser-save-password",
+      "topic": "security",
+      "when": ["should the browser save my password", "remember my password"],
+      "replies": [
+        "Only on your own device, locked with your own code. Never on a shared computer.",
+        "Own device only."
+      ]
+    },
+    {
+      "id": "staff-lost-my-phone",
+      "topic": "security",
+      "when": ["i lost my phone", "my laptop was stolen", "lost my device"],
+      "replies": [
+        "Tell the founder straight away, so your sign-in can be made safe.",
+        "Tell the founder now."
+      ]
+    },
+    {
+      "id": "staff-update-my-device",
+      "topic": "security",
+      "when": ["should i update my computer", "software updates"],
+      "replies": [
+        "Yes. Updates fix security holes. Keep your device and browser up to date.",
+        "Yes, keep it updated."
+      ]
+    },
+    {
+      "id": "staff-public-wifi",
+      "topic": "security",
+      "when": ["is public wifi safe", "cafe wifi"],
+      "replies": [
+        "Your own home internet or phone connection is better. If you must use public wifi, sign out when you finish.",
+        "Home or phone connection is better."
+      ]
+    },
+    {
+      "id": "staff-what-is-the-kill-switch",
+      "topic": "security",
+      "when": ["what is the kill switch", "everyone was signed out"],
+      "replies": [
+        "The owner can sign everyone out of the panel at once, for safety. Nothing is deleted. Just sign in again.",
+        "A safety switch. Sign in again."
+      ]
+    },
+    {
+      "id": "staff-is-the-panel-safe",
+      "topic": "security",
+      "when": ["is the panel safe", "is this secure"],
+      "replies": [
+        "Yes. Each person has their own sign-in, and sees only their job. Keep your password private and it stays safe.",
+        "Yes, and your care keeps it so."
+      ]
+    },
+    {
+      "id": "staff-is-this-really-ozi",
+      "topic": "security",
+      "when": ["is this really you", "how do i know you're real"],
+      "replies": [
+        "I'm {assistant}, inside the panel you signed in to. I'll never ask for your password or a code.",
+        "I never ask for passwords or codes."
+      ]
+    },
+    {
+      "id": "staff-i-am-blind",
+      "topic": "accessibility",
+      "when": ["i'm blind", "i'm partially sighted", "i can't see the screen"],
+      "replies": [
+        "Everything in the panel works by voice, and with a screen reader. Say help to begin.",
+        "You can do every part of your job by voice."
+      ]
+    },
+    {
+      "id": "staff-does-it-work-with-a-screen-reader",
+      "topic": "accessibility",
+      "when": ["does it work with a screen reader", "voiceover", "talkback", "jaws", "nvda"],
+      "replies": ["Yes. Every admin screen works with a screen reader.", "Yes, every screen."]
+    },
+    {
+      "id": "staff-braille-display",
+      "topic": "accessibility",
+      "when": ["can i use a braille display", "braille", "refreshable braille"],
+      "replies": [
+        "Yes. A Braille display works through your phone or computer's screen reader.",
+        "Yes, through your screen reader."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-make-text-bigger",
+      "topic": "accessibility",
+      "when": ["how do i make the text bigger", "the writing is too small", "zoom in"],
+      "replies": [
+        "Pinch the screen open with two fingers, or use your browser's zoom.",
+        "Pinch open, or browser zoom."
+      ]
+    },
+    {
+      "id": "staff-show-words-on-the-screen",
+      "topic": "accessibility",
+      "when": ["show words on the screen", "show the descriptions", "make the words visible"],
+      "replies": [
+        "Turn on Show words on the screen, under The screen, near the bottom of the panel.",
+        "Under The screen, turn on Show words on the screen."
+      ]
+    },
+    {
+      "id": "staff-hide-the-words",
+      "topic": "accessibility",
+      "when": ["hide the words", "too many words on screen"],
+      "replies": [
+        "Turn off Show words on the screen, under The screen. A screen reader still reads them.",
+        "Turn off Show words on the screen."
+      ]
+    },
+    {
+      "id": "staff-high-contrast",
+      "topic": "accessibility",
+      "when": ["high contrast", "colours are hard to see", "dark mode"],
+      "replies": [
+        "Your phone or computer's display settings can change contrast and colours. The panel follows them.",
+        "Use your device's display settings."
+      ]
+    },
+    {
+      "id": "staff-i-am-deaf",
+      "topic": "accessibility",
+      "when": ["i'm deaf", "i'm hard of hearing", "i can't hear well"],
+      "replies": [
+        "Everything works on the screen too. Turn on Show words on the screen if it helps.",
+        "The screen does it all too."
+      ]
+    },
+    {
+      "id": "staff-i-have-dyslexia",
+      "topic": "accessibility",
+      "when": ["i have dyslexia", "reading is hard for me"],
+      "replies": [
+        "I can read every list to you. Say read me the, and a tab.",
+        "I'll read it to you."
+      ]
+    },
+    {
+      "id": "staff-keyboard-only",
+      "topic": "accessibility",
+      "when": ["can i use only the keyboard", "keyboard navigation", "i can't use a mouse"],
+      "replies": [
+        "Yes. Tab moves between buttons, and Enter presses them. Voice works too.",
+        "Tab and Enter, or voice."
+      ]
+    },
+    {
+      "id": "staff-i-need-adjustments",
+      "topic": "accessibility",
+      "when": ["i need an adjustment", "reasonable adjustments", "i need different equipment"],
+      "replies": [
+        "Tell the founder what would help. We want everyone to be able to do their job well.",
+        "Tell the founder what would help."
+      ]
+    },
+    {
+      "id": "staff-hands-hurt",
+      "topic": "accessibility",
+      "when": ["my hands hurt", "typing is hard"],
+      "replies": [
+        "Use your voice for lists and decisions. Only passwords need typing.",
+        "Let your voice do the work."
+      ]
+    },
+    {
+      "id": "staff-what-is-my-share-link",
+      "topic": "share",
+      "when": ["what is my share link", "my share link", "where is my link"],
+      "replies": [
+        "Your own link for inviting people to join. It's under Your share link, near the bottom of the panel.",
+        "Under Your share link."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-share-my-link",
+      "topic": "share",
+      "when": ["how do i share my link", "send my link"],
+      "replies": [
+        "Press Share my link. You can send it in a message, or it's copied for you to paste.",
+        "Press Share my link."
+      ]
+    },
+    {
+      "id": "staff-how-many-joined",
+      "topic": "share",
+      "when": ["how many joined with my link", "how many people joined"],
+      "replies": [
+        "Your share link shows how many people have joined through it.",
+        "It's shown with your link."
+      ]
+    },
+    {
+      "id": "staff-who-should-i-share-with",
+      "topic": "share",
+      "when": ["who should i share it with", "who can i invite"],
+      "replies": [
+        "Anyone who might find shopping hard: family, neighbours, friends. Ask them first, kindly.",
+        "Anyone it could help."
+      ]
+    },
+    {
+      "id": "staff-is-my-link-private",
+      "topic": "share",
+      "when": ["is my link private", "does my link show my details"],
+      "replies": [
+        "It only counts who joined through it. It doesn't share anyone's details.",
+        "It only counts, it doesn't share details."
+      ]
+    },
+    {
+      "id": "staff-when-do-i-tell-the-founder",
+      "topic": "escalation",
+      "when": ["when do i tell the founder", "when should i escalate", "escalate"],
+      "replies": [
+        "When someone may be in danger, money is large or unclear, data may have leaked, or you're simply unsure.",
+        "When in doubt, tell the founder."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-reach-the-founder",
+      "topic": "escalation",
+      "when": ["how do i reach the founder", "contact the founder", "i need the founder"],
+      "replies": [
+        "The way you agreed when you started. If it's urgent and someone's in danger, ring 999 first.",
+        "The way you agreed. 999 first in danger."
+      ]
+    },
+    {
+      "id": "staff-the-founder-isn-t-answering",
+      "topic": "escalation",
+      "when": ["the founder isn't answering", "can't reach the founder"],
+      "replies": [
+        "Ask the operations manager if there is one. If someone's in danger, ring 999.",
+        "Operations manager, or 999 in danger."
+      ]
+    },
+    {
+      "id": "staff-is-it-ok-to-ask",
+      "topic": "escalation",
+      "when": ["is it ok to ask", "will i look silly asking", "i don't want to bother anyone"],
+      "replies": [
+        "Always ask. A question is never a bother, and it's how mistakes are avoided.",
+        "Always ask."
+      ]
+    },
+    {
+      "id": "staff-a-shopper-wants-a-manager",
+      "topic": "escalation",
+      "when": ["they want to speak to a manager", "they want the boss"],
+      "replies": [
+        "Kindly say you'll pass it to the founder, and do so the same day.",
+        "Pass it to the founder today."
+      ]
+    },
+    {
+      "id": "staff-legal-threat",
+      "topic": "escalation",
+      "when": ["they're threatening to sue", "they want a solicitor", "legal action"],
+      "replies": [
+        "Stay polite, say nothing about fault, and pass it to the founder straight away.",
+        "Pass it to the founder now."
+      ]
+    },
+    {
+      "id": "staff-someone-in-danger",
+      "topic": "escalation",
+      "when": ["someone is in danger", "emergency", "there's been an accident"],
+      "replies": ["Ring 999 now. Then tell the founder.", "999 first, then the founder."]
+    },
+    {
+      "id": "staff-a-runner-had-an-accident",
+      "topic": "escalation",
+      "when": ["a runner had an accident", "runner is hurt"],
+      "replies": [
+        "Make sure they're safe and ring 999 if needed. Then tell the founder.",
+        "Safety first, then the founder."
+      ]
+    },
+    {
+      "id": "staff-good-to-see-you",
+      "topic": "manners",
+      "when": ["hello again", "i'm back", "morning"],
+      "replies": ["Welcome back. Say what's waiting when you're ready.", "Good to have you back."]
+    },
+    {
+      "id": "staff-hiya",
+      "topic": "manners",
+      "when": ["hiya", "hey there", "hey"],
+      "replies": ["Hello. Shall I tell you what's waiting?", "Hello there."]
+    },
+    {
+      "id": "staff-thank-you-so-much",
+      "topic": "manners",
+      "when": ["thank you so much", "thanks a lot", "much appreciated", "ta"],
+      "replies": ["You're very welcome.", "Any time."]
+    },
+    {
+      "id": "staff-sorry",
+      "topic": "manners",
+      "when": ["sorry", "my apologies", "oops"],
+      "replies": ["No need to apologise. Take your time.", "That's quite all right."]
+    },
+    {
+      "id": "staff-please-wait",
+      "topic": "manners",
+      "when": ["one moment", "hold on", "wait a second", "give me a minute"],
+      "replies": ["Of course. I'll be here.", "Take your time."]
+    },
+    {
+      "id": "staff-excuse-me",
+      "topic": "manners",
+      "when": ["excuse me", "sorry to interrupt"],
+      "replies": ["Not at all. How can I help?", "Yes, I'm listening."]
+    },
+    {
+      "id": "staff-well-done-ozi",
+      "topic": "manners",
+      "when": ["well done", "good job", "nice one"],
+      "replies": ["Thank you. And well done to you too.", "Thank you. We make a good team."]
+    },
+    {
+      "id": "staff-you-re-brilliant",
+      "topic": "manners",
+      "when": ["you're brilliant", "you're very helpful", "i like you"],
+      "replies": ["That's kind of you. I'm glad to help.", "Thank you. It's a pleasure."]
+    },
+    {
+      "id": "staff-you-re-annoying",
+      "topic": "manners",
+      "when": ["you're annoying", "you're useless", "shut up"],
+      "replies": [
+        "Sorry. Say turn off talking, and I'll be quiet.",
+        "Sorry about that. Say turn off talking to silence me."
+      ]
+    },
+    {
+      "id": "staff-see-you-tomorrow",
+      "topic": "manners",
+      "when": ["see you tomorrow", "see you later", "until next time"],
+      "replies": [
+        "See you then. Please remember to sign out.",
+        "Take care. Don't forget to sign out."
+      ]
+    },
+    {
+      "id": "staff-have-a-good-weekend",
+      "topic": "manners",
+      "when": ["have a good weekend", "have a nice day"],
+      "replies": ["Thank you, you too.", "And you. Rest well."]
+    },
+    {
+      "id": "staff-happy-birthday-to-me",
+      "topic": "manners",
+      "when": ["it's my birthday", "it's my birthday today"],
+      "replies": ["Happy birthday. I hope it's a lovely day.", "Happy birthday from all of us."]
+    },
+    {
+      "id": "staff-good-news",
+      "topic": "manners",
+      "when": ["i've got good news", "guess what"],
+      "replies": ["Lovely. Do tell the founder too.", "Wonderful. Share it with the team."]
+    },
+    {
+      "id": "staff-what-day-is-it",
+      "topic": "manners",
+      "when": ["what day is it", "what's the date"],
+      "replies": [
+        "Your phone or computer's clock has the date. I say the decide-by date with each complaint.",
+        "Your device's clock has it."
+      ]
+    },
+    {
+      "id": "staff-what-time-is-it",
+      "topic": "manners",
+      "when": ["what time is it", "the time please"],
+      "replies": ["Your phone or computer's clock has the time.", "Check your device's clock."]
+    },
+    {
+      "id": "staff-are-you-a-robot",
+      "topic": "about",
+      "when": ["are you a robot", "are you a person", "are you human"],
+      "replies": [
+        "I'm {assistant}, a voice assistant. The decisions are always made by you.",
+        "A voice assistant. You decide."
+      ]
+    },
+    {
+      "id": "staff-do-you-make-decisions",
+      "topic": "about",
+      "when": ["do you make decisions", "can you decide for me"],
+      "replies": [
+        "No. I read things to you and carry out what you decide, after your yes.",
+        "You decide. I carry it out."
+      ]
+    },
+    {
+      "id": "staff-what-is-the-motto",
+      "topic": "about",
+      "when": ["what's the motto", "our motto"],
+      "replies": ["{motto}", "Our motto: {motto}"]
+    },
+    {
+      "id": "staff-what-is-the-product",
+      "topic": "about",
+      "when": ["what is {product}", "tell me about the company"],
+      "replies": [
+        "{product} brings shopping to people who find it hard to get out, with dignity.",
+        "Shopping, brought with care. {motto}"
+      ]
+    },
+    {
+      "id": "staff-who-is-the-founder",
+      "topic": "about",
+      "when": ["who is the founder", "who runs the company"],
+      "replies": ["The founder started the company and manages the team.", "The founder runs it."]
+    },
+    {
+      "id": "staff-who-are-our-shoppers",
+      "topic": "about",
+      "when": ["who are our shoppers", "who do we help"],
+      "replies": [
+        "Many are blind, partially sighted, elderly or unwell. Some are supported by councils or charities.",
+        "People who find shopping hard."
+      ]
+    },
+    {
+      "id": "staff-who-are-runners",
+      "topic": "about",
+      "when": ["who are runners", "what is a runner"],
+      "replies": [
+        "The people who do the shopping and bring it to Shoppers' doors.",
+        "They shop and deliver."
+      ]
+    },
+    {
+      "id": "staff-what-is-an-organisation",
+      "topic": "about",
+      "when": ["what is an organisation account", "organisations", "what is a council account"],
+      "replies": [
+        "A council, charity or care provider that helps people shop with us.",
+        "Councils, charities and carers."
+      ]
+    },
+    {
+      "id": "staff-why-the-same-fee",
+      "topic": "rules",
+      "when": ["why is the fee the same for everyone", "flat fee"],
+      "replies": ["Fairness and simplicity. {fee}, whoever you are.", "So it's fair and simple."]
+    },
+    {
+      "id": "staff-what-is-age-restricted",
+      "topic": "rules",
+      "when": ["what is age restricted", "age restricted items"],
+      "replies": [
+        "Anything the law says needs proof of age, such as alcohol, tobacco, knives or lottery tickets. We never deliver them.",
+        "Anything needing proof of age. Never."
+      ]
+    },
+    {
+      "id": "staff-why-no-medicines",
+      "topic": "rules",
+      "when": ["why no medicines", "can we bring paracetamol"],
+      "replies": [
+        "Medicines need a pharmacist's care, so we never deliver them.",
+        "They need a pharmacist."
+      ]
+    },
+    {
+      "id": "staff-why-no-cash",
+      "topic": "rules",
+      "when": ["why no cash", "can runners carry cash"],
+      "replies": [
+        "Cash is never handled. All payments are by card, through the app.",
+        "Card only, through the app."
+      ]
+    },
+    {
+      "id": "staff-who-holds-card-details",
+      "topic": "privacy",
+      "when": ["who holds card details", "is stripe safe"],
+      "replies": [
+        "Stripe holds card details. We never see them.",
+        "Stripe does. We never see them."
+      ]
+    },
+    {
+      "id": "staff-i-m-tired",
+      "topic": "wellbeing",
+      "when": ["i'm tired", "i'm exhausted", "long day"],
+      "replies": [
+        "You've done well. Take a short break, and sign out if you're stepping away.",
+        "Rest a moment. You've earned it."
+      ]
+    },
+    {
+      "id": "staff-i-m-stressed",
+      "topic": "wellbeing",
+      "when": ["i'm stressed", "i'm overwhelmed", "this is too much"],
+      "replies": [
+        "Take a breath. One thing at a time. Tell the founder if the work is too much.",
+        "One at a time. Ask for help if you need it."
+      ]
+    },
+    {
+      "id": "staff-this-is-hard",
+      "topic": "wellbeing",
+      "when": ["this is hard", "i'm struggling"],
+      "replies": [
+        "It can be. You don't have to do it alone. Ask a colleague or the founder.",
+        "Ask for help. That's what the team is for."
+      ]
+    },
+    {
+      "id": "staff-i-m-worried-i-ll-get-it-wrong",
+      "topic": "wellbeing",
+      "when": ["i'm worried i'll get it wrong", "what if i make a mistake", "i'm nervous"],
+      "replies": [
+        "Everyone makes mistakes. I read every decision back first, and anything can be put right.",
+        "I read it back first, and mistakes can be fixed."
+      ]
+    },
+    {
+      "id": "staff-a-sad-case",
+      "topic": "wellbeing",
+      "when": ["that was a sad one", "that upset me", "that was hard to hear"],
+      "replies": [
+        "Some stories are hard. It's fine to pause. Talk to the founder if it stays with you.",
+        "Take a moment. Talk to someone if it helps."
+      ]
+    },
+    {
+      "id": "staff-am-i-doing-well",
+      "topic": "wellbeing",
+      "when": ["am i doing well", "how am i doing"],
+      "replies": [
+        "Every item you deal with helps someone get their shopping. Thank you.",
+        "You're helping people every day."
+      ]
+    },
+    {
+      "id": "staff-i-did-it",
+      "topic": "wellbeing",
+      "when": ["i did it", "i finished them all", "all cleared"],
+      "replies": ["Brilliant. Well done.", "Excellent work. Thank you."]
+    },
+    {
+      "id": "staff-i-need-a-break",
+      "topic": "wellbeing",
+      "when": ["i need a break", "time for a tea", "lunch break"],
+      "replies": [
+        "Of course. Say sign me out, or lock your screen. It'll all be here when you're back.",
+        "Enjoy it. Lock your screen first."
+      ]
+    },
+    {
+      "id": "staff-i-m-bored",
+      "topic": "wellbeing",
+      "when": ["i'm bored", "it's quiet today"],
+      "replies": [
+        "A quiet day is a good day. Check what's waiting now and then.",
+        "Quiet means things are going well."
+      ]
+    },
+    {
+      "id": "staff-i-m-not-feeling-well",
+      "topic": "wellbeing",
+      "when": ["i'm not feeling well", "i feel ill", "i'm sick"],
+      "replies": [
+        "Please rest. Let the founder know, so someone can cover.",
+        "Rest, and tell the founder."
+      ]
+    },
+    {
+      "id": "staff-motivate-me",
+      "topic": "wellbeing",
+      "when": ["motivate me", "cheer me up", "say something nice"],
+      "replies": [
+        "Somewhere today, someone has their shopping because of you. {motto}",
+        "You make a real difference. Thank you."
+      ]
+    },
+    {
+      "id": "staff-why-does-my-work-matter",
+      "topic": "wellbeing",
+      "when": ["why does my work matter", "does this help anyone"],
+      "replies": [
+        "Every Runner you check, complaint you settle and call you return helps someone live more independently.",
+        "It helps people live independently."
+      ]
+    },
+    {
+      "id": "staff-i-feel-alone",
+      "topic": "wellbeing",
+      "when": ["i feel alone", "working alone is hard"],
+      "replies": [
+        "You're part of a team. Reach out to a colleague or the founder any time.",
+        "You're not alone. Reach out."
+      ]
+    },
+    {
+      "id": "staff-can-i-give-feedback-on-the-panel",
+      "topic": "work",
+      "when": ["can i suggest an improvement", "i have an idea", "this could be better"],
+      "replies": [
+        "Please do. Tell the founder. Ideas from people using the panel are the best ones.",
+        "Tell the founder. We'd love to hear it."
+      ]
+    },
+    {
+      "id": "staff-something-is-broken",
+      "topic": "work",
+      "when": ["something is broken", "the panel isn't working", "there's an error"],
+      "replies": [
+        "Note what you were doing and what it said, and tell the founder. Nothing is changed when an action fails.",
+        "Tell the founder what happened."
+      ]
+    },
+    {
+      "id": "staff-the-page-is-slow",
+      "topic": "work",
+      "when": ["the page is slow", "it's not loading"],
+      "replies": [
+        "Check your internet connection, then reload the page. If it continues, tell the founder.",
+        "Check the connection, then reload."
+      ]
+    },
+    {
+      "id": "staff-did-it-save",
+      "topic": "work",
+      "when": ["did it save", "was that done", "did it work"],
+      "replies": [
+        "When something is done, I say so. If I didn't, say what's waiting to check.",
+        "I tell you when it's done."
+      ]
+    },
+    {
+      "id": "staff-what-if-two-people-decide",
+      "topic": "work",
+      "when": ["what if two people decide the same one", "did someone else decide it"],
+      "replies": [
+        "Once something is decided it leaves the list. If someone got there first, it's done.",
+        "First decision counts."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-prioritise",
+      "topic": "work",
+      "when": ["how do i prioritise", "what order should i work in"],
+      "replies": [
+        "Anything with someone's safety first, then overdue complaints, then the oldest of everything else.",
+        "Safety, overdue, then oldest."
+      ]
+    },
+    {
+      "id": "staff-how-long-should-each-take",
+      "topic": "work",
+      "when": ["how long should each one take", "am i too slow"],
+      "replies": [
+        "As long as it needs to be done well. Careful beats quick.",
+        "Careful beats quick."
+      ]
+    },
+    {
+      "id": "staff-end-of-shift",
+      "topic": "work",
+      "when": ["end of shift", "i'm going home"],
+      "replies": [
+        "Thank you for today. Say sign me out before you go.",
+        "Well done today. Sign out please."
+      ]
+    },
+    {
+      "id": "staff-what-should-i-do-now",
+      "topic": "work",
+      "when": ["what should i do now", "what's next for me"],
+      "replies": ["Say what's waiting, and I'll tell you.", "Let's check what's waiting."]
+    },
+    {
+      "id": "staff-i-have-nothing-to-do",
+      "topic": "work",
+      "when": ["i have nothing to do", "nothing to work on"],
+      "replies": [
+        "Lovely. Check again later, or ask the founder if there's anything you can help with.",
+        "Check again later."
+      ]
+    },
+    {
+      "id": "staff-training",
+      "topic": "work",
+      "when": ["is there training", "how do i learn the job"],
+      "replies": [
+        "The founder will show you the job. Say help any time to hear what I can do.",
+        "The founder will show you. Say help any time."
+      ]
+    },
+    {
+      "id": "staff-where-are-the-rules",
+      "topic": "work",
+      "when": ["where are the rules", "staff guide"],
+      "replies": ["Ask the founder for the guide to your job.", "The founder has it."]
+    },
+    {
+      "id": "staff-dress-code",
+      "topic": "work",
+      "when": ["is there a dress code", "what do i wear"],
+      "replies": [
+        "Ask the founder. When working from home, there's no one to impress but me.",
+        "Ask the founder."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-get-paid",
+      "topic": "work",
+      "when": ["how do i get paid", "my wages", "my salary"],
+      "replies": ["Your pay is agreed with the founder. Please ask them.", "Ask the founder."]
+    },
+    {
+      "id": "staff-holiday",
+      "topic": "work",
+      "when": ["can i book holiday", "annual leave", "time off"],
+      "replies": [
+        "Ask the founder, as early as you can, so your work can be covered.",
+        "Ask the founder early."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-speak-to-shoppers",
+      "topic": "shoppers",
+      "when": ["how should i speak to shoppers", "tone with customers"],
+      "replies": [
+        "Warm, plain and patient. Use their name, say who you are, and never rush them.",
+        "Warm, plain and patient."
+      ]
+    },
+    {
+      "id": "staff-shopper-is-elderly",
+      "topic": "shoppers",
+      "when": ["the shopper is elderly", "older shopper"],
+      "replies": [
+        "Speak clearly, give them time, and check they've understood. Treat them with dignity.",
+        "Clear, patient, with dignity."
+      ]
+    },
+    {
+      "id": "staff-shopper-doesn-t-speak-english-well",
+      "topic": "shoppers",
+      "when": ["their english isn't good", "language barrier"],
+      "replies": [
+        "Use short, simple words and be patient. Tell the founder if they need more help.",
+        "Short words, and patience."
+      ]
+    },
+    {
+      "id": "staff-guide-dog",
+      "topic": "shoppers",
+      "when": ["the shopper has a guide dog", "assistance dog"],
+      "replies": [
+        "Runners should be calm around assistance dogs and never distract them.",
+        "Never distract a working dog."
+      ]
+    },
+    {
+      "id": "staff-how-to-describe-a-place",
+      "topic": "shoppers",
+      "when": ["how do i describe things to a blind person", "describing to a blind shopper"],
+      "replies": [
+        "Be specific: left, right, near the door. Avoid over there or this one.",
+        "Be specific, never over there."
+      ]
+    },
+    {
+      "id": "staff-runners-are-people-too",
+      "topic": "runners",
+      "when": ["how should i treat runners", "be fair to runners"],
+      "replies": [
+        "With the same kindness as Shoppers. They work hard, and a fair decision matters to them.",
+        "Fairly and kindly."
+      ]
+    },
+    {
+      "id": "staff-runner-feedback-is-rude",
+      "topic": "runners",
+      "when": ["the runner is rude to me", "runner was rude to staff"],
+      "replies": ["Stay calm and polite, and tell the founder.", "Stay calm, tell the founder."]
+    },
+    {
+      "id": "staff-can-i-become-a-runner",
+      "topic": "runners",
+      "when": ["can i be a runner too", "can staff be runners"],
+      "replies": ["Ask the founder. Some Runners also do Finds It.", "Ask the founder."]
+    },
+    {
+      "id": "staff-how-do-runners-get-paid",
+      "topic": "runners",
+      "when": ["how do runners get paid", "when are runners paid"],
+      "replies": [
+        "Runners earn {runnerPay} a job. Ask the founder about how payouts work.",
+        "{runnerPay} a job."
+      ]
+    },
+    {
+      "id": "staff-read-me-the-feedback-command",
+      "topic": "voice",
+      "when": ["how do i hear the feedback", "any feedback today"],
+      "replies": [
+        "Say read me the feedback, and I'll read each message.",
+        "Say read me the feedback."
+      ]
+    },
+    {
+      "id": "staff-read-me-the-finds",
+      "topic": "voice",
+      "when": ["how do i hear the finds it requests", "read me the searches"],
+      "replies": [
+        "Say read me the Finds It requests, and I'll go through them.",
+        "Say read me the Finds It requests."
+      ]
+    },
+    {
+      "id": "staff-read-me-the-enquiries",
+      "topic": "voice",
+      "when": ["how do i hear the enquiries", "who do i need to ring"],
+      "replies": [
+        "Say read me the enquiries, and I'll read each one with its number.",
+        "Say read me the enquiries."
+      ]
+    },
+    {
+      "id": "staff-read-me-the-documents",
+      "topic": "voice",
+      "when": ["how do i hear the documents", "which runners are waiting"],
+      "replies": [
+        "Say read me the documents, and I'll read each one.",
+        "Say read me the documents."
+      ]
+    },
+    {
+      "id": "staff-read-me-the-team",
+      "topic": "voice",
+      "when": ["how do i hear the team", "who's on my team"],
+      "replies": [
+        "If your job has the Team tab, say read me the team.",
+        "Say read me the team, if it's in your job."
+      ]
+    },
+    {
+      "id": "staff-i-said-yes-by-mistake",
+      "topic": "voice",
+      "when": ["i said yes by mistake", "i didn't mean yes"],
+      "replies": [
+        "Tell the founder straight away. It's recorded with your name, so it can be put right.",
+        "Tell the founder now."
+      ]
+    },
+    {
+      "id": "staff-what-does-yes-mean",
+      "topic": "voice",
+      "when": ["what counts as yes", "can i say okay"],
+      "replies": [
+        "Say yes clearly after I read the decision back. Anything else, and nothing happens.",
+        "A clear yes."
+      ]
+    },
+    {
+      "id": "staff-decide-while-reading",
+      "topic": "voice",
+      "when": ["can i decide before you finish", "can i interrupt you"],
+      "replies": [
+        "Yes. Say the decision whenever you're ready, and I'll read it back.",
+        "Yes, any time."
+      ]
+    },
+    {
+      "id": "staff-why-do-you-say-my-name",
+      "topic": "voice",
+      "when": ["why do you say my name", "why do you say who i am"],
+      "replies": [
+        "So you know whose sign-in this is. Every decision carries that name.",
+        "So you know who's signed in."
+      ]
+    },
+    {
+      "id": "staff-what-is-turn-off-talking",
+      "topic": "voice",
+      "when": ["what is turn off talking", "how do i mute you"],
+      "replies": [
+        "Say turn off talking, or use the switch at the bottom of the screen. I'll stop speaking aloud.",
+        "Say turn off talking."
+      ]
+    },
+    {
+      "id": "staff-can-i-work-on-my-phone",
+      "topic": "work",
+      "when": ["can i work on my phone", "does it work on a phone", "laptop or phone"],
+      "replies": [
+        "Yes. The panel works on a laptop and on a phone, with the same jobs on both.",
+        "Both work just the same."
+      ]
+    },
+    {
+      "id": "staff-can-i-use-my-own-laptop",
+      "topic": "security",
+      "when": ["can i use my own laptop", "my own computer"],
+      "replies": [
+        "Ask the founder. If yes, keep it locked with a password and up to date.",
+        "Ask the founder, and keep it locked."
+      ]
+    },
+    {
+      "id": "staff-should-i-lock-my-screen",
+      "topic": "security",
+      "when": ["should i lock my screen", "lock screen"],
+      "replies": [
+        "Yes, whenever you step away, even for a minute.",
+        "Yes, every time you step away."
+      ]
+    },
+    {
+      "id": "staff-is-my-work-watched",
+      "topic": "work",
+      "when": ["is my work watched", "who can see what i do"],
+      "replies": [
+        "Every decision records who made it, so the founder can see who decided what. It protects you too.",
+        "Decisions are recorded with your name."
+      ]
+    },
+    {
+      "id": "staff-can-family-see-my-work",
+      "topic": "privacy",
+      "when": [
+        "can family members see my work",
+        "who are the viewers",
+        "can investors change things"
+      ],
+      "replies": [
+        "The owner can let family or investors look at some parts of the panel. They can look, but never change or decide anything.",
+        "They can look, never change."
+      ]
+    },
+    {
+      "id": "staff-an-investor-asked-me",
+      "topic": "escalation",
+      "when": ["an investor asked me something", "an investor called"],
+      "replies": [
+        "Please pass it to the founder, and don't share figures or details yourself.",
+        "Pass it to the founder."
+      ]
+    },
+    {
+      "id": "staff-can-i-delete-a-record",
+      "topic": "privacy",
+      "when": ["can i delete a record", "can i remove something i did"],
+      "replies": [
+        "No. Records aren't deleted. If something is wrong, tell the founder and it can be put right.",
+        "No. Tell the founder instead."
+      ]
+    },
+    {
+      "id": "staff-copy-and-paste-details",
+      "topic": "privacy",
+      "when": ["can i copy and paste details", "copy someone's address"],
+      "replies": [
+        "Only within the panel for the work in hand. Never into personal notes or messages.",
+        "Only for the work, never outside."
+      ]
+    },
+    {
+      "id": "staff-children-s-details",
+      "topic": "privacy",
+      "when": ["what about children's details", "a child was mentioned"],
+      "replies": [
+        "Children's details need the greatest care. Use them only for the work, and tell the founder if a child may be at risk.",
+        "Greatest care. Tell the founder about any risk."
+      ]
+    },
+    {
+      "id": "staff-what-is-the-passcode",
+      "topic": "security",
+      "when": ["what is the passcode", "do i have a passcode"],
+      "replies": [
+        "The passcode is the owner's alone. You sign in with your username and password.",
+        "That's for the owner only."
+      ]
+    },
+    {
+      "id": "staff-what-is-a-strong-password",
+      "topic": "security",
+      "when": ["what is a strong password", "good password"],
+      "replies": [
+        "Long and hard to guess: a few unrelated words together works well. At least 10 characters.",
+        "Long, unusual, and only for here."
+      ]
+    },
+    {
+      "id": "staff-a-crying-shopper",
+      "topic": "shoppers",
+      "when": ["the shopper was crying", "the shopper is distressed"],
+      "replies": [
+        "Be gentle and patient. Put right what you can, and tell the founder if you're worried about them.",
+        "Gently. Tell the founder if you're worried."
+      ]
+    },
+    {
+      "id": "staff-a-shopper-has-died",
+      "topic": "shoppers",
+      "when": ["a shopper has died", "we heard a shopper passed away"],
+      "replies": [
+        "I'm sorry. Please tell the founder, who will handle it with care. Take a moment if you need one.",
+        "Tell the founder, and take a moment."
+      ]
+    },
+    {
+      "id": "staff-they-want-my-number",
+      "topic": "privacy",
+      "when": ["they asked for my personal number", "can i give my own number"],
+      "replies": [
+        "Please don't give out your personal number. Keep contact through us.",
+        "Keep your own number private."
+      ]
+    },
+    {
+      "id": "staff-can-i-accept-a-gift",
+      "topic": "work",
+      "when": ["can i accept a gift", "they offered me a present", "a tip for me"],
+      "replies": [
+        "Thank them kindly, and ask the founder before accepting anything.",
+        "Ask the founder first."
+      ]
+    },
+    {
+      "id": "staff-conflict-of-interest",
+      "topic": "work",
+      "when": ["conflict of interest", "i have a personal connection"],
+      "replies": [
+        "Tell the founder, and ask a colleague to deal with that case.",
+        "Hand it to someone else, and tell the founder."
+      ]
+    },
+    {
+      "id": "staff-i-disagree-with-a-rule",
+      "topic": "work",
+      "when": ["i disagree with a rule", "this rule seems wrong"],
+      "replies": [
+        "Please say so to the founder. Rules get better when people speak up.",
+        "Tell the founder. Your view matters."
+      ]
+    },
+    {
+      "id": "staff-tell-me-a-joke",
+      "topic": "manners",
+      "when": ["tell me a joke", "make me laugh"],
+      "replies": [
+        "Why did the shopping bag do so well at school? It was always full of ideas. Shall we see what's waiting?",
+        "I'm better at lists than jokes. Shall we see what's waiting?"
+      ]
+    },
+    {
+      "id": "staff-i-love-this-job",
+      "topic": "wellbeing",
+      "when": ["i love this job", "i enjoy this work"],
+      "replies": [
+        "That's wonderful to hear. It shows in your work.",
+        "Lovely. Thank you for caring."
+      ]
+    },
+    {
+      "id": "staff-who-made-you",
+      "topic": "about",
+      "when": ["who made you", "who built you"],
+      "replies": [
+        "I was made to help run {product}, so that everyone can work here, by voice if they wish.",
+        "I was built for {product}."
+      ]
+    },
+    {
+      "id": "staff-what-s-the-weather",
+      "topic": "about",
+      "when": ["what's the weather", "will it rain"],
+      "replies": [
+        "I can't check the weather here. Your phone can.",
+        "Your phone knows the weather better than me."
+      ]
+    },
+    {
+      "id": "staff-play-some-music",
+      "topic": "about",
+      "when": ["play some music", "put the radio on"],
+      "replies": [
+        "I can't play music in the panel. Your phone or computer can.",
+        "Not here, I'm afraid."
+      ]
+    },
+    {
+      "id": "staff-set-a-reminder",
+      "topic": "about",
+      "when": ["set a reminder", "remind me later"],
+      "replies": [
+        "I can't set reminders. Your phone can. Your work stays waiting until it's decided.",
+        "Your phone can do that."
+      ]
+    },
+    {
+      "id": "staff-can-you-ring-them-for-me",
+      "topic": "enquiries",
+      "when": ["can you ring them for me", "make the call for me"],
+      "replies": [
+        "I can't make calls. I'll read the number in pairs for you to ring.",
+        "I'll read you the number."
+      ]
+    },
+    {
+      "id": "staff-screen-reader-talking-over",
+      "topic": "accessibility",
+      "when": ["my screen reader is talking over you", "two voices at once"],
+      "replies": [
+        "Pause your screen reader while I speak, or say turn off talking and use the screen reader alone.",
+        "Use one voice at a time."
+      ]
+    },
+    {
+      "id": "staff-screen-magnifier",
+      "topic": "accessibility",
+      "when": ["can i use a magnifier", "screen magnifier"],
+      "replies": [
+        "Yes. Your device's magnifier works, and you can pinch the screen open to zoom.",
+        "Yes, magnifier or pinch to zoom."
+      ]
+    },
+    {
+      "id": "staff-dictation",
+      "topic": "accessibility",
+      "when": ["can i use dictation", "speech to text"],
+      "replies": [
+        "Yes, for most things. Please type your password rather than dictate it, so nobody hears it.",
+        "Yes, except your password."
+      ]
+    },
+    {
+      "id": "staff-never-mind",
+      "topic": "manners",
+      "when": ["never mind", "forget it", "it doesn't matter"],
+      "replies": ["All right.", "No problem."]
+    },
+    {
+      "id": "staff-you-re-welcome",
+      "topic": "manners",
+      "when": ["you're welcome", "no problem"],
+      "replies": ["Thank you.", "Kind of you."]
+    },
+    {
+      "id": "staff-a-shopper-wants-to-work-here",
+      "topic": "escalation",
+      "when": ["a shopper wants to work here", "someone wants a job here"],
+      "replies": [
+        "Lovely. Pass their interest to the founder, who does all the hiring.",
+        "The founder does the hiring."
+      ]
+    },
+    {
+      "id": "staff-blind-staff",
+      "topic": "accessibility",
+      "when": ["can blind people work here", "can a blind person do this job"],
+      "replies": [
+        "Yes. Every part of the panel works by voice and with a screen reader, so a blind person can do any job here.",
+        "Yes, any job."
+      ]
+    },
+    {
+      "id": "staff-confidential",
+      "topic": "privacy",
+      "when": ["is this confidential", "keep it confidential"],
+      "replies": [
+        "Everything about Shoppers, Runners and shops is confidential. Keep it in the panel.",
+        "Yes. Keep it in the panel."
+      ]
+    },
+    {
+      "id": "staff-what-if-someone-is-watching",
+      "topic": "privacy",
+      "when": ["someone is looking over my shoulder", "someone can see my screen"],
+      "replies": [
+        "Turn the screen away or lock it, and use earphones.",
+        "Lock or turn the screen away."
+      ]
+    },
+    {
+      "id": "staff-the-founder-asked-by-message",
+      "topic": "security",
+      "when": ["the founder messaged asking for my password", "a message asks me to sign in again"],
+      "replies": [
+        "The founder will never ask for your password. Don't reply. Check with the founder the usual way.",
+        "Never. Check with the founder directly."
+      ]
+    },
+    {
+      "id": "staff-how-do-shoppers-pay",
+      "topic": "rules",
+      "when": ["how do shoppers pay", "payment method"],
+      "replies": [
+        "By card, through the app. Card details are held by Stripe, and we never see them.",
+        "By card, through the app."
+      ]
+    },
+    {
+      "id": "staff-who-can-see-shopper-accounts",
+      "topic": "privacy",
+      "when": ["who can open a shopper's account", "can i see a shopper's account"],
+      "replies": [
+        "Only the owner can open an individual Shopper's account. You see only what your job needs.",
+        "Only the owner."
+      ]
+    },
+    {
+      "id": "staff-what-if-the-shopper-isn-t-home",
+      "topic": "shoppers",
+      "when": ["the shopper wasn't home", "nobody answered the door"],
+      "replies": [
+        "If it comes up in a case, decide it on the evidence, and ask the founder if you're unsure.",
+        "Decide fairly on the evidence."
+      ]
     }
   ]
 }
