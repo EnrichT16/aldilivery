@@ -45,6 +45,8 @@ export interface Shopper {
    * same card be charged again; a card on its own is spent after one payment.
    */
   stripeCustomerId: string | null;
+  /** Ozi Recipes is unlocked until then; null when it has never been bought. */
+  recipePassUntil: Date | null;
   deletionScheduledFor: Date | null;
   organisationId: string | null;
   createdAt: Date;

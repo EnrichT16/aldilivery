@@ -155,6 +155,8 @@ export type SubstitutionChoice = 'no_substitutes' | 'similar_item' | 'ask_me';
 
 export interface Shopper {
   id: string;
+  /** Ozi Recipes is unlocked until then (ISO date), or never bought. */
+  recipePassUntil?: string | null;
   displayName: string;
   handle: string;
   phone: string;
@@ -835,6 +837,14 @@ export interface PastOrder {
   createdAt: string;
   deliveredAt: string | null;
   items: Array<{ id: string; name: string; quantity: number }>;
+}
+
+/** Ozi Recipes: unlock it for the agreed price, taken from the saved card. */
+export function buyRecipePass(): Promise<{ recipePassUntil: string; message: string }> {
+  return request<{ recipePassUntil: string; message: string }>('/extras/recipe-pass', {
+    method: 'POST',
+    body: JSON.stringify({ priceAccepted: true }),
+  });
 }
 
 /** Every order the signed-in Shopper has made, newest first. */

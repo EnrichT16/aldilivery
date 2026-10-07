@@ -1,0 +1,41 @@
+{
+  "about": "Little Gifts (6 October 2026): ready-made, affordable gift bundles from the shop, brought with the shopping. Each 'items' entry is the exact name of a catalogue item. Never alcohol, tobacco or medicines (Section K).",
+  "gifts": [
+    {
+      "id": "birthday-treat",
+      "name": "Birthday treat",
+      "forWho": "A friend or family member's birthday",
+      "items": ["Birthday card", "Box of milk chocolates, 200g", "Gift bag"]
+    },
+    {
+      "id": "thinking-of-you",
+      "name": "Thinking of you",
+      "forWho": "Someone who could do with a lift",
+      "items": ["Thinking of you card", "Mixed bunch of flowers"]
+    },
+    {
+      "id": "anniversary",
+      "name": "Anniversary",
+      "forWho": "A partner, on a special day",
+      "items": ["Mixed bunch of flowers", "Box of milk chocolates, 200g", "Scented candle"]
+    },
+    {
+      "id": "little-ones-birthday",
+      "name": "Little one's birthday",
+      "forWho": "A child's birthday",
+      "items": ["Birthday card", "Small teddy bear", "Colouring book and crayons", "Gift bag"]
+    },
+    {
+      "id": "get-well",
+      "name": "Get well soon",
+      "forWho": "Someone who is poorly",
+      "items": ["Thinking of you card", "Mixed bunch of flowers", "Braeburn apples, 6 pack"]
+    },
+    {
+      "id": "cosy-night-in",
+      "name": "Cosy night in",
+      "forWho": "Anyone, any day",
+      "items": ["Scented candle", "Box of milk chocolates, 200g", "Tea bags, 80", "Digestive biscuits, 400g"]
+    }
+  ]
+}

@@ -105,6 +105,12 @@ export interface StoreConfig {
     readonly paymentCeilingPence: number;
   };
   /** In-app calls (docs/BUILD_PROMPT.md, Sections B and F; rulings of 2 October 2026). */
+  /** Paid extras (6 October 2026). */
+  readonly extras: {
+    /** Ozi Recipes: full recipes, read out and added to the basket in one go. */
+    readonly recipePassPence: number;
+    readonly recipePassDays: number;
+  };
   readonly calls: {
     /** What each person's minute costs, paid by the Shopper. 5p. A Runner never pays. */
     readonly pencePerMinute: number;
@@ -231,6 +237,7 @@ export function parseStoreConfig(input: unknown): StoreConfig {
   const versionOneRestrictions = object(root['versionOneRestrictions'], 'versionOneRestrictions');
   const voice = object(root['voice'], 'voice');
   const calls = object(root['calls'], 'calls');
+  const extras = root['extras'] === undefined ? {} : object(root['extras'], 'extras');
   const problems = object(root['problems'], 'problems');
   const recoveryPercentOfPay = wholeNumber(
     problems['recoveryPercentOfPay'],
@@ -426,6 +433,10 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       decideWithinWorkingDays: wholeNumber(problems['decideWithinWorkingDays'], 'problems.decideWithinWorkingDays', 1),
       recoveryPercentOfPay,
       writeOffUpToPence: wholeNumber(problems['writeOffUpToPence'], 'problems.writeOffUpToPence', 0),
+    },
+    extras: {
+      recipePassPence: wholeNumber(extras['recipePassPence'] ?? 199, 'extras.recipePassPence', 1),
+      recipePassDays: wholeNumber(extras['recipePassDays'] ?? 30, 'extras.recipePassDays', 1),
     },
     calls: {
       pencePerMinute: wholeNumber(calls['pencePerMinute'], 'calls.pencePerMinute', 0),

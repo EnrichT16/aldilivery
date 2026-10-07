@@ -66,6 +66,36 @@ export function catalogueFor(config: StoreConfig): CreateCatalogueItem[] {
     { name: 'Laundry liquid, 1.5 litre', category: 'Household', estimatedPricePence: 349, source },
     { name: 'Paracetamol, 16 tablets', category: 'Health', estimatedPricePence: 39, source },
 
+    // For recipes (6 October 2026): everyday ingredients the recipes in config/recipes.json use.
+    { name: 'Garlic, 4 bulbs', category: 'Fruit and vegetables', estimatedPricePence: 79, source },
+    { name: 'Broccoli', category: 'Fruit and vegetables', estimatedPricePence: 59, source },
+    { name: 'Lemons, 4 pack', category: 'Fruit and vegetables', estimatedPricePence: 99, source },
+    { name: 'Frozen peas, 900g', category: 'Frozen', estimatedPricePence: 99, source },
+    { name: 'Vegetable stock cubes, 10', category: 'Cupboard', estimatedPricePence: 55, source },
+    { name: 'Olive oil, 500ml', category: 'Cupboard', estimatedPricePence: 425, source },
+    { name: 'Mixed dried herbs', category: 'Cupboard', estimatedPricePence: 79, source },
+    { name: 'Bay leaves', category: 'Cupboard', estimatedPricePence: 89, source },
+    { name: 'Plain flour, 1.5kg', category: 'Cupboard', estimatedPricePence: 75, source },
+    { name: 'Red lentils, 500g', category: 'Cupboard', estimatedPricePence: 109, source },
+    { name: 'Natural yoghurt, 500g', category: 'Dairy', estimatedPricePence: 85, source },
+    { name: 'Honey, 340g', category: 'Cupboard', estimatedPricePence: 199, source },
+
+    // For Little Gifts (6 October 2026).
+    { name: 'Birthday card', category: 'Cards and gifts', estimatedPricePence: 149, source },
+    { name: 'Thinking of you card', category: 'Cards and gifts', estimatedPricePence: 149, source },
+    { name: 'Mixed bunch of flowers', category: 'Cards and gifts', estimatedPricePence: 400, source },
+    { name: 'Box of milk chocolates, 200g', category: 'Cards and gifts', estimatedPricePence: 300, source },
+    { name: 'Small teddy bear', category: 'Cards and gifts', estimatedPricePence: 350, source },
+    { name: 'Gift bag', category: 'Cards and gifts', estimatedPricePence: 100, source },
+    { name: 'Scented candle', category: 'Cards and gifts', estimatedPricePence: 300, source },
+    { name: 'Colouring book and crayons', category: 'Cards and gifts', estimatedPricePence: 250, source },
+
+    // Things often ordered online and waited for, brought the same day instead.
+    { name: 'AA batteries, 4 pack', category: 'Everyday essentials', estimatedPricePence: 299, source },
+    { name: 'USB phone charging cable', category: 'Everyday essentials', estimatedPricePence: 400, source },
+    { name: 'LED light bulb, bayonet', category: 'Everyday essentials', estimatedPricePence: 250, source },
+    { name: 'Sticky tape', category: 'Everyday essentials', estimatedPricePence: 100, source },
+
     // Rule Six. Present on purpose, so the refusal can be seen working. It must never appear
     // in a search result and must never reach a basket.
     {
@@ -85,7 +115,10 @@ export interface SeedResult {
   alreadySeeded: boolean;
 }
 
-/** Fill an empty repository with something to look at. Does nothing if it is not empty. */
+/**
+ * Fill an empty repository with something to look at. Once it has been filled, only the items
+ * added to the list since are added, by name, so the live catalogue grows without duplicates.
+ */
 export async function seedRepository(
   repository: Repository,
   config: StoreConfig,
@@ -96,7 +129,18 @@ export async function seedRepository(
     limit: 1,
   });
   if (existing.length > 0) {
-    return { catalogueItems: 0, shoppers: 0, runners: 0, alreadySeeded: true };
+    let added = 0;
+    for (const item of catalogueFor(config)) {
+      const found = await repository.catalogue.search(item.name, {
+        includeAgeRestricted: true,
+        limit: 20,
+      });
+      if (!found.some((row) => row.name === item.name)) {
+        await repository.catalogue.create(item);
+        added += 1;
+      }
+    }
+    return { catalogueItems: added, shoppers: 0, runners: 0, alreadySeeded: true };
   }
 
   const items = catalogueFor(config);

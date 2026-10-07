@@ -96,6 +96,9 @@ export default defineConfig({
       '@store-config': fileURLToPath(storeConfigUrl),
       // What Ozi says to everyday words, added to daily (ruling 34).
       '@ozi-phrases': fileURLToPath(new URL('../../config/ozi-phrases.json', import.meta.url)),
+      // Ozi Recipes and Little Gifts (6 October 2026).
+      '@recipes': fileURLToPath(new URL('../../config/recipes.json', import.meta.url)),
+      '@gifts': fileURLToPath(new URL('../../config/gifts.json', import.meta.url)),
     },
   },
   // Everything the browser needs is in `dist` and nothing else: a static site, served from

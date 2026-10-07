@@ -112,6 +112,7 @@ export function memoryRepository(): Repository {
           budgetCapPence: input.budgetCapPence ?? null,
           pinHash: null,
           stripeCustomerId: null,
+          recipePassUntil: null,
           pinFailedAttempts: 0,
           pinLockedUntil: null,
           deletionScheduledFor: null,

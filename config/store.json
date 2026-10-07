@@ -68,6 +68,10 @@
   "voice": {
     "paymentCeilingPence": 8000
   },
+  "extras": {
+    "recipePassPence": 199,
+    "recipePassDays": 30
+  },
   "calls": {
     "pencePerMinute": 5,
     "maxOutstandingPence": 1000
