@@ -21,7 +21,7 @@ Bigger pieces
 - Welsh, then Igbo, Hausa, Yoruba and Swahili: a language layer for the screens (Section E).
 - A region selector and marketplace switching (Section P).
 - Many shops, with listings and price dates shown (Section N, ruling 16).
-- Telephone ordering answered by Ozi on a Plivo number (T9).
+- Telephone ordering answered by Ozi on the Twilio number (T9, ruling 45).
 - Email sign-up with an emailed code (ruling 33).
 - Flutterwave and Paystack (rulings 17, 18, 35).
 - Delivery bundles, 4 for £48 (T3); weekly spoken summary (T7); wellbeing checks (T8).
