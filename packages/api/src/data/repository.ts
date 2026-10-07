@@ -12,6 +12,7 @@
 
 import type {
   AccountRole,
+  IncomeRecord,
   AnalyticsEvent,
   PartnerPayment,
   SpotlightMention,
@@ -166,6 +167,8 @@ export interface Repository {
     listFamily(ownerId: string): Promise<Shopper[]>;
     /** How many accounts were opened through this share link. */
     countJoinedVia(via: string): Promise<number>;
+    /** How many Shopper accounts there are. */
+    count(): Promise<number>;
   };
 
   runners: {
@@ -395,7 +398,8 @@ export interface Repository {
   /** The people who run the service, each with their own admin sign-in. */
   staffMembers: {
     create(
-      input: Pick<StaffMember, 'name' | 'username' | 'passwordHash' | 'role'>,
+      input: Pick<StaffMember, 'name' | 'username' | 'passwordHash' | 'role'> &
+        Partial<Pick<StaffMember, 'isOwner' | 'passcodeHash' | 'mustChangePassword'>>,
     ): Promise<StaffMember>;
     findById(id: string): Promise<StaffMember | null>;
     findByUsername(username: string): Promise<StaffMember | null>;
@@ -466,6 +470,13 @@ export interface Repository {
     record(input: Omit<AnalyticsEvent, 'id'>): Promise<void>;
     /** Oldest first, between two moments, optionally of one kind. */
     list(where: { since: Date; until?: Date; kind?: AnalyticsEvent['kind'] }): Promise<AnalyticsEvent[]>;
+  };
+
+  /** Money in and out, by gateway. */
+  income: {
+    record(input: Omit<IncomeRecord, 'id'>): Promise<void>;
+    /** Oldest first. */
+    list(where: { since: Date; until?: Date }): Promise<IncomeRecord[]>;
   };
 
   /** Close any underlying connection. */

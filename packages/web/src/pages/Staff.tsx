@@ -5,6 +5,21 @@ import {
   addStaffOrganisation,
   addStaffPartner,
   addTeamMember,
+  addViewer,
+  changePasscode,
+  confirmTwoStep,
+  fetchOwnerExists,
+  fetchOwnerMoney,
+  fetchStaffOverview,
+  fetchViewers,
+  killSwitch,
+  setUpOwner,
+  setViewer,
+  startTwoStep,
+  twoStepOff,
+  type OwnerMoney,
+  type StaffOverview,
+  type Viewer,
   decideStaffPartnerProduct,
   fetchStaffPartnerProducts,
   fetchStaffPartners,
@@ -59,9 +74,11 @@ import { nameHeardIn } from '../voice/name';
 const KEY = 'ozidelivery.staff.key';
 const NAME = 'ozidelivery.staff.name';
 
-type TabKey = StaffArea;
+type TabKey = StaffArea | 'mine';
 type StaffMe = Awaited<ReturnType<typeof fetchStaffMe>>;
 const TABS: Array<{ key: TabKey; label: string }> = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'money', label: 'Money' },
   { key: 'documents', label: 'Documents' },
   { key: 'problems', label: 'Problems' },
   { key: 'owed', label: 'Money owed' },
@@ -71,6 +88,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'analytics', label: 'Analytics' },
   { key: 'feedback', label: 'Feedback' },
   { key: 'team', label: 'Team' },
+  { key: 'mine', label: 'My settings' },
 ];
 
 function remembered(name: string): string {
@@ -141,14 +159,19 @@ export function Staff(): JSX.Element {
     );
   }
 
-  const tabs = TABS.filter((item) => me.areas.includes(item.key));
-  const shown = tab && me.areas.includes(tab) ? tab : (tabs[0]?.key ?? null);
+  // "My settings" is the owner's alone: his passcode, two-step codes, the kill switch, and who
+  // sees his dashboard.
+  const allowed = (key: TabKey): boolean =>
+    key === 'mine' ? me.isOwner === true : me.areas.includes(key);
+  const tabs = TABS.filter((item) => allowed(item.key));
+  const shown = tab && allowed(tab) ? tab : (tabs[0]?.key ?? null);
 
   return (
     <div className="space-y-6">
       <h1 className="text-display font-bold m-0">Admin</h1>
       <p className="m-0">
-        Signed in as {by}, {me.title}.{' '}
+        Signed in as {by}, {me.isOwner ? 'Founder and owner' : me.title}.
+        {me.viewOnly ? ' You can look, but not change anything.' : ''}{' '}
         <button type="button" onClick={signOut} className="underline bg-transparent text-paper">
           Sign out
         </button>
@@ -204,7 +227,15 @@ export function Staff(): JSX.Element {
             {shown === 'feedback' && <Feedback staffKey={key} />}
             {shown === 'partners' && <Partners staffKey={key} onNews={setNews} />}
             {shown === 'analytics' && <Analytics staffKey={key} />}
-            {shown === 'team' && <Team staffKey={key} onNews={setNews} />}
+            {shown === 'overview' && <Overview staffKey={key} />}
+            {shown === 'money' && <Money staffKey={key} />}
+            {shown === 'mine' && <MySettings staffKey={key} onNews={setNews} onSignOut={signOut} />}
+            {shown === 'team' && (
+              <>
+                {!me.account && <OwnerSetup staffKey={key} onNews={setNews} />}
+                <Team staffKey={key} onNews={setNews} />
+              </>
+            )}
           </div>
         </>
       )}
@@ -233,6 +264,9 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
   }, []);
   const [problem, setProblem] = useState('');
   const [busy, setBusy] = useState(false);
+  // The owner's account asks for the passcode, and a two-step code if turned on, after the
+  // password. The username and password stay in the boxes meanwhile.
+  const [needs, setNeeds] = useState<string[]>([]);
 
   const submit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -258,9 +292,14 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
       return;
     }
     setBusy(true);
-    staffSignIn(value('staff-username'), String(data.get('staff-password') ?? ''))
+    staffSignIn(value('staff-username'), String(data.get('staff-password') ?? ''), {
+      ...(needs.includes('passcode') ? { passcode: String(data.get('staff-passcode') ?? '') } : {}),
+      ...(needs.includes('code') ? { code: value('staff-code') } : {}),
+    })
       .then((result) => onSignedIn(result.token, result.name))
       .catch((failure: unknown) => {
+        const asked = (failure as { details?: { needs?: unknown } }).details?.needs;
+        if (Array.isArray(asked)) setNeeds(asked.map(String));
         setProblem(failure instanceof Error ? failure.message : 'That did not work.');
         setBusy(false);
       });
@@ -308,6 +347,36 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
             autoComplete="current-password"
             className={field}
           />
+          {needs.includes('passcode') && (
+            <>
+              <label htmlFor="staff-passcode" className="block font-bold">
+                Your passcode: six numbers, then your special character
+              </label>
+              <input
+                id="staff-passcode"
+                name="staff-passcode"
+                type="password"
+                autoComplete="off"
+                maxLength={7}
+                className={field}
+              />
+            </>
+          )}
+          {needs.includes('code') && (
+            <>
+              <label htmlFor="staff-code" className="block font-bold">
+                The 6-digit code from your authenticator app
+              </label>
+              <input
+                id="staff-code"
+                name="staff-code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                className={field}
+              />
+            </>
+          )}
         </>
       )}
       {problem !== '' && (
@@ -1759,6 +1828,519 @@ function Analytics({ staffKey }: { staffKey: string }): JSX.Element {
           )}
         </>
       )}
+    </section>
+  );
+}
+
+/** People and work at a glance, with no money in it. */
+function Overview({ staffKey }: { staffKey: string }): JSX.Element {
+  const list = useList(() => fetchStaffOverview(staffKey));
+  const data: StaffOverview | null = list.data;
+  const tiles: Array<[string, number]> = data
+    ? [
+        ['Shoppers', data.people.shoppers],
+        ['Runners', data.people.runners],
+        ['Runners on shift now', data.people.runnersOnShiftNow],
+        ['Shop Partners', data.people.shopPartners],
+        ['Organisations', data.people.organisations],
+        ['Staff', data.people.staff],
+        ['Orders in the last day', data.work.ordersLastDay],
+        ['Orders in the last week', data.work.ordersLastWeek],
+        ['Complaints waiting', data.work.problemsWaiting],
+        ['Runner documents waiting', data.work.documentsWaiting],
+        ['Shop products waiting', data.work.shopProductsWaiting],
+        ['Finds It waiting', data.work.findItWaiting],
+      ]
+    : [];
+  return (
+    <section aria-labelledby="overview-heading" className="space-y-4 max-w-3xl">
+      <h2 id="overview-heading" className="text-lead font-bold">
+        Overview
+      </h2>
+      <Failure text={list.problem} />
+      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 m-0">
+        {tiles.map(([label, value]) => (
+          <div key={label} className="border-2 border-paper rounded-xl p-4">
+            <dt className="m-0">{label}</dt>
+            <dd className="m-0 text-lead font-bold">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+/** The money: for the owner's own account alone, signed in with the passcode. */
+function Money({ staffKey }: { staffKey: string }): JSX.Element {
+  const list = useList(() => fetchOwnerMoney(staffKey));
+  const data: OwnerMoney | null = list.data;
+  const periods: Array<
+    [string, keyof Pick<OwnerMoney, 'today' | 'week' | 'month' | 'year' | 'allTime'>]
+  > = [
+    ['Today', 'today'],
+    ['The last week', 'week'],
+    ['The last month', 'month'],
+    ['The last year', 'year'],
+    ['Altogether', 'allTime'],
+  ];
+  return (
+    <section aria-labelledby="money-heading" className="space-y-4 max-w-3xl">
+      <h2 id="money-heading" className="text-lead font-bold">
+        Money
+      </h2>
+      <p className="m-0">Only you see this. Not staff, not family, not investors.</p>
+      <Failure text={list.problem} />
+      {data && (
+        <>
+          <p className="m-0">
+            Payment gateways:{' '}
+            {data.gateways
+              .map((row) => `${row.name}${row.connected ? '' : ' (not live)'}`)
+              .join(', ')}
+            . Flutterwave, Paystack and others appear here when they are connected.
+          </p>
+          <table className="w-full border-collapse">
+            <caption className="text-left font-bold py-2">Money in and out</caption>
+            <thead>
+              <tr>
+                {['Period', 'In', 'Given back', 'Kept'].map((cell) => (
+                  <th key={cell} scope="col" className="text-left border-b-2 border-paper p-2">
+                    {cell}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {periods.map(([label, key]) => (
+                <tr key={key}>
+                  <th scope="row" className="text-left font-normal border-b border-paper/40 p-2">
+                    {label}
+                  </th>
+                  <td className="border-b border-paper/40 p-2">{money(data[key].inPence)}</td>
+                  <td className="border-b border-paper/40 p-2">{money(data[key].outPence)}</td>
+                  <td className="border-b border-paper/40 p-2">{money(data[key].netPence)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <h3 className="font-bold m-0">The last month, by what it was for</h3>
+          <ul className="m-0 ps-6">
+            {data.month.byKind.map((row) => (
+              <li key={row.name}>
+                {row.name}: {money(row.pence)}
+              </li>
+            ))}
+          </ul>
+          <h3 className="font-bold m-0">The latest 50</h3>
+          <ul className="m-0 ps-6">
+            {data.recent.map((row, index) => (
+              <li key={`${row.reference}-${index}`}>
+                {new Date(row.at).toLocaleString('en-GB')}: {row.kind}, {money(row.amountPence)},{' '}
+                {row.gateway}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** Making the owner's own account, once, signed in with the staff key. */
+function OwnerSetup({
+  staffKey,
+  onNews,
+}: {
+  staffKey: string;
+  onNews: (text: string) => void;
+}): JSX.Element | null {
+  const exists = useList(() => fetchOwnerExists(staffKey));
+  const [problem, setProblem] = useState('');
+  if (!exists.data || exists.data.ownerExists) return null;
+  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        const value = (name: string): string => String(data.get(name) ?? '');
+        setProblem('');
+        setUpOwner(staffKey, {
+          name: value('owner-name').trim(),
+          username: value('owner-username').trim(),
+          password: value('owner-password'),
+          passcode: value('owner-passcode'),
+        })
+          .then((result) => {
+            onNews(result.message);
+            exists.reload();
+          })
+          .catch((failure: unknown) =>
+            setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
+          );
+      }}
+      className="space-y-3 max-w-xl border-2 border-highlight rounded-xl p-4"
+      aria-labelledby="owner-setup-heading"
+    >
+      <h2 id="owner-setup-heading" className="text-lead font-bold m-0">
+        Set up your owner&rsquo;s account
+      </h2>
+      <p className="m-0">
+        Your own account, the only one that ever sees the money. You sign in with a username, a
+        password and your passcode. This is done once.
+      </p>
+      <Failure text={problem} />
+      <label htmlFor="owner-name" className="block font-bold">
+        Your name
+      </label>
+      <input id="owner-name" name="owner-name" autoComplete="name" className={field} />
+      <label htmlFor="owner-username" className="block font-bold">
+        Your username
+      </label>
+      <input id="owner-username" name="owner-username" autoComplete="username" className={field} />
+      <label htmlFor="owner-password" className="block font-bold">
+        Your password, at least 10 characters
+      </label>
+      <input
+        id="owner-password"
+        name="owner-password"
+        type="password"
+        autoComplete="new-password"
+        className={field}
+      />
+      <label htmlFor="owner-passcode" className="block font-bold">
+        Your passcode: six numbers, then one special character, such as 123456#
+      </label>
+      <input
+        id="owner-passcode"
+        name="owner-passcode"
+        type="password"
+        autoComplete="off"
+        maxLength={7}
+        className={field}
+      />
+      <button type="submit" className="control bg-highlight text-ink">
+        Make my owner&rsquo;s account
+      </button>
+    </form>
+  );
+}
+
+const VIEWER_AREA_WORDS: Record<string, string> = {
+  overview: 'Overview: how many Shoppers, Runners, Shop Partners, organisations and staff',
+  analytics: 'Business analysis',
+  team: 'The team, and what each person does',
+  documents: 'Runner documents',
+  problems: 'Complaints',
+  feedback: 'Feedback',
+  finds: 'Finds It',
+  enquiries: 'Enquiries',
+  partners: 'Shops and organisations',
+};
+
+/** The owner's own settings: passcode, two-step codes, the kill switch, and who sees what. */
+function MySettings({
+  staffKey,
+  onNews,
+  onSignOut,
+}: {
+  staffKey: string;
+  onNews: (text: string) => void;
+  onSignOut: () => void;
+}): JSX.Element {
+  const viewers = useList(() => fetchViewers(staffKey));
+  const [problem, setProblem] = useState('');
+  const [password, setPassword] = useState('');
+  const [twoStep, setTwoStep] = useState<{ secret: string; otpauth: string } | null>(null);
+  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  const fail = (failure: unknown): void =>
+    setProblem(failure instanceof Error ? failure.message : 'That did not work.');
+  const values = (event: FormEvent<HTMLFormElement>): ((name: string) => string) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    return (name) => String(data.get(name) ?? '');
+  };
+  const change = (viewer: Viewer, update: { areas?: StaffArea[]; all?: boolean }): void => {
+    setViewer(staffKey, viewer.id, update)
+      .then(() => {
+        onNews(
+          update.all === true
+            ? `Everything is on for ${viewer.name}, except the money.`
+            : update.all === false
+              ? `Everything is off for ${viewer.name}.`
+              : `Saved for ${viewer.name}.`,
+        );
+        viewers.reload();
+      })
+      .catch(fail);
+  };
+
+  return (
+    <section aria-labelledby="mine-heading" className="space-y-8 max-w-2xl">
+      <h2 id="mine-heading" className="text-lead font-bold">
+        My settings
+      </h2>
+      <Failure text={problem} />
+      {password !== '' && (
+        <p role="status" className="border-2 border-highlight rounded-xl p-4 m-0">
+          {password}
+        </p>
+      )}
+
+      <section aria-labelledby="viewers-heading" className="space-y-4">
+        <h3 id="viewers-heading" className="text-lead font-bold m-0">
+          Who sees my dashboard
+        </h3>
+        <p className="m-0">
+          Family, such as your wife, and investors, each with their own sign-in. They see only what
+          you switch on, they can look but never change anything, and nobody but you ever sees the
+          money.
+        </p>
+        {viewers.data?.viewers.length === 0 && <p className="m-0">Nobody yet.</p>}
+        <ul className="list-none m-0 p-0 space-y-4">
+          {viewers.data?.viewers.map((viewer) => (
+            <li key={viewer.id} className="border-2 border-paper rounded-xl p-4 space-y-3">
+              <h4 className="m-0 font-bold">
+                {viewer.name}, {viewer.kind === 'family' ? 'family' : 'investor'} (signs in as{' '}
+                {viewer.username})
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => change(viewer, { all: true })}
+                  className="control bg-highlight text-ink"
+                >
+                  Switch all on<span className="visually-hidden"> for {viewer.name}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => change(viewer, { all: false })}
+                  className="control bg-paper text-ink"
+                >
+                  Switch all off<span className="visually-hidden"> for {viewer.name}</span>
+                </button>
+              </div>
+              <ul className="list-none m-0 p-0 space-y-1">
+                {(viewers.data?.areas ?? []).map((area) => {
+                  const on = viewer.areas.includes(area);
+                  return (
+                    <li key={area}>
+                      <label className="flex items-center gap-3 min-h-control">
+                        <input
+                          type="checkbox"
+                          role="switch"
+                          aria-checked={on}
+                          checked={on}
+                          onChange={() =>
+                            change(viewer, {
+                              areas: on
+                                ? viewer.areas.filter((one) => one !== area)
+                                : [...viewer.areas, area],
+                            })
+                          }
+                          className="w-6 h-6"
+                        />
+                        {VIEWER_AREA_WORDS[area] ?? area}
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="m-0">The money: always off. Only you see it.</p>
+            </li>
+          ))}
+        </ul>
+        <form
+          onSubmit={(event) => {
+            const value = values(event);
+            const form = event.currentTarget;
+            addViewer(staffKey, {
+              name: value('viewer-name').trim(),
+              username: value('viewer-username').trim(),
+              kind: value('viewer-kind') === 'investor' ? 'investor' : 'family',
+            })
+              .then((result) => {
+                setPassword(result.message);
+                form.reset();
+                viewers.reload();
+              })
+              .catch(fail);
+          }}
+          className="space-y-2"
+          aria-labelledby="add-viewer-heading"
+        >
+          <h4 id="add-viewer-heading" className="font-bold m-0">
+            Add someone
+          </h4>
+          <label htmlFor="viewer-name" className="block">
+            Their name
+          </label>
+          <input id="viewer-name" name="viewer-name" className={field} />
+          <label htmlFor="viewer-username" className="block">
+            Their username
+          </label>
+          <input id="viewer-username" name="viewer-username" autoComplete="off" className={field} />
+          <label htmlFor="viewer-kind" className="block">
+            Who they are
+          </label>
+          <select id="viewer-kind" name="viewer-kind" className={field} defaultValue="family">
+            <option value="family">Family (such as my wife)</option>
+            <option value="investor">Investor</option>
+          </select>
+          <button type="submit" className="control bg-highlight text-ink">
+            Add them
+          </button>
+        </form>
+      </section>
+
+      <form
+        onSubmit={(event) => {
+          const value = values(event);
+          changePasscode(staffKey, value('current-passcode'), value('new-passcode'))
+            .then((result) => onNews(result.message))
+            .catch(fail);
+        }}
+        className="space-y-2"
+        aria-labelledby="passcode-heading"
+      >
+        <h3 id="passcode-heading" className="text-lead font-bold m-0">
+          Change my passcode
+        </h3>
+        <label htmlFor="current-passcode" className="block">
+          My passcode now
+        </label>
+        <input
+          id="current-passcode"
+          name="current-passcode"
+          type="password"
+          maxLength={7}
+          className={field}
+        />
+        <label htmlFor="new-passcode" className="block">
+          My new passcode: six numbers, then a special character
+        </label>
+        <input
+          id="new-passcode"
+          name="new-passcode"
+          type="password"
+          maxLength={7}
+          className={field}
+        />
+        <button type="submit" className="control bg-paper text-ink">
+          Change my passcode
+        </button>
+      </form>
+
+      <section aria-labelledby="two-step-heading" className="space-y-2">
+        <h3 id="two-step-heading" className="text-lead font-bold m-0">
+          Two-step codes
+        </h3>
+        <p className="m-0">
+          With these on, signing in also asks for the 6-digit code from an authenticator app on your
+          phone.
+        </p>
+        {twoStep ? (
+          <form
+            onSubmit={(event) => {
+              const value = values(event);
+              confirmTwoStep(staffKey, value('two-step-code').trim())
+                .then((result) => {
+                  setTwoStep(null);
+                  onNews(result.message);
+                })
+                .catch(fail);
+            }}
+            className="space-y-2"
+          >
+            <p className="m-0 break-all">
+              Add this key to your authenticator app:{' '}
+              <span aria-label={twoStep.secret.split('').join(' ')}>{twoStep.secret}</span>
+            </p>
+            <a href={twoStep.otpauth} className="control bg-paper text-ink">
+              Open it in my authenticator app
+            </a>
+            <label htmlFor="two-step-code" className="block">
+              The 6-digit code it shows
+            </label>
+            <input
+              id="two-step-code"
+              name="two-step-code"
+              inputMode="numeric"
+              maxLength={6}
+              className={field}
+            />
+            <button type="submit" className="control bg-highlight text-ink">
+              Switch two-step codes on
+            </button>
+          </form>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                void startTwoStep(staffKey)
+                  .then((result) => setTwoStep(result))
+                  .catch(fail)
+              }
+              className="control bg-paper text-ink"
+            >
+              Set up two-step codes
+            </button>
+            <form
+              onSubmit={(event) => {
+                const value = values(event);
+                twoStepOff(staffKey, value('off-passcode'))
+                  .then((result) => onNews(result.message))
+                  .catch(fail);
+              }}
+              className="flex flex-wrap gap-2 items-end"
+            >
+              <label className="block">
+                Passcode, to switch them off
+                <input name="off-passcode" type="password" maxLength={7} className={field} />
+              </label>
+              <button type="submit" className="control bg-paper/10 text-paper underline">
+                Switch two-step codes off
+              </button>
+            </form>
+          </div>
+        )}
+      </section>
+
+      <form
+        onSubmit={(event) => {
+          const value = values(event);
+          killSwitch(staffKey, value('kill-passcode'))
+            .then((result) => {
+              onNews(result.message);
+              onSignOut();
+            })
+            .catch(fail);
+        }}
+        className="space-y-2 border-2 border-paper rounded-xl p-4"
+        aria-labelledby="kill-heading"
+      >
+        <h3 id="kill-heading" className="text-lead font-bold m-0">
+          Kill switch
+        </h3>
+        <p className="m-0">
+          Switches everything off for everyone who sees your dashboard, and signs every admin
+          session out, yours too. Nothing is deleted. Your passcode is needed.
+        </p>
+        <label htmlFor="kill-passcode" className="block">
+          My passcode
+        </label>
+        <input
+          id="kill-passcode"
+          name="kill-passcode"
+          type="password"
+          maxLength={7}
+          className={field}
+        />
+        <button type="submit" className="control bg-highlight text-ink">
+          Use the kill switch
+        </button>
+      </form>
     </section>
   );
 }

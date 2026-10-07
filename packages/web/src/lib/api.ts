@@ -994,6 +994,8 @@ export type StaffArea =
   | 'enquiries'
   | 'partners'
   | 'analytics'
+  | 'overview'
+  | 'money'
   | 'team';
 
 export interface StaffSignedIn {
@@ -1005,16 +1007,25 @@ export interface StaffSignedIn {
   mustChangePassword: boolean;
 }
 
-export function staffSignIn(username: string, password: string): Promise<StaffSignedIn> {
+export function staffSignIn(
+  username: string,
+  password: string,
+  extra: { passcode?: string; code?: string } = {},
+): Promise<StaffSignedIn> {
   return request('/staff/sign-in', {
     method: 'POST',
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify({ username, password, ...extra }),
   });
 }
 
-export function fetchStaffMe(
-  key: string,
-): Promise<Omit<StaffSignedIn, 'token'> & { account: boolean }> {
+export function fetchStaffMe(key: string): Promise<
+  Omit<StaffSignedIn, 'token'> & {
+    account: boolean;
+    isOwner?: boolean;
+    viewOnly?: boolean;
+    totpEnabled?: boolean;
+  }
+> {
   return staffRequest(key, '/staff/me');
 }
 
@@ -1793,4 +1804,145 @@ export function fetchStaffAnalytics(
   period: StaffAnalytics['period'],
 ): Promise<StaffAnalytics> {
   return staffRequest(key, `/staff/analytics?period=${period}`);
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * The owner (ruling 43): money, overview, passcode, two-step codes, kill switch, and who
+ * sees his dashboard.
+ * ------------------------------------------------------------------------------------- */
+
+export interface MoneyTotals {
+  inPence: number;
+  outPence: number;
+  netPence: number;
+  byGateway: Array<{ name: string; pence: number }>;
+  byKind: Array<{ name: string; pence: number }>;
+}
+
+export interface OwnerMoney {
+  gateways: Array<{ name: string; connected: boolean }>;
+  today: MoneyTotals;
+  week: MoneyTotals;
+  month: MoneyTotals;
+  year: MoneyTotals;
+  allTime: MoneyTotals;
+  recent: Array<{
+    at: string;
+    gateway: string;
+    kind: string;
+    amountPence: number;
+    reference: string;
+  }>;
+}
+
+export function fetchOwnerMoney(key: string): Promise<OwnerMoney> {
+  return staffRequest(key, '/staff/money');
+}
+
+export interface StaffOverview {
+  people: {
+    shoppers: number;
+    runners: number;
+    runnersOnShiftNow: number;
+    shopPartners: number;
+    organisations: number;
+    staff: number;
+  };
+  staffByJob: Array<{ job: string; count: number }>;
+  work: {
+    ordersLastDay: number;
+    ordersLastWeek: number;
+    problemsWaiting: number;
+    documentsWaiting: number;
+    shopProductsWaiting: number;
+    findItWaiting: number;
+  };
+}
+
+export function fetchStaffOverview(key: string): Promise<StaffOverview> {
+  return staffRequest(key, '/staff/overview');
+}
+
+export function fetchOwnerExists(key: string): Promise<{ ownerExists: boolean }> {
+  return staffRequest(key, '/staff/owner');
+}
+
+export function setUpOwner(
+  key: string,
+  input: { name: string; username: string; password: string; passcode: string },
+): Promise<{ message: string }> {
+  return staffRequest(key, '/staff/owner', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function changePasscode(
+  key: string,
+  current: string,
+  passcode: string,
+): Promise<{ message: string }> {
+  return staffRequest(key, '/staff/owner/passcode', {
+    method: 'POST',
+    body: JSON.stringify({ current, passcode }),
+  });
+}
+
+export function startTwoStep(
+  key: string,
+): Promise<{ secret: string; otpauth: string; message: string }> {
+  return staffRequest(key, '/staff/owner/two-step/start', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+export function confirmTwoStep(key: string, code: string): Promise<{ message: string }> {
+  return staffRequest(key, '/staff/owner/two-step/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}
+
+export function twoStepOff(key: string, passcode: string): Promise<{ message: string }> {
+  return staffRequest(key, '/staff/owner/two-step/off', {
+    method: 'POST',
+    body: JSON.stringify({ passcode }),
+  });
+}
+
+export function killSwitch(key: string, passcode: string): Promise<{ message: string }> {
+  return staffRequest(key, '/staff/owner/kill-switch', {
+    method: 'POST',
+    body: JSON.stringify({ passcode }),
+  });
+}
+
+export interface Viewer {
+  id: string;
+  name: string;
+  username: string;
+  kind: 'family' | 'investor';
+  active: boolean;
+  areas: StaffArea[];
+  lastSignInAt: string | null;
+}
+
+export function fetchViewers(key: string): Promise<{ viewers: Viewer[]; areas: StaffArea[] }> {
+  return staffRequest(key, '/staff/viewers');
+}
+
+export function addViewer(
+  key: string,
+  input: { name: string; username: string; kind: 'family' | 'investor' },
+): Promise<{ viewer: Viewer; password: string; message: string }> {
+  return staffRequest(key, '/staff/viewers', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function setViewer(
+  key: string,
+  id: string,
+  change: { areas?: StaffArea[]; all?: boolean; active?: boolean },
+): Promise<{ viewer: Viewer }> {
+  return staffRequest(key, `/staff/viewers/${encodeURIComponent(id)}`, {
+    method: 'POST',
+    body: JSON.stringify(change),
+  });
 }

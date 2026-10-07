@@ -39,3 +39,14 @@ The jobs, in the order to hire them
 7. Founder. Sees everything, including the Team. You, and anyone you make a co-founder or director.
 
 At the very start, one or two people can do several jobs: for example, one person as Operations manager covers everything except money and the team.
+
+
+Your own account, and people who see your dashboard (ruling 43)
+
+Your owner's account is the only one that sees the money: what comes in from Stripe, and later Flutterwave, Paystack and any other gateway, and what goes back out in refunds. Not the staff key, not any staff, not family, not investors. You sign in to it with your username, password and your 7-character passcode, and a two-step code too if you turn those on.
+
+Family (such as your wife) and investors get their own sign-in, from My settings, "Who sees my dashboard". Everything starts switched off. You switch on, one by one or all at once: the overview (how many Shoppers, Runners, Shop Partners, organisations and staff), business analysis, the team, Runner documents, complaints, feedback, Finds It, enquiries, and shops and organisations. The money is never in the list. They can look, but never change or decide anything.
+
+The kill switch, in My settings, with your passcode: every switch for family and investors goes off, and everyone signed in to the admin panel is signed out, you included. Nothing is deleted. A fingerprint can be added to it later, in the phone apps.
+
+Business analysis is for you, and for whoever you switch it on for.

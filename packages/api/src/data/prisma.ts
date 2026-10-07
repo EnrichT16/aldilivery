@@ -61,6 +61,9 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           where: { familyCode: code },
         })) as unknown as Shopper | null;
       },
+      async count() {
+        return prisma.shopper.count();
+      },
       async countJoinedVia(via) {
         return prisma.shopper.count({ where: { joinedVia: via } });
       },
@@ -759,6 +762,18 @@ export function prismaRepository(prisma: PrismaClient): Repository {
             at: { gte: where.since, ...(where.until ? { lt: where.until } : {}) },
             ...(where.kind ? { kind: where.kind } : {}),
           },
+          orderBy: { at: 'asc' },
+        })) as any;
+      },
+    },
+
+    income: {
+      async record(input) {
+        await prisma.incomeRecord.create({ data: input });
+      },
+      async list(where) {
+        return (await prisma.incomeRecord.findMany({
+          where: { at: { gte: where.since, ...(where.until ? { lt: where.until } : {}) } },
           orderBy: { at: 'asc' },
         })) as any;
       },

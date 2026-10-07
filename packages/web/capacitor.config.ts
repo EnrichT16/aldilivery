@@ -21,6 +21,9 @@ const config: CapacitorConfig = {
   appId: `uk.co.${oneWord}.app`,
   appName: storeConfig.productName,
   webDir: 'dist',
+  // Pinch to zoom in and out, and pan around, in the phone apps as on the website (Anthony,
+  // 7 October 2026: an accessibility need). App web views turn it off unless asked.
+  zoomEnabled: true,
   server: {
     androidScheme: 'https',
   },

@@ -26,6 +26,8 @@ export type StaffArea =
   | 'enquiries'
   | 'partners'
   | 'analytics'
+  | 'overview'
+  | 'money'
   | 'team';
 
 export type StaffRole =
@@ -36,7 +38,8 @@ export type StaffRole =
   | 'finance'
   | 'sourcing'
   | 'partnerships'
-  | 'business_analyst';
+  | 'family'
+  | 'investor';
 
 export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly StaffArea[] }> = {
   founder: {
@@ -50,6 +53,7 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
       'enquiries',
       'partners',
       'analytics',
+      'overview',
       'team',
     ],
   },
@@ -62,8 +66,29 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
   finance: { title: 'Finance officer', areas: ['owed'] },
   sourcing: { title: 'Finds It shopper', areas: ['finds'] },
   partnerships: { title: 'Partnerships officer', areas: ['enquiries', 'partners'] },
-  business_analyst: { title: 'Business analyst', areas: ['analytics'] },
+  // People the owner lets see parts of his own dashboard (Anthony, 7 October 2026), such as
+  // his wife, or investors. They only ever see what he has switched on for them, never the
+  // money, and they can look but not change anything.
+  family: { title: 'Family, seeing the founder’s dashboard', areas: [] },
+  investor: { title: 'Investor', areas: [] },
 };
+
+/** What the owner can switch on for a family or investor account. Never the money. */
+export const VIEWER_AREAS: readonly StaffArea[] = [
+  'overview',
+  'analytics',
+  'team',
+  'documents',
+  'problems',
+  'feedback',
+  'finds',
+  'enquiries',
+  'partners',
+];
+
+export function isViewerRole(role: string): boolean {
+  return role === 'family' || role === 'investor';
+}
 
 export function isStaffRole(value: string): value is StaffRole {
   return Object.prototype.hasOwnProperty.call(STAFF_ROLES, value);
@@ -76,6 +101,10 @@ export interface StaffActor {
   name: string;
   role: StaffRole;
   areas: readonly StaffArea[];
+  /** The owner's own account, signed in with the passcode: the only one that sees the money. */
+  isOwner: boolean;
+  /** Family and investors: may look, never change. */
+  viewOnly: boolean;
 }
 
 /* ------------------------------------------------------------------ passwords */
@@ -112,15 +141,34 @@ export function temporaryPassword(): string {
 const LABEL = 'staff-session:';
 export const STAFF_SESSION_HOURS = 12;
 
-export function signStaffToken(staffId: string, expiresAt: Date, secret: string): string {
-  const body = Buffer.from(JSON.stringify({ id: staffId, exp: expiresAt.getTime() })).toString(
-    'base64url',
-  );
+/** What a staff session carries: who, until when, which sign-out generation, and the passcode. */
+export interface StaffSession {
+  id: string;
+  /** The account's session version when it was made: a kill switch raises it. */
+  version: number;
+  /** Made with the owner's passcode. */
+  passcode: boolean;
+}
+
+export function signStaffToken(
+  staffId: string,
+  expiresAt: Date,
+  secret: string,
+  extra: { version?: number; passcode?: boolean } = {},
+): string {
+  const body = Buffer.from(
+    JSON.stringify({
+      id: staffId,
+      exp: expiresAt.getTime(),
+      v: extra.version ?? 0,
+      pc: extra.passcode ?? false,
+    }),
+  ).toString('base64url');
   const mac = createHmac('sha256', `${LABEL}${secret}`).update(body).digest('base64url');
   return `st1.${body}.${mac}`;
 }
 
-export function verifyStaffToken(token: string, secret: string, now: Date): string | null {
+export function verifyStaffToken(token: string, secret: string, now: Date): StaffSession | null {
   const [version, body, mac] = token.split('.');
   if (version !== 'st1' || !body || !mac) return null;
   const expected = createHmac('sha256', `${LABEL}${secret}`).update(body).digest('base64url');
@@ -131,12 +179,59 @@ export function verifyStaffToken(token: string, secret: string, now: Date): stri
     const parsed = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as {
       id: string;
       exp: number;
+      v?: number;
+      pc?: boolean;
     };
     if (typeof parsed.id !== 'string' || parsed.exp <= now.getTime()) return null;
-    return parsed.id;
+    return { id: parsed.id, version: parsed.v ?? 0, passcode: parsed.pc === true };
   } catch {
     return null;
   }
+}
+
+/* ------------------------------------------------------------------ the owner's passcode */
+
+/** Six digits, then one special character of the owner's choosing: "123456#". */
+export function isPasscode(value: string): boolean {
+  return /^\d{6}[^A-Za-z0-9\s]$/.test(value);
+}
+
+/* ------------------------------------------------------------------ two-step codes (TOTP) */
+
+const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+export function newTotpSecret(): string {
+  return Array.from(randomBytes(20), (byte) => BASE32[byte % 32]).join('');
+}
+
+function base32Bytes(secret: string): Buffer {
+  let bits = '';
+  for (const char of secret.replace(/=+$/, '').toUpperCase()) {
+    const index = BASE32.indexOf(char);
+    if (index < 0) continue;
+    bits += index.toString(2).padStart(5, '0');
+  }
+  const bytes = [];
+  for (let index = 0; index + 8 <= bits.length; index += 8)
+    bytes.push(parseInt(bits.slice(index, index + 8), 2));
+  return Buffer.from(bytes);
+}
+
+/** The 6-digit code an authenticator app shows for this secret at this moment (RFC 6238). */
+export function totpCode(secret: string, at: Date, step = 0): string {
+  const counter = Math.floor(at.getTime() / 30_000) + step;
+  const message = Buffer.alloc(8);
+  message.writeBigUInt64BE(BigInt(counter));
+  const hash = createHmac('sha1', base32Bytes(secret)).update(message).digest();
+  const offset = (hash[hash.length - 1] ?? 0) & 0xf;
+  const value = (hash.readUInt32BE(offset) & 0x7fffffff) % 1_000_000;
+  return String(value).padStart(6, '0');
+}
+
+/** A code from now, or thirty seconds either side, for a phone clock a little out. */
+export function totpMatches(secret: string, code: string, at: Date): boolean {
+  const given = code.replace(/\s/g, '');
+  return [-1, 0, 1].some((step) => totpCode(secret, at, step) === given);
 }
 
 function header(request: FastifyRequest, name: string): string | undefined {
@@ -157,20 +252,50 @@ export async function staffActor(request: FastifyRequest, area?: StaffArea): Pro
     key.length === env.staffKey.length &&
     timingSafeEqual(Buffer.from(key), Buffer.from(env.staffKey))
   ) {
-    return { id: null, name: 'Founder', role: 'founder', areas: STAFF_ROLES.founder.areas };
+    // The staff key is everything but the money, which needs the owner's own passcode.
+    if (area === 'money') throw new ForbiddenError('Only the owner sees the money.');
+    return {
+      id: null,
+      name: 'Founder',
+      role: 'founder',
+      areas: STAFF_ROLES.founder.areas,
+      isOwner: false,
+      viewOnly: false,
+    };
   }
 
   const token = header(request, 'x-staff-token');
-  const staffId = token ? verifyStaffToken(token, env.authTokenSecret, now()) : null;
-  const member = staffId ? await repository.staffMembers.findById(staffId) : null;
-  if (!member || !member.active || !isStaffRole(member.role)) {
+  const session = token ? verifyStaffToken(token, env.authTokenSecret, now()) : null;
+  const member = session ? await repository.staffMembers.findById(session.id) : null;
+  if (
+    !session ||
+    !member ||
+    !member.active ||
+    !isStaffRole(member.role) ||
+    member.sessionVersion !== session.version
+  ) {
     throw new ForbiddenError('Please sign in to the admin panel.');
   }
-  const { areas } = STAFF_ROLES[member.role];
+  const viewOnly = isViewerRole(member.role);
+  const isOwner = member.isOwner && session.passcode;
+  const areas: StaffArea[] = viewOnly
+    ? VIEWER_AREAS.filter((one) => member.allowedAreas.split(',').includes(one))
+    : [...STAFF_ROLES[member.role].areas];
+  if (isOwner) areas.push('money');
   if (area && !areas.includes(area)) {
-    throw new ForbiddenError('That part of the admin panel is not part of your job.');
+    throw new ForbiddenError(
+      area === 'money'
+        ? 'Only the owner sees the money.'
+        : viewOnly
+          ? 'The owner has not switched that on for you.'
+          : 'That part of the admin panel is not part of your job.',
+    );
   }
-  return { id: member.id, name: member.name, role: member.role, areas };
+  // Family and investors look; they never change anything.
+  if (viewOnly && area && request.method !== 'GET') {
+    throw new ForbiddenError('Your account can look, but not change anything.');
+  }
+  return { id: member.id, name: member.name, role: member.role, areas, isOwner, viewOnly };
 }
 
 /**

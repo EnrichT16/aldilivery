@@ -52,6 +52,8 @@ Then add it as an environment variable on the api component, named STAFF_API_KEY
 
 To sign in, open /staff, press "Founder: sign in with the staff key", and type your name (it is recorded with each decision) and the key.
 
+Next, in the Team tab, make your owner's account: your name, a username, a password, and your 7-character passcode (six numbers, then one special character, such as 123456#). It is the only account that ever sees the money. From then on, sign in with it rather than the staff key; keep the key somewhere safe for emergencies. In My settings you can change the passcode, turn on two-step codes from an authenticator app, give your wife or investors their own view of your dashboard with a switch for each part, and use the kill switch.
+
 Then give each person who works for you their own sign-in, in the Team tab, with their job. Each job sees only its own part of the panel, and only you can manage the team. docs/STAFF_ROLES.md has the jobs, what each one sees, and who to hire first.
 
 
