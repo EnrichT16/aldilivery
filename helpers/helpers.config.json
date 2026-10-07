@@ -1,0 +1,63 @@
+{
+  "configVersion": 1,
+  "owner": {
+    "name": "Anthony",
+    "phoneEnv": "OWNER_PHONE",
+    "emailEnv": "OWNER_EMAIL"
+  },
+  "timeZone": "Europe/London",
+  "businesses": [
+    {
+      "id": "tofadachi",
+      "name": "Tofadachi AI and IT Solutions",
+      "website": "https://example.com",
+      "signature": "Kind regards,\nThe Tofadachi team"
+    }
+  ],
+  "helpers": [
+    {
+      "id": "tofadachi-inbox",
+      "type": "inbox",
+      "name": "Inbox helper",
+      "business": "tofadachi",
+      "brain": { "type": "none" },
+      "permissions": ["read-email", "draft-replies", "send-email", "text-owner", "answer-website"],
+      "actAlone": [],
+      "voice": {},
+      "inbox": {
+        "addresses": ["hello@example.com"],
+        "replyFrom": "hello@example.com",
+        "forwardToEnv": "INBOX_FORWARD_TO"
+      }
+    },
+    {
+      "id": "watchman",
+      "type": "watchman",
+      "name": "Watchman",
+      "business": "tofadachi",
+      "permissions": ["check-websites", "text-owner"],
+      "watchman": {
+        "alertAfterFailures": 2,
+        "checks": [
+          { "name": "the Tofadachi website", "url": "https://example.com", "expectText": "Example" }
+        ]
+      }
+    },
+    {
+      "id": "briefing",
+      "type": "briefing",
+      "name": "Briefing",
+      "business": "tofadachi",
+      "permissions": ["read-log", "read-metrics", "text-owner", "email-owner"],
+      "briefing": { "deliver": [], "metrics": [] }
+    }
+  ],
+  "sms": { "type": "log" },
+  "email": { "type": "outbox" },
+  "schedule": {
+    "watchman": "*/5 * * * *",
+    "dailyBriefing": "30 6 * * *",
+    "weeklyBriefing": "0 7 * * 1"
+  },
+  "allowedOrigins": []
+}
