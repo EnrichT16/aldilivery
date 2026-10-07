@@ -9,11 +9,19 @@ import {
   type ReactNode,
 } from 'react';
 
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { storeConfig } from '../config';
 import { inPairs, pairsAloud } from '../lib/phone-aloud';
-import { fetchMyOrder, fetchMyOrders } from '../lib/api';
+import {
+  fetchMyOrder,
+  fetchMyOrders,
+  isUkMobileNumber,
+  listPaymentMethods,
+  requestSignInCode,
+  verifySignInCode,
+  type Shopper,
+} from '../lib/api';
 import { addNamedItems, currentOffers, listInWords } from '../lib/extras';
 import { nameHeardIn, onlyName } from '../voice/name';
 import { phraseReply } from '../voice/phrases';
@@ -21,6 +29,7 @@ import { answerShoppingQuestion, orderWhere } from '../voice/shopping-questions'
 import { useBasket } from './basket';
 import type { SpeakOutcome } from '../voice';
 import { useSession } from './session';
+import { spokenDigits } from './voice-sign-up';
 import { useVoiceOrdering } from './voice-order';
 import { useVoice } from './voice';
 
@@ -65,6 +74,10 @@ const TURN_ON =
 /** "Create my account", "open an account", "start opening an account", "sign me up". */
 const CREATE_ACCOUNT =
   /\b(create|make|open|opening|set up|start)\s+((my|an|a|a new)\s+)?account\b|\bstart\s+(opening|creating)\b|\bsign me up\b|\bsign up\b|\bregister me\b/;
+
+/** "Sign in", "log in", "I've got an account", "existing account" (ruling 47). */
+const SIGN_IN =
+  /\b(sign|log)\s*(me\s+)?in(to)?\b|\bexisting account\b|\b(i'?ve|i have|i already have)\s+(got\s+)?an account\b/;
 
 /** "Sign me out", "log out". */
 const SIGN_OUT = /\b(sign|log)\s+(me\s+)?out\b/;
@@ -172,6 +185,8 @@ interface OziValue {
    * null to stop. Only one page at a time.
    */
   setPageCommands: (handler: ((text: string) => boolean) | null) => void;
+  /** "Would you like to create an account, or sign in?" (ruling 47), after `lead` if given. */
+  offerAccount: (lead?: string) => void;
 }
 
 const OziContext = createContext<OziValue | null>(null);
@@ -180,6 +195,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   const voice = useVoice();
   const { engine, settings } = voice;
   const navigate = useNavigate();
+  const location = useLocation();
   const assistant = storeConfig.assistantName;
 
   const [presence, setPresenceState] = useState<Presence>('starting');
@@ -341,10 +357,10 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   // Turning back on waits for the setting to be saved, so the first words are spoken aloud.
   const wakeWhenOn = useRef(false);
 
-  const offerAccountRef = useRef<() => void>(() => {});
+  const offerAccountRef = useRef<(lead?: string) => void>(() => {});
   const ordering = useVoiceOrdering(
     useCallback((text: string) => sayRef.current(text), []),
-    useCallback(() => offerAccountRef.current(), []),
+    useCallback(() => offerAccountRef.current('To order, you need an account first. '), []),
   );
 
   const wake = useCallback(() => {
@@ -423,6 +439,16 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     setHeard(text);
     // The page's own commands come before anything about shopping.
     if (pageCommandsRef.current?.(text)) return;
+    // "Finish my account": what is still missing, and where to put it (ruling 47).
+    if (/\bfinish\s+(setting\s+up\s+)?my\s+account\b/.test(words) && accountRef.current.shopper) {
+      void welcomeRef.current(accountRef.current.shopper, '');
+      return;
+    }
+    // "Sign in": by voice, with the phone number and a code (ruling 47).
+    if (!ordering.busy() && SIGN_IN.test(words) && !accountRef.current.shopper) {
+      voiceSignIn();
+      return;
+    }
     // "Create my account": set one up by talking, on the sign-up page.
     if (!ordering.busy() && CREATE_ACCOUNT.test(words)) {
       navigate('/sign-up?talk=1');
@@ -659,10 +685,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       if (/\b(new|open|create|make)\b/.test(said)) {
         navigate('/sign-up?talk=1');
       } else if (/\b(sign|log)\s*in\b|\b(another|existing|other)\b/.test(said)) {
-        navigate('/sign-in');
-        void sayRef.current(
-          "Here's signing in. Put in the mobile number of the account, and we'll text a code to it.",
-        );
+        voiceSignIn();
       } else {
         void sayRef.current('All right. Nobody is signed in now. Just tell me when you need me.');
       }
@@ -693,18 +716,168 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     })();
   };
 
-  // No account yet: ask, and set one up by talking on a yes; on a no, offer the phone.
-  offerAccountRef.current = () => {
+  /**
+   * Nobody signed in: "Would you like to create an account, or sign in?" (Anthony, 7 October
+   * 2026, ruling 47). Create goes to opening one by talking; sign in is done by voice; no
+   * offers the phone. Anything else is answered as if no question had been asked.
+   */
+  offerAccountRef.current = (lead = '') => {
     captureRef.current = (answer) => {
-      if (isYes(answer) || CREATE_ACCOUNT.test(answer.toLowerCase())) {
+      const said = answer.toLowerCase();
+      if (SIGN_IN.test(said) || /\b(existing|already)\b/.test(said)) {
+        voiceSignIn();
+      } else if (isYes(answer) || CREATE_ACCOUNT.test(said) || /\b(create|new|open)\b/.test(said)) {
         navigate('/sign-up?talk=1');
+      } else if (/\brunner\b/.test(said)) {
+        navigate('/runner');
+      } else if (/\b(shop|partner|business)\b/.test(said)) {
+        navigate('/business');
+      } else if (/\borganisation\b/.test(said)) {
+        navigate('/organisations');
+      } else if (/^\s*(no|nope|no thanks?|no thank you|not now)\W*$/.test(said)) {
+        sayPhoneNumber('All right. You can also ring us, and your order is taken on the phone. ');
       } else {
-        sayPhoneNumber('All right. You can also ring us, and a person will take your order. ');
+        heardRef.current(answer);
       }
     };
     void sayRef.current(
-      'To order, you need an account first. Would you like to open one now, just by talking with me? Just say yes or no.',
+      `${lead}Would you like to create an account, or sign in? Just say create account, or sign in.`,
     );
+  };
+
+  /** What is still missing from an account before it can order (ruling 47). */
+  const setupGaps = async (shopper: Shopper): Promise<Array<'card' | 'address'>> => {
+    const gaps: Array<'card' | 'address'> = [];
+    try {
+      const { paymentMethods } = await listPaymentMethods();
+      if (paymentMethods.length === 0) gaps.push('card');
+    } catch {
+      // Cannot tell just now: say nothing rather than something wrong.
+    }
+    if (shopper.deliveryAddress.trim() === '') gaps.push('address');
+    return gaps;
+  };
+
+  /** Welcome back, or: this account is not fully set up yet; finish it now? */
+  const welcome = async (shopper: Shopper, lead: string): Promise<void> => {
+    const first = shopper.displayName.trim().split(/\s+/)[0] ?? shopper.displayName;
+    const gaps = await setupGaps(shopper);
+    if (gaps.length === 0) {
+      await sayRef.current(`${lead}Welcome back, ${first}. What shopping would you like today?`);
+      return;
+    }
+    const missing = listInWords(
+      gaps.map((gap) => (gap === 'card' ? 'your card details' : 'your home address')),
+    );
+    captureRef.current = (answer) => {
+      if (isYes(answer)) {
+        if (gaps[0] === 'card') {
+          navigate('/card');
+          void sayRef.current(
+            "Here's where your card goes. It is kept by our payment company, never by us. Someone you trust can type it in for you.",
+          );
+        } else {
+          navigate('/addresses?add=1');
+          void sayRef.current("Here's where your home address goes. What is it?");
+        }
+      } else {
+        void sayRef.current(
+          "All right. You can finish it any time: just say finish my account. Or ring us, and we'll take your order on the phone.",
+        );
+      }
+    };
+    await sayRef.current(
+      `${lead}Welcome back, ${first}. Your account isn't fully set up yet: ${missing} ${gaps.length === 1 ? 'is' : 'are'} missing. Would you like to finish it now? Say yes or no.`,
+    );
+  };
+  const welcomeRef = useRef(welcome);
+  welcomeRef.current = welcome;
+
+  /**
+   * Signing in by voice (ruling 47): the phone number, read back in twos; a code by text to a
+   * mobile or by a phone call to a landline; the code said aloud; then where the account was
+   * left off. The code is never shown or kept.
+   */
+  const voiceSignIn = (): void => {
+    const askNumber = (prompt: string, tries: number): void => {
+      listenFor(prompt, (heardNumber) => {
+        const digits = spokenDigits(heardNumber);
+        if (digits.replace(/^\+?44/, '0').length < 10) {
+          if (tries >= 2) {
+            void sayRef.current(
+              "I didn't catch the number, so let's stop there. Say sign in to try again, or ring us.",
+            );
+            return;
+          }
+          askNumber(
+            "Sorry, I didn't catch all of that. Please say the phone number slowly.",
+            tries + 1,
+          );
+          return;
+        }
+        listenFor(`I heard ${pairsAloud(digits)}. Is that right?`, (answer) => {
+          if (!isYes(answer)) {
+            askNumber('All right. Please say the phone number again.', tries + 1);
+            return;
+          }
+          void sendCode(digits);
+        });
+      });
+    };
+    const sendCode = async (digits: string): Promise<void> => {
+      const channel = isUkMobileNumber(digits) ? 'text' : 'call';
+      try {
+        await requestSignInCode(digits, { channel });
+      } catch (failure) {
+        await sayRef.current(
+          failure instanceof Error ? failure.message : "I couldn't send a code just now.",
+        );
+        return;
+      }
+      const askCode = (prompt: string, tries: number): void => {
+        listenFor(prompt, (heardCode) => {
+          const code = spokenDigits(heardCode);
+          void (async () => {
+            try {
+              const result = await verifySignInCode(digits, code);
+              if (result.registrationRequired) {
+                captureRef.current = (answer) => {
+                  if (isYes(answer)) navigate('/sign-up?talk=1');
+                  else void sayRef.current('All right. Just tell me when you need me.');
+                };
+                await sayRef.current(
+                  "There's no account on that number yet. Would you like to create one now? Say yes or no.",
+                );
+                return;
+              }
+              // Welcomed as soon as they are signed in, and told what is left to set up.
+              try {
+                window.sessionStorage.removeItem('ozidelivery.welcomed');
+              } catch {
+                // Not kept: they are welcomed anyway, once.
+              }
+              navigate('/shop');
+              await accountRef.current.signedIn(result.token);
+            } catch (failure) {
+              if (tries >= 2) {
+                await sayRef.current(
+                  failure instanceof Error ? failure.message : 'That code did not work.',
+                );
+                return;
+              }
+              askCode("That code didn't work. Please say the six numbers again.", tries + 1);
+            }
+          })();
+        });
+      };
+      askCode(
+        channel === 'text'
+          ? "I've sent a code by text to that number. When it arrives, say the six numbers."
+          : "I'm ringing that number now, and a voice will read out a code. Then say the six numbers to me.",
+        0,
+      );
+    };
+    askNumber("Let's sign you in. What's the phone number on your account?", 0);
   };
 
   const press = useCallback(() => {
@@ -746,16 +919,43 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     void sayRef.current(`I'm talking out loud again. ${MOTTO}`);
   }, [settings.muted, clearReminders, setPresence]);
 
+  /**
+   * After the introduction (ruling 47): does this person need extra help? A yes shows the
+   * descriptive words on the screen as well, for somebody partially sighted, and says how to
+   * make things bigger. Then, if nobody is signed in, create an account or sign in.
+   */
+  const askAboutHelpRef = useRef<() => void>(() => {});
+  askAboutHelpRef.current = () => {
+    const next = (): void => {
+      if (!accountRef.current.shopper) offerAccountRef.current();
+    };
+    captureRef.current = (answer) => {
+      if (isYes(answer)) {
+        voiceRef.current.update({ showText: true });
+        void sayRef
+          .current(
+            "All right. I'll describe everything as we go, and I've put the words on the screen too. Pinch the screen open with two fingers to make them bigger. You can change this in Settings, under Show words on the screen.",
+          )
+          .then(next);
+      } else {
+        next();
+      }
+    };
+    void sayRef.current(
+      'Do you need any extra help? For example, are you blind or partially sighted? Say yes or no.',
+    );
+  };
+
   /* ------------------------------------------------------------------ first launch */
 
   // What the first launch needs, as it is when the page opens. Read through a ref so the effect
   // below runs once, on the first launch only, and never again when any of these change.
-  const { shopper, signOut } = useSession();
+  const { shopper, signOut, signedIn, restoring } = useSession();
   const basket = useBasket();
   const basketRef = useRef(basket);
   basketRef.current = basket;
-  const accountRef = useRef({ shopper, signOut });
-  accountRef.current = { shopper, signOut };
+  const accountRef = useRef({ shopper, signOut, signedIn });
+  accountRef.current = { shopper, signOut, signedIn };
   const firstLaunch = useRef({
     assistant,
     engine,
@@ -776,6 +976,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       `If you'd rather I didn't talk out loud, turn off the switch at the bottom of the screen, or just say "turn off talking". ` +
       `To turn me back on, use the same switch, or Settings, or say "Hey ${assistant}, turn on". ` +
       `If you miss anything I say, just say "repeat". ` +
+      `To make anything bigger, pinch the screen open with two fingers. ` +
       `While my round green button glows, I'm listening. Press it to pause me, and again${wakeHint} to bring me back.`;
 
     void (async () => {
@@ -789,14 +990,28 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       const outcome = await sayRef.current(intro);
       if (cancelled) return;
       voiceRef.current.update({ introHeard: true });
-      // Somebody new: offer to open an account straight away, by talking.
-      if (outcome !== 'not-spoken' && !firstLaunch.current.signedIn) offerAccountRef.current();
+      if (outcome !== 'not-spoken') askAboutHelpRef.current();
     })();
 
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // Somebody signed in, once a visit (ruling 47): straight into the shop, welcomed by name, and
+  // told if their account still needs finishing.
+  useEffect(() => {
+    if (restoring || !shopper || !settings.introHeard) return;
+    try {
+      if (window.sessionStorage.getItem('ozidelivery.welcomed') === shopper.id) return;
+      window.sessionStorage.setItem('ozidelivery.welcomed', shopper.id);
+    } catch {
+      return;
+    }
+    if (location.pathname === '/' || location.pathname === '/join')
+      navigate('/shop', { replace: true });
+    void welcomeRef.current(shopper, '');
+  }, [restoring, shopper, settings.introHeard, location.pathname, navigate]);
 
   // A browser will not let a page speak until it has been touched once. Whatever Ozi meant to
   // say before then is on the screen, announced to a screen reader, and said aloud at the first
@@ -814,12 +1029,8 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       const target = event.target as Element | null;
       if (!pending || target?.closest?.('[data-ozi]')) return;
       void sayRef.current(pending).then((outcome) => {
-        if (
-          outcome !== 'not-spoken' &&
-          pending.startsWith('Hello') &&
-          !firstLaunch.current.signedIn
-        ) {
-          offerAccountRef.current();
+        if (outcome !== 'not-spoken' && pending.startsWith('Hello')) {
+          askAboutHelpRef.current();
         }
       });
     };
@@ -861,6 +1072,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       setVoiceOn,
       waitingForTouch,
       setPageCommands,
+      offerAccount: (lead?: string) => offerAccountRef.current(lead),
     }),
     [
       presence,

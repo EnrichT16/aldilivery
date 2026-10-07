@@ -20,10 +20,10 @@ export function DoorButton({
   return (
     <Link
       to={to}
-      className="control w-full flex-col items-start text-left bg-paper text-ink border-2 border-paper"
+      className="control w-full flex-col items-center justify-center text-center bg-paper text-ink border-2 border-paper min-h-[4.5rem] px-3"
     >
-      <span className="text-lead font-bold">{title}</span>
-      <span className="font-normal">{description}</span>
+      <span className="font-bold leading-tight">{title}</span>
+      <span className="font-normal extra">{description}</span>
     </Link>
   );
 }

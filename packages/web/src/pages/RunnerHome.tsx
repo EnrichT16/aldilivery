@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 
+import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { storeConfig } from '../config';
 import {
   acceptJob,
@@ -224,6 +225,10 @@ export function RunnerHome(): JSX.Element {
   return (
     <div className="space-y-8">
       <h1 className="text-display font-bold m-0">Hello, {runner.name}</h1>
+      <details className="max-w-xl">
+        <summary className="control px-0 text-paper underline">The screen</summary>
+        <ShowWordsSwitch />
+      </details>
 
       <p role="status" className="m-0 min-h-control">
         {news}

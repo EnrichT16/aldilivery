@@ -268,7 +268,7 @@ describe('ordering by voice alone', () => {
     stubShop({ signedIn: false });
     renderApp();
     expect(await say(engine, 'I would like bananas')).toMatch(
-      /^To order, you need an account first\. Would you like to open one now, just by talking with me\? Just say yes or no\./,
+      /^To order, you need an account first\. Would you like to create an account, or sign in\? Just say create account, or sign in\./,
     );
   });
 

@@ -30,6 +30,8 @@ beforeEach(() => {
   // Likewise the choices Ozi reads on the first screen once a visit: heard already, unless a
   // test is about them.
   window.sessionStorage.setItem('ozidelivery.doors.read', 'yes');
+  // And the welcome back a signed-in Shopper hears once a visit (ruling 47).
+  window.sessionStorage.setItem('ozidelivery.welcomed', 'shopper-1');
 });
 
 afterEach(() => {

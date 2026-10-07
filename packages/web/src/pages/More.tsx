@@ -56,7 +56,7 @@ export function More(): JSX.Element {
               className="block border-2 border-paper rounded-xl p-4 text-paper no-underline"
             >
               <span className="block text-lead font-bold underline">{link.name}</span>
-              <span className="block">{link.about}</span>
+              <span className="block extra">{link.about}</span>
             </Link>
           </li>
         ))}
