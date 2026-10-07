@@ -20,6 +20,7 @@ import { Offers } from './pages/Offers';
 import { Landing } from './pages/Landing';
 import { LookingAfter } from './pages/LookingAfter';
 import { MyOrder } from './pages/MyOrder';
+import { About } from './pages/About';
 import { Orders } from './pages/Orders';
 import { OrganisationDashboard } from './pages/OrganisationDashboard';
 import { Organisations } from './pages/Organisations';
@@ -126,6 +127,7 @@ export function App(): JSX.Element {
                 <Route path="/" element={<Landing />} />
                 <Route path="/join" element={<Landing />} />
                 <Route path="/organisations" element={<Organisations />} />
+                <Route path="/about" element={<About />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/call/join" element={<CallJoin />} />

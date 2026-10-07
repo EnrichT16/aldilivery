@@ -373,6 +373,12 @@ model Order {
   /// Gift card money used on this order, given back to the card once it was paid.
   creditAppliedPence Int  @default(0)
 
+  /// "card" (Stripe) or "bank" (a transfer to the business account, ruling 50).
+  paidBy         String    @default("card")
+  /// The reference a bank transfer carries, so staff can match it.
+  bankReference  String?   @unique
+  bankReceivedAt DateTime?
+
   /// Rule One. The order may not reach a payment intent until this is set. It records the
   /// single explicit confirmation the Shopper gave, and how they gave it.
   spokenConfirmationAt  DateTime?

@@ -19,6 +19,7 @@ import type { Repository } from './data/repository.js';
 import type { AccountRole } from './domain.js';
 import { ApiError, ForbiddenError, TooManyRequestsError, UnauthorisedError } from './errors.js';
 import type { Env } from './env.js';
+import { bankSettings } from './lib/bank.js';
 import { addSecurityHeaders, limiter } from './lib/guard.js';
 import type { CallProvider } from './lib/livekit.js';
 import type { PaymentsGateway } from './lib/payments.js';
@@ -45,6 +46,7 @@ import { registerOwnerRoutes } from './routes/owner.js';
 import { registerOziRoutes } from './routes/ozi.js';
 import { registerShareRoutes } from './routes/share.js';
 import { registerTelephoneRoutes } from './routes/telephone.js';
+import { registerPaymentRoutes } from './routes/payments.js';
 import { registerStaffRoutes } from './routes/staff.js';
 import { registerExtrasRoutes } from './routes/extras.js';
 import { registerProblemRoutes } from './routes/problems.js';
@@ -395,6 +397,8 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
     // In-app calls (Section F): whether they can connect, and the price agreed before each one.
     calls: { enabled: ctx.calls !== null, pencePerMinute: ctx.config.calls.pencePerMinute },
     extras: ctx.config.extras,
+    // Paying by bank transfer to the business account (ruling 50): on or off, never the details.
+    bankTransfer: { enabled: bankSettings(ctx.env.storeConfigPath).enabled },
     /** Null when notifications are not set up, so the page does not offer them. */
     push: { publicKey: ctx.pushPublicKey },
   }));
@@ -423,6 +427,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerOziRoutes(app);
   await registerShareRoutes(app);
   await registerTelephoneRoutes(app);
+  await registerPaymentRoutes(app);
 }
 
 /**

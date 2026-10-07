@@ -60,6 +60,9 @@ import {
   decideLearning,
   fetchLearning,
   type LearningRow,
+  fetchBankPayments,
+  markBankPayment,
+  type BankPaymentRow,
 } from '../lib/api';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { ShareCard } from '../components/ShareCard';
@@ -85,6 +88,7 @@ type StaffMe = Awaited<ReturnType<typeof fetchStaffMe>>;
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'overview', label: 'Overview' },
   { key: 'money', label: 'Money' },
+  { key: 'payments', label: 'Payments' },
   { key: 'documents', label: 'Documents' },
   { key: 'problems', label: 'Problems' },
   { key: 'owed', label: 'Money owed' },
@@ -234,6 +238,7 @@ export function Staff(): JSX.Element {
             {shown === 'enquiries' && <Enquiries staffKey={key} onNews={setNews} />}
             {shown === 'feedback' && <Feedback staffKey={key} />}
             {shown === 'learning' && <Learning staffKey={key} onNews={setNews} />}
+            {shown === 'payments' && <Payments staffKey={key} onNews={setNews} />}
             {shown === 'partners' && <Partners staffKey={key} onNews={setNews} />}
             {shown === 'analytics' && <Analytics staffKey={key} />}
             {shown === 'overview' && <Overview staffKey={key} />}
@@ -1113,6 +1118,87 @@ function Enquiries({
                 Mark as rung back<span className="visually-hidden">: {row.organisation}</span>
               </button>
             )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/**
+ * Payments (ruling 50): orders paid by bank transfer to the business account. Check each
+ * reference and amount against the bank, then mark it as received; only then is a Runner sent.
+ */
+function Payments({
+  staffKey,
+  onNews,
+}: {
+  staffKey: string;
+  onNews: (text: string) => void;
+}): JSX.Element {
+  const list = useList(() => fetchBankPayments(staffKey));
+  const mark = (row: BankPaymentRow, outcome: 'received' | 'cancel'): void => {
+    void markBankPayment(staffKey, row.orderId, outcome)
+      .then((result) => {
+        onNews(result.message);
+        list.reload();
+      })
+      .catch((failure: unknown) =>
+        onNews(failure instanceof Error ? failure.message : 'That did not work.'),
+      );
+  };
+  return (
+    <section aria-labelledby="payments-heading" className="space-y-4 max-w-2xl">
+      <h2 id="payments-heading" className="text-lead font-bold">
+        Payments
+      </h2>
+      <p className="m-0 extra">
+        Orders paid by bank transfer. Check the reference and the amount in the business bank
+        account, then mark it as received, and the order goes to a Runner.
+      </p>
+      <Failure text={list.problem} />
+      <h3 className="m-0 font-bold">Waiting to arrive</h3>
+      {list.data?.waiting.length === 0 && <p className="m-0">None waiting.</p>}
+      <ul className="m-0 p-0 list-none space-y-3">
+        {list.data?.waiting.map((row) => (
+          <li key={row.orderId} className="border-2 border-paper rounded-xl p-4 space-y-2">
+            <p className="m-0 font-bold">
+              {money(row.amountPence)}, reference {row.reference}
+            </p>
+            <p className="m-0">
+              From {row.shopperName}, ordered{' '}
+              {new Date(row.placedAt).toLocaleString('en-GB', {
+                weekday: 'long',
+                hour: 'numeric',
+                minute: '2-digit',
+              })}
+              .
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => mark(row, 'received')}
+                className="control bg-highlight text-ink"
+              >
+                It has arrived<span className="visually-hidden">: {row.reference}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => mark(row, 'cancel')}
+                className="control bg-paper text-ink"
+              >
+                Cancel this order<span className="visually-hidden">: {row.reference}</span>
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <h3 className="m-0 font-bold">Received lately</h3>
+      {list.data?.received.length === 0 && <p className="m-0">None yet.</p>}
+      <ul className="m-0 p-0 list-none space-y-2">
+        {list.data?.received.map((row) => (
+          <li key={row.orderId}>
+            {money(row.amountPence)}, reference {row.reference}, from {row.shopperName}.
           </li>
         ))}
       </ul>

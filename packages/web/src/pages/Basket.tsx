@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 
+import { GetTheApp } from '../components/GetTheApp';
 import { storeConfig } from '../config';
 import { money } from '../lib/money';
 import { useBasket } from '../state/basket';
@@ -30,6 +31,8 @@ export function Basket(): JSX.Element {
   return (
     <div className="space-y-8">
       <h1 className="text-display font-bold m-0">Your basket</h1>
+      {/* Ordering in a browser: the app is one press away (ruling 50). */}
+      <GetTheApp compact />
 
       <ul className="list-none m-0 p-0 space-y-4">
         {lines.map((line) => (

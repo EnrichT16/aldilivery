@@ -30,7 +30,9 @@ export type StaffArea =
   | 'money'
   | 'team'
   /** What Ozi was asked and could not answer, for a person to approve an answer (ruling 49). */
-  | 'learning';
+  | 'learning'
+  /** Bank transfers to the business account, to mark as received (ruling 50). */
+  | 'payments';
 
 export type StaffRole =
   | 'founder'
@@ -58,6 +60,7 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
       'overview',
       'team',
       'learning',
+      'payments',
     ],
   },
   operations_manager: {
@@ -66,7 +69,7 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
   },
   onboarding: { title: 'Runner onboarding officer', areas: ['documents'] },
   customer_care: { title: 'Customer care officer', areas: ['problems', 'feedback', 'learning'] },
-  finance: { title: 'Finance officer', areas: ['owed'] },
+  finance: { title: 'Finance officer', areas: ['owed', 'payments'] },
   sourcing: { title: 'Finds It shopper', areas: ['finds'] },
   partnerships: { title: 'Partnerships officer', areas: ['enquiries', 'partners'] },
   // People the owner lets see parts of his own dashboard (Anthony, 7 October 2026), such as

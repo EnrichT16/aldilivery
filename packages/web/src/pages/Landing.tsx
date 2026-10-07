@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 
 import { DoorButton } from '../components/DoorButton';
+import { GetTheApp } from '../components/GetTheApp';
 import { storeConfig } from '../config';
 import { rememberJoinedVia } from '../lib/api';
 import { inPairs } from '../lib/phone-aloud';
@@ -129,6 +130,8 @@ export function Landing(): JSX.Element {
       </nav>
 
       <div className="flex-1" aria-hidden="true" />
+
+      <GetTheApp compact />
 
       <section aria-labelledby="telephone-heading" className="w-full max-w-xl text-center">
         <h2 id="telephone-heading" className="visually-hidden">

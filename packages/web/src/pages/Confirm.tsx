@@ -7,6 +7,7 @@ import { PinGate } from '../components/PinGate';
 import { storeConfig } from '../config';
 import {
   createOrder,
+  fetchBankTransferEnabled,
   fetchAddresses,
   listPaymentMethods,
   saveAddress,
@@ -119,11 +120,28 @@ export function Confirm(): JSX.Element {
     };
   }, [shopper]);
 
+  // Paying by bank transfer to the business account, when switched on (ruling 50).
+  const [bankOn, setBankOn] = useState(false);
+  const [payBy, setPayBy] = useState<'card' | 'bank'>('card');
+  useEffect(() => {
+    let cancelled = false;
+    fetchBankTransferEnabled()
+      .then((on) => {
+        if (!cancelled) setBankOn(on);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const statement = `Send my order. About ${money(pricing.totalPence)} altogether, including our fee of ${money(pricing.feePence)}.`;
 
   async function onSend(): Promise<void> {
     const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
-    if (!card || sending || address.trim() === '' || overMaximum || !addressConfirmed) return;
+    const byBank = bankOn && payBy === 'bank';
+    if ((!card && !byBank) || sending || address.trim() === '' || overMaximum || !addressConfirmed)
+      return;
 
     setSending(true);
     setError('');
@@ -134,9 +152,14 @@ export function Confirm(): JSX.Element {
           quantity: line.quantity,
         })),
         deliveryAddress: address.trim(),
-        paymentMethodId: card.id,
+        ...(byBank || !card ? { payBy: 'bank' as const } : { paymentMethodId: card.id }),
         confirmation: { statement, agreedTotalPence: pricing.totalPence, addressConfirmed: true },
       });
+      if (result.bank) {
+        clear();
+        setPlaced({ order: result.order, message: result.message });
+        return;
+      }
 
       /**
        * A card in the United Kingdom usually has to be authenticated by the Shopper's bank.
@@ -144,7 +167,7 @@ export function Confirm(): JSX.Element {
        * this is where the bank's own screen is opened. Stripe tells us how it went, and the
        * order is settled by the webhook rather than by anything we could claim here.
        */
-      if (result.payment.requiresAction && result.payment.clientSecret) {
+      if (result.payment?.requiresAction && result.payment.clientSecret) {
         const setup = await prepareCardEntry();
         if (setup.ready) {
           const outcome = await setup.stripe.handleNextAction({
@@ -265,7 +288,9 @@ export function Confirm(): JSX.Element {
   }
 
   const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
-  const ready = card !== undefined && address.trim() !== '' && !overMaximum && addressConfirmed;
+  const byBank = bankOn && payBy === 'bank';
+  const ready =
+    (card !== undefined || byBank) && address.trim() !== '' && !overMaximum && addressConfirmed;
 
   return (
     <div className="space-y-8">
@@ -484,7 +509,40 @@ export function Confirm(): JSX.Element {
         <h2 id="card-heading" className="text-lead font-bold">
           How you are paying
         </h2>
-        {cards === null ? (
+        {bankOn && (
+          <fieldset className="border-2 border-paper/40 rounded-xl p-4 m-0 space-y-2">
+            <legend className="px-2 font-bold">Pay by</legend>
+            <div className="flex items-center gap-3 min-h-control">
+              <input
+                id="pay-card"
+                type="radio"
+                name="pay-by"
+                checked={payBy === 'card'}
+                onChange={() => setPayBy('card')}
+                className="h-7 w-7 shrink-0"
+              />
+              <label htmlFor="pay-card">My card</label>
+            </div>
+            <div className="flex items-center gap-3 min-h-control">
+              <input
+                id="pay-bank"
+                type="radio"
+                name="pay-by"
+                checked={payBy === 'bank'}
+                onChange={() => setPayBy('bank')}
+                aria-describedby="pay-bank-hint"
+                className="h-7 w-7 shrink-0"
+              />
+              <label htmlFor="pay-bank">Bank transfer to us</label>
+            </div>
+            <p id="pay-bank-hint" className="m-0">
+              We give you our bank details and a reference. A Runner is sent once your transfer
+              arrives, usually within a working day. A refund to a bank transfer takes longer than
+              to a card.
+            </p>
+          </fieldset>
+        )}
+        {byBank ? null : cards === null ? (
           <p role="status" className="m-0">
             Checking which card you have saved.
           </p>
