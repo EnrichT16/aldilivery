@@ -1,0 +1,13 @@
+{
+  "about": "The business's social media pages, shown on the website and in the app (ruling 50). Leave a link empty until the page exists; only filled links are shown.",
+  "links": {
+    "facebook": "",
+    "instagram": "",
+    "tiktok": "",
+    "youtube": "",
+    "whatsapp": "",
+    "telegram": "",
+    "x": "",
+    "linkedin": ""
+  }
+}

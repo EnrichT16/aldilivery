@@ -6,6 +6,7 @@ import { useSession } from '../state/session';
 import { AdSquare } from './AdSquare';
 import { OziBubble } from './OziBubble';
 import { OziSwitch } from './OziSwitch';
+import { SocialLinks } from './SocialLinks';
 
 /**
  * The page frame.
@@ -91,6 +92,11 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
           <p className="m-0 text-paper/80 extra">{storeConfig.store.catalogueSource.attribution}</p>
           <ul className="flex flex-wrap gap-2 list-none m-0 p-0">
             <li>
+              <Link to="/about" className="control px-0 text-paper underline">
+                About us
+              </Link>
+            </li>
+            <li>
               <Link to="/privacy" className="control px-0 text-paper underline">
                 Privacy
               </Link>
@@ -101,6 +107,7 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
               </Link>
             </li>
           </ul>
+          <SocialLinks />
           <p className="m-0 text-paper/80 extra">
             {storeConfig.store.legalEntityName}
             {storeConfig.store.legalEntityIsPlaceholder ? ' (company details to follow)' : ''}

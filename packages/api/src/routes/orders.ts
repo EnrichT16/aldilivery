@@ -9,7 +9,7 @@
  * having been recorded first.
  */
 
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { formatPence, type OrderStatus } from '@aldilivery/core';
 import { z } from 'zod';
 
@@ -21,12 +21,14 @@ import {
   NotFoundError,
   PaymentFailedError,
 } from '../errors.js';
+import type { Shopper } from '../domain.js';
 import { cardAccepted } from '../lib/card-region.js';
 import { priceLines } from '../services/basket.js';
 import { applyCredit } from '../services/credit.js';
 import { recordOrder } from '../lib/analytics.js';
 import { recordOrderIncome } from '../lib/ledger.js';
 import { offerOrder } from '../services/dispatch.js';
+import { alertPayments, bankReference, bankSettings } from '../lib/bank.js';
 import { tellShopper } from '../services/order-updates.js';
 import { payOutOrder } from '../services/pay-runner.js';
 import {
@@ -50,7 +52,10 @@ const createOrderSchema = z.object({
   deliveryAddress: z.string().trim().min(1).max(300),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
-  paymentMethodId: z.string().min(1),
+  /** The saved card. Not needed when paying by bank transfer. */
+  paymentMethodId: z.string().min(1).optional(),
+  /** A saved card through Stripe, or a bank transfer to the business account (ruling 50). */
+  payBy: z.enum(['card', 'bank']).default('card'),
   /**
    * Rule One. A confirmation is an explicit act by the Shopper, not a default. The flag
    * must be present and true, and what they were told they were agreeing to is recorded
@@ -120,6 +125,103 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
   const { repository, config, payments, now } = app.ctx;
   const symbol = config.store.currencySymbol;
 
+  /**
+   * An order paid by bank transfer to the business account (ruling 50, Anthony, 7 October
+   * 2026). The same checks as a card order (prices, the cap, the confirmation, the voice
+   * ceiling and home address), then the order waits, confirmed, with a reference for the
+   * transfer. Staff mark the transfer as received in the Payments tab, and only then is it paid
+   * and a Runner sent. The owner and staff are told at once, by their own channel.
+   */
+  async function placeBankTransferOrder(
+    request: FastifyRequest,
+    reply: FastifyReply,
+    shopper: Shopper,
+    input: z.infer<typeof createOrderSchema>,
+  ) {
+    const bank = bankSettings(app.ctx.env.storeConfigPath);
+    if (!bank.enabled) {
+      throw new BadRequestError(
+        'Paying by bank transfer is not switched on yet. Please use a card.',
+      );
+    }
+    const catalogueItems = await repository.catalogue.findManyByIds(
+      input.lines.map((line) => line.catalogueItemId),
+    );
+    const priced = priceLines(input.lines, catalogueItems, config.fees);
+    if (!input.overrideBudgetCap && exceedsBudgetCap(priced.goodsPence, shopper.budgetCapPence)) {
+      throw new BadRequestError(
+        `This shop comes to ${formatPence(priced.goodsPence, symbol)}, which is over the limit you set of ${formatPence(shopper.budgetCapPence ?? 0, symbol)}. Say the word and we will send it anyway.`,
+      );
+    }
+    if (input.confirmation.agreedTotalPence !== priced.totalPence) {
+      throw new BadRequestError(
+        `The price changed while you were deciding. It is now ${formatPence(priced.totalPence, symbol)}. Nothing has been charged. Please check it and confirm again.`,
+        { agreedTotalPence: input.confirmation.agreedTotalPence, totalPence: priced.totalPence },
+      );
+    }
+    if (
+      input.confirmation.channel === 'voice' &&
+      input.deliveryAddress
+        .toLowerCase()
+        .replace(/[\s,]+/g, ' ')
+        .trim() !==
+        shopper.deliveryAddress
+          .toLowerCase()
+          .replace(/[\s,]+/g, ' ')
+          .trim()
+    ) {
+      throw new BadRequestError(
+        'An order by voice always goes to your home address. To send it somewhere else, please use the screen.',
+      );
+    }
+    const at = now();
+    let reference = '';
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      reference = bankReference(bank.referencePrefix);
+      const taken = (await repository.orders.listByStatus('confirmed')).some(
+        (order) => order.bankReference === reference,
+      );
+      if (!taken) break;
+    }
+    const order = await repository.orders.create({
+      shopperId: shopper.id,
+      status: 'confirmed',
+      goodsEstimatePence: priced.goodsPence,
+      feePence: priced.feePence,
+      totalEstimatePence: priced.totalPence,
+      deliveryAddress: input.deliveryAddress,
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      doorstepProtocolSnapshot: shopper.doorstepProtocol,
+      spokenConfirmationAt: at,
+      confirmationChannel: input.confirmation.channel,
+      confirmationStatement: input.confirmation.statement,
+      paidBy: 'bank',
+      bankReference: reference,
+      items: priced.lines.map((line) => ({
+        catalogueItemId: line.catalogueItemId,
+        name: line.name,
+        quantity: line.quantity,
+        estimatedPricePence: line.unitPricePence,
+      })),
+    });
+    void alertPayments(app.ctx, order, request.log);
+    const amount = formatPence(priced.totalPence, symbol);
+    void reply.status(201);
+    return {
+      order,
+      bank: {
+        accountName: bank.accountName,
+        sortCode: bank.sortCode,
+        accountNumber: bank.accountNumber,
+        reference,
+        amountPence: priced.totalPence,
+        payWithinHours: bank.payWithinHours,
+      },
+      message: `Thank you. Please pay ${amount} by bank transfer to ${bank.accountName}, sort code ${bank.sortCode}, account ${bank.accountNumber}, with the reference ${reference}. A Runner is sent as soon as we see it arrive, usually within a working day. Nothing is taken from a card.`,
+    };
+  }
+
   app.post('/orders', async (request, reply) => {
     const session = requireSession(request, 'shopper');
     const input = createOrderSchema.parse(request.body);
@@ -127,6 +229,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     const shopper = await repository.shoppers.findById(session.accountId);
     if (!shopper) throw new NotFoundError('account');
 
+    if (input.payBy === 'bank') {
+      return placeBankTransferOrder(request, reply, shopper, input);
+    }
+    if (!input.paymentMethodId) throw new BadRequestError('Please choose a card.');
     const paymentMethod = await repository.paymentMethods.findById(input.paymentMethodId);
     if (!paymentMethod || paymentMethod.shopperId !== shopper.id) {
       throw new NotFoundError('payment card');

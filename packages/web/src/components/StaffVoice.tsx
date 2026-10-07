@@ -26,6 +26,7 @@ import {
   type StaffProblem,
   type StaffRecovery,
   fetchLearning,
+  fetchBankPayments,
 } from '../lib/api';
 import { money } from '../lib/money';
 import { useOzi } from '../state/ozi';
@@ -216,6 +217,11 @@ export function StaffVoice({
       add(
         'learning',
         () => fetchLearning(key),
+        (r) => r.waiting,
+      );
+      add(
+        'payments',
+        () => fetchBankPayments(key),
         (r) => r.waiting,
       );
       add(

@@ -743,11 +743,21 @@ export interface PlacedOrder {
 
 export interface CreateOrderResult {
   order: PlacedOrder;
-  payment: {
+  /** Absent for a bank transfer, which takes nothing from a card. */
+  payment?: {
     id: string;
     status: string;
     clientSecret: string | null;
     requiresAction: boolean;
+  };
+  /** For a bank transfer: where to pay, and the reference to put on it (ruling 50). */
+  bank?: {
+    accountName: string;
+    sortCode: string;
+    accountNumber: string;
+    reference: string;
+    amountPence: number;
+    payWithinHours: number;
   };
   message: string;
 }
@@ -764,7 +774,10 @@ export interface CreateOrderResult {
 export function createOrder(input: {
   lines: Array<{ catalogueItemId: string; quantity: number }>;
   deliveryAddress: string;
-  paymentMethodId: string;
+  /** The saved card; not needed when paying by bank transfer. */
+  paymentMethodId?: string;
+  /** A card through Stripe, or a bank transfer to the business account (ruling 50). */
+  payBy?: 'card' | 'bank';
   confirmation: {
     statement: string;
     agreedTotalPence: number;
@@ -779,7 +792,8 @@ export function createOrder(input: {
     body: JSON.stringify({
       lines: input.lines,
       deliveryAddress: input.deliveryAddress,
-      paymentMethodId: input.paymentMethodId,
+      ...(input.paymentMethodId ? { paymentMethodId: input.paymentMethodId } : {}),
+      payBy: input.payBy ?? 'card',
       confirmation: {
         confirmed: true,
         addressConfirmed: input.confirmation.addressConfirmed,
@@ -887,6 +901,13 @@ export function fetchMyOrders(): Promise<{ orders: PastOrder[] }> {
 export interface CallsConfig {
   enabled: boolean;
   pencePerMinute: number;
+}
+
+/** Whether paying by bank transfer is switched on (ruling 50). */
+export function fetchBankTransferEnabled(): Promise<boolean> {
+  return request<{ bankTransfer?: { enabled?: boolean } }>('/config').then(
+    (body) => body.bankTransfer?.enabled === true,
+  );
 }
 
 export function fetchCallsConfig(): Promise<CallsConfig> {
@@ -1002,7 +1023,8 @@ export type StaffArea =
   | 'overview'
   | 'money'
   | 'team'
-  | 'learning';
+  | 'learning'
+  | 'payments';
 
 export interface StaffSignedIn {
   token: string;
@@ -2025,5 +2047,35 @@ export function decideLearning(
   return staffRequest(key, `/staff/learning/${encodeURIComponent(id)}`, {
     method: 'POST',
     body: JSON.stringify(decision),
+  });
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * Bank transfers to the business account, for staff to mark as received (ruling 50).
+ * ------------------------------------------------------------------------------------- */
+
+export interface BankPaymentRow {
+  orderId: string;
+  reference: string | null;
+  amountPence: number;
+  shopperName: string;
+  placedAt: string;
+  receivedAt: string | null;
+  status: string;
+}
+
+export function fetchBankPayments(
+  key: string,
+): Promise<{ waiting: BankPaymentRow[]; received: BankPaymentRow[] }> {
+  return staffRequest(key, '/staff/payments');
+}
+
+export function markBankPayment(
+  key: string,
+  orderId: string,
+  outcome: 'received' | 'cancel',
+): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/payments/${encodeURIComponent(orderId)}/${outcome}`, {
+    method: 'POST',
   });
 }

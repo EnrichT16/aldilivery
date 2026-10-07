@@ -238,6 +238,12 @@ export interface Order {
   finalTotalPence: number | null;
   /** Gift card money used on this order, given back to the card once it was paid. */
   creditAppliedPence: number;
+  /** How it is paid: a saved card through Stripe, or a bank transfer to the business (ruling 50). */
+  paidBy: 'card' | 'bank';
+  /** For a bank transfer: the reference the Shopper puts on the payment, such as OZI-7K3Q2M. */
+  bankReference: string | null;
+  /** When staff saw the transfer arrive in the business account. */
+  bankReceivedAt: Date | null;
   spokenConfirmationAt: Date | null;
   confirmationChannel: string | null;
   confirmationStatement: string | null;

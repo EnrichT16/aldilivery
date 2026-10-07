@@ -382,7 +382,7 @@ export function useVoiceOrdering(
             });
             live.current.basket.clear();
             await say(
-              result.payment.requiresAction
+              result.payment?.requiresAction
                 ? `${result.message} Please finish on the screen.`
                 : `${result.message} You can follow it on the Your order page.`,
             );

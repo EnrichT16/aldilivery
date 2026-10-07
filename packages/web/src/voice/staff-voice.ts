@@ -22,6 +22,7 @@ import type {
   StaffRecovery,
   TeamMember,
   LearningRow,
+  BankPaymentRow,
 } from '../lib/api';
 import { money } from '../lib/money';
 import { pairsAloud } from '../lib/phone-aloud';
@@ -43,6 +44,8 @@ export interface StaffLists {
   team?: TeamMember[];
   /** What Ozi could not answer, waiting for an answer (ruling 49). */
   learning?: LearningRow[];
+  /** Bank transfers waiting to be checked against the business account (ruling 50). */
+  payments?: BankPaymentRow[];
 }
 
 /** What each part is called aloud, as one and as many. */
@@ -66,6 +69,11 @@ export const AREA_WORDS: Record<StaffArea, { one: string; many: string; tab: str
   overview: { one: 'figure', many: 'figures', tab: 'Overview' },
   money: { one: 'payment', many: 'payments', tab: 'Money' },
   team: { one: 'person on the team', many: 'people on the team', tab: 'Team' },
+  payments: {
+    one: 'bank transfer to check',
+    many: 'bank transfers to check',
+    tab: 'Payments',
+  },
   learning: {
     one: 'question Ozi could not answer',
     many: 'questions Ozi could not answer',
@@ -136,6 +144,7 @@ function firstNoun(areas: readonly StaffArea[], lists: StaffLists): string {
     money: 'money',
     team: 'team',
     learning: 'learning list',
+    payments: 'payments',
   }[area];
 }
 
@@ -155,6 +164,10 @@ function longDate(when: string): string {
 /** One item, read out in full. `position` is "1 of 3". */
 export function readItem(area: StaffArea, item: unknown, position: string): string {
   switch (area) {
+    case 'payments': {
+      const row = item as BankPaymentRow;
+      return `Bank transfer ${position}. ${row.shopperName}, ${money(row.amountPence)}, reference ${row.reference ?? 'none'}. When you have seen it arrive in the bank account, mark it as received in the Payments tab. Or say next.`;
+    }
     case 'learning': {
       const row = item as LearningRow;
       return `Question ${position}, asked ${row.timesHeard} ${row.timesHeard === 1 ? 'time' : 'times'}: "${row.text}". To teach me the answer, type it in the Learning tab and press approve. Or say next.`;
@@ -257,6 +270,7 @@ export type StaffCommand =
   | { kind: 'sign-out' };
 
 const AREA_PATTERNS: Array<[StaffArea, RegExp]> = [
+  ['payments', /\b(payments?|bank transfers?|transfers?)\b/],
   [
     'money',
     /\b(money|income|takings|stripe|revenue|earnings|paid in|how much (came|have we taken))\b/,

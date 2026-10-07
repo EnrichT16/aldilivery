@@ -118,6 +118,8 @@ export type CreateOrder = Pick<
       | 'spokenConfirmationAt'
       | 'confirmationChannel'
       | 'confirmationStatement'
+      | 'paidBy'
+      | 'bankReference'
     >
   > & { items: CreateOrderItem[] };
 
