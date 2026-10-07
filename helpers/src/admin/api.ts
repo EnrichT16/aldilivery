@@ -33,9 +33,9 @@ export const MESSAGE_KINDS: Record<string, Array<{ kind: string; label: string }
 };
 
 function corsHeaders(runtime: Runtime, request: Request): Record<string, string> | null {
+  // Only the websites listed in the configuration may use the help box.
   const origin = request.headers.get('origin');
-  if (!origin) return {};
-  if (!(runtime.config.allowedOrigins ?? []).includes(origin)) return null;
+  if (!origin || !(runtime.config.allowedOrigins ?? []).includes(origin)) return null;
   return {
     'access-control-allow-origin': origin,
     'access-control-allow-methods': 'POST, OPTIONS',

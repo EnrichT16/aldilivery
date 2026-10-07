@@ -218,6 +218,16 @@ describe('the website help box', () => {
 
     expect((await ask('https://evil.example', 'Where are you based?')).status).toBe(403);
     expect(
+      (
+        await call(
+          'POST',
+          '/api/ask/inbox',
+          { question: 'Where are you based?' },
+          { authorization: '' },
+        )
+      ).status,
+    ).toBe(403);
+    expect(
       (await body(await ask('https://www.example.com', 'Where are you based?'))).answer,
     ).toBeNull();
     await helper.setActAlone('website-answer', true, 'Anthony');
