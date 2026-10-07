@@ -74,6 +74,33 @@ export interface TransferResult {
   amountPence: number;
 }
 
+/** A Stripe page to pay on, sent by text after a telephone order (ruling 48). */
+export interface CreatePaymentLinkInput {
+  orderId: string;
+  amountPence: number;
+  currency: string;
+  description: string;
+  /** The Shopper's Stripe customer, if they have one; otherwise Stripe makes one. */
+  customerId: string | null;
+  successUrl: string;
+  cancelUrl: string;
+  /** When the link stops working, in seconds since 1970. Stripe allows up to a day. */
+  expiresAt: number;
+}
+
+/** What a paid link tells us: the card is kept for next time, and where the shopping goes. */
+export interface PaidLink {
+  paymentIntentId: string;
+  customerId: string | null;
+  paymentMethodId: string;
+  lastFour: string;
+  brand: string | null;
+  /** The card's country, as Stripe gives it: `GB`. */
+  country: string | null;
+  /** The delivery address given on Stripe's page, on one line. */
+  address: string;
+}
+
 export interface WebhookEvent {
   id: string;
   type: string;
@@ -127,6 +154,13 @@ export interface PaymentsGateway {
   getConnectedAccount(accountId: string): Promise<ConnectedAccountStatus>;
   /** Verifies the signature. A webhook that does not verify is not an event, it is noise. */
   constructWebhookEvent(rawBody: Buffer | string, signature: string): WebhookEvent;
+  /**
+   * A Stripe Checkout page for one order (ruling 48): the card and the delivery address are
+   * typed on Stripe's page, never given to us or to Ozi, and the card is kept for next time.
+   */
+  createPaymentLink(input: CreatePaymentLinkInput): Promise<{ id: string; url: string }>;
+  /** What a link that has been paid says, or null when it has not been paid. */
+  paidByLink(sessionId: string): Promise<PaidLink | null>;
 }
 
 export function stripeGateway(secretKey: string, webhookSecret: string): PaymentsGateway {
@@ -248,6 +282,64 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
       const event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
       return { id: event.id, type: event.type, data: event.data };
     },
+    async createPaymentLink(input) {
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        line_items: [
+          {
+            price_data: {
+              currency: input.currency.toLowerCase(),
+              unit_amount: input.amountPence,
+              product_data: { name: input.description },
+            },
+            quantity: 1,
+          },
+        ],
+        ...(input.customerId ? { customer: input.customerId } : { customer_creation: 'always' }),
+        // Kept for next time, and for the till's real total (Rule Three). The intent carries
+        // `orderLink`, not `orderId`, so the payment_intent webhook leaves this order to the
+        // checkout webhook, which also has the address.
+        payment_intent_data: {
+          setup_future_usage: 'off_session',
+          metadata: { orderLink: input.orderId },
+        },
+        shipping_address_collection: { allowed_countries: ['GB'] },
+        metadata: { orderId: input.orderId },
+        success_url: input.successUrl,
+        cancel_url: input.cancelUrl,
+        expires_at: input.expiresAt,
+      });
+      if (!session.url) throw new Error('Stripe gave no address for the payment page.');
+      return { id: session.id, url: session.url };
+    },
+    async paidByLink(sessionId) {
+      const session = await stripe.checkout.sessions.retrieve(sessionId, {
+        expand: ['payment_intent.payment_method'],
+      });
+      if (session.payment_status !== 'paid') return null;
+      const intent = session.payment_intent as Stripe.PaymentIntent | null;
+      const method = intent?.payment_method as Stripe.PaymentMethod | null | undefined;
+      if (!intent || !method) return null;
+      const shipping = session as unknown as {
+        shipping_details?: { address?: Stripe.Address | null } | null;
+        collected_information?: { shipping_details?: { address?: Stripe.Address | null } };
+      };
+      const address =
+        shipping.shipping_details?.address ??
+        shipping.collected_information?.shipping_details?.address;
+      return {
+        paymentIntentId: intent.id,
+        customerId:
+          typeof session.customer === 'string' ? session.customer : (session.customer?.id ?? null),
+        paymentMethodId: method.id,
+        lastFour: method.card?.last4 ?? '0000',
+        brand: method.card?.brand ?? null,
+        country: method.card?.country ?? null,
+        address: [address?.line1, address?.line2, address?.city, address?.postal_code]
+          .filter((part): part is string => Boolean(part))
+          .join(', '),
+      };
+    },
   };
 }
 
@@ -260,9 +352,16 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
  * `mode` above carries the same fact to `/health` and `/config` so nothing has to guess.
  */
 export interface RecordedCall {
-  kind: 'payment_intent' | 'transfer' | 'connected_account' | 'saved_card_charge' | 'refund';
+  kind:
+    | 'payment_intent'
+    | 'transfer'
+    | 'connected_account'
+    | 'saved_card_charge'
+    | 'refund'
+    | 'payment_link';
   input:
     | CreatePaymentIntentInput
+    | CreatePaymentLinkInput
     | CreateTransferInput
     | ChargeSavedCardInput
     | { paymentIntentId: string; amountPence: number; reference: string }
@@ -336,6 +435,26 @@ export function rehearsalGateway(): RehearsalGateway {
     },
     async getConnectedAccount() {
       return { detailsSubmitted: true, transfersActive: true };
+    },
+    async createPaymentLink(input) {
+      counter += 1;
+      calls.push({ kind: 'payment_link', input });
+      return {
+        id: `cs_rehearsal_${counter}`,
+        url: `https://checkout.rehearsal.invalid/cs_rehearsal_${counter}`,
+      };
+    },
+    async paidByLink() {
+      counter += 1;
+      return {
+        paymentIntentId: `pi_rehearsal_${counter}`,
+        customerId: `cus_rehearsal_${counter}`,
+        paymentMethodId: `pm_rehearsal_${counter}`,
+        lastFour: '4242',
+        brand: 'visa',
+        country: 'GB',
+        address: '1 Rehearsal Road, London, AB1 2CD',
+      };
     },
     constructWebhookEvent(rawBody) {
       const parsed = JSON.parse(

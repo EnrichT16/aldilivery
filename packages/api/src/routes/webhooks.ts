@@ -15,6 +15,7 @@ import { BadRequestError } from '../errors.js';
 import { chargeCalls } from '../services/calls.js';
 import { applyCredit } from '../services/credit.js';
 import { recordOrder } from '../lib/analytics.js';
+import { cardRegionFor } from '../lib/card-region.js';
 import { recordOrderIncome } from '../lib/ledger.js';
 import { offerOrder } from '../services/dispatch.js';
 import { tellShopper } from '../services/order-updates.js';
@@ -94,6 +95,56 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           if (order) {
             await repository.orders.update(order.id, { status: 'refunded' });
           }
+        }
+        break;
+      }
+
+      // A telephone order paid on the link Ozi texted (ruling 48): the card is kept for next
+      // time, the address given on Stripe's page is where the shopping goes, and only now is a
+      // Runner sent.
+      case 'checkout.session.completed': {
+        const sessionId = (object as { id?: string }).id;
+        const order = orderId ? await repository.orders.findById(orderId) : null;
+        if (!order || order.status !== 'confirmed' || !sessionId) break;
+        const paid = await payments.paidByLink(sessionId);
+        if (!paid) break;
+        const shopper = await repository.shoppers.findById(order.shopperId);
+        if (!shopper) break;
+        if (paid.customerId && !shopper.stripeCustomerId) {
+          await repository.shoppers.update(shopper.id, { stripeCustomerId: paid.customerId });
+        }
+        if (shopper.deliveryAddress.trim() === '' && paid.address) {
+          await repository.shoppers.update(shopper.id, { deliveryAddress: paid.address });
+        }
+        const cards = await repository.paymentMethods.listForShopper(shopper.id);
+        const card =
+          cards.find((existing) => existing.stripePaymentMethodId === paid.paymentMethodId) ??
+          (await repository.paymentMethods.create({
+            shopperId: shopper.id,
+            stripePaymentMethodId: paid.paymentMethodId,
+            lastFour: paid.lastFour,
+            brand: paid.brand,
+            region: paid.country ? cardRegionFor(paid.country) : null,
+            isDefault: cards.length === 0,
+          }));
+        const updated = await repository.orders.update(order.id, {
+          status: 'paid',
+          stripePaymentIntentId: paid.paymentIntentId,
+          paymentMethodId: card.id,
+          deliveryAddress: paid.address || shopper.deliveryAddress,
+        });
+        if (app.ctx.autoOffer) await offerOrder(app.ctx, updated.id).catch(() => undefined);
+        await recordOrder(app.ctx, updated, 'order_paid', request.log);
+        await recordOrderIncome(repository, payments, updated, now());
+        void tellShopper(app.ctx, updated, 'paid', request.log);
+        break;
+      }
+
+      // The link ran out unpaid: the order is closed, and nothing was taken.
+      case 'checkout.session.expired': {
+        const order = orderId ? await repository.orders.findById(orderId) : null;
+        if (order && order.status === 'confirmed') {
+          await repository.orders.update(order.id, { status: 'cancelled', cancelledAt: now() });
         }
         break;
       }

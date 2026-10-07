@@ -58,6 +58,7 @@ import {
   type StaffRecovery,
   fetchStaffShareLink,
 } from '../lib/api';
+import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { ShareCard } from '../components/ShareCard';
 import { StaffVoice } from '../components/StaffVoice';
 import { money } from '../lib/money';
@@ -241,6 +242,12 @@ export function Staff(): JSX.Element {
             )}
           </div>
           <ShareCard load={() => fetchStaffShareLink(key)} onNews={setNews} />
+          <section aria-labelledby="staff-screen-heading" className="space-y-3 max-w-xl">
+            <h2 id="staff-screen-heading" className="text-lead font-bold">
+              The screen
+            </h2>
+            <ShowWordsSwitch />
+          </section>
         </>
       )}
     </div>

@@ -27,7 +27,8 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
         Skip to the main part of this page
       </a>
 
-      <header className="px-5 py-4 border-b-2 border-paper/25">
+      {/* The first screen has the name once, in big letters, and no bar above it (ruling 47). */}
+      <header className={onLanding ? 'visually-hidden' : 'px-5 py-4 border-b-2 border-paper/25'}>
         <div className="mx-auto w-full max-w-3xl flex flex-wrap items-center justify-between gap-3">
           <Link to="/" className="control px-0 text-lead font-bold text-paper">
             {storeConfig.productName}
@@ -83,11 +84,11 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
 
       <footer className="px-5 py-6 border-t-2 border-paper/25">
         <div className="mx-auto w-full max-w-3xl space-y-2">
-          <p className="m-0">
+          <p className="m-0 extra">
             {storeConfig.productName} shops at {storeConfig.store.displayName}. Your Runner pays the
             shelf price and you are charged what the till says.
           </p>
-          <p className="m-0 text-paper/80">{storeConfig.store.catalogueSource.attribution}</p>
+          <p className="m-0 text-paper/80 extra">{storeConfig.store.catalogueSource.attribution}</p>
           <ul className="flex flex-wrap gap-2 list-none m-0 p-0">
             <li>
               <Link to="/privacy" className="control px-0 text-paper underline">
@@ -100,7 +101,7 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
               </Link>
             </li>
           </ul>
-          <p className="m-0 text-paper/80">
+          <p className="m-0 text-paper/80 extra">
             {storeConfig.store.legalEntityName}
             {storeConfig.store.legalEntityIsPlaceholder ? ' (company details to follow)' : ''}
           </p>

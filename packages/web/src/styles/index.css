@@ -108,6 +108,24 @@ body {
 }
 
 /*
+ * Ruling 47: the screens are tidy. Descriptive words carry the class `extra`: a screen reader
+ * always reads them, but they only show on the screen when "Show words on the screen" is on in
+ * Settings, for somebody partially sighted who wants them. Never used for prices, totals,
+ * errors, or anything a sighted person needs to decide.
+ */
+html:not([data-words='shown']) .extra {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
  * Ozi's button while it is listening: it glows outward, slowly, so that someone with a little
  * sight can tell at a glance that Ozi is listening. Movement is never the only sign: the button
  * also says "Listening" in words, and changes colour, shape and words when muted. With reduced

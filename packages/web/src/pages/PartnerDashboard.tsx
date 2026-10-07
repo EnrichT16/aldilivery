@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { storeConfig } from '../config';
 import {
   addPartnerProduct,
@@ -309,6 +310,10 @@ export function PartnerDashboard(): JSX.Element {
   return (
     <div className="space-y-8 max-w-2xl">
       <h1 className="text-display font-bold m-0">{data.shop.name}</h1>
+      <details className="max-w-xl">
+        <summary className="control px-0 text-paper underline">The screen</summary>
+        <ShowWordsSwitch />
+      </details>
       <p className="m-0">Your Shop Partner area.</p>
       <p role="status" className="m-0 min-h-control">
         {news}

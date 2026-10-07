@@ -42,6 +42,11 @@ export interface VoiceSettings {
    * height, so it stays in the same place when the screen turns. Null for the usual place.
    */
   bubble: { x: number; y: number } | null;
+  /**
+   * Show the descriptive words on the screen (ruling 47). Off by default, so the screens are
+   * tidy; the words are always there for a screen reader either way.
+   */
+  showText: boolean;
 }
 
 const DEFAULTS: VoiceSettings = {
@@ -50,6 +55,7 @@ const DEFAULTS: VoiceSettings = {
   voiceIds: {},
   introHeard: false,
   bubble: null,
+  showText: false,
 };
 const STORAGE_KEY = 'ozidelivery.voice.settings';
 
@@ -67,6 +73,7 @@ function readSettings(): VoiceSettings {
         parsed.bubble && typeof parsed.bubble.x === 'number' && typeof parsed.bubble.y === 'number'
           ? { x: parsed.bubble.x, y: parsed.bubble.y }
           : null,
+      showText: parsed.showText === true,
     };
   } catch {
     return DEFAULTS;
@@ -121,6 +128,11 @@ export function VoiceProvider({ children }: { children: ReactNode }): JSX.Elemen
       cancelled = true;
     };
   }, [engine, settings.language]);
+
+  // The descriptive words on every screen show only when asked for (ruling 47).
+  useEffect(() => {
+    document.documentElement.dataset['words'] = settings.showText ? 'shown' : 'hidden';
+  }, [settings.showText]);
 
   const update = useCallback((patch: Partial<VoiceSettings>) => {
     setSettings((previous) => {

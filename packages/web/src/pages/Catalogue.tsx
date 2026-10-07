@@ -99,7 +99,7 @@ export function Catalogue(): JSX.Element {
         <label htmlFor="catalogue-search" className="block text-lead font-bold">
           What are you looking for?
         </label>
-        <p id="catalogue-search-hint" className="m-0 text-paper/90">
+        <p id="catalogue-search-hint" className="m-0 text-paper/90 extra">
           Try milk, or bread, or leave it empty to see everything.
         </p>
         <div className="flex flex-wrap gap-3">
@@ -147,7 +147,7 @@ export function Catalogue(): JSX.Element {
               ? 'Nothing matched that'
               : `${state.items.length} ${state.items.length === 1 ? 'thing' : 'things'} you can add`}
           </h2>
-          <p className="m-0 text-paper/90">{state.attribution}</p>
+          <p className="m-0 text-paper/90 extra">{state.attribution}</p>
 
           <ul className="list-none m-0 p-0 space-y-4">
             {state.items.map((item) => (

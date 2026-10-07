@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { storeConfig } from '../config';
 import {
   downloadBusinessStatement,
@@ -235,6 +236,10 @@ export function OrganisationDashboard(): JSX.Element {
   return (
     <div className="space-y-8 max-w-3xl">
       <h1 className="text-display font-bold m-0">{data.organisation.name}</h1>
+      <details className="max-w-xl">
+        <summary className="control px-0 text-paper underline">The screen</summary>
+        <ShowWordsSwitch />
+      </details>
       {me && (
         <p className="m-0">
           Signed in as {me.name}

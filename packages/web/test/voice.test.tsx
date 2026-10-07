@@ -124,10 +124,12 @@ describe('the first launch', () => {
       expect(engine.spoken).toHaveLength(2);
     });
     const intro = engine.spoken[0]!.text;
-    // Somebody new is asked straight away whether to open an account, by talking.
+    // Somebody new is asked whether they need extra help (ruling 47); then, create an
+    // account or sign in.
     expect(engine.spoken[1]!.text).toMatch(
-      /Would you like to open one now, just by talking with me\?/,
+      /^Do you need any extra help\? For example, are you blind or partially sighted\?/,
     );
+    expect(intro).toMatch(/pinch the screen open with two fingers/);
     // Anthony's words, 4 October 2026: who Ozi is, the motto, then how to turn it off.
     expect(intro).toMatch(
       new RegExp(`^Hello, I'm ${assistant}, your shopping assistant\\. Send me, I will help\\.`),
@@ -167,7 +169,7 @@ describe('the first launch', () => {
     const view = renderAt('/');
     await waitFor(() => {
       expect(engine.spoken.map((s) => s.text).join(' ')).toMatch(
-        /^Hello, I'm Ozi, your shopping assistant\. Send me, I will help\. Who are you\? Shopper: You want shopping brought to you\. .* Runner: .* Shop Partner: .* Organisation: .* I look after someone: /,
+        /^Hello, I'm Ozi, your shopping assistant\. Send me, I will help\. If you're a Runner, a shop, or an organisation, just say which\. Would you like to create an account, or sign in\?/,
       );
     });
     view.unmount();

@@ -26,7 +26,7 @@ import { formatPence, parseQuantity, parseYesNo, splitItems, wantsToStop } from 
 
 import type { CatalogueItem } from '../domain.js';
 import { isUkMobile, ukPhone } from '../lib/phone.js';
-import { signSession } from '../lib/tokens.js';
+import { signSession, suggestHandle } from '../lib/tokens.js';
 import {
   ask,
   escapeXml,
@@ -164,6 +164,14 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     return true;
   }
 
+  /** A link can be texted: a mobile, texts switched on, and our own address known. */
+  function canLink(phone: string): boolean {
+    return Boolean(app.ctx.sendText && env.primaryOrigin && isUkMobile(phone));
+  }
+
+  const OFFER =
+    "A card is never given to me on a call. But I can take your order now, and text you a secure link from our payment company to pay and give your delivery address. You don't need an account. Would you like to order now? Say yes or no.";
+
   /** What is in the basket, in words, and what it comes to. */
   async function readBack(lines: Array<[string, number]>) {
     const items = await repository.catalogue.findManyByIds(lines.map(([id]) => id));
@@ -262,6 +270,15 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     }
 
     const cards = await repository.paymentMethods.listForShopper(shopper.id);
+    if ((cards.length === 0 || shopper.deliveryAddress.trim() === '') && canLink(phone)) {
+      return reply(
+        response,
+        ask(
+          `Hello ${firstName(shopper.displayName)}, it's ${assistant}. Your card and home address aren't set up yet. ${OFFER}`,
+          next({ step: 'offer', shopperId: shopper.id, lines: [], quiet: 0, callBack: true }, sid),
+        ),
+      );
+    }
     if (cards.length === 0 || shopper.deliveryAddress.trim() === '') {
       finish(sid);
       const texted = await textLink(phone, shopper.displayName);
@@ -361,8 +378,18 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
           .replace(/[.!?]+$/, '')
           .trim()
           .slice(0, 60);
-        finish(sid);
         const phone = remembered?.phone ?? ukPhone(params['From'] ?? '') ?? '';
+        if (canLink(phone)) {
+          if (remembered) remembered.finished = !state.callBack;
+          return reply(
+            response,
+            ask(
+              `Thank you, ${firstName(name)}. ${OFFER}`,
+              next({ ...state, step: 'offer', name, quiet: 0 }, sid),
+            ),
+          );
+        }
+        finish(sid);
         const texted = phone ? await textLink(phone, name) : false;
         return reply(
           response,
@@ -372,6 +399,34 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
                 ? "I've sent you a text with the link. "
                 : `The website is ${(env.primaryOrigin ?? '').replace(/^https?:\/\//, '')}. `) +
               'Once it is set up, ring this number and I will take your order. Goodbye.',
+          ),
+        );
+      }
+
+      case 'offer': {
+        const answer = parseYesNo(heard);
+        if (answer === 'yes') {
+          return reply(
+            response,
+            ask(
+              'Lovely. What would you like from the shop? For example, say: two pints of milk and a loaf of bread.',
+              next({ ...state, step: 'items', link: true, quiet: 0 }, sid),
+            ),
+          );
+        }
+        if (answer === null) {
+          return reply(
+            response,
+            ask('Sorry, was that a yes or a no?', next({ ...state, quiet: 0 }, sid)),
+          );
+        }
+        finish(sid);
+        const phone = remembered?.phone ?? ukPhone(params['From'] ?? '') ?? '';
+        const texted = phone ? await textLink(phone, state.name ?? null) : false;
+        return reply(
+          response,
+          goodbye(
+            `All right. ${texted ? "I've texted you the link to set up an account on the website instead. " : ''}Ring me any time. Goodbye.`,
           ),
         );
       }
@@ -490,6 +545,10 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
           return reply(response, await confirmTwiml(state, sid, 'Sorry, was that a yes or a no?'));
         }
         finish(sid);
+        if (state.link) {
+          const phone = remembered?.phone ?? ukPhone(params['From'] ?? '') ?? '';
+          return reply(response, await sendLink(state, phone));
+        }
         return reply(response, await placeOrder(state, sid));
       }
     }
@@ -497,6 +556,20 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
 
   /** The order read back slowly: everything, the cost, the card and the address. */
   async function confirmTwiml(state: CallState, sid: string, opening = ''): Promise<string> {
+    if (state.link) {
+      const { priced, words } = await readBack(state.lines);
+      const ceiling = config.voice.paymentCeilingPence;
+      if (priced.totalPence > ceiling) {
+        return ask(
+          `That comes to ${money(priced.totalPence)}, and the most I can take by phone is ${money(ceiling)}. Please say take off and something, or say cancel.`,
+          next({ ...state, step: 'items', quiet: 0 }, sid),
+        );
+      }
+      return ask(
+        `${opening ? `${opening} ` : ''}Here is your order. ${words}. The shopping comes to about ${money(priced.goodsPence)}. Delivery is ${money(priced.feePence)}. So the total is about ${money(priced.totalPence)}. You pay what the till says for the shopping. I'll text you a secure link from our payment company to pay and give your delivery address, and your card is kept safely by them for next time. A Runner is sent once you've paid. Shall I send the link? Say yes or no.`,
+        next({ ...state, step: 'confirm', agreedTotalPence: priced.totalPence, quiet: 0 }, sid),
+      );
+    }
     const shopper = state.shopperId ? await repository.shoppers.findById(state.shopperId) : null;
     if (!shopper)
       return goodbye('Sorry, I could not find your account. Please ring again. Goodbye.');
@@ -513,6 +586,98 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     return ask(
       `${opening ? `${opening} ` : ''}Here is your order. ${words}. The shopping comes to about ${money(priced.goodsPence)}. Delivery is ${money(priced.feePence)}. So the total is about ${money(priced.totalPence)}, taken from your card ending ${card?.lastFour.split('').join(' ') ?? ''}. You pay what the till says for the shopping. It goes to your home address: ${shopper.deliveryAddress}. Shall I send it? Say yes or no.`,
       next({ ...state, step: 'confirm', agreedTotalPence: priced.totalPence, quiet: 0 }, sid),
+    );
+  }
+
+  /**
+   * A telephone order paid by a texted link (ruling 48). The person is kept as a Shopper by
+   * their number and the name they gave, so a Runner can be sent and their next call knows
+   * them; nothing else about them is asked. The order is confirmed now, by their spoken yes,
+   * and only paid, and only sent to a Runner, once they pay on Stripe's page.
+   */
+  async function sendLink(state: CallState, phone: string): Promise<string> {
+    const sorry =
+      'Sorry, I could not send the link just now. Nothing has been charged. Please ring again. Goodbye.';
+    if (!phone || state.agreedTotalPence === undefined || !app.ctx.sendText) return goodbye(sorry);
+    const { priced, words } = await readBack(state.lines);
+    if (priced.totalPence !== state.agreedTotalPence) {
+      return goodbye(
+        `The price changed while we were talking. It is now ${money(priced.totalPence)}. Nothing has been charged. Please ring again. Goodbye.`,
+      );
+    }
+    let shopper =
+      (state.shopperId ? await repository.shoppers.findById(state.shopperId) : null) ??
+      (await repository.shoppers.findByPhone(phone));
+    if (!shopper) {
+      const displayName = state.name?.trim() || 'Telephone customer';
+      let handle = suggestHandle(displayName, 1);
+      for (let attempt = 2; await repository.shoppers.findByHandle(handle); attempt += 1) {
+        handle = suggestHandle(displayName, attempt);
+      }
+      shopper = await repository.shoppers.create({
+        displayName,
+        handle,
+        phone,
+        preferredLanguage: 'en-GB',
+        doorstepProtocol: '',
+        deliveryAddress: '',
+        substitutionDefault: 'ask_me',
+        budgetCapPence: null,
+      });
+    }
+    const at = now();
+    const order = await repository.orders.create({
+      shopperId: shopper.id,
+      status: 'confirmed',
+      goodsEstimatePence: priced.goodsPence,
+      feePence: priced.feePence,
+      totalEstimatePence: priced.totalPence,
+      deliveryAddress: '',
+      doorstepProtocolSnapshot: shopper.doorstepProtocol,
+      spokenConfirmationAt: at,
+      confirmationChannel: 'voice',
+      confirmationStatement:
+        `By telephone: yes to ${words}, about ${money(priced.totalPence)}, paid by a texted link.`.slice(
+          0,
+          400,
+        ),
+      items: priced.lines.map((line) => ({
+        catalogueItemId: line.catalogueItemId,
+        name: line.name,
+        quantity: line.quantity,
+        estimatedPricePence: line.unitPricePence,
+      })),
+    });
+    const origin = env.primaryOrigin ?? '';
+    let url: string;
+    try {
+      ({ url } = await app.ctx.payments.createPaymentLink({
+        orderId: order.id,
+        amountPence: priced.totalPence,
+        currency: config.fees.currency,
+        description: `${config.productName}: shopping and delivery`,
+        customerId: shopper.stripeCustomerId,
+        successUrl: origin,
+        cancelUrl: origin,
+        expiresAt: Math.floor(at.getTime() / 1000) + 23 * 3600,
+      }));
+    } catch (failure) {
+      app.log.error({ err: failure, orderId: order.id }, 'A payment link could not be made.');
+      await repository.orders.update(order.id, { status: 'cancelled', cancelledAt: at });
+      return goodbye(sorry);
+    }
+    try {
+      await app.ctx.sendText(
+        phone,
+        `${config.productName}: here is your secure link to pay for your shopping (about ${money(priced.totalPence)}) and give your delivery address: ${url} . It works for 23 hours. A Runner is sent as soon as you've paid. We will never ask for your card on a call.`,
+      );
+    } catch (failure) {
+      app.log.error({ err: failure, orderId: order.id }, 'The payment link could not be texted.');
+      await repository.orders.update(order.id, { status: 'cancelled', cancelledAt: at });
+      return goodbye(sorry);
+    }
+    return goodbye(
+      `I've sent the link by text. Once you've paid, a Runner will be on the way, and I'll text you as your order goes along. ${config.motto} Goodbye.`,
     );
   }
 

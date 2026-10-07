@@ -76,7 +76,7 @@ export function goodbye(text: string): string {
 
 /* ------------------------------------------------------------------ the conversation */
 
-export type Step = 'consent' | 'name' | 'items' | 'confirm';
+export type Step = 'consent' | 'name' | 'offer' | 'items' | 'confirm';
 
 export interface CallState {
   step: Step;
@@ -88,6 +88,10 @@ export interface CallState {
   quiet: number;
   /** They agreed we may ring them back if the call is cut off. */
   callBack: boolean;
+  /** The name a caller with no account gave. */
+  name?: string;
+  /** Paying by a link texted to them, not a saved card (ruling 48). */
+  link?: boolean;
   /** The total read back to them, which their yes agreed to. */
   agreedTotalPence?: number;
   /** When this stops being accepted, in seconds since 1970. */

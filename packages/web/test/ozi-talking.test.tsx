@@ -19,7 +19,7 @@ import { pairsAloud, inPairs } from '../src/lib/phone-aloud';
 import { spokenDigits, spokenName, yesOrNo } from '../src/state/voice-sign-up';
 import { setVoiceEngine, type SpeakOutcome } from '../src/voice';
 import { fakeEngine, type FakeEngine } from './fake-voice';
-import { FAKE_SHOPPER, stubApi } from './setup';
+import { FAKE_CARD, FAKE_SHOPPER, stubApi } from './setup';
 
 const SETTINGS = 'ozidelivery.voice.settings';
 
@@ -149,7 +149,7 @@ describe('saying a question again', () => {
     renderAt('/shop');
     await say(engine, 'Ozi, I would like some milk');
     const question = said(engine).at(-1)!;
-    expect(question).toMatch(/Would you like to open one now/);
+    expect(question).toMatch(/Would you like to create an account, or sign in\?/);
 
     await say(engine, 'come again?');
     expect(said(engine).at(-1)).toBe(`Of course. I said: ${question}`);
@@ -195,8 +195,10 @@ describe('opening an account by talking', () => {
     renderAt('/');
 
     await waitFor(() => {
-      expect(said(engine).at(-1)).toMatch(/Would you like to open one now/);
+      expect(said(engine).at(-1)).toMatch(/^Do you need any extra help\?/);
     });
+    await say(engine, 'no');
+    expect(said(engine).at(-1)).toMatch(/Would you like to create an account, or sign in\?/);
     await say(engine, 'yes');
     await waitFor(() => {
       expect(said(engine).at(-1)).toMatch(/First, what's your name\?/);
@@ -365,7 +367,7 @@ describe('hearing its name, however the phone spells it', () => {
     renderAt('/shop');
     await say(engine, 'Ozzie, I would like some milk');
     const question = said(engine).at(-1)!;
-    expect(question).toMatch(/Would you like to open one now/);
+    expect(question).toMatch(/Would you like to create an account, or sign in\?/);
     await say(engine, 'hey ozzy');
     expect(said(engine).at(-1)).toBe(`I'm here. ${question}`);
     await say(engine, 'yes');
@@ -411,5 +413,76 @@ describe('everyday phrases, answered by the server (ruling 44)', () => {
     const asked = recorded.find((r) => r.path === '/ozi/reply');
     expect(asked?.body).toEqual({ text: 'Ozi, thank you', mode: 'exact', turn: 0 });
     expect(recorded.some((r) => r.path.startsWith('/basket'))).toBe(false);
+  });
+});
+
+describe('create an account, or sign in (ruling 47)', () => {
+  it('signs in by voice with the phone number and a code, then says what is left to set up', async () => {
+    introHeard();
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const sent = stubApi({ paymentMethods: [] });
+    renderAt('/shop');
+
+    await say(engine, 'sign in');
+    expect(said(engine).at(-1)).toBe("Let's sign you in. What's the phone number on your account?");
+    await say(engine, 'oh seven seven double oh nine double oh one two three');
+    expect(said(engine).at(-1)).toBe(
+      'I heard zero seven, seven zero, zero nine, zero zero, one two, three. Is that right?',
+    );
+    await say(engine, 'yes');
+    await waitFor(() => {
+      expect(said(engine).at(-1)).toMatch(/^I've sent a code by text to that number/);
+    });
+    expect(sent.find((r) => r.path === '/auth/request-code')?.body).toMatchObject({
+      phone: '07700900123',
+      channel: 'text',
+    });
+
+    await say(engine, 'four seven two nine one three');
+    expect(sent.find((r) => r.path === '/auth/verify-code')?.body).toMatchObject({
+      phone: '07700900123',
+      code: '472913',
+    });
+    await waitFor(() => {
+      expect(said(engine).at(-1)).toMatch(
+        /^Welcome back, Ada\. Your account isn't fully set up yet: your card details .*missing\. Would you like to finish it now\?/,
+      );
+    });
+    await say(engine, 'yes');
+    await waitFor(() => {
+      expect(said(engine).some((text) => /^Here's where your card goes/.test(text))).toBe(true);
+    });
+  });
+
+  it('offers to create an account when the number has none', async () => {
+    introHeard();
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubApi({ verifyResult: 'no-account' });
+    renderAt('/shop');
+    await say(engine, 'I want to log in');
+    await say(engine, 'zero seven seven zero zero nine zero zero one two three');
+    await say(engine, 'yes');
+    await waitFor(() => {
+      expect(said(engine).at(-1)).toMatch(/say the six numbers/);
+    });
+    await say(engine, 'one two three four five six');
+    await waitFor(() => {
+      expect(said(engine).at(-1)).toMatch(/^There's no account on that number yet/);
+    });
+  });
+
+  it('opens straight into the shop for somebody signed in, and welcomes them once', async () => {
+    introHeard();
+    window.sessionStorage.removeItem('ozidelivery.welcomed');
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubApi({ shopper: FAKE_SHOPPER, paymentMethods: [FAKE_CARD] });
+    renderAt('/');
+    await waitFor(() => {
+      expect(said(engine).at(-1)).toBe('Welcome back, Ada. What shopping would you like today?');
+    });
+    expect(screen.queryByRole('heading', { name: 'Who are you?' })).not.toBeInTheDocument();
   });
 });

@@ -21,7 +21,7 @@ Bigger pieces
 - Welsh, then Igbo, Hausa, Yoruba and Swahili: a language layer for the screens (Section E).
 - A region selector and marketplace switching (Section P).
 - Many shops, with listings and price dates shown (Section N, ruling 16).
-- Card entry on the phone keypad during a telephone order (Twilio Pay with Stripe), ruling 28; telephone ordering itself is built (ruling 46).
+- Card entry on the phone keypad, for landline callers with no card saved (Twilio Pay with Stripe), ruling 28; mobile callers pay by a texted link (ruling 48).
 - Email sign-up with an emailed code (ruling 33).
 - Flutterwave and Paystack (rulings 17, 18, 35).
 - Delivery bundles, 4 for £48 (T3); weekly spoken summary (T7); wellbeing checks (T8).

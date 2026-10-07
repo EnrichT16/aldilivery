@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { storeConfig } from '../config';
 import { ShareCard } from '../components/ShareCard';
+import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import {
   fetchMyOrganisation,
   fetchMyShareLink,
@@ -59,11 +60,18 @@ export function Settings(): JSX.Element {
         {news}
       </p>
 
+      <section aria-labelledby="screen-heading" className="space-y-3 max-w-xl">
+        <h2 id="screen-heading" className="text-lead font-bold">
+          The screen
+        </h2>
+        <ShowWordsSwitch />
+      </section>
+
       <section aria-labelledby="addresses-heading" className="space-y-3 max-w-xl">
         <h2 id="addresses-heading" className="text-lead font-bold">
           Addresses
         </h2>
-        <p className="m-0">
+        <p className="m-0 extra">
           Your home address, and any others you send shopping to. Changing them needs your PIN.
         </p>
         <Link to="/addresses" className="control bg-paper text-ink">
@@ -97,7 +105,7 @@ export function Settings(): JSX.Element {
             <label htmlFor="speaks-aloud" className="font-bold text-lead">
               {assistant} speaks aloud
             </label>
-            <p id="speaks-aloud-hint" className="m-0">
+            <p id="speaks-aloud-hint" className="m-0 extra">
               On unless you turn it off. Everything {assistant} says is always written on the screen
               as well.
             </p>
@@ -154,7 +162,7 @@ export function Settings(): JSX.Element {
         >
           Put {assistant}&rsquo;s button back in its usual place
         </button>
-        <p className="m-0 text-paper/80">Speech by: {voice.engine.name}.</p>
+        <p className="m-0 text-paper/80 extra">Speech by: {voice.engine.name}.</p>
       </section>
 
       {shopper && <ShareCard load={fetchMyShareLink} onNews={setNews} />}
@@ -252,7 +260,7 @@ function OrganisationLink(): JSX.Element {
           }}
           className="space-y-3"
         >
-          <p className="m-0">
+          <p className="m-0 extra">
             If a care home, the council or another organisation helps you with your shopping, they
             may give you a code. Typing it here lets them see your orders and what they cost.
           </p>
@@ -309,7 +317,7 @@ function AgeGroup(): JSX.Element {
       <h2 id="age-heading" className="text-lead font-bold">
         Your age group (optional)
       </h2>
-      <p className="m-0">
+      <p className="m-0 extra">
         It helps us understand what different people need. It is never shown to anyone, never sold
         with your name, and you can take it away here at any time.
       </p>

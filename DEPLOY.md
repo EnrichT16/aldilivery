@@ -50,7 +50,7 @@ Creating the Stripe webhook and getting the last secret
 
 Go to the Stripe dashboard, to Developers and then Webhooks, and add an endpoint. The endpoint address is your app address followed by forward slash, a p i, forward slash, webhooks, forward slash, stripe. So if the app address were https colon slash slash example dot ondigitalocean dot app, then the endpoint would be that same address with slash api slash webhooks slash stripe on the end.
 
-Choose the events you want sent. Payment intent succeeded and payment intent payment failed are the two that matter for taking an order. Save the endpoint. Stripe then shows a signing secret, which begins with the letters w h s e c. Copy it.
+Choose the events you want sent. Payment intent succeeded and payment intent payment failed are the two that matter for taking an order. Add checkout session completed and checkout session expired as well: they are how a telephone order paid by a texted link is marked paid, or closed when the link runs out (ruling 48). If the endpoint already exists, edit it and add those two events; do not add a second endpoint. Save the endpoint. Stripe then shows a signing secret, which begins with the letters w h s e c. Copy it.
 
 Back in DigitalOcean, in the same environment variables screen for the api component, replace the placeholder in STRIPE_WEBHOOK_SECRET with that signing secret, and make sure it is marked encrypted. Save the changes. Saving environment variables starts a redeploy on its own, so you do not need to trigger one.
 
