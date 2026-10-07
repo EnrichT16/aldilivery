@@ -13,7 +13,8 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { formatPence } from '@aldilivery/core';
 import { z } from 'zod';
 
-import { requireSession, requireStaff } from '../app.js';
+import { requireSession } from '../app.js';
+import { staffActor } from '../lib/staff.js';
 import type { FindRequest, GiftCard, Shopper } from '../domain.js';
 import { BadRequestError, ConflictError, NotFoundError, UnavailableError } from '../errors.js';
 
@@ -339,7 +340,7 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
   });
 
   app.get('/staff/find-it', async (request) => {
-    requireStaff(request, app.ctx.env.staffKey);
+    await staffActor(request, 'finds');
     const looking = await repository.findRequests.listLooking();
     const rows = [];
     for (const row of looking) {
@@ -355,7 +356,7 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
   });
 
   app.post('/staff/find-it/:id/decide', async (request) => {
-    requireStaff(request, app.ctx.env.staffKey);
+    await staffActor(request, 'finds');
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const body = z
       .discriminatedUnion('found', [
@@ -524,12 +525,12 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
   });
 
   app.get('/staff/enquiries', async (request) => {
-    requireStaff(request, app.ctx.env.staffKey);
+    await staffActor(request, 'enquiries');
     return { enquiries: await repository.organisationEnquiries.list() };
   });
 
   app.post('/staff/enquiries/:id/handled', async (request) => {
-    requireStaff(request, app.ctx.env.staffKey);
+    await staffActor(request, 'enquiries');
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const enquiries = await repository.organisationEnquiries.list();
     if (!enquiries.some((row) => row.id === id)) throw new NotFoundError('enquiry');

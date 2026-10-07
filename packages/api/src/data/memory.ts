@@ -14,6 +14,7 @@ import type { OrderStatus } from '@aldilivery/core';
 
 import type {
   AccountRole,
+  StaffMember,
   FindRequest,
   GiftCard,
   OrganisationEnquiry,
@@ -99,6 +100,7 @@ export function memoryRepository(): Repository {
   const findRequests = new Map<string, FindRequest>();
   const giftCards = new Map<string, GiftCard>();
   const enquiries = new Map<string, OrganisationEnquiry>();
+  const staffMembers = new Map<string, StaffMember>();
 
   const now = (): Date => new Date();
 
@@ -984,6 +986,45 @@ export function memoryRepository(): Repository {
         if (!existing) throw new NotFoundError('Enquiry', key);
         const updated = { ...existing, ...patch };
         enquiries.set(key, updated);
+        return clone(updated);
+      },
+    },
+
+    staffMembers: {
+      async create(input) {
+        const row: StaffMember = {
+          ...input,
+          id: id(),
+          active: true,
+          mustChangePassword: true,
+          failedAttempts: 0,
+          lockedUntil: null,
+          lastSignInAt: null,
+          createdAt: now(),
+        };
+        staffMembers.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = staffMembers.get(key);
+        return found ? clone(found) : null;
+      },
+      async findByUsername(username) {
+        for (const member of staffMembers.values()) {
+          if (member.username === username) return clone(member);
+        }
+        return null;
+      },
+      async list() {
+        return [...staffMembers.values()]
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async update(key, patch) {
+        const existing = staffMembers.get(key);
+        if (!existing) throw new NotFoundError('Staff member', key);
+        const updated = { ...existing, ...patch, id: existing.id };
+        staffMembers.set(key, updated);
         return clone(updated);
       },
     },

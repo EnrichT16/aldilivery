@@ -12,6 +12,7 @@
 
 import type {
   AccountRole,
+  StaffMember,
   FindRequest,
   GiftCard,
   OrganisationEnquiry,
@@ -376,6 +377,18 @@ export interface Repository {
     /** Newest first. */
     list(): Promise<OrganisationEnquiry[]>;
     update(id: string, patch: { handled: boolean }): Promise<OrganisationEnquiry>;
+  };
+
+  /** The people who run the service, each with their own admin sign-in. */
+  staffMembers: {
+    create(
+      input: Pick<StaffMember, 'name' | 'username' | 'passwordHash' | 'role'>,
+    ): Promise<StaffMember>;
+    findById(id: string): Promise<StaffMember | null>;
+    findByUsername(username: string): Promise<StaffMember | null>;
+    /** Oldest first. */
+    list(): Promise<StaffMember[]>;
+    update(id: string, patch: Partial<Omit<StaffMember, 'id'>>): Promise<StaffMember>;
   };
 
   /** Close any underlying connection. */

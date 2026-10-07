@@ -942,12 +942,111 @@ export function joinAsGuest(code: string): Promise<{ name: string; join: CallJoi
  * The admin panel (/staff): every call carries the staff key in an x-staff-key header
  * ------------------------------------------------------------------------------------- */
 
+/**
+ * What proves who is signed in: a staff account's session token (it starts "st1."), or the
+ * founder's staff key, each sent in its own header.
+ */
+function staffHeaders(key: string): Record<string, string> {
+  return key.startsWith('st1.') ? { 'x-staff-token': key } : { 'x-staff-key': key };
+}
+
 function staffRequest<T>(key: string, path: string, init?: RequestInit): Promise<T> {
-  return request<T>(path, { ...init, headers: { 'x-staff-key': key } });
+  return request<T>(path, { ...init, headers: staffHeaders(key) });
 }
 
 export function checkStaffKey(key: string): Promise<{ ok: true }> {
   return staffRequest(key, '/staff/check');
+}
+
+/** What each staff job is, and which parts of the panel it sees. */
+export type StaffArea =
+  'documents' | 'problems' | 'feedback' | 'owed' | 'finds' | 'enquiries' | 'team';
+
+export interface StaffSignedIn {
+  token: string;
+  name: string;
+  role: string;
+  title: string;
+  areas: StaffArea[];
+  mustChangePassword: boolean;
+}
+
+export function staffSignIn(username: string, password: string): Promise<StaffSignedIn> {
+  return request('/staff/sign-in', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+}
+
+export function fetchStaffMe(
+  key: string,
+): Promise<Omit<StaffSignedIn, 'token'> & { account: boolean }> {
+  return staffRequest(key, '/staff/me');
+}
+
+export function changeStaffPassword(
+  key: string,
+  current: string,
+  password: string,
+): Promise<{ message: string }> {
+  return staffRequest(key, '/staff/password', {
+    method: 'POST',
+    body: JSON.stringify({ current, password }),
+  });
+}
+
+export interface StaffRoleInfo {
+  role: string;
+  title: string;
+  areas: StaffArea[];
+}
+
+export function fetchStaffRoles(): Promise<{ roles: StaffRoleInfo[] }> {
+  return request('/staff/roles');
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  username: string;
+  role: string;
+  title: string;
+  active: boolean;
+  mustChangePassword: boolean;
+  lastSignInAt: string | null;
+  createdAt: string;
+}
+
+export function fetchTeam(key: string): Promise<{ team: TeamMember[] }> {
+  return staffRequest(key, '/staff/team');
+}
+
+export function addTeamMember(
+  key: string,
+  input: { name: string; username: string; role: string },
+): Promise<{ member: TeamMember; password: string; message: string }> {
+  return staffRequest(key, '/staff/team', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function updateTeamMember(
+  key: string,
+  id: string,
+  patch: { role?: string; active?: boolean },
+): Promise<{ member: TeamMember }> {
+  return staffRequest(key, `/staff/team/${encodeURIComponent(id)}`, {
+    method: 'POST',
+    body: JSON.stringify(patch),
+  });
+}
+
+export function resetTeamPassword(
+  key: string,
+  id: string,
+): Promise<{ password: string; message: string }> {
+  return staffRequest(key, `/staff/team/${encodeURIComponent(id)}/reset`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
 }
 
 export interface StaffDocument {
@@ -1047,7 +1146,7 @@ export function writeOffRunner(
 
 /** A document photo or a piece of evidence, as a local address the page can show or play. */
 export async function fetchStaffFile(key: string, path: string): Promise<string> {
-  const response = await fetch(`${BASE_URL}${path}`, { headers: { 'x-staff-key': key } });
+  const response = await fetch(`${BASE_URL}${path}`, { headers: staffHeaders(key) });
   if (!response.ok)
     throw new ApiError('That file could not be opened.', response.status, undefined);
   return URL.createObjectURL(await response.blob());

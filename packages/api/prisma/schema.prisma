@@ -809,3 +809,20 @@ model OrganisationEnquiry {
   handled      Boolean  @default(false)
   createdAt    DateTime @default(now())
 }
+
+/// Somebody who runs the service, with their own admin sign-in (7 October 2026). What they can
+/// see follows their role (packages/api/src/lib/staff.ts).
+model StaffMember {
+  id                 String    @id @default(cuid())
+  name               String
+  username           String    @unique
+  /// scrypt, salted. Never the password.
+  passwordHash       String
+  role               String
+  active             Boolean   @default(true)
+  mustChangePassword Boolean   @default(true)
+  failedAttempts     Int       @default(0)
+  lockedUntil        DateTime?
+  lastSignInAt       DateTime?
+  createdAt          DateTime  @default(now())
+}

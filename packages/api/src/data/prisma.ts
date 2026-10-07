@@ -616,6 +616,24 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    staffMembers: {
+      async create(input) {
+        return (await prisma.staffMember.create({ data: input })) as any;
+      },
+      async findById(id) {
+        return (await prisma.staffMember.findUnique({ where: { id } })) as any;
+      },
+      async findByUsername(username) {
+        return (await prisma.staffMember.findUnique({ where: { username } })) as any;
+      },
+      async list() {
+        return (await prisma.staffMember.findMany({ orderBy: { createdAt: 'asc' } })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.staffMember.update({ where: { id }, data: patch })) as any;
+      },
+    },
+
     async disconnect() {
       await prisma.$disconnect();
     },

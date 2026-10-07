@@ -515,3 +515,22 @@ export interface OrganisationEnquiry {
   handled: boolean;
   createdAt: Date;
 }
+
+/** Somebody who runs the service, with their own sign-in to the admin panel. */
+export interface StaffMember {
+  id: string;
+  name: string;
+  /** What they sign in with: short, lower case, unique. */
+  username: string;
+  /** scrypt, salted. Never the password. */
+  passwordHash: string;
+  /** One of STAFF_ROLES in lib/staff.ts. */
+  role: string;
+  active: boolean;
+  /** True until they choose their own password, after the one they were given. */
+  mustChangePassword: boolean;
+  failedAttempts: number;
+  lockedUntil: Date | null;
+  lastSignInAt: Date | null;
+  createdAt: Date;
+}
