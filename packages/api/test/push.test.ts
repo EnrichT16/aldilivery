@@ -181,6 +181,11 @@ describe('allowing notifications', () => {
   });
 });
 
+/** Only the questions: order updates (paid, accepted and so on) are tested in telephone.test.ts. */
+function questions<T extends { message: PushMessage }>(sent: T[]): T[] {
+  return sent.filter((item) => !item.message.tag.startsWith('order-'));
+}
+
 describe('a question reaching a closed page', () => {
   it('notifies every device the Shopper allowed, once per question, opening Your order', async () => {
     const setup = await withPush();
@@ -188,9 +193,9 @@ describe('a question reaching a closed page', () => {
     const { ask } = await shopping(setup);
 
     expect((await ask()).statusCode).toBe(201);
-    await vi.waitFor(() => expect(setup.sent).toHaveLength(1));
-    expect(setup.sent[0]!.target.endpoint).toBe(DEVICE.endpoint);
-    expect(setup.sent[0]!.message).toMatchObject({
+    await vi.waitFor(() => expect(questions(setup.sent)).toHaveLength(1));
+    expect(questions(setup.sent)[0]!.target.endpoint).toBe(DEVICE.endpoint);
+    expect(questions(setup.sent)[0]!.message).toMatchObject({
       title: 'A question from your Runner',
       body: expect.stringMatching(/^Tomasz cannot find .*milk.*\. Open this to choose/i),
       url: '/my-order',
@@ -199,7 +204,7 @@ describe('a question reaching a closed page', () => {
     // Asking about the same item again gives back the same question and sends nothing new.
     await ask();
     await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(setup.sent).toHaveLength(1);
+    expect(questions(setup.sent)).toHaveLength(1);
   });
 
   it('forgets a device the push service says is gone', async () => {
@@ -219,7 +224,7 @@ describe('a question reaching a closed page', () => {
     await subscribe(setup.harness, setup.shopper);
     const { ask } = await shopping(setup);
     expect((await ask()).statusCode).toBe(201);
-    await vi.waitFor(() => expect(setup.sent).toHaveLength(1));
+    await vi.waitFor(() => expect(questions(setup.sent)).toHaveLength(1));
     // The device is kept: a failure is not the same as gone.
     expect(
       await setup.harness.repository.pushSubscriptions.listForShopper(setup.shopper.shopperId),

@@ -40,3 +40,11 @@ export {
 } from './config.js';
 
 export { formatPence, poundsToPence } from './money.js';
+
+export {
+  parseChoice,
+  parseQuantity,
+  parseYesNo,
+  splitItems,
+  wantsToStop,
+} from './spoken-order.js';

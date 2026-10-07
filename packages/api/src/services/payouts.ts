@@ -117,7 +117,10 @@ export function planPayout(runner: RunnerPayoutState, policy: CoolBagPolicy): Pa
  * five pounds per order, that the deposit is collected once and never twice, and that every
  * penny withheld comes back.
  */
-export function replayPayouts(deliveries: number, policy: CoolBagPolicy): {
+export function replayPayouts(
+  deliveries: number,
+  policy: CoolBagPolicy,
+): {
   plans: PayoutPlan[];
   totalEarnedPence: number;
   totalTransferredPence: number;

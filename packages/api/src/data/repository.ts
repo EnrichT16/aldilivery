@@ -469,7 +469,11 @@ export interface Repository {
   analytics: {
     record(input: Omit<AnalyticsEvent, 'id'>): Promise<void>;
     /** Oldest first, between two moments, optionally of one kind. */
-    list(where: { since: Date; until?: Date; kind?: AnalyticsEvent['kind'] }): Promise<AnalyticsEvent[]>;
+    list(where: {
+      since: Date;
+      until?: Date;
+      kind?: AnalyticsEvent['kind'];
+    }): Promise<AnalyticsEvent[]>;
   };
 
   /** Money in and out, by gateway. */

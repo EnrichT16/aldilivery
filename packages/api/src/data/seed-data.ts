@@ -51,7 +51,12 @@ export function catalogueFor(config: StoreConfig): CreateCatalogueItem[] {
       estimatedPricePence: 445,
       source,
     },
-    { name: 'Beef mince 5% fat, 500g', category: 'Meat and fish', estimatedPricePence: 399, source },
+    {
+      name: 'Beef mince 5% fat, 500g',
+      category: 'Meat and fish',
+      estimatedPricePence: 399,
+      source,
+    },
     { name: 'Salmon fillets, 240g', category: 'Meat and fish', estimatedPricePence: 425, source },
     { name: 'Baked beans, 415g', category: 'Cupboard', estimatedPricePence: 45, source },
     { name: 'Chopped tomatoes, 400g', category: 'Cupboard', estimatedPricePence: 42, source },
@@ -83,17 +88,47 @@ export function catalogueFor(config: StoreConfig): CreateCatalogueItem[] {
     // For Little Gifts (6 October 2026).
     { name: 'Birthday card', category: 'Cards and gifts', estimatedPricePence: 149, source },
     { name: 'Thinking of you card', category: 'Cards and gifts', estimatedPricePence: 149, source },
-    { name: 'Mixed bunch of flowers', category: 'Cards and gifts', estimatedPricePence: 400, source },
-    { name: 'Box of milk chocolates, 200g', category: 'Cards and gifts', estimatedPricePence: 300, source },
+    {
+      name: 'Mixed bunch of flowers',
+      category: 'Cards and gifts',
+      estimatedPricePence: 400,
+      source,
+    },
+    {
+      name: 'Box of milk chocolates, 200g',
+      category: 'Cards and gifts',
+      estimatedPricePence: 300,
+      source,
+    },
     { name: 'Small teddy bear', category: 'Cards and gifts', estimatedPricePence: 350, source },
     { name: 'Gift bag', category: 'Cards and gifts', estimatedPricePence: 100, source },
     { name: 'Scented candle', category: 'Cards and gifts', estimatedPricePence: 300, source },
-    { name: 'Colouring book and crayons', category: 'Cards and gifts', estimatedPricePence: 250, source },
+    {
+      name: 'Colouring book and crayons',
+      category: 'Cards and gifts',
+      estimatedPricePence: 250,
+      source,
+    },
 
     // Things often ordered online and waited for, brought the same day instead.
-    { name: 'AA batteries, 4 pack', category: 'Everyday essentials', estimatedPricePence: 299, source },
-    { name: 'USB phone charging cable', category: 'Everyday essentials', estimatedPricePence: 400, source },
-    { name: 'LED light bulb, bayonet', category: 'Everyday essentials', estimatedPricePence: 250, source },
+    {
+      name: 'AA batteries, 4 pack',
+      category: 'Everyday essentials',
+      estimatedPricePence: 299,
+      source,
+    },
+    {
+      name: 'USB phone charging cable',
+      category: 'Everyday essentials',
+      estimatedPricePence: 400,
+      source,
+    },
+    {
+      name: 'LED light bulb, bayonet',
+      category: 'Everyday essentials',
+      estimatedPricePence: 250,
+      source,
+    },
     { name: 'Sticky tape', category: 'Everyday essentials', estimatedPricePence: 100, source },
 
     // Rule Six. Present on purpose, so the refusal can be seen working. It must never appear

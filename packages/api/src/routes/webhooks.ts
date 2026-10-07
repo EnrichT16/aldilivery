@@ -17,6 +17,7 @@ import { applyCredit } from '../services/credit.js';
 import { recordOrder } from '../lib/analytics.js';
 import { recordOrderIncome } from '../lib/ledger.js';
 import { offerOrder } from '../services/dispatch.js';
+import { tellShopper } from '../services/order-updates.js';
 
 interface PaymentIntentLike {
   id?: string;
@@ -67,6 +68,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
             if (paid) {
               await recordOrder(app.ctx, paid, 'order_paid', request.log);
               await recordOrderIncome(repository, app.ctx.payments, paid, now());
+              void tellShopper(app.ctx, paid, 'paid', request.log);
             }
           }
         }

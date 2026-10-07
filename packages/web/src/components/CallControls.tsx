@@ -4,6 +4,7 @@ import {
   addCallGuest,
   answerCall,
   endCall,
+  ringShopperPhone,
   fetchCallsConfig,
   fetchCurrentCall,
   startCall,
@@ -172,6 +173,24 @@ export function CallControls({
           Loudspeaker: on this website the sound already comes through your loudspeaker.
         </p>
         {as === 'shopper' && <Merge callId={stage.callId} pence={pence} onNews={setNews} />}
+        {as === 'runner' && stage.others === 0 && (
+          // For a Shopper who ordered by telephone and has no app (ruling 46).
+          <button
+            type="button"
+            onClick={() => {
+              void ringShopperPhone(stage.callId)
+                .then((result) => setNews(result.message))
+                .catch((failure: unknown) =>
+                  setNews(
+                    failure instanceof Error ? failure.message : 'Their phone could not be rung.',
+                  ),
+                );
+            }}
+            className="control w-full bg-paper text-ink"
+          >
+            Ring their phone instead
+          </button>
+        )}
       </section>
     );
   }

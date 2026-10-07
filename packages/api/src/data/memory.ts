@@ -1258,7 +1258,9 @@ export function memoryRepository(): Repository {
       },
       async list(where) {
         return incomeRecords
-          .filter((row) => row.at >= where.since && (where.until === undefined || row.at < where.until))
+          .filter(
+            (row) => row.at >= where.since && (where.until === undefined || row.at < where.until),
+          )
           .sort((a, b) => a.at.getTime() - b.at.getTime())
           .map(clone);
       },

@@ -307,6 +307,59 @@ export async function registerCallRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  /**
+   * The Runner rings the Shopper's own telephone into the call (ruling 46): for somebody who
+   * ordered by phone and has no app. LiveKit dials out through our Twilio number, so the
+   * Runner never sees or hears the number, and the Shopper's phone shows ours. Free for the
+   * Shopper, who never agreed a price for it.
+   */
+  app.post('/calls/:callId/phone', async (request) => {
+    const session = requireSession(request, 'runner');
+    const calls = provider();
+    if (!calls.dialPhone) {
+      throw new UnavailableError(
+        "Ringing the Shopper's phone is not switched on yet. Ask your question on the order page instead.",
+      );
+    }
+    const { callId } = z.object({ callId: z.string().min(1) }).parse(request.params);
+    const call = await callFor(session, callId);
+    if (call.status === 'ended') throw new ConflictError('That call has ended.');
+    const shopper = await repository.shoppers.findById(call.shopperId);
+    if (!shopper) throw new NotFoundError('Shopper');
+    const identity = `phone-${shopper.id}`;
+    const legs = await repository.callLegs.listForCall(call.id);
+    const already = legs.find((leg) => leg.identity === identity);
+    if (already?.connectedSince) {
+      throw new ConflictError(`${firstName(shopper.displayName)}'s phone is already on the call.`);
+    }
+    const name = firstName(shopper.displayName);
+    if (!already) {
+      await repository.callLegs.create({
+        callId: call.id,
+        role: 'phone',
+        identity,
+        name,
+        connectedSince: null,
+        secondsConnected: 0,
+        inviteCodeHash: null,
+        priceStatement: null,
+        createdAt: now(),
+      });
+    }
+    try {
+      await calls.dialPhone({ roomName: call.roomName, phone: shopper.phone, identity, name });
+    } catch (failure) {
+      request.log.warn({ err: failure, callId: call.id }, 'The phone could not be rung.');
+      throw new UnavailableError(
+        `${name}'s phone could not be rung just now. Please try again, or ask on the order page.`,
+      );
+    }
+    return {
+      ringing: true,
+      message: `Ringing ${name}'s phone now. Their number is never shown to you.`,
+    };
+  });
+
   /** A guest opens their link. No account needed; the code is the pass. */
   app.post('/calls/guest-join', async (request) => {
     provider();
@@ -363,9 +416,10 @@ export async function registerCallRoutes(app: FastifyInstance): Promise<void> {
       if (!leg) return { received: true };
       if (event.event === 'participant_joined' && !leg.connectedSince) {
         await repository.callLegs.update(leg.id, { connectedSince: event.at });
+        const answerer = call.startedBy === 'shopper' ? 'runner' : 'shopper';
         if (
           call.status === 'ringing' &&
-          leg.role === (call.startedBy === 'shopper' ? 'runner' : 'shopper')
+          (leg.role === answerer || (leg.role === 'phone' && answerer === 'shopper'))
         ) {
           await repository.calls.update(call.id, { status: 'live' });
         }

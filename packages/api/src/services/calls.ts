@@ -25,10 +25,13 @@ export function guestPriceStatement(name: string, pencePerMinute: number): strin
   return `Adding ${name} costs ${pencePerMinute}p a minute for them, paid from your card.`;
 }
 
-/** The minutes the Shopper pays for: theirs, and each guest's, each rounded up. */
+/**
+ * The minutes the Shopper pays for: theirs, and each guest's, each rounded up. Not a Runner's,
+ * and not a call to the Shopper's own telephone, which they never agreed a price for (ruling 46).
+ */
 export function billableMinutes(legs: CallLeg[]): number {
   return legs
-    .filter((leg) => leg.role !== 'runner')
+    .filter((leg) => leg.role === 'shopper' || leg.role === 'guest')
     .reduce((total, leg) => total + Math.ceil(leg.secondsConnected / 60), 0);
 }
 

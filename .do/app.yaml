@@ -223,6 +223,12 @@ services:
         type: SECRET
         value: replace_with_the_livekit_api_secret
 
+      # Ringing a Shopper's own telephone into a call (ruling 46): LiveKit's outbound SIP trunk
+      # to the Twilio number, ST_ followed by letters. docs/TWILIO_AND_LIVEKIT.md, part 4.
+      - key: LIVEKIT_SIP_TRUNK_ID
+        scope: RUN_TIME
+        value: replace_with_the_livekit_sip_trunk_id
+
 # ---------------------------------------------------------------------------
 # The web app
 # ---------------------------------------------------------------------------

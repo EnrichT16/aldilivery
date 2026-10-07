@@ -105,6 +105,12 @@ beforeEach(() => {
         });
       }
       if (path === '/calls/guest-join') return reply({ name: 'Mary', join: JOIN });
+      if (path === '/calls/call-1/phone') {
+        return reply({
+          ringing: true,
+          message: "Ringing Margaret's phone now. Their number is never shown to you.",
+        });
+      }
       return reply({ error: { message: `Nothing stubbed for ${method} ${path}` } }, 404);
     }),
   );
@@ -223,6 +229,20 @@ describe('a Runner calling', () => {
     expect(
       screen.queryByRole('button', { name: 'Add someone to the call' }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('a Runner ringing the Shopper’s own phone (ruling 46)', () => {
+  it('rings it from the call panel, and never shows the number', async () => {
+    const user = userEvent.setup();
+    render(<CallControls orderId="order-1" as="runner" otherName="Margaret" />);
+    await user.click(await screen.findByRole('button', { name: 'Call Margaret' }));
+    await user.click(await screen.findByRole('button', { name: 'Ring their phone instead' }));
+    await screen.findByText("Ringing Margaret's phone now. Their number is never shown to you.");
+    expect(state.sent.some((s) => s.path === '/calls/call-1/phone' && s.method === 'POST')).toBe(
+      true,
+    );
+    expect(document.body.textContent).not.toMatch(/07\d{3}|\+44/);
   });
 });
 

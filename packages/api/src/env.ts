@@ -120,6 +120,8 @@ export interface Env {
   livekitUrl: string | undefined;
   livekitApiKey: string | undefined;
   livekitApiSecret: string | undefined;
+  /** LiveKit's outbound SIP trunk to the Twilio number, `ST_…`, for ringing a telephone (ruling 46). */
+  livekitSipTrunkId: string | undefined;
   /**
    * Fill an empty catalogue at startup. On by default, because a deployed service with
    * no catalogue looks broken. Set `SEED_ON_START=false` once the catalogue comes from
@@ -235,6 +237,7 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     livekitUrl: realValue(source['LIVEKIT_URL']),
     livekitApiKey: realValue(source['LIVEKIT_API_KEY']),
     livekitApiSecret: realValue(source['LIVEKIT_API_SECRET']),
+    livekitSipTrunkId: realValue(source['LIVEKIT_SIP_TRUNK_ID']),
     seedOnStart: source['SEED_ON_START'] !== 'false',
   };
 }

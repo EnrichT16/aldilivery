@@ -37,10 +37,7 @@ function fromEnvironment(source: NodeJS.ProcessEnv): string | null {
 /** A file the build may have written. Absent in development, and that is fine. */
 function fromBuildStamp(): string | null {
   try {
-    const stamp = readFileSync(
-      fileURLToPath(new URL('../COMMIT', import.meta.url)),
-      'utf8',
-    ).trim();
+    const stamp = readFileSync(fileURLToPath(new URL('../COMMIT', import.meta.url)), 'utf8').trim();
     return SHA.test(stamp) ? stamp : null;
   } catch {
     return null;
