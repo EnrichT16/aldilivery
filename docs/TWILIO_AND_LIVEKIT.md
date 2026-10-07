@@ -60,6 +60,14 @@ any time, is put through to a person (ruling 51). In DigitalOcean set:
 
 Nothing to change in Twilio. Leave HUMAN_LINE_PHONE empty and the option is simply not offered.
 
+### Ozi's voice on the telephone
+
+On the telephone, Ozi speaks with Twilio's own British voice (Polly, "Amy") and hears through
+Twilio's speech recognition. In the app, Ozi now speaks and hears through Oluoma Voice when it is
+switched on (ruling 53, DEPLOY.md); the telephone does not yet. The Oluoma phone bridge, being
+built in EnrichT16/OluomaApp, will replace Polly later, so a caller hears the same Ozi as the app.
+Nothing to set up for it yet.
+
 ## Part 3b: paying by a texted link
 
 Somebody with no account, or no card saved, can still order by telephone: Ozi texts them a

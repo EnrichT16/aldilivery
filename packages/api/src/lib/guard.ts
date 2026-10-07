@@ -8,6 +8,7 @@
  * account already has after five wrong passwords: someone guessing many accounts' passwords
  * from one place is slowed to a crawl. Generous, so a family on one home connection never
  * notices it. The address is the one DigitalOcean's front door saw (`do-connecting-ip`).
+ * The same limit keeps one address from asking for voice passes without end (ruling 53).
  */
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
@@ -33,6 +34,9 @@ export const LIMITED: Record<string, number> = {
   '/business/sign-in': 30,
   '/auth/verify-code': 60,
   '/ozi/reply': 600,
+  // A voice pass (ruling 53) lasts five minutes and the app keeps it, so sixty in ten minutes
+  // is far more than a household needs. Each one costs a call to the voice engine.
+  '/voice/session': 60,
 };
 
 export const WINDOW_MS = 10 * 60 * 1000;

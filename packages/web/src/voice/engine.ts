@@ -7,7 +7,8 @@
  * another without touching anything else. docs/OLUOMA_VOICE.md is the same contract written
  * out for the people building Oluoma Voice.
  *
- * Until Oluoma Voice exists, `browser-engine.ts` stands in, using the phone's own speech. Its
+ * Oluoma Voice is used when the server has it set up (ruling 53, `oluoma-engine.ts`). Otherwise,
+ * and whenever it fails, `browser-engine.ts` stands in, using the phone's own speech. Its
  * recognition mistakes are its own: nothing in Ozi is tuned around them (Anthony, 30 Sep
  * 2026), because the real engine will not make them.
  *
@@ -17,6 +18,13 @@
 
 /** A BCP 47 language tag: `en-GB`, `cy-GB`, `ig-NG`, `ha-NG`, `yo-NG`, `sw-KE`. */
 export type LanguageTag = string;
+
+/**
+ * How fast Ozi speaks, as a multiple of the engine's normal pace. Even pacing (Section E): the
+ * normal rate, not hurried. Every engine speaks at this rate, so changing engine never changes
+ * how fast Ozi talks.
+ */
+export const SPEAKING_RATE = 1;
 
 /** Whether the engine can listen and speak in a language, right now, on this device. */
 export interface VoiceReadiness {

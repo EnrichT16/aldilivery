@@ -22,6 +22,7 @@ import type { Env } from './env.js';
 import { bankSettings } from './lib/bank.js';
 import { addSecurityHeaders, limiter } from './lib/guard.js';
 import type { CallProvider } from './lib/livekit.js';
+import type { VoiceEngineLink } from './lib/oluoma-voice.js';
 import type { PaymentsGateway } from './lib/payments.js';
 import type { SendPush } from './lib/push.js';
 import type { SendText } from './lib/sms.js';
@@ -46,6 +47,7 @@ import { registerOwnerRoutes } from './routes/owner.js';
 import { registerOziRoutes } from './routes/ozi.js';
 import { registerShareRoutes } from './routes/share.js';
 import { registerTelephoneRoutes } from './routes/telephone.js';
+import { registerVoiceRoutes } from './routes/voice.js';
 import { registerPaymentRoutes } from './routes/payments.js';
 import { registerStaffRoutes } from './routes/staff.js';
 import { registerExtrasRoutes } from './routes/extras.js';
@@ -102,6 +104,11 @@ export interface AppContext {
   placeCall: PlaceCall | null;
   /** LiveKit, for in-app calls (Section F). Null until its three settings are given. */
   calls: CallProvider | null;
+  /**
+   * Oluoma Voice, which Ozi speaks and hears through (ruling 53). Null until both its settings
+   * are given; the app then uses the phone's own speech.
+   */
+  voice: VoiceEngineLink | null;
 }
 
 export interface Session {
@@ -134,6 +141,7 @@ export interface BuildAppOptions extends Partial<
     | 'sendText'
     | 'placeCall'
     | 'calls'
+    | 'voice'
   >
 > {
   config: StoreConfig;
@@ -195,6 +203,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     sendText: options.sendText ?? null,
     placeCall: options.placeCall ?? null,
     calls: options.calls ?? null,
+    voice: options.voice ?? null,
   };
 
   app.decorate('ctx', ctx);
@@ -249,9 +258,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   app.addHook('onRequest', async (request) => {
     const session = readSession(request, ctx.env.authTokenSecret, ctx.now());
     if (session) request.session = session;
-    // One internet address may only try to sign in so often (ruling 44).
+    // One internet address may only try to sign in so often (ruling 44), or ask for a voice
+    // pass so often (ruling 53).
     const path = request.url.split('?')[0]!.replace(/^\/api(?=\/)/, '');
-    if (request.method === 'POST' && !tries.allow(path, request, ctx.now())) {
+    if (request.method !== 'OPTIONS' && !tries.allow(path, request, ctx.now())) {
       throw new TooManyRequestsError(
         'Too many tries from here. Please wait ten minutes and try again.',
       );
@@ -356,6 +366,9 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
     paymentsMode: ctx.payments.mode,
     // Whether LiveKit's three settings are in place, so in-app calls can connect.
     callsEnabled: ctx.calls !== null,
+    // Whether Oluoma Voice's two settings are in place (ruling 53). Not whether it answers:
+    // asking it from here would make this check depend on another server.
+    voiceEnabled: ctx.voice !== null,
   }));
 
   /** The public facing configuration the web app is allowed to know about. */
@@ -427,6 +440,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerOziRoutes(app);
   await registerShareRoutes(app);
   await registerTelephoneRoutes(app);
+  await registerVoiceRoutes(app);
   await registerPaymentRoutes(app);
 }
 
