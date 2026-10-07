@@ -161,6 +161,9 @@ describe('the telephone line', () => {
     const named = await twilio(nextStep(yes.body), { ...call, SpeechResult: 'My name is Ada Obi' });
     expect(spoken(named.body)).toMatch(/^Thank you, Ada\./);
     expect(spoken(named.body)).toMatch(/A card is never given to me on a call/);
+    expect(spoken(named.body)).toMatch(/text you a secure link .* Would you like to order now\?/);
+    const no = await twilio(nextStep(named.body), { ...call, SpeechResult: 'no thanks' });
+    expect(no.body).toContain('<Hangup/>');
     expect(texts).toHaveLength(1);
     expect(texts[0]).toMatchObject({ to: '+447700900999' });
     expect(texts[0]!.body).toContain(`${ORIGIN}/sign-up`);
@@ -177,10 +180,14 @@ describe('the telephone line', () => {
       CallSid: 'CA6',
       From: '+447700900002',
     });
-    expect(spoken(hello.body)).toMatch(
-      /your card and home address need adding once, on the website/,
-    );
-    expect(hello.body).toContain('<Hangup/>');
+    expect(spoken(hello.body)).toMatch(/Your card and home address aren't set up yet/);
+    expect(spoken(hello.body)).toMatch(/A card is never given to me on a call/);
+    const no = await twilio(nextStep(hello.body), {
+      CallSid: 'CA6',
+      From: '+447700900002',
+      SpeechResult: 'no',
+    });
+    expect(no.body).toContain('<Hangup/>');
     expect(texts).toHaveLength(1);
   });
 
@@ -233,5 +240,84 @@ describe('the telephone line', () => {
       Body: 'hi',
     });
     expect(response.body).toMatch(/<Message>.*texts to this number are not read.*<\/Message>/);
+  });
+});
+
+describe('ordering by telephone with no account, paid by a texted link (ruling 48)', () => {
+  it('takes the order, texts a link, and sends a Runner only once it is paid', async () => {
+    const call = { CallSid: 'CL1', From: '+447700900777' };
+    const hello = await twilio('/api/webhooks/twilio/voice', call);
+    const yes = await twilio(nextStep(hello.body), { ...call, SpeechResult: 'yes' });
+    const named = await twilio(nextStep(yes.body), { ...call, SpeechResult: 'Ada Obi' });
+    const ordering = await twilio(nextStep(named.body), { ...call, SpeechResult: 'yes please' });
+    expect(spoken(ordering.body)).toMatch(/What would you like from the shop\?/);
+    const added = await twilio(nextStep(ordering.body), { ...call, SpeechResult: 'bread' });
+    const readBack = await twilio(nextStep(added.body), { ...call, SpeechResult: "that's all" });
+    expect(spoken(readBack.body)).toMatch(/I'll text you a secure link from our payment company/);
+    expect(spoken(readBack.body)).not.toMatch(/card ending/);
+    const sent = await twilio(nextStep(readBack.body), { ...call, SpeechResult: 'yes' });
+    expect(spoken(sent.body)).toMatch(/^I've sent the link by text\./);
+
+    const link = texts.find((text) => text.body.includes('secure link'));
+    expect(link?.to).toBe('+447700900777');
+    expect(link?.body).toMatch(/https:\/\/checkout\.rehearsal\.invalid\/cs_rehearsal_\d+/);
+
+    const shopper = await harness.repository.shoppers.findByPhone('+447700900777');
+    expect(shopper?.displayName).toBe('Ada Obi');
+    const [order] = await harness.repository.orders.listForShopper(shopper!.id);
+    expect(order).toMatchObject({ status: 'confirmed', confirmationChannel: 'voice' });
+
+    // Stripe says the link was paid: the card is kept, the address is set, and it is paid.
+    const sessionId = /cs_rehearsal_\d+/.exec(link!.body)![0];
+    const paid = await harness.app.inject({
+      method: 'POST',
+      url: '/webhooks/stripe',
+      headers: { 'content-type': 'application/json', 'stripe-signature': 'rehearsal' },
+      payload: JSON.stringify({
+        id: 'evt_link',
+        type: 'checkout.session.completed',
+        data: { object: { id: sessionId, metadata: { orderId: order!.id } } },
+      }),
+    });
+    expect(paid.statusCode, paid.body).toBe(200);
+    const after = await harness.repository.orders.findById(order!.id);
+    expect(after).toMatchObject({
+      status: 'paid',
+      deliveryAddress: '1 Rehearsal Road, London, AB1 2CD',
+    });
+    const cards = await harness.repository.paymentMethods.listForShopper(shopper!.id);
+    expect(cards).toHaveLength(1);
+    expect(cards[0]!.lastFour).toBe('4242');
+
+    // Next time they ring, Ozi knows them and their card.
+    const again = await twilio('/api/webhooks/twilio/voice', {
+      CallSid: 'CL2',
+      From: '+447700900777',
+    });
+    expect(spoken(again.body)).toMatch(/^Hello Ada, it's Ozi\. What would you like/);
+  });
+
+  it('closes the order when the link runs out unpaid', async () => {
+    const shopper = await signUpShopper(harness, { phone: '+447700900888' });
+    const order = await harness.repository.orders.create({
+      shopperId: shopper.shopperId,
+      status: 'confirmed',
+      goodsEstimatePence: 89,
+      feePence: 1350,
+      totalEstimatePence: 1439,
+      deliveryAddress: '',
+      items: [],
+    });
+    await harness.app.inject({
+      method: 'POST',
+      url: '/webhooks/stripe',
+      headers: { 'content-type': 'application/json', 'stripe-signature': 'rehearsal' },
+      payload: JSON.stringify({
+        id: 'evt_expired',
+        type: 'checkout.session.expired',
+        data: { object: { id: 'cs_x', metadata: { orderId: order.id } } },
+      }),
+    });
+    expect((await harness.repository.orders.findById(order.id))?.status).toBe('cancelled');
   });
 });

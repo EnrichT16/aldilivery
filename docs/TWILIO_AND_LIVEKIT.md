@@ -48,6 +48,13 @@ Every request from Twilio is checked against the Auth Token, so nobody else can 
 caller. If the Auth Token is ever changed in Twilio, change it in DigitalOcean too, or Ozi will
 stop answering.
 
+## Part 3b: paying by a texted link
+
+Somebody with no account, or no card saved, can still order by telephone: Ozi texts them a
+Stripe link to pay and give their address (ruling 48). In the Stripe dashboard, open
+**Developers**, **Webhooks**, the existing endpoint, and add the events
+**checkout.session.completed** and **checkout.session.expired**. Nothing else to set.
+
 ## Part 4: LiveKit
 
 First half, in-app calls (DEPLOY.md, "Switching on in-app calls", has the screens):
