@@ -33,7 +33,10 @@ import {
   type StaffProblem,
   type StaffRecovery,
 } from '../lib/api';
+import { StaffVoice } from '../components/StaffVoice';
 import { money } from '../lib/money';
+import { useOzi } from '../state/ozi';
+import { nameHeardIn } from '../voice/name';
 
 /**
  * The admin panel, for the people who run the service: Runner documents waiting, problems to
@@ -82,6 +85,8 @@ export function Staff(): JSX.Element {
   const [me, setMe] = useState<StaffMe | null>(null);
   const [tab, setTab] = useState<TabKey | null>(null);
   const [news, setNews] = useState('');
+  // Bumped after a decision made by voice, so the lists on the screen load again too.
+  const [refresh, setRefresh] = useState(0);
 
   const signOut = useCallback(() => {
     remember(KEY, null);
@@ -150,6 +155,19 @@ export function Staff(): JSX.Element {
         />
       ) : (
         <>
+          <StaffVoice
+            staffKey={key}
+            by={by}
+            name={me.account ? me.name : by}
+            title={me.title}
+            areas={me.areas}
+            onOpen={setTab}
+            onChanged={(text) => {
+              setNews(text);
+              setRefresh((value) => value + 1);
+            }}
+            onSignOut={signOut}
+          />
           <nav aria-label="Admin pages">
             <ul className="flex flex-wrap gap-2 list-none m-0 p-0">
               {tabs.map((item) => (
@@ -166,13 +184,15 @@ export function Staff(): JSX.Element {
               ))}
             </ul>
           </nav>
-          {shown === 'documents' && <Documents staffKey={key} by={by} onNews={setNews} />}
-          {shown === 'problems' && <Problems staffKey={key} by={by} onNews={setNews} />}
-          {shown === 'owed' && <Owed staffKey={key} by={by} onNews={setNews} />}
-          {shown === 'finds' && <Finds staffKey={key} onNews={setNews} />}
-          {shown === 'enquiries' && <Enquiries staffKey={key} onNews={setNews} />}
-          {shown === 'feedback' && <Feedback staffKey={key} />}
-          {shown === 'team' && <Team staffKey={key} onNews={setNews} />}
+          <div key={refresh}>
+            {shown === 'documents' && <Documents staffKey={key} by={by} onNews={setNews} />}
+            {shown === 'problems' && <Problems staffKey={key} by={by} onNews={setNews} />}
+            {shown === 'owed' && <Owed staffKey={key} by={by} onNews={setNews} />}
+            {shown === 'finds' && <Finds staffKey={key} onNews={setNews} />}
+            {shown === 'enquiries' && <Enquiries staffKey={key} onNews={setNews} />}
+            {shown === 'feedback' && <Feedback staffKey={key} />}
+            {shown === 'team' && <Team staffKey={key} onNews={setNews} />}
+          </div>
         </>
       )}
     </div>
@@ -181,6 +201,23 @@ export function Staff(): JSX.Element {
 
 function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => void }): JSX.Element {
   const [withKey, setWithKey] = useState(false);
+  const ozi = useOzi();
+  const voice = useRef(ozi);
+  voice.current = ozi;
+
+  // Ozi says what to do here. Nothing said on this screen is taken as a shopping order, and a
+  // password is never asked for aloud, so nobody nearby hears it.
+  useEffect(() => {
+    const words =
+      'Admin sign in. Type your username, then your password. For your privacy, I never ask you to say a password out loud.';
+    voice.current.setPageCommands((text) => {
+      if (nameHeardIn(text) || /\b(help|what do i do|how)\b/i.test(text))
+        void voice.current.say(words);
+      return true;
+    });
+    void voice.current.say(words);
+    return () => voice.current.setPageCommands(null);
+  }, []);
   const [problem, setProblem] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -1150,10 +1187,9 @@ function Team({
       </form>
     </section>
   );
-}interface PanelProps {
+}
+interface PanelProps {
   staffKey: string;
   by: string;
   onNews: (news: string) => void;
 }
-
-

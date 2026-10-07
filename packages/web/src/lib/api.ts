@@ -1079,6 +1079,8 @@ export interface StaffProblem {
   id: string;
   orderId: string;
   reportedBy: 'runner' | 'shopper';
+  /** Who sent it, by name, when known. */
+  reporterName?: string | null;
   summary: string;
   refundRequestedPence: number | null;
   decideBy: string;

@@ -166,6 +166,12 @@ interface OziValue {
    * will start the introduction. The page says so in big letters meanwhile.
    */
   waitingForTouch: boolean;
+  /**
+   * A page's own spoken commands, such as the admin panel's "read me the complaints". Tried
+   * before anything about shopping; returns true when it has dealt with what was said. Pass
+   * null to stop. Only one page at a time.
+   */
+  setPageCommands: (handler: ((text: string) => boolean) | null) => void;
 }
 
 const OziContext = createContext<OziValue | null>(null);
@@ -352,6 +358,10 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
 
   // Something on the screen is waiting for the next words, a PIN say: they go there only.
   const captureRef = useRef<((text: string) => void) | null>(null);
+  const pageCommandsRef = useRef<((text: string) => boolean) | null>(null);
+  const setPageCommands = useCallback((handler: ((text: string) => boolean) | null) => {
+    pageCommandsRef.current = handler;
+  }, []);
 
   const listenFor = useCallback(
     (prompt: string, handler: (text: string) => void) => {
@@ -411,6 +421,8 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       return;
     }
     setHeard(text);
+    // The page's own commands come before anything about shopping.
+    if (pageCommandsRef.current?.(text)) return;
     // "Create my account": set one up by talking, on the sign-up page.
     if (!ordering.busy() && CREATE_ACCOUNT.test(words)) {
       navigate('/sign-up?talk=1');
@@ -843,6 +855,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       voiceOn: !settings.muted,
       setVoiceOn,
       waitingForTouch,
+      setPageCommands,
     }),
     [
       presence,
@@ -857,6 +870,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       settings.muted,
       setVoiceOn,
       waitingForTouch,
+      setPageCommands,
     ],
   );
 

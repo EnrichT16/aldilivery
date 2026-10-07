@@ -160,7 +160,11 @@ describe('refunds', () => {
       url: '/staff/problems',
       headers: STAFF,
     });
-    expect(open.json().reports[0]).toMatchObject({ refundRequestedPence: 800, overdue: false });
+    expect(open.json().reports[0]).toMatchObject({
+      refundRequestedPence: 800,
+      overdue: false,
+      reporterName: 'Margaret',
+    });
     harness.setNow(new Date('2026-10-07T09:00:00.000Z'));
     const later = await harness.app.inject({
       method: 'GET',

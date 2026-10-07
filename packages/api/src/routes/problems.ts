@@ -256,10 +256,19 @@ export async function registerProblemRoutes(app: FastifyInstance): Promise<void>
     const open = await repository.problems.listOpen();
     return {
       reports: await Promise.all(
-        open.map(async (report) => ({
-          ...(await withEvidence(report)),
-          overdue: report.decideBy.getTime() < at.getTime(),
-        })),
+        open.map(async (report) => {
+          // Who sent it, by name, so the panel (and Ozi reading it out) can say so.
+          const order = await repository.orders.findById(report.orderId);
+          const from =
+            report.reportedBy === 'shopper'
+              ? order && (await repository.shoppers.findById(order.shopperId))?.displayName
+              : order?.runnerId && (await repository.runners.findById(order.runnerId))?.name;
+          return {
+            ...(await withEvidence(report)),
+            reporterName: from || null,
+            overdue: report.decideBy.getTime() < at.getTime(),
+          };
+        }),
       ),
     };
   });
