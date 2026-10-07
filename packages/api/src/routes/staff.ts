@@ -8,6 +8,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import type { StaffMember } from '../domain.js';
+import { phraseBook } from '../lib/phrases.js';
 import {
   ApiError,
   BadRequestError,
@@ -149,6 +150,8 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
       account: actor.id !== null,
       mustChangePassword: member?.mustChangePassword ?? false,
       isOwner: actor.isOwner,
+      // How Ozi addresses the owner, "Mr Anthony" (ruling 44); null for everyone else.
+      address: actor.isOwner ? phraseBook(env.storeConfigPath).ownerAddress : null,
       viewOnly: actor.viewOnly,
       totpEnabled: member?.totpEnabled ?? false,
     };

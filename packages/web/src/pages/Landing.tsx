@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { DoorButton } from '../components/DoorButton';
 import { storeConfig } from '../config';
+import { rememberJoinedVia } from '../lib/api';
 import { inPairs } from '../lib/phone-aloud';
 import { rememberReferral } from '../lib/referral';
 import { useOzi } from '../state/ozi';
@@ -55,7 +56,7 @@ const DOORS = [
  * has its description written and — once Ozi has introduced itself — said aloud, once a
  * visit. Staff do not have a door here; they sign in at their own address.
  *
- * An invitation link, `/join?ref=…`, lands here too, and the code is kept for the sign-up form.
+ * An invitation link, `/join?ref=…` or `/join?via=…`, lands here too, and is kept for sign-up.
  */
 export function Landing(): JSX.Element {
   const [params] = useSearchParams();
@@ -64,6 +65,9 @@ export function Landing(): JSX.Element {
 
   useEffect(() => {
     rememberReferral(params.get('ref'));
+    // A share link from staff or a Shopper (ruling 44): /join?via=staff-… or shopper-….
+    const via = /^(staff|shopper)-([A-Za-z0-9_-]{1,40})$/.exec(params.get('via') ?? '');
+    if (via) rememberJoinedVia(`${via[1]}:${via[2]}`);
   }, [params]);
 
   // As they are on arrival: the choices are read once a visit, not again when these change.

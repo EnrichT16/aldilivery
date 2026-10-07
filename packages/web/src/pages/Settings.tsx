@@ -2,7 +2,14 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { storeConfig } from '../config';
-import { fetchMyOrganisation, joinOrganisation, leaveOrganisation, updateMe } from '../lib/api';
+import { ShareCard } from '../components/ShareCard';
+import {
+  fetchMyOrganisation,
+  fetchMyShareLink,
+  joinOrganisation,
+  leaveOrganisation,
+  updateMe,
+} from '../lib/api';
 import { useSession } from '../state/session';
 import { useVoice } from '../state/voice';
 import type { OutputVoice, VoiceReadiness } from '../voice';
@@ -149,6 +156,8 @@ export function Settings(): JSX.Element {
         </button>
         <p className="m-0 text-paper/80">Speech by: {voice.engine.name}.</p>
       </section>
+
+      {shopper && <ShareCard load={fetchMyShareLink} onNews={setNews} />}
 
       {shopper && <OrganisationLink />}
 

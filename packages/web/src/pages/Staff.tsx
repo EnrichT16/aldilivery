@@ -56,7 +56,9 @@ import {
   type StaffFeedback,
   type StaffProblem,
   type StaffRecovery,
+  fetchStaffShareLink,
 } from '../lib/api';
+import { ShareCard } from '../components/ShareCard';
 import { StaffVoice } from '../components/StaffVoice';
 import { money } from '../lib/money';
 import { useOzi } from '../state/ozi';
@@ -195,6 +197,7 @@ export function Staff(): JSX.Element {
             name={me.account ? me.name : by}
             title={me.title}
             areas={me.areas}
+            address={me.isOwner ? (me.address ?? null) : null}
             onOpen={setTab}
             onChanged={(text) => {
               setNews(text);
@@ -237,6 +240,7 @@ export function Staff(): JSX.Element {
               </>
             )}
           </div>
+          <ShareCard load={() => fetchStaffShareLink(key)} onNews={setNews} />
         </>
       )}
     </div>

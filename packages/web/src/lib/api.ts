@@ -199,7 +199,7 @@ export function registerShopper(
 
 const JOINED_VIA = 'ozidelivery.joined.via';
 
-/** Remembers which share link brought someone here: partner:<id> or organisation:<id>. */
+/** Remembers which share link brought someone here: partner, organisation, staff or shopper. */
 export function rememberJoinedVia(via: string): void {
   try {
     window.localStorage.setItem(JOINED_VIA, via);
@@ -1022,6 +1022,8 @@ export function fetchStaffMe(key: string): Promise<
   Omit<StaffSignedIn, 'token'> & {
     account: boolean;
     isOwner?: boolean;
+    /** How Ozi addresses the owner, such as "Mr Anthony"; null for everyone else. */
+    address?: string | null;
     viewOnly?: boolean;
     totpEnabled?: boolean;
   }
@@ -1945,4 +1947,43 @@ export function setViewer(
     method: 'POST',
     body: JSON.stringify(change),
   });
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * Ozi's everyday replies (ruling 44): kept on the server, one collection for each account.
+ * ------------------------------------------------------------------------------------- */
+
+/** Who is asking, which decides the collection: the server reads it from the credentials. */
+export type OziAsker =
+  { kind: 'shopper' } | { kind: 'runner' } | { kind: 'staff'; key: string } | { kind: 'business' };
+
+export function askOzi(
+  text: string,
+  mode: 'exact' | 'within',
+  turn: number,
+  as: OziAsker,
+): Promise<{ reply: string | null }> {
+  const init: RequestInit = { method: 'POST', body: JSON.stringify({ text, mode, turn }) };
+  if (as.kind === 'staff') return staffRequest(as.key, '/ozi/reply', init);
+  if (as.kind === 'business') return businessRequest('/ozi/reply', init);
+  return request('/ozi/reply', init, as.kind);
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * A share link for everybody (ruling 44), with how many have joined through it.
+ * ------------------------------------------------------------------------------------- */
+
+export interface ShareLink {
+  link: string;
+  joined: number;
+}
+
+/** A Shopper's own link. */
+export function fetchMyShareLink(): Promise<ShareLink> {
+  return request('/share');
+}
+
+/** A staff member's, the owner's, a family member's or an investor's link. */
+export function fetchStaffShareLink(key: string): Promise<ShareLink> {
+  return staffRequest(key, '/share');
 }

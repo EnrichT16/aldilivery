@@ -1,5 +1,5 @@
 {
-  "about": "What Ozi says to everyday words (ruling 34). Added to every day by a scheduled task, checked by the tests before it goes live. Each entry: an id, a topic, the words people say ('when'), and replies, one chosen in turn. In replies, {assistant} becomes Ozi's name, {product} the product's name, {motto} the motto, and {fee}, {maximum}, {runnerPay}, {callPrice} and {instantRefund} the figures from config/store.json, so a price is never written here. Ozi only uses these when nothing about an order or the basket was meant, and only when the whole sentence is one of the 'when' phrases or Ozi was called by name.",
+  "about": "What Ozi says to everyday words (ruling 34). Added to every day (50 a day, ruling 44) by a scheduled task, checked by the tests before it goes live. Each entry: an id, a topic, the words people say ('when'), and replies, one chosen in turn. In replies, {assistant} becomes Ozi's name, {product} the product's name, {motto} the motto, and {fee}, {maximum}, {runnerPay}, {callPrice} and {instantRefund} the figures from config/store.json, so a price is never written here. Ozi only uses these when nothing about an order or the basket was meant, and only when the whole sentence is one of the 'when' phrases or Ozi was called by name.",
   "phrases": [
     {
       "id": "thanks",
@@ -51,7 +51,13 @@
     {
       "id": "who-are-you",
       "topic": "the app",
-      "when": ["who are you", "what are you", "what's your name", "what is your name", "tell me about yourself"],
+      "when": [
+        "who are you",
+        "what are you",
+        "what's your name",
+        "what is your name",
+        "tell me about yourself"
+      ],
       "replies": [
         "I'm {assistant}, your shopping assistant. {motto} Tell me what you need, and a Runner will bring it to your door.",
         "My name is {assistant}. I take your shopping order by voice, and a Runner shops for it and brings it to you."
@@ -60,7 +66,15 @@
     {
       "id": "what-can-you-do",
       "topic": "the app",
-      "when": ["what can you do", "how can you help", "what do you do", "help", "help me", "i need help", "how does this work"],
+      "when": [
+        "what can you do",
+        "how can you help",
+        "what do you do",
+        "help",
+        "help me",
+        "i need help",
+        "how does this work"
+      ],
       "replies": [
         "I can take your shopping order, read your basket back, tell you the total, and tell you where your Runner is. Just say, for example, I'd like bread and milk.",
         "Tell me the shopping you need, and I'll put it in your basket and send it when you say yes. You can also ask what's in your basket, or where your order is."
@@ -69,7 +83,13 @@
     {
       "id": "how-much-delivery",
       "topic": "prices",
-      "when": ["how much is delivery", "what does delivery cost", "how much do you charge", "what's the delivery fee", "is delivery free"],
+      "when": [
+        "how much is delivery",
+        "what does delivery cost",
+        "how much do you charge",
+        "what's the delivery fee",
+        "is delivery free"
+      ],
       "replies": [
         "Delivery is one flat fee, the same every time: {fee}. You pay what the till says for the shopping itself.",
         "It's {fee} for delivery, whatever you order, up to {maximum} of shopping. {runnerPay} of that always goes to your Runner."
@@ -78,7 +98,12 @@
     {
       "id": "maximum",
       "topic": "prices",
-      "when": ["how much can i order", "is there a limit", "what's the most i can order", "maximum order"],
+      "when": [
+        "how much can i order",
+        "is there a limit",
+        "what's the most i can order",
+        "maximum order"
+      ],
       "replies": [
         "One delivery carries up to {maximum} of shopping, about as much as one Runner can carry safely. More than that goes as a second delivery."
       ]
@@ -86,7 +111,12 @@
     {
       "id": "who-is-runner",
       "topic": "runners",
-      "when": ["what is a runner", "who is the runner", "who will bring it", "who brings my shopping"],
+      "when": [
+        "what is a runner",
+        "who is the runner",
+        "who will bring it",
+        "who brings my shopping"
+      ],
       "replies": [
         "A Runner is a checked local person who buys your shopping at the shop and brings it to your door. Their right to work and background are checked before they take any job."
       ]
@@ -94,7 +124,12 @@
     {
       "id": "can-i-call-runner",
       "topic": "runners",
-      "when": ["can i call my runner", "can i speak to my runner", "call the runner", "phone the runner"],
+      "when": [
+        "can i call my runner",
+        "can i speak to my runner",
+        "call the runner",
+        "phone the runner"
+      ],
       "replies": [
         "Yes. On Your order, there's a big green Call button once a Runner has your order. Calls cost {callPrice} a minute, and nobody's phone number is ever shared."
       ]
@@ -102,7 +137,12 @@
     {
       "id": "when-arrive",
       "topic": "delivery",
-      "when": ["how long does delivery take", "how quick is delivery", "how fast is it", "how long will it take"],
+      "when": [
+        "how long does delivery take",
+        "how quick is delivery",
+        "how fast is it",
+        "how long will it take"
+      ],
       "replies": [
         "As soon as a Runner accepts your order, they go to the shop, do your shopping, and bring it straight to you. I'll tell you each step as it happens."
       ]
@@ -110,7 +150,11 @@
     {
       "id": "not-in-stock",
       "topic": "delivery",
-      "when": ["what if they don't have it", "what if it's out of stock", "what if something is missing"],
+      "when": [
+        "what if they don't have it",
+        "what if it's out of stock",
+        "what if something is missing"
+      ],
       "replies": [
         "If something isn't on the shelf, your Runner asks you in the app. Nothing is ever swapped without your say, and if you don't answer, it's left out and you're not charged for it."
       ]
@@ -142,7 +186,13 @@
     {
       "id": "alcohol",
       "topic": "rules",
-      "when": ["can you get alcohol", "can i order wine", "can you bring beer", "do you deliver cigarettes", "can you get medicine"],
+      "when": [
+        "can you get alcohol",
+        "can i order wine",
+        "can you bring beer",
+        "do you deliver cigarettes",
+        "can you get medicine"
+      ],
       "replies": [
         "I'm sorry, we can't deliver alcohol, tobacco, medicines or cash. Everything else from the shop, I can help with."
       ]
@@ -174,7 +224,13 @@
     {
       "id": "problem",
       "topic": "orders",
-      "when": ["something was wrong", "my order was wrong", "i want a refund", "something was missing", "it was damaged"],
+      "when": [
+        "something was wrong",
+        "my order was wrong",
+        "i want a refund",
+        "something was missing",
+        "it was damaged"
+      ],
       "replies": [
         "I'm sorry about that. Go to Past orders and choose Report a problem. {instantRefund} or less is refunded straight away, and anything more is decided by a person within two working days."
       ]
@@ -182,7 +238,13 @@
     {
       "id": "healthy-ideas",
       "topic": "healthy eating",
-      "when": ["something healthy", "healthy food", "what's healthy", "i want to eat healthy", "healthy ideas"],
+      "when": [
+        "something healthy",
+        "healthy food",
+        "what's healthy",
+        "i want to eat healthy",
+        "healthy ideas"
+      ],
       "replies": [
         "Good choice. Fruit like bananas and apples, vegetables like carrots and broccoli, wholemeal bread, eggs, oats and yoghurt are all good. Shall I add any of those?",
         "For a healthy basket, try porridge oats, fresh fruit, frozen vegetables, beans and wholemeal bread. Just tell me which you'd like."
@@ -231,7 +293,12 @@
     {
       "id": "help-someone",
       "topic": "the app",
-      "when": ["shop for my mum", "order for someone else", "i look after someone", "shop for my dad"],
+      "when": [
+        "shop for my mum",
+        "order for someone else",
+        "i look after someone",
+        "shop for my dad"
+      ],
       "replies": [
         "You can. On the first screen choose I look after someone, or add their address in Your addresses, with your PIN, and send the order there."
       ]
@@ -239,7 +306,12 @@
     {
       "id": "be-a-runner",
       "topic": "runners",
-      "when": ["how do i become a runner", "can i work for you", "i want to be a runner", "are you hiring"],
+      "when": [
+        "how do i become a runner",
+        "can i work for you",
+        "i want to be a runner",
+        "are you hiring"
+      ],
       "replies": [
         "You can sign up as a Runner in the app, from the first screen. You'll be asked for a photo, your right to work and a DBS check, and then you can take jobs near you."
       ]
@@ -292,6 +364,414 @@
       "replies": [
         "How about something easy, like pasta with tinned tomatoes, beans on toast, or eggs and bread? Shall I add any of those?"
       ]
+    },
+    {
+      "id": "shopper-what-is-ozi-plus",
+      "topic": "plus",
+      "when": ["what is ozi plus", "tell me about plus", "membership"],
+      "replies": [
+        "Ozi Plus includes Recipes and Finds It, for you or your whole family. It never renews by itself.",
+        "A membership with Recipes and Finds It included."
+      ]
+    },
+    {
+      "id": "shopper-what-recipes-do-you-have",
+      "topic": "recipes",
+      "when": ["what recipes do you have", "recipe ideas"],
+      "replies": ["Say what can I cook, and I'll open the recipes.", "Say what can I cook."]
+    },
+    {
+      "id": "shopper-gift-ideas",
+      "topic": "gifts",
+      "when": ["gift ideas", "i need a present"],
+      "replies": [
+        "Say a present, and I'll show the little gifts.",
+        "Say a present, and I'll open them."
+      ]
+    },
+    {
+      "id": "shopper-can-you-find-something",
+      "topic": "findit",
+      "when": ["can you find something", "hard to find"],
+      "replies": [
+        "Say I can't find it anywhere, and a person will look in up to three shops.",
+        "Say I can't find it anywhere."
+      ]
+    },
+    {
+      "id": "shopper-gift-card",
+      "topic": "giftcards",
+      "when": ["gift card", "gift voucher"],
+      "replies": ["Say gift card to buy one or use one.", "Say gift card."]
+    },
+    {
+      "id": "shopper-weekly-shop",
+      "topic": "weekly",
+      "when": ["weekly shop", "same day every week"],
+      "replies": ["Say set up my weekly shop, and choose a day.", "Say set up my weekly shop."]
+    },
+    {
+      "id": "shopper-same-as-last-week",
+      "topic": "reorder",
+      "when": ["same as last week", "order again"],
+      "replies": [
+        "Say same as last time, and I'll put your last order back in the basket.",
+        "Say same as last time."
+      ]
+    },
+    {
+      "id": "shopper-how-long-does-delivery-take",
+      "topic": "delivery",
+      "when": ["when will it come"],
+      "replies": ["Usually the same day. Ask me where's my order any time.", "Same day, usually."]
+    },
+    {
+      "id": "shopper-can-i-choose-a-time",
+      "topic": "delivery",
+      "when": ["can i choose a time", "delivery slot"],
+      "replies": [
+        "Choosing a time slot isn't available yet. Your Runner comes as soon as they can.",
+        "Not yet. As soon as possible."
+      ]
+    },
+    {
+      "id": "shopper-can-i-pay-cash",
+      "topic": "payment",
+      "when": ["pay at the door"],
+      "replies": [
+        "No, payment is taken by card when you order. A family member or carer can add the card for you.",
+        "Card only, when you order."
+      ]
+    },
+    {
+      "id": "shopper-apple-pay",
+      "topic": "payment",
+      "when": ["apple pay", "google pay"],
+      "replies": ["Yes, Apple Pay and Google Pay work too.", "Both work."]
+    },
+    {
+      "id": "shopper-is-my-card-safe",
+      "topic": "payment",
+      "when": ["card security"],
+      "replies": ["Your card is kept by Stripe, never by us.", "Stripe keeps it safe."]
+    },
+    {
+      "id": "shopper-different-address",
+      "topic": "address",
+      "when": ["deliver somewhere else", "different address", "send it to another address"],
+      "replies": [
+        "Say change my address, or choose another saved address at the checkout.",
+        "You can pick a different saved address when you check out."
+      ]
+    },
+    {
+      "id": "shopper-what-is-my-pin-for",
+      "topic": "account",
+      "when": ["what is my pin for", "pin"],
+      "replies": [
+        "Your PIN protects your addresses, so nobody can send your shopping elsewhere.",
+        "It protects your addresses."
+      ]
+    },
+    {
+      "id": "shopper-delete-my-account",
+      "topic": "account",
+      "when": ["delete my account", "close my account"],
+      "replies": [
+        "Ring us and we'll close it. Nothing is deleted straight away, in case you change your mind.",
+        "Ring us, and we'll help."
+      ]
+    },
+    {
+      "id": "shopper-age-group",
+      "topic": "account",
+      "when": ["age group", "why ask my age"],
+      "replies": [
+        "It's optional, in Settings, and helps us understand what people need. Never shown to anyone.",
+        "Optional, and private."
+      ]
+    },
+    {
+      "id": "shopper-my-care-home",
+      "topic": "organisation",
+      "when": ["my care home", "link to the council", "organisation code"],
+      "replies": [
+        "If an organisation supports you, type their code in Settings to let them see your orders.",
+        "Type their code in Settings."
+      ]
+    },
+    {
+      "id": "shopper-i-m-stuck",
+      "topic": "help",
+      "when": ["i'm stuck", "i don't know what to do"],
+      "replies": [
+        "That's all right. Say I'd like, then what you need, like I'd like bread and milk.",
+        "Just tell me what you'd like."
+      ]
+    },
+    {
+      "id": "shopper-can-a-family-member-help-me",
+      "topic": "help",
+      "when": ["can a family member help me", "my daughter can help"],
+      "replies": ["Yes. Family can help add your card, or order with you.", "Of course."]
+    },
+    {
+      "id": "shopper-healthy-food-ideas",
+      "topic": "health",
+      "when": ["healthy food ideas", "eat healthy"],
+      "replies": [
+        "Fruit, vegetables, porridge and lentils are good, cheap and easy. Say what can I cook for ideas.",
+        "Try porridge, lentil soup or fruit. Say what can I cook."
+      ]
+    },
+    {
+      "id": "shopper-i-m-diabetic",
+      "topic": "health",
+      "when": ["i'm diabetic", "low sugar"],
+      "replies": [
+        "I can't give medical advice, but I can find lower sugar foods. Tell me what you'd like.",
+        "Ask your doctor for advice. I'll find what you need."
+      ]
+    },
+    {
+      "id": "shopper-i-m-feeling-lonely",
+      "topic": "health",
+      "when": ["i'm feeling lonely", "i'm alone"],
+      "replies": [
+        "I'm sorry. Your Runner will be happy to say hello, and if you need someone to talk to, organisations like Age UK are there.",
+        "I'm here to help. Age UK can be a friendly voice too."
+      ]
+    },
+    {
+      "id": "shopper-i-feel-unwell",
+      "topic": "health",
+      "when": ["i feel unwell", "i'm ill"],
+      "replies": [
+        "If it's an emergency, call 999. For advice, call 111. I can bring your shopping.",
+        "Call 111 for advice, or 999 in an emergency."
+      ]
+    },
+    {
+      "id": "shopper-what-s-in-season",
+      "topic": "shopping",
+      "when": ["what's in season", "seasonal food"],
+      "replies": [
+        "Ask me for fruit or vegetables, and I'll find what's there today.",
+        "Ask for fruit or veg."
+      ]
+    },
+    {
+      "id": "shopper-cheapest-bread",
+      "topic": "shopping",
+      "when": ["cheapest bread", "budget shopping"],
+      "replies": [
+        "Tell me what you need and I'll read the prices.",
+        "Say what you need and I'll give prices."
+      ]
+    },
+    {
+      "id": "shopper-set-a-spending-limit",
+      "topic": "shopping",
+      "when": ["set a spending limit", "budget cap"],
+      "replies": [
+        "You can set a spending limit in your account, so no order goes over it.",
+        "Yes, in your account."
+      ]
+    },
+    {
+      "id": "shopper-are-prices-exact",
+      "topic": "shopping",
+      "when": ["are prices exact", "is that the real price"],
+      "replies": [
+        "Prices are estimates. You pay what the till says.",
+        "You pay what the till says."
+      ]
+    },
+    {
+      "id": "shopper-local-shops",
+      "topic": "shopping",
+      "when": ["local shops", "shop partners"],
+      "replies": [
+        "Say local shops, and I'll open shops showing their own products.",
+        "Local shops have their own pages."
+      ]
+    },
+    {
+      "id": "shopper-any-offers",
+      "topic": "shopping",
+      "when": ["any offers", "deals"],
+      "replies": ["Say any offers, and I'll tell you what's on.", "Say any offers."]
+    },
+    {
+      "id": "shopper-batteries",
+      "topic": "shopping",
+      "when": ["batteries", "light bulb", "charging cable"],
+      "replies": [
+        "Yes, everyday essentials like batteries and light bulbs come the same day. Say I'd like batteries.",
+        "Say I'd like, then what you need."
+      ]
+    },
+    {
+      "id": "shopper-who-is-my-runner",
+      "topic": "runner",
+      "when": ["who is my runner", "is my runner nice"],
+      "replies": [
+        "Every Runner is checked, with a DBS. They'll say who they are at the door.",
+        "Checked and kind."
+      ]
+    },
+    {
+      "id": "shopper-can-i-call-my-runner",
+      "topic": "runner",
+      "when": ["talk to runner"],
+      "replies": [
+        "Yes, with the call button on your order page. Your numbers stay private.",
+        "Use the call button."
+      ]
+    },
+    {
+      "id": "shopper-can-the-runner-come-in",
+      "topic": "runner",
+      "when": ["can the runner come in", "help me put things away"],
+      "replies": ["If you'd like, ask them. They'll help as you wish.", "Ask them, they'll help."]
+    },
+    {
+      "id": "shopper-something-is-missing",
+      "topic": "problems",
+      "when": ["something is missing", "wrong item"],
+      "replies": [
+        "Say report a problem, or use the button on your past orders.",
+        "Report it from your past orders."
+      ]
+    },
+    {
+      "id": "shopper-damaged-item",
+      "topic": "problems",
+      "when": ["damaged item", "broken eggs"],
+      "replies": [
+        "I'm sorry. Report a problem from your past orders. Small refunds are given at once.",
+        "Report it, and small refunds are instant."
+      ]
+    },
+    {
+      "id": "shopper-make-the-writing-bigger",
+      "topic": "app",
+      "when": ["make the writing bigger", "bigger text"],
+      "replies": [
+        "Pinch the screen to zoom in, or use your phone's text size setting.",
+        "Pinch to zoom."
+      ]
+    },
+    {
+      "id": "shopper-dark-mode",
+      "topic": "app",
+      "when": ["dark mode", "colours"],
+      "replies": [
+        "The app uses strong contrast. Your phone's settings can change colours too.",
+        "High contrast already."
+      ]
+    },
+    {
+      "id": "shopper-install-the-app",
+      "topic": "app",
+      "when": ["install the app", "download the app"],
+      "replies": [
+        "Add this website to your home screen now. The phone apps are coming soon.",
+        "Add to home screen for now."
+      ]
+    },
+    {
+      "id": "shopper-is-ozi-a-real-person",
+      "topic": "about",
+      "when": ["is ozi a real person", "are you human"],
+      "replies": [
+        "I'm not a person. I'm {assistant}, the {product} assistant. The Runners are real people.",
+        "I'm an assistant, not a person."
+      ]
+    },
+    {
+      "id": "shopper-who-made-you",
+      "topic": "about",
+      "when": ["who made you", "who built this"],
+      "replies": [
+        "{product} was founded by someone registered blind, who wanted shopping to be easy for everyone.",
+        "A blind founder, for everyone."
+      ]
+    },
+    {
+      "id": "shopper-where-are-you-based",
+      "topic": "about",
+      "when": ["where are you based", "where is {product}"],
+      "replies": ["We start in Medway, Kent, and are growing.", "Medway, Kent."]
+    },
+    {
+      "id": "shopper-can-i-work-for-you",
+      "topic": "about",
+      "when": ["become a runner"],
+      "replies": [
+        "Yes. Say I'd like to be a Runner, or open the Runner page from the first screen.",
+        "Open the Runner page."
+      ]
+    },
+    {
+      "id": "shopper-you-re-brilliant",
+      "topic": "manners",
+      "when": ["you're brilliant", "love you ozi"],
+      "replies": ["That's very kind. I'm happy to help.", "Thank you. Happy to help."]
+    },
+    {
+      "id": "shopper-bags",
+      "topic": "delivery",
+      "when": ["do you bring bags", "carrier bags", "what about bags"],
+      "replies": [
+        "Your Runner brings your shopping in bags, and chilled things in a cool bag.",
+        "Yes, your shopping comes in bags."
+      ]
+    },
+    {
+      "id": "shopper-wait",
+      "topic": "manners",
+      "when": ["wait", "hold on", "one moment"],
+      "replies": ["Of course. I'll wait.", "Take your time."]
+    },
+    {
+      "id": "shopper-are-you-open-now",
+      "topic": "time",
+      "when": ["are you open now", "opening hours"],
+      "replies": [
+        "You can order any time. Runners deliver while shops are open.",
+        "Order any time."
+      ]
+    },
+    {
+      "id": "shopper-invite-a-friend",
+      "topic": "referral",
+      "when": ["invite a friend", "share the app"],
+      "replies": [
+        "Share the website with friends. Your share link is in Settings.",
+        "Your share link is in Settings."
+      ]
+    },
+    {
+      "id": "shopper-speak-faster",
+      "topic": "voice",
+      "when": ["speak faster", "faster"],
+      "replies": [
+        "Your phone's speech settings can make me faster.",
+        "Change the speed in your phone's settings."
+      ]
+    },
+    {
+      "id": "shopper-change-your-voice",
+      "topic": "voice",
+      "when": ["change your voice", "different voice"],
+      "replies": ["Choose a voice in Settings.", "Pick a voice in Settings."]
+    },
+    {
+      "id": "shopper-can-you-hear-me",
+      "topic": "voice",
+      "when": ["can you hear me"],
+      "replies": ["Yes, I can hear you.", "Loud and clear."]
     }
   ]
 }

@@ -51,11 +51,11 @@ const shopperSchema = z.object({
   deliveryAddress: z.string().trim().max(300).optional(),
   substitutionDefault: z.enum(['no_substitutes', 'similar_item', 'ask_me']).optional(),
   budgetCapPence: z.number().int().positive().optional(),
-  /** The share link they came by: a Shop Partner's page or an organisation's link. */
+  /** The share link they came by: a Shop Partner, an organisation, staff or a Shopper. */
   joinedVia: z
     .string()
     .trim()
-    .regex(/^(partner|organisation):[A-Za-z0-9_-]{1,40}$/)
+    .regex(/^(partner|organisation|staff|shopper):[A-Za-z0-9_-]{1,40}$/)
     .optional(),
 });
 

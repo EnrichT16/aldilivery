@@ -1,0 +1,404 @@
+{
+  "about": "What Ozi says to staff in the admin panel (ruling 44). Kept on the server only.",
+  "phrases": [
+    {
+      "id": "staff-hello",
+      "topic": "manners",
+      "when": ["hello", "hi", "good morning", "good afternoon", "good evening"],
+      "replies": [
+        "Hello. Say what's waiting to hear your work.",
+        "Hello. Shall I read what's waiting?"
+      ]
+    },
+    {
+      "id": "staff-thank-you",
+      "topic": "manners",
+      "when": ["thank you", "thanks", "cheers"],
+      "replies": ["You're welcome. Thank you for your work today.", "My pleasure."]
+    },
+    {
+      "id": "staff-how-are-you",
+      "topic": "manners",
+      "when": ["how are you", "you alright"],
+      "replies": ["Very well, thank you. Ready when you are.", "I'm well. Shall we start?"]
+    },
+    {
+      "id": "staff-what-should-i-do-first",
+      "topic": "work",
+      "when": ["what should i do first", "where do i start", "what's most urgent"],
+      "replies": [
+        "Overdue complaints first, then anything waiting longest. Say what's waiting.",
+        "Start with what's overdue. Say what's waiting."
+      ]
+    },
+    {
+      "id": "staff-how-long-do-i-have-to-decide",
+      "topic": "work",
+      "when": ["how long do i have to decide", "deadline", "two working days"],
+      "replies": [
+        "Complaints are decided within two working days of being reported.",
+        "Two working days."
+      ]
+    },
+    {
+      "id": "staff-what-is-the-instant-refund",
+      "topic": "rules",
+      "when": ["what is the instant refund", "small refunds"],
+      "replies": [
+        "Refunds of {instantRefund} or less are given straight away, with no investigation.",
+        "{instantRefund} or less is refunded at once."
+      ]
+    },
+    {
+      "id": "staff-how-much-can-be-written-off",
+      "topic": "rules",
+      "when": ["how much can be written off", "write off limit"],
+      "replies": [
+        "Small amounts a Runner owes can be written off. Larger ones are asked for.",
+        "Only small amounts. Ask the Runner for larger."
+      ]
+    },
+    {
+      "id": "staff-runner-at-fault",
+      "topic": "rules",
+      "when": ["runner at fault", "what happens if the runner is at fault"],
+      "replies": [
+        "Up to 10 percent of that job is taken back from the Runner, and the Shopper is refunded by us.",
+        "10 percent of the job at most, from the Runner."
+      ]
+    },
+    {
+      "id": "staff-who-pays-when-we-re-at-fault",
+      "topic": "rules",
+      "when": ["who pays when we're at fault", "platform at fault"],
+      "replies": ["We bear it, and the Shopper is refunded.", "We do."]
+    },
+    {
+      "id": "staff-how-do-i-check-a-share-code",
+      "topic": "documents",
+      "when": ["how do i check a share code", "right to work check"],
+      "replies": [
+        "Check it on gov.uk, Check a job applicant's right to work, before accepting.",
+        "On gov.uk, before you press accept."
+      ]
+    },
+    {
+      "id": "staff-insurance-date",
+      "topic": "documents",
+      "when": ["insurance date", "when does insurance end"],
+      "replies": [
+        "When accepting insurance, give the end date. Runners are reminded before it runs out.",
+        "The end date is needed with insurance."
+      ]
+    },
+    {
+      "id": "staff-can-i-accept-without-checking",
+      "topic": "documents",
+      "when": ["can i accept without checking", "just approve it"],
+      "replies": [
+        "Please never accept without checking. It's what keeps Shoppers safe.",
+        "Always check first."
+      ]
+    },
+    {
+      "id": "staff-how-do-i-decide-by-voice",
+      "topic": "voice",
+      "when": ["how do i decide by voice", "decide by voice"],
+      "replies": [
+        "Say, for example, nobody at fault, refund 2 pounds 50. I read it back and wait for your yes.",
+        "Say the decision. I read it back first."
+      ]
+    },
+    {
+      "id": "staff-read-me-the-complaints",
+      "topic": "voice",
+      "when": ["read me the complaints", "read complaints"],
+      "replies": [
+        "Say read me the complaints, then next, back, or again.",
+        "I'll read them one at a time."
+      ]
+    },
+    {
+      "id": "staff-what-can-you-do",
+      "topic": "voice",
+      "when": ["what can you do", "help"],
+      "replies": [
+        "I read your lists, move between tabs, and make decisions after a yes. Say help for more.",
+        "Lists, tabs, and decisions by voice."
+      ]
+    },
+    {
+      "id": "staff-can-i-see-phone-numbers",
+      "topic": "privacy",
+      "when": ["can i see phone numbers", "shopper phone number"],
+      "replies": [
+        "Phone numbers are never shown, to anyone, including staff.",
+        "Never. Calls go through the app."
+      ]
+    },
+    {
+      "id": "staff-can-i-see-card-details",
+      "topic": "privacy",
+      "when": ["can i see card details", "card numbers"],
+      "replies": ["No one sees card numbers. Stripe keeps them.", "Never."]
+    },
+    {
+      "id": "staff-can-i-see-the-money",
+      "topic": "privacy",
+      "when": ["can i see the money", "how much did we make"],
+      "replies": ["The money is for the owner only.", "Only the owner sees the money."]
+    },
+    {
+      "id": "staff-can-i-share-customer-details",
+      "topic": "privacy",
+      "when": ["can i share customer details", "send details outside"],
+      "replies": [
+        "Never share anyone's details outside the panel.",
+        "Never. It's the law, and it's trust."
+      ]
+    },
+    {
+      "id": "staff-i-forgot-my-password",
+      "topic": "security",
+      "when": ["i forgot my password", "reset my password"],
+      "replies": [
+        "Ask the founder for a new password. You choose your own at first sign-in.",
+        "The founder can reset it."
+      ]
+    },
+    {
+      "id": "staff-someone-asked-for-my-password",
+      "topic": "security",
+      "when": ["someone asked for my password", "phishing"],
+      "replies": [
+        "Never give your password to anyone, even someone who says they're from us. Tell the founder.",
+        "Never share it. Report it."
+      ]
+    },
+    {
+      "id": "staff-i-left-my-computer-on",
+      "topic": "security",
+      "when": ["i left my computer on", "sign out"],
+      "replies": ["Say sign me out. Always sign out on shared computers.", "Say sign me out."]
+    },
+    {
+      "id": "staff-how-do-finds-it-requests-work",
+      "topic": "finds",
+      "when": ["how do finds it requests work", "finds it"],
+      "replies": [
+        "Look in up to three shops. Record what you found, where and the price, or say not found to refund the fee.",
+        "Three shops, then found or not found."
+      ]
+    },
+    {
+      "id": "staff-can-i-look-for-alcohol",
+      "topic": "finds",
+      "when": ["can i look for alcohol", "they want medicine"],
+      "replies": ["We never look for alcohol, tobacco, medicines or cash.", "Never."]
+    },
+    {
+      "id": "staff-how-do-i-check-a-shop-product",
+      "topic": "partners",
+      "when": ["how do i check a shop product", "approve product"],
+      "replies": [
+        "Check the name, price, photo and that it's allowed, then accept or turn it down.",
+        "Look at name, price and photo, then decide."
+      ]
+    },
+    {
+      "id": "staff-record-a-payment",
+      "topic": "partners",
+      "when": ["record a payment", "shop paid"],
+      "replies": [
+        "In Shops and organisations, press record a month paid for the plan, Spotlight or Spotlight Plus.",
+        "Record it under the shop."
+      ]
+    },
+    {
+      "id": "staff-how-much-is-the-partner-plan",
+      "topic": "partners",
+      "when": ["how much is the partner plan", "plan price"],
+      "replies": [
+        "{partnerPlan} a month. Spotlight {spotlight}, Spotlight Plus {spotlightPlus}.",
+        "{partnerPlan}, plus Spotlight if they choose."
+      ]
+    },
+    {
+      "id": "staff-what-do-i-do-with-an-enquiry",
+      "topic": "enquiries",
+      "when": ["what do i do with an enquiry", "enquiry"],
+      "replies": [
+        "Ring them within two working days, then say rung back.",
+        "Call them back, then mark it rung back."
+      ]
+    },
+    {
+      "id": "staff-runner-feedback",
+      "topic": "feedback",
+      "when": ["runner feedback", "read feedback"],
+      "replies": ["Say any feedback and I'll read each one.", "I'll read it out."]
+    },
+    {
+      "id": "staff-who-are-you",
+      "topic": "about",
+      "when": ["who are you", "what are you"],
+      "replies": ["I'm {assistant}, here to help you run {product}.", "I'm {assistant}. {motto}"]
+    },
+    {
+      "id": "staff-what-is-our-mission",
+      "topic": "about",
+      "when": ["what is our mission", "why do we do this"],
+      "replies": [
+        "To bring shopping to people who find it hard to get out, with dignity. {motto}",
+        "Shopping, brought with care, to people who need it."
+      ]
+    },
+    {
+      "id": "staff-many-shoppers-are-blind",
+      "topic": "shoppers",
+      "when": ["many shoppers are blind", "how do i speak to a blind shopper"],
+      "replies": [
+        "Be clear, patient and plain. Say who you are and what you're doing.",
+        "Plain words, patience, and say who you are."
+      ]
+    },
+    {
+      "id": "staff-i-made-a-mistake",
+      "topic": "work",
+      "when": ["i made a mistake", "wrong decision"],
+      "replies": [
+        "Tell the founder straight away. Every decision is recorded, so it can be put right.",
+        "Tell the founder. It can be fixed."
+      ]
+    },
+    {
+      "id": "staff-i-m-not-sure-what-to-decide",
+      "topic": "work",
+      "when": ["i'm not sure what to decide", "unsure"],
+      "replies": [
+        "Ask a colleague or the founder before deciding. There's time.",
+        "Check before you decide."
+      ]
+    },
+    {
+      "id": "staff-who-else-is-on-the-team",
+      "topic": "team",
+      "when": ["who else is on the team", "my colleagues"],
+      "replies": ["The founder manages the team in the Team tab.", "Ask the founder."]
+    },
+    {
+      "id": "staff-what-are-my-hours",
+      "topic": "hours",
+      "when": ["what are my hours", "when do i work"],
+      "replies": ["Your hours are agreed with the founder.", "Agree them with the founder."]
+    },
+    {
+      "id": "staff-goodbye",
+      "topic": "manners",
+      "when": ["goodbye", "bye", "good night"],
+      "replies": ["Goodbye. Thank you.", "See you next time."]
+    },
+    {
+      "id": "staff-what-can-t-we-deliver",
+      "topic": "rules",
+      "when": ["what can't we deliver", "banned items"],
+      "replies": [
+        "Alcohol, tobacco, medicines, cash and anything age restricted.",
+        "Those five, never."
+      ]
+    },
+    {
+      "id": "staff-delivery-fee",
+      "topic": "rules",
+      "when": ["delivery fee", "how much is delivery"],
+      "replies": ["{fee} for every delivery, the same for everyone.", "{fee}, always."]
+    },
+    {
+      "id": "staff-runner-pay",
+      "topic": "rules",
+      "when": ["runner pay", "what do runners earn"],
+      "replies": ["{runnerPay} a job.", "Runners earn {runnerPay} every job."]
+    },
+    {
+      "id": "staff-nothing-is-waiting",
+      "topic": "work",
+      "when": ["nothing is waiting", "all done"],
+      "replies": ["Well done. Check again later.", "All clear. Thank you."]
+    },
+    {
+      "id": "staff-say-it-slower",
+      "topic": "voice",
+      "when": ["say it slower", "slow down"],
+      "replies": [
+        "Of course. Say again, and I'll read it once more.",
+        "Say again, and I'll repeat it."
+      ]
+    },
+    {
+      "id": "staff-what-is-gdpr",
+      "topic": "privacy",
+      "when": ["what is gdpr", "data protection"],
+      "replies": [
+        "The law that protects people's information. We collect only what we need and keep it safe.",
+        "People's data, kept safe and private."
+      ]
+    },
+    {
+      "id": "staff-two-step",
+      "topic": "security",
+      "when": ["two step", "2fa"],
+      "replies": [
+        "Ask the founder if you'd like extra protection on your sign-in.",
+        "Speak to the founder."
+      ]
+    },
+    {
+      "id": "staff-evidence",
+      "topic": "problems",
+      "when": ["evidence", "voice note", "photos"],
+      "replies": [
+        "Listen to voice notes and look at photos before deciding.",
+        "Check the evidence first."
+      ]
+    },
+    {
+      "id": "staff-shopper-at-fault",
+      "topic": "problems",
+      "when": ["shopper at fault", "no refund"],
+      "replies": [
+        "If the Shopper was responsible, there's no refund.",
+        "No refund when the Shopper was responsible."
+      ]
+    },
+    {
+      "id": "staff-shop-at-fault",
+      "topic": "problems",
+      "when": ["shop at fault"],
+      "replies": [
+        "We refund the Shopper and take it up with the shop.",
+        "We refund, then talk to the shop."
+      ]
+    },
+    {
+      "id": "staff-can-i-work-from-home",
+      "topic": "work",
+      "when": ["can i work from home", "remote"],
+      "replies": ["Yes, the panel works anywhere. Keep it private.", "Anywhere, privately."]
+    },
+    {
+      "id": "staff-how-many-shoppers-do-we-have",
+      "topic": "about",
+      "when": ["how many shoppers do we have", "numbers"],
+      "replies": [
+        "The overview has the numbers, if it's part of your job.",
+        "Ask the founder, or see the overview."
+      ]
+    },
+    {
+      "id": "staff-stop",
+      "topic": "voice",
+      "when": ["stop", "quiet"],
+      "replies": ["Say turn off talking to silence me.", "Say turn off talking."]
+    }
+  ]
+}

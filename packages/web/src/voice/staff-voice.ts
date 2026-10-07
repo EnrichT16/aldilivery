@@ -404,3 +404,19 @@ export function moneyWords(data: OwnerMoney): string {
     (gateways.length ? ` By gateway: ${listWords(gateways)}.` : '')
   );
 }
+
+/** What Ozi says first when the owner asks for something (ruling 44), taken in turn. */
+export const OWNER_ACKNOWLEDGEMENTS = ['Yes, sir.', 'Okay, sir.', 'All right, sir.'];
+
+/**
+ * Words for the owner (Anthony, 7 October 2026: "yes sir, okay sir, all right sir", with sir at
+ * the end): "sir" at the end of what is said, unless it is there already, and an
+ * acknowledgement first when he has asked for something.
+ */
+export function toOwner(text: string, acknowledgement: string | null = null): string {
+  const ended = /\bsir\b/i.test(text)
+    ? text
+    : text.replace(/\s*([.!?])?\s*$/, (_whole, stop: string | undefined) => `, sir${stop ?? '.'}`);
+  if (!acknowledgement || /^(yes|okay|all right), sir\b/i.test(ended)) return ended;
+  return `${acknowledgement} ${ended}`;
+}

@@ -395,3 +395,21 @@ describe('the card page', () => {
     });
   });
 });
+
+describe('everyday phrases, answered by the server (ruling 44)', () => {
+  it('asks the server, says its reply, and never orders "Ozi, thank you"', async () => {
+    introHeard();
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const recorded = stubApi();
+    renderAt('/shop');
+
+    await say(engine, 'Ozi, thank you');
+    await waitFor(() => {
+      expect(said(engine).at(-1)).toBe("You're welcome. Send me, I will help.");
+    });
+    const asked = recorded.find((r) => r.path === '/ozi/reply');
+    expect(asked?.body).toEqual({ text: 'Ozi, thank you', mode: 'exact', turn: 0 });
+    expect(recorded.some((r) => r.path.startsWith('/basket'))).toBe(false);
+  });
+});

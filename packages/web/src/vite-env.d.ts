@@ -30,12 +30,6 @@ declare module '@offers' {
   export default value;
 }
 
-/** Ozi's everyday phrases and replies, checked by `src/voice/phrases.ts` before use. */
-declare module '@ozi-phrases' {
-  const value: unknown;
-  export default value;
-}
-
 /**
  * The build time values this app reads. `VITE_API_URL` is the only one: where the API is,
  * baked into the bundle when the site is built. There is nothing secret in here, because

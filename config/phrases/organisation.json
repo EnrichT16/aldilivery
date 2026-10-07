@@ -1,0 +1,437 @@
+{
+  "about": "What Ozi says to organisations (ruling 44). Kept on the server only.",
+  "phrases": [
+    {
+      "id": "org-hello",
+      "topic": "manners",
+      "when": ["hello", "hi", "good morning", "good afternoon", "good evening"],
+      "replies": [
+        "Hello. Welcome to your organisation's area. Say help to hear what I can tell you.",
+        "Hello. Would you like this month's spending?"
+      ]
+    },
+    {
+      "id": "org-thank-you",
+      "topic": "manners",
+      "when": ["thank you", "thanks", "cheers"],
+      "replies": [
+        "You're welcome. Thank you for looking after the people you support.",
+        "My pleasure."
+      ]
+    },
+    {
+      "id": "org-how-are-you",
+      "topic": "manners",
+      "when": ["how are you", "you alright"],
+      "replies": [
+        "Very well, thank you. How can I help your organisation today?",
+        "I'm well, thank you."
+      ]
+    },
+    {
+      "id": "org-how-do-people-link-to-us",
+      "topic": "people",
+      "when": ["how do people link to us", "how do we add people", "link a resident"],
+      "replies": [
+        "Each person types your code in their Settings, or opens your share link, and agrees you'll see their orders.",
+        "They link themselves, with your code or link, after agreeing what you'll see."
+      ]
+    },
+    {
+      "id": "org-can-we-add-someone-ourselves",
+      "topic": "people",
+      "when": ["can we add someone ourselves", "link them for them"],
+      "replies": [
+        "Only the person, or someone helping them, links their account. That's their consent, and the law.",
+        "No. The person has to agree, in their own Settings."
+      ]
+    },
+    {
+      "id": "org-someone-wants-to-stop",
+      "topic": "people",
+      "when": ["someone wants to stop", "unlink a person", "remove a resident"],
+      "replies": [
+        "They can stop it any time in Settings, and it stops at once.",
+        "The person can stop it in Settings whenever they like."
+      ]
+    },
+    {
+      "id": "org-what-can-we-see",
+      "topic": "people",
+      "when": ["what can we see", "what information do we get"],
+      "replies": [
+        "Each linked person's orders, when, how many items, and what they cost, with the office looking after them.",
+        "Orders and costs for the people who linked to you. Never their card."
+      ]
+    },
+    {
+      "id": "org-can-we-see-their-card",
+      "topic": "people",
+      "when": ["can we see their card", "card details"],
+      "replies": [
+        "No. Cards are kept by our payment company, Stripe. Nobody sees card numbers.",
+        "Never. Not even we see full card numbers."
+      ]
+    },
+    {
+      "id": "org-what-is-an-office",
+      "topic": "offices",
+      "when": ["what is an office", "offices", "teams"],
+      "replies": [
+        "The office or team at your organisation that looks after each person. You set it beside their name.",
+        "It's the team responsible for each person, so spending can be split by team."
+      ]
+    },
+    {
+      "id": "org-spending-by-office",
+      "topic": "offices",
+      "when": ["spending by office", "which team spent most"],
+      "replies": [
+        "Say spending by office and I'll read this month's totals for each.",
+        "Each office's spending this month is on your dashboard."
+      ]
+    },
+    {
+      "id": "org-how-much-have-we-spent",
+      "topic": "money",
+      "when": ["how much have we spent", "spending this month", "what did we spend"],
+      "replies": [
+        "Say how much have we spent, and I'll read this month, last month and altogether.",
+        "Your spending is at the top of your dashboard."
+      ]
+    },
+    {
+      "id": "org-who-pays-for-the-orders",
+      "topic": "money",
+      "when": ["who pays for the orders", "do we pay", "how is it paid"],
+      "replies": [
+        "Each person pays by card at the moment. Paying by invoice for organisations may come later.",
+        "Orders are paid by each person's card for now."
+      ]
+    },
+    {
+      "id": "org-can-we-get-an-invoice",
+      "topic": "money",
+      "when": ["can we get an invoice", "pay by invoice"],
+      "replies": [
+        "Not yet. Paying by invoice for organisations is planned. Your statement shows every order in the meantime.",
+        "It's planned. For now, download your statement."
+      ]
+    },
+    {
+      "id": "org-what-is-our-budget",
+      "topic": "budget",
+      "when": ["what is our budget", "set a budget", "budget"],
+      "replies": [
+        "You set a monthly budget on your dashboard, and I'll tell you what's left.",
+        "Put it in the budget box, and I'll keep track."
+      ]
+    },
+    {
+      "id": "org-are-we-over-budget",
+      "topic": "budget",
+      "when": ["are we over budget", "how much is left"],
+      "replies": [
+        "Say what's left in the budget, and I'll tell you.",
+        "Ask me what's left in the budget."
+      ]
+    },
+    {
+      "id": "org-how-much-have-we-saved",
+      "topic": "savings",
+      "when": ["how much have we saved", "savings", "what do we save"],
+      "replies": [
+        "Tell me what a staff trip to the shops costs you, and I'll work out what each delivery saves.",
+        "Your savings come from your own staff trip cost, set on the dashboard."
+      ]
+    },
+    {
+      "id": "org-how-do-you-work-out-savings",
+      "topic": "savings",
+      "when": ["how do you work out savings", "is the saving real"],
+      "replies": [
+        "Each delivery costs {fee}. If a staff trip costs you more, the difference is the saving, using your own figure.",
+        "It's your staff trip cost, minus our {fee} delivery, for each delivery."
+      ]
+    },
+    {
+      "id": "org-download-a-statement",
+      "topic": "statement",
+      "when": ["download a statement", "statement", "pdf"],
+      "replies": [
+        "Press download a statement for a PDF, or a spreadsheet for your accounts.",
+        "PDF or spreadsheet, both on your dashboard."
+      ]
+    },
+    {
+      "id": "org-read-the-orders",
+      "topic": "orders",
+      "when": ["read the orders", "who ordered", "latest orders"],
+      "replies": [
+        "Say who ordered, and I'll read the latest orders with the person and office.",
+        "Ask me to read the orders."
+      ]
+    },
+    {
+      "id": "org-what-s-coming-up",
+      "topic": "upcoming",
+      "when": ["what's coming up", "weekly shops", "upcoming"],
+      "replies": [
+        "Say what's coming up, and I'll read the weekly shops booked.",
+        "Weekly shops booked are on your dashboard."
+      ]
+    },
+    {
+      "id": "org-how-much-is-delivery",
+      "topic": "delivery",
+      "when": ["how much is delivery", "delivery fee"],
+      "replies": [
+        "{fee} for each delivery, the same for everyone.",
+        "Always {fee}, whatever the basket."
+      ]
+    },
+    {
+      "id": "org-what-is-the-biggest-order",
+      "topic": "delivery",
+      "when": ["what is the biggest order", "maximum basket"],
+      "replies": [
+        "Up to {maximum} of shopping in one delivery.",
+        "{maximum} at most, so a Runner can carry it safely."
+      ]
+    },
+    {
+      "id": "org-who-delivers",
+      "topic": "delivery",
+      "when": ["who delivers", "who are the runners"],
+      "replies": [
+        "Runners we've checked: right to work and DBS, with their documents seen by a person.",
+        "Checked Runners, each with a DBS."
+      ]
+    },
+    {
+      "id": "org-is-it-safe-for-vulnerable-people",
+      "topic": "safety",
+      "when": ["is it safe for vulnerable people", "safeguarding"],
+      "replies": [
+        "Runners are DBS checked, never see phone numbers, and follow each person's doorstep note.",
+        "Checked Runners, private calls, and doorstep notes for each person."
+      ]
+    },
+    {
+      "id": "org-what-if-something-goes-wrong",
+      "topic": "safety",
+      "when": ["what if something goes wrong", "complaint", "problem"],
+      "replies": [
+        "The person or their Runner reports it, and a person decides it within two working days.",
+        "Problems are reported in the app and decided within two working days."
+      ]
+    },
+    {
+      "id": "org-share-our-link",
+      "topic": "share",
+      "when": ["share our link", "how do we share", "our link"],
+      "replies": [
+        "Press share our link on your dashboard. Send it to staff and the people you support.",
+        "It's under linking the people you support."
+      ]
+    },
+    {
+      "id": "org-how-many-have-joined",
+      "topic": "share",
+      "when": ["how many have joined", "our meter", "referrals"],
+      "replies": [
+        "The meter shows people linked or joined through your link, towards 100.",
+        "Look at the meter under your link."
+      ]
+    },
+    {
+      "id": "org-can-other-staff-sign-in",
+      "topic": "access",
+      "when": ["can other staff sign in", "add a colleague", "more logins"],
+      "replies": [
+        "Ask our partnerships team. Each person gets their own sign-in with their office.",
+        "We'll give each colleague their own sign-in."
+      ]
+    },
+    {
+      "id": "org-i-forgot-my-password",
+      "topic": "access",
+      "when": ["i forgot my password", "reset password"],
+      "replies": [
+        "Ask our team for a new password. You choose your own the first time.",
+        "Our team can reset it."
+      ]
+    },
+    {
+      "id": "org-who-are-you",
+      "topic": "about",
+      "when": ["who are you", "what are you"],
+      "replies": [
+        "I'm {assistant}, the {product} assistant, here for your organisation.",
+        "I'm {assistant}. {motto}"
+      ]
+    },
+    {
+      "id": "org-what-does-ozi-delivery-do",
+      "topic": "about",
+      "when": ["what does {product} do", "what is this service"],
+      "replies": [
+        "We bring shopping to people who find it hard to get to the shops, many blind, partially sighted or elderly.",
+        "Shopping, brought to the door by checked Runners."
+      ]
+    },
+    {
+      "id": "org-is-it-accessible",
+      "topic": "about",
+      "when": ["is it accessible", "can blind people use it"],
+      "replies": [
+        "Yes. Everything works by voice, by touch with a screen reader, or by phone.",
+        "Fully. Many of our Shoppers are blind."
+      ]
+    },
+    {
+      "id": "org-can-people-order-by-phone",
+      "topic": "about",
+      "when": ["can people order by phone", "landline"],
+      "replies": ["Yes, by phone, by voice in the app, or by touch.", "Phone, voice or touch."]
+    },
+    {
+      "id": "org-help",
+      "topic": "help",
+      "when": ["help", "what can you do", "what can i say"],
+      "replies": [
+        "You can say: how much have we spent, read the orders, how much have we saved, what's left in the budget, what's coming up, spending by office, read the people we support, sign me out.",
+        "Ask about spending, orders, savings, budget, weekly shops, offices or people."
+      ]
+    },
+    {
+      "id": "org-sign-out",
+      "topic": "help",
+      "when": ["sign out", "log out", "sign me out"],
+      "replies": ["Say sign me out.", "Just say sign me out."]
+    },
+    {
+      "id": "org-is-our-data-safe",
+      "topic": "data",
+      "when": ["is our data safe", "privacy", "gdpr"],
+      "replies": [
+        "Only the people who linked to you appear, and only their orders and costs. Everything is protected.",
+        "Private, protected, and only with each person's agreement."
+      ]
+    },
+    {
+      "id": "org-how-long-do-you-keep-records",
+      "topic": "data",
+      "when": ["how long do you keep records", "retention"],
+      "replies": [
+        "Money records are kept for seven years, as the law requires.",
+        "Seven years for money records."
+      ]
+    },
+    {
+      "id": "org-is-there-a-contract",
+      "topic": "contract",
+      "when": ["is there a contract", "how do we work with you"],
+      "replies": [
+        "Our partnerships team will talk through what you need, from regular rounds to reports.",
+        "Talk to our partnerships team."
+      ]
+    },
+    {
+      "id": "org-regular-rounds",
+      "topic": "contract",
+      "when": ["regular rounds", "sheltered housing"],
+      "replies": [
+        "Regular rounds for sheltered housing can be arranged. Ask our partnerships team.",
+        "Yes, ask our team about rounds."
+      ]
+    },
+    {
+      "id": "org-can-we-order-for-someone",
+      "topic": "orders",
+      "when": ["can we order for someone", "order on their behalf"],
+      "replies": [
+        "At the moment each person orders themselves, by voice, touch or phone, or with family. Ordering on behalf may come later.",
+        "For now, the person orders. On-behalf ordering is planned."
+      ]
+    },
+    {
+      "id": "org-what-can-t-be-delivered",
+      "topic": "orders",
+      "when": ["what can't be delivered", "alcohol", "medicines"],
+      "replies": ["Never alcohol, tobacco, medicines or cash.", "None of those, ever."]
+    },
+    {
+      "id": "org-goodbye",
+      "topic": "manners",
+      "when": ["goodbye", "bye"],
+      "replies": ["Goodbye. Thank you for the care you give.", "See you soon."]
+    },
+    {
+      "id": "org-monthly-report",
+      "topic": "reports",
+      "when": ["monthly report", "reports for commissioners"],
+      "replies": [
+        "Your statement covers every order. Fuller reports for commissioners are planned.",
+        "Statement now, fuller reports later."
+      ]
+    },
+    {
+      "id": "org-last-month",
+      "topic": "money",
+      "when": ["last month", "how much last month"],
+      "replies": [
+        "Say how much have we spent, and I'll include last month.",
+        "It's on your dashboard beside this month."
+      ]
+    },
+    {
+      "id": "org-how-many-people-do-we-support",
+      "topic": "people",
+      "when": ["how many people do we support", "number of people"],
+      "replies": ["Say read the people we support.", "Your dashboard lists everyone linked."]
+    },
+    {
+      "id": "org-how-fast-is-delivery",
+      "topic": "delivery",
+      "when": ["how fast is delivery", "when will it arrive"],
+      "replies": [
+        "Usually the same day. The person hears where their order is from me.",
+        "Same day, usually."
+      ]
+    },
+    {
+      "id": "org-remove-the-budget",
+      "topic": "budget",
+      "when": ["remove the budget", "no budget"],
+      "replies": ["Clear the budget box and save.", "Leave it empty and save."]
+    },
+    {
+      "id": "org-change-our-staff-cost",
+      "topic": "savings",
+      "when": ["change our staff cost", "update trip cost"],
+      "replies": [
+        "Change it on the dashboard and save. The saving updates at once.",
+        "Update the staff trip cost box."
+      ]
+    },
+    {
+      "id": "org-who-should-we-share-the-link-with",
+      "topic": "share",
+      "when": ["who should we share the link with", "staff link"],
+      "replies": [
+        "Your staff, and the people you support or their families.",
+        "Staff and the people you support."
+      ]
+    },
+    {
+      "id": "org-can-you-sell-our-data",
+      "topic": "data",
+      "when": ["can you sell our data", "do you sell data"],
+      "replies": [
+        "We never sell anyone's information. Any figures are about large groups, never a person.",
+        "Never about a person. Ever."
+      ]
+    }
+  ]
+}

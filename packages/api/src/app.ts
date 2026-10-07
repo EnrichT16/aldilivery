@@ -17,8 +17,9 @@ import type { StoreConfig } from '@aldilivery/core';
 
 import type { Repository } from './data/repository.js';
 import type { AccountRole } from './domain.js';
-import { ApiError, ForbiddenError, UnauthorisedError } from './errors.js';
+import { ApiError, ForbiddenError, TooManyRequestsError, UnauthorisedError } from './errors.js';
 import type { Env } from './env.js';
+import { addSecurityHeaders, limiter } from './lib/guard.js';
 import type { CallProvider } from './lib/livekit.js';
 import type { PaymentsGateway } from './lib/payments.js';
 import type { SendPush } from './lib/push.js';
@@ -40,6 +41,8 @@ import { withLedger } from './lib/ledger.js';
 import { registerAnalyticsRoutes } from './routes/analytics.js';
 import { registerBusinessRoutes } from './routes/business.js';
 import { registerOwnerRoutes } from './routes/owner.js';
+import { registerOziRoutes } from './routes/ozi.js';
+import { registerShareRoutes } from './routes/share.js';
 import { registerStaffRoutes } from './routes/staff.js';
 import { registerExtrasRoutes } from './routes/extras.js';
 import { registerProblemRoutes } from './routes/problems.js';
@@ -225,9 +228,21 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     },
   );
 
+  const tries = limiter();
   app.addHook('onRequest', async (request) => {
     const session = readSession(request, ctx.env.authTokenSecret, ctx.now());
     if (session) request.session = session;
+    // One internet address may only try to sign in so often (ruling 44).
+    const path = request.url.split('?')[0]!.replace(/^\/api(?=\/)/, '');
+    if (request.method === 'POST' && !tries.allow(path, request, ctx.now())) {
+      throw new TooManyRequestsError(
+        'Too many tries from here. Please wait ten minutes and try again.',
+      );
+    }
+  });
+
+  app.addHook('onSend', async (_request, reply) => {
+    addSecurityHeaders(reply);
   });
 
   app.setErrorHandler((error, request, reply) => {
@@ -390,6 +405,8 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerBusinessRoutes(app);
   await registerAnalyticsRoutes(app);
   await registerOwnerRoutes(app);
+  await registerOziRoutes(app);
+  await registerShareRoutes(app);
 }
 
 /**

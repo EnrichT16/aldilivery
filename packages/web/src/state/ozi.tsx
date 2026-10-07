@@ -549,21 +549,26 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       orderAgain();
       return;
     }
-    // An everyday phrase, the whole sentence: "thank you", "who are you", "how much is delivery".
-    if (!ordering.busy()) {
-      const everyday = phraseReply(text, phraseTurn.current, 'exact');
-      if (everyday) {
-        phraseTurn.current += 1;
-        void sayRef.current(everyday);
-        return;
-      }
-    }
     void (async () => {
+      // Runners hear the Runner collection on their own pages; everywhere else, the Shopper's.
+      const as = window.location.pathname.startsWith('/runner')
+        ? ({ kind: 'runner' } as const)
+        : ({ kind: 'shopper' } as const);
+      // An everyday phrase, the whole sentence: "thank you", "who are you", "how much is
+      // delivery". Asked before an order is looked for, so "Ozi, thank you" is never ordered.
+      if (!ordering.busy()) {
+        const everyday = await phraseReply(text, phraseTurn.current, 'exact', as);
+        if (everyday) {
+          phraseTurn.current += 1;
+          await sayRef.current(everyday);
+          return;
+        }
+      }
       if (await ordering.handle(text)) return;
       // Words not about an order are not answered unless they were said to Ozi: Ozi does not
       // talk back to the television.
       if (nameHeardIn(text)) {
-        const everyday = phraseReply(text, phraseTurn.current, 'within');
+        const everyday = await phraseReply(text, phraseTurn.current, 'within', as);
         phraseTurn.current += 1;
         await sayRef.current(
           everyday ??

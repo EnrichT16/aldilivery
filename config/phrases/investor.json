@@ -1,0 +1,392 @@
+{
+  "about": "What Ozi says to investors (ruling 44). Kept on the server only.",
+  "phrases": [
+    {
+      "id": "investor-hello",
+      "topic": "manners",
+      "when": ["hello", "hi", "good morning", "good afternoon", "good evening"],
+      "replies": [
+        "Hello, and welcome. Say help to hear what you can see.",
+        "Good to have you. Shall I read the overview?"
+      ]
+    },
+    {
+      "id": "investor-thank-you",
+      "topic": "manners",
+      "when": ["thank you", "thanks", "cheers"],
+      "replies": ["You're welcome. Thank you for your interest in {product}.", "My pleasure."]
+    },
+    {
+      "id": "investor-how-are-you",
+      "topic": "manners",
+      "when": ["how are you", "you alright"],
+      "replies": ["Very well, thank you.", "I'm well, thank you."]
+    },
+    {
+      "id": "investor-what-can-i-see",
+      "topic": "access",
+      "when": ["what can i see", "what am i allowed to see"],
+      "replies": [
+        "What the founder has switched on for you. The tabs above show which.",
+        "The tabs above list it."
+      ]
+    },
+    {
+      "id": "investor-show-me-the-revenue",
+      "topic": "access",
+      "when": ["show me the revenue", "how much money", "the money", "financials"],
+      "replies": [
+        "Financial figures are shared by the founder directly, not on the dashboard.",
+        "The founder shares financial statements directly."
+      ]
+    },
+    {
+      "id": "investor-can-i-change-anything",
+      "topic": "access",
+      "when": ["can i change anything"],
+      "replies": ["Your account can look, but not change anything.", "View only."]
+    },
+    {
+      "id": "investor-i-want-to-see-more",
+      "topic": "access",
+      "when": ["i want to see more", "more access"],
+      "replies": ["Ask the founder. He decides what's switched on.", "The founder decides."]
+    },
+    {
+      "id": "investor-what-does-ozi-delivery-do",
+      "topic": "business",
+      "when": ["what does {product} do", "what is the business"],
+      "replies": [
+        "{product} brings shopping to people who find it hard to get out: blind, partially sighted and elderly people, and those supported by organisations.",
+        "A voice-first shopping delivery service for people who find shops hard."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-market",
+      "topic": "business",
+      "when": ["what is the market", "who are the customers"],
+      "replies": [
+        "Blind and partially sighted people, older people, and the councils, care providers and families who support them.",
+        "People with sight loss, older people, and those who support them."
+      ]
+    },
+    {
+      "id": "investor-what-makes-it-different",
+      "topic": "business",
+      "when": ["what makes it different", "why is it unique", "competitive advantage"],
+      "replies": [
+        "It's built for people who can't see the screen: by voice, by phone, with checked Runners and private calls.",
+        "Accessible first, by voice, with care built in."
+      ]
+    },
+    {
+      "id": "investor-how-does-it-make-money",
+      "topic": "business",
+      "when": ["how does it make money", "revenue streams", "business model"],
+      "replies": [
+        "A flat delivery fee of {fee}, Ozi Plus memberships, Recipes, Finds It, gift cards, Shop Partner plans at {partnerPlan} a month, Spotlight, and organisation contracts.",
+        "Delivery fees, memberships, extras, shop plans, Spotlight and organisations."
+      ]
+    },
+    {
+      "id": "investor-how-much-is-delivery",
+      "topic": "business",
+      "when": ["how much is delivery", "delivery price"],
+      "replies": ["{fee} a delivery, the same for everyone, never surge priced.", "Flat {fee}."]
+    },
+    {
+      "id": "investor-what-do-runners-earn",
+      "topic": "business",
+      "when": ["what do runners earn"],
+      "replies": ["{runnerPay} for every job.", "{runnerPay} a job."]
+    },
+    {
+      "id": "investor-what-is-ozi-plus",
+      "topic": "business",
+      "when": ["what is ozi plus"],
+      "replies": [
+        "A monthly membership including Recipes and Finds It, for one person or a family.",
+        "Membership with extras."
+      ]
+    },
+    {
+      "id": "investor-what-are-shop-partners",
+      "topic": "business",
+      "when": ["what are shop partners"],
+      "replies": [
+        "Local shops paying {partnerPlan} a month to show their own products, with Spotlight at {spotlight} or {spotlightPlus} on top.",
+        "Shops on monthly plans."
+      ]
+    },
+    {
+      "id": "investor-organisations",
+      "topic": "business",
+      "when": ["organisations", "b2b"],
+      "replies": [
+        "Councils, care homes, hospitals and charities, with their own dashboards for the people they support.",
+        "Organisation dashboards and contracts."
+      ]
+    },
+    {
+      "id": "investor-what-data-do-you-collect",
+      "topic": "business",
+      "when": ["what data do you collect", "data assets"],
+      "replies": [
+        "Purchases, deliveries and searches, with no names, numbers or addresses, and every figure covering at least ten people.",
+        "Anonymised figures, never about one person."
+      ]
+    },
+    {
+      "id": "investor-can-the-data-be-sold",
+      "topic": "business",
+      "when": ["can the data be sold", "data revenue"],
+      "replies": [
+        "Insight about groups, never people: for shops, councils, brands and government.",
+        "Group insight only, never personal data."
+      ]
+    },
+    {
+      "id": "investor-is-it-legal",
+      "topic": "business",
+      "when": ["is it legal", "gdpr compliance"],
+      "replies": [
+        "Built to UK GDPR: consent where needed, pseudonymised analysis, and nothing about one person shared.",
+        "Designed for UK GDPR from the start."
+      ]
+    },
+    {
+      "id": "investor-how-big-can-it-grow",
+      "topic": "growth",
+      "when": ["how big can it grow", "scale", "can it handle millions"],
+      "replies": [
+        "The design grows by steps to millions of users: more servers, a read copy of the database, and regional splits.",
+        "It scales in stages, planned out."
+      ]
+    },
+    {
+      "id": "investor-where-does-it-operate",
+      "topic": "growth",
+      "when": ["where does it operate", "regions"],
+      "replies": [
+        "Medway first, then more of the UK, then other countries as separate marketplaces.",
+        "Medway first, then wider."
+      ]
+    },
+    {
+      "id": "investor-what-s-next",
+      "topic": "growth",
+      "when": ["what's next", "roadmap"],
+      "replies": [
+        "Phone apps, more payment gateways, telephone ordering, more languages, and Braille devices.",
+        "Apps, payments, phone ordering, languages and Braille."
+      ]
+    },
+    {
+      "id": "investor-how-many-shoppers",
+      "topic": "overview",
+      "when": ["how many shoppers", "customers"],
+      "replies": ["Say read me the overview, if it's switched on for you.", "The overview has it."]
+    },
+    {
+      "id": "investor-how-many-runners",
+      "topic": "overview",
+      "when": ["how many runners"],
+      "replies": ["The overview counts Runners and those on shift.", "In the overview."]
+    },
+    {
+      "id": "investor-traction",
+      "topic": "overview",
+      "when": ["traction", "how is it doing"],
+      "replies": [
+        "Say read me the overview for people and orders at a glance.",
+        "The overview shows it."
+      ]
+    },
+    {
+      "id": "investor-read-me-the-analytics",
+      "topic": "analytics",
+      "when": ["read me the analytics", "analysis"],
+      "replies": [
+        "If it's switched on, say read me the analytics.",
+        "If the founder has switched it on."
+      ]
+    },
+    {
+      "id": "investor-who-is-the-team",
+      "topic": "team",
+      "when": ["who is the team", "staff"],
+      "replies": ["If the team is switched on, say read me the team.", "Ask for the team tab."]
+    },
+    {
+      "id": "investor-who-are-you",
+      "topic": "about",
+      "when": ["who are you", "what are you"],
+      "replies": ["I'm {assistant}, the {product} assistant. {motto}", "I'm {assistant}."]
+    },
+    {
+      "id": "investor-who-is-the-founder",
+      "topic": "about",
+      "when": ["who is the founder", "who runs it"],
+      "replies": ["{owner} founded and runs {product}.", "{owner}."]
+    },
+    {
+      "id": "investor-is-the-founder-blind",
+      "topic": "about",
+      "when": ["is the founder blind", "founder's story"],
+      "replies": [
+        "The founder is registered blind, and built {product} to work fully by voice.",
+        "Yes, and that's why it works by voice."
+      ]
+    },
+    {
+      "id": "investor-is-it-secure",
+      "topic": "security",
+      "when": ["is it secure", "security"],
+      "replies": [
+        "Cards are held by Stripe, passwords are never stored as themselves, every role sees only its part, and the money is the founder's alone.",
+        "Layered protection, roles, and no card data held."
+      ]
+    },
+    {
+      "id": "investor-what-happens-if-hacked",
+      "topic": "security",
+      "when": ["what happens if hacked", "breach"],
+      "replies": [
+        "Accounts are separated, so one account can't reach another's area, and the founder can sign everyone out at once.",
+        "Separated accounts and a kill switch."
+      ]
+    },
+    {
+      "id": "investor-help",
+      "topic": "help",
+      "when": ["help", "what can you do", "what can i say"],
+      "replies": [
+        "Say the name of a tab, like read me the overview. Ask me about the business, the market or growth.",
+        "Ask about the business, or for a tab."
+      ]
+    },
+    {
+      "id": "investor-sign-out",
+      "topic": "help",
+      "when": ["sign out", "log out", "sign me out"],
+      "replies": ["Say sign me out.", "Just say sign me out."]
+    },
+    {
+      "id": "investor-i-forgot-my-password",
+      "topic": "security",
+      "when": ["i forgot my password", "reset password"],
+      "replies": ["Ask the founder for a new password.", "The founder can reset it."]
+    },
+    {
+      "id": "investor-confidential",
+      "topic": "security",
+      "when": ["confidential", "keep it private"],
+      "replies": ["Please keep what you see confidential.", "Confidential, please."]
+    },
+    {
+      "id": "investor-how-do-i-invest",
+      "topic": "investment",
+      "when": ["how do i invest", "investment terms"],
+      "replies": [
+        "Please speak with the founder directly about investment.",
+        "The founder handles that personally."
+      ]
+    },
+    {
+      "id": "investor-valuation",
+      "topic": "investment",
+      "when": ["valuation", "how much is it worth"],
+      "replies": ["The founder will discuss that with you directly.", "Ask the founder."]
+    },
+    {
+      "id": "investor-can-i-buy-the-company",
+      "topic": "investment",
+      "when": ["can i buy the company", "acquisition"],
+      "replies": ["Please speak with the founder directly.", "That's the founder's conversation."]
+    },
+    {
+      "id": "investor-what-are-the-costs",
+      "topic": "business",
+      "when": ["what are the costs", "expenses"],
+      "replies": ["The founder shares financial details directly.", "Ask the founder."]
+    },
+    {
+      "id": "investor-is-it-profitable",
+      "topic": "business",
+      "when": ["is it profitable", "profit"],
+      "replies": [
+        "Financial details are shared by the founder, not on the dashboard.",
+        "Ask the founder for figures."
+      ]
+    },
+    {
+      "id": "investor-goodbye",
+      "topic": "manners",
+      "when": ["goodbye", "bye"],
+      "replies": ["Goodbye. Thank you for your time.", "See you soon."]
+    },
+    {
+      "id": "investor-what-technology",
+      "topic": "business",
+      "when": ["what technology", "tech stack"],
+      "replies": [
+        "A modern web app with voice, ready for phone apps, on secure UK cloud servers.",
+        "Web and voice now, apps next."
+      ]
+    },
+    {
+      "id": "investor-accessibility-standard",
+      "topic": "business",
+      "when": ["accessibility standard", "wcag"],
+      "replies": [
+        "Every screen is built for screen readers and voice, and checked automatically.",
+        "Accessible by design."
+      ]
+    },
+    {
+      "id": "investor-social-impact",
+      "topic": "business",
+      "when": ["social impact", "impact"],
+      "replies": [
+        "It helps people with sight loss and older people shop independently, and creates flexible work for Runners.",
+        "Independence for Shoppers, work for Runners."
+      ]
+    },
+    {
+      "id": "investor-competitors",
+      "topic": "business",
+      "when": ["competitors", "who else does this"],
+      "replies": [
+        "Big delivery apps aren't built for people who can't see the screen. {product} is.",
+        "Others aren't voice-first. We are."
+      ]
+    },
+    {
+      "id": "investor-read-it-again",
+      "topic": "voice",
+      "when": ["read it again", "repeat"],
+      "replies": ["Of course. Ask again.", "Say it once more."]
+    },
+    {
+      "id": "investor-why-did-i-lose-access",
+      "topic": "access",
+      "when": ["why did i lose access"],
+      "replies": ["The founder may have changed what you see. Ask him.", "Ask the founder."]
+    },
+    {
+      "id": "investor-what-is-spotlight",
+      "topic": "business",
+      "when": ["what is spotlight"],
+      "replies": [
+        "Paid mentions by Ozi for Shop Partners, always labelled as adverts, at {spotlight} or {spotlightPlus} a month.",
+        "Labelled adverts for shops."
+      ]
+    },
+    {
+      "id": "investor-what-is-the-motto",
+      "topic": "business",
+      "when": ["what is the motto"],
+      "replies": ["{motto}", "{motto}"]
+    }
+  ]
+}
