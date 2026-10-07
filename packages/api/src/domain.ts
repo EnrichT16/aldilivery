@@ -546,6 +546,16 @@ export interface StaffMember {
   lockedUntil: Date | null;
   lastSignInAt: Date | null;
   createdAt: Date;
+  /** The founder's own account: the only one that sees the money. */
+  isOwner: boolean;
+  /** The owner's passcode, hashed. */
+  passcodeHash: string | null;
+  totpSecret: string | null;
+  totpEnabled: boolean;
+  /** For family and investor accounts: the parts the owner has switched on. */
+  allowedAreas: string;
+  /** Raised to sign every session of this account out at once. */
+  sessionVersion: number;
 }
 
 /** A local shop on the monthly partner plan (7 October 2026). */
@@ -650,4 +660,14 @@ export interface AnalyticsEvent {
   categories: string;
   query: string | null;
   travelMode: string | null;
+}
+
+/** Money in (positive) or out (negative), by gateway. Seen only by the owner. */
+export interface IncomeRecord {
+  id: string;
+  at: Date;
+  gateway: string;
+  kind: string;
+  amountPence: number;
+  reference: string;
 }

@@ -21,6 +21,10 @@ declare module '@gifts' {
   const value: unknown;
   export default value;
 }
+declare module '@adverts' {
+  const value: unknown;
+  export default value;
+}
 declare module '@offers' {
   const value: unknown;
   export default value;

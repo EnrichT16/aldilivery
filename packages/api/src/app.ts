@@ -36,8 +36,10 @@ import { registerPaymentMethodRoutes } from './routes/payment-methods.js';
 import { registerPayoutRoutes } from './routes/payouts.js';
 import { registerAddressRoutes } from './routes/addresses.js';
 import { registerCallRoutes } from './routes/calls.js';
+import { withLedger } from './lib/ledger.js';
 import { registerAnalyticsRoutes } from './routes/analytics.js';
 import { registerBusinessRoutes } from './routes/business.js';
+import { registerOwnerRoutes } from './routes/owner.js';
 import { registerStaffRoutes } from './routes/staff.js';
 import { registerExtrasRoutes } from './routes/extras.js';
 import { registerProblemRoutes } from './routes/problems.js';
@@ -157,7 +159,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   const ctx: AppContext = {
     config: options.config,
     repository: options.repository,
-    payments: options.payments,
+    // Every charge and refund is also written in the owner's money ledger.
+    payments: withLedger(options.payments, options.repository, options.now ?? (() => new Date())),
     env: options.env,
     // `??` would be wrong here: null is a deliberate answer, meaning "nothing knows which
     // commit this is", and the tests pin it to exactly that.
@@ -386,6 +389,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerStaffRoutes(app);
   await registerBusinessRoutes(app);
   await registerAnalyticsRoutes(app);
+  await registerOwnerRoutes(app);
 }
 
 /**

@@ -14,6 +14,7 @@ import type { OrderStatus } from '@aldilivery/core';
 
 import type {
   AccountRole,
+  IncomeRecord,
   AnalyticsEvent,
   PartnerPayment,
   SpotlightMention,
@@ -113,6 +114,7 @@ export function memoryRepository(): Repository {
   const partnerPayments: PartnerPayment[] = [];
   const spotlightMentions: SpotlightMention[] = [];
   const analyticsEvents: AnalyticsEvent[] = [];
+  const incomeRecords: IncomeRecord[] = [];
 
   const now = (): Date => new Date();
 
@@ -160,6 +162,9 @@ export function memoryRepository(): Repository {
           if (shopper.familyCode === code) return clone(shopper);
         }
         return null;
+      },
+      async count() {
+        return shoppers.size;
       },
       async countJoinedVia(via) {
         return [...shoppers.values()].filter((shopper) => shopper.joinedVia === via).length;
@@ -1041,14 +1046,20 @@ export function memoryRepository(): Repository {
     staffMembers: {
       async create(input) {
         const row: StaffMember = {
+          isOwner: false,
+          passcodeHash: null,
+          mustChangePassword: true,
           ...input,
           id: id(),
           active: true,
-          mustChangePassword: true,
           failedAttempts: 0,
           lockedUntil: null,
           lastSignInAt: null,
           createdAt: now(),
+          totpSecret: null,
+          totpEnabled: false,
+          allowedAreas: '',
+          sessionVersion: 0,
         };
         staffMembers.set(row.id, row);
         return clone(row);
@@ -1236,6 +1247,18 @@ export function memoryRepository(): Repository {
               (where.until === undefined || row.at < where.until) &&
               (where.kind === undefined || row.kind === where.kind),
           )
+          .sort((a, b) => a.at.getTime() - b.at.getTime())
+          .map(clone);
+      },
+    },
+
+    income: {
+      async record(input) {
+        incomeRecords.push({ ...input, id: id() });
+      },
+      async list(where) {
+        return incomeRecords
+          .filter((row) => row.at >= where.since && (where.until === undefined || row.at < where.until))
           .sort((a, b) => a.at.getTime() - b.at.getTime())
           .map(clone);
       },

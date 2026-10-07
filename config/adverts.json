@@ -1,0 +1,20 @@
+{
+  "about": "The advert square (7 October 2026, ruling 43). Off until Anthony switches it on: set enabled to true. Each advert: id, title, words, link (a page in the app or a full https address) and who it is from. Only adverts agreed and paid for, or our own (house adverts). Never alcohol, tobacco, gambling, medicines or payday loans; never flashing or moving; never on paying, card or checkout screens; never read aloud by Ozi unless asked. Ozi Plus members can hide it.",
+  "enabled": false,
+  "adverts": [
+    {
+      "id": "house-plus",
+      "title": "Ozi Plus",
+      "words": "Recipes and Finds It included, for you or your family.",
+      "link": "/plus",
+      "from": "house"
+    },
+    {
+      "id": "house-gift-cards",
+      "title": "Gift cards",
+      "words": "Give someone their shopping, brought to their door.",
+      "link": "/gift-cards",
+      "from": "house"
+    }
+  ]
+}

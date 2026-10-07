@@ -100,6 +100,7 @@ export default defineConfig({
       '@recipes': fileURLToPath(new URL('../../config/recipes.json', import.meta.url)),
       '@gifts': fileURLToPath(new URL('../../config/gifts.json', import.meta.url)),
       '@offers': fileURLToPath(new URL('../../config/offers.json', import.meta.url)),
+      '@adverts': fileURLToPath(new URL('../../config/adverts.json', import.meta.url)),
     },
   },
   // Everything the browser needs is in `dist` and nothing else: a static site, served from

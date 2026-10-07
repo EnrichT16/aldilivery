@@ -25,6 +25,7 @@ import { cardAccepted } from '../lib/card-region.js';
 import { priceLines } from '../services/basket.js';
 import { applyCredit } from '../services/credit.js';
 import { recordOrder } from '../lib/analytics.js';
+import { recordOrderIncome } from '../lib/ledger.js';
 import { offerOrder } from '../services/dispatch.js';
 import { payOutOrder } from '../services/pay-runner.js';
 import {
@@ -305,7 +306,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
     // Gift card credit goes straight back to the card, now that the payment has gone through.
     const creditPence = succeeded ? await applyCredit(app.ctx, placed.id, request.log) : 0;
-    if (succeeded) await recordOrder(app.ctx, placed, 'order_paid', request.log);
+    if (succeeded) {
+      await recordOrder(app.ctx, placed, 'order_paid', request.log);
+      await recordOrderIncome(repository, payments, placed, now());
+    }
 
     void reply.status(201);
     return {

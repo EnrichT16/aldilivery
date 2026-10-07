@@ -6,7 +6,9 @@ import {
   decideStaffPartnerProduct,
   fetchStaffPartnerProducts,
   fetchStaffDocuments,
+  fetchOwnerMoney,
   fetchStaffAnalytics,
+  fetchStaffOverview,
   fetchStaffEnquiries,
   fetchStaffFeedback,
   fetchStaffFinds,
@@ -29,6 +31,8 @@ import { useOzi } from '../state/ozi';
 import { nameHeardIn } from '../voice/name';
 import {
   analyticsWords,
+  moneyWords,
+  overviewWords,
   AREA_WORDS,
   help,
   readItem,
@@ -275,6 +279,18 @@ export function StaffVoice({
             return true;
           }
           latest.current.onOpen(command.area);
+          if (command.area === 'overview') {
+            void fetchStaffOverview(key)
+              .then((data) => say(overviewWords(data)))
+              .catch(() => say('The overview could not be loaded just now.'));
+            return true;
+          }
+          if (command.area === 'money') {
+            void fetchOwnerMoney(key)
+              .then((data) => say(moneyWords(data)))
+              .catch(() => say('The money could not be loaded just now.'));
+            return true;
+          }
           if (command.area === 'analytics') {
             void fetchStaffAnalytics(key, 'month')
               .then((data) => say(analyticsWords(data)))

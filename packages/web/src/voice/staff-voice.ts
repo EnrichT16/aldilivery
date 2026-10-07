@@ -8,7 +8,9 @@
  */
 
 import type {
+  OwnerMoney,
   ProblemDecision,
+  StaffOverview,
   StaffArea,
   StaffDocument,
   StaffEnquiry,
@@ -35,6 +37,8 @@ export interface StaffLists {
   partners?: StaffPartnerProduct[];
   /** Numbers, not a list to work through. */
   analytics?: never[];
+  overview?: never[];
+  money?: never[];
   team?: TeamMember[];
 }
 
@@ -56,6 +60,8 @@ export const AREA_WORDS: Record<StaffArea, { one: string; many: string; tab: str
     tab: 'Shops and organisations',
   },
   analytics: { one: 'report', many: 'reports', tab: 'Analytics' },
+  overview: { one: 'figure', many: 'figures', tab: 'Overview' },
+  money: { one: 'payment', many: 'payments', tab: 'Money' },
   team: { one: 'person on the team', many: 'people on the team', tab: 'Team' },
 };
 
@@ -80,7 +86,8 @@ export function summary(
 ): string {
   const parts: string[] = [];
   for (const area of areas) {
-    if (area === 'team' || area === 'analytics') continue;
+    if (area === 'team' || area === 'analytics' || area === 'overview' || area === 'money')
+      continue;
     const count = waiting(lists, area).length;
     if (count === 0) continue;
     const words = AREA_WORDS[area];
@@ -104,8 +111,10 @@ export function summary(
 
 function firstNoun(areas: readonly StaffArea[], lists: StaffLists): string {
   const area =
-    areas.find((one) => one !== 'team' && one !== 'analytics' && waiting(lists, one).length > 0) ??
-    (areas.includes('analytics') ? 'analytics' : 'problems');
+    areas.find(
+      (one) =>
+        !['team', 'analytics', 'overview', 'money'].includes(one) && waiting(lists, one).length > 0,
+    ) ?? (areas.includes('analytics') ? 'analytics' : 'problems');
   return {
     documents: 'documents',
     problems: 'complaints',
@@ -115,6 +124,8 @@ function firstNoun(areas: readonly StaffArea[], lists: StaffLists): string {
     enquiries: 'enquiries',
     partners: 'shop products',
     analytics: 'analytics',
+    overview: 'overview',
+    money: 'money',
     team: 'team',
   }[area];
 }
@@ -205,6 +216,8 @@ export function readItem(area: StaffArea, item: unknown, position: string): stri
       );
     }
     case 'analytics':
+    case 'overview':
+    case 'money':
       return '';
     case 'team': {
       const row = item as TeamMember;
@@ -231,6 +244,11 @@ export type StaffCommand =
   | { kind: 'sign-out' };
 
 const AREA_PATTERNS: Array<[StaffArea, RegExp]> = [
+  [
+    'money',
+    /\b(money|income|takings|stripe|revenue|earnings|paid in|how much (came|have we taken))\b/,
+  ],
+  ['overview', /\b(overview|how many (shoppers|runners|people|staff)|head ?count)\b/],
   ['analytics', /\b(analytics|analysis|numbers|statistics|stats|insights?|trends?)\b/],
   ['problems', /\b(complaints?|problems?|issues?|disputes?|refunds?)\b/],
   ['feedback', /\bfeedback\b/],
@@ -361,4 +379,28 @@ export function analyticsWords(data: StaffAnalytics): string {
   if (t.throughOrganisations > 0)
     parts.push(`${t.throughOrganisations} came through organisations.`);
   return parts.join(' ');
+}
+
+/** The overview, read aloud: people and work, no money. */
+export function overviewWords(data: StaffOverview): string {
+  const p = data.people;
+  const w = data.work;
+  return (
+    `${p.shoppers} Shoppers, ${p.runners} Runners, ${p.runnersOnShiftNow} on shift now, ` +
+    `${p.shopPartners} Shop Partners, ${p.organisations} organisations and ${p.staff} staff. ` +
+    `${w.ordersLastDay} orders in the last day, ${w.ordersLastWeek} in the last week. Waiting: ` +
+    `${w.problemsWaiting} complaints, ${w.documentsWaiting} Runner documents, ` +
+    `${w.shopProductsWaiting} shop products and ${w.findItWaiting} Finds It requests.`
+  );
+}
+
+/** The owner's money, read aloud: today and the last month, by gateway. */
+export function moneyWords(data: OwnerMoney): string {
+  const gateways = data.month.byGateway.map((row) => `${row.name}, ${money(row.pence)}`);
+  return (
+    `Today, ${money(data.today.inPence)} in and ${money(data.today.outPence)} given back. ` +
+    `In the last month, ${money(data.month.inPence)} in, ${money(data.month.outPence)} back, ` +
+    `${money(data.month.netPence)} kept.` +
+    (gateways.length ? ` By gateway: ${listWords(gateways)}.` : '')
+  );
 }

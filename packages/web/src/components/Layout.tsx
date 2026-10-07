@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 
 import { storeConfig } from '../config';
 import { useSession } from '../state/session';
+import { AdSquare } from './AdSquare';
 import { OziBubble } from './OziBubble';
 import { OziSwitch } from './OziSwitch';
 
@@ -76,6 +77,7 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
       </header>
 
       <main id="main" tabIndex={-1} className="flex-1 px-5 py-8">
+        <AdSquare />
         <div className="mx-auto w-full max-w-3xl">{children}</div>
       </main>
 

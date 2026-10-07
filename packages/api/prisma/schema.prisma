@@ -838,6 +838,17 @@ model StaffMember {
   failedAttempts     Int       @default(0)
   lockedUntil        DateTime?
   lastSignInAt       DateTime?
+  /// The founder's own account: the only one that sees the money.
+  isOwner            Boolean   @default(false)
+  /// The owner's 7-character passcode (6 digits and a special character), hashed.
+  passcodeHash       String?
+  /// Two-step codes from an authenticator app, if the owner turns them on.
+  totpSecret         String?
+  totpEnabled        Boolean   @default(false)
+  /// For family and investor accounts: the parts the owner has switched on, comma separated.
+  allowedAreas       String    @default("")
+  /// Raised to sign every session of this account out at once.
+  sessionVersion     Int       @default(0)
   createdAt          DateTime  @default(now())
 }
 
@@ -946,4 +957,17 @@ model AnalyticsEvent {
   @@index([at])
   @@index([kind, at])
   @@index([shop, at])
+}
+
+/// Money in and out (7 October 2026): every payment taken and every refund given, by gateway.
+/// Seen only by the owner.
+model IncomeRecord {
+  id          String   @id @default(cuid())
+  at          DateTime @default(now())
+  gateway     String
+  kind        String
+  amountPence Int
+  reference   String
+
+  @@index([at])
 }
