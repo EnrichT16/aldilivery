@@ -32,6 +32,7 @@ import {
   escapeXml,
   goodbye,
   openState,
+  say,
   sealState,
   signedByTwilio,
   type CallState,
@@ -46,6 +47,9 @@ const REMEMBER_MS = 60 * 60 * 1000;
 const DONE =
   /\b(that'?s (it|all|everything)|that is (it|all|everything)|nothing else|no more|i'?m done|finished|no thanks?|no thank you|^no$)\b/i;
 const REMOVE = /^\s*(please\s+)?(take off|remove|take away|cancel|no)\s+(the\s+)?(.+)$/i;
+/** "Can I speak to a person", "a human", "the team", "operator" (ruling 51). */
+const PERSON =
+  /\b(speak|talk|put me through)\b.*\b(person|human|someone|somebody|team|staff|agent|operator|manager)\b|^\s*(a\s+)?(real\s+)?(person|human|operator|agent)\s*$/i;
 const REPEAT = /\b(repeat|say (that|it) again|come again|pardon|what did you say)\b/i;
 
 interface Remembered {
@@ -97,6 +101,30 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
   const calls = new Map<string, Remembered>();
 
   const base = (): string => `${env.primaryOrigin ?? ''}/api/webhooks/twilio`;
+
+  /** Said once at the start, when there is a person to put callers through to. */
+  function personHint(): string {
+    return env.humanLinePhone
+      ? ' To speak to a person instead, say person, or press 0, at any time.'
+      : '';
+  }
+
+  /**
+   * Put the caller through to a person (ruling 51): the same number, a different purpose.
+   * Our own number shows on the person's phone; if nobody answers, the owner is texted so
+   * someone rings back.
+   */
+  function toPerson(sid: string, ourNumber: string): string {
+    finish(sid);
+    const callerId = env.twilioVoiceFrom ?? ourNumber;
+    return (
+      '<Response>' +
+      say('Putting you through to our team now. One moment, please.') +
+      `<Dial callerId="${escapeXml(callerId)}" timeout="25" method="POST" action="${escapeXml(`${base()}/after-person`)}">` +
+      `<Number>${escapeXml(env.humanLinePhone ?? '')}</Number></Dial>` +
+      '</Response>'
+    );
+  }
 
   function forget(): void {
     const cutOff = now().getTime() - REMEMBER_MS;
@@ -263,7 +291,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       return reply(
         response,
         ask(
-          `Hello, I'm ${assistant}, from ${config.productName}. ${config.motto} I don't have an account for this number yet. Just in case this call gets cut off, I'd like to keep your number so I can call you back. May I? Say yes or no.`,
+          `Hello, I'm ${assistant}, from ${config.productName}. ${config.motto} I don't have an account for this number yet. Just in case this call gets cut off, I'd like to keep your number so I can call you back. May I? Say yes or no.${personHint()}`,
           next({ step: 'consent', lines: [], quiet: 0, callBack: false }, sid),
         ),
       );
@@ -297,7 +325,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     return reply(
       response,
       ask(
-        `Hello ${firstName(shopper.displayName)}, it's ${assistant}. What would you like from the shop today? For example, say: two pints of milk and a loaf of bread.`,
+        `Hello ${firstName(shopper.displayName)}, it's ${assistant}. What would you like from the shop today? For example, say: two pints of milk and a loaf of bread.${personHint()}`,
         next({ step: 'items', shopperId: shopper.id, lines: [], quiet: 0, callBack: true }, sid),
       ),
     );
@@ -326,6 +354,21 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     }
 
     const heard = (params['SpeechResult'] ?? '').trim();
+    if (env.humanLinePhone && (params['Digits'] === '0' || PERSON.test(heard))) {
+      const ours = (params['Direction'] ?? '').startsWith('outbound')
+        ? params['From']
+        : params['To'];
+      return reply(response, toPerson(sid, ours ?? ''));
+    }
+    if (heard === '' && params['Digits']) {
+      return reply(
+        response,
+        ask(
+          "Sorry, I didn't catch that. Please say what you'd like.",
+          next({ ...state, quiet: 0 }, sid),
+        ),
+      );
+    }
     if (heard === '') {
       if (state.quiet >= 1) {
         finish(sid);
@@ -744,6 +787,34 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       `${body.message ?? 'Thank you. Your order is on its way to a Runner.'}${texts} ${config.motto} Goodbye.`,
     );
   }
+
+  /* -------------------------------------------------------------- after a person was rung */
+
+  app.post('/webhooks/twilio/after-person', async (request, response) => {
+    const params = verified(request);
+    if (!params) return refused(response);
+    if (params['DialCallStatus'] === 'completed')
+      return reply(response, '<Response><Hangup/></Response>');
+    const outbound = (params['Direction'] ?? '').startsWith('outbound');
+    const caller =
+      ukPhone(outbound ? (params['To'] ?? '') : (params['From'] ?? '')) ?? 'a hidden number';
+    if (env.ownerAlertPhone && app.ctx.sendText) {
+      await app.ctx
+        .sendText(
+          env.ownerAlertPhone,
+          `${config.productName}: a caller asked for a person and nobody answered. Please ring back ${caller}.`,
+        )
+        .catch((failure: unknown) =>
+          app.log.warn({ err: failure }, 'The missed call could not be texted.'),
+        );
+    }
+    return reply(
+      response,
+      goodbye(
+        "I'm sorry, nobody could answer just now. We'll ring you back as soon as we can. Goodbye.",
+      ),
+    );
+  });
 
   /* -------------------------------------------------------------- cut off: ring back */
 

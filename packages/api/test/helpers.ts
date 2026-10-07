@@ -56,6 +56,7 @@ export const testEnv: Env = {
   livekitApiSecret: undefined,
   livekitSipTrunkId: undefined,
   ownerAlertPhone: undefined,
+  humanLinePhone: undefined,
   seedOnStart: true,
 };
 

@@ -225,6 +225,16 @@ services:
 
       # Ringing a Shopper's own telephone into a call (ruling 46): LiveKit's outbound SIP trunk
       # to the Twilio number, ST_ followed by letters. docs/TWILIO_AND_LIVEKIT.md, part 4.
+      # The telephone line (ruling 51): who rings when a caller asks for a person, and the owner's
+      # mobile for missed calls and bank transfers. docs/TWILIO_AND_LIVEKIT.md, part 3a.
+      - key: HUMAN_LINE_PHONE
+        scope: RUN_TIME
+        value: replace_with_the_mobile_that_takes_calls
+
+      - key: OWNER_ALERT_PHONE
+        scope: RUN_TIME
+        value: replace_with_the_owners_mobile
+
       - key: LIVEKIT_SIP_TRUNK_ID
         scope: RUN_TIME
         value: replace_with_the_livekit_sip_trunk_id

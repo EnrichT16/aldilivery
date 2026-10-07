@@ -48,6 +48,18 @@ Every request from Twilio is checked against the Auth Token, so nobody else can 
 caller. If the Auth Token is ever changed in Twilio, change it in DigitalOcean too, or Ozi will
 stop answering.
 
+## Part 3a: a person on the same number
+
+Ozi answers every call. A caller who says "person", "can I speak to someone", or presses 0, at
+any time, is put through to a person (ruling 51). In DigitalOcean set:
+
+- `HUMAN_LINE_PHONE` = the mobile that should ring, written `+447…` (yours, Yvette's, or a
+  staff phone). Our number shows on it, so you know it is a customer.
+- `OWNER_ALERT_PHONE` = your mobile, `+447…`: if nobody answers, you are texted the caller's
+  number to ring back. The same setting also texts you about bank transfers.
+
+Nothing to change in Twilio. Leave HUMAN_LINE_PHONE empty and the option is simply not offered.
+
 ## Part 3b: paying by a texted link
 
 Somebody with no account, or no card saved, can still order by telephone: Ozi texts them a

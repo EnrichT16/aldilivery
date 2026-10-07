@@ -321,3 +321,57 @@ describe('ordering by telephone with no account, paid by a texted link (ruling 4
     expect((await harness.repository.orders.findById(order.id))?.status).toBe('cancelled');
   });
 });
+
+describe('speaking to a person on the same number (ruling 51)', () => {
+  it('puts the caller through when they say person or press 0, and texts the owner if nobody answers', async () => {
+    await harness.close();
+    texts = [];
+    harness = await buildTestApp(new Date('2026-10-07T10:00:00.000Z'), {
+      env: {
+        primaryOrigin: ORIGIN,
+        twilioAuthToken: TOKEN,
+        humanLinePhone: '+447700900500',
+        ownerAlertPhone: '+447700900999',
+        twilioVoiceFrom: '+447700900000',
+      },
+      sendText: async (to, body) => {
+        texts.push({ to, body });
+      },
+    });
+    await seedCatalogue(harness.repository);
+    await readyShopper();
+    const call = { CallSid: 'CP1', From: '+447700900001', To: '+447700900000' };
+    const hello = await twilio('/api/webhooks/twilio/voice', call);
+    expect(spoken(hello.body)).toMatch(/To speak to a person instead, say person, or press 0/);
+
+    const spoke = await twilio(nextStep(hello.body), {
+      ...call,
+      SpeechResult: 'can I speak to a person please',
+    });
+    expect(spoke.body).toContain('<Number>+447700900500</Number>');
+    expect(spoke.body).toContain('callerId="+447700900000"');
+
+    const again = await twilio('/api/webhooks/twilio/voice', { ...call, CallSid: 'CP2' });
+    const pressed = await twilio(nextStep(again.body), { ...call, CallSid: 'CP2', Digits: '0' });
+    expect(pressed.body).toContain('<Dial');
+
+    const missed = await twilio('/api/webhooks/twilio/after-person', {
+      ...call,
+      DialCallStatus: 'no-answer',
+    });
+    expect(spoken(missed.body)).toMatch(/nobody could answer just now/);
+    expect(texts).toContainEqual(
+      expect.objectContaining({
+        to: '+447700900999',
+        body: expect.stringContaining('+447700900001'),
+      }),
+    );
+  });
+
+  it('keeps the order flow as it was when no person line is set', async () => {
+    await readyShopper();
+    const call = { CallSid: 'CP3', From: '+447700900001' };
+    const hello = await twilio('/api/webhooks/twilio/voice', call);
+    expect(spoken(hello.body)).not.toMatch(/speak to a person/);
+  });
+});
