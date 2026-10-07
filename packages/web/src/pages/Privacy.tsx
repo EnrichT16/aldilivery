@@ -142,6 +142,14 @@ export function Privacy(): JSX.Element {
           service and to work with shops. Every figure covers at least ten people, never anything
           about you alone, and never anything that could reveal someone&rsquo;s health.
         </p>
+        <p className="m-0">
+          To work those figures out, we keep a separate record of each purchase and search without
+          your name, telephone number or address: which shop, when, the postcode district (such as
+          ME7), what kinds of things, how much, and your age group if you chose to give one in
+          Settings. You appear in it only as a code that cannot be turned back into your name. We
+          do this because it is in our legitimate interest to understand and improve the service,
+          and you can ask us to stop including you at any time.
+        </p>
       </section>
 
       <section aria-labelledby="keep" className="space-y-3">

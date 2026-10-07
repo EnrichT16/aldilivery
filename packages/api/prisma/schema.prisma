@@ -162,6 +162,10 @@ model Shopper {
 
   /// Which office or team at the organisation looks after this person.
   organisationOffice String?
+  /// Optional, given by the person for analysis only: under_25, 25_44, 45_64, 65_plus.
+  ageBand            String?
+  /// The share link they came by, such as partner:<id> or organisation:<id>.
+  joinedVia          String?
   organisationId     String?
   organisation       Organisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
 
@@ -840,16 +844,19 @@ model StaffMember {
 /// A local shop on the monthly partner plan (7 October 2026): its own sign-in, its own
 /// products, approved by us before Shoppers see them.
 model PartnerShop {
-  id           String    @id @default(cuid())
-  name         String
-  address      String    @default("")
-  telephone    String    @default("")
-  about        String    @default("")
-  monthlyPence Int
+  id             String    @id @default(cuid())
+  name           String
+  address        String    @default("")
+  telephone      String    @default("")
+  about          String    @default("")
+  monthlyPence   Int
   /// The plan is paid up to here. Products show only while it is.
-  paidUntil    DateTime?
-  active       Boolean   @default(true)
-  createdAt    DateTime  @default(now())
+  paidUntil      DateTime?
+  active         Boolean   @default(true)
+  /// Ozi mentions, an extra on top of the plan: none, spotlight or plus.
+  spotlight      String    @default("none")
+  spotlightUntil DateTime?
+  createdAt      DateTime  @default(now())
 }
 
 /// A product a partner shop sent in. Shoppers see it once a person has approved it.
@@ -888,4 +895,55 @@ model BusinessUser {
   lockedUntil        DateTime?
   lastSignInAt       DateTime?
   createdAt          DateTime  @default(now())
+}
+
+/// What a Shop Partner has paid us: the plan, Spotlight or Spotlight Plus, a month at a time.
+model PartnerPayment {
+  id            String   @id @default(cuid())
+  partnerShopId String
+  kind          String
+  amountPence   Int
+  months        Int
+  coversUntil   DateTime
+  recordedBy    String
+  paidAt        DateTime @default(now())
+
+  @@index([partnerShopId])
+}
+
+/// Each time Ozi mentions a Spotlight shop to a Shopper, for the weekly limit and the shop's report.
+model SpotlightMention {
+  id            String   @id @default(cuid())
+  partnerShopId String
+  /// A one-way code for the Shopper, never their name or number.
+  shopperKey    String
+  query         String
+  at            DateTime @default(now())
+
+  @@index([shopperKey, at])
+  @@index([partnerShopId, at])
+}
+
+/// Business analysis (7 October 2026): what happened, when and where, with no names, numbers or
+/// addresses. People appear only as one-way codes; places only as postcode districts.
+model AnalyticsEvent {
+  id              String   @id @default(cuid())
+  at              DateTime @default(now())
+  kind            String
+  shopperKey      String?
+  runnerKey       String?
+  shop            String?
+  area            String?
+  toArea          String?
+  ageBand         String?
+  viaOrganisation Boolean  @default(false)
+  itemCount       Int      @default(0)
+  goodsPence      Int      @default(0)
+  categories      String   @default("")
+  query           String?
+  travelMode      String?
+
+  @@index([at])
+  @@index([kind, at])
+  @@index([shop, at])
 }

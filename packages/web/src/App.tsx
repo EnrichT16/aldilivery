@@ -13,6 +13,7 @@ import { BusinessSignIn } from './pages/BusinessSignIn';
 import { FindIt } from './pages/FindIt';
 import { GiftCards } from './pages/GiftCards';
 import { Gifts } from './pages/Gifts';
+import { JoinOrganisation } from './pages/JoinOrganisation';
 import { JustLooking } from './pages/JustLooking';
 import { More } from './pages/More';
 import { Offers } from './pages/Offers';
@@ -148,6 +149,7 @@ export function App(): JSX.Element {
                 <Route path="/organisation" element={<OrganisationDashboard />} />
                 <Route path="/shops" element={<Shops />} />
                 <Route path="/shops/:id" element={<ShopPage />} />
+                <Route path="/join/organisation/:code" element={<JoinOrganisation />} />
                 <Route path="/confirm" element={<Confirm />} />
                 <Route path="/my-order" element={<MyOrder />} />
                 <Route path="/orders" element={<Orders />} />

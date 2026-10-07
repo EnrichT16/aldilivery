@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { storeConfig } from '../config';
 import {
+  downloadBusinessStatement,
   fetchBusinessMe,
   fetchOrganisationDashboard,
   rememberBusinessToken,
@@ -249,8 +250,19 @@ export function OrganisationDashboard(): JSX.Element {
             </div>
           ))}
         </dl>
-        <button type="button" onClick={download} className="control bg-highlight text-ink">
-          Download a statement of every order
+        <button
+          type="button"
+          onClick={() =>
+            void downloadBusinessStatement('organisation', data.organisation.name)
+              .then(() => setNews('Your statement is downloading, as a PDF.'))
+              .catch(() => setNews('The statement could not be made just now.'))
+          }
+          className="control bg-highlight text-ink"
+        >
+          Download a statement (PDF)
+        </button>{' '}
+        <button type="button" onClick={download} className="control bg-paper text-ink">
+          Download it as a spreadsheet (CSV)
         </button>
       </section>
 
@@ -263,6 +275,42 @@ export function OrganisationDashboard(): JSX.Element {
           Settings. They are told first that you will see their orders and what they cost, and they
           can stop it at any time.
         </p>
+        {data.sharePath && (
+          <>
+            <p className="m-0">Or share this link with your staff and the people you support:</p>
+            <p className="m-0 break-all">{`${window.location.origin}${data.sharePath}`}</p>
+            <button
+              type="button"
+              onClick={() => {
+                const url = `${window.location.origin}${data.sharePath}`;
+                const done = (words: string): void => setNews(words);
+                if (navigator.share) {
+                  void navigator
+                    .share({ title: data.organisation.name, url })
+                    .then(() => done('Shared.'))
+                    .catch(() => undefined);
+                } else {
+                  void navigator.clipboard
+                    ?.writeText(url)
+                    .then(() => done('The link is copied. Paste it into an email or a message.'));
+                }
+              }}
+              className="control bg-paper text-ink"
+            >
+              Share our link
+            </button>
+            <label htmlFor="org-meter" className="block font-bold">
+              {data.referrals} of 100 people linked or joined through your link
+            </label>
+            <meter
+              id="org-meter"
+              min={0}
+              max={100}
+              value={Math.min(100, data.referrals)}
+              className="w-full h-6"
+            />
+          </>
+        )}
         <p className="m-0 text-lead font-bold">
           Your code:{' '}
           <span aria-label={(data.organisation.joinCode ?? '').split('').join(' ')}>

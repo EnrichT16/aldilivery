@@ -61,6 +61,9 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           where: { familyCode: code },
         })) as unknown as Shopper | null;
       },
+      async countJoinedVia(via) {
+        return prisma.shopper.count({ where: { joinedVia: via } });
+      },
       async listFamily(ownerId) {
         return (await prisma.shopper.findMany({
           where: { familyOwnerId: ownerId },
@@ -716,6 +719,47 @@ export function prismaRepository(prisma: PrismaClient): Repository {
             ...(where.organisationId !== undefined ? { organisationId: where.organisationId } : {}),
           },
           orderBy: { createdAt: 'asc' },
+        })) as any;
+      },
+    },
+
+    partnerPayments: {
+      async create(input) {
+        return (await prisma.partnerPayment.create({ data: input })) as any;
+      },
+      async listForShop(partnerShopId) {
+        return (await prisma.partnerPayment.findMany({
+          where: { partnerShopId },
+          orderBy: { paidAt: 'desc' },
+        })) as any;
+      },
+    },
+
+    spotlightMentions: {
+      async create(input) {
+        return (await prisma.spotlightMention.create({ data: input })) as any;
+      },
+      async listForShopperSince(shopperKey, since) {
+        return (await prisma.spotlightMention.findMany({
+          where: { shopperKey, at: { gte: since } },
+        })) as any;
+      },
+      async countForShopSince(partnerShopId, since) {
+        return prisma.spotlightMention.count({ where: { partnerShopId, at: { gte: since } } });
+      },
+    },
+
+    analytics: {
+      async record(input) {
+        await prisma.analyticsEvent.create({ data: input });
+      },
+      async list(where) {
+        return (await prisma.analyticsEvent.findMany({
+          where: {
+            at: { gte: where.since, ...(where.until ? { lt: where.until } : {}) },
+            ...(where.kind ? { kind: where.kind } : {}),
+          },
+          orderBy: { at: 'asc' },
         })) as any;
       },
     },

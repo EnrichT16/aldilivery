@@ -24,6 +24,7 @@ import {
 import { cardAccepted } from '../lib/card-region.js';
 import { priceLines } from '../services/basket.js';
 import { applyCredit } from '../services/credit.js';
+import { recordOrder } from '../lib/analytics.js';
 import { offerOrder } from '../services/dispatch.js';
 import { payOutOrder } from '../services/pay-runner.js';
 import {
@@ -304,6 +305,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
     // Gift card credit goes straight back to the card, now that the payment has gone through.
     const creditPence = succeeded ? await applyCredit(app.ctx, placed.id, request.log) : 0;
+    if (succeeded) await recordOrder(app.ctx, placed, 'order_paid', request.log);
 
     void reply.status(201);
     return {
@@ -398,6 +400,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     if (status === 'cancelled') patch['cancelledAt'] = at;
 
     const updated = await repository.orders.update(order.id, patch);
+    if (status === 'delivered') await recordOrder(app.ctx, updated, 'order_delivered', request.log);
 
     // Delivered is the end of the Runner's job, so it is where their place in the rotation
     // moves on. Waiting for the payout would leave it stuck until Stripe Connect exists.

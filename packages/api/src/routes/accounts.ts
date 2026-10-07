@@ -51,6 +51,12 @@ const shopperSchema = z.object({
   deliveryAddress: z.string().trim().max(300).optional(),
   substitutionDefault: z.enum(['no_substitutes', 'similar_item', 'ask_me']).optional(),
   budgetCapPence: z.number().int().positive().optional(),
+  /** The share link they came by: a Shop Partner's page or an organisation's link. */
+  joinedVia: z
+    .string()
+    .trim()
+    .regex(/^(partner|organisation):[A-Za-z0-9_-]{1,40}$/)
+    .optional(),
 });
 
 const runnerSchema = z.object({
@@ -75,6 +81,8 @@ const profileSchema = z.object({
   deliveryAddress: z.string().trim().max(300).optional(),
   substitutionDefault: z.enum(['no_substitutes', 'similar_item', 'ask_me']).optional(),
   budgetCapPence: z.number().int().positive().nullable().optional(),
+  /** Optional, for analysis only, and can be taken away again (null). */
+  ageBand: z.enum(['under_25', '25_44', '45_64', '65_plus']).nullable().optional(),
 });
 
 export async function registerAccountRoutes(app: FastifyInstance): Promise<void> {
@@ -119,6 +127,9 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       substitutionDefault: input.substitutionDefault ?? 'ask_me',
       budgetCapPence: input.budgetCapPence ?? null,
     });
+    if (input.joinedVia) {
+      await repository.shoppers.update(shopper.id, { joinedVia: input.joinedVia });
+    }
 
     const expiresAt = Math.floor(now().getTime() / 1000) + env.authTokenTtlHours * 3600;
     const token = signSession(

@@ -15,10 +15,19 @@ import { formatPence } from '@aldilivery/core';
 import { z } from 'zod';
 
 import { requireSession } from '../app.js';
-import type { BusinessKind, BusinessUser, Order, PartnerProduct, PartnerShop } from '../domain.js';
+import type {
+  BusinessKind,
+  BusinessUser,
+  Order,
+  PartnerPayment,
+  PartnerProduct,
+  PartnerShop,
+} from '../domain.js';
 import { BadRequestError, ConflictError, NotFoundError, UnauthorisedError } from '../errors.js';
 import { businessActor, BUSINESS_SESSION_HOURS, signBusinessToken } from '../lib/business.js';
+import { textPdf } from '../lib/pdf.js';
 import { NEVER_FOUND } from '../lib/restricted.js';
+import { chooseAdvert, spotlightActive } from '../lib/spotlight.js';
 import { hashPassword, passwordMatches, staffActor, temporaryPassword } from '../lib/staff.js';
 
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -42,6 +51,17 @@ const PAID_STATUSES = new Set([
   'refunded',
 ]);
 
+const PAYMENT_WORDS: Record<PartnerPayment['kind'], string> = {
+  plan: 'Shop Partner plan',
+  spotlight: 'Spotlight',
+  plus: 'Spotlight Plus',
+};
+
+/** A file name with nothing a browser or a computer would object to. */
+function safeName(name: string): string {
+  return name.replace(/[^A-Za-z0-9 .-]/g, '').trim() || 'statement';
+}
+
 function paidAmount(order: Order): number {
   return (order.finalTotalPence ?? order.totalEstimatePence) - order.creditAppliedPence;
 }
@@ -55,6 +75,56 @@ const usernameSchema = z
 export async function registerBusinessRoutes(app: FastifyInstance): Promise<void> {
   const { repository, env, config, now } = app.ctx;
   const money = (pence: number): string => formatPence(pence, config.store.currencySymbol);
+
+  function monthStart(): Date {
+    const at = now();
+    return new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), 1));
+  }
+
+  function longDay(when: Date): string {
+    return when.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Europe/London',
+    });
+  }
+
+  function publicPayment(row: PartnerPayment) {
+    return {
+      id: row.id,
+      kind: row.kind,
+      what: PAYMENT_WORDS[row.kind],
+      amountPence: row.amountPence,
+      months: row.months,
+      coversUntil: row.coversUntil,
+      paidAt: row.paidAt,
+    };
+  }
+
+  /** How the shop is doing: purchases from it this week and this month (business analysis). */
+  async function shopNumbers(shopName: string) {
+    const at = now();
+    const events = (
+      await repository.analytics.list({
+        since: new Date(at.getTime() - 30 * 24 * 60 * 60 * 1000),
+        kind: 'order_paid',
+      })
+    ).filter((event) => event.shop === shopName);
+    const week = events.filter(
+      (event) => event.at.getTime() > at.getTime() - 7 * 24 * 60 * 60 * 1000,
+    );
+    return {
+      purchasesThisWeek: week.length,
+      purchasesThisMonth: events.length,
+      itemsThisMonth: events.reduce((sum, event) => sum + event.itemCount, 0),
+    };
+  }
+
+  /** How many people opened an account through this share link. */
+  async function countJoinedVia(via: string): Promise<number> {
+    return repository.shoppers.countJoinedVia(via);
+  }
 
   function planPaid(shop: PartnerShop): boolean {
     return shop.active && shop.paidUntil !== null && shop.paidUntil.getTime() > now().getTime();
@@ -216,7 +286,50 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       },
       products: products.map(publicProduct),
       sharePath: `/shops/${shop.id}`,
+      spotlight: {
+        level: spotlightActive(shop, now()) ? shop.spotlight : 'none',
+        until: shop.spotlightUntil,
+        mentionsThisMonth: await repository.spotlightMentions.countForShopSince(
+          shop.id,
+          monthStart(),
+        ),
+        prices: {
+          spotlightPence: config.extras.spotlightPence,
+          plusPence: config.extras.spotlightPlusPence,
+          spotlightPerWeek: config.extras.spotlightPerWeek,
+          plusPerWeek: config.extras.spotlightPlusPerWeek,
+        },
+      },
+      payments: (await repository.partnerPayments.listForShop(shop.id)).map(publicPayment),
+      referrals: await countJoinedVia(`partner:${shop.id}`),
+      numbers: await shopNumbers(shop.name),
     };
+  });
+
+  app.get('/partner/statement.pdf', async (request, reply) => {
+    const shop = await myShop(request);
+    const payments = await repository.partnerPayments.listForShop(shop.id);
+    const total = payments.reduce((sum, row) => sum + row.amountPence, 0);
+    const lines = [
+      `${shop.name}`,
+      `Statement from ${config.productName}, ${longDay(now())}.`,
+      '',
+      ...(payments.length === 0
+        ? ['No payments recorded yet.']
+        : payments.map(
+            (row) =>
+              `${longDay(row.paidAt)}: ${PAYMENT_WORDS[row.kind]}, ${row.months} month${row.months === 1 ? '' : 's'}, ${money(row.amountPence)}. Covers until ${longDay(row.coversUntil)}.`,
+          )),
+      '',
+      `Total paid: ${money(total)}.`,
+      `Plan: ${money(shop.monthlyPence)} a month${shop.paidUntil ? `, paid until ${longDay(shop.paidUntil)}` : ''}.`,
+    ];
+    void reply.header('content-type', 'application/pdf');
+    void reply.header(
+      'content-disposition',
+      `attachment; filename="${safeName(shop.name)} statement.pdf"`,
+    );
+    return reply.send(textPdf(`${config.productName} statement`, lines));
   });
 
   app.post('/partner/products', { bodyLimit: 7 * 1024 * 1024 }, async (request, reply) => {
@@ -372,6 +485,16 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     return reply.send(Buffer.from(product.photo));
   });
 
+  /**
+   * The one paid mention for a Shopper's search, if a Spotlight shop sells it and has not used
+   * up this Shopper's weekly limit. Shown and said after the genuine results, as an advert.
+   */
+  app.get('/spotlight', async (request) => {
+    const session = requireSession(request, 'shopper');
+    const { q } = z.object({ q: z.string().trim().min(2).max(80) }).parse(request.query);
+    return { advert: await chooseAdvert(app.ctx, session.accountId, q) };
+  });
+
   /* ------------------------------------------------------------------ organisations */
 
   async function myOrganisation(request: Parameters<typeof businessActor>[0]) {
@@ -479,7 +602,43 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       orders: orders.slice(0, 200),
       upcoming,
       deliveryFeePence: config.fees.standardDeliveryPence,
+      sharePath: organisation.joinCode ? `/join/organisation/${organisation.joinCode}` : null,
+      referrals:
+        (organisation.joinCode ? await countJoinedVia(`organisation:${organisation.joinCode}`) : 0) +
+        people.length,
     };
+  });
+
+  app.get('/organisation/statement.pdf', async (request, reply) => {
+    const { organisation } = await myOrganisation(request);
+    const people = await repository.organisations.listServiceUsers(organisation.id);
+    const rows: Array<{ at: Date; line: string; pence: number }> = [];
+    for (const person of people) {
+      for (const order of await repository.orders.listForShopper(person.id)) {
+        if (!PAID_STATUSES.has(order.status)) continue;
+        const pence = paidAmount(order);
+        rows.push({
+          at: order.createdAt,
+          pence,
+          line: `${longDay(order.createdAt)}: for ${person.displayName}${person.organisationOffice ? ` (${person.organisationOffice})` : ''}, ${order.items.reduce((sum, item) => sum + item.quantity, 0)} items, ${money(pence)}. Reference ${order.id}.`,
+        });
+      }
+    }
+    rows.sort((a, b) => b.at.getTime() - a.at.getTime());
+    const lines = [
+      organisation.name,
+      `Statement from ${config.productName}, ${longDay(now())}.`,
+      '',
+      ...(rows.length === 0 ? ['No orders yet.'] : rows.map((row) => row.line)),
+      '',
+      `Total: ${money(rows.reduce((sum, row) => sum + row.pence, 0))} over ${rows.length} order${rows.length === 1 ? '' : 's'}.`,
+    ];
+    void reply.header('content-type', 'application/pdf');
+    void reply.header(
+      'content-disposition',
+      `attachment; filename="${safeName(organisation.name)} statement.pdf"`,
+    );
+    return reply.send(textPdf(`${config.productName} statement`, lines));
   });
 
   app.post('/organisation/settings', async (request) => {
@@ -592,6 +751,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       shops.push({
         ...shop,
         paid: planPaid(shop),
+        spotlightActive: spotlightActive(shop, now()),
         live: products.filter((product) => product.status === 'approved').length,
         waiting: products.filter((product) => product.status === 'pending').length,
         users: users.map((user) => ({ id: user.id, name: user.name, username: user.username })),
@@ -613,11 +773,17 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         })),
       });
     }
-    return { shops, organisations, partnerMonthlyPence: config.extras.partnerMonthlyPence };
+    return {
+      shops,
+      organisations,
+      partnerMonthlyPence: config.extras.partnerMonthlyPence,
+      spotlightPence: config.extras.spotlightPence,
+      spotlightPlusPence: config.extras.spotlightPlusPence,
+    };
   });
 
   app.post('/staff/partners', async (request, reply) => {
-    await staffActor(request, 'partners');
+    const actor = await staffActor(request, 'partners');
     const body = z
       .object({
         name: z.string().trim().min(2, 'Please give the shop’s name.').max(120),
@@ -641,26 +807,81 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
             paidUntil: addMonths(now(), body.paidMonths),
           })
         : shop;
+    if (body.paidMonths > 0) {
+      await repository.partnerPayments.create({
+        partnerShopId: shop.id,
+        kind: 'plan',
+        amountPence: shop.monthlyPence * body.paidMonths,
+        months: body.paidMonths,
+        coversUntil: paid.paidUntil ?? now(),
+        recordedBy: actor.name,
+        paidAt: now(),
+      });
+    }
     void reply.status(201);
     return { shop: paid };
   });
 
+  /** Records a payment: the plan, or Spotlight or Spotlight Plus on top of it. */
   app.post('/staff/partners/:id', async (request) => {
-    await staffActor(request, 'partners');
+    const actor = await staffActor(request, 'partners');
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const body = z
       .object({
         paidMonths: z.number().int().min(1).max(24).optional(),
+        kind: z.enum(['plan', 'spotlight', 'plus']).default('plan'),
         active: z.boolean().optional(),
       })
       .parse(request.body ?? {});
     const shop = await repository.partnerShops.findById(id);
     if (!shop) throw new NotFoundError('partner shop');
-    const from = shop.paidUntil && shop.paidUntil > now() ? shop.paidUntil : now();
-    const updated = await repository.partnerShops.update(shop.id, {
-      ...(body.paidMonths ? { paidUntil: addMonths(from, body.paidMonths) } : {}),
-      ...(body.active !== undefined ? { active: body.active } : {}),
-    });
+    const at = now();
+    let updated = shop;
+    if (body.paidMonths) {
+      if (body.kind === 'plan') {
+        const from = shop.paidUntil && shop.paidUntil > at ? shop.paidUntil : at;
+        updated = await repository.partnerShops.update(shop.id, {
+          paidUntil: addMonths(from, body.paidMonths),
+        });
+        await repository.partnerPayments.create({
+          partnerShopId: shop.id,
+          kind: 'plan',
+          amountPence: shop.monthlyPence * body.paidMonths,
+          months: body.paidMonths,
+          coversUntil: updated.paidUntil ?? at,
+          recordedBy: actor.name,
+          paidAt: now(),
+        });
+      } else {
+        // Ozi mentions are only for Shop Partners whose plan is paid.
+        if (!planPaid(shop)) {
+          throw new ConflictError(
+            'Spotlight is only for Shop Partners whose monthly plan is paid.',
+          );
+        }
+        const sameLevel =
+          shop.spotlight === body.kind && shop.spotlightUntil && shop.spotlightUntil > at;
+        const from = sameLevel && shop.spotlightUntil ? shop.spotlightUntil : at;
+        const price =
+          body.kind === 'plus' ? config.extras.spotlightPlusPence : config.extras.spotlightPence;
+        updated = await repository.partnerShops.update(shop.id, {
+          spotlight: body.kind,
+          spotlightUntil: addMonths(from, body.paidMonths),
+        });
+        await repository.partnerPayments.create({
+          partnerShopId: shop.id,
+          kind: body.kind,
+          amountPence: price * body.paidMonths,
+          months: body.paidMonths,
+          coversUntil: updated.spotlightUntil ?? at,
+          recordedBy: actor.name,
+          paidAt: now(),
+        });
+      }
+    }
+    if (body.active !== undefined) {
+      updated = await repository.partnerShops.update(shop.id, { active: body.active });
+    }
     return { shop: updated };
   });
 

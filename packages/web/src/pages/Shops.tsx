@@ -6,6 +6,7 @@ import {
   fetchCatalogueItem,
   fetchShop,
   fetchShops,
+  rememberJoinedVia,
   shopPhotoUrl,
   type PublicShop,
   type PublicShopProduct,
@@ -13,6 +14,7 @@ import {
 import { money } from '../lib/money';
 import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
+import { useSession } from '../state/session';
 
 /** Shop Partners: local shops showing their own products and prices (7 October 2026). */
 export function Shops(): JSX.Element {
@@ -63,6 +65,12 @@ export function ShopPage(): JSX.Element {
   const [page, setPage] = useState<Awaited<ReturnType<typeof fetchShop>> | null>(null);
   const [missing, setMissing] = useState(false);
   const [news, setNews] = useState('');
+
+  const { shopper, restoring } = useSession();
+  // Someone arriving by the shop's share link is counted for the shop if they open an account.
+  useEffect(() => {
+    if (!restoring && !shopper && id) rememberJoinedVia(`partner:${id}`);
+  }, [id, shopper, restoring]);
 
   useEffect(() => {
     fetchShop(id)

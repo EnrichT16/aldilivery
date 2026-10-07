@@ -15,6 +15,7 @@ import type {
   StaffFeedback,
   StaffFindRequest,
   StaffProblem,
+  StaffAnalytics,
   StaffPartnerProduct,
   StaffRecovery,
   TeamMember,
@@ -32,6 +33,8 @@ export interface StaffLists {
   enquiries?: StaffEnquiry[];
   /** Partner shop products waiting to be checked. */
   partners?: StaffPartnerProduct[];
+  /** Numbers, not a list to work through. */
+  analytics?: never[];
   team?: TeamMember[];
 }
 
@@ -52,6 +55,7 @@ export const AREA_WORDS: Record<StaffArea, { one: string; many: string; tab: str
     many: 'shop products to check',
     tab: 'Shops and organisations',
   },
+  analytics: { one: 'report', many: 'reports', tab: 'Analytics' },
   team: { one: 'person on the team', many: 'people on the team', tab: 'Team' },
 };
 
@@ -76,7 +80,7 @@ export function summary(
 ): string {
   const parts: string[] = [];
   for (const area of areas) {
-    if (area === 'team') continue;
+    if (area === 'team' || area === 'analytics') continue;
     const count = waiting(lists, area).length;
     if (count === 0) continue;
     const words = AREA_WORDS[area];
@@ -99,7 +103,9 @@ export function summary(
 }
 
 function firstNoun(areas: readonly StaffArea[], lists: StaffLists): string {
-  const area = areas.find((one) => one !== 'team' && waiting(lists, one).length > 0) ?? 'problems';
+  const area =
+    areas.find((one) => one !== 'team' && one !== 'analytics' && waiting(lists, one).length > 0) ??
+    (areas.includes('analytics') ? 'analytics' : 'problems');
   return {
     documents: 'documents',
     problems: 'complaints',
@@ -108,6 +114,7 @@ function firstNoun(areas: readonly StaffArea[], lists: StaffLists): string {
     finds: 'Finds It requests',
     enquiries: 'enquiries',
     partners: 'shop products',
+    analytics: 'analytics',
     team: 'team',
   }[area];
 }
@@ -197,6 +204,8 @@ export function readItem(area: StaffArea, item: unknown, position: string): stri
         `. ${row.hasPhoto ? 'It has a photo.' : 'It has no photo.'} Say "accept" or "turn it down", or "next".`
       );
     }
+    case 'analytics':
+      return '';
     case 'team': {
       const row = item as TeamMember;
       return `${position}. ${row.name}, ${row.title}, signs in as ${row.username}${row.active ? '' : '. Their account is turned off'}.`;
@@ -222,6 +231,7 @@ export type StaffCommand =
   | { kind: 'sign-out' };
 
 const AREA_PATTERNS: Array<[StaffArea, RegExp]> = [
+  ['analytics', /\b(analytics|analysis|numbers|statistics|stats|insights?|trends?)\b/],
   ['problems', /\b(complaints?|problems?|issues?|disputes?|refunds?)\b/],
   ['feedback', /\bfeedback\b/],
   ['documents', /\b(documents?|dbs|right to work|share codes?|insurance|licen[cs]es?|checks)\b/],
@@ -326,4 +336,29 @@ export function help(areas: readonly StaffArea[]): string {
     '"nobody at fault, refund 2 pounds 50", "write it off", "not found" or "rung back". ' +
     'I always read a decision back and wait for your yes. Say "sign me out" when you finish.'
   );
+}
+
+/** The business numbers, read aloud: no names, groups of ten or more only. */
+export function analyticsWords(data: StaffAnalytics): string {
+  const t = data.totals;
+  const busiest = data.shops[0];
+  const hour = [...data.hours].sort((a, b) => b.purchases - a.purchases)[0];
+  const day = [...data.weekdays].sort((a, b) => b.purchases - a.purchases)[0];
+  const unmet = data.unmetSearches.slice(0, 3).map((row) => row.term);
+  const parts = [
+    `In the last ${data.period}: ${t.purchases} purchase${t.purchases === 1 ? '' : 's'}, worth ${money(t.goodsPence)} of shopping` +
+      (t.shoppers !== null ? `, from ${t.shoppers} Shoppers` : '') +
+      `, delivered by ${t.runners} Runner${t.runners === 1 ? '' : 's'}.`,
+  ];
+  if (busiest) parts.push(`Busiest shop: ${busiest.shop}, with ${busiest.purchases}.`);
+  if (hour && hour.purchases > 0) parts.push(`Busiest hour: ${hour.hour} o'clock.`);
+  if (day && day.purchases > 0) parts.push(`Busiest day: ${day.day}.`);
+  if (data.ageBands.rows[0])
+    parts.push(
+      `Most purchases are by the ${data.ageBands.rows[0].key.replace('_', ' to ').replace('plus', 'and over')} age group.`,
+    );
+  if (unmet.length > 0) parts.push(`Most wanted, and nobody has it: ${listWords(unmet)}.`);
+  if (t.throughOrganisations > 0)
+    parts.push(`${t.throughOrganisations} came through organisations.`);
+  return parts.join(' ');
 }

@@ -159,6 +159,7 @@ export interface Shopper {
   recipePassUntil?: string | null;
   plusUntil?: string | null;
   creditPence?: number;
+  ageBand?: 'under_25' | '25_44' | '45_64' | '65_plus' | null;
   displayName: string;
   handle: string;
   phone: string;
@@ -188,10 +189,31 @@ export interface RegisterShopperInput {
 export function registerShopper(
   input: RegisterShopperInput,
 ): Promise<{ shopper: Shopper; token: string }> {
+  // The share link they came by, if any, so the shop or organisation that shared it is counted.
+  const via = joinedVia();
   return request<{ shopper: Shopper; token: string }>('/shoppers', {
     method: 'POST',
-    body: JSON.stringify(input),
+    body: JSON.stringify(via ? { ...input, joinedVia: via } : input),
   });
+}
+
+const JOINED_VIA = 'ozidelivery.joined.via';
+
+/** Remembers which share link brought someone here: partner:<id> or organisation:<id>. */
+export function rememberJoinedVia(via: string): void {
+  try {
+    window.localStorage.setItem(JOINED_VIA, via);
+  } catch {
+    // Not counted, which is harmless.
+  }
+}
+
+function joinedVia(): string | null {
+  try {
+    return window.localStorage.getItem(JOINED_VIA);
+  } catch {
+    return null;
+  }
 }
 
 /* ------------------------------------------------------------------------------------- *
@@ -564,7 +586,9 @@ export function fetchMe(): Promise<{ role: string; shopper?: Shopper }> {
  * Changing the account. The home address can be given this way only the first time; after
  * that, changing it needs the PIN (`changeHomeAddress`).
  */
-export function updateMe(patch: Partial<RegisterShopperInput>): Promise<{ shopper: Shopper }> {
+export function updateMe(
+  patch: Partial<RegisterShopperInput> & { ageBand?: Shopper['ageBand'] },
+): Promise<{ shopper: Shopper }> {
   return request<{ shopper: Shopper }>('/me', {
     method: 'PATCH',
     body: JSON.stringify(patch),
@@ -962,7 +986,15 @@ export function checkStaffKey(key: string): Promise<{ ok: true }> {
 
 /** What each staff job is, and which parts of the panel it sees. */
 export type StaffArea =
-  'documents' | 'problems' | 'feedback' | 'owed' | 'finds' | 'enquiries' | 'partners' | 'team';
+  | 'documents'
+  | 'problems'
+  | 'feedback'
+  | 'owed'
+  | 'finds'
+  | 'enquiries'
+  | 'partners'
+  | 'analytics'
+  | 'team';
 
 export interface StaffSignedIn {
   token: string;
@@ -1420,7 +1452,7 @@ export interface PartnerProductRow {
   createdAt: string;
 }
 
-export interface PartnerDashboard {
+export interface PartnerDashboard extends PartnerExtras {
   shop: { id: string; name: string; address: string; telephone: string; about: string };
   plan: { monthlyPence: number; paidUntil: string | null; paid: boolean };
   counts: { live: number; waiting: number; notAccepted: number };
@@ -1520,6 +1552,10 @@ export interface OrganisationDashboard {
   }>;
   upcoming: Array<{ person: string; office: string; dayOfWeek: number; estimatePence: number }>;
   deliveryFeePence: number;
+  /** The link the organisation shares, for people to link to it. */
+  sharePath: string | null;
+  /** People linked, and accounts opened through the link. */
+  referrals: number;
 }
 
 export function fetchOrganisationDashboard(): Promise<OrganisationDashboard> {
@@ -1565,6 +1601,7 @@ export interface StaffPartners {
     paidUntil: string | null;
     paid: boolean;
     active: boolean;
+    spotlightActive: boolean;
     live: number;
     waiting: number;
     users: Array<{ id: string; name: string; username: string }>;
@@ -1577,6 +1614,8 @@ export interface StaffPartners {
     users: Array<{ id: string; name: string; username: string; office: string }>;
   }>;
   partnerMonthlyPence: number;
+  spotlightPence: number;
+  spotlightPlusPence: number;
 }
 
 export function fetchStaffPartners(key: string): Promise<StaffPartners> {
@@ -1636,4 +1675,122 @@ export function decideStaffPartnerProduct(
     method: 'POST',
     body: JSON.stringify({ approve, ...(note ? { note } : {}) }),
   });
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * Spotlight, payment history, statements and business analysis (7 October 2026)
+ * ------------------------------------------------------------------------------------- */
+
+export interface PartnerPaymentRow {
+  id: string;
+  kind: 'plan' | 'spotlight' | 'plus';
+  what: string;
+  amountPence: number;
+  months: number;
+  coversUntil: string;
+  paidAt: string;
+}
+
+export interface PartnerExtras {
+  spotlight: {
+    level: 'none' | 'spotlight' | 'plus';
+    until: string | null;
+    mentionsThisMonth: number;
+    prices: {
+      spotlightPence: number;
+      plusPence: number;
+      spotlightPerWeek: number;
+      plusPerWeek: number;
+    };
+  };
+  payments: PartnerPaymentRow[];
+  referrals: number;
+  numbers: { purchasesThisWeek: number; purchasesThisMonth: number; itemsThisMonth: number };
+}
+
+/** Downloads a statement as a PDF file, signed in as the business. */
+export async function downloadBusinessStatement(
+  kind: 'partner' | 'organisation',
+  name: string,
+): Promise<void> {
+  const response = await fetch(`${BASE_URL}/${kind}/statement.pdf`, {
+    headers: { 'x-business-token': businessToken() },
+  });
+  if (!response.ok)
+    throw new ApiError('The statement could not be made just now.', response.status, undefined);
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${name} statement.pdf`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+export interface Advert {
+  shopId: string;
+  shopName: string;
+  productName: string;
+  pricePence: number;
+  catalogueItemId: string | null;
+  words: string;
+}
+
+export function fetchAdvert(query: string): Promise<{ advert: Advert | null }> {
+  return request(`/spotlight?q=${encodeURIComponent(query)}`);
+}
+
+export function recordStaffPartnerPayment(
+  key: string,
+  id: string,
+  kind: 'plan' | 'spotlight' | 'plus',
+  paidMonths = 1,
+): Promise<unknown> {
+  return staffRequest(key, `/staff/partners/${encodeURIComponent(id)}`, {
+    method: 'POST',
+    body: JSON.stringify({ kind, paidMonths }),
+  });
+}
+
+export interface AnalyticsGroup {
+  key: string;
+  purchases: number;
+  items: number;
+  goodsPence: number;
+  people: number;
+}
+
+export interface StaffAnalytics {
+  period: 'day' | 'week' | 'month' | 'year';
+  minimumGroup: number;
+  totals: {
+    purchases: number;
+    goodsPence: number;
+    shoppers: number | null;
+    runners: number;
+    throughOrganisations: number;
+  };
+  windows: Array<{ window: string; purchases: number; goodsPence: number }>;
+  shops: Array<{
+    shop: string;
+    purchases: number;
+    items: number;
+    goodsPence: number;
+    people: number | null;
+  }>;
+  hours: Array<{ hour: number; purchases: number }>;
+  weekdays: Array<{ day: string; purchases: number }>;
+  ageBands: { rows: AnalyticsGroup[]; hiddenGroups: number };
+  areas: { rows: AnalyticsGroup[]; hiddenGroups: number };
+  categories: Array<{ category: string; purchases: number; items: number }>;
+  routes: Array<{ route: string; deliveries: number }>;
+  travel: Array<{ mode: string; deliveries: number }>;
+  topSearches: Array<{ term: string; count: number }>;
+  unmetSearches: Array<{ term: string; count: number }>;
+}
+
+export function fetchStaffAnalytics(
+  key: string,
+  period: StaffAnalytics['period'],
+): Promise<StaffAnalytics> {
+  return staffRequest(key, `/staff/analytics?period=${period}`);
 }

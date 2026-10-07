@@ -13,6 +13,9 @@ export type PartnerCommand =
   | { kind: 'share' }
   | { kind: 'remove'; name: string }
   | { kind: 'price'; name: string; pricePence: number | null }
+  | { kind: 'payments' }
+  | { kind: 'spotlight' }
+  | { kind: 'numbers' }
   | { kind: 'help' }
   | { kind: 'sign-out' };
 
@@ -39,6 +42,17 @@ export function understandPartner(said: string): PartnerCommand | null {
   ) {
     return { kind: 'add' };
   }
+  if (/\b(spotlight|advert|adverts|advertis\w*|mention\w*)\b/.test(text))
+    return { kind: 'spotlight' };
+  if (/\b(history|statement|payments|what have i paid|receipts?)\b/.test(text))
+    return { kind: 'payments' };
+  if (
+    /\b(how am i doing|how (is|are) (my|the) (shop|sales)|sales|numbers|how many (orders|sold|purchases))\b/.test(
+      text,
+    )
+  ) {
+    return { kind: 'numbers' };
+  }
   if (/\b(share|link|refer|referral|tell (other|my))\b/.test(text)) return { kind: 'share' };
   if (/\b(pay|paid|plan|subscription|monthly|renew|price of (my|the) plan)\b/.test(text)) {
     return { kind: 'plan' };
@@ -53,7 +67,7 @@ export function partnerHelp(): string {
   return (
     'You can say: "add a product", and I will ask you its name, price and best before date; ' +
     '"read my products"; "change the price of" a product "to" an amount; "remove" a product; ' +
-    '"what do I pay"; "share my link"; or "sign me out".'
+    '"what do I pay"; "my payment history"; "how am I doing"; "my spotlight"; "share my link"; or "sign me out".'
   );
 }
 

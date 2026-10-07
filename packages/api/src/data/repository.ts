@@ -12,6 +12,9 @@
 
 import type {
   AccountRole,
+  AnalyticsEvent,
+  PartnerPayment,
+  SpotlightMention,
   BusinessUser,
   PartnerProduct,
   PartnerShop,
@@ -161,6 +164,8 @@ export interface Repository {
     findByFamilyCode(code: string): Promise<Shopper | null>;
     /** Everybody who has joined this Shopper's family plan, oldest first. */
     listFamily(ownerId: string): Promise<Shopper[]>;
+    /** How many accounts were opened through this share link. */
+    countJoinedVia(via: string): Promise<number>;
   };
 
   runners: {
@@ -441,6 +446,26 @@ export interface Repository {
     findByUsername(username: string): Promise<BusinessUser | null>;
     update(id: string, patch: Partial<Omit<BusinessUser, 'id'>>): Promise<BusinessUser>;
     listFor(where: { partnerShopId?: string; organisationId?: string }): Promise<BusinessUser[]>;
+  };
+
+  partnerPayments: {
+    create(input: Omit<PartnerPayment, 'id'>): Promise<PartnerPayment>;
+    /** Newest first. */
+    listForShop(partnerShopId: string): Promise<PartnerPayment[]>;
+  };
+
+  spotlightMentions: {
+    create(input: Omit<SpotlightMention, 'id'>): Promise<SpotlightMention>;
+    /** Mentions to one Shopper since a moment, of any shop. */
+    listForShopperSince(shopperKey: string, since: Date): Promise<SpotlightMention[]>;
+    countForShopSince(partnerShopId: string, since: Date): Promise<number>;
+  };
+
+  /** Business analysis: written once, never changed. */
+  analytics: {
+    record(input: Omit<AnalyticsEvent, 'id'>): Promise<void>;
+    /** Oldest first, between two moments, optionally of one kind. */
+    list(where: { since: Date; until?: Date; kind?: AnalyticsEvent['kind'] }): Promise<AnalyticsEvent[]>;
   };
 
   /** Close any underlying connection. */
