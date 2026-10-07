@@ -10,22 +10,34 @@ import { useVoice } from '../state/voice';
 
 /** The choices on the first screen, each with the words under it (ruling, 2 October 2026). */
 const DOORS = [
-  { to: '/sign-up', title: 'Shopper', description: 'I want my shopping brought to me.' },
+  {
+    to: '/sign-up',
+    title: 'Shopper',
+    description:
+      'You want shopping brought to you. You order, and a Runner buys it and brings it to your door.',
+  },
   {
     to: '/runner',
     title: 'Runner',
     description:
-      'I want to pick up orders in the app, buy the shopping, and take it to the Shopper. And be paid for it.',
+      'You want to earn money by buying shopping for people and taking it to their door.',
+  },
+  {
+    to: '/business',
+    title: 'Shop Partner',
+    description:
+      'You have a shop, and want to show your products and prices here. Sign in, or join.',
   },
   {
     to: '/organisations',
     title: 'Organisation',
-    description: 'A council, charity, care provider or business, arranging shopping for people.',
+    description:
+      'A council, charity, care home, hospital or business, getting shopping for the people it looks after.',
   },
   {
     to: '/looking-after',
     title: 'I look after someone',
-    description: 'I am family or a carer, and I want to help someone with their shopping.',
+    description: 'You are family or a carer, and want to help someone with their shopping.',
   },
   {
     to: '/just-looking',

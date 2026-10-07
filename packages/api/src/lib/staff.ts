@@ -18,7 +18,7 @@ import { ForbiddenError } from '../errors.js';
 
 /** What a part of the admin panel is called. Each is one tab. */
 export type StaffArea =
-  'documents' | 'problems' | 'feedback' | 'owed' | 'finds' | 'enquiries' | 'team';
+  'documents' | 'problems' | 'feedback' | 'owed' | 'finds' | 'enquiries' | 'partners' | 'team';
 
 export type StaffRole =
   | 'founder'
@@ -32,17 +32,17 @@ export type StaffRole =
 export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly StaffArea[] }> = {
   founder: {
     title: 'Founder',
-    areas: ['documents', 'problems', 'feedback', 'owed', 'finds', 'enquiries', 'team'],
+    areas: ['documents', 'problems', 'feedback', 'owed', 'finds', 'enquiries', 'partners', 'team'],
   },
   operations_manager: {
     title: 'Operations manager',
-    areas: ['documents', 'problems', 'feedback', 'finds', 'enquiries'],
+    areas: ['documents', 'problems', 'feedback', 'finds', 'enquiries', 'partners'],
   },
   onboarding: { title: 'Runner onboarding officer', areas: ['documents'] },
   customer_care: { title: 'Customer care officer', areas: ['problems', 'feedback'] },
   finance: { title: 'Finance officer', areas: ['owed'] },
   sourcing: { title: 'Finds It shopper', areas: ['finds'] },
-  partnerships: { title: 'Partnerships officer', areas: ['enquiries'] },
+  partnerships: { title: 'Partnerships officer', areas: ['enquiries', 'partners'] },
 };
 
 export function isStaffRole(value: string): value is StaffRole {

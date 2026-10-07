@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 
 import {
+  addBusinessUser,
+  addStaffOrganisation,
+  addStaffPartner,
   addTeamMember,
+  decideStaffPartnerProduct,
+  fetchStaffPartnerProducts,
+  fetchStaffPartners,
+  renewStaffPartner,
   changeStaffPassword,
   checkStaffKey,
   fetchStaffMe,
@@ -58,6 +65,7 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'owed', label: 'Money owed' },
   { key: 'finds', label: 'Finds It' },
   { key: 'enquiries', label: 'Enquiries' },
+  { key: 'partners', label: 'Shops and organisations' },
   { key: 'feedback', label: 'Feedback' },
   { key: 'team', label: 'Team' },
 ];
@@ -191,6 +199,7 @@ export function Staff(): JSX.Element {
             {shown === 'finds' && <Finds staffKey={key} onNews={setNews} />}
             {shown === 'enquiries' && <Enquiries staffKey={key} onNews={setNews} />}
             {shown === 'feedback' && <Feedback staffKey={key} />}
+            {shown === 'partners' && <Partners staffKey={key} onNews={setNews} />}
             {shown === 'team' && <Team staffKey={key} onNews={setNews} />}
           </div>
         </>
@@ -1192,4 +1201,339 @@ interface PanelProps {
   staffKey: string;
   by: string;
   onNews: (news: string) => void;
+}
+
+/**
+ * Shop Partners and organisations (7 October 2026): products waiting to be checked, each shop's
+ * plan and sign-ins, and each organisation's code and sign-ins.
+ */
+function Partners({
+  staffKey,
+  onNews,
+}: {
+  staffKey: string;
+  onNews: (text: string) => void;
+}): JSX.Element {
+  const list = useList(() => fetchStaffPartners(staffKey));
+  const pending = useList(() => fetchStaffPartnerProducts(staffKey));
+  const [problem, setProblem] = useState('');
+  const [password, setPassword] = useState('');
+  const [photos, setPhotos] = useState<Record<string, string>>({});
+  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  const fail = (failure: unknown): void =>
+    setProblem(failure instanceof Error ? failure.message : 'That could not be saved.');
+  const values = (event: FormEvent<HTMLFormElement>): ((name: string) => string) => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    return (name) => String(data.get(name) ?? '').trim();
+  };
+
+  return (
+    <section aria-labelledby="partners-heading" className="space-y-6 max-w-2xl">
+      <h2 id="partners-heading" className="text-lead font-bold">
+        Shops and organisations
+      </h2>
+      <Failure text={list.problem || pending.problem || problem} />
+      {password !== '' && (
+        <p role="status" className="border-2 border-highlight rounded-xl p-4 m-0">
+          {password}
+        </p>
+      )}
+
+      <section aria-labelledby="pending-heading" className="space-y-3">
+        <h3 id="pending-heading" className="font-bold m-0">
+          Products waiting to be checked
+        </h3>
+        {pending.data?.products.length === 0 && <p className="m-0">Nothing waiting.</p>}
+        <ul className="m-0 p-0 list-none space-y-3">
+          {pending.data?.products.map((product) => (
+            <li key={product.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+              <h4 className="m-0 font-bold">
+                {product.name}, {money(product.pricePence)}, from {product.shopName}
+              </h4>
+              <p className="m-0">
+                {product.tags ? `Labels: ${product.tags}. ` : ''}
+                {product.expiresOn
+                  ? `Best before ${new Date(product.expiresOn).toLocaleDateString('en-GB')}.`
+                  : ''}
+              </p>
+              {product.hasPhoto &&
+                (photos[product.id] ? (
+                  <img
+                    src={photos[product.id]}
+                    alt={product.name}
+                    className="max-h-64 rounded-lg"
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void fetchStaffFile(
+                        staffKey,
+                        `/staff/partner-products/${encodeURIComponent(product.id)}/photo`,
+                      )
+                        .then((url) => setPhotos((before) => ({ ...before, [product.id]: url })))
+                        .catch(fail)
+                    }
+                    className="control bg-paper/10 text-paper underline"
+                  >
+                    Show the photo<span className="visually-hidden"> of {product.name}</span>
+                  </button>
+                ))}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    void decideStaffPartnerProduct(staffKey, product.id, true)
+                      .then(() => {
+                        onNews(`${product.name} is live.`);
+                        pending.reload();
+                      })
+                      .catch(fail)
+                  }
+                  className="control bg-highlight text-ink"
+                >
+                  Accept<span className="visually-hidden"> {product.name}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    void decideStaffPartnerProduct(
+                      staffKey,
+                      product.id,
+                      false,
+                      'Please check the name, price and photo, and send it again.',
+                    )
+                      .then(() => {
+                        onNews(`${product.name} turned down.`);
+                        pending.reload();
+                      })
+                      .catch(fail)
+                  }
+                  className="control bg-paper/10 text-paper underline"
+                >
+                  Turn down<span className="visually-hidden"> {product.name}</span>
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section aria-labelledby="shops-heading" className="space-y-3">
+        <h3 id="shops-heading" className="font-bold m-0">
+          Shop Partners ({money(list.data?.partnerMonthlyPence ?? 0)} a month)
+        </h3>
+        <ul className="m-0 p-0 list-none space-y-3">
+          {list.data?.shops.map((shop) => (
+            <li key={shop.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+              <h4 className="m-0 font-bold">{shop.name}</h4>
+              <p className="m-0">
+                {shop.paid && shop.paidUntil
+                  ? `Paid until ${new Date(shop.paidUntil).toLocaleDateString('en-GB')}.`
+                  : 'Not paid: their products are hidden.'}{' '}
+                {shop.live} live, {shop.waiting} waiting. Sign-ins:{' '}
+                {shop.users.length
+                  ? shop.users.map((user) => user.username).join(', ')
+                  : 'none yet'}
+                .
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  void renewStaffPartner(staffKey, shop.id, 1)
+                    .then(() => {
+                      onNews(`${shop.name}: one more month recorded as paid.`);
+                      list.reload();
+                    })
+                    .catch(fail)
+                }
+                className="control bg-paper text-ink"
+              >
+                Record a month paid<span className="visually-hidden"> for {shop.name}</span>
+              </button>
+              <form
+                onSubmit={(event) => {
+                  const value = values(event);
+                  addBusinessUser(staffKey, 'partners', shop.id, {
+                    name: value('name'),
+                    username: value('username'),
+                  })
+                    .then((result) => {
+                      setPassword(result.message);
+                      list.reload();
+                    })
+                    .catch(fail);
+                }}
+                className="flex flex-wrap gap-2 items-end"
+              >
+                <label className="block">
+                  Their name
+                  <input name="name" className={field} />
+                </label>
+                <label className="block">
+                  Username
+                  <input name="username" autoComplete="off" className={field} />
+                </label>
+                <button type="submit" className="control bg-paper/10 text-paper underline">
+                  Give a sign-in<span className="visually-hidden"> for {shop.name}</span>
+                </button>
+              </form>
+            </li>
+          ))}
+        </ul>
+        <form
+          onSubmit={(event) => {
+            const value = values(event);
+            const form = event.currentTarget;
+            addStaffPartner(staffKey, {
+              name: value('shop-name'),
+              address: value('shop-address'),
+              telephone: value('shop-telephone'),
+              about: value('shop-about'),
+              paidMonths: Number(value('shop-months') || '1'),
+            })
+              .then(() => {
+                onNews(`${value('shop-name')} added as a Shop Partner.`);
+                form.reset();
+                list.reload();
+              })
+              .catch(fail);
+          }}
+          className="space-y-2"
+          aria-labelledby="add-shop-heading"
+        >
+          <h4 id="add-shop-heading" className="font-bold m-0">
+            Add a Shop Partner
+          </h4>
+          <label htmlFor="shop-name" className="block">
+            Shop name
+          </label>
+          <input id="shop-name" name="shop-name" className={field} />
+          <label htmlFor="shop-address" className="block">
+            Address
+          </label>
+          <input id="shop-address" name="shop-address" className={field} />
+          <label htmlFor="shop-telephone" className="block">
+            Telephone
+          </label>
+          <input id="shop-telephone" name="shop-telephone" type="tel" className={field} />
+          <label htmlFor="shop-about" className="block">
+            A line about the shop, for its page
+          </label>
+          <input id="shop-about" name="shop-about" className={field} />
+          <label htmlFor="shop-months" className="block">
+            Months already paid
+          </label>
+          <input
+            id="shop-months"
+            name="shop-months"
+            inputMode="numeric"
+            defaultValue="1"
+            className={field}
+          />
+          <button type="submit" className="control bg-highlight text-ink">
+            Add the shop
+          </button>
+        </form>
+      </section>
+
+      <section aria-labelledby="orgs-heading" className="space-y-3">
+        <h3 id="orgs-heading" className="font-bold m-0">
+          Organisations
+        </h3>
+        <ul className="m-0 p-0 list-none space-y-3">
+          {list.data?.organisations.map((organisation) => (
+            <li key={organisation.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+              <h4 className="m-0 font-bold">{organisation.name}</h4>
+              <p className="m-0">
+                Code {organisation.joinCode}. {organisation.people} people linked. Sign-ins:{' '}
+                {organisation.users.length
+                  ? organisation.users
+                      .map((user) => `${user.username}${user.office ? ` (${user.office})` : ''}`)
+                      .join(', ')
+                  : 'none yet'}
+                .
+              </p>
+              <form
+                onSubmit={(event) => {
+                  const value = values(event);
+                  addBusinessUser(staffKey, 'organisations', organisation.id, {
+                    name: value('name'),
+                    username: value('username'),
+                    office: value('office'),
+                  })
+                    .then((result) => {
+                      setPassword(result.message);
+                      list.reload();
+                    })
+                    .catch(fail);
+                }}
+                className="flex flex-wrap gap-2 items-end"
+              >
+                <label className="block">
+                  Their name
+                  <input name="name" className={field} />
+                </label>
+                <label className="block">
+                  Office or team
+                  <input name="office" className={field} />
+                </label>
+                <label className="block">
+                  Username
+                  <input name="username" autoComplete="off" className={field} />
+                </label>
+                <button type="submit" className="control bg-paper/10 text-paper underline">
+                  Give a sign-in<span className="visually-hidden"> for {organisation.name}</span>
+                </button>
+              </form>
+            </li>
+          ))}
+        </ul>
+        <form
+          onSubmit={(event) => {
+            const value = values(event);
+            const form = event.currentTarget;
+            addStaffOrganisation(staffKey, {
+              name: value('org-name'),
+              contactName: value('org-contact'),
+              contactEmail: value('org-email'),
+              contactPhone: value('org-phone') || undefined,
+            })
+              .then(() => {
+                onNews(`${value('org-name')} added.`);
+                form.reset();
+                list.reload();
+              })
+              .catch(fail);
+          }}
+          className="space-y-2"
+          aria-labelledby="add-org-heading"
+        >
+          <h4 id="add-org-heading" className="font-bold m-0">
+            Add an organisation
+          </h4>
+          <label htmlFor="org-name" className="block">
+            Organisation name
+          </label>
+          <input id="org-name" name="org-name" className={field} />
+          <label htmlFor="org-contact" className="block">
+            Main contact
+          </label>
+          <input id="org-contact" name="org-contact" className={field} />
+          <label htmlFor="org-email" className="block">
+            Their email
+          </label>
+          <input id="org-email" name="org-email" type="email" className={field} />
+          <label htmlFor="org-phone" className="block">
+            Their telephone
+          </label>
+          <input id="org-phone" name="org-phone" type="tel" className={field} />
+          <button type="submit" className="control bg-highlight text-ink">
+            Add the organisation
+          </button>
+        </form>
+      </section>
+    </section>
+  );
 }

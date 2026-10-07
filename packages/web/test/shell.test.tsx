@@ -57,8 +57,11 @@ describe('the landing page', () => {
     expect(screen.getByRole('heading', { name: 'Who are you?' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /^Shopper/ })).toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: /^Runner.*take it to the Shopper/ }),
+      screen.getByRole('link', { name: /^Runner.*taking it to their door/ }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /^Shop Partner.*show your products and prices/ }),
+    ).toHaveAttribute('href', '/business');
     expect(screen.getByRole('link', { name: /^Organisation/ })).toHaveAttribute(
       'href',
       '/organisations',

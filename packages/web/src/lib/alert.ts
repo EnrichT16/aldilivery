@@ -77,3 +77,53 @@ export function click(): void {
     // No sound. Ozi still says it.
   }
 }
+
+function tones(
+  notes: Array<{ frequency: number; at: number; length: number; type?: OscillatorType }>,
+): void {
+  try {
+    const Context: AudioContextConstructor | undefined =
+      window.AudioContext ??
+      (window as unknown as { webkitAudioContext?: AudioContextConstructor }).webkitAudioContext;
+    if (!Context) return;
+    const audio = new Context();
+    const start = audio.currentTime;
+    for (const { frequency, at, length, type } of notes) {
+      const tone = audio.createOscillator();
+      const volume = audio.createGain();
+      tone.type = type ?? 'triangle';
+      tone.frequency.value = frequency;
+      volume.gain.setValueAtTime(0.0001, start + at);
+      volume.gain.exponentialRampToValueAtTime(0.35, start + at + 0.01);
+      volume.gain.exponentialRampToValueAtTime(0.0001, start + at + length);
+      tone.connect(volume).connect(audio.destination);
+      tone.start(start + at);
+      tone.stop(start + at + length + 0.05);
+    }
+    window.setTimeout(() => {
+      void audio.close();
+    }, 1500);
+  } catch {
+    // No sound. The words on the screen, and Ozi, still say it.
+  }
+}
+
+/**
+ * Money leaving: a till's "ka-ching" when a payment goes through (Anthony, 7 October 2026). Two
+ * bright bell notes, a high one after a low one.
+ */
+export function moneyOut(): void {
+  tones([
+    { frequency: 1318, at: 0, length: 0.12 },
+    { frequency: 1760, at: 0.09, length: 0.5 },
+  ]);
+}
+
+/** Money coming back: a refund or gift card money, three falling coins. */
+export function moneyIn(): void {
+  tones([
+    { frequency: 1976, at: 0, length: 0.15 },
+    { frequency: 1568, at: 0.12, length: 0.15 },
+    { frequency: 1318, at: 0.24, length: 0.4 },
+  ]);
+}

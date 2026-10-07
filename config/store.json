@@ -77,7 +77,8 @@
     "familyMaximum": 4,
     "findItPence": 200,
     "findItShops": 3,
-    "giftCardPence": [1000, 2000, 3000, 5000]
+    "giftCardPence": [1000, 2000, 3000, 5000],
+    "partnerMonthlyPence": 2999
   },
   "calls": {
     "pencePerMinute": 5,

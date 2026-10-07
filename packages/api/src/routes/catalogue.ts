@@ -55,7 +55,7 @@ export async function registerCatalogueRoutes(app: FastifyInstance): Promise<voi
     const item = await repository.catalogue.findById(id);
 
     // An age restricted row is treated as though it is not there at all in version one.
-    if (!item || item.ageRestricted) {
+    if (!item || item.ageRestricted || item.retired) {
       return { found: false, item: null };
     }
     return { found: true, item };

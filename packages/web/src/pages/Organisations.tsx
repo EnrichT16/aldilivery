@@ -148,6 +148,14 @@ export function Organisations(): JSX.Element {
           </form>
         )}
       </section>
+      <section aria-labelledby="signin-heading" className="space-y-2 max-w-xl">
+        <h2 id="signin-heading" className="text-lead font-bold">
+          Already working with us?
+        </h2>
+        <Link to="/business" className="control bg-highlight text-ink">
+          Sign in to your organisation’s area
+        </Link>
+      </section>
       <Link to="/" className="control bg-paper/10 text-paper underline">
         Back to the start
       </Link>

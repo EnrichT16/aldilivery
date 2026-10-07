@@ -338,6 +338,15 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           where: { organisationId },
         })) as unknown as Shopper[];
       },
+      async findByJoinCode(code) {
+        return (await prisma.organisation.findUnique({ where: { joinCode: code } })) as any;
+      },
+      async list() {
+        return (await prisma.organisation.findMany({ orderBy: { createdAt: 'asc' } })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.organisation.update({ where: { id }, data: patch })) as any;
+      },
     },
 
     circles: {
@@ -374,6 +383,7 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         return (await prisma.catalogueItem.findMany({
           where: {
             ...(options.includeAgeRestricted ? {} : { ageRestricted: false }),
+            retired: false,
             ...(options.category ? { category: options.category } : {}),
             ...(query.trim()
               ? {
@@ -387,6 +397,9 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           orderBy: { name: 'asc' },
           take: options.limit ?? 50,
         })) as unknown as CatalogueItem[];
+      },
+      async update(id, patch) {
+        return (await prisma.catalogueItem.update({ where: { id }, data: patch })) as any;
       },
     },
 
@@ -631,6 +644,79 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
       async update(id, patch) {
         return (await prisma.staffMember.update({ where: { id }, data: patch })) as any;
+      },
+    },
+
+    partnerShops: {
+      async create(input) {
+        return (await prisma.partnerShop.create({ data: input })) as any;
+      },
+      async findById(id) {
+        return (await prisma.partnerShop.findUnique({ where: { id } })) as any;
+      },
+      async list() {
+        return (await prisma.partnerShop.findMany({ orderBy: { createdAt: 'asc' } })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.partnerShop.update({ where: { id }, data: patch })) as any;
+      },
+    },
+
+    partnerProducts: {
+      async create(input) {
+        const { photo, ...rest } = input;
+        return (await prisma.partnerProduct.create({
+          data: { ...rest, photo: photo ? Buffer.from(photo) : null },
+        })) as any;
+      },
+      async findById(id) {
+        return (await prisma.partnerProduct.findUnique({ where: { id } })) as any;
+      },
+      async update(id, patch) {
+        const { photo, ...rest } = patch;
+        return (await prisma.partnerProduct.update({
+          where: { id },
+          data: {
+            ...rest,
+            ...(photo !== undefined ? { photo: photo ? Buffer.from(photo) : null } : {}),
+          },
+        })) as any;
+      },
+      async listForShop(partnerShopId) {
+        return (await prisma.partnerProduct.findMany({
+          where: { partnerShopId },
+          orderBy: { createdAt: 'desc' },
+        })) as any;
+      },
+      async listPending() {
+        return (await prisma.partnerProduct.findMany({
+          where: { status: 'pending' },
+          orderBy: { createdAt: 'asc' },
+        })) as any;
+      },
+    },
+
+    businessUsers: {
+      async create(input) {
+        return (await prisma.businessUser.create({ data: input })) as any;
+      },
+      async findById(id) {
+        return (await prisma.businessUser.findUnique({ where: { id } })) as any;
+      },
+      async findByUsername(username) {
+        return (await prisma.businessUser.findUnique({ where: { username } })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.businessUser.update({ where: { id }, data: patch })) as any;
+      },
+      async listFor(where) {
+        return (await prisma.businessUser.findMany({
+          where: {
+            ...(where.partnerShopId !== undefined ? { partnerShopId: where.partnerShopId } : {}),
+            ...(where.organisationId !== undefined ? { organisationId: where.organisationId } : {}),
+          },
+          orderBy: { createdAt: 'asc' },
+        })) as any;
       },
     },
 

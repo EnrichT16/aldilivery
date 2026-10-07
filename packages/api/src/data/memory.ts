@@ -14,6 +14,9 @@ import type { OrderStatus } from '@aldilivery/core';
 
 import type {
   AccountRole,
+  BusinessUser,
+  PartnerProduct,
+  PartnerShop,
   StaffMember,
   FindRequest,
   GiftCard,
@@ -101,6 +104,9 @@ export function memoryRepository(): Repository {
   const giftCards = new Map<string, GiftCard>();
   const enquiries = new Map<string, OrganisationEnquiry>();
   const staffMembers = new Map<string, StaffMember>();
+  const partnerShops = new Map<string, PartnerShop>();
+  const partnerProducts = new Map<string, PartnerProduct>();
+  const businessUsers = new Map<string, BusinessUser>();
 
   const now = (): Date => new Date();
 
@@ -130,6 +136,7 @@ export function memoryRepository(): Repository {
           pinLockedUntil: null,
           deletionScheduledFor: null,
           organisationId: input.organisationId ?? null,
+          organisationOffice: null,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -521,6 +528,9 @@ export function memoryRepository(): Repository {
           contactPhone: input.contactPhone ?? null,
           invoiceTerms: input.invoiceTerms ?? '',
           active: true,
+          joinCode: null,
+          monthlyBudgetPence: null,
+          staffTripCostPence: null,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -533,6 +543,24 @@ export function memoryRepository(): Repository {
       },
       async listServiceUsers(organisationId) {
         return [...shoppers.values()].filter((s) => s.organisationId === organisationId).map(clone);
+      },
+      async findByJoinCode(code) {
+        for (const row of organisations.values()) {
+          if (row.joinCode === code) return clone(row);
+        }
+        return null;
+      },
+      async list() {
+        return [...organisations.values()]
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async update(key, patch) {
+        const existing = organisations.get(key);
+        if (!existing) throw new NotFoundError('Organisation', key);
+        const updated = { ...existing, ...patch, id: existing.id, updatedAt: now() };
+        organisations.set(key, updated);
+        return clone(updated);
       },
     },
 
@@ -572,6 +600,7 @@ export function memoryRepository(): Repository {
           source: input.source,
           externalRef: input.externalRef ?? null,
           lastSeenAt: input.lastSeenAt ?? now(),
+          retired: false,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -593,6 +622,7 @@ export function memoryRepository(): Repository {
         return [...catalogue.values()]
           .filter((item) => {
             if (!options.includeAgeRestricted && item.ageRestricted) return false;
+            if (item.retired) return false;
             if (options.category && item.category !== options.category) return false;
             if (needle === '') return true;
             return (
@@ -603,6 +633,13 @@ export function memoryRepository(): Repository {
           .sort((a, b) => a.name.localeCompare(b.name))
           .slice(0, options.limit ?? 50)
           .map(clone);
+      },
+      async update(key, patch) {
+        const existing = catalogue.get(key);
+        if (!existing) throw new NotFoundError('Catalogue item', key);
+        const updated = { ...existing, ...patch, id: existing.id, updatedAt: now() };
+        catalogue.set(key, updated);
+        return clone(updated);
       },
     },
 
@@ -1026,6 +1063,119 @@ export function memoryRepository(): Repository {
         const updated = { ...existing, ...patch, id: existing.id };
         staffMembers.set(key, updated);
         return clone(updated);
+      },
+    },
+
+    partnerShops: {
+      async create(input) {
+        const row: PartnerShop = {
+          ...input,
+          id: id(),
+          paidUntil: null,
+          active: true,
+          createdAt: now(),
+        };
+        partnerShops.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = partnerShops.get(key);
+        return found ? clone(found) : null;
+      },
+      async list() {
+        return [...partnerShops.values()]
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async update(key, patch) {
+        const existing = partnerShops.get(key);
+        if (!existing) throw new NotFoundError('Partner shop', key);
+        const updated = { ...existing, ...patch, id: existing.id };
+        partnerShops.set(key, updated);
+        return clone(updated);
+      },
+    },
+
+    partnerProducts: {
+      async create(input) {
+        const row: PartnerProduct = {
+          ...input,
+          id: id(),
+          status: 'pending',
+          note: null,
+          catalogueItemId: null,
+          createdAt: now(),
+          decidedAt: null,
+        };
+        partnerProducts.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = partnerProducts.get(key);
+        return found ? clone(found) : null;
+      },
+      async update(key, patch) {
+        const existing = partnerProducts.get(key);
+        if (!existing) throw new NotFoundError('Partner product', key);
+        const updated = { ...existing, ...patch, id: existing.id };
+        partnerProducts.set(key, updated);
+        return clone(updated);
+      },
+      async listForShop(partnerShopId) {
+        return [...partnerProducts.values()]
+          .filter((row) => row.partnerShopId === partnerShopId)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map(clone);
+      },
+      async listPending() {
+        return [...partnerProducts.values()]
+          .filter((row) => row.status === 'pending')
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+    },
+
+    businessUsers: {
+      async create(input) {
+        const row: BusinessUser = {
+          ...input,
+          id: id(),
+          active: true,
+          mustChangePassword: true,
+          failedAttempts: 0,
+          lockedUntil: null,
+          lastSignInAt: null,
+          createdAt: now(),
+        };
+        businessUsers.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = businessUsers.get(key);
+        return found ? clone(found) : null;
+      },
+      async findByUsername(username) {
+        for (const row of businessUsers.values()) {
+          if (row.username === username) return clone(row);
+        }
+        return null;
+      },
+      async update(key, patch) {
+        const existing = businessUsers.get(key);
+        if (!existing) throw new NotFoundError('Business user', key);
+        const updated = { ...existing, ...patch, id: existing.id };
+        businessUsers.set(key, updated);
+        return clone(updated);
+      },
+      async listFor(where) {
+        return [...businessUsers.values()]
+          .filter(
+            (row) =>
+              (where.partnerShopId === undefined || row.partnerShopId === where.partnerShopId) &&
+              (where.organisationId === undefined || row.organisationId === where.organisationId),
+          )
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
       },
     },
 

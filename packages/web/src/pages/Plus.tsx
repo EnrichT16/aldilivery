@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { moneyOut } from '../lib/alert';
 
 import { PriceConfirm } from '../components/PriceConfirm';
 import { storeConfig } from '../config';
@@ -47,6 +48,7 @@ export function Plus(): JSX.Element {
       const result = await run();
       setState(result);
       setNews(result.message);
+      if (/was taken from your card/.test(result.message)) moneyOut();
       if (shopper) {
         replaceShopper({
           ...shopper,
