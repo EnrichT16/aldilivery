@@ -62,7 +62,8 @@ export function say(text: string): string {
 export function ask(text: string, action: string): string {
   return (
     '<Response>' +
-    `<Gather input="speech" language="en-GB" speechTimeout="auto" actionOnEmptyResult="true" method="POST" action="${escapeXml(action)}">` +
+    // Speech, or one key: 0 puts the caller through to a person (ruling 51).
+    `<Gather input="speech dtmf" numDigits="1" language="en-GB" speechTimeout="auto" actionOnEmptyResult="true" method="POST" action="${escapeXml(action)}">` +
     say(text) +
     '</Gather>' +
     '</Response>'
