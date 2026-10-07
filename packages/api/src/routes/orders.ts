@@ -30,6 +30,7 @@ import { recordOrderIncome } from '../lib/ledger.js';
 import { offerOrder } from '../services/dispatch.js';
 import { alertPayments, bankReference, bankSettings } from '../lib/bank.js';
 import { tellShopper } from '../services/order-updates.js';
+import { settleTill } from '../services/till.js';
 import { payOutOrder } from '../services/pay-runner.js';
 import {
   assertConfirmedBeforePayment,
@@ -576,9 +577,13 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       finalTotalPence: repricing.finalTotalPence,
     });
 
+    // The difference from the estimate is settled on the same card at once (ruling 52).
+    const settled = await settleTill(app.ctx, updated, request.log);
+
     return {
       order: updated,
       repricing,
+      settled,
       message:
         repricing.differenceFromEstimatePence > 0
           ? `The shopping came to ${formatPence(repricing.receiptTotalPence, symbol)}, which is ${formatPence(repricing.differenceFromEstimatePence, symbol)} less than we thought.`

@@ -63,6 +63,32 @@ Cloudflare's pricing page before deciding.
 - **WhatsApp:** WhatsApp Business through Meta; conversations started by the business are
   charged per conversation.
 
+## The brains, and what they cost (Anthony asked, 7 October 2026)
+
+- **Claude through the API** is the cleverest, but every message is paid for, from credits.
+- **Claude on Anthony's monthly plan** cannot be called by a program. But Claude Code
+  *routines* (scheduled jobs, like the nightly "Ozi daily phrases" task already running) do run
+  on the monthly plan, within its usage limits, at no extra cost. So the thinking-heavy jobs
+  that can wait a few hours (drafting a week of posts, summarising the inbox, suggesting answers
+  for review, checking websites) can be done by routines on the monthly plan.
+- **Free open models** answer instantly, every minute of the day: Cloudflare's free daily AI
+  allowance, or a home computer running Ollama. Good at sorting, short replies from what they
+  were taught, and summaries; less clever than Claude.
+- **A home computer as the server:** a Mac mini with Apple's M-series chip and 16 to 32 GB of
+  memory runs good open models quietly, using little electricity; a PC with a graphics card
+  (for example 12 GB or more of video memory) is faster but louder and uses more power. Either
+  must stay switched on and online, and is only as reliable as the home broadband and power.
+  A laptop works for trying it out, but is not built to run all day.
+
+**Recommended start, costing little or nothing a month:**
+
+1. The helper engine on **Cloudflare Workers' free plan**: always on, nothing to look after.
+2. Its everyday brain: **Cloudflare's free AI allowance**, plus everything Anthony and the
+   staff have taught it (which costs nothing and gets better every week).
+3. The clever, slower jobs: **Claude Code routines on the monthly plan**.
+4. Later, if the free allowance runs out or more privacy is wanted: a **Mac mini** at home or
+   in the office, running Ollama, which the same engine can use without any change.
+
 ## Rules they always keep
 
 - Nothing public goes out without a person's approval until you say a helper may act alone for
