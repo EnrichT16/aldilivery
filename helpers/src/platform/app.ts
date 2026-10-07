@@ -8,6 +8,7 @@ import { cronMatches } from '../core/cron.js';
 import { Runtime, type RuntimeOptions } from '../core/runtime.js';
 import { handleEmail, type InboxResult } from '../helpers/inbox/inbox.js';
 import type { IncomingEmail } from '../helpers/inbox/mime.js';
+import { runWatchman } from '../helpers/watchman/watchman.js';
 
 /** The default timings, in UTC. 06:30 UTC is 07:30 in a British summer and 06:30 in winter. */
 export const DEFAULT_SCHEDULE = {
@@ -41,8 +42,8 @@ export function createApp(options: RuntimeOptions, extra: ExtraTasks = {}): App 
     tasks[name] = run;
     if (cron) timed.push({ name, cron, run });
   };
+  if (runtime.ofType('watchman').length > 0) add('watchman', schedule.watchman, () => runWatchman(runtime));
   for (const [name, task] of Object.entries(extra)) add(name, task.cron, () => task.run(runtime));
-  void schedule;
 
   const handler = createHandler(runtime, tasks);
   return {
