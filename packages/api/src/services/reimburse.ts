@@ -13,6 +13,8 @@
  *   no more than the estimate plus the larger of £5 or a fifth of it, the same limit the
  *   Shopper's card is settled within (services/till.ts).
  * - Never more than one delivery carries (Rule Three, £60).
+ * - With no photo of the till receipt, more than `receipts.photoNeededAbovePence` (£30) waits for
+ *   a person too; a photo sent afterwards lets it go at once.
  * - When the till needs a person (too far over the estimate, a bank transfer, a refund or charge
  *   that failed), the pay-back waits for a person too. It is shown in the admin panel's
  *   Payments tab with an Approve button, and the owner is texted.
@@ -45,6 +47,9 @@ export type ReimbursementOutcome =
   | { kind: 'waiting'; pence: number; reason: string; message: string }
   | { kind: 'owed'; pence: number; message: string };
 
+/** Why a pay-back waits when there is no photo of the receipt. */
+export const NO_PHOTO = 'no receipt photo';
+
 /** The reference on the transfer, which makes it happen once only. */
 export function reimbursementReference(orderId: string): string {
   return `reimburse:${orderId}`;
@@ -60,6 +65,8 @@ export function planReimbursement(input: {
   maximumGoodsPence: number;
   /** Why the till itself is waiting for a person, if it is. */
   tillNeedsPerson: string | null;
+  /** Whether a photo of the receipt came with it, and above what a pay-back needs one. */
+  receiptPhoto?: { has: boolean; neededAbovePence: number };
 }): { pence: number; waitReason: string | null } {
   const pence = Math.min(input.receiptTotalPence, input.maximumGoodsPence);
   if (input.tillNeedsPerson) return { pence, waitReason: input.tillNeedsPerson };
@@ -71,6 +78,13 @@ export function planReimbursement(input: {
     input.goodsEstimatePence + tillLimitPence(input.goodsEstimatePence)
   ) {
     return { pence, waitReason: 'over the limit' };
+  }
+  if (
+    input.receiptPhoto &&
+    !input.receiptPhoto.has &&
+    pence > input.receiptPhoto.neededAbovePence
+  ) {
+    return { pence, waitReason: NO_PHOTO };
   }
   return { pence, waitReason: null };
 }
@@ -122,6 +136,10 @@ export async function startReimbursement(
     goodsEstimatePence: order.goodsEstimatePence,
     maximumGoodsPence: ctx.config.fees.maximumGoodsPence,
     tillNeedsPerson: settled.kind === 'needs-person' ? settled.reason : null,
+    receiptPhoto: {
+      has: (await ctx.repository.receiptPhotos.findByOrderId(order.id)) !== null,
+      neededAbovePence: ctx.config.receipts.photoNeededAbovePence,
+    },
   });
 
   if (plan.waitReason !== null) {
@@ -139,7 +157,10 @@ export async function startReimbursement(
       kind: 'waiting',
       pence: plan.pence,
       reason: plan.waitReason,
-      message: `A person needs to check this till total before we pay you back ${money(plan.pence)} for the shopping. We will do it as soon as we can and let you know.`,
+      message:
+        plan.waitReason === NO_PHOTO
+          ? `Please add a photo of the receipt and we will pay you back ${money(plan.pence)} for the shopping straight away. Without one, a person checks it first.`
+          : `A person needs to check this till total before we pay you back ${money(plan.pence)} for the shopping. We will do it as soon as we can and let you know.`,
     };
   }
 
@@ -269,6 +290,26 @@ export async function sendReimbursement(
       paid: payout !== null,
     }),
   };
+}
+
+/**
+ * A photo of the receipt has arrived after the till total. A pay-back that was waiting only for
+ * it goes now, without a person; anything else waiting is left for the person.
+ */
+export async function receiptPhotoArrived(
+  ctx: ReimburseContext,
+  orderId: string,
+  log?: FastifyBaseLogger,
+): Promise<ReimbursementOutcome | null> {
+  const order = await ctx.repository.orders.findById(orderId);
+  if (order?.reimbursementStatus !== 'waiting' || order.reimbursementReason !== NO_PHOTO) {
+    return null;
+  }
+  await ctx.repository.orders.update(order.id, {
+    reimbursementStatus: 'owed',
+    reimbursementReason: null,
+  });
+  return sendReimbursement(ctx, order.id, null, log);
 }
 
 /**

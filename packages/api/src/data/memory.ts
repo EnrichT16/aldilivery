@@ -9,11 +9,13 @@
 import { randomUUID } from 'node:crypto';
 
 import { newReferralCode } from '../lib/referral.js';
+import { erasedOrderPatch, erasedShopperPatch } from './erasure.js';
 
 import type { OrderStatus } from '@aldilivery/core';
 
 import type {
   AccountRole,
+  AuditEntry,
   IncomeRecord,
   LearnedPhrase,
   AnalyticsEvent,
@@ -46,12 +48,16 @@ import type {
   ProblemReport,
   ProblemEvidence,
   RunnerRecovery,
+  ReceiptPhoto,
   RecurringSet,
   Runner,
   RunnerCheck,
   RunnerPayout,
+  RunnerSos,
+  ReferralReward,
   SetItem,
   Shopper,
+  ShopperFeedback,
 } from '../domain.js';
 import type {
   CatalogueSearchOptions,
@@ -117,6 +123,11 @@ export function memoryRepository(): Repository {
   const analyticsEvents: AnalyticsEvent[] = [];
   const incomeRecords: IncomeRecord[] = [];
   const learned: LearnedPhrase[] = [];
+  const receiptPhotos = new Map<string, ReceiptPhoto>();
+  const shopperFeedback = new Map<string, ShopperFeedback>();
+  const sosAlerts = new Map<string, RunnerSos>();
+  const referralRewards: ReferralReward[] = [];
+  const auditEntries: AuditEntry[] = [];
 
   const now = (): Date => new Date();
 
@@ -145,6 +156,7 @@ export function memoryRepository(): Repository {
           pinFailedAttempts: 0,
           pinLockedUntil: null,
           deletionScheduledFor: null,
+          erasedAt: null,
           organisationId: input.organisationId ?? null,
           organisationOffice: null,
           ageBand: null,
@@ -168,6 +180,11 @@ export function memoryRepository(): Repository {
       async count() {
         return shoppers.size;
       },
+      async listReferred() {
+        return [...shoppers.values()]
+          .filter((shopper) => /^(shopper|runner):/.test(shopper.joinedVia ?? ''))
+          .map(clone);
+      },
       async countJoinedVia(via) {
         return [...shoppers.values()].filter((shopper) => shopper.joinedVia === via).length;
       },
@@ -182,6 +199,16 @@ export function memoryRepository(): Repository {
           if (shopper.phone === phone) return clone(shopper);
         }
         return null;
+      },
+      async listDueForErasure(at) {
+        return [...shoppers.values()]
+          .filter(
+            (shopper) =>
+              shopper.erasedAt === null &&
+              shopper.deletionScheduledFor !== null &&
+              shopper.deletionScheduledFor.getTime() <= at.getTime(),
+          )
+          .map(clone);
       },
       async findByHandle(handle) {
         for (const shopper of shoppers.values()) {
@@ -223,6 +250,16 @@ export function memoryRepository(): Repository {
           agreementAcceptedAt: input.agreementAcceptedAt ?? null,
           agreementVersion: input.agreementVersion ?? null,
           agreementChannel: input.agreementChannel ?? null,
+          payoutSchedule: 'weekly',
+          leftAt: null,
+          leftReason: null,
+          leftBy: null,
+          coolBagRefundedPence: null,
+          coolBagRefundedAt: null,
+          coolBagRefundTransferId: null,
+          coolBagRefundNote: null,
+          insuranceReminderFor: null,
+          insuranceReminderDays: null,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -318,6 +355,52 @@ export function memoryRepository(): Repository {
         const row = { ...found, ...patch };
         runnerDocuments.set(key, row);
         return clone(row);
+      },
+    },
+
+    sos: {
+      async create(input) {
+        const row: RunnerSos = { ...input, id: id() };
+        sosAlerts.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = sosAlerts.get(key);
+        return found ? clone(found) : null;
+      },
+      async findByLinkCodeHash(hash) {
+        for (const row of sosAlerts.values()) if (row.linkCodeHash === hash) return clone(row);
+        return null;
+      },
+      async findActiveForRunner(runnerId) {
+        const active = [...sosAlerts.values()]
+          .filter((row) => row.runnerId === runnerId && row.endedAt === null)
+          .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+        return active[0] ? clone(active[0]) : null;
+      },
+      async listSince(since) {
+        return [...sosAlerts.values()]
+          .filter((row) => row.endedAt === null || row.startedAt >= since)
+          .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+          .map(clone);
+      },
+      async update(key, patch) {
+        const existing = sosAlerts.get(key);
+        if (!existing) throw new NotFoundError('SOS', key);
+        const updated = { ...existing, ...patch, id: existing.id };
+        sosAlerts.set(key, updated);
+        return clone(updated);
+      },
+    },
+
+    referralRewards: {
+      async create(input) {
+        const row: ReferralReward = { ...input, id: id() };
+        referralRewards.push(row);
+        return clone(row);
+      },
+      async list() {
+        return referralRewards.map(clone);
       },
     },
 
@@ -740,12 +823,20 @@ export function memoryRepository(): Repository {
           reimbursementTransferId: null,
           reimbursedAt: null,
           reimbursementApprovedBy: null,
+          tillStatus: null,
+          tillReason: null,
+          tillSettledBy: null,
+          tillSettledAt: null,
+          doorWord: input.doorWord ?? null,
+          setFireAt: input.setFireAt ?? null,
+          anonymisedAt: null,
           createdAt: now(),
           updatedAt: now(),
           acceptedAt: null,
           deliveredAt: null,
           completedAt: null,
           cancelledAt: null,
+          cancelReason: null,
           items,
         };
         orders.set(order.id, order);
@@ -799,6 +890,20 @@ export function memoryRepository(): Repository {
           .filter((o) => o.runnerId === runnerId)
           .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
           .map(clone);
+      },
+      async listByTillStatus(status) {
+        return [...orders.values()]
+          .filter((o) => o.tillStatus === status)
+          .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+          .map(clone);
+      },
+      async findBySetOccurrence(setId, fireAt) {
+        for (const order of orders.values()) {
+          if (order.setId === setId && order.setFireAt?.getTime() === fireAt.getTime()) {
+            return clone(order);
+          }
+        }
+        return null;
       },
     },
 
@@ -897,6 +1002,8 @@ export function memoryRepository(): Repository {
           noticeSentAt: null,
           skipRequestedForFireAt: null,
           lastFiredAt: null,
+          autoSendAgreedAt: input.autoSendAgreedAt ?? null,
+          autoSendStatement: input.autoSendStatement ?? null,
           createdAt: now(),
           updatedAt: now(),
           items,
@@ -1077,6 +1184,7 @@ export function memoryRepository(): Repository {
           totpEnabled: false,
           allowedAreas: '',
           sessionVersion: 0,
+          recoveryCodes: '',
         };
         staffMembers.set(row.id, row);
         return clone(row);
@@ -1321,6 +1429,207 @@ export function memoryRepository(): Repository {
             (row) => row.at >= where.since && (where.until === undefined || row.at < where.until),
           )
           .sort((a, b) => a.at.getTime() - b.at.getTime())
+          .map(clone);
+      },
+    },
+
+    receiptPhotos: {
+      async save(input) {
+        const existing = receiptPhotos.get(input.orderId);
+        const row: ReceiptPhoto = { ...input, id: existing?.id ?? id() };
+        receiptPhotos.set(input.orderId, row);
+        return clone(row);
+      },
+      async findByOrderId(orderId) {
+        const found = receiptPhotos.get(orderId);
+        return found ? clone(found) : null;
+      },
+      async ordersWithPhotos(orderIds) {
+        return new Set(orderIds.filter((orderId) => receiptPhotos.has(orderId)));
+      },
+    },
+
+    shopperFeedback: {
+      async create(input) {
+        if (shopperFeedback.has(input.orderId)) {
+          throw new Error(`Feedback for order ${input.orderId} is already in.`);
+        }
+        const row: ShopperFeedback = { ...input, id: id() };
+        shopperFeedback.set(input.orderId, row);
+        return clone(row);
+      },
+      async findByOrderId(orderId) {
+        const found = shopperFeedback.get(orderId);
+        return found ? clone(found) : null;
+      },
+      async listSince(since) {
+        return [...shopperFeedback.values()]
+          .filter((row) => row.createdAt.getTime() >= since.getTime())
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+    },
+    audit: {
+      async record(input) {
+        // Frozen, so not even code in this process can change an entry once it is written.
+        const row: AuditEntry = Object.freeze({ ...input, id: id() });
+        auditEntries.push(row);
+        return clone(row);
+      },
+      async list(where) {
+        const needle = where.search?.trim().toLowerCase() ?? '';
+        // Newest first; of two at the same moment, the one written later first.
+        return [...auditEntries]
+          .reverse()
+          .filter(
+            (row) =>
+              (where.since === undefined || row.at >= where.since) &&
+              (where.until === undefined || row.at < where.until) &&
+              (where.actorId === undefined || row.actorId === where.actorId) &&
+              (where.target === undefined || row.target === where.target) &&
+              (needle === '' ||
+                [row.actorName, row.actorRole, row.action, row.target, row.detail, row.ip].some(
+                  (field) => field.toLowerCase().includes(needle),
+                )),
+          )
+          .sort((a, b) => b.at.getTime() - a.at.getTime())
+          .slice(0, where.limit ?? 200)
+          .map(clone);
+      },
+    },
+
+    retention: {
+      async eraseShopper(shopperId, at) {
+        const shopper = shoppers.get(shopperId);
+        if (!shopper) throw new NotFoundError('Shopper', shopperId);
+        shoppers.set(shopperId, {
+          ...shopper,
+          ...erasedShopperPatch(shopperId, at),
+          updatedAt: at,
+        });
+        for (const [key, method] of paymentMethods) {
+          if (method.shopperId === shopperId) paymentMethods.delete(key);
+        }
+        for (const [key, device] of pushSubscriptions) {
+          if (device.shopperId === shopperId) pushSubscriptions.delete(key);
+        }
+        for (const [key, saved] of savedAddresses) {
+          if (saved.shopperId === shopperId) savedAddresses.delete(key);
+        }
+        for (const [key, member] of circleMembers) {
+          if (member.shopperId === shopperId) circleMembers.delete(key);
+        }
+        for (const [key, set] of sets) {
+          if (set.shopperId === shopperId) sets.delete(key);
+        }
+        for (const [key, order] of orders) {
+          if (order.shopperId !== shopperId) continue;
+          orders.set(key, {
+            ...order,
+            ...erasedOrderPatch(at),
+            paymentMethodId: null,
+            setId: null,
+            updatedAt: at,
+          });
+        }
+      },
+      async deleteProblemEvidenceDecidedBefore(before) {
+        const old = new Set(
+          [...problems.values()]
+            .filter((report) => report.decidedAt !== null && report.decidedAt < before)
+            .map((report) => report.id),
+        );
+        let removed = 0;
+        for (const [key, row] of problemEvidence) {
+          if (old.has(row.reportId)) {
+            problemEvidence.delete(key);
+            removed += 1;
+          }
+        }
+        return removed;
+      },
+      async deleteAnalyticsBefore(before) {
+        const keep = analyticsEvents.filter((row) => row.at >= before);
+        const removed = analyticsEvents.length - keep.length;
+        analyticsEvents.splice(0, analyticsEvents.length, ...keep);
+        return removed;
+      },
+      async deleteSignInCodesBefore(before) {
+        let removed = 0;
+        for (const [key, row] of oneTimeCodes) {
+          if (row.createdAt < before) {
+            oneTimeCodes.delete(key);
+            removed += 1;
+          }
+        }
+        return removed;
+      },
+      async anonymiseOrdersBefore(before, at) {
+        let changed = 0;
+        for (const [key, order] of orders) {
+          if (order.createdAt >= before || order.anonymisedAt !== null) continue;
+          orders.set(key, { ...order, ...erasedOrderPatch(at), updatedAt: at });
+          changed += 1;
+        }
+        return changed;
+      },
+      async deleteReceiptPhotosBefore(before) {
+        let removed = 0;
+        for (const [key, photo] of receiptPhotos) {
+          const order = orders.get(photo.orderId);
+          if (!order || order.createdAt < before) {
+            receiptPhotos.delete(key);
+            removed += 1;
+          }
+        }
+        return removed;
+      },
+    },
+    admin: {
+      async listOrders(where) {
+        return [...orders.values()]
+          .filter(
+            (row) =>
+              (where.since === undefined || row.createdAt >= where.since) &&
+              (where.until === undefined || row.createdAt < where.until) &&
+              (where.statuses === undefined || where.statuses.includes(row.status)),
+          )
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .slice(0, where.limit ?? 200)
+          .map(clone);
+      },
+      async listShoppersCreated(where) {
+        return [...shoppers.values()]
+          .filter(
+            (row) =>
+              row.createdAt >= where.since &&
+              (where.until === undefined || row.createdAt < where.until),
+          )
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async searchShoppers(text, limit = 20) {
+        const needle = text.trim().toLowerCase();
+        if (needle === '') return [];
+        return [...shoppers.values()]
+          .filter((row) =>
+            [row.displayName, row.handle, row.phone].some((field) =>
+              field.toLowerCase().includes(needle),
+            ),
+          )
+          .sort((a, b) => a.displayName.localeCompare(b.displayName))
+          .slice(0, limit)
+          .map(clone);
+      },
+      async listProblemsDecided(where) {
+        return [...problems.values()]
+          .filter(
+            (row) =>
+              row.decidedAt !== null &&
+              row.decidedAt >= where.since &&
+              (where.until === undefined || row.decidedAt < where.until),
+          )
+          .sort((a, b) => (a.decidedAt?.getTime() ?? 0) - (b.decidedAt?.getTime() ?? 0))
           .map(clone);
       },
     },

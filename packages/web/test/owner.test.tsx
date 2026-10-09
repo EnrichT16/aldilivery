@@ -296,7 +296,8 @@ describe('family', () => {
       within(nav)
         .getAllByRole('button')
         .map((b) => b.textContent),
-    ).toEqual(['Overview']);
+      // Their own two-step codes are theirs to set up, like every admin sign-in (Section Q).
+    ).toEqual(['Overview', 'Two-step codes']);
     expect(screen.getByText(/You can look, but not change anything\./)).toBeInTheDocument();
     expect((await screen.findByText('Shoppers')).nextSibling).toHaveTextContent('120');
     expect(screen.queryByRole('button', { name: 'Money' })).not.toBeInTheDocument();

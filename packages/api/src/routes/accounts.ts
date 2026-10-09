@@ -52,11 +52,11 @@ const shopperSchema = z.object({
   deliveryAddress: z.string().trim().max(300).optional(),
   substitutionDefault: z.enum(['no_substitutes', 'similar_item', 'ask_me']).optional(),
   budgetCapPence: z.number().int().positive().optional(),
-  /** The share link they came by: a Shop Partner, an organisation, staff or a Shopper. */
+  /** The share link they came by: a Shop Partner, an organisation, staff, a Shopper or a Runner. */
   joinedVia: z
     .string()
     .trim()
-    .regex(/^(partner|organisation|staff|shopper):[A-Za-z0-9_-]{1,40}$/)
+    .regex(/^(partner|organisation|staff|shopper|runner):[A-Za-z0-9_-]{1,40}$/)
     .optional(),
 });
 
@@ -272,6 +272,9 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
 
     const current = await repository.runners.findById(session.accountId);
     if (!current) throw new NotFoundError('account');
+    if (body.available && current.leftAt) {
+      throw new ConflictError('Your Runner account is closed. Please talk to us to come back.');
+    }
     if (body.available && MOTOR_MODES.includes(current.vehicleType) && !canDrive(current, now())) {
       throw new ConflictError(
         'Before you can deliver by car or motorbike, we need your driving licence and insurance checked and in date. Switch to walking or bicycle to start now.',

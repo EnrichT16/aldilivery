@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { storeConfig } from '../config';
+import { CloseAccount } from '../components/CloseAccount';
 import { ShareCard } from '../components/ShareCard';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import {
@@ -193,6 +194,8 @@ export function Settings(): JSX.Element {
           </button>
         </section>
       )}
+
+      {shopper && <CloseAccount />}
     </div>
   );
 }

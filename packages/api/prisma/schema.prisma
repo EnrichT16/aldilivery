@@ -159,6 +159,8 @@ model Shopper {
   /// Set when the Shopper asks for deletion. The row survives for the recycle bin window
   /// and is removed afterwards. Deleting is never immediate and never silent.
   deletionScheduledFor DateTime?
+  /// When the account was removed after closing: personal details taken off, money records kept.
+  erasedAt             DateTime?
 
   /// Which office or team at the organisation looks after this person.
   organisationOffice String?
@@ -223,6 +225,25 @@ model Runner {
   agreementVersion    String?
   agreementChannel    String?
 
+  /// How often Stripe sends what is in their own Stripe account on to their bank: weekly
+  /// (the default) or daily (ruling 16). Pay still reaches their Stripe account after each job.
+  payoutSchedule String @default("weekly")
+
+  /// When they stopped being a Runner, closed by themselves or removed by staff, and why.
+  leftAt                  DateTime?
+  leftReason              String?
+  leftBy                  String?
+  /// The cool bag deposit paid back on leaving (docs/LEGAL_REVIEW.md), or why it waits.
+  coolBagRefundedPence    Int?
+  coolBagRefundedAt       DateTime?
+  coolBagRefundTransferId String?
+  coolBagRefundNote       String?
+
+  /// Insurance reminders (ruling 14): which expiry date they were for, and the fewest days
+  /// before it that a reminder has gone out (0 once it has run out).
+  insuranceReminderFor  DateTime?
+  insuranceReminderDays Int?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -231,6 +252,7 @@ model Runner {
   payouts   RunnerPayout[]
   checks    RunnerCheck[]
   documents RunnerDocument[]
+  sos       RunnerSos[]
 
   @@index([available, lastJobCompletedAt])
 }
@@ -424,12 +446,31 @@ model Order {
   reimbursedAt            DateTime?
   reimbursementApprovedBy String?
 
+  /// A till total a person must settle with the Shopper (a large extra, a bank transfer, a
+  /// charge or refund that failed): "needs_person" until it is settled, then "settled", with
+  /// why, who settled it and when. Shown on the owner's till screen.
+  tillStatus    String?
+  tillReason    String?
+  tillSettledBy String?
+  tillSettledAt DateTime?
+
+  /// The door safe word (T6): two easy words the Runner says at the door.
+  doorWord String?
+
+  /// For an order placed by a Set: which occurrence, so each occurrence is placed once only.
+  setFireAt DateTime?
+
+  /// When the delivery address and doorstep words were taken off, seven years on (retention).
+  anonymisedAt DateTime?
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   acceptedAt  DateTime?
   deliveredAt DateTime?
   completedAt DateTime?
   cancelledAt DateTime?
+  /// Why it was cancelled, in plain words, for the admin panel's cancellations list.
+  cancelReason String?
 
   items     OrderItem[]
   offers    JobOffer[]
@@ -437,10 +478,38 @@ model Order {
   questions ItemQuestion[]
   calls     Call[]
 
+  @@unique([setId, setFireAt])
   @@index([status])
   @@index([reimbursementStatus])
+  @@index([tillStatus])
   @@index([shopperId])
   @@index([poolId])
+}
+
+/// A photo of the till receipt, taken by the Runner when the till total goes in. Kept with the
+/// order for the people approving a pay-back or settling the till.
+model ReceiptPhoto {
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  data        Bytes
+  contentType String
+  createdAt   DateTime @default(now())
+}
+
+/// What a Shopper said after a delivery (Section O). One per order, and the credit given for it,
+/// whatever it says. Shops see only patterns, never who said what.
+model ShopperFeedback {
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  /// 1 to 5, if they gave one.
+  rating      Int?
+  /// The themes they picked, comma separated, from a fixed list.
+  themes      String   @default("")
+  message     String   @default("")
+  creditPence Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model OrderItem {
@@ -543,6 +612,10 @@ model Set {
   /// occurrence has passed.
   skipRequestedForFireAt DateTime?
   lastFiredAt            DateTime?
+  /// When the Shopper agreed that each occurrence is sent and paid for by itself after the
+  /// notice, and the words they agreed to (Rule One). Null: a reminder only, nothing is paid.
+  autoSendAgreedAt       DateTime?
+  autoSendStatement      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -875,6 +948,8 @@ model StaffMember {
   allowedAreas       String    @default("")
   /// Raised to sign every session of this account out at once.
   sessionVersion     Int       @default(0)
+  /// Two-step recovery codes, each hashed, comma separated. One is used up each time.
+  recoveryCodes      String    @default("")
   createdAt          DateTime  @default(now())
 }
 
@@ -1014,4 +1089,65 @@ model LearnedPhrase {
 
   @@unique([account, text])
   @@index([status, timesHeard])
+}
+
+/// A Runner pressing SOS (Section M): where they are, kept up to date while it is on, and a
+/// private link for the owner that stops working. Never anything about the Shopper's phone.
+model RunnerSos {
+  id             String    @id @default(cuid())
+  runnerId       String
+  runner         Runner    @relation(fields: [runnerId], references: [id], onDelete: Cascade)
+  /// The job they were on, if any.
+  orderId        String?
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+  endedBy        String?
+  latitude       Float?
+  longitude      Float?
+  accuracyMetres Float?
+  locationAt     DateTime?
+  /// The hash of the code in the private link. Never the code itself.
+  linkCodeHash   String    @unique
+  linkExpiresAt  DateTime
+  alertSentAt    DateTime?
+  alertProblem   String?
+
+  @@index([runnerId, endedAt])
+}
+
+/// The private referral reward (rulings 12 and 16), given by the owner. Not announced.
+model ReferralReward {
+  id              String   @id @default(cuid())
+  /// Whose share link: shopper:<handle> or runner:<Runner ID>.
+  referrer        String
+  qualifyingCount Int
+  amountPence     Int
+  /// credit (a Shopper's credit), transfer (a Runner's own Stripe account) or by_hand.
+  method          String
+  reference       String?
+  decidedBy       String
+  createdAt       DateTime @default(now())
+
+  @@index([referrer])
+}
+/// Who did what in the admin panel, and when (Section Q). Only ever added to: the server has
+/// no way to change or remove an entry, and the database refuses to (see the migration).
+model AuditEntry {
+  id        String   @id @default(cuid())
+  at        DateTime @default(now())
+  /// The staff account, or null for the staff key.
+  actorId   String?
+  actorName String
+  actorRole String
+  /// What was done, such as "POST /staff/problems/:id/decide" or "shopper.opened".
+  action    String
+  /// What it was done to, such as an order or a Shopper.
+  target    String   @default("")
+  /// A short record of what was sent, with every password, passcode and code taken out.
+  detail    String   @default("")
+  /// The internet address it came from.
+  ip        String   @default("")
+
+  @@index([at])
+  @@index([actorId])
 }

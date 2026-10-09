@@ -166,7 +166,11 @@ export function RunnerAgreement(): JSX.Element {
           </li>
           <li>
             Your pay goes to your own Stripe account, and from there to your bank. Stripe&rsquo;s
-            own terms apply to that account. We send it after each delivery.
+            own terms apply to that account. We send it after each delivery. Stripe then pays it
+            into your bank once a week, on a Friday, or every day if you choose that on your Money
+            tab. If you need it sooner, you can take an instant payout to a debit card; Stripe
+            charges a small fee for that, which you pay, and you are shown it before anything is
+            sent.
           </li>
           <li>
             Paying you back for the shopping is separate from your pay, and never comes out of it.

@@ -132,6 +132,7 @@ function stubRunnerApi(): void {
                   shopperName: 'Margaret',
                   deliveryAddress: '12 Example Street, Leeds',
                   doorstepProtocol: 'Knock twice, I am slow to the door.',
+                  doorWord: 'blue kettle',
                   substitutionDefault: 'similar_item',
                   goodsEstimatePence: 339,
                   receiptTotalPence: null,
@@ -361,6 +362,8 @@ describe('a Runner page', () => {
     expect(
       screen.getByText('At the door, in their words: Knock twice, I am slow to the door.'),
     ).toBeInTheDocument();
+    // The door safe word (T6): the same two words Margaret was given.
+    expect(screen.getByText('blue kettle')).toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'I have started shopping' }));
 
@@ -391,6 +394,30 @@ describe('a Runner page', () => {
       ),
     ).toHaveAttribute('role', 'status');
     expect(state.status).toBe('delivered');
+  });
+
+  it('sends a photo of the receipt with the till total, when one was taken', async () => {
+    const user = userEvent.setup({ delay: null });
+    state.status = 'shopping';
+    stubRunnerApi();
+    renderHome();
+
+    const till = await screen.findByLabelText('What did the till say?');
+    const camera = screen.getByLabelText('Take a photo of the receipt');
+    expect(camera).toHaveAccessibleDescription(/pay you back larger amounts straight away/);
+    await user.upload(camera, new File(['receipt'], 'receipt.jpg', { type: 'image/jpeg' }));
+    expect(
+      await screen.findByText('The photo of the receipt is ready to go with the total.'),
+    ).toHaveAttribute('role', 'status');
+    await user.type(till, '3.20');
+    await user.click(screen.getByRole('button', { name: 'Put in the till total' }));
+    const body = state.sent.find((r) => r.path === '/orders/order-1/receipt')?.body as {
+      receiptTotalPence: number;
+      photo?: { data: string; contentType: string };
+    };
+    expect(body.receiptTotalPence).toBe(320);
+    expect(body.photo?.contentType).toBe('image/jpeg');
+    expect(body.photo?.data).toBe(btoa('receipt'));
   });
 
   it('asks the Shopper about something it cannot find, and says their answer out loud', async () => {

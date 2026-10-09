@@ -24,6 +24,7 @@ import { requireSession } from '../app.js';
 import { decidedBy, staffActor } from '../lib/staff.js';
 import type { Runner, RunnerDocument, RunnerDocumentKind, VehicleType } from '../domain.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
+import { insuranceNotice, insuranceRenewalDue } from '../services/insurance.js';
 import { recordRunnerCheck } from '../services/runner-checks.js';
 
 export const MOTOR_MODES: VehicleType[] = ['motorbike', 'car', 'van'];
@@ -122,10 +123,20 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
   /** What is still needed: never sent, or sent and turned down. */
   async function stillNeeded(runner: Runner): Promise<RunnerDocumentKind[]> {
     const documents = await repository.runnerDocuments.listForRunner(runner.id);
-    return documentsNeeded(runner.travelModes).filter((kind) => {
+    const needed = documentsNeeded(runner.travelModes).filter((kind) => {
       const latest = documents.find((document) => document.kind === kind);
       return !latest || latest.status === 'rejected';
     });
+    // Insurance soon to run out, or run out: a new certificate is asked for (ruling 14), unless
+    // one is already waiting to be checked.
+    if (
+      !needed.includes('insurance') &&
+      insuranceRenewalDue(runner, now(), config.runners.insuranceReminderDays) &&
+      documents.find((document) => document.kind === 'insurance')?.status !== 'submitted'
+    ) {
+      needed.push('insurance');
+    }
+    return needed;
   }
 
   /* ------------------------------------------------------------------ documents */
@@ -323,6 +334,13 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
         .reduce((t, order) => t + (order.reimbursementPence ?? 0), 0),
       owing,
       recoveryPercentOfPay: config.problems.recoveryPercentOfPay,
+      // Ruling 16: how often Stripe sends their money on to their bank.
+      payoutSchedule: runner.payoutSchedule,
+      // Ruling 14: their motor insurance, when it is soon to run out or has.
+      insurance: insuranceNotice(runner, at, config.runners.insuranceReminderDays),
+      // Closed or removed, and the cool bag deposit paid back on leaving.
+      leftAt: runner.leftAt,
+      coolBagRefundedPence: runner.coolBagRefundedPence,
     };
   });
 

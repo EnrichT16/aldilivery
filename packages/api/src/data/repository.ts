@@ -12,6 +12,7 @@
 
 import type {
   AccountRole,
+  AuditEntry,
   IncomeRecord,
   LearnedPhrase,
   AnalyticsEvent,
@@ -45,10 +46,15 @@ import type {
   ProblemEvidence,
   RunnerRecovery,
   RecurringSet,
+  ReceiptPhoto,
   ReimbursementStatus,
+  ShopperFeedback,
+  TillStatus,
   Runner,
   RunnerCheck,
   RunnerPayout,
+  RunnerSos,
+  ReferralReward,
   SetItem,
   Shopper,
 } from '../domain.js';
@@ -124,6 +130,8 @@ export type CreateOrder = Pick<
       | 'confirmationStatement'
       | 'paidBy'
       | 'bankReference'
+      | 'doorWord'
+      | 'setFireAt'
     >
   > & { items: CreateOrderItem[] };
 
@@ -135,7 +143,16 @@ export type CreateRecurringSet = Pick<
   'shopperId' | 'name' | 'deliveryAddress' | 'frequency' | 'dayOfWeek' | 'timeOfDay' | 'nextFireAt'
 > &
   Partial<
-    Pick<RecurringSet, 'paymentMethodId' | 'timezone' | 'active' | 'latitude' | 'longitude'>
+    Pick<
+      RecurringSet,
+      | 'paymentMethodId'
+      | 'timezone'
+      | 'active'
+      | 'latitude'
+      | 'longitude'
+      | 'autoSendAgreedAt'
+      | 'autoSendStatement'
+    >
   > & { items: CreateSetItem[] };
 
 export type CreateJobOffer = Pick<
@@ -174,8 +191,12 @@ export interface Repository {
     listFamily(ownerId: string): Promise<Shopper[]>;
     /** How many accounts were opened through this share link. */
     countJoinedVia(via: string): Promise<number>;
+    /** Shoppers who came by a Shopper's or a Runner's own share link, oldest first. */
+    listReferred(): Promise<Shopper[]>;
     /** How many Shopper accounts there are. */
     count(): Promise<number>;
+    /** Closed accounts whose days to change their mind are over, not yet removed. */
+    listDueForErasure(at: Date): Promise<Shopper[]>;
   };
 
   runners: {
@@ -211,6 +232,24 @@ export interface Repository {
     listSubmitted(): Promise<RunnerDocument[]>;
     update(id: string, patch: Partial<Omit<RunnerDocument, 'id'>>): Promise<RunnerDocument>;
   };
+  /** Runners pressing SOS (Section M). */
+  sos: {
+    create(input: Omit<RunnerSos, 'id'>): Promise<RunnerSos>;
+    findById(id: string): Promise<RunnerSos | null>;
+    findByLinkCodeHash(hash: string): Promise<RunnerSos | null>;
+    /** The SOS this Runner has on now, if any. */
+    findActiveForRunner(runnerId: string): Promise<RunnerSos | null>;
+    /** Every one still on, and any started since a moment. Newest first. */
+    listSince(since: Date): Promise<RunnerSos[]>;
+    update(id: string, patch: Partial<Omit<RunnerSos, 'id'>>): Promise<RunnerSos>;
+  };
+
+  /** The private referral reward (rulings 12 and 16): every one given, oldest first. */
+  referralRewards: {
+    create(input: Omit<ReferralReward, 'id'>): Promise<ReferralReward>;
+    list(): Promise<ReferralReward[]>;
+  };
+
   runnerFeedback: {
     create(input: Omit<RunnerFeedback, 'id'>): Promise<RunnerFeedback>;
     /** Newest first. */
@@ -336,6 +375,10 @@ export interface Repository {
     countForRunner(runnerId: string): Promise<number>;
     /** Every order a Runner has been given, newest first. */
     listForRunner(runnerId: string): Promise<Order[]>;
+    /** Orders whose till total a person must settle with the Shopper, or has. Newest first. */
+    listByTillStatus(status: TillStatus): Promise<Order[]>;
+    /** The order a Set placed for one occurrence, if it placed one. */
+    findBySetOccurrence(setId: string, fireAt: Date): Promise<Order | null>;
   };
 
   offers: {
@@ -502,6 +545,79 @@ export interface Repository {
     record(input: Omit<IncomeRecord, 'id'>): Promise<void>;
     /** Oldest first. */
     list(where: { since: Date; until?: Date }): Promise<IncomeRecord[]>;
+  };
+
+  /** Photos of till receipts, one per order. */
+  receiptPhotos: {
+    /** Keeps the photo, replacing one sent before for the same order. */
+    save(input: Omit<ReceiptPhoto, 'id'>): Promise<ReceiptPhoto>;
+    findByOrderId(orderId: string): Promise<ReceiptPhoto | null>;
+    /** Which of these orders have a photo, without loading the photos. */
+    ordersWithPhotos(orderIds: string[]): Promise<Set<string>>;
+  };
+
+  /** What Shoppers said after deliveries (Section O). One per order. */
+  shopperFeedback: {
+    create(input: Omit<ShopperFeedback, 'id'>): Promise<ShopperFeedback>;
+    findByOrderId(orderId: string): Promise<ShopperFeedback | null>;
+    /** Oldest first, since a moment. */
+    listSince(since: Date): Promise<ShopperFeedback[]>;
+  };
+
+  /**
+   * Keeping only what the privacy page says we keep, for as long as it says (docs/LEGAL_REVIEW.md).
+   * Each returns how many records it changed or removed.
+   */
+  retention: {
+    /**
+     * A closed account, once its days to change its mind are over: name, number, addresses,
+     * doorstep words, PIN, cards, devices, saved addresses and Sets go; the orders and money
+     * records stay, without the address or doorstep words, as the privacy page says.
+     */
+    eraseShopper(shopperId: string, at: Date): Promise<void>;
+    /** Problem photos, voice notes and notes, for problems decided before a moment. */
+    deleteProblemEvidenceDecidedBefore(before: Date): Promise<number>;
+    /** Business analysis records from before a moment. */
+    deleteAnalyticsBefore(before: Date): Promise<number>;
+    /** Sign-in codes made before a moment: the security record of signing in. */
+    deleteSignInCodesBefore(before: Date): Promise<number>;
+    /** Orders placed before a moment: the address and doorstep words taken off, money kept. */
+    anonymiseOrdersBefore(before: Date, at: Date): Promise<number>;
+    /** Till receipt photos for orders placed before a moment. */
+    deleteReceiptPhotosBefore(before: Date): Promise<number>;
+  };
+  /**
+   * The admin panel's audit log (Section Q): only ever added to. There is deliberately no way
+   * here to change or remove an entry, and the database refuses to as well.
+   */
+  audit: {
+    record(input: Omit<AuditEntry, 'id'>): Promise<AuditEntry>;
+    /** Newest first. `search` matches who, what, the target, the detail or the address. */
+    list(where: {
+      since?: Date;
+      until?: Date;
+      search?: string;
+      actorId?: string;
+      target?: string;
+      limit?: number;
+    }): Promise<AuditEntry[]>;
+  };
+
+  /** What the admin panel looks up across everybody (Section Q). Read only. */
+  admin: {
+    /** Orders, newest first, made between two moments, optionally of some statuses. */
+    listOrders(where: {
+      since?: Date;
+      until?: Date;
+      statuses?: OrderStatus[];
+      limit?: number;
+    }): Promise<Order[]>;
+    /** Shoppers who opened an account between two moments, oldest first. */
+    listShoppersCreated(where: { since: Date; until?: Date }): Promise<Shopper[]>;
+    /** Shoppers whose name, handle or phone number contains this, at most `limit`. */
+    searchShoppers(text: string, limit?: number): Promise<Shopper[]>;
+    /** Problems decided between two moments, oldest first. */
+    listProblemsDecided(where: { since: Date; until?: Date }): Promise<ProblemReport[]>;
   };
 
   /** Close any underlying connection. */

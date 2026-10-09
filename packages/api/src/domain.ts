@@ -58,6 +58,8 @@ export interface Shopper {
   /** Gift card money waiting to be used, in pence. */
   creditPence: number;
   deletionScheduledFor: Date | null;
+  /** When a closed account was removed: personal details taken off, money records kept. */
+  erasedAt: Date | null;
   organisationId: string | null;
   /** Which office or team at the organisation looks after this person. */
   organisationOffice: string | null;
@@ -108,8 +110,62 @@ export interface Runner {
   agreementAcceptedAt: Date | null;
   agreementVersion: string | null;
   agreementChannel: string | null;
+  /**
+   * How often Stripe sends what is in the Runner's own Stripe account on to their bank (ruling
+   * 16). Their pay and pay-backs still reach their Stripe account straight away.
+   */
+  payoutSchedule: PayoutSchedule;
+  /** When they stopped being a Runner, closed by themselves or removed by staff, and why. */
+  leftAt: Date | null;
+  leftReason: string | null;
+  leftBy: string | null;
+  /** The cool bag deposit paid back on leaving, or the reason it waits for a person. */
+  coolBagRefundedPence: number | null;
+  coolBagRefundedAt: Date | null;
+  coolBagRefundTransferId: string | null;
+  coolBagRefundNote: string | null;
+  /** Insurance reminders (ruling 14): for which expiry, and the fewest days before it sent. */
+  insuranceReminderFor: Date | null;
+  insuranceReminderDays: number | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** Weekly unless the Runner chooses daily (ruling 16). An instant payout is asked for each time. */
+export type PayoutSchedule = 'weekly' | 'daily';
+
+/**
+ * A Runner pressing SOS (Section M). Where they are, kept up to date while it is on, and the
+ * hash of the code in the private link sent to the owner. Nothing about the Shopper's phone.
+ */
+export interface RunnerSos {
+  id: string;
+  runnerId: string;
+  orderId: string | null;
+  startedAt: Date;
+  endedAt: Date | null;
+  endedBy: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  accuracyMetres: number | null;
+  locationAt: Date | null;
+  linkCodeHash: string;
+  linkExpiresAt: Date;
+  alertSentAt: Date | null;
+  alertProblem: string | null;
+}
+
+/** The private referral reward (rulings 12 and 16), given by the owner. */
+export interface ReferralReward {
+  id: string;
+  /** shopper:<handle> or runner:<Runner ID>. */
+  referrer: string;
+  qualifyingCount: number;
+  amountPence: number;
+  method: 'credit' | 'transfer' | 'by_hand';
+  reference: string | null;
+  decidedBy: string;
+  createdAt: Date;
 }
 
 /**
@@ -234,6 +290,9 @@ export interface OrderItem {
  */
 export type ReimbursementStatus = 'paid' | 'waiting' | 'owed';
 
+/** A till total waiting for a person to settle with the Shopper, and once they have. */
+export type TillStatus = 'needs_person' | 'settled';
+
 export interface Order {
   id: string;
   shopperId: string;
@@ -273,12 +332,25 @@ export interface Order {
   reimbursementTransferId: string | null;
   reimbursedAt: Date | null;
   reimbursementApprovedBy: string | null;
+  /** A till total a person must settle with the Shopper, and how it ended. See routes/till-cases.ts. */
+  tillStatus: TillStatus | null;
+  tillReason: string | null;
+  tillSettledBy: string | null;
+  tillSettledAt: Date | null;
+  /** The door safe word (T6): two easy words the Runner says at the door. */
+  doorWord: string | null;
+  /** For an order a Set placed: which occurrence, so each is placed once only. */
+  setFireAt: Date | null;
+  /** When the address and doorstep words were taken off, seven years on. */
+  anonymisedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   acceptedAt: Date | null;
   deliveredAt: Date | null;
   completedAt: Date | null;
   cancelledAt: Date | null;
+  /** Why it was cancelled, in plain words, for the admin panel. Null when nobody said. */
+  cancelReason?: string | null;
   items: OrderItem[];
 }
 
@@ -336,6 +408,12 @@ export interface RecurringSet {
   noticeSentAt: Date | null;
   skipRequestedForFireAt: Date | null;
   lastFiredAt: Date | null;
+  /**
+   * When the Shopper agreed that each occurrence is sent and paid for by itself after the
+   * notice, and the words they agreed to. Null: a reminder only, and nothing is ever paid.
+   */
+  autoSendAgreedAt: Date | null;
+  autoSendStatement: string | null;
   createdAt: Date;
   updatedAt: Date;
   items: SetItem[];
@@ -580,6 +658,8 @@ export interface StaffMember {
   allowedAreas: string;
   /** Raised to sign every session of this account out at once. */
   sessionVersion: number;
+  /** Two-step recovery codes, each hashed, comma separated; one is used up each time. */
+  recoveryCodes: string;
 }
 
 /** A local shop on the monthly partner plan (7 October 2026). */
@@ -715,4 +795,41 @@ export interface LearnedPhrase {
   reply: string | null;
   decidedBy: string | null;
   decidedAt: Date | null;
+}
+
+/** A photo of the till receipt, kept with the order (STILL_TO_DO item 2). */
+export interface ReceiptPhoto {
+  id: string;
+  orderId: string;
+  data: Buffer;
+  contentType: string;
+  createdAt: Date;
+}
+
+/** What a Shopper said after a delivery (Section O), and the credit it earned. */
+export interface ShopperFeedback {
+  id: string;
+  orderId: string;
+  rating: number | null;
+  /** The themes picked, comma separated. */
+  themes: string;
+  message: string;
+  creditPence: number;
+  createdAt: Date;
+}
+/**
+ * One line of the admin panel's audit log (Section Q): who did what, to what, when, and from
+ * which internet address. Only ever added to; never changed, never removed.
+ */
+export interface AuditEntry {
+  id: string;
+  at: Date;
+  /** The staff account, or null for the staff key. */
+  actorId: string | null;
+  actorName: string;
+  actorRole: string;
+  action: string;
+  target: string;
+  detail: string;
+  ip: string;
 }

@@ -103,6 +103,25 @@
     "recoveryPercentOfPay": 10,
     "writeOffUpToPence": 2000
   },
+  "feedback": {
+    "creditPence": 100
+  },
+  "receipts": {
+    "photoNeededAbovePence": 3000
+  },
+  "runners": {
+    "sosLinkHours": 12,
+    "instantPayoutFeeBasisPoints": 100,
+    "instantPayoutFeeMinimumPence": 50,
+    "insuranceReminderDays": [30, 7, 1],
+    "referralRewardPence": 15000,
+    "referralsForReward": 100
+  },
+  "admin": {
+    "ownerOnlyRefundAbovePence": 2500,
+    "staffTwoStepGraceDays": 14,
+    "staffTwoStepFrom": "2026-10-17"
+  },
   "versionOneRestrictions": {
     "ageRestrictedGoodsAllowed": false
   }

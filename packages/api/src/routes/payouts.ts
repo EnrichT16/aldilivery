@@ -93,6 +93,12 @@ export async function registerPayoutRoutes(app: FastifyInstance): Promise<void> 
     if (!accountId) {
       accountId = (await payments.createConnectedAccount({ runnerId: runner.id })).id;
       await repository.runners.update(runner.id, { stripeConnectedAccountId: accountId });
+      // Weekly unless they chose daily (ruling 16). Never allowed to stop them setting up.
+      await payments
+        .setPayoutSchedule({ accountId, interval: runner.payoutSchedule })
+        .catch((failure: unknown) => {
+          request.log.warn({ err: failure }, 'The payout schedule could not be set yet.');
+        });
     }
 
     const link = await payments.createOnboardingLink({

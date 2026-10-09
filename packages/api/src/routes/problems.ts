@@ -21,7 +21,7 @@ import { formatPence } from '@aldilivery/core';
 import { requireSession, type Session } from '../app.js';
 import { decidedBy, staffActor } from '../lib/staff.js';
 import type { Order, ProblemDecision, ProblemEvidence, ProblemReport } from '../domain.js';
-import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 
 const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 const AUDIO_TYPES = [
@@ -318,6 +318,12 @@ export async function registerProblemRoutes(app: FastifyInstance): Promise<void>
     );
     if (body.refundPence + alreadyRefunded > orderTotal(order)) {
       throw new BadRequestError('That would refund more than the order cost.');
+    }
+    // A refund above the threshold is the owner's alone to give (Section Q).
+    if (body.refundPence > config.admin.ownerOnlyRefundAbovePence && !actor.isOwner) {
+      throw new ForbiddenError(
+        `A refund of more than ${formatPence(config.admin.ownerOnlyRefundAbovePence, symbol)} is for the owner to give. Please pass it to him, or refund less.`,
+      );
     }
 
     const at = now();

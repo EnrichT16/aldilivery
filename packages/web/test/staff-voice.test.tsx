@@ -10,9 +10,21 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
 import { spokenDate } from '../src/components/StaffVoice';
-import type { StaffProblem } from '../src/lib/api';
+import type { RefundsReport, StaffProblem } from '../src/lib/api';
 import { setVoiceEngine } from '../src/voice';
-import { readItem, spokenMoney, summary, toOwner, understand } from '../src/voice/staff-voice';
+import {
+  cancellationsWords,
+  periodRange,
+  readItem,
+  refundsWords,
+  runnersNowWords,
+  signupsWords,
+  spokenMoney,
+  spokenPeriod,
+  summary,
+  toOwner,
+  understand,
+} from '../src/voice/staff-voice';
 import { fakeEngine, type FakeEngine } from './fake-voice';
 
 const COMPLAINT: StaffProblem = {
@@ -318,6 +330,218 @@ describe('Ozi and the owner (ruling 44)', () => {
     expect(asked[0]).toMatchObject({
       headers: expect.objectContaining({ 'x-staff-token': 'st1.owner.sig' }),
       body: { text: 'thank you', mode: 'exact', turn: 0 },
+    });
+  });
+});
+
+describe('the owner’s spoken questions about the business (Section Q)', () => {
+  it('understands them, and the periods people say', () => {
+    expect(understand('how many signups this month')).toEqual({
+      kind: 'signups',
+      period: 'month',
+    });
+    expect(understand('how many new shoppers joined last week?')).toEqual({
+      kind: 'signups',
+      period: 'last-week',
+    });
+    expect(understand('what refunds went out yesterday and why')).toEqual({
+      kind: 'refunds',
+      period: 'yesterday',
+    });
+    expect(understand('read me the cancellations')).toEqual({
+      kind: 'cancellations',
+      period: 'seven-days',
+    });
+    expect(understand('how many Runners are active right now?')).toEqual({ kind: 'runners-now' });
+    // A decision with a refund is still a decision, not a question about refunds.
+    expect(understand('nobody was at fault, refund 2 pounds 50')).toEqual(
+      expect.objectContaining({ kind: 'decide' }),
+    );
+    expect(understand('read me the orders')).toEqual({ kind: 'open', area: 'orders' });
+    expect(understand('open the audit log')).toEqual({ kind: 'open', area: 'audit' });
+    expect(spokenPeriod('this year')).toBe('year');
+    expect(spokenPeriod('whenever')).toBeNull();
+  });
+
+  it('works out the moments a period runs between', () => {
+    const now = new Date(2026, 9, 14, 10, 0, 0); // Wednesday 14 October 2026, local time
+    const yesterday = periodRange('yesterday', now);
+    expect(yesterday.from).toEqual(new Date(2026, 9, 13));
+    expect(yesterday.to).toEqual(new Date(2026, 9, 14));
+    expect(periodRange('week', now).from).toEqual(new Date(2026, 9, 12));
+    expect(periodRange('month', now).from).toEqual(new Date(2026, 9, 1));
+    expect(periodRange('last-month', now)).toEqual(
+      expect.objectContaining({ from: new Date(2026, 8, 1), to: new Date(2026, 9, 1) }),
+    );
+  });
+
+  it('answers with numbers, totals and patterns, never a name', () => {
+    expect(signupsWords('This month', 12, 1)).toBe(
+      'This month, 12 Shoppers and 1 Runner signed up.',
+    );
+    expect(signupsWords('Today', 0, 0)).toBe('Today, nobody has signed up.');
+    const refunds: RefundsReport = {
+      from: '',
+      to: '',
+      count: 3,
+      totalPence: 1250,
+      ownerOnlyAbovePence: 2500,
+      byReason: [
+        { reason: 'complaints', count: 2 },
+        { reason: 'the till coming to less than the estimate', count: 1 },
+      ],
+      refunds: [
+        {
+          at: '',
+          amountPence: 500,
+          kind: 'problem',
+          group: 'complaints',
+          reason: 'A complaint: "Mrs Smith says the eggs broke".',
+          orderId: 'o1',
+          decidedBy: 'Kemi',
+        },
+      ],
+    };
+    const said = refundsWords('Yesterday', refunds);
+    expect(said).toBe(
+      'Yesterday, 3 refunds went out: 2 for complaints and 1 for the till coming to less than the estimate. £12.50 altogether.',
+    );
+    expect(said).not.toContain('Smith');
+    // Anyone but the owner: the server leaves the total out, and so does Ozi.
+    expect(refundsWords('Yesterday', { ...refunds, totalPence: null })).not.toContain('£');
+    expect(refundsWords('Today', { ...refunds, count: 0, byReason: [] })).toBe(
+      'Today, no refunds went out.',
+    );
+    expect(
+      cancellationsWords('In the last seven days', {
+        from: '',
+        to: '',
+        count: 3,
+        byReason: [
+          { reason: 'The Shopper cancelled before paying.', count: 2 },
+          { reason: 'The card payment failed at the bank.', count: 1 },
+        ],
+        cancellations: [],
+      }),
+    ).toBe(
+      'In the last seven days, 3 orders were cancelled. Twice, the Shopper cancelled before paying and once, the card payment failed at the bank.',
+    );
+    expect(runnersNowWords({ activeNow: 3, onShift: 2, onAJob: 1, runners: [] })).toBe(
+      '3 Runners are active right now: 2 on shift and 1 on a job.',
+    );
+  });
+
+  it('answers the owner aloud, with sir, from the actual data', async () => {
+    window.sessionStorage.clear();
+    window.localStorage.setItem('ozidelivery.voice.settings', JSON.stringify({ introHeard: true }));
+    const asked: string[] = [];
+    const reply = (body: unknown): Response =>
+      ({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => Promise.resolve(body),
+      }) as unknown as Response;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        const path = String(url)
+          .replace(/^https?:\/\/[^/]+/, '')
+          .replace(/^\/api(?=\/|$)/, '');
+        asked.push(path);
+        if (path === '/staff/sign-in') {
+          return reply({
+            token: 'st1.owner.sig',
+            name: 'Anthony',
+            role: 'founder',
+            title: 'Founder',
+            areas: ['reports'],
+            mustChangePassword: false,
+          });
+        }
+        if (path === '/staff/me') {
+          return reply({
+            name: 'Anthony',
+            role: 'founder',
+            title: 'Founder',
+            areas: ['reports'],
+            account: true,
+            mustChangePassword: false,
+            isOwner: true,
+            address: 'Mr Anthony',
+          });
+        }
+        if (path.startsWith('/staff/reports/signups')) {
+          return reply({
+            period: 'month',
+            buckets: [],
+            between: { from: '', to: '', shoppers: 12, runners: 3 },
+          });
+        }
+        // The Reports tab opens on the screen too.
+        if (path.startsWith('/staff/reports/refunds')) {
+          return reply({
+            from: '',
+            to: '',
+            count: 0,
+            totalPence: 0,
+            ownerOnlyAbovePence: 2500,
+            byReason: [],
+            refunds: [],
+          });
+        }
+        if (path.startsWith('/staff/reports/prices')) {
+          return reply({
+            catalogue: { total: 0, fresh: 0, ageing: 0, stale: 0, oldest: [] },
+            shops: [],
+          });
+        }
+        if (path.startsWith('/staff/reports/cancellations')) {
+          return reply({
+            from: '',
+            to: '',
+            count: 1,
+            byReason: [{ reason: 'The payment link ran out unpaid.', count: 1 }],
+            cancellations: [],
+          });
+        }
+        return reply({});
+      }),
+    );
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const user = userEvent.setup({ delay: null });
+    render(
+      <MemoryRouter initialEntries={['/staff']}>
+        <App />
+      </MemoryRouter>,
+    );
+    await user.type(await screen.findByLabelText('Username'), 'anthony');
+    await user.type(screen.getByLabelText('Password'), 'a long password');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => {
+      expect(engine.spoken.map((s) => s.text).join(' ')).toMatch(/Mr Anthony/);
+    });
+    await waitFor(() => {
+      expect(engine.listening).not.toBeNull();
+    });
+    engine.hear('how many signups this month');
+    await waitFor(() => {
+      expect(engine.spoken.at(-1)?.text).toMatch(
+        /^(Yes|Okay|All right), sir\. This month, 12 Shoppers and 3 Runners signed up, sir\.$/,
+      );
+    });
+    expect(asked.some((path) => /\/staff\/reports\/signups\?period=month&from=/.test(path))).toBe(
+      true,
+    );
+    await waitFor(() => {
+      expect(engine.listening).not.toBeNull();
+    });
+    engine.hear('read me the cancellations');
+    await waitFor(() => {
+      expect(engine.spoken.at(-1)?.text).toContain(
+        'In the last seven days, 1 order was cancelled. Once, the payment link ran out unpaid, sir.',
+      );
     });
   });
 });

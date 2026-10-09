@@ -42,7 +42,10 @@ export function WeeklyReminder(): null {
       fetchWeeklyShops()
         .then(({ sets }) => {
           if (cancelled) return;
-          const due = sets.find((set) => set.active && set.dayOfWeek === serverDay());
+          // One that sends itself needs no offer: it has its own notice, with the skip word.
+          const due = sets.find(
+            (set) => set.active && !set.autoSendAgreedAt && set.dayOfWeek === serverDay(),
+          );
           if (!due) return;
           try {
             window.localStorage.setItem(ASKED, today);

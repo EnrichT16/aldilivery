@@ -28,26 +28,48 @@ export async function tellShopperWords(
   body: string,
   log: FastifyBaseLogger,
 ): Promise<void> {
+  await tellShopperById(
+    ctx,
+    order.shopperId,
+    body,
+    { url: '/my-order', tag: `order-${order.id}-till` },
+    log,
+  );
+}
+
+/**
+ * Any message for a Shopper, about an order or not (a regular order's notice, say): by
+ * notification where allowed, otherwise by text to a mobile. Says whether it reached them.
+ */
+export async function tellShopperById(
+  ctx: AppContext,
+  shopperId: string,
+  body: string,
+  where: { url: string; tag: string },
+  log: FastifyBaseLogger,
+): Promise<boolean> {
   try {
     const { repository, config } = ctx;
-    const shopper = await repository.shoppers.findById(order.shopperId);
-    if (!shopper) return;
+    const shopper = await repository.shoppers.findById(shopperId);
+    if (!shopper) return false;
     const devices = await repository.pushSubscriptions.listForShopper(shopper.id);
     if (devices.length > 0 && ctx.sendPush) {
       await notifyShopper({ repository, sendPush: ctx.sendPush, log }, shopper.id, {
         title: config.productName,
         body,
-        url: '/my-order',
-        tag: `order-${order.id}-till`,
+        url: where.url,
+        tag: where.tag,
       });
-      return;
+      return true;
     }
     if (ctx.sendText && isUkMobile(shopper.phone)) {
       await ctx.sendText(shopper.phone, `${config.productName}: ${body}`);
+      return true;
     }
   } catch (failure) {
-    log.warn({ err: failure, orderId: order.id }, 'The Shopper could not be told.');
+    log.warn({ err: failure, shopperId }, 'The Shopper could not be told.');
   }
+  return false;
 }
 
 export async function tellShopper(

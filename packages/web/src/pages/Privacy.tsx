@@ -61,8 +61,9 @@ export function Privacy(): JSX.Element {
           </li>
           <li>
             <strong>Your orders</strong>: what you asked for, what the shop charged, what you paid,
-            and how you said yes. Reason: a contract, and because tax law makes us keep money
-            records.
+            and how you said yes, with a photo of the till receipt if your Runner took one, and
+            anything you told us about how the delivery went. Reason: a contract, and because tax
+            law makes us keep money records.
           </li>
           <li>
             <strong>Your card</strong>: only the last four numbers and the type of card. The full
@@ -169,6 +170,13 @@ export function Privacy(): JSX.Element {
             where you last were, not a history of your journeys. Off shift, we do not track you.
           </li>
           <li>
+            If you press SOS, your phone shares where you are, kept up to date until you say you are
+            safe, with our owner and staff only: by a private link texted to the owner, which stops
+            working soon after, and in our admin panel. It is never shared with a Shopper. We keep a
+            record of the SOS, with the last place shared, to look after your safety and answer for
+            what we did.
+          </li>
+          <li>
             Your bank details go to Stripe, on Stripe&rsquo;s own pages, never to us. We keep a
             record of what you were paid, and of anything held back, as money records.
           </li>
@@ -261,8 +269,9 @@ export function Privacy(): JSX.Element {
             Order, payment and call records: seven years, as tax law requires, then made anonymous.
           </li>
           <li>
-            Your account: until you close it. When you close it, it waits {days} days in case you
-            change your mind, then it is removed, apart from the money records above.
+            Your account: until you close it, in Settings or by asking {assistant}. When you close
+            it, it waits {days} days in case you change your mind, then it is removed, apart from
+            the money records above, which are kept without your address.
           </li>
           <li>
             Problems you report, with their photos and voice notes: two years after the problem is

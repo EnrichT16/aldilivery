@@ -787,3 +787,7 @@ docs/STILL_TO_DO.md lists everything the blueprint asks for that is not built ye
   offered and none can be accepted. The agreement page now says how paying back works. It stays
   marked as a draft until employment status and a right to send a checked substitute are
   decided and a solicitor has read it.
+
+## Ruling 56 in brief (9 October 2026)
+
+The first round of missing features is built: the owner's till screen, receipt photos, Sets on a clock, arrival times, door words, feedback credit and closing accounts; the admin panel's orders, Runners and reports, an unchangeable audit log and two-step codes for every staff sign-in (a must from 31 October 2026); and for Runners an SOS button, directions, a payout schedule, the private referral reward, deposits paid back on leaving, insurance reminders, the one-tap call and agreeing by voice. docs/changes/ has each part in full, and docs/STILL_TO_DO.md what is left.

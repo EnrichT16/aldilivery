@@ -171,8 +171,53 @@ export interface StoreConfig {
     /** Owed by a Runner who leaves: written off at or below this, asked for above it. */
     readonly writeOffUpToPence: number;
   };
+  /** Runners' safety, pay timing, reminders and the private referral reward (Section M; rulings 12, 14, 16). */
+  readonly runners: {
+    /** How long the private live-location link sent with an SOS keeps working, at most. */
+    readonly sosLinkHours: number;
+    /**
+     * Stripe's fee for an instant payout, shown to the Runner before they choose it, who pays it
+     * (ruling 16): a share in basis points (100 is 1%), and never less than the minimum.
+     */
+    readonly instantPayoutFeeBasisPoints: number;
+    readonly instantPayoutFeeMinimumPence: number;
+    /** Days before motor insurance runs out that a Runner who drives is reminded (ruling 14). */
+    readonly insuranceReminderDays: readonly number[];
+    /** The private referral reward (rulings 12 and 16), never announced in the app. */
+    readonly referralRewardPence: number;
+    readonly referralsForReward: number;
+  };
   readonly versionOneRestrictions: {
     readonly ageRestrictedGoodsAllowed: boolean;
+  };
+  /**
+   * Feedback after a delivery (docs/BUILD_PROMPT.md, Section O). Any feedback at all, good or
+   * bad, earns this much delivery credit, once per order. £1 by default: enough to say thank
+   * you, small next to the £13.50 delivery, and never conditional on what was said.
+   */
+  readonly feedback: {
+    readonly creditPence: number;
+  };
+  /**
+   * The photo of the till receipt (STILL_TO_DO item 2). Optional for the Runner, but without
+   * one, paying them back more than this waits for a person to look. £30 by default: half of
+   * what one delivery carries.
+   */
+  readonly receipts: {
+    readonly photoNeededAbovePence: number;
+  };
+  /** The admin panel (Section Q): who may do what, and how signing in is kept safe. */
+  readonly admin: {
+    /** A refund above this is the owner's alone to give (Section Q). £25 unless set. */
+    readonly ownerOnlyRefundAbovePence: number;
+    /**
+     * Two-step codes are asked of every staff sign-in (Section Q). Each person has this many
+     * days to set them up, counted from the later of `staffTwoStepFrom` and the day their
+     * account was made; after that they can do nothing else until they have.
+     */
+    readonly staffTwoStepGraceDays: number;
+    /** The day the grace period starts for accounts that already exist, as YYYY-MM-DD. */
+    readonly staffTwoStepFrom: string;
   };
 }
 
@@ -298,6 +343,19 @@ export function parseStoreConfig(input: unknown): StoreConfig {
   const calls = object(root['calls'], 'calls');
   const extras = root['extras'] === undefined ? {} : object(root['extras'], 'extras');
   const problems = object(root['problems'], 'problems');
+  const feedback = root['feedback'] === undefined ? {} : object(root['feedback'], 'feedback');
+  const receipts = root['receipts'] === undefined ? {} : object(root['receipts'], 'receipts');
+  const runners = root['runners'] === undefined ? {} : object(root['runners'], 'runners');
+  const reminderDays = (
+    Array.isArray(runners['insuranceReminderDays']) ? runners['insuranceReminderDays'] : [30, 7, 1]
+  ).map((entry: unknown, index: number) =>
+    wholeNumber(entry, `runners.insuranceReminderDays[${index}]`, 1),
+  );
+  const admin = root['admin'] === undefined ? {} : object(root['admin'], 'admin');
+  const staffTwoStepFrom = str(admin['staffTwoStepFrom'] ?? '2026-10-17', 'admin.staffTwoStepFrom');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(staffTwoStepFrom) || Number.isNaN(Date.parse(staffTwoStepFrom))) {
+    throw new StoreConfigError(`admin.staffTwoStepFrom must be a date written as YYYY-MM-DD.`);
+  }
   const recoveryPercentOfPay = wholeNumber(
     problems['recoveryPercentOfPay'],
     'problems.recoveryPercentOfPay',
@@ -525,8 +583,39 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     voice: {
       paymentCeilingPence: wholeNumber(voice['paymentCeilingPence'], 'voice.paymentCeilingPence', 1),
     },
+    runners: {
+      sosLinkHours: wholeNumber(runners['sosLinkHours'] ?? 12, 'runners.sosLinkHours', 1),
+      instantPayoutFeeBasisPoints: wholeNumber(
+        runners['instantPayoutFeeBasisPoints'] ?? 100,
+        'runners.instantPayoutFeeBasisPoints',
+        0,
+      ),
+      instantPayoutFeeMinimumPence: wholeNumber(
+        runners['instantPayoutFeeMinimumPence'] ?? 50,
+        'runners.instantPayoutFeeMinimumPence',
+        0,
+      ),
+      insuranceReminderDays: [...new Set(reminderDays)].sort((a, b) => b - a),
+      referralRewardPence: wholeNumber(runners['referralRewardPence'] ?? 15000, 'runners.referralRewardPence', 1),
+      referralsForReward: wholeNumber(runners['referralsForReward'] ?? 100, 'runners.referralsForReward', 1),
+    },
     versionOneRestrictions: {
       ageRestrictedGoodsAllowed,
+    },
+    feedback: {
+      creditPence: wholeNumber(feedback['creditPence'] ?? 100, 'feedback.creditPence', 0),
+    },
+    receipts: {
+      photoNeededAbovePence: wholeNumber(
+        receipts['photoNeededAbovePence'] ?? 3000,
+        'receipts.photoNeededAbovePence',
+        0,
+      ),
+    },
+    admin: {
+      ownerOnlyRefundAbovePence: wholeNumber(admin['ownerOnlyRefundAbovePence'] ?? 2500, 'admin.ownerOnlyRefundAbovePence', 0),
+      staffTwoStepGraceDays: wholeNumber(admin['staffTwoStepGraceDays'] ?? 14, 'admin.staffTwoStepGraceDays', 0),
+      staffTwoStepFrom,
     },
   };
 }

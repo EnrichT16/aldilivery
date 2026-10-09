@@ -32,6 +32,7 @@ import { alertPayments, bankReference, bankSettings } from '../lib/bank.js';
 import { tellShopper } from '../services/order-updates.js';
 import { settleTill } from '../services/till.js';
 import { payOutOrder } from '../services/pay-runner.js';
+import { keepReceiptPhoto, receiptPhotoSchema } from '../services/receipt-photo.js';
 import { startReimbursement } from '../services/reimburse.js';
 import {
   assertConfirmedBeforePayment,
@@ -121,6 +122,8 @@ const receiptSchema = z.object({
       }),
     )
     .optional(),
+  /** A photo of the receipt, optional but encouraged (services/receipt-photo.ts). */
+  photo: receiptPhotoSchema.optional(),
 });
 
 export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
@@ -375,6 +378,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       await repository.orders.update(confirmed.id, {
         status: 'cancelled',
         cancelledAt: now(),
+        cancelReason: 'The card was refused when the order was sent.',
       });
       // The reason belongs in the log, where it can be acted on, and not in front of
       // somebody who is only trying to buy their shopping.
@@ -511,7 +515,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     const patch: Record<string, unknown> = { status };
     if (status === 'delivered') patch['deliveredAt'] = at;
     if (status === 'completed') patch['completedAt'] = at;
-    if (status === 'cancelled') patch['cancelledAt'] = at;
+    if (status === 'cancelled') {
+      patch['cancelledAt'] = at;
+      patch['cancelReason'] = 'The Shopper cancelled before paying.';
+    }
 
     const updated = await repository.orders.update(order.id, patch);
     if (status === 'delivered') await recordOrder(app.ctx, updated, 'order_delivered', request.log);
@@ -544,7 +551,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
    * The Shopper pays the shelf price. The fee is recalculated against the receipt rather
    * than carried over from the estimate, so Rule Three holds for the amount really charged.
    */
-  app.post('/orders/:id/receipt', async (request) => {
+  app.post('/orders/:id/receipt', { bodyLimit: 12 * 1024 * 1024 }, async (request) => {
     const session = requireSession(request, 'runner');
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const input = receiptSchema.parse(request.body);
@@ -561,6 +568,9 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         'The till total for this order is already in. If it was wrong, please tell us and a person will put it right.',
       );
     }
+
+    // The photo first, so a pay-back that needs one sees it.
+    if (input.photo) await keepReceiptPhoto(app.ctx, order.id, input.photo);
 
     const repricing = repriceToReceipt(
       input.receiptTotalPence,

@@ -14,9 +14,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { storeConfig } from '../config';
 import { inPairs, pairsAloud } from '../lib/phone-aloud';
 import {
+  closeAccount,
   fetchMyOrder,
   fetchMyOrders,
+  fetchWeeklyShops,
   isUkMobileNumber,
+  skipWeeklyShop,
   listPaymentMethods,
   requestSignInCode,
   verifySignInCode,
@@ -78,6 +81,16 @@ const CREATE_ACCOUNT =
 /** "Sign in", "log in", "I've got an account", "existing account" (ruling 47). */
 const SIGN_IN =
   /\b(sign|log)\s*(me\s+)?in(to)?\b|\bexisting account\b|\b(i'?ve|i have|i already have)\s+(got\s+)?an account\b/;
+
+/** "What are the door words?", "the safe word", "who's coming to the door?" (T6). */
+const DOOR_WORD =
+  /\b(door|safe|secret)\s*words?\b|\bwho('?s| is) (coming|at the door|knocking)\b|\bwhat will (my|the) runner say\b/;
+
+/** "Close my account", "delete my account". */
+const CLOSE_ACCOUNT = /\b(close|delete|cancel|remove)\s+(my|this)\s+account\b/;
+
+/** The one word that stops the next regular order (Rule Five), said on its own. */
+const SKIP_WORD = storeConfig.recurringOrders.skipWord;
 
 /** "Sign me out", "log out". */
 const SIGN_OUT = /\b(sign|log)\s+(me\s+)?out\b/;
@@ -466,6 +479,70 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
         current
           ? `You're signed out, ${current.displayName}. To sign in again, or open a new account, just tell me.`
           : 'Nobody is signed in on this phone. To open an account, say open an account.',
+      );
+      return;
+    }
+    // "What are the door words?": the Runner's first name and the two words (T6).
+    if (!ordering.busy() && DOOR_WORD.test(words) && accountRef.current.shopper) {
+      void fetchMyOrder()
+        .then(({ order }) =>
+          sayRef.current(
+            order?.doorWordSentence ??
+              (order
+                ? "Your door words come as soon as a Runner has your order. I'll tell you then."
+                : "You haven't got an order on its way just now, so there are no door words yet."),
+          ),
+        )
+        .catch(() => sayRef.current("I couldn't check just now. Please ask me again in a moment."));
+      return;
+    }
+    // "Skip", on its own, after a regular order's notice (Rule Five).
+    if (
+      !ordering.busy() &&
+      accountRef.current.shopper &&
+      words.trim().replace(/[.!,]+$/, '') === SKIP_WORD
+    ) {
+      void fetchWeeklyShops()
+        .then(async ({ sets }) => {
+          const waiting = sets.find(
+            (set) =>
+              set.active && set.noticeSentAt && set.skipRequestedForFireAt !== set.nextFireAt,
+          );
+          if (!waiting) {
+            await sayRef.current(
+              "There's no regular order waiting to go just now, so there's nothing to skip.",
+            );
+            return;
+          }
+          const result = await skipWeeklyShop(waiting.id);
+          await sayRef.current(result.message);
+        })
+        .catch(() =>
+          sayRef.current("I couldn't stop it just now. Please press Skip on the weekly shop page."),
+        );
+      return;
+    }
+    // "Close my account": asked once more, then closed, with the days to change your mind.
+    if (!ordering.busy() && CLOSE_ACCOUNT.test(words) && accountRef.current.shopper) {
+      const days = storeConfig.accountDeletion.recycleBinDays;
+      listenFor(
+        `Do you want to close your account? It closes in ${days} days, and you can change your mind until then. Say yes to close it, or no to keep it.`,
+        (answer) => {
+          if (!/\b(yes|yeah|yep|close it|please)\b/i.test(answer) || /\bno\b/i.test(answer)) {
+            void sayRef.current('All right. Your account stays as it is.');
+            return;
+          }
+          void closeAccount()
+            .then((result) => {
+              navigate('/settings#close-account');
+              return sayRef.current(
+                `${result.message} To keep it, press Keep my account in Settings.`,
+              );
+            })
+            .catch(() =>
+              sayRef.current("I couldn't close it just now. Please try again in Settings."),
+            );
+        },
       );
       return;
     }

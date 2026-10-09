@@ -51,3 +51,10 @@ export {
 } from './phrase-text.js';
 
 export { RUNNER_AGREEMENT_VERSION } from './runner-agreement.js';
+
+export {
+  FEEDBACK_THEMES,
+  FEEDBACK_PATTERN_MINIMUM,
+  isFeedbackTheme,
+  type FeedbackTheme,
+} from './feedback.js';

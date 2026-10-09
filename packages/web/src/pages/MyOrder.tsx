@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { CallControls } from '../components/CallControls';
 import { NotifyMe } from '../components/NotifyMe';
+import { OrderFeedback } from '../components/OrderFeedback';
 
 import {
   answerQuestion,
@@ -13,6 +14,7 @@ import {
 } from '../lib/api';
 import { buzz, chime } from '../lib/alert';
 import { money } from '../lib/money';
+import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
 
 /**
@@ -57,6 +59,16 @@ function whereItIs(order: Order): string {
   }
 }
 
+/** "around 2:35pm", in the UK. */
+function clockTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-GB', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Europe/London',
+  });
+}
+
 function timeLeft(seconds: number): string {
   if (seconds < 60) return 'less than a minute';
   const minutes = Math.ceil(seconds / 60);
@@ -65,6 +77,7 @@ function timeLeft(seconds: number): string {
 
 export function MyOrder(): JSX.Element {
   const { shopper, restoring } = useSession();
+  const ozi = useOzi();
   const [order, setOrder] = useState<Order | null>(null);
   const [questions, setQuestions] = useState<ItemQuestion[]>([]);
   const [loading, setLoading] = useState(true);
@@ -235,7 +248,55 @@ export function MyOrder(): JSX.Element {
               Where it has got to
             </h2>
             <p className="m-0">{whereItIs(order)}</p>
+            {order.eta && (
+              <p className="m-0 text-lead">
+                Expected in {order.eta.words}, by around {clockTime(order.eta.byAt)}.
+              </p>
+            )}
+            {order.eta && (
+              <p className="m-0 extra">
+                This is our best guess from where your order has got to, and it changes as your
+                Runner goes. Shops can be busy, so it is never a promise to the minute.
+              </p>
+            )}
           </section>
+
+          {order.doorWord &&
+            order.runnerName &&
+            !['delivered', 'completed'].includes(order.status) && (
+              <section aria-labelledby="door-heading" className="space-y-3 max-w-xl">
+                <h2 id="door-heading" className="text-lead font-bold">
+                  Who is at the door
+                </h2>
+                <p className="m-0 text-lead">
+                  {order.runnerName} will say: <strong>{order.doorWord}</strong>
+                </p>
+                <p className="m-0 extra">
+                  Your Runner says these two words at your door, so you know it is them. If they do
+                  not, you do not need to open the door.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void ozi.say(
+                      order.doorWordSentence ??
+                        `Your Runner is ${order.runnerName}. At your door they will say ${order.doorWord}.`,
+                    );
+                  }}
+                  className="control bg-paper text-ink"
+                >
+                  Say the door words aloud
+                </button>
+              </section>
+            )}
+
+          {['delivered', 'completed'].includes(order.status) && (
+            <OrderFeedback
+              orderId={order.id}
+              given={order.feedbackGiven ?? false}
+              creditPence={order.feedbackCreditPence ?? 0}
+            />
+          )}
 
           <section aria-labelledby="list-heading" className="space-y-3 max-w-xl">
             <h2 id="list-heading" className="text-lead font-bold">

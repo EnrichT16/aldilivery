@@ -68,6 +68,9 @@ export function Landing(): JSX.Element {
 
   useEffect(() => {
     rememberReferral(params.get('ref'));
+    // A Runner's link (`/join?ref=R…`) can bring a Shopper too: counted for the Runner who shared it.
+    const ref = params.get('ref');
+    if (ref && /^R[A-Z0-9]{7}$/i.test(ref)) rememberJoinedVia(`runner:${ref.toUpperCase()}`);
     // A share link from staff or a Shopper (ruling 44): /join?via=staff-… or shopper-….
     const via = /^(staff|shopper)-([A-Za-z0-9_-]{1,40})$/.exec(params.get('via') ?? '');
     if (via) rememberJoinedVia(`${via[1]}:${via[2]}`);

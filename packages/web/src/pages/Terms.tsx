@@ -248,7 +248,8 @@ export function Terms(): JSX.Element {
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
-            You can close your account at any time by ringing us. It waits{' '}
+            You can close your account at any time, in Settings, by asking{' '}
+            {storeConfig.assistantName} to close your account, or by ringing us. It waits{' '}
             {storeConfig.accountDeletion.recycleBinDays} days in case you change your mind.
           </li>
           <li>

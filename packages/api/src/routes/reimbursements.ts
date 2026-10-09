@@ -43,6 +43,8 @@ export async function registerReimbursementRoutes(app: FastifyInstance): Promise
       reason: order.reimbursementReason,
       approvedBy: order.reimbursementApprovedBy,
       paidAt: order.reimbursedAt,
+      // The photo of the till receipt, to look at before approving (GET /staff/orders/:id/receipt-photo).
+      hasReceiptPhoto: (await repository.receiptPhotos.ordersWithPhotos([order.id])).has(order.id),
     };
   }
 
