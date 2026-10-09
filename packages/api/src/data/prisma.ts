@@ -140,6 +140,44 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           orderBy: { createdAt: 'asc' },
         })) as unknown as Runner[];
       },
+      async findByIssuingCardId(issuingCardId) {
+        return (await prisma.runner.findUnique({
+          where: { issuingCardId },
+        })) as unknown as Runner | null;
+      },
+      async listWithCards() {
+        return (await prisma.runner.findMany({
+          where: { issuingCardId: { not: null } },
+          orderBy: { createdAt: 'asc' },
+        })) as unknown as Runner[];
+      },
+    },
+
+    cardAuthorizations: {
+      async upsert(input) {
+        const { stripeId, ...rest } = input;
+        return (await prisma.cardAuthorization.upsert({
+          where: { stripeId },
+          create: input,
+          update: rest,
+        })) as any;
+      },
+      async findByStripeId(stripeId) {
+        return (await prisma.cardAuthorization.findUnique({ where: { stripeId } })) as any;
+      },
+      async listForOrder(orderId) {
+        return (await prisma.cardAuthorization.findMany({
+          where: { orderId },
+          orderBy: { at: 'asc' },
+        })) as any;
+      },
+      async listRecent(where) {
+        return (await prisma.cardAuthorization.findMany({
+          where: where.declinedOnly ? { approved: false } : {},
+          orderBy: { at: 'desc' },
+          take: where.limit,
+        })) as any;
+      },
     },
 
     runnerDocuments: {

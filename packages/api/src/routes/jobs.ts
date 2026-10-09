@@ -21,6 +21,7 @@ import { drivingPaused } from '../services/insurance.js';
 import { tellShopper } from '../services/order-updates.js';
 import { assertTransitionAllowed } from '../services/orders.js';
 import { AGREE_FIRST, hasAgreed } from '../services/runner-agreement.js';
+import { loadCardForOrder } from '../services/runner-card.js';
 
 export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
   const { repository, config, now } = app.ctx;
@@ -96,6 +97,10 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
             // Paying them back for the shopping (ruling 55): how much, and where it has got to.
             reimbursementPence: order.reimbursementPence,
             reimbursementStatus: order.reimbursementStatus,
+            // Paying at the till with the spending card: what it is loaded with, and has spent.
+            payMethodUsed: order.payMethodUsed,
+            cardLimitPence: order.cardLimitPence,
+            cardSpentPence: order.cardSpentPence,
             // The two words to say at the door, so the Shopper knows it is their Runner (T6).
             doorWord: await ensureDoorWord(repository, order),
             items: order.items.map((item) => ({
@@ -165,8 +170,13 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
     });
     void tellShopper(app.ctx, updated, 'accepted', request.log);
 
+    // How they pay at the till: their spending card, loaded for this order now, or their own
+    // card, paid back (Anthony, 9 October 2026). Never stops the job being theirs.
+    const till = await loadCardForOrder(app.ctx, updated, runner, request.log);
+
     return {
-      order: updated,
+      order: (await repository.orders.findById(updated.id)) ?? updated,
+      till,
       doorstepProtocol: updated.doorstepProtocolSnapshot,
       youWillEarnPence: updated.runnerPaymentPence,
     };

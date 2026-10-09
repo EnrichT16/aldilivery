@@ -140,6 +140,20 @@ Once it is on, an approved Runner sees a part of their Runner page headed How yo
 
 Going live later needs the same switch in live mode, and Stripe will ask for Ozi Delivery's registered company details before it lets live money move.
 
+Switching on the Runner spending card
+
+Runners can pay at the till with an Ozi card, a virtual card from Stripe Issuing that sits in their phone's wallet and is loaded for each order, so none of their own money is needed. Until it is switched on, Runners pay with their own card and are paid back straight away, exactly as before. Nothing changes until you do all four steps below, in this order.
+
+First, ask Stripe to switch on Issuing for the Ozi Delivery account. In the Stripe dashboard, open Issuing from the menu (in test mode first) and follow Stripe's steps. Stripe decides who it offers Issuing to in the United Kingdom, and it will ask what the cards are for: say that they are business cards given to the independent Runners who do the shopping, used only at grocery shops, only for the order in hand, and frozen in between. In live mode the cards spend from the business's Issuing balance, so money has to be moved into that balance first, by bank transfer, in Issuing's Balance page; a card cannot spend more than is there.
+
+Second, add the Issuing events to the existing webhook. In Developers, then Webhooks, open the endpoint you already made (the one ending slash api slash webhooks slash stripe) and edit its events. Add these four: issuing authorization request, issuing authorization created, issuing authorization updated, and issuing transaction created. Do not add a second endpoint, because a second one comes with a different signing secret. The first of the four is the one that matters most: each time a Runner taps at a till, Stripe asks the server and waits about two seconds for a yes or a no. The server answers yes only for a card loaded for an order the Runner has in hand, at a grocery shop, within what was loaded.
+
+Third, in Issuing's settings, find what Stripe does when the server does not answer in time, and set it to decline. A Runner who is declined is told to pay with their own card and is paid back, so nobody is stuck at the till; a payment approved without our check is not something we want.
+
+Fourth, back in DigitalOcean, in the api component's environment variables, change STRIPE_ISSUING_ENABLED from false to true, and save. It is a plain value, not a secret. The redeploy starts by itself.
+
+Once it is on, an approved Runner sees How you pay at the till on their Runner page, with the Ozi card first and recommended. Setting it up asks for their address, which goes to Stripe for the card and is not kept by Ozi Delivery, and for a tick to accept the cardholder terms; the date and internet address of that tick are kept, as Stripe requires. The card is then shown by Stripe itself, in Stripe's own boxes on the page, never passing through our server, with a guide to adding it to Apple Pay or Google Pay by hand. The owner's Money page lists every Runner card with its last four digits and whether it is frozen, what each card order was loaded with and spent, and the latest declines with their reasons. To switch it off again, set STRIPE_ISSUING_ENABLED back to false: every till payment is then declined and Runners use their own card.
+
 Moving to the new domain
 
 The product was renamed Ozi Delivery on the twenty eighth of September 2026, and its address is now ozidelivery.co.uk. The old address, the one ending in ondigitalocean dot app, keeps working throughout, so nothing breaks while the new one is set up, and you can take as long as you like over it.

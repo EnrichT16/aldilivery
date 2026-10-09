@@ -6,6 +6,8 @@ import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { VitePWA } from 'vite-plugin-pwa';
 
+import { INCLUDE_ASSETS, WORKBOX, webAppManifest } from './pwa';
+
 /**
  * The whole of the store's identity comes from one file (Rule Nine), including the values
  * that have to be baked into the web app manifest at build time.
@@ -52,41 +54,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['favicon.svg', 'icon-192.png', 'icon-512.png', 'icon-maskable-512.png'],
-      manifest: {
-        name: storeConfig.productName,
-        short_name: storeConfig.productName,
-        description: storeConfig.tagline,
-        start_url: '/',
-        scope: '/',
-        display: 'standalone',
-        orientation: 'portrait',
-        background_color: storeConfig.brand.colours.navy,
-        theme_color: storeConfig.brand.colours.navy,
-        lang: 'en-GB',
-        categories: ['shopping', 'food', 'lifestyle'],
-        icons: [
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-          {
-            src: '/icon-maskable-512.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
-        ],
-      },
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        navigateFallback: '/index.html',
-        // The API shares this hostname, so without this the service worker answers a visit
-        // to /api/health with the cached app, in any browser that has opened the app
-        // before. The request never leaves the browser, which is why a redeploy, a hard
-        // refresh habit or a correct routing rule all change nothing. Found 25 Sep 2026.
-        navigateFallbackDenylist: [/^\/api(\/|$)/],
-        // Shows a Runner's question as a notification when no page is open. See the file.
-        importScripts: ['/push-sw.js'],
-      },
+      // The manifest and the offline rules live in pwa.ts, where test/install.test.ts checks them.
+      includeAssets: INCLUDE_ASSETS,
+      manifest: webAppManifest(storeConfig),
+      workbox: WORKBOX,
       devOptions: { enabled: false },
     }),
   ],

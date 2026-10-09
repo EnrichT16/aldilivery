@@ -14,6 +14,7 @@ import { erasedOrderPatch, erasedShopperPatch } from './erasure.js';
 import type { OrderStatus } from '@aldilivery/core';
 
 import type {
+  CardAuthorization,
   AccountRole,
   AuditEntry,
   IncomeRecord,
@@ -128,6 +129,7 @@ export function memoryRepository(): Repository {
   const sosAlerts = new Map<string, RunnerSos>();
   const referralRewards: ReferralReward[] = [];
   const auditEntries: AuditEntry[] = [];
+  const cardAuthorizations = new Map<string, CardAuthorization>();
 
   const now = (): Date => new Date();
 
@@ -260,6 +262,13 @@ export function memoryRepository(): Repository {
           coolBagRefundNote: null,
           insuranceReminderFor: null,
           insuranceReminderDays: null,
+          payMethod: 'own',
+          issuingCardholderId: null,
+          issuingCardId: null,
+          cardLast4: null,
+          cardStatus: null,
+          issuingTermsAcceptedAt: null,
+          issuingTermsAcceptedIp: null,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -302,6 +311,44 @@ export function memoryRepository(): Repository {
       async listAll() {
         return [...runners.values()]
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async findByIssuingCardId(cardId) {
+        for (const runner of runners.values()) {
+          if (runner.issuingCardId === cardId) return clone(runner);
+        }
+        return null;
+      },
+      async listWithCards() {
+        return [...runners.values()]
+          .filter((runner) => runner.issuingCardId !== null)
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+    },
+
+    cardAuthorizations: {
+      async upsert(input) {
+        const existing = cardAuthorizations.get(input.stripeId);
+        const row: CardAuthorization = { ...input, id: existing?.id ?? id() };
+        cardAuthorizations.set(input.stripeId, row);
+        return clone(row);
+      },
+      async findByStripeId(stripeId) {
+        const found = cardAuthorizations.get(stripeId);
+        return found ? clone(found) : null;
+      },
+      async listForOrder(orderId) {
+        return [...cardAuthorizations.values()]
+          .filter((row) => row.orderId === orderId)
+          .sort((a, b) => a.at.getTime() - b.at.getTime())
+          .map(clone);
+      },
+      async listRecent(where) {
+        return [...cardAuthorizations.values()]
+          .filter((row) => !where.declinedOnly || !row.approved)
+          .sort((a, b) => b.at.getTime() - a.at.getTime())
+          .slice(0, where.limit)
           .map(clone);
       },
     },
@@ -827,6 +874,10 @@ export function memoryRepository(): Repository {
           tillReason: null,
           tillSettledBy: null,
           tillSettledAt: null,
+          payMethodUsed: null,
+          cardLimitPence: null,
+          cardSpentPence: null,
+          cardMerchant: null,
           doorWord: input.doorWord ?? null,
           setFireAt: input.setFireAt ?? null,
           anonymisedAt: null,

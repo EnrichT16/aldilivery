@@ -40,6 +40,7 @@ import { JobNavigation } from '../components/JobNavigation';
 import { LeaveRunning } from '../components/LeaveRunning';
 import { PayoutChoice } from '../components/PayoutChoice';
 import { RunnerSos } from '../components/RunnerSos';
+import { TillPayment } from '../components/TillPayment';
 import { money } from '../lib/money';
 import { preparePhoto, type ReadyPhoto } from '../lib/photo';
 import { clearRunnerToken, readRunnerToken } from '../lib/session';
@@ -417,7 +418,13 @@ export function RunnerHome(): JSX.Element {
                     type="button"
                     disabled={busy}
                     onClick={() => {
-                      void act(() => acceptJob(offer.offer.id), 'The job is yours.');
+                      void act(async () => {
+                        const taken = await acceptJob(offer.offer.id);
+                        // How to pay at the till for this one: the card loaded, or their own.
+                        setNews(
+                          taken.till ? `The job is yours. ${taken.till.message}` : 'The job is yours.',
+                        );
+                      }, '');
                     }}
                     className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
                   >
@@ -440,6 +447,7 @@ export function RunnerHome(): JSX.Element {
               )}
             </>
           )}
+          {approved && !job && <TillPayment onNews={setNews} />}
           {approved && <HowYouGetPaid />}
         </>
       )}
@@ -497,6 +505,8 @@ function JobInHand({
   // without waiting for a person.
   const [photo, setPhoto] = useState<ReadyPhoto | null>(null);
   const [photoNote, setPhotoNote] = useState('');
+  // Paying at the till with the spending card, loaded for this order (9 October 2026).
+  const byCard = job.payMethodUsed === 'card';
 
   async function takePhoto(file: File | undefined): Promise<ReadyPhoto | null> {
     if (!file) return null;
@@ -529,6 +539,26 @@ function JobInHand({
       <h2 id="job-heading" className="text-lead font-bold">
         Your job: shopping for {job.shopperName}
       </h2>
+
+      {byCard && (job.status === 'accepted' || job.status === 'shopping') && (
+        <div className="space-y-2 border-2 border-highlight rounded-xl p-4">
+          <h3 className="text-lead font-bold m-0">Paying at the till</h3>
+          <p className="m-0">
+            Your {storeConfig.assistantName} card is loaded with up to{' '}
+            {money(job.cardLimitPence ?? 0)} for this order.
+          </p>
+          <p className="m-0 text-display font-bold">Tap your phone at the till</p>
+          <p className="m-0 extra">
+            Hold your phone near the card reader and choose your {storeConfig.assistantName} card,
+            not your own. It works in grocery shops only, for this order only. You do not need any
+            of your own money.
+          </p>
+          <p className="m-0 extra">
+            If the card is declined, pay with your own card instead and put in the till total as
+            usual: we pay you back straight away.
+          </p>
+        </div>
+      )}
 
       <div className="space-y-2">
         <h3 className="text-lead font-bold m-0">The list</h3>
@@ -611,8 +641,9 @@ function JobInHand({
               What did the till say?
             </label>
             <p id="till-hint" className="m-0 text-paper/90">
-              The total on the receipt, in pounds and pence. The Shopper is charged exactly this,
-              and we pay it back to you straight away.
+              {byCard
+                ? `The total on the receipt, in pounds and pence. The shop was paid with your ${storeConfig.assistantName} card, and we check the two match.`
+                : 'The total on the receipt, in pounds and pence. The Shopper is charged exactly this, and we pay it back to you straight away.'}
             </p>
             {tillError !== '' && (
               <p

@@ -61,6 +61,49 @@ export async function registerOwnerRoutes(app: FastifyInstance): Promise<void> {
     };
   }
 
+  /**
+   * The Runner spending cards (Stripe Issuing): each card's last four digits and whether it is
+   * frozen, what was spent on each card order in the last month, and the latest declines with
+   * their reasons. The business pays the shop; nothing passes through a Runner.
+   */
+  async function runnerCards(at: Date) {
+    const cards = await repository.runners.listWithCards();
+    const orders = (
+      await repository.admin.listOrders({ since: new Date(at.getTime() - 30 * DAY), limit: 500 })
+    ).filter((order) => order.payMethodUsed === 'card');
+    const names = new Map(cards.map((runner) => [runner.id, runner.name]));
+    return {
+      enabled: app.ctx.env.stripeIssuingEnabled,
+      cards: cards.map((runner) => ({
+        runnerId: runner.id,
+        name: runner.name,
+        last4: runner.cardLast4,
+        status: runner.cardStatus ?? 'inactive',
+        chosen: runner.payMethod,
+      })),
+      orders: orders.map((order) => ({
+        orderId: order.id,
+        runnerName: order.runnerId ? (names.get(order.runnerId) ?? '') : '',
+        loadedPence: order.cardLimitPence,
+        spentPence: order.cardSpentPence,
+        merchant: order.cardMerchant,
+        receiptPence: order.receiptTotalPence,
+        needsPerson: order.tillStatus === 'needs_person',
+        at: order.acceptedAt ?? order.createdAt,
+      })),
+      declines: (
+        await repository.cardAuthorizations.listRecent({ limit: 20, declinedOnly: true })
+      ).map((row) => ({
+        at: row.at,
+        runnerName: row.runnerId ? (names.get(row.runnerId) ?? '') : '',
+        orderId: row.orderId,
+        amountPence: row.amountPence,
+        merchant: row.merchant,
+        reason: row.reason,
+      })),
+    };
+  }
+
   app.get('/staff/money', async (request) => {
     await staffActor(request, 'money');
     const at = now();
@@ -81,6 +124,7 @@ export async function registerOwnerRoutes(app: FastifyInstance): Promise<void> {
       year: totals(since(new Date(at.getTime() - 365 * DAY))),
       allTime: totals(all),
       runnerPayBack: await runnerPayBack(at, startOfDay),
+      runnerCards: await runnerCards(at),
       recent: all
         .slice(-50)
         .reverse()

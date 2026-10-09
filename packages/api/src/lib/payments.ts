@@ -107,6 +107,51 @@ export interface PaidLink {
   address: string;
 }
 
+/**
+ * The Runner spending card (Stripe Issuing; Anthony, 9 October 2026). Only grocery shops: the
+ * merchant categories a supermarket and the food shops beside it are filed under. Checked by
+ * Stripe on the card itself, and again by our own authorization webhook.
+ */
+export const GROCERY_CATEGORIES = [
+  'grocery_stores_supermarkets',
+  'miscellaneous_food_stores',
+  'bakeries',
+  'dairy_products_stores',
+] as const;
+
+/** The Stripe API version this service speaks, sent back on a real-time authorization answer. */
+export const STRIPE_API_VERSION = '2024-12-18.acacia';
+
+/** A Runner as a Stripe Issuing cardholder. Their address goes to Stripe and is not kept by us. */
+export interface CreateCardholderInput {
+  runnerId: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  billing: { line1: string; line2?: string; city: string; postalCode: string; country: 'GB' };
+  /** The cardholder terms, accepted by the Runner: when, from where, and in which browser. */
+  termsAcceptedAt: Date;
+  termsAcceptedIp: string;
+  userAgent?: string;
+}
+
+export interface IssuingCard {
+  id: string;
+  last4: string;
+  status: 'active' | 'inactive';
+}
+
+/**
+ * Loading a card for one order: at most this much at a time, grocery shops only, switched on.
+ * There is no all-time limit, because Stripe's all-time limit counts every order the card has
+ * ever been used for; our own authorization webhook keeps the running total for each order.
+ */
+export interface LoadCardInput {
+  cardId: string;
+  limitPence: number;
+  orderId: string;
+}
+
 export interface WebhookEvent {
   id: string;
   type: string;
@@ -189,11 +234,46 @@ export interface PaymentsGateway {
    * or null when there is none. Used only to keep the referral reward honest (ruling 16).
    */
   cardFingerprint(paymentMethodId: string): Promise<string | null>;
+
+  /**
+   * Stripe Issuing: a Runner as a cardholder, with the cardholder terms they accepted. Nothing
+   * here takes or returns a card number; the number is shown to the Runner by Stripe's own
+   * Issuing Elements, in Stripe's frame, with a short-lived key (`createCardKey`).
+   */
+  createCardholder(input: CreateCardholderInput): Promise<{ id: string }>;
+  /** A virtual card in pounds, created switched off (inactive) and grocery shops only. */
+  createVirtualCard(input: { cardholderId: string; runnerId: string }): Promise<IssuingCard>;
+  /** Load a card for one order and switch it on. */
+  loadCard(input: LoadCardInput): Promise<void>;
+  /** Freeze (inactive) or unfreeze (active) a card. */
+  setCardStatus(input: { cardId: string; status: 'active' | 'inactive' }): Promise<void>;
+  /** Put the card's limit back to nothing, after an order. */
+  clearCardLimit(input: { cardId: string }): Promise<void>;
+  /**
+   * A short-lived key for Stripe Issuing Elements to show this one card to its Runner, made
+   * with the nonce their browser got from Stripe.js. Only the key's secret is returned.
+   */
+  createCardKey(input: { cardId: string; nonce: string }): Promise<{ secret: string }>;
+}
+
+/**
+ * Stripe wants a cardholder's first and last names apart, with no numbers or unusual signs in
+ * them. A single name is used for both, rather than refused.
+ */
+export function splitName(name: string): { first: string; last: string } {
+  const cleaned = name
+    .replace(/[^\p{L}\s.,'-]/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const parts = cleaned.split(' ').filter(Boolean);
+  if (parts.length === 0) return { first: 'Runner', last: 'Runner' };
+  if (parts.length === 1) return { first: parts[0]!, last: parts[0]! };
+  return { first: parts.slice(0, -1).join(' '), last: parts[parts.length - 1]! };
 }
 
 export function stripeGateway(secretKey: string, webhookSecret: string): PaymentsGateway {
   const stripe = new Stripe(secretKey, {
-    apiVersion: '2024-12-18.acacia' as Stripe.LatestApiVersion,
+    apiVersion: STRIPE_API_VERSION as Stripe.LatestApiVersion,
   });
 
   return {
@@ -381,6 +461,84 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
       const method = await stripe.paymentMethods.retrieve(paymentMethodId);
       return method.card?.fingerprint ?? null;
     },
+    async createCardholder(input) {
+      const { first, last } = splitName(input.name);
+      const cardholder = await stripe.issuing.cardholders.create({
+        type: 'individual',
+        // Stripe prints at most 24 characters on a card.
+        name: input.name.slice(0, 24),
+        ...(input.phone ? { phone_number: input.phone } : {}),
+        ...(input.email ? { email: input.email } : {}),
+        billing: {
+          address: {
+            line1: input.billing.line1,
+            ...(input.billing.line2 ? { line2: input.billing.line2 } : {}),
+            city: input.billing.city,
+            postal_code: input.billing.postalCode,
+            country: input.billing.country,
+          },
+        },
+        individual: {
+          first_name: first,
+          last_name: last,
+          card_issuing: {
+            user_terms_acceptance: {
+              date: Math.floor(input.termsAcceptedAt.getTime() / 1000),
+              ip: input.termsAcceptedIp,
+              ...(input.userAgent ? { user_agent: input.userAgent } : {}),
+            },
+          },
+        },
+        status: 'active',
+        metadata: { runnerId: input.runnerId },
+      });
+      return { id: cardholder.id };
+    },
+    async createVirtualCard(input) {
+      const card = await stripe.issuing.cards.create({
+        cardholder: input.cardholderId,
+        type: 'virtual',
+        currency: 'gbp',
+        status: 'inactive',
+        spending_controls: { allowed_categories: [...GROCERY_CATEGORIES] },
+        metadata: { runnerId: input.runnerId },
+      });
+      return {
+        id: card.id,
+        last4: card.last4,
+        status: card.status === 'active' ? 'active' : 'inactive',
+      };
+    },
+    async loadCard(input) {
+      await stripe.issuing.cards.update(input.cardId, {
+        status: 'active',
+        spending_controls: {
+          allowed_categories: [...GROCERY_CATEGORIES],
+          spending_limits: [{ amount: input.limitPence, interval: 'per_authorization' }],
+        },
+        metadata: { orderId: input.orderId },
+      });
+    },
+    async setCardStatus(input) {
+      await stripe.issuing.cards.update(input.cardId, { status: input.status });
+    },
+    async clearCardLimit(input) {
+      await stripe.issuing.cards.update(input.cardId, {
+        spending_controls: {
+          allowed_categories: [...GROCERY_CATEGORIES],
+          spending_limits: [{ amount: 0, interval: 'per_authorization' }],
+        },
+        metadata: { orderId: '' },
+      });
+    },
+    async createCardKey(input) {
+      const key = await stripe.ephemeralKeys.create(
+        { issuing_card: input.cardId, nonce: input.nonce },
+        { apiVersion: STRIPE_API_VERSION },
+      );
+      if (!key.secret) throw new Error('Stripe gave no key to show the card with.');
+      return { secret: key.secret };
+    },
     async paidByLink(sessionId) {
       const session = await stripe.checkout.sessions.retrieve(sessionId, {
         expand: ['payment_intent.payment_method'],
@@ -429,7 +587,13 @@ export interface RecordedCall {
     | 'refund'
     | 'payment_link'
     | 'payout_schedule'
-    | 'instant_payout';
+    | 'instant_payout'
+    | 'cardholder'
+    | 'issuing_card'
+    | 'card_load'
+    | 'card_status'
+    | 'card_clear'
+    | 'card_key';
   input:
     | CreatePaymentIntentInput
     | CreatePaymentLinkInput
@@ -438,7 +602,13 @@ export interface RecordedCall {
     | { paymentIntentId: string; amountPence: number; reference: string }
     | { runnerId: string }
     | { accountId: string; interval: 'weekly' | 'daily' }
-    | { accountId: string; amountPence: number; currency: string; reference: string };
+    | { accountId: string; amountPence: number; currency: string; reference: string }
+    | CreateCardholderInput
+    | { cardholderId: string; runnerId: string }
+    | LoadCardInput
+    | { cardId: string; status: 'active' | 'inactive' }
+    | { cardId: string }
+    | { cardId: string; nonce: string };
 }
 
 export interface RehearsalGateway extends PaymentsGateway {
@@ -451,6 +621,10 @@ export interface RehearsalGateway extends PaymentsGateway {
   instantAvailable: Map<string, number>;
   /** For tests: the card behind each payment method, so two can be the same card. */
   fingerprints: Map<string, string>;
+  /** For tests: each spending card as Stripe would hold it now. */
+  issuingCards: Map<string, { status: 'active' | 'inactive'; limitPence: number }>;
+  /** For tests: the next spending card cannot be loaded, as if Stripe could not be reached. */
+  refuseNextCardLoad: boolean;
 }
 
 export function rehearsalGateway(): RehearsalGateway {
@@ -465,6 +639,42 @@ export function rehearsalGateway(): RehearsalGateway {
     refuseNextSave: false,
     instantAvailable: new Map(),
     fingerprints: new Map(),
+    issuingCards: new Map(),
+    refuseNextCardLoad: false,
+    async createCardholder(input) {
+      counter += 1;
+      calls.push({ kind: 'cardholder', input });
+      return { id: `ich_rehearsal_${counter}` };
+    },
+    async createVirtualCard(input) {
+      counter += 1;
+      calls.push({ kind: 'issuing_card', input });
+      const id = `ic_rehearsal_${counter}`;
+      gateway.issuingCards.set(id, { status: 'inactive', limitPence: 0 });
+      return { id, last4: String(4000 + counter).slice(-4), status: 'inactive' };
+    },
+    async loadCard(input) {
+      if (gateway.refuseNextCardLoad) {
+        gateway.refuseNextCardLoad = false;
+        throw new Error('Stripe could not be reached.');
+      }
+      calls.push({ kind: 'card_load', input });
+      gateway.issuingCards.set(input.cardId, { status: 'active', limitPence: input.limitPence });
+    },
+    async setCardStatus(input) {
+      calls.push({ kind: 'card_status', input });
+      const card = gateway.issuingCards.get(input.cardId) ?? { status: 'inactive', limitPence: 0 };
+      gateway.issuingCards.set(input.cardId, { ...card, status: input.status });
+    },
+    async clearCardLimit(input) {
+      calls.push({ kind: 'card_clear', input });
+      const card = gateway.issuingCards.get(input.cardId) ?? { status: 'inactive', limitPence: 0 };
+      gateway.issuingCards.set(input.cardId, { ...card, limitPence: 0 });
+    },
+    async createCardKey(input) {
+      calls.push({ kind: 'card_key', input });
+      return { secret: `ek_rehearsal_${input.cardId}` };
+    },
     async setPayoutSchedule(input) {
       calls.push({ kind: 'payout_schedule', input });
     },

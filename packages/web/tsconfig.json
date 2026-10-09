@@ -12,5 +12,5 @@
     "declarationMap": false,
     "types": ["vite/client", "vite-plugin-pwa/client", "@testing-library/jest-dom"]
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "test/**/*.tsx", "vite.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts", "test/**/*.tsx", "vite.config.ts", "pwa.ts"]
 }

@@ -244,15 +244,30 @@ model Runner {
   insuranceReminderFor  DateTime?
   insuranceReminderDays Int?
 
+  /// How they pay at the till (9 October 2026): "card", the spending card from Stripe Issuing,
+  /// loaded for each order, or "own", their own card and paid back straight away (ruling 55).
+  payMethod              String    @default("own")
+  /// Stripe Issuing: the cardholder and the virtual card. Identifiers and the last four digits
+  /// only; the card number never passes through this service (Rule Ten).
+  issuingCardholderId    String?
+  issuingCardId          String?   @unique
+  cardLast4              String?
+  /// "active" while loaded for an order, "inactive" (frozen) otherwise.
+  cardStatus             String?
+  /// When and from where they accepted the cardholder terms, which Stripe requires.
+  issuingTermsAcceptedAt DateTime?
+  issuingTermsAcceptedIp String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orders    Order[]
-  offers    JobOffer[]
-  payouts   RunnerPayout[]
-  checks    RunnerCheck[]
-  documents RunnerDocument[]
-  sos       RunnerSos[]
+  cardAuthorizations CardAuthorization[]
+  orders             Order[]
+  offers             JobOffer[]
+  payouts            RunnerPayout[]
+  checks             RunnerCheck[]
+  documents          RunnerDocument[]
+  sos                RunnerSos[]
 
   @@index([available, lastJobCompletedAt])
 }
@@ -454,6 +469,13 @@ model Order {
   tillSettledBy String?
   tillSettledAt DateTime?
 
+  /// Paid at the till with the spending card ("card") or the Runner's own card ("own"),
+  /// what the card was loaded with for this order, what it spent, and at which shop.
+  payMethodUsed  String?
+  cardLimitPence Int?
+  cardSpentPence Int?
+  cardMerchant   String?
+
   /// The door safe word (T6): two easy words the Runner says at the door.
   doorWord String?
 
@@ -463,20 +485,21 @@ model Order {
   /// When the delivery address and doorstep words were taken off, seven years on (retention).
   anonymisedAt DateTime?
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  acceptedAt  DateTime?
-  deliveredAt DateTime?
-  completedAt DateTime?
-  cancelledAt DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  acceptedAt   DateTime?
+  deliveredAt  DateTime?
+  completedAt  DateTime?
+  cancelledAt  DateTime?
   /// Why it was cancelled, in plain words, for the admin panel's cancellations list.
   cancelReason String?
 
-  items     OrderItem[]
-  offers    JobOffer[]
-  payout    RunnerPayout?
-  questions ItemQuestion[]
-  calls     Call[]
+  items              OrderItem[]
+  offers             JobOffer[]
+  payout             RunnerPayout?
+  questions          ItemQuestion[]
+  calls              Call[]
+  cardAuthorizations CardAuthorization[]
 
   @@unique([setId, setFireAt])
   @@index([status])
@@ -1130,6 +1153,7 @@ model ReferralReward {
 
   @@index([referrer])
 }
+
 /// Who did what in the admin panel, and when (Section Q). Only ever added to: the server has
 /// no way to change or remove an entry, and the database refuses to (see the migration).
 model AuditEntry {
@@ -1150,4 +1174,29 @@ model AuditEntry {
 
   @@index([at])
   @@index([actorId])
+}
+
+/// Every time a Runner's spending card was used: each authorization the shop asked for, approved
+/// or declined and why, and each transaction that followed (amount spent, positive; a refund,
+/// negative). Keyed by Stripe's own identifier, so a repeated webhook changes nothing.
+model CardAuthorization {
+  id          String   @id @default(cuid())
+  stripeId    String   @unique
+  /// "authorization" or "transaction".
+  kind        String
+  orderId     String?
+  order       Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  runnerId    String?
+  runner      Runner?  @relation(fields: [runnerId], references: [id], onDelete: SetNull)
+  amountPence Int
+  approved    Boolean
+  /// Why it was approved or declined, in plain words.
+  reason      String   @default("")
+  /// Stripe's status for an authorization: pending, closed or reversed.
+  status      String   @default("")
+  merchant    String   @default("")
+  at          DateTime @default(now())
+
+  @@index([orderId])
+  @@index([runnerId, at])
 }

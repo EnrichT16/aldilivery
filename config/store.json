@@ -124,5 +124,9 @@
   },
   "versionOneRestrictions": {
     "ageRestrictedGoodsAllowed": false
+  },
+  "mobileApp": {
+    "appId": "uk.co.ozidelivery.app",
+    "site": "https://ozidelivery.co.uk"
   }
 }

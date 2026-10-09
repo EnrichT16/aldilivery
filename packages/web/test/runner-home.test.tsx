@@ -30,6 +30,8 @@ interface State {
   canDrive: boolean;
   /** Agreed to the Runner agreement as it stands (ruling 55). */
   agreed: boolean;
+  /** Paying at the till with the spending card, loaded for the job (9 October 2026). */
+  byCard?: boolean;
 }
 
 let state: State;
@@ -116,7 +118,28 @@ function stubRunnerApi(): void {
       if (path === '/jobs/offer-1/accept') {
         state.offered = false;
         state.status = 'accepted';
-        return reply({});
+        return reply(
+          state.byCard
+            ? {
+                till: {
+                  payMethodUsed: 'card',
+                  cardLimitPence: 839,
+                  message:
+                    'Your Ozi card is loaded with up to £8.39 for this order. Tap your phone at the till.',
+                },
+              }
+            : {},
+        );
+      }
+      if (path === '/runners/me/card') {
+        return reply({
+          enabled: false,
+          cardName: 'Ozi card',
+          payMethod: 'own',
+          chosen: 'own',
+          termsAccepted: false,
+          card: null,
+        });
       }
       if (path === '/jobs/offer-1/decline') {
         state.offered = false;
@@ -137,6 +160,7 @@ function stubRunnerApi(): void {
                   goodsEstimatePence: 339,
                   receiptTotalPence: null,
                   runnerPaymentPence: 500,
+                  ...(state.byCard ? { payMethodUsed: 'card', cardLimitPence: 839 } : {}),
                   items: [
                     {
                       id: 'i1',
@@ -394,6 +418,35 @@ describe('a Runner page', () => {
       ),
     ).toHaveAttribute('role', 'status');
     expect(state.status).toBe('delivered');
+  });
+
+  it('with the spending card: says it is loaded for the order, and to tap the phone at the till', async () => {
+    const user = userEvent.setup({ delay: null });
+    state.available = true;
+    state.offered = true;
+    state.byCard = true;
+    stubRunnerApi();
+    renderHome();
+
+    await user.click(await screen.findByRole('button', { name: 'Take this job' }));
+    expect(
+      await screen.findByText(/The job is yours\. Your Ozi card is loaded with up to £8\.39/),
+    ).toHaveAttribute('role', 'status');
+    expect(
+      await screen.findByText(/^Your Ozi card is loaded with up to £8\.39 for this order\.$/),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Tap your phone at the till')).toBeInTheDocument();
+    // The longer words are there for a screen reader, hidden on screen unless words are shown.
+    expect(screen.getByText(/You do not need any of your own money/)).toHaveClass('extra');
+
+    await user.click(screen.getByRole('button', { name: 'I have started shopping' }));
+    const till = await screen.findByLabelText('What did the till say?');
+    expect(till).toHaveAccessibleDescription(/we check the two match/);
+    const results = await axe.run(document.body, {
+      resultTypes: ['violations'],
+      rules: { 'color-contrast': { enabled: false } },
+    } as axe.RunOptions);
+    expect(results.violations.map((v) => v.id)).toEqual([]);
   });
 
   it('sends a photo of the receipt with the till total, when one was taken', async () => {

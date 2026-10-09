@@ -60,6 +60,7 @@ import { registerExtrasRoutes } from './routes/extras.js';
 import { registerProblemRoutes } from './routes/problems.js';
 import { registerRunnerAccountRoutes } from './routes/runner-account.js';
 import { registerRunnerMoneyRoutes } from './routes/runner-money.js';
+import { registerRunnerCardRoutes } from './routes/runner-card.js';
 import { registerRunnerSafetyRoutes } from './routes/runner-safety.js';
 import { registerReferralRewardRoutes } from './routes/referral-reward.js';
 import { registerPushRoutes } from './routes/push.js';
@@ -460,6 +461,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerOrderExtraRoutes(app);
   await registerRunnerSafetyRoutes(app);
   await registerRunnerMoneyRoutes(app);
+  await registerRunnerCardRoutes(app);
   await registerReferralRewardRoutes(app);
   await registerAdminRoutes(app);
 }
