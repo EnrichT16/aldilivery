@@ -300,6 +300,8 @@ export interface RegisterRunnerInput {
   travelModes: VehicleType[];
   /** The ID of whoever invited them, from the link they followed. */
   referredBy?: string;
+  /** Agreeing to the Runner agreement as they sign up (ruling 55). */
+  agreement?: { accepted: true; version: string; channel: 'button' | 'voice' };
 }
 
 /**
@@ -329,6 +331,22 @@ export interface RunnerAccount {
   vehicleType?: VehicleType;
   travelModes?: VehicleType[];
   referralCode?: string;
+  /** They have agreed to the Runner agreement as it stands today (ruling 55). */
+  agreementCurrent?: boolean;
+  agreementAcceptedAt?: string | null;
+  agreementVersion?: string | null;
+}
+
+/** Agreeing to the Runner agreement before the first job (ruling 55). */
+export function agreeToRunnerAgreement(
+  version: string,
+  channel: 'button' | 'voice' = 'button',
+): Promise<{ runner: RunnerAccount; message: string }> {
+  return request<{ runner: RunnerAccount; message: string }>(
+    '/runners/me/agreement',
+    { method: 'POST', body: JSON.stringify({ accepted: true, version, channel }) },
+    'runner',
+  );
 }
 
 export type RunnerDocumentKind =
@@ -409,6 +427,14 @@ export interface RunnerDashboard {
     at: string;
   }>;
   totalTransferredPence: number;
+  /** Paid back for the shopping bought with their own card (ruling 55). */
+  paidBack?: Array<{
+    reference: string;
+    pence: number;
+    status: 'paid' | 'waiting' | 'owed';
+    at: string;
+  }>;
+  paidBackTotalPence?: number;
   /** Owed after a decision against them: every one, its reason, and what is left. */
   owing?: Array<{
     reference: string;
@@ -497,6 +523,9 @@ export interface CurrentJob {
   goodsEstimatePence: number;
   receiptTotalPence: number | null;
   runnerPaymentPence: number;
+  /** Paying them back for the shopping (ruling 55): how much, and where it has got to. */
+  reimbursementPence?: number | null;
+  reimbursementStatus?: 'paid' | 'waiting' | 'owed' | null;
   items: Array<{ id: string; name: string; quantity: number; estimatedPricePence: number }>;
 }
 
@@ -515,11 +544,18 @@ export function moveJobOn(
   );
 }
 
+/** What the Runner is told about being paid back for the shopping (ruling 55). */
+export interface Reimbursement {
+  kind: 'paid' | 'waiting' | 'owed';
+  pence: number;
+  message: string;
+}
+
 export function submitTillTotal(
   orderId: string,
   receiptTotalPence: number,
-): Promise<{ message: string }> {
-  return request<{ message: string }>(
+): Promise<{ message: string; reimbursement?: Reimbursement | null }> {
+  return request<{ message: string; reimbursement?: Reimbursement | null }>(
     `/orders/${encodeURIComponent(orderId)}/receipt`,
     { method: 'POST', body: JSON.stringify({ receiptTotalPence }) },
     'runner',
@@ -1889,6 +1925,17 @@ export interface OwnerMoney {
   month: MoneyTotals;
   year: MoneyTotals;
   allTime: MoneyTotals;
+  /** What Runners were paid back for the shopping (ruling 55). Passed straight through. */
+  runnerPayBack?: {
+    todayPence: number;
+    weekPence: number;
+    monthPence: number;
+    allTimePence: number;
+    waitingCount: number;
+    waitingPence: number;
+    owedCount: number;
+    owedPence: number;
+  };
   recent: Array<{
     at: string;
     gateway: string;
@@ -2110,5 +2157,36 @@ export function markBankPayment(
 ): Promise<{ message: string }> {
   return staffRequest(key, `/staff/payments/${encodeURIComponent(orderId)}/${outcome}`, {
     method: 'POST',
+  });
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * Paying Runners back for the shopping, for staff to approve when a person must (ruling 55).
+ * ------------------------------------------------------------------------------------- */
+
+export interface ReimbursementRow {
+  orderId: string;
+  reference: string;
+  transferReference: string;
+  runnerName: string;
+  goodsEstimatePence: number;
+  receiptTotalPence: number | null;
+  amountPence: number;
+  status: 'paid' | 'waiting' | 'owed';
+  reason: string | null;
+  approvedBy: string | null;
+  paidAt: string | null;
+}
+
+export function fetchReimbursements(
+  key: string,
+): Promise<{ waiting: ReimbursementRow[]; owed: ReimbursementRow[]; paid: ReimbursementRow[] }> {
+  return staffRequest(key, '/staff/reimbursements');
+}
+
+export function approveReimbursement(key: string, orderId: string): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/reimbursements/${encodeURIComponent(orderId)}/approve`, {
+    method: 'POST',
+    body: JSON.stringify({}),
   });
 }

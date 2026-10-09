@@ -310,7 +310,7 @@ describe('where an order goes, at checkout', () => {
     expect(home).toBeChecked();
     await user.click(screen.getByRole('radio', { name: /Tom's halls/ }));
     await user.click(screen.getByRole('button', { name: 'Yes, this is the right address' }));
-    await user.click(screen.getByRole('button', { name: 'Send my order' }));
+    await user.click(screen.getByRole('button', { name: 'Send my order and pay' }));
     await waitFor(() => {
       expect(server.sent.find((r) => r.path === '/orders')?.body?.['deliveryAddress']).toBe(
         '1 Halls, Canterbury',
@@ -330,7 +330,7 @@ describe('where an order goes, at checkout', () => {
     expect(screen.getByRole('radio', { name: /This order only/ })).toBeChecked();
     expect(server.sent.some((r) => r.method !== 'GET' && r.path.startsWith('/me'))).toBe(false);
     await user.click(screen.getByRole('button', { name: 'Yes, this is the right address' }));
-    await user.click(screen.getByRole('button', { name: 'Send my order' }));
+    await user.click(screen.getByRole('button', { name: 'Send my order and pay' }));
     await waitFor(() => {
       expect(server.sent.find((r) => r.path === '/orders')?.body?.['deliveryAddress']).toBe(
         '5 Friend Street, Strood',

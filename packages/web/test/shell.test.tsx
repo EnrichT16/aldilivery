@@ -143,8 +143,14 @@ describe('the landing page', () => {
     expect(
       screen.getByText(/Nothing is ever taken from your pay automatically/),
     ).toBeInTheDocument();
-    // Still a draft on purpose: employment status and paying at the till need decisions.
+    // Paying at the till is decided (ruling 55): the Runner is paid back straight away.
+    expect(
+      screen.getByText(/we pay it back to you, straight to your own Stripe/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/never comes out of it/)).toBeInTheDocument();
+    // Still a draft on purpose: employment status and a right of substitution need decisions.
     expect(screen.getByText(/This is a draft/)).toBeInTheDocument();
+    expect(screen.getByText(/Version of 9 October 2026/)).toBeInTheDocument();
   });
 
   it('keeps the invitation code from a shared link for the sign-up form', () => {
@@ -289,7 +295,7 @@ describe('the confirmation screen', () => {
     const confirming = buttons.filter((button) => /send my order/i.test(button.textContent ?? ''));
 
     expect(confirming).toHaveLength(1);
-    expect(confirming[0]).toHaveTextContent('Send my order');
+    expect(confirming[0]).toHaveTextContent('Send my order and pay');
   });
 
   it('says what will happen before the button, not after it', async () => {

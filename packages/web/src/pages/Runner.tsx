@@ -27,7 +27,10 @@ export function RunnerDoor(): JSX.Element {
         </h2>
         <ol className="m-0 ps-6 space-y-2">
           <li>A job is offered to you and held for you for sixty seconds.</li>
-          <li>You buy the shopping at the shelf price and keep the receipt.</li>
+          <li>
+            You buy the shopping at the shelf price with your own card and keep the receipt. When
+            you put in the till total, we pay it back to you straight away.
+          </li>
           <li>You take it to the door and follow whatever the Shopper asked for.</li>
           <li>{money(runnerPaymentPence)} goes to your own bank account.</li>
         </ol>

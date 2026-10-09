@@ -23,6 +23,7 @@ import { callScript, codeMessage, twilioCaller, twilioSender } from './lib/sms.j
 import { twilioDialler } from './lib/twilio-voice.js';
 import { sweepOffers } from './services/dispatch.js';
 import { sweepPayouts } from './services/pay-runner.js';
+import { sweepReimbursements } from './services/reimburse.js';
 
 async function main(): Promise<void> {
   const env = readEnv();
@@ -237,6 +238,12 @@ async function main(): Promise<void> {
       app.log.warn({ orderId, err: failure }, 'Could not pay a Runner yet');
     }).catch((failure: unknown) => {
       app.log.error({ err: failure }, 'The payout sweep failed');
+    });
+    // And any pay-back for the shopping that is owed (ruling 55), on the same terms.
+    sweepReimbursements(app.ctx, (orderId, failure) => {
+      app.log.warn({ orderId, err: failure }, 'Could not pay a Runner back yet');
+    }).catch((failure: unknown) => {
+      app.log.error({ err: failure }, 'The pay-back sweep failed');
     });
   }, 60_000);
   paySweep.unref();

@@ -8,7 +8,7 @@
 
 import type { FastifyInstance } from 'fastify';
 import { loadStoreConfig } from '@aldilivery/core/node';
-import type { StoreConfig } from '@aldilivery/core';
+import { RUNNER_AGREEMENT_VERSION, type StoreConfig } from '@aldilivery/core';
 
 import { buildApp } from '../src/app.js';
 import { memoryRepository } from '../src/data/memory.js';
@@ -279,6 +279,8 @@ export async function signUpRunner(
     name?: string;
     phone?: string;
     verified?: boolean;
+    /** Agreed to the Runner agreement at sign-up (ruling 55). True unless a test says not. */
+    agreed?: boolean;
     latitude?: number;
     longitude?: number;
   } = {},
@@ -291,6 +293,9 @@ export async function signUpRunner(
       phone: overrides.phone ?? '+447700900101',
       vehicleType: 'car',
       stripeConnectedAccountId: 'acct_test_runner',
+      ...(overrides.agreed === false
+        ? {}
+        : { agreement: { accepted: true, version: RUNNER_AGREEMENT_VERSION, channel: 'button' } }),
     },
   });
   if (response.statusCode !== 201) {

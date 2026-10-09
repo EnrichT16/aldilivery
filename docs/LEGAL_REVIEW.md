@@ -94,7 +94,10 @@ telephone ordering, account deletion and the database schema.
   (true in `routes/jobs.ts`: declining does not change `lastJobCompletedAt`); work for others;
   £5 a delivery and £5 for each pooled order; the deposit; the 10% recovery only after a written
   decision by a person, which the Runner can answer; write-off under £20. **It stays marked as a
-  draft on purpose** (see the risks below).
+  draft on purpose** (see the risks below). *Since ruling 55 (9 October 2026) it also says how a
+  Runner pays at the till and is paid back, carries its version date, and is agreed before the
+  first job; it stays a draft only for employment status, a right of substitution and a
+  solicitor's reading.*
 - **What we keep on your device** (`/cookies`, footer link "Cookies"). Lists every item the site
   keeps in `localStorage`, `sessionStorage`, the offline copy and Stripe's cookies. All are
   needed for the service or remember a choice, so no consent banner is needed under PECR reg 6(4).
@@ -146,8 +149,9 @@ Also needed, outside the code:
    DigitalOcean) and check each is on the UK–US data bridge list or uses the ICO's transfer
    addendum. Write down who runs Oluoma Voice and where; if a different company runs it, it needs a
    processor contract too.
-4. **Decide how a Runner pays at the till** (see the first risk), then replace that line in the
-   Runner agreement.
+4. ~~**Decide how a Runner pays at the till** (see the first risk), then replace that line in the
+   Runner agreement.~~ **Done (ruling 55, 9 October 2026):** the Runner pays with their own card
+   and is paid back straight away; the agreement says so.
 
 ## Code that must catch up with the pages
 
@@ -165,12 +169,17 @@ The pages now promise these; the code does not yet do all of them:
 4. **Changing door instructions.** There is no screen for it yet; the page says "ask us".
 5. **Rule Ten and the deposit.** The withheld deposit stays in the platform's Stripe balance until
    it is released, so for that time the service does hold Runner money. Either change Rule Ten's
-   wording or hold the deposit differently.
+   wording or hold the deposit differently. *Still open (9 October 2026): ruling 55 left the
+   deposit logic unchanged on purpose, for Anthony to rule on. Paying a Runner back for the
+   shopping does not add to it: that money goes straight out to the Runner's own account.*
 6. **The order button.** Regulation 14(3) of the 2013 Regulations asks that the button which places
    an order says clearly that it means paying, such as "Order and pay". "Send my order" probably
    falls short, and the penalty is that the Shopper is not bound by the contract. The wording is
    fixed by Rule One in RULES.md, so it is Anthony's decision: **recommended: "Send my order and
    pay"**, and the same idea in the voice read-back ("Shall I send it and take the payment?").
+   **Done (ruling 55, 9 October 2026):** the button reads "Send my order and pay", what the
+   Shopper agrees to begins "Send my order and pay.", and Ozi asks "Shall I send your order and
+   pay now, charging about £X to your card ending 1234?". Recorded as an amendment under Rule One.
 
 ## Remaining risks a solicitor would normally look at
 
@@ -184,7 +193,11 @@ The pages now promise these; the code does not yet do all of them:
    checked Runner (as in *Deliveroo*) would strengthen the position; so would letting Runners see
    and choose jobs rather than only being offered them. How Runners pay at the till matters here
    too: if they spend their own money and wait to be paid back, that is a fairness and status
-   problem, and today the code pays only the £5, not the shopping (`pay-runner.ts`).
+   problem, and today the code pays only the £5, not the shopping (`pay-runner.ts`). *Since
+   ruling 55 they are paid back the till total straight away when they put it in
+   (`services/reimburse.ts`); only a till total far over the estimate, over £60, or on an order
+   the till itself needs a person for, waits for a person to approve, the same day where
+   possible.*
 2. **Liability caps.** The terms deliberately have no money cap on our liability to Shoppers,
    because caps in consumer terms are often unfair under the 2015 Act. A solicitor may want a fair
    cap for some losses, and a cap and indemnity in the Runner agreement.
@@ -205,7 +218,10 @@ The pages now promise these; the code does not yet do all of them:
    at 10% and never automatic. That is fair and transparent. It would still be a deduction a
    tribunal could look at if Runners were workers; the written agreement before the first job is
    what makes it lawful then, so the "agree before your first job" step must actually be built and
-   recorded.
+   recorded. **Done (ruling 55):** a Runner ticks to agree at sign-up, or on their Runner page
+   (a spoken yes is accepted by the server too); the date, the version and how are kept on their
+   account; no job is offered or accepted until they have agreed to the current version, and a
+   new version asks everyone again.
 8. **Age.** The pages now say 18 or over. Nothing checks it. That is normal for this kind of
    service, but Runners' DBS and right to work checks should include date of birth.
 
@@ -219,3 +235,19 @@ footer carries the company details on every page; that the cookies page exists; 
 Runner agreement matches the app (decline without reason, the recovery rate from configuration,
 nothing automatic) and is still marked as a draft. Both new pages are in the axe accessibility run
 (`packages/web/test/a11y.test.tsx`) and the every-control-named and 48 pixel checks.
+
+## Updates, 9 October 2026 (ruling 55)
+
+Anthony decided three of the open points:
+
+| Item | Where | Status |
+| --- | --- | --- |
+| How a Runner pays at the till ("choice 1": their own card, paid back straight away) | `packages/api/src/services/reimburse.ts`, the receipt route in `routes/orders.ts`, the Runner agreement page | Done |
+| The order button says "Send my order and pay" (regulation 14(3)) | `packages/web/src/pages/Confirm.tsx`, `state/voice-order.ts`, RULES.md Rule One | Done |
+| Agreement to the Runner agreement recorded before the first job (makes the 10% recovery a written, prior agreement) | `packages/api/src/services/runner-agreement.ts`, `routes/jobs.ts`, `services/dispatch.ts`, Runner sign-up and Runner page | Done |
+| Rule Ten and the cool bag deposit | `services/pay-runner.ts` | Unchanged on purpose; still for Anthony |
+| Runner agreement draft marker | `packages/web/src/pages/RunnerAgreement.tsx` | Kept: employment status, a right of substitution and a solicitor's reading are still open |
+
+Still worth knowing: the Runner types the till total and keeps the receipt; no photo of the
+receipt is taken by the app yet, so the limits above (the estimate plus the larger of £5 or a
+fifth, never over £60, a person for anything else) are what protect against a wrong figure.

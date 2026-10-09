@@ -26,6 +26,15 @@ import { tellShopperWords } from './order-updates.js';
 export const EXTRA_FLOOR_PENCE = 500;
 export const EXTRA_SHARE = 0.2;
 
+/**
+ * The most the till may come to over the shopping estimate before a person must decide: the
+ * larger of £5 or a fifth of the estimate. The same limit caps what a Runner is paid back for
+ * the shopping without a person looking first (ruling 55, services/reimburse.ts).
+ */
+export function tillLimitPence(goodsEstimatePence: number): number {
+  return Math.max(EXTRA_FLOOR_PENCE, Math.round(goodsEstimatePence * EXTRA_SHARE));
+}
+
 export type TillOutcome =
   | { kind: 'even' }
   | { kind: 'refunded'; pence: number }
@@ -93,7 +102,7 @@ export async function settleTill(
     return { kind: 'refunded', pence };
   }
 
-  const limit = Math.max(EXTRA_FLOOR_PENCE, Math.round(order.goodsEstimatePence * EXTRA_SHARE));
+  const limit = tillLimitPence(order.goodsEstimatePence);
   if (difference > limit) {
     await alertOwner(
       `order ${order.id} came to ${money(difference)} more than estimated, over the ${money(limit)} taken automatically. Please decide.`,

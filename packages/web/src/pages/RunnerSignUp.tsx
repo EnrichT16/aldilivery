@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { RUNNER_AGREEMENT_VERSION } from '@aldilivery/core';
 
 import { DocumentsChecklist } from '../components/DocumentsChecklist';
 import { Field } from '../components/FormFields';
@@ -49,6 +50,7 @@ export function RunnerSignUp(): JSX.Element {
     const name = String(data.get('runnerName') ?? '').trim();
     const phone = String(data.get('runnerPhone') ?? '').trim();
     const travelModes = data.getAll('travelModes').map(String) as VehicleType[];
+    const agreed = data.get('agreement') === 'yes';
 
     const found: Array<{ field: string; message: string }> = [];
     if (name === '') found.push({ field: 'runnerName', message: 'Please tell us your name.' });
@@ -59,6 +61,12 @@ export function RunnerSignUp(): JSX.Element {
       found.push({
         field: 'travelModes-on_foot',
         message: 'Please choose at least one way you will deliver.',
+      });
+    }
+    if (!agreed) {
+      found.push({
+        field: 'agreement',
+        message: 'Please tick to say you are 18 or over and agree to the Runner agreement.',
       });
     }
     if (found.length > 0) {
@@ -74,6 +82,8 @@ export function RunnerSignUp(): JSX.Element {
         phone,
         travelModes,
         ...(referredBy ? { referredBy } : {}),
+        // Kept with the date and the version, before any job (ruling 55).
+        agreement: { accepted: true, version: RUNNER_AGREEMENT_VERSION, channel: 'button' },
       });
       // Kept as the Runner's own sign-in, so any Shopper signed in here stays signed in.
       writeRunnerToken(result.token);
@@ -193,12 +203,19 @@ export function RunnerSignUp(): JSX.Element {
         </fieldset>
 
         <p className="m-0">
-          By signing up, you confirm you are 18 or over and agree to the Runner agreement. We will
-          ask you to agree to its final version before your first job.
+          The Runner agreement says how you are paid, that you pay at the till with your own card
+          and we pay you back straight away, and what happens if something goes wrong. Please read
+          it before you agree.
         </p>
         <Link to="/runner/agreement" className="control bg-paper/10 text-paper underline">
           Read the Runner agreement
         </Link>
+        <div className="flex items-center gap-3 min-h-control">
+          <input type="checkbox" id="agreement" name="agreement" value="yes" className="h-6 w-6" />
+          <label htmlFor="agreement" className="m-0">
+            I am 18 or over, and I agree to the Runner agreement
+          </label>
+        </div>
 
         <button
           type="submit"

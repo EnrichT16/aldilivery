@@ -470,6 +470,14 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         const rows = await prisma.order.findMany({ where: { poolId }, include: { items: true } });
         return rows.map(toOrder);
       },
+      async listByReimbursementStatus(status) {
+        const rows = await prisma.order.findMany({
+          where: { reimbursementStatus: status },
+          include: { items: true },
+          orderBy: { updatedAt: 'desc' },
+        });
+        return rows.map(toOrder);
+      },
       async countForRunner(runnerId) {
         return prisma.order.count({ where: { runnerId } });
       },

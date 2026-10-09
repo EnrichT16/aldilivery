@@ -13,6 +13,7 @@ import type { AppContext } from '../app.js';
 import type { JobOffer, Order } from '../domain.js';
 import { ConflictError, NotFoundError } from '../errors.js';
 import { buildOfferQueue, isOfferExpired, nextRunnerToOffer, offerExpiryAt } from './allocation.js';
+import { hasAgreed } from './runner-agreement.js';
 
 export type OfferResult =
   | { offer: JobOffer; alreadyOffered: boolean; holdSeconds: number; queueLength: number }
@@ -68,7 +69,10 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
       if (active.runnerId) busy.add(active.runnerId);
     }
   }
-  const runners = (await repository.runners.listAvailable()).filter((r) => !busy.has(r.id));
+  // Nobody is offered a job they could not accept: the Runner agreement comes first (ruling 55).
+  const runners = (await repository.runners.listAvailable()).filter(
+    (r) => !busy.has(r.id) && hasAgreed(r),
+  );
   const queue = buildOfferQueue(
     { latitude: order.latitude, longitude: order.longitude },
     runners.map((runner) => ({

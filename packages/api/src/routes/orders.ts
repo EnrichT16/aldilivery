@@ -32,6 +32,7 @@ import { alertPayments, bankReference, bankSettings } from '../lib/bank.js';
 import { tellShopper } from '../services/order-updates.js';
 import { settleTill } from '../services/till.js';
 import { payOutOrder } from '../services/pay-runner.js';
+import { startReimbursement } from '../services/reimburse.js';
 import {
   assertConfirmedBeforePayment,
   assertNotAlreadyConfirmed,
@@ -553,6 +554,13 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     if (order.runnerId !== session.accountId) {
       throw new ForbiddenError('That order is not yours.');
     }
+    // Once only. A second till total would settle the Shopper's card again and pay the Runner
+    // back again (ruling 55); a mistake in it is put right by a person.
+    if (order.receiptTotalPence !== null) {
+      throw new ConflictError(
+        'The till total for this order is already in. If it was wrong, please tell us and a person will put it right.',
+      );
+    }
 
     const repricing = repriceToReceipt(
       input.receiptTotalPence,
@@ -580,14 +588,27 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     // The difference from the estimate is settled on the same card at once (ruling 52).
     const settled = await settleTill(app.ctx, updated, request.log);
 
+    // The Runner paid at the till with their own card, so they are paid back straight away,
+    // or, when the till needs a person, as soon as a person approves it (ruling 55). Like
+    // settling, this never undoes the receipt: a failure is logged, and the sweep tries again.
+    let reimbursement = null;
+    try {
+      reimbursement = await startReimbursement(app.ctx, updated, settled, request.log);
+    } catch (failure) {
+      request.log.error({ err: failure, orderId: order.id }, 'The Runner pay-back did not start.');
+    }
+
+    const tillWords =
+      repricing.differenceFromEstimatePence > 0
+        ? `The shopping came to ${formatPence(repricing.receiptTotalPence, symbol)}, which is ${formatPence(repricing.differenceFromEstimatePence, symbol)} less than we thought.`
+        : `The shopping came to ${formatPence(repricing.receiptTotalPence, symbol)}.`;
+
     return {
-      order: updated,
+      order: (await repository.orders.findById(order.id)) ?? updated,
       repricing,
       settled,
-      message:
-        repricing.differenceFromEstimatePence > 0
-          ? `The shopping came to ${formatPence(repricing.receiptTotalPence, symbol)}, which is ${formatPence(repricing.differenceFromEstimatePence, symbol)} less than we thought.`
-          : `The shopping came to ${formatPence(repricing.receiptTotalPence, symbol)}.`,
+      reimbursement,
+      message: reimbursement ? `${tillWords} ${reimbursement.message}` : tillWords,
     };
   });
 }

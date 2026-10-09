@@ -45,6 +45,7 @@ import type {
   ProblemEvidence,
   RunnerRecovery,
   RecurringSet,
+  ReimbursementStatus,
   Runner,
   RunnerCheck,
   RunnerPayout,
@@ -78,6 +79,9 @@ export type CreateRunner = Pick<Runner, 'name' | 'phone'> &
       | 'rightToWorkVerified'
       | 'criminalRecordCheckVerified'
       | 'stripeConnectedAccountId'
+      | 'agreementAcceptedAt'
+      | 'agreementVersion'
+      | 'agreementChannel'
       | 'available'
       | 'latitude'
       | 'longitude'
@@ -326,6 +330,8 @@ export interface Repository {
     listForShopper(shopperId: string): Promise<Order[]>;
     listByStatus(status: OrderStatus): Promise<Order[]>;
     listByPool(poolId: string): Promise<Order[]>;
+    /** Orders whose Runner is paid back for the shopping, by where that has got to (ruling 55). */
+    listByReimbursementStatus(status: ReimbursementStatus): Promise<Order[]>;
     /** How many orders a Runner has ever been given, of any status. */
     countForRunner(runnerId: string): Promise<number>;
     /** Every order a Runner has been given, newest first. */

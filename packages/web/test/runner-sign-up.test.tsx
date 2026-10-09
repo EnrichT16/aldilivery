@@ -11,6 +11,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
+import { RUNNER_AGREEMENT_VERSION } from '@aldilivery/core';
 
 import { App } from '../src/App';
 import { stubApi } from './setup';
@@ -59,6 +60,7 @@ describe('signing up to run', () => {
     await user.type(screen.getByLabelText('Your mobile number'), '07700 900101');
     await user.click(screen.getByLabelText('Bicycle or electric bike'));
     await user.click(screen.getByLabelText('Car'));
+    await user.click(screen.getByLabelText('I am 18 or over, and I agree to the Runner agreement'));
     await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
 
     expect(
@@ -69,6 +71,7 @@ describe('signing up to run', () => {
       phone: '07700 900101',
       travelModes: ['on_foot', 'bicycle', 'car'],
       referredBy: 'RABCD234',
+      agreement: { accepted: true, version: RUNNER_AGREEMENT_VERSION, channel: 'button' },
     });
     expect(screen.getByRole('heading', { name: 'Now, your documents' })).toBeInTheDocument();
     expect(
@@ -81,6 +84,7 @@ describe('signing up to run', () => {
     const recorded = renderAt('/runner/sign-up');
     await user.type(screen.getByLabelText('Your name'), 'Tomasz');
     await user.type(screen.getByLabelText('Your mobile number'), '07700 900101');
+    await user.click(screen.getByLabelText('I am 18 or over, and I agree to the Runner agreement'));
     await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
 
     const face = await screen.findByLabelText('Take a photo of my face');
@@ -104,6 +108,7 @@ describe('signing up to run', () => {
     renderAt('/runner/sign-up');
     await user.type(screen.getByLabelText('Your name'), 'Tomasz');
     await user.type(screen.getByLabelText('Your mobile number'), '07700 900101');
+    await user.click(screen.getByLabelText('I am 18 or over, and I agree to the Runner agreement'));
     await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
     await screen.findByRole('heading', { level: 1, name: 'Thank you, Tomasz' });
 
@@ -121,7 +126,25 @@ describe('signing up to run', () => {
     await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
 
     const problems = await screen.findByRole('alert');
-    expect(problems).toHaveTextContent('There are 2 problems to fix');
+    expect(problems).toHaveTextContent('There are 3 problems to fix');
+    expect(problems).toHaveTextContent('agree to the Runner agreement');
     expect(problems).toHaveFocus();
+  });
+
+  it('will not sign anybody up who has not agreed to the Runner agreement (ruling 55)', async () => {
+    const user = userEvent.setup({ delay: null });
+    const recorded = renderAt('/runner/sign-up');
+    await user.type(screen.getByLabelText('Your name'), 'Tomasz');
+    await user.type(screen.getByLabelText('Your mobile number'), '07700 900101');
+    await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Please tick to say you are 18 or over and agree to the Runner agreement.',
+    );
+    expect(recorded.some((r) => r.path === '/runners')).toBe(false);
+    expect(screen.getByRole('link', { name: 'Read the Runner agreement' })).toHaveAttribute(
+      'href',
+      '/runner/agreement',
+    );
   });
 });

@@ -189,7 +189,7 @@ describe('ordering by voice alone', () => {
     expect(sent.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(false);
 
     expect(await say(engine, 'yes')).toBe(
-      'Shall I send your order now, and charge about £17.20 to your card ending 4242? You pay what the till says. Say yes to send it, or no to stop.',
+      'Shall I send your order and pay now, charging about £17.20 to your card ending 4242? You pay what the till says. Say yes to send it and pay, or no to stop.',
     );
     expect(sent.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(false);
 
@@ -208,7 +208,7 @@ describe('ordering by voice alone', () => {
         addressConfirmed: true,
         agreedTotalPence: 1720,
         statement:
-          'Shall I send your order now, and charge about £17.20 to your card ending 4242? You pay what the till says.',
+          'Shall I send your order and pay now, charging about £17.20 to your card ending 4242? You pay what the till says.',
       },
     });
     expect(await screen.findByRole('heading', { name: 'Your order' })).toBeInTheDocument();

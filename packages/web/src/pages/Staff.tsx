@@ -62,6 +62,9 @@ import {
   type LearningRow,
   fetchBankPayments,
   markBankPayment,
+  fetchReimbursements,
+  approveReimbursement,
+  type ReimbursementRow,
   type BankPaymentRow,
 } from '../lib/api';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
@@ -1202,7 +1205,96 @@ function Payments({
           </li>
         ))}
       </ul>
+      <PayBacks staffKey={staffKey} onNews={onNews} />
     </section>
+  );
+}
+
+/** Why a pay-back is waiting for a person, in words. */
+const PAY_BACK_REASONS: Record<string, string> = {
+  'over the limit': 'the till came to a lot more than the estimate',
+  'over what one delivery carries': 'the till came to more than one delivery carries',
+  'bank transfer': 'the Shopper paid by bank transfer, and the difference is settled by hand',
+  'refund failed': 'the Shopper’s refund did not go through',
+  'charge failed': 'the extra could not be taken from the Shopper’s card',
+};
+
+/**
+ * Runners paid back for the shopping (ruling 55). Most go by themselves when the till total is
+ * in; these need a person first. Approving sends the money straight to the Runner and tells them.
+ */
+function PayBacks({
+  staffKey,
+  onNews,
+}: {
+  staffKey: string;
+  onNews: (text: string) => void;
+}): JSX.Element {
+  const list = useList(() => fetchReimbursements(staffKey));
+  const approve = (row: ReimbursementRow): void => {
+    void approveReimbursement(staffKey, row.orderId)
+      .then((result) => {
+        onNews(result.message);
+        list.reload();
+      })
+      .catch((failure: unknown) =>
+        onNews(failure instanceof Error ? failure.message : 'That did not work.'),
+      );
+  };
+  return (
+    <>
+      <h3 className="m-0 font-bold">Runners to pay back for the shopping</h3>
+      <p className="m-0 extra">
+        A Runner pays at the till with their own card and is paid back straight away. These need a
+        person to look first. Approving pays the till total, never more than one delivery carries,
+        straight to the Runner.
+      </p>
+      <Failure text={list.problem} />
+      {list.data?.waiting.length === 0 && <p className="m-0">None waiting.</p>}
+      <ul className="m-0 p-0 list-none space-y-3">
+        {list.data?.waiting.map((row) => (
+          <li key={row.orderId} className="border-2 border-paper rounded-xl p-4 space-y-2">
+            <p className="m-0 font-bold">
+              {money(row.amountPence)} to {row.runnerName}, order {row.reference}
+            </p>
+            <p className="m-0">
+              The till said {money(row.receiptTotalPence ?? 0)}; the estimate was{' '}
+              {money(row.goodsEstimatePence)}. Waiting because{' '}
+              {PAY_BACK_REASONS[row.reason ?? ''] ?? row.reason ?? 'a person must look'}.
+            </p>
+            <button
+              type="button"
+              onClick={() => approve(row)}
+              className="control bg-highlight text-ink"
+            >
+              Approve and pay back<span className="visually-hidden">: order {row.reference}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {(list.data?.owed.length ?? 0) > 0 && (
+        <>
+          <h3 className="m-0 font-bold">Owed, waiting for the Runner’s payout account</h3>
+          <ul className="m-0 p-0 list-none space-y-2">
+            {list.data?.owed.map((row) => (
+              <li key={row.orderId}>
+                {money(row.amountPence)} to {row.runnerName}, order {row.reference}.
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      <h3 className="m-0 font-bold">Paid back lately</h3>
+      {list.data?.paid.length === 0 && <p className="m-0">None yet.</p>}
+      <ul className="m-0 p-0 list-none space-y-2">
+        {list.data?.paid.map((row) => (
+          <li key={row.orderId}>
+            {money(row.amountPence)} to {row.runnerName}, order {row.reference}
+            {row.approvedBy ? `, approved by ${row.approvedBy}` : ''}.
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -2119,6 +2211,24 @@ function Money({ staffKey }: { staffKey: string }): JSX.Element {
               ))}
             </tbody>
           </table>
+          {data.runnerPayBack && (
+            <>
+              <h3 className="font-bold m-0">Runners paid back for the shopping</h3>
+              <p className="m-0">
+                Runners pay at the till with their own card and are paid back straight away. It
+                passes straight through to them. Today {money(data.runnerPayBack.todayPence)}, the
+                last week {money(data.runnerPayBack.weekPence)}, the last month{' '}
+                {money(data.runnerPayBack.monthPence)}, altogether{' '}
+                {money(data.runnerPayBack.allTimePence)}.
+              </p>
+              <p className="m-0">
+                Waiting for you to approve: {data.runnerPayBack.waitingCount} (
+                {money(data.runnerPayBack.waitingPence)}), in the Payments tab. Owed until a
+                Runner&rsquo;s payout account is ready: {data.runnerPayBack.owedCount} (
+                {money(data.runnerPayBack.owedPence)}).
+              </p>
+            </>
+          )}
           <h3 className="font-bold m-0">The last month, by what it was for</h3>
           <ul className="m-0 ps-6">
             {data.month.byKind.map((row) => (

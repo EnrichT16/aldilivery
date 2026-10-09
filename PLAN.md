@@ -180,7 +180,7 @@ the app stores later without a rewrite.
 2. **Sign up**
 3. **Catalogue browse**
 4. **Basket** — the fee is shown plainly *before* confirmation
-5. **Confirm** — a single large button reading **Send my order**
+5. **Confirm** — a single large button reading **Send my order and pay** (ruling 55, 9 October 2026)
 
 The microphone button is present and focusable but announces only that voice is not yet
 available.

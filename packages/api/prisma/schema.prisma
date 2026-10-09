@@ -216,6 +216,13 @@ model Runner {
   /// When this Runner last finished a job. The queue offers to whoever has waited longest.
   lastJobCompletedAt DateTime?
 
+  /// The Runner agreement (ruling 55): when they agreed, to which version, and how (a tick on
+  /// the screen, or a spoken yes). No job can be accepted until they have agreed to the current
+  /// version.
+  agreementAcceptedAt DateTime?
+  agreementVersion    String?
+  agreementChannel    String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -405,6 +412,18 @@ model Order {
   runnerPaymentPence Int     @default(500)
   runnerTransferId   String?
 
+  /// Paying the Runner back for the shopping they bought with their own card (ruling 55).
+  /// The amount is the till total that was accepted, never more than the order cap. The
+  /// status is "paid", "waiting" (for a person to approve) or "owed" (their payout account
+  /// was not ready; the payout sweep sends it). The transfer carries the reference
+  /// reimburse:<order id>, so it can never be sent twice.
+  reimbursementPence      Int?
+  reimbursementStatus     String?
+  reimbursementReason     String?
+  reimbursementTransferId String?
+  reimbursedAt            DateTime?
+  reimbursementApprovedBy String?
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   acceptedAt  DateTime?
@@ -419,6 +438,7 @@ model Order {
   calls     Call[]
 
   @@index([status])
+  @@index([reimbursementStatus])
   @@index([shopperId])
   @@index([poolId])
 }
