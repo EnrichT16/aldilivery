@@ -16,7 +16,7 @@ import {
   type PaymentMethod,
   type PlacedOrder,
 } from '../lib/api';
-import { money } from '../lib/money';
+import { deliveryWords, money } from '../lib/money';
 import { prepareCardEntry } from '../lib/stripe';
 import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
@@ -135,12 +135,20 @@ export function Confirm(): JSX.Element {
     };
   }, []);
 
-  const statement = `Send my order and pay. About ${money(pricing.totalPence)} altogether, including our fee of ${money(pricing.feePence)}.`;
+  // Ozi Family and Carer: a member's order is paid with the payer's card (ruling 58).
+  const byFamily = Boolean(shopper?.familyOwnerId) && shopper?.activePlan === 'family';
+  const statement = `Send my order and pay. About ${money(pricing.totalPence)} altogether: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}.`;
 
   async function onSend(): Promise<void> {
     const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
-    const byBank = bankOn && payBy === 'bank';
-    if ((!card && !byBank) || sending || address.trim() === '' || overMaximum || !addressConfirmed)
+    const byBank = bankOn && payBy === 'bank' && !byFamily;
+    if (
+      (!card && !byBank && !byFamily) ||
+      sending ||
+      address.trim() === '' ||
+      overMaximum ||
+      !addressConfirmed
+    )
       return;
 
     setSending(true);
@@ -152,7 +160,11 @@ export function Confirm(): JSX.Element {
           quantity: line.quantity,
         })),
         deliveryAddress: address.trim(),
-        ...(byBank || !card ? { payBy: 'bank' as const } : { paymentMethodId: card.id }),
+        ...(byFamily
+          ? { payBy: 'family' as const }
+          : byBank || !card
+            ? { payBy: 'bank' as const }
+            : { paymentMethodId: card.id }),
         confirmation: { statement, agreedTotalPence: pricing.totalPence, addressConfirmed: true },
       });
       if (result.bank) {
@@ -185,7 +197,8 @@ export function Confirm(): JSX.Element {
 
       clear();
       // A till's "ka-ching": the money has gone. And coins back, if gift card money returned.
-      moneyOut();
+      // Nothing has gone yet when the family plan's payer must approve it first.
+      if (!result.waitingForApproval) moneyOut();
       if (result.order.creditAppliedPence) window.setTimeout(moneyIn, 700);
       setPlaced({ order: result.order, message: result.message });
     } catch (failure) {
@@ -288,9 +301,12 @@ export function Confirm(): JSX.Element {
   }
 
   const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
-  const byBank = bankOn && payBy === 'bank';
+  const byBank = bankOn && payBy === 'bank' && !byFamily;
   const ready =
-    (card !== undefined || byBank) && address.trim() !== '' && !overMaximum && addressConfirmed;
+    (card !== undefined || byBank || byFamily) &&
+    address.trim() !== '' &&
+    !overMaximum &&
+    addressConfirmed;
 
   return (
     <div className="space-y-8">
@@ -313,13 +329,19 @@ export function Confirm(): JSX.Element {
         <h2 id="cost-heading" className="text-lead font-bold">
           What it will cost
         </h2>
-        <p className="m-0">Your shopping, about {money(pricing.goodsPence)}.</p>
-        <p className="m-0">Our fee, {money(pricing.feePence)}. That is the only fee.</p>
+        <p className="m-0">
+          Your shopping, about {money(pricing.goodsPence + pricing.itemChargesPence)}, with the item
+          charges included: {money(pricing.goodsPence)} at the shop&rsquo;s prices and{' '}
+          {money(pricing.itemChargesPence)} of item charges.
+        </p>
+        <p className="m-0">Delivery, {money(pricing.feePence)}.</p>
         <p className="m-0 text-lead font-bold">Altogether, about {money(pricing.totalPence)}.</p>
         <p className="m-0">
-          You pay what the till says for the shopping, so this may change a little. Your Runner gets{' '}
-          {money(storeConfig.fees.runnerPaymentPence)} of the fee.
+          {deliveryWords(pricing.plan)} You pay what the till says for the shopping, so this may
+          change a little. Your Runner gets {money(storeConfig.fees.runnerPaymentPence)} of the
+          delivery.
         </p>
+        {byFamily && <p className="m-0">This is paid with your family plan&rsquo;s card.</p>}
       </section>
 
       <section aria-labelledby="where-heading" className="space-y-3">
@@ -590,9 +612,10 @@ export function Confirm(): JSX.Element {
 
       {overMaximum && (
         <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
-          This comes to about {money(pricing.goodsPence)} of shopping, and one delivery carries up
-          to {money(storeConfig.fees.maximumGoodsPence)}. Go back to your basket, take some things
-          out to send as one delivery, and order the rest as a second delivery.
+          This comes to about {money(pricing.goodsPence)} of shopping at the shop&rsquo;s prices,
+          and one order carries up to {money(storeConfig.fees.maximumOrderGoodsPence)}. Go back to
+          your basket, take some things out to send as one delivery, and order the rest as a second
+          delivery.
         </p>
       )}
 

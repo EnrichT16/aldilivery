@@ -123,8 +123,20 @@ export class BasketTooLargeError extends ApiError {
     super(
       422,
       'basket_too_large',
-      `This comes to £${(goodsPence / 100).toFixed(2)} of shopping, and one delivery carries up to £${(maximumPence / 100).toFixed(2)}: about as much as one Runner can carry safely. We can split it into two deliveries.`,
+      `This comes to £${(goodsPence / 100).toFixed(2)} of shopping, and one order carries up to £${(maximumPence / 100).toFixed(2)}. We can split it into two deliveries.`,
       { goodsPence, maximumPence },
+    );
+  }
+}
+
+/** One product dearer than any one product may be (ruling 58: no single product over £60). */
+export class ProductTooDearError extends ApiError {
+  constructor(names: string[], maximumPence: number) {
+    super(
+      422,
+      'product_too_dear',
+      `We can't bring ${names.join(' or ')}: no single product can cost more than £${(maximumPence / 100).toFixed(2)}. Please choose something else.`,
+      { names, maximumPence },
     );
   }
 }

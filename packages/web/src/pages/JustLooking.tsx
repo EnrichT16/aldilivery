@@ -6,11 +6,13 @@ import { money } from '../lib/money';
 /**
  * The third door: for someone who has not decided yet.
  *
- * Everything on this page is a plain answer to a question somebody would actually ask. The fee
- * is one flat figure (docs/BUILD_PROMPT.md, Section B), so it is said in one sentence.
+ * Everything on this page is a plain answer to a question somebody would actually ask. The
+ * prices are those of ruling 58 (9 October 2026), all from config/store.json.
  */
 export function JustLooking(): JSX.Element {
-  const { standardDeliveryPence, maximumGoodsPence, runnerPaymentPence } = storeConfig.fees;
+  const { delivery, itemCharge, maximumOrderGoodsPence, maximumProductPence, runnerPaymentPence } =
+    storeConfig.fees;
+  const { extras, assistantName } = storeConfig;
 
   return (
     <div className="space-y-8">
@@ -23,31 +25,40 @@ export function JustLooking(): JSX.Element {
         <p className="m-0 max-w-xl">
           You tell us what shopping you want. A Runner, who is a real person nearby, goes to{' '}
           {storeConfig.store.displayName}, buys it at the ordinary shelf price, and brings it to
-          your door. You pay for the shopping, plus one fee.
+          your door. You pay for the shopping, with a small item charge on each product, and
+          delivery.
         </p>
         <p className="m-0 max-w-xl">
-          We will never take a payment without asking you first, and we never keep your card
-          number.
+          We will never take a payment without asking you first, and we never keep your card number.
         </p>
       </section>
 
       <section aria-labelledby="fee-heading" className="space-y-3">
         <h2 id="fee-heading" className="text-lead font-bold">
-          The fee
+          The prices
         </h2>
         <p className="m-0 max-w-xl">
-          One flat fee of {money(standardDeliveryPence)} for each delivery, whatever the shopping
-          comes to. It never goes up because it is raining, or because it is Friday, or because
-          your order is small.
+          Every product has a small item charge, already included in the price we show and say:{' '}
+          {money(itemCharge.basePence)} for anything under {money(itemCharge.everyPence)}, and{' '}
+          {money(itemCharge.stepPence)} more for every {money(itemCharge.everyPence)} of its shop
+          price. No single product can cost more than {money(maximumProductPence)}.
         </p>
         <p className="m-0 max-w-xl">
-          One delivery carries up to {money(maximumGoodsPence)} of shopping, which is about as
-          much as one Runner can carry safely. If you need more than that, it goes as two
-          deliveries.
+          Delivery, if you pay as you go: {money(delivery.payAsYouGoSmallOrderPence)} for shopping
+          of {money(delivery.payAsYouGoSmallOrderUpToPence)} or less, and{' '}
+          {money(delivery.payAsYouGoPence)} above that. With {assistantName} Membership (
+          {money(extras.membershipPence)} a month) it is {money(delivery.membershipPence)} every
+          time; with {assistantName} Plus ({money(extras.plusPence)} a month) or Family and Carer (
+          {money(extras.familyPence)} a month), {money(delivery.plusPence)}. Your first month of
+          membership is free. It never goes up because it is raining, or because it is Friday.
+        </p>
+        <p className="m-0 max-w-xl">
+          One order carries up to {money(maximumOrderGoodsPence)} of shopping. If you need more than
+          that, it goes as two deliveries.
         </p>
 
         <p className="m-0 max-w-xl">
-          {money(runnerPaymentPence)} of that fee goes to the Runner who does your shopping,
+          {money(runnerPaymentPence)} of every delivery goes to the Runner who does your shopping,
           whatever the order.
         </p>
       </section>
@@ -60,8 +71,9 @@ export function JustLooking(): JSX.Element {
           <li>We ask you once, clearly, before we take any payment.</li>
           <li>No surge pricing, no small order fee, and no smallest order.</li>
           <li>
-            If you set up a regular order, we tell you {storeConfig.recurringOrders.noticeMinutesBefore}{' '}
-            minutes beforehand and you can stop it by saying &ldquo;
+            If you set up a regular order, we tell you{' '}
+            {storeConfig.recurringOrders.noticeMinutesBefore} minutes beforehand and you can stop it
+            by saying &ldquo;
             {storeConfig.recurringOrders.skipWord}&rdquo;.
           </li>
           <li>Every screen is built to be used by ear, by keyboard, or with very large text.</li>

@@ -150,8 +150,16 @@ export function memoryRepository(): Repository {
           pinHash: null,
           stripeCustomerId: null,
           recipePassUntil: null,
-          plusUntil: null,
-          plusFamily: false,
+          plan: null,
+          planUntil: null,
+          planRenews: false,
+          planStartedAt: null,
+          planCancelledAt: null,
+          freeMonthUntil: input.freeMonthUntil ?? null,
+          freeMonthReminderSentAt: null,
+          checkInSentAt: null,
+          approvalLimitPence: null,
+          weeklySummarySentAt: null,
           familyCode: null,
           familyOwnerId: null,
           creditPence: 0,
@@ -189,6 +197,42 @@ export function memoryRepository(): Repository {
       },
       async countJoinedVia(via) {
         return [...shoppers.values()].filter((shopper) => shopper.joinedVia === via).length;
+      },
+      async listPlansDue(at) {
+        return [...shoppers.values()]
+          .filter(
+            (shopper) =>
+              shopper.erasedAt === null &&
+              shopper.plan !== null &&
+              shopper.planRenews &&
+              shopper.familyOwnerId === null &&
+              shopper.planUntil !== null &&
+              shopper.planUntil.getTime() <= at.getTime(),
+          )
+          .map(clone);
+      },
+      async listFreeMonthEnding(from, to) {
+        return [...shoppers.values()]
+          .filter(
+            (shopper) =>
+              shopper.erasedAt === null &&
+              shopper.freeMonthReminderSentAt === null &&
+              shopper.freeMonthUntil !== null &&
+              shopper.freeMonthUntil.getTime() > from.getTime() &&
+              shopper.freeMonthUntil.getTime() <= to.getTime(),
+          )
+          .map(clone);
+      },
+      async listOnPlan(at) {
+        return [...shoppers.values()]
+          .filter(
+            (shopper) =>
+              shopper.erasedAt === null &&
+              shopper.plan !== null &&
+              shopper.planUntil !== null &&
+              shopper.planUntil.getTime() > at.getTime(),
+          )
+          .map(clone);
       },
       async listFamily(ownerId) {
         return [...shoppers.values()]
@@ -843,8 +887,12 @@ export function memoryRepository(): Repository {
           runnerId: null,
           setId: input.setId ?? null,
           goodsEstimatePence: input.goodsEstimatePence,
+          itemChargesPence: input.itemChargesPence ?? 0,
           feePence: input.feePence,
           totalEstimatePence: input.totalEstimatePence,
+          deliveryPlan: input.deliveryPlan ?? 'payg',
+          payerShopperId: input.payerShopperId ?? null,
+          approvalStatus: input.approvalStatus ?? null,
           receiptTotalPence: null,
           receiptFeePence: null,
           finalTotalPence: null,

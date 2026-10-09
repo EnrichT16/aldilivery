@@ -12,7 +12,8 @@ carry it until the coordinated rename in BUILD_LOG Step 31 is done. The governin
 everything built from 30 September 2026 is **[docs/BUILD_PROMPT.md](docs/BUILD_PROMPT.md)**.
 
 A **Shopper** orders groceries from a configured supermarket. An independent **Runner** buys
-them at the shelf price and delivers them for one flat fee. The assistant is called **Ozi**.
+them at the shelf price and delivers them, with every price shown up front. The assistant is
+called **Ozi**.
 
 Ozi Delivery is built for blind, visually impaired, disabled, elderly and low-literacy users
 first. Accessibility is a build gate here, not a later pass: any axe violation fails the
@@ -109,9 +110,12 @@ than run without a database or without its Stripe keys.
 
 ## The fee
 
-Standard delivery is £13.50, flat, whatever the shopping comes to, and one delivery carries at
-most £60 of shopping, which is what one Runner can carry safely; above that it goes as two
-deliveries. No surge pricing, no small order fee, no minimum spend. The Runner gets £5 of every
-standard delivery, untouched. Ruled on 29 September 2026 (docs/BUILD_PROMPT.md, Section B) and
-proved one penny at a time in `packages/core/test/fees.test.ts`. The other services' prices in
+From 9 October 2026 (docs/BUILD_PROMPT.md, ruling 58; RULES.md, Rule Three as amended): every
+product carries an item charge of 50p, plus 50p for every whole £6 of its shop price, always
+included in the price shown; delivery is £7.99 for shopping of £15 or less and £13.50 above on
+pay as you go, £7.99 on Ozi Membership (£10 a month) and £5.99 on Ozi Plus (£15) or Ozi Family
+and Carer (£20); no product over £60; one order carries up to £150 of shopping (pending
+Anthony). The first month of membership is free. No surge pricing, no small order fee, no
+minimum spend. The Runner gets £5 of every delivery, untouched. Every figure is in
+config/store.json, proved one penny at a time in `packages/core/test/fees.test.ts`. The other services' prices in
 Section B are still to be built.

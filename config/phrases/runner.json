@@ -779,8 +779,8 @@
         "how many bags will there be"
       ],
       "replies": [
-        "One delivery carries up to {maximum} of shopping, about four or five carrier bags.",
-        "At most {maximum} of shopping. That's what one Runner can carry safely on foot or onto a bus."
+        "One order carries up to {maximum} of shopping. If it's too much to carry in one go, tell us and it can go as two.",
+        "At most {maximum} of shopping. If it's more than you can carry safely, say so."
       ]
     },
     {
@@ -1379,7 +1379,7 @@
         "the shopping is over the limit"
       ],
       "replies": [
-        "One delivery carries up to {maximum} of shopping. If the till is going well over, call the Shopper before you pay, and report a problem.",
+        "One order carries up to {maximum} of shopping. If the till is going well over, call the Shopper before you pay, and report a problem.",
         "Stop and call the Shopper through the app before paying. Then tell us in report a problem."
       ]
     },
@@ -1392,8 +1392,8 @@
         "what's the delivery fee"
       ],
       "replies": [
-        "The till total for the shopping, plus the delivery fee of {fee}.",
-        "What the till says, and a flat delivery fee of {fee}. Of that fee, {runnerPay} is yours."
+        "The till total for the shopping, the item charges, and delivery. You pay the shop only the till total.",
+        "What the till says, the item charges, and delivery. Of every delivery, {runnerPay} is yours."
       ]
     },
     {
@@ -1932,8 +1932,8 @@
         "where does the delivery fee go"
       ],
       "replies": [
-        "The Shopper pays a flat delivery fee of {fee}. Of that, {runnerPay} is yours.",
-        "From each {fee} delivery fee, {runnerPay} goes to you."
+        "Whatever delivery the Shopper pays, {runnerPay} of it is yours.",
+        "From every delivery, {runnerPay} goes to you."
       ]
     },
     {
@@ -3695,8 +3695,8 @@
       "topic": "jobs",
       "when": ["what's the maximum basket", "is there a basket limit"],
       "replies": [
-        "One delivery carries up to {maximum} of shopping.",
-        "{maximum} of shopping at most, so it's safe for one Runner to carry."
+        "One order carries up to {maximum} of shopping.",
+        "{maximum} of shopping at most."
       ]
     },
     {

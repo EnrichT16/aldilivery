@@ -398,8 +398,16 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
     },
     brand: ctx.config.brand,
     fees: {
-      standardDeliveryPence: ctx.config.fees.standardDeliveryPence,
-      maximumGoodsPence: ctx.config.fees.maximumGoodsPence,
+      delivery: ctx.config.fees.delivery,
+      itemCharge: ctx.config.fees.itemCharge,
+      maximumProductPence: ctx.config.fees.maximumProductPence,
+      maximumOrderGoodsPence: ctx.config.fees.maximumOrderGoodsPence,
+    },
+    plans: {
+      membershipPence: ctx.config.extras.membershipPence,
+      plusPence: ctx.config.extras.plusPence,
+      familyPence: ctx.config.extras.familyPence,
+      freeFirstMonth: ctx.config.extras.freeFirstMonth,
     },
     accessibility: ctx.config.accessibility,
     recurringOrders: ctx.config.recurringOrders,

@@ -10,7 +10,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
-import { formatPence } from '@aldilivery/core';
+import { formatPence, itemChargePence } from '@aldilivery/core';
 
 import { requireSession } from '../app.js';
 import type { Order } from '../domain.js';
@@ -128,12 +128,15 @@ export async function registerPaymentRoutes(app: FastifyInstance): Promise<void>
       `Paid ${order.paidBy === 'bank' ? `by bank transfer, reference ${order.bankReference}` : 'by card'}`,
       `Delivered to ${order.deliveryAddress}`,
       '',
-      ...order.items.map(
-        (item) =>
-          `${item.quantity} x ${item.name}  ${money((item.actualPricePence ?? item.estimatedPricePence) * item.quantity)}`,
-      ),
+      // Each price with its item charge in it, as it was shown (ruling 58), and the parts.
+      ...order.items.map((item) => {
+        const shop = (item.actualPricePence ?? item.estimatedPricePence) * item.quantity;
+        const charge = itemChargePence(item.estimatedPricePence, config.fees) * item.quantity;
+        return `${item.quantity} x ${item.name}  ${money(shop + charge)} (${money(shop)} in the shop, ${money(charge)} item charge${item.quantity === 1 ? '' : 's'})`;
+      }),
       '',
-      `Shopping: ${money(order.receiptTotalPence ?? order.goodsEstimatePence)}`,
+      `Shop total: ${money(order.receiptTotalPence ?? order.goodsEstimatePence)}`,
+      `Item charges: ${money(order.itemChargesPence)}`,
       `Delivery: ${money(order.receiptFeePence ?? order.feePence)}`,
       `Total: ${money(total)}`,
       order.receiptTotalPence === null

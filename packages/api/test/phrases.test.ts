@@ -106,7 +106,7 @@ describe('answering an everyday phrase', () => {
       'My pleasure. Is there anything else you need?',
     );
     expect(phraseReply('How much is delivery?', 0, 'exact', 'shopper', config, book)).toMatch(
-      /^Delivery is one flat fee, the same every time: £\d+\.\d\d\./,
+      /^Delivery is £7\.99 for shopping of £15\.00 or less, and £13\.50 above that, if you pay as you go\. Members pay £7\.99 every time, and Plus £5\.99\./,
     );
   });
 
@@ -133,7 +133,7 @@ describe('answering an everyday phrase', () => {
       'Good day, Mr Anthony. How can I help, sir?',
     );
     expect(phraseReply('how much is delivery', 0, 'exact', 'owner', config, book)).toMatch(
-      /^Yes, sir\. Delivery is one flat fee/,
+      /^Yes, sir\. Delivery is £7\.99 for shopping/,
     );
     expect(phraseReply('how much is delivery', 1, 'exact', 'owner', config, book)).toMatch(
       /^Okay, sir\./,

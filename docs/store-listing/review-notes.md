@@ -26,7 +26,7 @@ If the app asks for a four-number PIN after signing in, give the demo account's 
 ## Notes to paste (Apple "Notes"; Google "Any other information")
 
 This app lets people order groceries by talking or tapping. A local courier, called a Runner,
-buys the shopping in a supermarket at the shelf price and delivers it for a flat fee. It is
+buys the shopping in a supermarket at the shelf price and delivers it for a delivery fee. It is
 designed first for blind and partially sighted people, so every screen works with VoiceOver and
 TalkBack, text is large, and pinch to zoom is on.
 

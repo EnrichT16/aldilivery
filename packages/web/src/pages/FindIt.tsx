@@ -5,7 +5,7 @@ import { moneyOut } from '../lib/alert';
 import { PriceConfirm } from '../components/PriceConfirm';
 import { storeConfig } from '../config';
 import { askToFind, fetchCatalogueItem, fetchFindRequests, type FindRequest } from '../lib/api';
-import { money } from '../lib/money';
+import { money, shownPrice, tooDearWords } from '../lib/money';
 import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
@@ -31,7 +31,8 @@ export function FindIt(): JSX.Element {
   const [busy, setBusy] = useState(false);
   const { findItPence, findItShops } = storeConfig.extras;
   const name = `${storeConfig.assistantName} Finds It`;
-  const covered = Boolean(shopper?.plusUntil && new Date(shopper.plusUntil) > new Date());
+  // One free a month on any plan and in the free month (ruling 58); the server decides for sure.
+  const covered = Boolean(shopper?.membershipExtras);
 
   useEffect(() => {
     if (!shopperId) return;
@@ -70,7 +71,10 @@ export function FindIt(): JSX.Element {
       setProblem('That is no longer available.');
       return;
     }
-    basket.add(item);
+    if (!basket.add(item)) {
+      setProblem(tooDearWords(row.foundName ?? item.name));
+      return;
+    }
     const words = `I've put ${row.foundName ?? item.name} in your basket. Shall we look at your basket?`;
     setNews(words);
     ozi.listenFor(words, (heard) => {
@@ -88,7 +92,7 @@ export function FindIt(): JSX.Element {
       </p>
       <p className="m-0">
         {covered
-          ? `It's included in your ${storeConfig.assistantName} Plus.`
+          ? `One a month is free with your ${storeConfig.assistantName} membership.`
           : `It costs ${money(findItPence)}, and you get it back if it can't be found.`}{' '}
         We never look for alcohol, tobacco, medicines or cash.
       </p>
@@ -165,7 +169,7 @@ export function FindIt(): JSX.Element {
                   <>
                     <p className="m-0">
                       Found: {row.foundName}, at {row.foundShop}, about{' '}
-                      {money(row.foundPricePence ?? 0)}.{row.note ? ` ${row.note}` : ''}
+                      {money(shownPrice(row.foundPricePence ?? 0))}.{row.note ? ` ${row.note}` : ''}
                     </p>
                     <button
                       type="button"

@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
 
 import { storeConfig } from '../config';
+import { money } from '../lib/money';
 
 /**
- * For family and carers (docs/BUILD_PROMPT.md, T1): someone who wants to help a Shopper with their
- * shopping. The family and carer plan is £3.99 a month for each Shopper looked after, with up to
- * three family members connected, paid by a family member, the Shopper, or an organisation. The
- * plan itself is still being built, so this page says what it will be, and what can be done now.
+ * For family and carers: someone who wants to help a Shopper with their shopping. Ozi Family and
+ * Carer (ruling 58, 9 October 2026) replaces the earlier T1 proposal: one monthly price, from
+ * config/store.json, for up to four people in different homes, paid with one card.
  */
 export function LookingAfter(): JSX.Element {
   return (
@@ -31,14 +31,19 @@ export function LookingAfter(): JSX.Element {
       </section>
       <section aria-labelledby="plan-heading" className="space-y-3 max-w-xl">
         <h2 id="plan-heading" className="text-lead font-bold">
-          Coming soon: the family and carer plan
+          {storeConfig.assistantName} Family and Carer
         </h2>
         <p className="m-0">
-          £3.99 a month for each person you look after. Up to three family members can be connected,
-          to see how their orders are going and help when something is not on the shelf. It can be
-          paid by you, by them, or by an organisation. It is not ready yet; we will say here when it
-          is.
+          {money(storeConfig.extras.familyPence)} a month for up to{' '}
+          {storeConfig.extras.familyMaximum} people in different homes, with delivery at{' '}
+          {money(storeConfig.fees.delivery.plusPence)}. You see every order and are told when it is
+          ordered, on its way and delivered; you can approve orders above a limit you choose; one
+          card pays for everyone; and you get a weekly summary. You can cancel at any time with one
+          button.
         </p>
+        <Link to="/plus" className="control bg-paper text-ink">
+          See the plans
+        </Link>
       </section>
       <Link to="/sign-up" className="control bg-highlight text-ink">
         Set up an account

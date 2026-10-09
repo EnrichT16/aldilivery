@@ -52,7 +52,7 @@ async function placeOrder(): Promise<string> {
         addressConfirmed: true,
         channel: 'button',
         statement: 'Send my order and pay.',
-        agreedTotalPence: 1689,
+        agreedTotalPence: 250 + 89 + 150 + 799,
       },
     },
   });

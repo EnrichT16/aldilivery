@@ -94,7 +94,7 @@ async function orderAccepted(): Promise<{ orderId: string; accepted: Accepted }>
         addressConfirmed: true,
         channel: 'button',
         statement: 'Send my order and pay.',
-        agreedTotalPence: 1600,
+        agreedTotalPence: 250 + 100 + 799,
       },
     },
     shopper.authHeader,

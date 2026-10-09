@@ -240,29 +240,34 @@ describe('the basket', () => {
     await addTwoThings();
 
     const table = screen.getByRole('table');
-    const feeRow = within(table).getByRole('rowheader', { name: 'Our fee' });
+    const feeRow = within(table).getByRole('rowheader', { name: 'Delivery' });
     expect(feeRow).toBeInTheDocument();
 
-    // 125 + 89 = 214p of shopping, and the flat standard delivery fee.
-    const expectedFee = storeConfig.fees.standardDeliveryPence;
+    // 125 + 89 = 214p of shopping: pay as you go, £15 or less, so the smaller delivery fee;
+    // two item charges of 50p; and every price shown with its item charge in (ruling 58).
+    const expectedFee = storeConfig.fees.delivery.payAsYouGoSmallOrderPence;
     expect(within(table).getByText(`£${(expectedFee / 100).toFixed(2)}`)).toBeInTheDocument();
+    expect(within(table).getByRole('rowheader', { name: 'Item charges' })).toBeInTheDocument();
+    expect(within(table).getByText('£1.00')).toBeInTheDocument();
+    expect(
+      within(table).getByText(`£${((214 + 100 + expectedFee) / 100).toFixed(2)}`),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/1 × about £1\.75 = £1\.75/)).toBeInTheDocument();
   });
 
   it('says plainly when the basket is more than one delivery carries, and offers no way to send it', async () => {
     await addTwoThings();
     const milk = screen.getByLabelText(/How many Semi skimmed milk/);
-    // 49 pints at £1.25, plus the bread, is £62.14: over the £60 one delivery carries.
-    fireEvent.change(milk, { target: { value: '49' } });
+    // 121 pints at £1.25, plus the bread, is £152.14: over the £150 one order carries.
+    fireEvent.change(milk, { target: { value: '121' } });
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /one delivery carries up to £60\.00: about as much as one Runner can carry safely/,
-    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(/one order carries up to £150\.00/);
     expect(screen.queryByRole('link', { name: 'Check and send my order' })).not.toBeInTheDocument();
   });
 
   it('says the fee is the only one, and that there is no smallest order', async () => {
     await addTwoThings();
-    expect(screen.getByText(/is the only fee/)).toBeInTheDocument();
+    expect(screen.getByText(/already includes its item charge/)).toBeInTheDocument();
     expect(screen.getByText(/no smallest order/)).toBeInTheDocument();
   });
 
@@ -310,7 +315,14 @@ describe('the confirmation screen', () => {
     await user.click(screen.getByRole('link', { name: 'Check and send my order' }));
 
     expect(screen.getByText(/the only thing that will ever take a payment/i)).toBeInTheDocument();
-    expect(screen.getByText(/Our fee, £13\.50\. That is the only fee\./)).toBeInTheDocument();
+    // The shopping with its item charges in, then the parts, then delivery (ruling 58).
+    expect(
+      screen.getByText(
+        /Your shopping, about £1\.75, with the item charges included: £1\.25 at the shop/,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/^Delivery, £7\.99\.$/)).toBeInTheDocument();
+    expect(screen.getByText(/Altogether, about £9\.74\./)).toBeInTheDocument();
   });
 });
 

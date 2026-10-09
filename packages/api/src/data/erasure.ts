@@ -25,6 +25,8 @@ export function erasedShopperPatch(shopperId: string, at: Date): Partial<Shopper
     budgetCapPence: null,
     familyCode: null,
     familyOwnerId: null,
+    // A closed account is never charged again for a plan.
+    planRenews: false,
     organisationId: null,
     organisationOffice: null,
     ageBand: null,

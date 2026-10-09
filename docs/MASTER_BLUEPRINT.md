@@ -113,16 +113,23 @@ them there; tests pin the core ones so a change is made on purpose.
 
 | What | Price | Set by |
 | --- | --- | --- |
-| Standard delivery, flat | **£13.50** | Section B, Anthony's answer 1 (30 Sept), Rule Three |
-| Runner's share of every standard delivery | **£5.00**, untouched, whatever the basket | Section B, Rule Two |
-| Maximum shopping in one delivery | **£60.00**. Above it Ozi says so and offers two deliveries | Section B, Rule Three |
+| Item charge on every unit | **50p**, plus **50p for every whole £6** of the shop price (under £6 50p; £6-£11.99 £1; £12-£17.99 £1.50; £18-£23.99 £2; £24 £2.50; and so on), times the quantity; every plan; always included in the price shown or spoken | Ruling 58, Rule Three (amended) |
+| Delivery, pay as you go (no plan, and the free month) | **£7.99** for shopping of £15.00 or less at shop prices; **£13.50** above | Ruling 58, Rule Three (amended) |
+| Delivery, Ozi Membership, and people an organisation looks after | **£7.99**, whatever the size | Ruling 58 |
+| Delivery, Ozi Plus and Ozi Family and Carer | **£5.99**, whatever the size | Ruling 58 |
+| Runner's share of every delivery | **£5.00**, untouched, whatever the basket and plan; the business keeps the rest and the item charges | Section B, Rule Two |
+| Most any single product may cost | **£60.00** in the shop; dearer products are refused in plain words | Ruling 58, Rule Three (amended) |
+| Most shopping in one order | **£150.00** at shop prices, **pending Anthony's confirmation**; above it Ozi says so and offers two deliveries | Ruling 58 (`fees.maximumOrderGoodsPence`) |
+| First month of membership | **Free** for every new Shopper, with pay-as-you-go delivery; reminder about 3 days before it ends; nothing taken without choosing to join | Ruling 58 |
 | Most that can be confirmed by voice alone | **£80.00** (above it, touch confirmation) | Section E (setting, default £80) |
 | In-app calls | **5p a minute**, paid by the Shopper; a Runner never pays | Section B, rulings 2 Oct 1 and 16 |
 | Outstanding call balance before more people can be added to a call | **£10.00** | Ruling 16 |
 | Ozi Recipes, the Recipe Pass | **£1.99 for 30 days**, never renews by itself | Ruling 36 |
-| Ozi Plus | **£7.99 for 30 days**, never renews by itself; includes Recipes and the Finds It fee | Ruling 37 |
-| Ozi Plus for a family | **£11.99 for 30 days**, up to 4 people, joined with a six-letter family code | Ruling 37 |
-| Ozi Finds It | **£2.00**, up to 3 shops looked in, given back if nothing is found | Ruling 37 |
+| Ozi Membership | **£10 a month**, only when the Shopper chooses to join; delivery £7.99, Recipes, one free Finds It a month, favourites | Ruling 58 (replaces ruling 37's Plus) |
+| Ozi Plus | **£15 a month**; all of Membership, delivery £5.99, my regular Runner, priority at busy times, no adverts, a check-in after 14 days without an order | Ruling 58 |
+| Ozi Family and Carer | **£20 a month**, up to 4 people in different homes; all of Plus; the payer sees every order with stage alerts, approves orders above a limit they set, one card pays, weekly summary | Ruling 58 |
+| Organisations | **£10 a client a month, every 51st client £5** (120 clients: £1,190) | Ruling 58 |
+| Ozi Finds It | **£2.00**, up to 3 shops looked in, given back if nothing is found; one free a month on any plan and in the free month | Rulings 37, 58 |
 | Gift cards | **£10, £20, £30 or £50** | Ruling 37 |
 | Shop Partner plan | **£29.99 a month** | Rulings 41, 42 |
 | Spotlight (extra for paid-up Shop Partners) | **£19.99 a month**, mentioned at most once a week to the same Shopper | Ruling 42 |
@@ -139,15 +146,21 @@ Other settings in the same file: a job offer is held for a Runner for 60 seconds
 goes 30 minutes before, and the one word "skip" stops it; a closed account stays in a recycle
 bin for 7 days; problems are decided within 2 working days.
 
+Plans are taken from the saved card on joining and then on the same date each month, only for
+a Shopper who agreed to that; cancelling is one button in Settings, or "cancel my membership" to
+Ozi or on the telephone, and the plan runs to the end of the month paid for. Worked examples
+(ruling 58, computed by the code): John's £58.36 shop has £8.50 of item charges, £80.36 paying as
+he goes (£13.50 delivery) or £74.85 as a member (£7.99); Mary's £4.69 is £1.50 + £7.99 = £14.18.
+
 **Prices in the blueprint that are not in the code yet** (the services are not built): extra
 shop within one mile £2.50 (£1.50 Runner, £1 platform); beyond one mile £4.00 (£2.50 Runner,
 £1.50 platform); business emergency run £12 flat in Medway (£8 Runner, £4 platform, 45-minute
 promise); errands £13.50 for up to 30 minutes (£5 Runner), then £6 per 15 minutes (£4 Runner);
 sending £13.50 (£5 Runner); handed to the person £2 (all to the Runner); Ozi Line £15 for 75
-minutes, £25 for 180, £35 for 300, 12p a minute beyond; family and carer plan £3.99 a month per
-Shopper looked after, up to three family members (T1); bundles of four deliveries for £48 (T3);
-referral reward £150 (ruling 16). Campus is ordinary Shopping with a different payer: £13.50 plus
-goods, no new price (Section J).
+minutes, £25 for 180, £35 for 300, 12p a minute beyond; bundles of four deliveries for £48 (T3);
+referral reward £150 (ruling 16). Campus is ordinary Shopping with a different payer: the usual
+delivery and item charges, no new price (Section J). The T1 family and carer plan (£3.99 per
+person) is replaced by Ozi Family and Carer (ruling 58).
 
 ### Payment rules
 
@@ -170,7 +183,8 @@ goods, no new price (Section J).
   landline caller with no account is sent to the website. A card is never spoken to Ozi or to
   anybody on a call.
 - **The till total.** Catalogue prices are estimates. The Runner types the total from the till
-  receipt, the order is repriced to it with the same flat fee, and the Shopper is told. The
+  receipt, the order is repriced to it with the same delivery and item charges agreed at the
+  order (only the shopping moves, ruling 58), and the Shopper is told. The
   promise is that the Shopper pays what the till said, with the goods and the fee kept as
   separate amounts throughout (Section R, for VAT). BUILT (ruling 52): the difference from what
   was charged up front is settled on the same card at once; less goes back, more is taken up to
@@ -182,7 +196,8 @@ goods, no new price (Section J).
   never go twice, and told "You've been paid back £X for the shopping." Their £5 follows at
   delivery, and is then said together: "You've been paid back £X for the shopping and £5.00 for
   the delivery." Only an accepted till total is paid back without a person: no more than the
-  estimate plus the larger of £5 or a fifth, never more than £60 (Rule Three). When the till
+  estimate plus the larger of £5 or a fifth, never more than the whole-order goods cap (£150,
+  pending Anthony, ruling 58). When the till
   needs a person, so does the pay-back: it waits in the admin panel's Payments tab with an
   Approve button (founder and finance officer), and the owner is texted. A Runner whose payout
   account is not ready is owed it, shown it, and paid by the minute sweep once it is. Recorded
@@ -225,7 +240,7 @@ goods, no new price (Section J).
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Shop, search and basket by touch | BUILT | Catalogue of everyday groceries with estimated prices; flat fee and £60 cap enforced. |
+| Shop, search and basket by touch | BUILT | Catalogue of everyday groceries with estimated prices shown with the item charge in; delivery by plan and size, no product over £60, whole-order cap enforced (ruling 58). |
 | Whole order by voice | BUILT | Ozi asks quantities, reads the basket and total back, then the address, then takes a yes (Section E). |
 | Spoken address before every order | BUILT | The real address, not "your usual" (Section D). |
 | Voice orders go to the home address only | BUILT | Enforced by the server (Section D). |
@@ -306,7 +321,8 @@ goods, no new price (Section J).
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| Ozi Plus and Plus for a family | BUILT | Ruling 37. Never changes the delivery fee. |
+| Ozi Membership, Ozi Plus, Ozi Family and Carer | BUILT | Ruling 58 (restructured from ruling 37's Plus): monthly, only when chosen; one-button and spoken cancelling; free first month with a reminder; regular Runner, priority, no adverts, check-ins; family approvals, stage alerts, one card, weekly summary. |
+| Organisation monthly charge | BUILT | Ruling 58: £10 a client, every 51st client £5, on the dashboard, PDF statement and spreadsheet. Invoicing still not built. |
 | Ozi Recipes (Recipe Pass); recipes read aloud | BUILT | config/recipes.json. Names and ingredients free to see. |
 | Little Gifts | BUILT | config/gifts.json; never alcohol. |
 | Ozi Finds It, with "Found for you" in the catalogue | BUILT | Never alcohol, tobacco, medicines, cash or anything age restricted. |
@@ -317,7 +333,7 @@ goods, no new price (Section J).
 | Shop Partners: own sign-in, products with photos, checked by a person, statements, payment history | BUILT | Ruling 41. Plan and Spotlight payments are recorded by staff when a shop is set up or renewed (months paid); they are not collected through Stripe automatically. |
 | Spotlight and Spotlight Plus | BUILT | After the genuine results, called an advert, checkable facts only, weekly limits (Section O, ruling 42). |
 | Organisation dashboards, statements as PDF and spreadsheet | BUILT | Ruling 41. Paying by invoice is not built and needs Anthony's ruling. |
-| Advert square | BUILT, switched off | Small, in a corner, never on paying or card screens, never read aloud, hideable for Plus members; on when config/adverts.json says enabled (ruling 43). |
+| Advert square | BUILT, switched off | Small, in a corner, never on paying or card screens, never read aloud, never shown on Ozi Plus or Family and Carer (ruling 58); on when config/adverts.json says enabled (ruling 43). |
 | Share links and meters for everybody | BUILT | Shoppers in Settings, Runners, Shop Partners, organisations, staff, family, investors and the owner (rulings 11, 42, 44). |
 | Private referral reward (£150 for 100 paying referrals, with anti-cheating guards) | NOT BUILT | Runner IDs and share counts exist; the reward and its database do not (rulings 12, 16). |
 | Family and carer plan (T1), bundles (T3), sheltered housing rounds (T5), wellbeing check (T8) | NOT BUILT | Pooling of nearby orders exists and is the start of T5. |
@@ -445,14 +461,19 @@ RULES.md names the file and test that enforces each.
 - Ozi says the actual delivery address aloud before every order and waits for a yes (Section D).
 
 **Money**
-- £13.50 flat, £60 maximum shopping, £5 to the Runner, no fee bands, no surge, no minimum
-  (Section B, Rules Two to Four).
+- An item charge on every unit (50p, plus 50p for every whole £6 of shop price), always in the
+  price shown; delivery by plan and shop size (pay as you go £7.99 up to £15, £13.50 above;
+  Membership £7.99; Plus and Family £5.99); no product over £60; one order up to £150 of
+  shopping (pending Anthony); £5 to the Runner; no surge, no small order fee, no minimum
+  (ruling 58, Rules Two to Four, Rule Three amended 9 October 2026).
 - No card, no order; paid before a Runner is sent (ruling 29). Pay-by-link for telephone callers
   from a mobile (ruling 48).
-- Every price is agreed by the Shopper before it is taken, and nothing renews by itself (rulings
-  36, 37).
-- Ozi Plus never changes the delivery fee, because a fee that depends on who the Shopper is would
-  break Rule Four (ruling 37).
+- Every price is agreed by the Shopper before it is taken (rulings 36, 37). The monthly plans
+  renew only for a Shopper who chose to join and agreed to monthly taking; cancelling is one
+  button or "cancel my membership"; the first month is free, with a reminder before it ends
+  (ruling 58).
+- The plan the Shopper chose decides the delivery price; time, place and demand never do, so
+  Rule Four still holds (ruling 58 replaces ruling 37's "never changes the delivery fee").
 - Goods and fee recorded separately; VAT treatment not hard-coded (Section R).
 - Calls: Shopper pays 5p a minute; whoever adds people pays for them, after hearing the price;
   £10 balance limit; Runners never pay (rulings 2 Oct 1, 16).
@@ -522,7 +543,7 @@ RULES.md names the file and test that enforces each.
 
 | Old | New | Ruling |
 | --- | --- | --- |
-| Delivery fee in bands (£8 to £12, £7.80, £8) and a £2 net floor (old Rule Three) | £13.50 flat, £60 maximum shopping | Section B, Anthony's answer 1 (30 Sept), RULES.md |
+| Delivery fee in bands (£8 to £12, £7.80, £8) and a £2 net floor (old Rule Three) | £13.50 flat, £60 maximum shopping; then, from 9 October 2026, item charges, delivery by plan and size, £60 per product, £150 per order (pending) | Section B, Anthony's answer 1 (30 Sept), ruling 58, RULES.md |
 | Alcohol allowed where the recipient can prove their age | No alcohol in version one, no identity checks | 1 October ruling 1 |
 | Ozi never listens while muted (as the only "off") | Two states: talking switch (silent, still listening) and mute button (not listening) | Ruling 21 alongside 1 October ruling 3 |
 | PIN for voice orders "irrelevant"; PIN needed for some orders | No PIN to place any order; PIN only to save or change addresses | Ruling 26 |
@@ -539,7 +560,7 @@ RULES.md names the file and test that enforces each.
 | Adverts charged about £1 per resulting delivery | Spotlight £19.99 and Spotlight Plus £39.99 a month, on top of the £29.99 partner plan | Rulings 41, 42 (change Section O) |
 | A single £19.99 introductory Spotlight price for three months (proposal) | The fixed prices above | Ruling 42 |
 | Business analyst staff job | Withdrawn; analysis is the founder's and whoever he switches it on for | Ruling 43 (changes 42) |
-| Ozi Plus "about £7.99"; Finds It "about £2" | £7.99 and £11.99 family; £2 | Ruling 37 (firms up 36) |
+| Ozi Plus "about £7.99"; Finds It "about £2" | £7.99 and £11.99 family; £2; then Membership £10, Plus £15, Family and Carer £20 a month | Ruling 37 (firms up 36), ruling 58 |
 | Single admin staff key | Each person their own sign-in by job; the key signs in as founder | Ruling 38 |
 | Signing up by phone number only, no email | Email or phone number, whichever the person has (email not built) | Ruling 33 (adds to 24) |
 | Flutterwave and Paystack "all in version one" | Stripe only for now, with Apple Pay and Google Pay; Flutterwave and Paystack to follow | Ruling 35 (changes Section R) |
@@ -560,11 +581,10 @@ These are for Anthony to rule on. The code's current behaviour is noted.
    code; only the second is in use.
 4. **Ozi Line and telephone orders.** Section B and T9 price the landline as Ozi Line minute
    packages; rulings 46 and 48 charge a phone order the normal fee and say nothing of minutes.
-5. **Two "family" plans.** T1's family and carer plan (£3.99 a month per person looked after)
-   and ruling 37's Ozi Plus for a family (£11.99 for 30 days) are different things; it is not
-   said whether the first still stands.
-6. **Bundles and Rule Four.** T3's four deliveries for £48 lowers the fee for some Shoppers;
-   ruling 37 refused a Plus discount on the fee for exactly that reason.
+5. **Two "family" plans.** Settled by ruling 58: Ozi Family and Carer (£20 a month) replaces
+   both T1's plan and ruling 37's Plus for a family.
+6. **Bundles.** T3's four deliveries for £48 is not built; with plan-based delivery (ruling 58)
+   it would need its own ruling on how it sits beside the plans.
 7. **Two-step sign-in for staff.** Section Q requires two-factor on every admin login without
    exception; ruling 38 set up username and password for staff, with codes only on the owner's
    account.
@@ -774,7 +794,8 @@ docs/STILL_TO_DO.md lists everything the blueprint asks for that is not built ye
   with their own card; when they put the till total in, the app pays it back straight away to
   their own Stripe account (`packages/api/src/services/reimburse.ts`), with their £5 at
   delivery as before. Only the accepted till total, within the same limit the Shopper's card is
-  settled within, never more than £60, once only (`reimburse:<order id>`). When the till needs a
+  settled within, never more than the whole-order goods cap (£60 then, £150 pending since
+  ruling 58), once only (`reimburse:<order id>`). When the till needs a
   person, the pay-back waits in the Payments tab for Approve, and the owner is texted. Shown on
   the Runner's Money tab and in the owner's Money page. Rule Ten holds: the money goes straight
   out. The cool bag deposit is unchanged (see docs/LEGAL_REVIEW.md).
@@ -791,3 +812,18 @@ docs/STILL_TO_DO.md lists everything the blueprint asks for that is not built ye
 ## Ruling 56 in brief (9 October 2026)
 
 The first round of missing features is built: the owner's till screen, receipt photos, Sets on a clock, arrival times, door words, feedback credit and closing accounts; the admin panel's orders, Runners and reports, an unchangeable audit log and two-step codes for every staff sign-in (a must from 31 October 2026); and for Runners an SOS button, directions, a payout schedule, the private referral reward, deposits paid back on leaving, insurance reminders, the one-tap call and agreeing by voice. docs/changes/ has each part in full, and docs/STILL_TO_DO.md what is left.
+
+## Ruling 58 in brief (9 October 2026)
+
+- **Item charges**: 50p on every unit, plus 50p for every whole £6 of its shop price
+  (`itemChargePence` in `packages/core/src/fees.ts`), in every price shown or spoken; the
+  receipt shows the shop total, item charges and delivery as lines. Till, pay-backs and the Ozi
+  card use shop prices only. No product over £60; one order up to £150 (pending Anthony).
+- **Delivery** (`deliveryFeePence`): pay as you go £7.99 up to £15.00 of shopping, £13.50 above;
+  Membership and organisation clients £7.99; Plus and Family and Carer £5.99. Runner £5 always.
+- **First month free** for every new Shopper, with pay-as-you-go delivery; a reminder about three
+  days before it ends; nothing taken without choosing to join.
+- **Plans** (`packages/api/src/services/plans.ts`): Membership £10, Plus £15, Family and Carer
+  £20 a month, renewing monthly only when chosen; one-button and spoken cancelling.
+- **Organisations**: £10 a client, every 51st client £5 (`organisationMonthlyPence`).
+- Migration `20261020090000_pricing_plans`. docs/changes/pricing.md has the detail.

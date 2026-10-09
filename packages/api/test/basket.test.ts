@@ -104,11 +104,12 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
       totalPence: number;
     };
     expect(body.goodsEstimatePence).toBe(1);
-    expect(body.feePence).toBe(harness.config.fees.standardDeliveryPence);
-    expect(body.totalPence).toBe(1 + body.feePence);
+    expect(body.feePence).toBe(harness.config.fees.delivery.payAsYouGoSmallOrderPence);
+    // One item charge of 50p, the smaller pay-as-you-go delivery, and no small order fee.
+    expect(body.totalPence).toBe(1 + 50 + body.feePence);
   });
 
-  it('charges the same flat fee for two baskets, whatever their size', async () => {
+  it('charges the smaller pay-as-you-go delivery up to £15 of shopping, and the larger above', async () => {
     const small = await harness.app.inject({
       method: 'POST',
       url: '/basket/price',
@@ -122,7 +123,20 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
 
     const smallFee = (small.json() as { feePence: number }).feePence;
     const largerFee = (larger.json() as { feePence: number }).feePence;
-    expect(smallFee).toBe(largerFee);
+    // Ten pints at £1.25 is £12.50: still the smaller fee. Thirteen is £16.25: the larger.
+    expect(smallFee).toBe(799);
+    expect(largerFee).toBe(799);
+    const over = await harness.app.inject({
+      method: 'POST',
+      url: '/basket/price',
+      payload: { lines: [{ catalogueItemId: items.milk, quantity: 13 }] },
+    });
+    expect(over.json()).toMatchObject({
+      goodsEstimatePence: 1625,
+      itemChargesPence: 650,
+      feePence: 1350,
+      totalPence: 1625 + 650 + 1350,
+    });
   });
 
   it('states the fee in words before anything is confirmed', async () => {
@@ -136,9 +150,12 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
       inWords: { fee: string; total: string };
       explanation: string[];
     };
-    expect(body.inWords.fee).toBe('£13.50');
-    expect(body.inWords.total).toBe('£16.00');
-    expect(body.explanation.join(' ')).toContain('That is the only fee.');
+    expect(body.inWords.fee).toBe('£7.99');
+    expect(body.inWords.total).toBe('£11.49');
+    // The shopping is said with its item charges in it, and the parts are named.
+    expect(body.explanation.join(' ')).toContain(
+      'The shopping is about £3.50, with the item charges included: £2.50 at the shop\'s prices and £1.00 of item charges.',
+    );
   });
 
   it('refuses an empty basket kindly rather than pricing nothing', async () => {
@@ -151,29 +168,65 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
   });
 });
 
-describe('the most one delivery carries', () => {
-  it('prices exactly sixty pounds of shopping', async () => {
-    // 48 pints of milk at £1.25 is £60.00.
+describe('the most one order carries, and the most one product may cost', () => {
+  async function product(pence: number): Promise<string> {
+    return (
+      await harness.repository.catalogue.create({
+        name: `A product at ${pence}p`,
+        category: 'Household',
+        estimatedPricePence: pence,
+        source: 'community',
+      })
+    ).id;
+  }
+
+  it('prices exactly the whole-order cap of shopping', async () => {
+    // Ten at £15.00 is £150.00, the cap (pending Anthony).
     const response = await harness.app.inject({
       method: 'POST',
       url: '/basket/price',
-      payload: { lines: [{ catalogueItemId: items.milk, quantity: 48 }] },
+      payload: { lines: [{ catalogueItemId: await product(1500), quantity: 10 }] },
     });
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ goodsEstimatePence: 6000, feePence: 1350 });
+    expect(response.statusCode, response.body).toBe(200);
+    expect(response.json()).toMatchObject({
+      goodsEstimatePence: 15000,
+      itemChargesPence: 10 * 150,
+      feePence: 1350,
+    });
   });
 
   it('says plainly when a basket is over, and offers two deliveries', async () => {
     const response = await harness.app.inject({
       method: 'POST',
       url: '/basket/price',
-      payload: { lines: [{ catalogueItemId: items.milk, quantity: 49 }] },
+      payload: { lines: [{ catalogueItemId: await product(1500), quantity: 11 }] },
     });
     expect(response.statusCode).toBe(422);
     expect(response.json().error).toMatchObject({
       code: 'basket_too_large',
       message:
-        'This comes to £61.25 of shopping, and one delivery carries up to £60.00: about as much as one Runner can carry safely. We can split it into two deliveries.',
+        'This comes to £165.00 of shopping, and one order carries up to £150.00. We can split it into two deliveries.',
+    });
+  });
+
+  it('sells a product at £60, and refuses one a penny over, in plain words', async () => {
+    const sixty = await harness.app.inject({
+      method: 'POST',
+      url: '/basket/price',
+      payload: { lines: [{ catalogueItemId: await product(6000), quantity: 1 }] },
+    });
+    expect(sixty.statusCode).toBe(200);
+    expect(sixty.json()).toMatchObject({ itemChargesPence: 550, totalPence: 6000 + 550 + 1350 });
+    const over = await harness.app.inject({
+      method: 'POST',
+      url: '/basket/price',
+      payload: { lines: [{ catalogueItemId: await product(6001), quantity: 1 }] },
+    });
+    expect(over.statusCode).toBe(422);
+    expect(over.json().error).toMatchObject({
+      code: 'product_too_dear',
+      message:
+        "We can't bring A product at 6001p: no single product can cost more than £60.00. Please choose something else.",
     });
   });
 });

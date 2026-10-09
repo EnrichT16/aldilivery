@@ -20,16 +20,28 @@ export {
 } from './rules.js';
 
 export {
-  feeForGoodsPence,
+  DELIVERY_PLANS,
+  deliveryFeePence,
+  itemChargePence,
+  itemChargesForLines,
+  displayPricePence,
+  productAllowed,
+  assertProductAllowed,
   processorCostPence,
-  platformNetPence,
   priceBasket,
   orderEconomics,
+  organisationMonthlyPence,
   BasketOverMaximumError,
+  ProductOverMaximumError,
+  type DeliveryPlan,
+  type DeliveryPrices,
   type DeliveryFees,
+  type ItemChargeRule,
+  type PricedUnitLine,
   type ProcessorModel,
   type BasketPricing,
   type OrderEconomics,
+  type OrganisationPricing,
 } from './fees.js';
 
 export {

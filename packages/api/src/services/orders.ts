@@ -7,7 +7,7 @@
  * test, and every path to a payment goes through it.
  */
 
-import { canTransition, type DeliveryFees, type OrderStatus } from '@aldilivery/core';
+import { canTransition, type OrderStatus } from '@aldilivery/core';
 
 import { BadRequestError, ConfirmationRequiredError, ConflictError } from '../errors.js';
 
@@ -69,26 +69,26 @@ export interface Repricing {
 /**
  * Reprice an order to the receipt the Runner actually got at the till.
  *
- * The Shopper is charged the shelf price, so the estimate never binds them. The fee is the
- * same flat standard delivery fee whatever the till says. The maximum basket is not applied
- * here: it was checked when the order was placed, and a shelf price a few pence above the
- * estimate must never stop an order that is already in the Runner's hands.
+ * The Shopper is charged the shelf price, so the estimate never binds them. Delivery and the
+ * item charges stay what the Shopper agreed to when they said yes (ruling 58): the till only
+ * ever changes the shopping, which goes to the shop. The maximum basket is not applied here: it
+ * was checked when the order was placed, and a shelf price a few pence above the estimate must
+ * never stop an order that is already in the Runner's hands.
  */
 export function repriceToReceipt(
   receiptTotalPence: number,
-  goodsEstimatePence: number,
-  fees: DeliveryFees,
+  order: { goodsEstimatePence: number; itemChargesPence: number; feePence: number },
 ): Repricing {
   if (!Number.isInteger(receiptTotalPence) || receiptTotalPence < 0) {
     throw new BadRequestError('A receipt total must be a whole number of pence.');
   }
 
-  const receiptFeePence = fees.standardDeliveryPence;
+  const receiptFeePence = order.feePence;
   return {
     receiptTotalPence,
     receiptFeePence,
-    finalTotalPence: receiptTotalPence + receiptFeePence,
-    differenceFromEstimatePence: goodsEstimatePence - receiptTotalPence,
+    finalTotalPence: receiptTotalPence + order.itemChargesPence + receiptFeePence,
+    differenceFromEstimatePence: order.goodsEstimatePence - receiptTotalPence,
   };
 }
 

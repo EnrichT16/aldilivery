@@ -70,7 +70,7 @@ export function answerShoppingQuestion(text: string, basket: BasketFacts): Shopp
     }
     return {
       kind: 'say',
-      text: `About ${money(basket.goodsPence)} for the shopping, plus ${money(basket.feePence)} delivery. That's about ${money(basket.totalPence)} altogether. You pay what the till says.`,
+      text: `About ${money(basket.goodsPence)} for the shopping, with the item charges included, plus ${money(basket.feePence)} delivery. That's about ${money(basket.totalPence)} altogether. You pay what the till says.`,
     };
   }
 

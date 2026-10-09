@@ -47,10 +47,25 @@ export interface Shopper {
   stripeCustomerId: string | null;
   /** Ozi Recipes is unlocked until then; null when it has never been bought. */
   recipePassUntil: Date | null;
-  /** Ozi Plus is on until then, bought or shared from a family plan. */
-  plusUntil: Date | null;
-  /** Whether the Plus this Shopper bought is the family plan. */
-  plusFamily: boolean;
+  /**
+   * The monthly plan the Shopper chose to join (ruling 58): Ozi Membership, Ozi Plus, or Ozi
+   * Family and Carer. Null is pay as you go. A family member carries the payer's plan.
+   */
+  plan: ShopperPlan | null;
+  /** The plan is paid up until then, or shared from the Family and Carer plan's payer. */
+  planUntil: Date | null;
+  /** They chose to have it taken monthly until they cancel. Never set without their yes. */
+  planRenews: boolean;
+  planStartedAt: Date | null;
+  planCancelledAt: Date | null;
+  /** Membership is free (with pay-as-you-go delivery) until then: the first month. */
+  freeMonthUntil: Date | null;
+  freeMonthReminderSentAt: Date | null;
+  /** Ozi Plus: the last friendly check-in after a while without an order. */
+  checkInSentAt: Date | null;
+  /** Family and Carer: members' orders above this total wait for the payer's approval. */
+  approvalLimitPence: number | null;
+  weeklySummarySentAt: Date | null;
   /** The code others type to join this Shopper's family plan. */
   familyCode: string | null;
   /** The Shopper whose family plan this one joined. */
@@ -330,15 +345,26 @@ export type ReimbursementStatus = 'paid' | 'waiting' | 'owed';
 /** A till total waiting for a person to settle with the Shopper, and once they have. */
 export type TillStatus = 'needs_person' | 'settled';
 
+/** The monthly plans (ruling 58). */
+export type ShopperPlan = 'membership' | 'plus' | 'family';
+
 export interface Order {
   id: string;
   shopperId: string;
   status: import('@aldilivery/core').OrderStatus;
   runnerId: string | null;
   setId: string | null;
+  /** The shopping at shop prices: what the till is expected to say. */
   goodsEstimatePence: number;
+  /** The item charges on every unit (ruling 58). They go to the business, never to the shop. */
+  itemChargesPence: number;
   feePence: number;
   totalEstimatePence: number;
+  /** Which delivery price applied. */
+  deliveryPlan: import('@aldilivery/core').DeliveryPlan;
+  /** Family and Carer: the payer whose card pays, and their approval above their limit. */
+  payerShopperId: string | null;
+  approvalStatus: 'waiting' | 'approved' | 'declined' | null;
   receiptTotalPence: number | null;
   receiptFeePence: number | null;
   finalTotalPence: number | null;

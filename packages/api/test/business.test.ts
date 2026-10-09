@@ -206,7 +206,7 @@ describe('organisations', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay.',
-          agreedTotalPence: 250 + 1350,
+          agreedTotalPence: 250 + 100 + 799,
         },
       },
     });
@@ -261,17 +261,20 @@ describe('organisations', () => {
       expect.objectContaining({ name: 'Mr Table', office: 'Ward B' }),
     ]);
     expect(dashboard.orders).toEqual([
-      expect.objectContaining({ person: 'Mr Table', office: 'Ward B', paidPence: 1600 }),
+      expect.objectContaining({ person: 'Mr Table', office: 'Ward B', paidPence: 1149 }),
     ]);
     expect(dashboard.totals).toEqual(
       expect.objectContaining({
-        spentThisMonthPence: 1600,
+        spentThisMonthPence: 1149,
         deliveriesThisMonth: 1,
-        budgetLeftPence: 48400,
-        savedThisMonthPence: 2500 - 1350,
+        budgetLeftPence: 50000 - 1149,
+        // Membership delivery for the people an organisation looks after (ruling 58).
+        savedThisMonthPence: 2500 - 799,
       }),
     );
-    expect(dashboard.byOffice).toEqual([{ office: 'Ward B', pence: 1600 }]);
+    expect(dashboard.byOffice).toEqual([{ office: 'Ward B', pence: 1149 }]);
+    // £10 a client a month, every 51st client £5.
+    expect(dashboard.plan).toMatchObject({ clients: 1, monthlyPence: 1000 });
     expect(JSON.stringify(dashboard)).not.toContain('Stranger');
 
     // The person can stop it whenever they like.

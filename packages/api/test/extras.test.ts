@@ -60,7 +60,13 @@ describe('the recipe pass', () => {
   it('is offered in /config with its price', async () => {
     const config = await harness.app.inject({ method: 'GET', url: '/config' });
     expect(config.json().extras).toEqual(
-      expect.objectContaining({ recipePassPence: 199, recipePassDays: 30, plusPence: 799 }),
+      expect.objectContaining({
+        recipePassPence: 199,
+        recipePassDays: 30,
+        membershipPence: 1000,
+        plusPence: 1500,
+        familyPence: 2000,
+      }),
     );
   });
 });

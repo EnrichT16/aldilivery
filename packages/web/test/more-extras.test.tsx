@@ -19,19 +19,25 @@ let shopper: Record<string, unknown> | null;
 let weekly: Array<Record<string, unknown>>;
 
 const PLUS_OFF = {
-  active: false,
-  plusUntil: null,
-  family: false,
+  plan: null,
+  planName: null,
+  planUntil: null,
+  renews: false,
+  cancelled: false,
+  monthlyPence: null,
+  freeMonthUntil: null,
+  deliveryPlan: 'payg',
   familyCode: null,
   members: [],
   joinedFamilyOf: null,
+  approvalLimitPence: null,
   familyMaximum: 4,
   creditPence: 0,
 };
 
 beforeEach(() => {
   sent = [];
-  shopper = { ...FAKE_SHOPPER, recipePassUntil: null, plusUntil: null, creditPence: 0 };
+  shopper = { ...FAKE_SHOPPER, recipePassUntil: null, planUntil: null, creditPence: 0 };
   weekly = [];
   window.localStorage.setItem('ozidelivery.session.token', 'test-token');
   const reply = (body: unknown, status = 200): Response =>
@@ -55,16 +61,28 @@ beforeEach(() => {
           ? reply({ role: 'shopper', shopper })
           : reply({ error: { message: 'You are not signed in.' } }, 401);
       }
-      if (path === '/extras/plus' && method === 'GET') return reply(PLUS_OFF);
-      if (path === '/extras/plus' && method === 'POST') {
+      if (path === '/plans' && method === 'GET') return reply(PLUS_OFF);
+      if (path === '/plans/family/orders' && method === 'GET') {
+        return reply({ orders: [], approvalLimitPence: null });
+      }
+      if (path === '/plans/join' && method === 'POST') {
         return reply({
           ...PLUS_OFF,
-          active: true,
-          plusUntil: '2099-11-06T10:00:00.000Z',
-          family: true,
+          plan: 'family',
+          planName: 'Ozi Family and Carer',
+          planUntil: '2099-11-06T10:00:00.000Z',
+          renews: true,
+          monthlyPence: 2000,
+          deliveryPlan: 'plus',
           familyCode: 'K7M3QX',
           message:
-            'Ozi Plus for a family is on until Friday 6 November. £11.99 was taken from your card ending 4242. It does not renew by itself. To add up to 3 more people, give them your family code: K7M3QX.',
+            'You\'ve joined Ozi Family and Carer, £20.00 a month. £20.00 was taken from your card ending 4242. It renews on Friday 6 November, and each month after, until you cancel. Cancel at any time in Settings, or say "cancel my membership". To add up to 3 more people, give them your family code: K7M3QX.',
+        });
+      }
+      if (path === '/plans/cancel' && method === 'POST') {
+        return reply({
+          ...PLUS_OFF,
+          message: 'Ozi Family and Carer is cancelled. Nothing more will be taken.',
         });
       }
       if (path === '/extras/find-it' && method === 'GET') {
@@ -221,18 +239,41 @@ function posted(path: string) {
   return sent.filter((request) => request.method === 'POST' && request.path === path);
 }
 
-describe('Ozi Plus', () => {
-  it('asks before taking the price, and says the family code', async () => {
+describe('the plans', () => {
+  it('shows every plan and price, asks before taking anything, says the family code, and cancels with one button', async () => {
     const user = userEvent.setup({ delay: null });
     renderAt('/plus');
-    expect(await screen.findByText(/Delivery costs the same for everybody/)).toBeInTheDocument();
-    await user.click(await screen.findByRole('button', { name: 'Ozi Plus for my family, £11.99' }));
-    expect(posted('/extras/plus')).toEqual([]);
-    expect(screen.getByText(/£11\.99 will be taken from your saved card now/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Yes, get the family plan for £11.99' }));
+    expect(
+      await screen.findByRole('heading', { name: 'Ozi Membership: £10.00 a month' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Ozi Plus: £15.00 a month' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Ozi Family and Carer: £20.00 a month' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Your first month of membership is free/)).toBeInTheDocument();
+    await user.click(
+      await screen.findByRole('button', { name: 'Join Ozi Family and Carer, £20.00 a month' }),
+    );
+    expect(posted('/plans/join')).toEqual([]);
+    expect(
+      screen.getByText(
+        /£20\.00 will be taken from your saved card now, and each month until you cancel/,
+      ),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', { name: 'Yes, join Ozi Family and Carer for £20.00 a month' }),
+    );
     expect(await screen.findByText(/give them your family code: K7M3QX/)).toBeInTheDocument();
-    expect(posted('/extras/plus')[0]?.body).toEqual({ plan: 'family', priceAccepted: true });
+    expect(posted('/plans/join')[0]?.body).toEqual({
+      plan: 'family',
+      priceAccepted: true,
+      monthlyAccepted: true,
+    });
     expect(screen.getByRole('heading', { name: 'Your family' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Cancel my plan' }));
+    expect(posted('/plans/cancel')).toHaveLength(1);
+    expect(await screen.findByText(/Nothing more will be taken/)).toBeInTheDocument();
   });
 });
 
@@ -364,7 +405,7 @@ describe('asking Ozi', () => {
       await screen.findByRole('heading', { level: 1, name: 'Ozi Finds It' }),
     ).toBeInTheDocument();
     await say(engine, 'tell me about Ozi Plus');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Ozi Plus' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Ozi plans' })).toBeInTheDocument();
     await say(engine, 'are there any offers');
     expect(await screen.findByRole('heading', { level: 1, name: 'Offers' })).toBeInTheDocument();
     await say(engine, 'set up my weekly shop');

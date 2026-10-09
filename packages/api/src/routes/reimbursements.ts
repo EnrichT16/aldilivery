@@ -73,7 +73,7 @@ export async function registerReimbursementRoutes(app: FastifyInstance): Promise
     }
 
     // Never more than the till said, and never more than one delivery carries.
-    const most = Math.min(order.receiptTotalPence, config.fees.maximumGoodsPence);
+    const most = Math.min(order.receiptTotalPence, config.fees.maximumOrderGoodsPence);
     const pence = Math.min(body.amountPence ?? order.reimbursementPence ?? most, most);
     await repository.orders.update(order.id, { reimbursementPence: pence });
 

@@ -33,7 +33,8 @@ designer's version of the same size.
    listens, and reads your list back."
 3. **The shopping**: a search for milk or bread, big buttons with words under each icon.
    Caption: "Big buttons. Words under every icon."
-4. **The basket**, showing £13.50 delivery and the total. Caption: "One flat fee. No surprises."
+4. **The basket**, showing the shopping, the item charges, delivery and the total. Caption:
+   "Every price up front. No surprises."
 5. **Saying yes**: the confirmation screen with the price read back. Caption: "Nothing is
    bought until you say yes."
 6. **Your order**: the live page with the green call button. Caption: "Follow your order, and

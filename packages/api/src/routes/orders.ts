@@ -21,7 +21,7 @@ import {
   NotFoundError,
   PaymentFailedError,
 } from '../errors.js';
-import type { Shopper } from '../domain.js';
+import type { Order, PaymentMethod, Shopper } from '../domain.js';
 import { cardAccepted } from '../lib/card-region.js';
 import { priceLines } from '../services/basket.js';
 import { applyCredit } from '../services/credit.js';
@@ -35,6 +35,8 @@ import { cardTill, flagCardTill, releaseCard } from '../services/runner-card.js'
 import { payOutOrder } from '../services/pay-runner.js';
 import { keepReceiptPhoto, receiptPhotoSchema } from '../services/receipt-photo.js';
 import { startReimbursement } from '../services/reimburse.js';
+import { activePlan, deliveryPlanFor } from '../services/plans.js';
+import { tellShopperById } from '../services/order-updates.js';
 import {
   assertConfirmedBeforePayment,
   assertNotAlreadyConfirmed,
@@ -58,8 +60,11 @@ const createOrderSchema = z.object({
   longitude: z.number().min(-180).max(180).optional(),
   /** The saved card. Not needed when paying by bank transfer. */
   paymentMethodId: z.string().min(1).optional(),
-  /** A saved card through Stripe, or a bank transfer to the business account (ruling 50). */
-  payBy: z.enum(['card', 'bank']).default('card'),
+  /**
+   * A saved card through Stripe, a bank transfer to the business account (ruling 50), or, for
+   * a member of an Ozi Family and Carer plan, the payer's card ("one card pays", ruling 58).
+   */
+  payBy: z.enum(['card', 'bank', 'family']).default('card'),
   /**
    * Rule One. A confirmation is an explicit act by the Shopper, not a default. The flag
    * must be present and true, and what they were told they were agreeing to is recorded
@@ -153,7 +158,12 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     const catalogueItems = await repository.catalogue.findManyByIds(
       input.lines.map((line) => line.catalogueItemId),
     );
-    const priced = priceLines(input.lines, catalogueItems, config.fees);
+    const priced = priceLines(
+      input.lines,
+      catalogueItems,
+      config.fees,
+      await deliveryPlanFor(app.ctx, shopper, now()),
+    );
     if (!input.overrideBudgetCap && exceedsBudgetCap(priced.goodsPence, shopper.budgetCapPence)) {
       throw new BadRequestError(
         `This shop comes to ${formatPence(priced.goodsPence, symbol)}, which is over the limit you set of ${formatPence(shopper.budgetCapPence ?? 0, symbol)}. Say the word and we will send it anyway.`,
@@ -193,8 +203,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       shopperId: shopper.id,
       status: 'confirmed',
       goodsEstimatePence: priced.goodsPence,
+      itemChargesPence: priced.itemChargesPence,
       feePence: priced.feePence,
       totalEstimatePence: priced.totalPence,
+      deliveryPlan: priced.plan,
       deliveryAddress: input.deliveryAddress,
       latitude: input.latitude ?? null,
       longitude: input.longitude ?? null,
@@ -238,10 +250,24 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     if (input.payBy === 'bank') {
       return placeBankTransferOrder(request, reply, shopper, input);
     }
-    if (!input.paymentMethodId) throw new BadRequestError('Please choose a card.');
-    const paymentMethod = await repository.paymentMethods.findById(input.paymentMethodId);
-    if (!paymentMethod || paymentMethod.shopperId !== shopper.id) {
-      throw new NotFoundError('payment card');
+
+    // Ozi Family and Carer: a member's order is paid with the payer's card (ruling 58).
+    const payer = input.payBy === 'family' ? await familyPayer(shopper) : shopper;
+    let paymentMethod: PaymentMethod | null;
+    if (input.payBy === 'family') {
+      const cards = await repository.paymentMethods.listForShopper(payer.id);
+      paymentMethod = cards.find((card) => card.isDefault) ?? cards[0] ?? null;
+      if (!paymentMethod) {
+        throw new ConflictError(
+          `${payer.displayName} has no card saved for the family plan yet. Nothing has been charged.`,
+        );
+      }
+    } else {
+      if (!input.paymentMethodId) throw new BadRequestError('Please choose a card.');
+      paymentMethod = await repository.paymentMethods.findById(input.paymentMethodId);
+      if (!paymentMethod || paymentMethod.shopperId !== shopper.id) {
+        throw new NotFoundError('payment card');
+      }
     }
     if (!cardAccepted(config.payments.supportedCardRegions, paymentMethod.region)) {
       throw new BadRequestError(
@@ -252,15 +278,15 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     // A card saved before cards were attached to a Stripe customer is attached now, before
     // anything is created. If Stripe will no longer keep it — it was spent on an earlier
     // payment — the Shopper is asked to add it again, and nothing is charged.
-    let customerId = shopper.stripeCustomerId;
+    let customerId = payer.stripeCustomerId;
     if (!customerId) {
       try {
         ({ customerId } = await payments.saveCardForReuse({
-          shopperId: shopper.id,
+          shopperId: payer.id,
           customerId: null,
           paymentMethodId: paymentMethod.stripePaymentMethodId,
         }));
-        await repository.shoppers.update(shopper.id, { stripeCustomerId: customerId });
+        await repository.shoppers.update(payer.id, { stripeCustomerId: customerId });
       } catch (failure) {
         request.log.warn({ err: failure }, 'An old saved card could not be kept.');
         throw new ConflictError(
@@ -275,8 +301,13 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     );
 
     // Rule Six is applied again here, not only at basket time, because the catalogue can
-    // change between pricing a basket and sending it.
-    const priced = priceLines(input.lines, catalogueItems, config.fees);
+    // change between pricing a basket and sending it. Delivery follows the Shopper's plan.
+    const priced = priceLines(
+      input.lines,
+      catalogueItems,
+      config.fees,
+      await deliveryPlanFor(app.ctx, shopper, now()),
+    );
 
     if (!input.overrideBudgetCap && exceedsBudgetCap(priced.goodsPence, shopper.budgetCapPence)) {
       throw new BadRequestError(
@@ -317,13 +348,24 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
+    // Family and Carer: above the payer's limit, the order waits for the payer's yes.
+    const needsApproval =
+      input.payBy === 'family' &&
+      payer.approvalLimitPence !== null &&
+      priced.totalPence > payer.approvalLimitPence;
+
     // Step one: write the order. Nothing has been charged.
     const order = await repository.orders.create({
       shopperId: shopper.id,
       status: 'draft',
       goodsEstimatePence: priced.goodsPence,
+      itemChargesPence: priced.itemChargesPence,
       feePence: priced.feePence,
       totalEstimatePence: priced.totalPence,
+      deliveryPlan: priced.plan,
+      ...(input.payBy === 'family'
+        ? { payerShopperId: payer.id, approvalStatus: needsApproval ? 'waiting' : 'approved' }
+        : {}),
       deliveryAddress: input.deliveryAddress,
       latitude: input.latitude ?? null,
       longitude: input.longitude ?? null,
@@ -355,7 +397,57 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     // Rule One.
     assertConfirmedBeforePayment(confirmed);
 
+    if (needsApproval) {
+      const total = formatPence(priced.totalPence, symbol);
+      void tellShopperById(
+        app.ctx,
+        payer.id,
+        `${shopper.displayName} has sent an order of ${total}, over your limit of ${formatPence(payer.approvalLimitPence ?? 0, symbol)}. Nothing has been taken. Open Family to approve it or say no.`,
+        { url: '/plus', tag: `approve-${confirmed.id}` },
+        request.log,
+      );
+      void reply.status(201);
+      return {
+        order: confirmed,
+        waitingForApproval: true,
+        message: `Thank you. Your order of ${total} is over the limit ${payer.displayName} set, so we have asked them to approve it. Nothing has been taken yet, and we will tell you as soon as they answer.`,
+      };
+    }
+
     // Step four, and not before: take payment.
+    const outcome = await chargeAndSend(request, confirmed, paymentMethod, customerId, confirmedAt);
+    void reply.status(201);
+    return outcome;
+  });
+
+  /**
+   * The payer of an Ozi Family and Carer plan this Shopper belongs to, for "one card pays".
+   * Refused, with nothing charged, when the Shopper is not on one.
+   */
+  async function familyPayer(shopper: Shopper): Promise<Shopper> {
+    const payer = shopper.familyOwnerId
+      ? await repository.shoppers.findById(shopper.familyOwnerId)
+      : null;
+    if (!payer || activePlan(payer, now()) !== 'family') {
+      throw new BadRequestError(
+        'You are not on a family plan that pays for your orders. Please choose your own card. Nothing has been charged.',
+      );
+    }
+    return payer;
+  }
+
+  /**
+   * Take payment for a confirmed order, then send it to a Runner. Rule One has already been
+   * checked on the stored order by the caller.
+   */
+  async function chargeAndSend(
+    request: FastifyRequest,
+    confirmed: Order,
+    paymentMethod: PaymentMethod,
+    customerId: string | null,
+    confirmedAt: Date,
+  ) {
+    assertConfirmedBeforePayment(confirmed);
     //
     // If the gateway refuses, the order is closed rather than left where it stands. It used
     // to stay `confirmed` for ever — no payment, no rollback, no retry and no way for the
@@ -426,7 +518,6 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       void tellShopper(app.ctx, placed, 'paid', request.log);
     }
 
-    void reply.status(201);
     return {
       order: creditPence > 0 ? { ...placed, creditAppliedPence: creditPence } : placed,
       payment: {
@@ -443,6 +534,90 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
             : '')
         : 'Your bank wants to check it is really you. Nothing has been taken yet.',
     };
+  }
+
+  /* ------------------------------------------------ Ozi Family and Carer: the payer's view */
+
+  /** Every order of everybody on the payer's family plan, newest first. */
+  app.get('/plans/family/orders', async (request) => {
+    const session = requireSession(request, 'shopper');
+    const payer = await repository.shoppers.findById(session.accountId);
+    if (!payer || payer.familyOwnerId !== null || activePlan(payer, now()) !== 'family') {
+      throw new ForbiddenError('That is for the person who pays for a family plan.');
+    }
+    const rows = [];
+    for (const member of await repository.shoppers.listFamily(payer.id)) {
+      for (const order of await repository.orders.listForShopper(member.id)) {
+        rows.push({
+          id: order.id,
+          person: member.displayName,
+          status: order.status,
+          approvalStatus: order.approvalStatus,
+          totalPence: order.finalTotalPence ?? order.totalEstimatePence,
+          items: order.items.reduce((sum, item) => sum + item.quantity, 0),
+          createdAt: order.createdAt,
+        });
+      }
+    }
+    rows.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    return { orders: rows, approvalLimitPence: payer.approvalLimitPence };
+  });
+
+  async function waitingFamilyOrder(request: FastifyRequest) {
+    const session = requireSession(request, 'shopper');
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const order = await repository.orders.findById(id);
+    if (!order || order.payerShopperId !== session.accountId) throw new NotFoundError('order');
+    if (order.approvalStatus !== 'waiting' || order.status !== 'confirmed') {
+      throw new ConflictError('That order is not waiting for your approval.');
+    }
+    const payer = await repository.shoppers.findById(session.accountId);
+    if (!payer) throw new NotFoundError('account');
+    return { order, payer };
+  }
+
+  app.post('/plans/family/orders/:id/approve', async (request) => {
+    const { order, payer } = await waitingFamilyOrder(request);
+    const cards = await repository.paymentMethods.listForShopper(payer.id);
+    const card = cards.find((method) => method.isDefault) ?? cards[0];
+    if (!card) throw new ConflictError('Please save a card first. Nothing has been charged.');
+    const approved = await repository.orders.update(order.id, {
+      approvalStatus: 'approved',
+      paymentMethodId: card.id,
+    });
+    const outcome = await chargeAndSend(
+      request,
+      approved,
+      card,
+      payer.stripeCustomerId,
+      approved.spokenConfirmationAt ?? now(),
+    );
+    void tellShopperById(
+      app.ctx,
+      order.shopperId,
+      `${payer.displayName} approved your order, and it is on its way to a Runner.`,
+      { url: '/my-order', tag: `order-${order.id}` },
+      request.log,
+    );
+    return outcome;
+  });
+
+  app.post('/plans/family/orders/:id/decline', async (request) => {
+    const { order, payer } = await waitingFamilyOrder(request);
+    const updated = await repository.orders.update(order.id, {
+      approvalStatus: 'declined',
+      status: 'cancelled',
+      cancelledAt: now(),
+      cancelReason: 'The family plan payer did not approve it.',
+    });
+    void tellShopperById(
+      app.ctx,
+      order.shopperId,
+      `${payer.displayName} did not approve your order this time, so it has not been sent and nothing was taken.`,
+      { url: '/orders', tag: `order-${order.id}` },
+      request.log,
+    );
+    return { order: updated, message: 'The order has not been sent. Nothing was taken.' };
   });
 
   app.get('/orders', async (request) => {
@@ -588,11 +763,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     }
     const card = byCard ? cardTill(order, input.receiptTotalPence, symbol) : null;
 
-    const repricing = repriceToReceipt(
-      card ? card.tillPence : input.receiptTotalPence,
-      order.goodsEstimatePence,
-      config.fees,
-    );
+    const repricing = repriceToReceipt(card ? card.tillPence : input.receiptTotalPence, order);
 
     for (const line of input.items ?? []) {
       await repository.orders.updateItem(line.orderItemId, {

@@ -111,8 +111,8 @@
       "topic": "about",
       "when": ["how does it work", "explain the business"],
       "replies": [
-        "A Shopper orders, a checked Runner buys it at the shop, and brings it to the door. Delivery is {fee}.",
-        "Order, shop, deliver. {fee} each time."
+        "A Shopper orders, a checked Runner buys it at the shop, and brings it to the door. Delivery is from {plusFee} to {fee}, depending on the plan and the size of the shop.",
+        "Order, shop, deliver. On Family and Carer, delivery is {plusFee} each time."
       ]
     },
     {
@@ -248,7 +248,10 @@
       "id": "family-how-much-is-delivery",
       "topic": "about",
       "when": ["how much is delivery"],
-      "replies": ["{fee} a delivery, for everyone.", "Always {fee}."]
+      "replies": [
+        "On pay as you go, {smallFee} for shopping of {smallUpTo} or less and {fee} above. Members {memberFee}, and Family and Carer {plusFee}.",
+        "{plusFee} on Family and Carer, {memberFee} for members, {smallFee} or {fee} on pay as you go."
+      ]
     },
     {
       "id": "family-what-can-t-be-delivered",
@@ -2220,15 +2223,18 @@
       "topic": "about",
       "when": ["what is the maximum basket", "how much can one order be"],
       "replies": [
-        "Up to {maximum} of shopping, about what one Runner can safely carry. More can be split in two.",
-        "{maximum} a delivery."
+        "Up to {maximum} of shopping in one order, and no single product over {maximumProduct}. More can be split in two.",
+        "{maximum} an order."
       ]
     },
     {
       "id": "family-is-the-fee-the-same",
       "topic": "about",
       "when": ["is the fee the same for everyone", "does the fee change"],
-      "replies": ["Yes. The delivery fee is the same for everyone, every time.", "Always the same."]
+      "replies": [
+        "Delivery depends only on the plan and the size of the shop, never on the time or how busy it is. Every price is shown before anyone pays.",
+        "Always the same."
+      ]
     },
     {
       "id": "family-why-is-there-a-limit",
@@ -2373,7 +2379,7 @@
       "topic": "about",
       "when": ["what makes it special", "why is it different"],
       "replies": [
-        "It works completely by voice, for people who can't see the screen, with checked Runners and one flat fee.",
+        "It works completely by voice, for people who can't see the screen, with checked Runners and every price shown before anyone pays.",
         "Voice first, kind and fair."
       ]
     },
@@ -2474,7 +2480,10 @@
       "id": "family-do-i-pay-delivery",
       "topic": "shopper",
       "when": ["do i pay delivery too", "does family pay delivery"],
-      "replies": ["Yes, the delivery fee is the same for everyone.", "The same for everyone."]
+      "replies": [
+        "Yes. On Family and Carer it's {plusFee} each time, whoever on the plan orders.",
+        "Yes, {plusFee} on Family and Carer."
+      ]
     },
     {
       "id": "family-how-do-i-add-a-card",
@@ -2541,7 +2550,7 @@
       "topic": "shopper",
       "when": ["do i get a discount", "family discount"],
       "replies": [
-        "No. The delivery fee is the same for everyone. That's one of the rules.",
+        "Family and Carer brings delivery down to {plusFee} for everyone on it, for {familyPrice} a month.",
         "The fee's the same for all."
       ]
     },

@@ -40,7 +40,7 @@ function orderPayload(overrides: Record<string, unknown> = {}) {
       addressConfirmed: true,
       channel: 'button',
       statement: 'Send my order and pay. About £16.00 altogether.',
-      agreedTotalPence: 250 + 1350,
+      agreedTotalPence: 250 + 100 + 799,
     },
     ...overrides,
   };
@@ -72,7 +72,7 @@ describe('Rule One: no payment without an explicit confirmation', () => {
           confirmed: false,
           channel: 'button',
           statement: 'Send my order and pay.',
-          agreedTotalPence: 1600,
+          agreedTotalPence: 250 + 100 + 799,
         },
       }),
     });
@@ -162,7 +162,8 @@ describe('Rule One: no payment without an explicit confirmation', () => {
 
     expect(response.statusCode).toBe(201);
     const input = harness.payments.calls[0]!.input as { amountPence: number };
-    expect(input.amountPence).toBe(1600);
+    // £2.50 of milk, two item charges of 50p, and the smaller pay-as-you-go delivery.
+    expect(input.amountPence).toBe(250 + 100 + 799);
     expect(harness.payments.calls.filter((call) => call.kind === 'payment_intent')).toHaveLength(1);
   });
 
@@ -211,9 +212,10 @@ describe('repricing to the receipt', () => {
       order: { receiptTotalPence: number; receiptFeePence: number; finalTotalPence: number };
     };
     expect(body.order.receiptTotalPence).toBe(231);
-    // The fee is the flat standard delivery fee, whatever the till says.
-    expect(body.order.receiptFeePence).toBe(harness.config.fees.standardDeliveryPence);
-    expect(body.order.finalTotalPence).toBe(231 + body.order.receiptFeePence);
+    // Delivery and the item charges stay as agreed, whatever the till says: only the shopping
+    // moves (ruling 58).
+    expect(body.order.receiptFeePence).toBe(harness.config.fees.delivery.payAsYouGoSmallOrderPence);
+    expect(body.order.finalTotalPence).toBe(231 + 100 + body.order.receiptFeePence);
   });
 });
 
@@ -290,7 +292,7 @@ describe('a payment the bank has not approved yet', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay. About £16.00 altogether.',
-          agreedTotalPence: 250 + 1350,
+          agreedTotalPence: 250 + 100 + 799,
         },
       },
     });
@@ -330,7 +332,7 @@ describe('a payment the bank has not approved yet', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay. About £16.00 altogether.',
-          agreedTotalPence: 250 + 1350,
+          agreedTotalPence: 250 + 100 + 799,
         },
       },
     });
@@ -394,7 +396,7 @@ describe('a payment the gateway refuses', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay. About £16.00 altogether.',
-          agreedTotalPence: 250 + 1350,
+          agreedTotalPence: 250 + 100 + 799,
         },
       },
     });
@@ -466,7 +468,7 @@ describe('a payment the gateway refuses', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay. About £16.00 altogether.',
-          agreedTotalPence: 250 + 1350,
+          agreedTotalPence: 250 + 100 + 799,
         },
       },
     });
@@ -500,7 +502,7 @@ describe('ordering by voice (Sections D and E)', () => {
           addressConfirmed: true,
           channel: 'voice',
           statement: 'Yes, send it.',
-          agreedTotalPence: overrides.agreedTotalPence ?? 250 + 1350,
+          agreedTotalPence: overrides.agreedTotalPence ?? 250 + 100 + 799,
         },
       },
     });
@@ -534,7 +536,7 @@ describe('ordering by voice (Sections D and E)', () => {
   });
 
   it('asks for a touch above the voice ceiling, and charges nothing', async () => {
-    const strict = await buildTestApp(undefined, { voicePaymentCeilingPence: 1500 });
+    const strict = await buildTestApp(undefined, { voicePaymentCeilingPence: 1000 });
     const strictItems = await seedCatalogue(strict.repository);
     const who = await signUpShopper(strict);
     await strict.repository.shoppers.update(who.shopperId, { deliveryAddress: HOME });
@@ -551,13 +553,13 @@ describe('ordering by voice (Sections D and E)', () => {
           addressConfirmed: true,
           channel: 'voice',
           statement: 'Yes, send it.',
-          agreedTotalPence: 250 + 1350,
+          agreedTotalPence: 250 + 100 + 799,
         },
       },
     });
     expect(response.statusCode).toBe(400);
     expect(response.json().error.message).toMatch(
-      /^A payment confirmed by voice alone can be up to £15\.00\. This one is £16\.00, so please confirm it by touch/,
+      /^A payment confirmed by voice alone can be up to £10\.00\. This one is £11\.49, so please confirm it by touch/,
     );
     expect(strict.payments.calls).toHaveLength(0);
   });

@@ -1,9 +1,11 @@
 import { useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { deliveryFeePence, itemChargesForLines } from '@aldilivery/core';
+
 import { storeConfig } from '../config';
 import { createOrder, listPaymentMethods, searchCatalogue, type CatalogueItem } from '../lib/api';
-import { money } from '../lib/money';
+import { money, sellable, shownPrice, tooDearWords } from '../lib/money';
 import { parseChoice, parseQuantity, parseYesNo, splitItems, wantsToStop } from '../voice/ordering';
 import type { SpeakOutcome } from '../voice';
 import { useBasket } from './basket';
@@ -84,7 +86,7 @@ export function useVoiceOrdering(
   const basket = useBasket();
   const navigate = useNavigate();
   const shop = storeConfig.store.displayName;
-  const { standardDeliveryPence, maximumGoodsPence } = storeConfig.fees;
+  const { maximumOrderGoodsPence } = storeConfig.fees;
   const ceiling = storeConfig.voice.paymentCeilingPence;
 
   const stage = useRef<Stage>({ kind: 'idle' });
@@ -130,7 +132,17 @@ export function useVoiceOrdering(
         (sum, { product, quantity }) => sum + product.estimatedPricePence * quantity,
         0,
       );
-      const totalPence = goodsPence + standardDeliveryPence;
+      // Prices are said with their item charges in (ruling 58), and delivery is the Shopper's
+      // own: the same sums the server does.
+      const itemChargesPence = itemChargesForLines(
+        items.map(({ product, quantity }) => ({
+          shopPricePence: product.estimatedPricePence,
+          quantity,
+        })),
+        storeConfig.fees,
+      );
+      const shoppingPence = goodsPence + itemChargesPence;
+      const plan = live.current.shopper?.deliveryPlan ?? 'payg';
       const list = items
         .map(
           ({ product, quantity }, index) =>
@@ -139,14 +151,16 @@ export function useVoiceOrdering(
         .join(', ');
       putInBasket();
 
-      if (goodsPence > maximumGoodsPence) {
+      if (goodsPence > maximumOrderGoodsPence) {
         reset();
         await say(
-          `${notes}Your shopping comes to about ${money(goodsPence)}. One delivery carries up to ${money(maximumGoodsPence)}, about as much as one Runner can carry safely. I've put it all in your basket, so you can take some things out and send the rest as a second delivery.`,
+          `${notes}Your shopping comes to about ${money(goodsPence)} at the shop's prices. One order carries up to ${money(maximumOrderGoodsPence)}. I've put it all in your basket, so you can take some things out and send the rest as a second delivery.`,
         );
         navigate('/basket');
         return;
       }
+      const deliveryPence = deliveryFeePence(goodsPence, plan, storeConfig.fees);
+      const totalPence = shoppingPence + deliveryPence;
 
       let cards: Awaited<ReturnType<typeof listPaymentMethods>>['paymentMethods'] = [];
       try {
@@ -182,10 +196,10 @@ export function useVoiceOrdering(
         lastFour: card.lastFour,
       };
       await say(
-        `${notes}Here is your order: ${list}. Your shopping comes to about ${money(goodsPence)}, and delivery is ${money(standardDeliveryPence)}, so about ${money(totalPence)} altogether. It will be delivered to your home address: ${home}. Is that right?`,
+        `${notes}Here is your order: ${list}. Your shopping comes to about ${money(shoppingPence)}, with the item charges included, and delivery is ${money(deliveryPence)}, so about ${money(totalPence)} altogether. It will be delivered to your home address: ${home}. Is that right?`,
       );
     },
-    [say, reset, putInBasket, navigate, standardDeliveryPence, maximumGoodsPence],
+    [say, reset, putInBasket, navigate, maximumOrderGoodsPence],
   );
 
   const next = useCallback(
@@ -204,6 +218,13 @@ export function useVoiceOrdering(
           );
           return;
         }
+        // No single product over the most one product may cost (ruling 58).
+        const tooDear = found.filter((option) => !sellable(option.estimatedPricePence));
+        found = found.filter((option) => sellable(option.estimatedPricePence));
+        if (found.length === 0 && tooDear[0]) {
+          notes += `${tooDearWords(tooDear[0].name)} `;
+          continue;
+        }
         if (found.length === 0) {
           notes += `I couldn't find ${name}, so I'll leave it out. `;
           continue;
@@ -214,7 +235,7 @@ export function useVoiceOrdering(
           const listed = options
             .map(
               (option, index) =>
-                `${['one', 'two', 'three'][index]}, ${option.name}, about ${money(option.estimatedPricePence)}`,
+                `${['one', 'two', 'three'][index]}, ${option.name}, about ${money(shownPrice(option.estimatedPricePence))}`,
             )
             .join('; ');
           await say(

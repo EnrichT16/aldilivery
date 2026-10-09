@@ -84,7 +84,7 @@
       "topic": "business",
       "when": ["how does it make money", "revenue streams", "business model"],
       "replies": [
-        "A flat delivery fee of {fee}, Ozi Plus memberships, Recipes, Finds It, gift cards, Shop Partner plans at {partnerPlan} a month, Spotlight, and organisation contracts.",
+        "Delivery, item charges on each product, the monthly plans, Recipes, Finds It, gift cards, Shop Partner plans at {partnerPlan} a month, Spotlight, and organisations at {orgClient} a client a month.",
         "Delivery fees, memberships, extras, shop plans, Spotlight and organisations."
       ]
     },
@@ -92,7 +92,10 @@
       "id": "investor-how-much-is-delivery",
       "topic": "business",
       "when": ["how much is delivery", "delivery price"],
-      "replies": ["{fee} a delivery, the same for everyone, never surge priced.", "Flat {fee}."]
+      "replies": [
+        "Pay as you go: {smallFee} up to {smallUpTo} of shopping, {fee} above. Members {memberFee}, Plus and Family {plusFee}. Never surge priced.",
+        "From {plusFee} to {fee}, by plan and size."
+      ]
     },
     {
       "id": "investor-what-do-runners-earn",
@@ -1154,8 +1157,8 @@
         "is there surge pricing"
       ],
       "replies": [
-        "One flat fee, {fee}, the same for everyone and every basket up to the limit, never surge priced.",
-        "Flat {fee} a delivery, never surge priced."
+        "Delivery depends only on the plan and the size of the shop, never surge priced, and {runnerPay} of every delivery goes to the Runner.",
+        "By plan and shop size, never surge priced."
       ]
     },
     {
@@ -1163,8 +1166,8 @@
       "topic": "business",
       "when": ["is there a basket limit", "what is the most per order", "is there a maximum order"],
       "replies": [
-        "Each delivery takes shopping up to {maximum}. Anything bigger is offered as two deliveries.",
-        "Up to {maximum} of shopping a delivery."
+        "Each order takes shopping up to {maximum}, and no single product over {maximumProduct}. Anything bigger is offered as two deliveries.",
+        "Up to {maximum} of shopping an order."
       ]
     },
     {
@@ -1176,7 +1179,7 @@
         "is delivery free for members"
       ],
       "replies": [
-        "No. The delivery fee is the same for everyone, by design. Ozi Plus includes Recipes and the Finds It fee instead.",
+        "Yes. Members pay {memberFee} for delivery, and Plus and Family {plusFee}, against {smallFee} or {fee} on pay as you go. Item charges apply on every plan.",
         "No, the fee never depends on who the Shopper is."
       ]
     },
@@ -1185,7 +1188,7 @@
       "topic": "business",
       "when": ["how much is ozi plus", "plus membership price", "what does plus cost"],
       "replies": [
-        "Ozi Plus is a membership for thirty days at a time, for one person or a family. The founder can share the current prices.",
+        "Membership is {membership} a month, Plus {plusPrice}, and Family and Carer {familyPrice}, each taken monthly only when the Shopper chooses to join.",
         "Thirty days at a time. The prices are set in the store's settings."
       ]
     },
@@ -1194,7 +1197,7 @@
       "topic": "business",
       "when": ["ozi plus for families", "family membership", "family plan"],
       "replies": [
-        "Ozi Plus for a family covers up to four people, joined with a six-letter family code.",
+        "Family and Carer covers up to four people in different homes, joined with a six-letter family code, paid with one card.",
         "Up to four people, joined by a family code."
       ]
     },
@@ -1203,7 +1206,7 @@
       "topic": "business",
       "when": ["does plus renew automatically", "is it a subscription", "auto renewal"],
       "replies": [
-        "No. Ozi Plus never renews by itself. Every price is agreed by the Shopper before it's taken.",
+        "Only when the Shopper chooses to join, with a reminder before the free month ends, and one-button cancelling. Nobody is charged without saying yes.",
         "Never renews by itself, by design."
       ]
     },
@@ -1213,7 +1216,7 @@
       "when": ["what is ozi recipes", "what are recipes", "recipe pass"],
       "replies": [
         "A paid extra: the Recipe Pass, for thirty days, agreed before it's taken and never renewing by itself. Recipe names and ingredients stay free to see.",
-        "Recipes as a thirty-day pass, or included in Ozi Plus."
+        "Recipes as a thirty-day pass, or included in every plan."
       ]
     },
     {
@@ -1333,8 +1336,8 @@
       "topic": "business",
       "when": ["can members hide adverts", "advert free", "no adverts option"],
       "replies": [
-        "Ozi Plus members can choose to hide the advert square.",
-        "Yes, Ozi Plus members can hide it."
+        "Plus and Family members see no adverts.",
+        "Yes, Plus and Family have no adverts."
       ]
     },
     {
@@ -1431,7 +1434,7 @@
       "topic": "business",
       "when": ["list the ways it earns", "how many income streams", "what are the extras"],
       "replies": [
-        "The delivery fee, Ozi Plus, Recipes, Finds It, gift cards, the Shop Partner plan, Spotlight, organisation contracts, and later, group insight.",
+        "Delivery, item charges, the monthly plans, Recipes, Finds It, gift cards, the Shop Partner plan, Spotlight, organisation clients, and later, group insight.",
         "The fee, memberships, extras, shop plans, Spotlight, organisations and insight."
       ]
     },
@@ -2553,7 +2556,7 @@
         "what's the benefit for shoppers"
       ],
       "replies": [
-        "Shopping by voice or phone, one flat fee, the receipt price, checked Runners, and private calls through the app.",
+        "Shopping by voice or phone, every price shown up front, the receipt price, checked Runners, and private calls through the app.",
         "Simple, by voice, and fair."
       ]
     },
@@ -2589,7 +2592,7 @@
       "topic": "competition",
       "when": ["barriers to entry", "competitive pressure", "price war"],
       "replies": [
-        "The fee is flat and never surge priced. For strategy, please speak with the founder.",
+        "The fee is never surge priced. For strategy, please speak with the founder.",
         "The founder can discuss strategy."
       ]
     },
@@ -3045,7 +3048,7 @@
       "topic": "about",
       "when": ["what are the rules", "are there core rules", "design principles"],
       "replies": [
-        "The service follows written rules, such as one flat fee for everyone, nothing paid without agreement, and the receipt price charged.",
+        "The service follows written rules, such as every price shown before anyone pays, nothing paid without agreement, and the receipt price charged.",
         "Fair, agreed and simple, by rule."
       ]
     },
@@ -3246,7 +3249,7 @@
       "topic": "help",
       "when": ["tell me about the business", "give me the summary", "elevator pitch"],
       "replies": [
-        "A voice-first shopping delivery service for people who find shops hard. One flat fee, checked Runners, and extras for Shoppers, shops and organisations.",
+        "A voice-first shopping delivery service for people who find shops hard. Clear prices, checked Runners, and plans for Shoppers, families, shops and organisations.",
         "Voice-first shopping delivery, built for accessibility."
       ]
     },
@@ -3528,7 +3531,7 @@
       "topic": "mission",
       "when": ["does it help carers", "families of blind people", "can family help"],
       "replies": [
-        "Yes. Families can join an Ozi Plus family plan, and organisations can support the people who link to them.",
+        "Yes. Families can join the Family and Carer plan, and organisations can support the people who link to them.",
         "Families and organisations can both help."
       ]
     },

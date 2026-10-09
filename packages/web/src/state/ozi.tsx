@@ -14,6 +14,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { storeConfig } from '../config';
 import { inPairs, pairsAloud } from '../lib/phone-aloud';
 import {
+  cancelPlan,
   closeAccount,
   fetchMyOrder,
   fetchMyOrders,
@@ -88,6 +89,9 @@ const DOOR_WORD =
 
 /** "Close my account", "delete my account". */
 const CLOSE_ACCOUNT = /\b(close|delete|cancel|remove)\s+(my|this)\s+account\b/;
+/** "Cancel my membership", "stop my plan", "end my subscription" (ruling 58). */
+const CANCEL_PLAN =
+  /\b(cancel|stop|end)\b.{0,12}\b(membership|plan|subscription|plus|family and carer)\b/i;
 
 /** The one word that stops the next regular order (Rule Five), said on its own. */
 const SKIP_WORD = storeConfig.recurringOrders.skipWord;
@@ -522,6 +526,26 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
         );
       return;
     }
+    // "Cancel my membership": one yes, as easy as joining; nothing more is taken (ruling 58).
+    if (!ordering.busy() && CANCEL_PLAN.test(words) && accountRef.current.shopper) {
+      listenFor(
+        'Do you want to cancel your plan? Nothing more will be taken, and you keep it until the end of the month you have paid for. Say yes to cancel it, or no to keep it.',
+        (answer) => {
+          if (!/\b(yes|yeah|yep|cancel it|please)\b/i.test(answer) || /\bno\b/i.test(answer)) {
+            void sayRef.current('All right. Your plan stays as it is.');
+            return;
+          }
+          void cancelPlan()
+            .then((result) => sayRef.current(result.message))
+            .catch(() =>
+              sayRef.current(
+                "I couldn't cancel it just now. Please press Cancel my plan in Settings.",
+              ),
+            );
+        },
+      );
+      return;
+    }
     // "Close my account": asked once more, then closed, with the days to change your mind.
     if (!ordering.busy() && CLOSE_ACCOUNT.test(words) && accountRef.current.shopper) {
       const days = storeConfig.accountDeletion.recycleBinDays;
@@ -551,7 +575,8 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       const b = basketRef.current;
       const answer = answerShoppingQuestion(text, {
         lines: b.lines,
-        goodsPence: b.pricing.goodsPence,
+        // The shopping as it is said: with its item charges in (ruling 58).
+        goodsPence: b.pricing.goodsPence + b.pricing.itemChargesPence,
         feePence: b.pricing.feePence,
         totalPence: b.pricing.totalPence,
       });

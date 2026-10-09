@@ -28,6 +28,7 @@ import type { Order, RecurringSet } from '../domain.js';
 import { recordOrder } from '../lib/analytics.js';
 import { cardAccepted } from '../lib/card-region.js';
 import { priceLines } from './basket.js';
+import { deliveryPlanFor } from './plans.js';
 import { applyCredit } from './credit.js';
 import { offerOrder } from './dispatch.js';
 import { tellShopperById } from './order-updates.js';
@@ -166,8 +167,10 @@ async function leaveDraft(ctx: AppContext, set: RecurringSet): Promise<SetOutcom
     setFireAt: set.nextFireAt,
     status: 'draft',
     goodsEstimatePence: goodsPence,
+    itemChargesPence: 0,
     feePence: 0,
     totalEstimatePence: goodsPence,
+    deliveryPlan: 'payg',
     deliveryAddress: set.deliveryAddress,
     latitude: set.latitude,
     longitude: set.longitude,
@@ -234,7 +237,12 @@ export async function placeSetOrder(
     const catalogueItems = await repository.catalogue.findManyByIds(
       lines.map((line) => line.catalogueItemId),
     );
-    priced = priceLines(lines, catalogueItems, config.fees);
+    priced = priceLines(
+      lines,
+      catalogueItems,
+      config.fees,
+      await deliveryPlanFor(ctx, shopper, ctx.now()),
+    );
   } catch (failure) {
     log.warn({ err: failure, setId: set.id }, 'A regular order could not be priced.');
     return notPlaced(
@@ -256,8 +264,10 @@ export async function placeSetOrder(
     setFireAt: fireAt,
     status: 'draft',
     goodsEstimatePence: priced.goodsPence,
+    itemChargesPence: priced.itemChargesPence,
     feePence: priced.feePence,
     totalEstimatePence: priced.totalPence,
+    deliveryPlan: priced.plan,
     deliveryAddress: set.deliveryAddress,
     latitude: set.latitude,
     longitude: set.longitude,

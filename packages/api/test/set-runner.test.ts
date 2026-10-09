@@ -121,17 +121,17 @@ describe('a Set that sends itself', () => {
     expect(orders).toHaveLength(1);
     const order = orders[0]!;
     expect(order.status).toBe('paid');
-    expect(order.totalEstimatePence).toBe(250 + 1350);
+    expect(order.totalEstimatePence).toBe(250 + 100 + 799);
     expect(order.confirmationChannel).toBe('set');
     expect(order.confirmationStatement).toContain(AGREED);
     expect(order.spokenConfirmationAt).not.toBeNull();
     expect(order.setFireAt?.toISOString()).toBe(FIRE_AT.toISOString());
     expect(charges()).toEqual([
       expect.objectContaining({
-        input: expect.objectContaining({ amountPence: 1600, reference: `order:${order.id}` }),
+        input: expect.objectContaining({ amountPence: 1149, reference: `order:${order.id}` }),
       }),
     ]);
-    expect(texts.at(-1)?.body).toContain('£16.00 has been taken from your card ending 4242');
+    expect(texts.at(-1)?.body).toContain('£11.49 has been taken from your card ending 4242');
 
     // The Set moves on to next week, needing its own notice.
     const set = (await harness.repository.sets.listForShopper(shopper.shopperId))[0]!;

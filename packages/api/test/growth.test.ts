@@ -183,7 +183,7 @@ describe('business analysis', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay.',
-          agreedTotalPence: 250 + 1350,
+          agreedTotalPence: 250 + 100 + 799,
         },
       },
     });

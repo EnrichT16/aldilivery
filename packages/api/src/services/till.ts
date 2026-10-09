@@ -2,7 +2,9 @@
  * Settling the till total (Sections H and R; ruling 52, Anthony, 7 October 2026: "fix it").
  *
  * The Shopper agrees to an estimate and is charged it before a Runner is sent (ruling 29); they
- * pay what the till says (Rule Three). When the Runner sends the receipt, the difference is
+ * pay what the till says (Rule Three). Only the shopping moves with the till: the item charges
+ * and delivery stay as agreed (ruling 58), so the difference settled here is always a difference
+ * in shop prices, the goods, never in what the business keeps. When the Runner sends the receipt, the difference is
  * settled on the same card at once:
  *
  * - The till came to less: the difference goes straight back to the card.
@@ -143,7 +145,8 @@ async function settleTillOnCard(
     return { kind: 'needs-person', pence: difference, reason: 'over the limit' };
   }
 
-  const shopper = await repository.shoppers.findById(order.shopperId);
+  // On a Family and Carer plan the payer's card paid ("one card pays"), so it is settled there.
+  const shopper = await repository.shoppers.findById(order.payerShopperId ?? order.shopperId);
   const card = order.paymentMethodId
     ? await repository.paymentMethods.findById(order.paymentMethodId)
     : null;

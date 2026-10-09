@@ -34,7 +34,7 @@ export function RunnerAgreement(): JSX.Element {
   const { recoveryPercentOfPay, writeOffUpToPence, instantRefundUpToPence } = storeConfig.problems;
   const holdSeconds = storeConfig.allocation.offerHoldSeconds;
   const recoveryPence = Math.floor((runnerPaymentPence * recoveryPercentOfPay) / 100);
-  const { maximumGoodsPence } = storeConfig.fees;
+  const { maximumOrderGoodsPence } = storeConfig.fees;
   const versionDate = new Date(`${RUNNER_AGREEMENT_VERSION}T12:00:00Z`).toLocaleDateString(
     'en-GB',
     { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' },
@@ -176,10 +176,10 @@ export function RunnerAgreement(): JSX.Element {
             Paying you back for the shopping is separate from your pay, and never comes out of it.
             We pay back the till total straight away when it is close to what the Shopper was told:
             up to the estimate plus {money(500)} or a fifth of the estimate, whichever is more. If
-            the till came to more than that, or to more than {money(maximumGoodsPence)}, the most
-            one delivery carries, a person at {name} checks it first, the same day where we can, and
-            then pays it back. We pay back what the till says, never more, and you are told in plain
-            words each time.
+            the till came to more than that, or to more than {money(maximumOrderGoodsPence)}, the
+            most one order carries, a person at {name} checks it first, the same day where we can,
+            and then pays it back. We pay back what the till says, never more, and you are told in
+            plain words each time.
           </li>
           <li>
             If your Stripe account is not ready, the money is owed to you, shown on your Runner

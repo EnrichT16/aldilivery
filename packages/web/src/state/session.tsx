@@ -92,6 +92,11 @@ export function SessionProvider({ children }: { children: ReactNode }): JSX.Elem
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }
 
+/** The session where there is one, or null (a screen rendered without the provider). */
+export function useOptionalSession(): SessionValue | null {
+  return useContext(SessionContext);
+}
+
 export function useSession(): SessionValue {
   const value = useContext(SessionContext);
   if (!value) throw new Error('useSession was used outside a SessionProvider.');

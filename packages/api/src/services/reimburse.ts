@@ -12,7 +12,7 @@
  * - Only the till total that was accepted is paid back. Without a person, that is a till total
  *   no more than the estimate plus the larger of £5 or a fifth of it, the same limit the
  *   Shopper's card is settled within (services/till.ts).
- * - Never more than one delivery carries (Rule Three, £60).
+ * - Never more than one order carries (`fees.maximumOrderGoodsPence`, Rule Three as amended by ruling 58), and only the shop prices: item charges go to the business.
  * - With no photo of the till receipt, more than `receipts.photoNeededAbovePence` (£30) waits for
  *   a person too; a photo sent afterwards lets it go at once.
  * - When the till needs a person (too far over the estimate, a bank transfer, a refund or charge
@@ -134,7 +134,7 @@ export async function startReimbursement(
   const plan = planReimbursement({
     receiptTotalPence: order.receiptTotalPence,
     goodsEstimatePence: order.goodsEstimatePence,
-    maximumGoodsPence: ctx.config.fees.maximumGoodsPence,
+    maximumGoodsPence: ctx.config.fees.maximumOrderGoodsPence,
     tillNeedsPerson: settled.kind === 'needs-person' ? settled.reason : null,
     receiptPhoto: {
       has: (await ctx.repository.receiptPhotos.findByOrderId(order.id)) !== null,
@@ -228,7 +228,7 @@ export async function sendReimbursement(
   if (!runner) throw new NotFoundError('Runner');
 
   // Never more than one delivery carries, whoever asks.
-  const pence = Math.min(order.reimbursementPence, config.fees.maximumGoodsPence);
+  const pence = Math.min(order.reimbursementPence, config.fees.maximumOrderGoodsPence);
   const owed = async (): Promise<ReimbursementOutcome> => {
     await repository.orders.update(order.id, {
       reimbursementPence: pence,

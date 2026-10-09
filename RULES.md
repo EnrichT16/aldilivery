@@ -5,7 +5,8 @@ obeys them. A change that breaks one of these rules must break a test.
 
 Where anything here conflicts with **[docs/BUILD_PROMPT.md](docs/BUILD_PROMPT.md)** (30 September
 2026, version two), that document wins. Rules Two and Three were changed to match it on 30
-September 2026; the other eight stand as they were.
+September 2026, and Rule Three was amended again on 9 October 2026 (ruling 58); the other eight
+stand as they were.
 
 ---
 
@@ -17,9 +18,9 @@ September 2026; the other eight stand as they were.
 
 **Two.** The Runner receives five pounds on every standard delivery, untouched, whatever the basket.
 
-**Three.** Standard delivery is thirteen pounds fifty, flat, and one delivery carries at most sixty pounds of shopping.
+**Three.** Delivery is priced by plan and by the size of the shop, every price covering the Runner and shown before any yes; every product carries an item charge, always included in the price shown; no single product may cost more than sixty pounds, and one order carries at most the configured most of shopping.
 
-*Ruled 29 September 2026. This replaces the earlier Rule Three, a two pound net floor, which is superseded, together with the fee bands it governed.*
+*Amended 9 October 2026 (ruling 58): delivery is now tiered and item charges apply. Pay as you go is £7.99 for shopping of £15 or less and £13.50 above; Ozi Membership £7.99; Ozi Plus and Ozi Family and Carer £5.99; an item charge of 50p, plus 50p for every whole £6 of shop price, on every unit; no product over £60; one order up to £150 of shopping (pending Anthony's confirmation). Every figure is in config/store.json. This replaces the Rule Three ruled on 29 September 2026, "Standard delivery is thirteen pounds fifty, flat, and one delivery carries at most sixty pounds of shopping", which itself replaced the earlier two pound net floor and its fee bands.*
 
 **Four.** No surge pricing, no small order fee, no minimum spend.
 
@@ -44,9 +45,9 @@ September 2026; the other eight stand as they were.
 | Rule | Enforcement point |
 | --- | --- |
 | One | `POST /orders` refuses to create a Stripe payment intent unless `spokenConfirmationAt` has already been written to the order. `packages/api/src/routes/orders.ts`, proved in `packages/api/test/orders.test.ts`. The web confirmation screen has exactly one confirming control, reading *Send my order and pay* (ruling 55), proved in `packages/web/test/shell.test.tsx` and `packages/web/test/wiring.test.tsx`; Ozi's spoken question asks "Shall I send your order and pay now…" (`packages/web/test/voice-order.test.tsx`). |
-| Two | `RUNNER_PAYMENT_PENCE` in `packages/core/src/rules.ts` is the only source of the figure, and the configuration parser refuses a delivery fee that would not cover it. The payout transfers exactly that amount per standard delivery; pooled orders each pay it in full. Extras (another shop, handing to the person, tips) are paid on top and never out of it. Proved in `packages/core/test/fees.test.ts`, `packages/core/test/config.test.ts` and `packages/api/test/jobs.test.ts`. |
-| Three | `feeForGoodsPence` in `packages/core/src/fees.ts` returns `fees.standardDeliveryPence` (1350) from `config/store.json` for every basket up to `fees.maximumGoodsPence` (6000), and refuses anything over with an offer of two deliveries. Proved one penny at a time from 1p to 6000p in `packages/core/test/fees.test.ts`; the API refusal and its plain words in `packages/api/test/basket.test.ts`; the basket screen in `packages/web/test/shell.test.tsx`. The figures are configuration because the owner can change pricing; the test pins them so a change is made on purpose. |
-| Four | The fee is one flat figure. No time input, no demand input, no distance input, no order count input reaches `feeForGoodsPence`; its signature makes surge pricing unrepresentable. No minimum basket value exists in `POST /basket/price`. Proved in `packages/core/test/fees.test.ts`. |
+| Two | `RUNNER_PAYMENT_PENCE` in `packages/core/src/rules.ts` is the only source of the figure, and the configuration parser refuses any delivery price, on any plan, that would not cover it. The payout transfers exactly that amount per standard delivery; pooled orders each pay it in full. Extras (another shop, handing to the person, tips) are paid on top and never out of it. Proved in `packages/core/test/fees.test.ts`, `packages/core/test/config.test.ts` and `packages/api/test/jobs.test.ts`. |
+| Three | `deliveryFeePence` in `packages/core/src/fees.ts` returns, from `fees.delivery` in `config/store.json`, 799 pay as you go up to `payAsYouGoSmallOrderUpToPence` (1500) and 1350 above, 799 on Membership, 599 on Plus and Family and Carer, and refuses a basket over `fees.maximumOrderGoodsPence` (15000) with an offer of two deliveries; `itemChargePence` adds 50p plus 50p for every whole £6 to every unit; `priceBasket` refuses a product over `fees.maximumProductPence` (6000). Proved one penny at a time in `packages/core/test/fees.test.ts` (with the worked examples: £80.36, £74.85, £14.18); the API in `packages/api/test/basket.test.ts` and `packages/api/test/plans.test.ts`; the screens in `packages/web/test/shell.test.tsx` and `packages/web/test/pricing.test.tsx`. The plan comes from the account on the server (`deliveryPlanFor` in `packages/api/src/services/plans.ts`). The figures are configuration because the owner can change pricing; the tests pin them so a change is made on purpose. |
+| Four | Delivery depends only on the goods total and the plan the Shopper chose. No time input, no demand input, no distance input, no order count input reaches `deliveryFeePence`; its signature makes surge pricing unrepresentable. A smaller shop is never dearer to deliver, and no minimum basket value exists in `POST /basket/price`. Proved in `packages/core/test/fees.test.ts`. |
 | Five | `packages/api/src/services/sets.ts` computes `noticeDueAt` as fire time minus the configured `noticeMinutesBefore` (30) and refuses to fire a Set whose notice was not sent. The skip token is one word, configured, and case insensitive. Proved in `packages/api/test/sets.test.ts`. |
 | Six | `CatalogueItem.ageRestricted` is rejected at basket time in `POST /basket/price` and again at order creation. Proved in `packages/api/test/basket.test.ts`. |
 | Seven | `eslint-plugin-jsx-a11y` in `eslint.config.js`, and `axe-core` run against every screen in `packages/web/test`. Any violation fails the build. Minimum control height, base font size and focus visibility are enforced in `packages/web/src/styles/index.css`. |

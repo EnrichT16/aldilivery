@@ -17,7 +17,8 @@ import { money } from '../lib/money';
 export function Terms(): JSX.Element {
   const name = storeConfig.productName;
   const assistant = storeConfig.assistantName;
-  const { standardDeliveryPence, maximumGoodsPence, runnerPaymentPence } = storeConfig.fees;
+  const { delivery, itemCharge, maximumOrderGoodsPence, maximumProductPence, runnerPaymentPence } =
+    storeConfig.fees;
   const { instantRefundUpToPence, decideWithinWorkingDays } = storeConfig.problems;
   const { extras, calls, voice } = storeConfig;
   const company = companyFacts();
@@ -64,13 +65,25 @@ export function Terms(): JSX.Element {
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
-            Delivery is {money(standardDeliveryPence)}, the only fee on an order. There is no
-            minimum spend and no extra charge at busy times. {money(runnerPaymentPence)} of it goes
-            to your Runner, every time.
+            Every product has an item charge: {money(itemCharge.basePence)} for each one under{' '}
+            {money(itemCharge.everyPence)}, and {money(itemCharge.stepPence)} more for every{' '}
+            {money(itemCharge.everyPence)} of its shop price. It is always included in the price we
+            show or say, it is the same on every plan, and your receipt shows the shop total, the
+            item charges and delivery as separate lines. No single product can cost more than{' '}
+            {money(maximumProductPence)}.
           </li>
           <li>
-            One delivery carries up to {money(maximumGoodsPence)} of shopping. More than that goes
-            as a second delivery, with its own fee, and we tell you before you order.
+            Delivery, if you pay as you go, is {money(delivery.payAsYouGoSmallOrderPence)} for
+            shopping of {money(delivery.payAsYouGoSmallOrderUpToPence)} or less at the shop&rsquo;s
+            prices, and {money(delivery.payAsYouGoPence)} above that. On {assistant} Membership it
+            is {money(delivery.membershipPence)}, and on {assistant} Plus or Family and Carer{' '}
+            {money(delivery.plusPence)}, whatever the size of the shop. People an organisation looks
+            after pay the Membership delivery. There is no minimum spend and no extra charge at busy
+            times. {money(runnerPaymentPence)} of every delivery goes to your Runner.
+          </li>
+          <li>
+            One order carries up to {money(maximumOrderGoodsPence)} of shopping. More than that goes
+            as a second delivery, with its own delivery charge, and we tell you before you order.
           </li>
           <li>
             The prices shown are estimates. You pay what the shop&rsquo;s till charges, shown on the
@@ -85,11 +98,26 @@ export function Terms(): JSX.Element {
             the Shopper. {assistant} tells you the price and waits for your yes before each call.
           </li>
           <li>
+            Plans, only if you choose to join: {assistant} Membership{' '}
+            {money(extras.membershipPence)} a month; {assistant} Plus {money(extras.plusPence)} a
+            month; {assistant} Family and Carer {money(extras.familyPence)} a month, for up to{' '}
+            {extras.familyMaximum} people. A plan is taken from your saved card when you join and
+            then on the same date each month, until you cancel. Each monthly payment has its own
+            receipt.
+          </li>
+          <li>
+            Your first month of membership is free, from when you open your account (or your first
+            order by telephone). During it you pay the pay-as-you-go delivery unless you choose to
+            join a plan. About three days before it ends we remind you. Nothing is ever taken unless
+            you choose to join, and if you do not, you simply carry on paying as you go. Nobody is
+            refused service for not joining.
+          </li>
+          <li>
             Extras, if you choose them: Recipe Pass {money(extras.recipePassPence)} for{' '}
-            {extras.recipePassDays} days; Plus {money(extras.plusPence)}, or{' '}
-            {money(extras.plusFamilyPence)} for a family, for {extras.plusDays} days; {assistant}{' '}
-            Finds It {money(extras.findItPence)}, given back if nothing is found. None of them
-            renews by itself. Each price is told to you and agreed before it is taken.
+            {extras.recipePassDays} days (included in every plan); {assistant} Finds It{' '}
+            {money(extras.findItPence)}, given back if nothing is found (one free a month on any
+            plan). Neither renews by itself. Each price is told to you and agreed before it is
+            taken.
           </li>
           <li>All prices include any VAT that applies.</li>
         </ul>
@@ -101,10 +129,10 @@ export function Terms(): JSX.Element {
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
-            Before you order, the shopping, the delivery fee, the total and the delivery address are
-            put to you. Your order is made, and you agree to pay, when you press the button to send
-            it, or say yes when {assistant} reads it back. We then confirm it on the screen or by
-            text.
+            Before you order, the shopping with its item charges, the delivery fee, the total and
+            the delivery address are put to you. Your order is made, and you agree to pay, when you
+            press the button to send it, or say yes when {assistant} reads it back. We then confirm
+            it on the screen or by text.
           </li>
           <li>
             You pay by a card kept safely by our payment company, Stripe, by a secure payment link
@@ -172,9 +200,17 @@ export function Terms(): JSX.Element {
             is wrong, below.
           </li>
           <li>
-            Recipe Pass and Plus: you can cancel within 14 days of buying, by ringing or emailing
-            us. We refund you, less a fair part for the days you have already had. Gift cards: you
-            can cancel within 14 days for a full refund if the card has not been used.
+            Plans: you can cancel at any time, as easily as you joined: with one button in Settings
+            or on the plans page, by saying &ldquo;cancel my membership&rdquo; to {assistant}, on
+            the telephone too, or by ringing or emailing us. Nothing more is taken, and you keep the
+            plan until the end of the month you have paid for. Within 14 days of first joining you
+            may also ask for a refund, less a fair part for the days you have already had. We tell
+            you before any price change.
+          </li>
+          <li>
+            Recipe Pass: you can cancel within 14 days of buying, by ringing or emailing us. We
+            refund you, less a fair part for the days you have already had. Gift cards: you can
+            cancel within 14 days for a full refund if the card has not been used.
           </li>
         </ul>
       </section>

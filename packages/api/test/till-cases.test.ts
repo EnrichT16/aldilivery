@@ -69,7 +69,7 @@ async function orderBeingShopped(packs = 2): Promise<string> {
         addressConfirmed: true,
         channel: 'button',
         statement: 'Send my order and pay.',
-        agreedTotalPence: goods + 1350,
+        agreedTotalPence: goods + 50 * packs + (goods <= 1500 ? 799 : 1350),
       },
     },
     shopper.authHeader,
@@ -106,8 +106,8 @@ describe('the owner’s till screen', () => {
     expect(list.json().waiting).toEqual([
       expect.objectContaining({
         orderId,
-        estimatePence: 1600,
-        tillTotalPence: 2350,
+        estimatePence: 250 + 100 + 799,
+        tillTotalPence: 1000 + 100 + 799,
         differencePence: 750,
         reason: 'over the limit',
         hasReceiptPhoto: false,

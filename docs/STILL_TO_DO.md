@@ -1,5 +1,7 @@
 What the blueprint asks for that is not built yet
 
+> **9 October 2026 (ruling 58, new prices):** item charges, delivery by plan and size, the free first month with its reminder, Ozi Membership, Ozi Plus and Ozi Family and Carer (item 11 below, the family and carer plan, is now built as Family and Carer), one-button and spoken cancelling, and the organisation monthly charge are built (docs/changes/pricing.md). Still to do from it: Anthony to confirm the whole-order goods cap (£150 for now, `fees.maximumOrderGoodsPence`); a reminder before any price change, when one is made; a monthly-payment receipt as a PDF (today the Shopper is told by notification or text); billing organisations for the monthly charge (shown on the dashboard and statements, not yet invoiced or charged); and Stripe Subscriptions, if wanted instead of the saved-card monthly charge.
+
 > **9 October 2026 (ruling 56):** items 1, 2, 3, 4, 6, 7, 9, 10, 12, 13, 14 and 16 below are now built, as are the Runner SOS and navigation, the payout schedule, the private referral reward, and closing accounts with the retention sweep. See docs/changes/. Left from those: orders booked for one future time, feedback patterns on the partner dashboard, and the Runner check records kept two years after a Runner stops.
 Checked against docs/BUILD_PROMPT.md (Sections A to T and rulings 1 to 53) and against the code itself on 7 October 2026, and brought up to date for ruling 55 on 9 October 2026 (Runners paid back for the shopping, the "Send my order and pay" button, and the Runner agreement agreed before the first job: all built). Everything that is now built has been taken off. docs/MASTER_BLUEPRINT.md has the full picture of what is built. In rough order of value.
 
@@ -14,7 +16,7 @@ Soon, worth doing next
 8. Ozi reading the receipt aloud: what was bought, what was left out and why, the charge and the fee as its own line (T10).
 9. A substitution call started from the Runner's "cannot find it" prompt in one tap (Section H); the question on the Shopper's screen and the separate call button are built.
 10. Shopper feedback after delivery, with delivery credit for feedback of any kind, and shops shown patterns only (Section O).
-11. The family and carer plan: a relative's own view, alerts, approving over a limit (T1). The page says "coming soon".
+11. ~~The family and carer plan~~: built as Ozi Family and Carer (ruling 58). Left: the weekly summary read aloud on the plans page (it is sent by notification or text today).
 12. The admin panel's missing parts: live and past orders, Runners active now and their earnings, price freshness, signups by period, cancellations with reasons; owner-only opening of a Shopper's account, refunds above a threshold and data export; and spoken answers for "how many signups this month", "what refunds went out yesterday and why" and "read me the cancellations" (Section Q).
 13. An audit log of every admin action, unchangeable, seen by the owner only (Section Q, docs/SECURITY_PROPOSAL.md).
 14. Two-step codes for every staff sign-in, not only the owner's (Section Q, ruling 44).
@@ -69,4 +71,4 @@ Needs Anthony before launch
 - A real accessibility check by people using NVDA and VoiceOver, with axe and WAVE, covering the admin panel (Section R).
 - Two-step codes on the owner account and an uptime check (docs/SECURITY_PROPOSAL.md, section 6).
 - Cyber Essentials before signing councils or the NHS; a penetration test before about 10,000 Shoppers.
-- Rulings needed where the blueprint disagrees with itself: a one-off address with no PIN (Section D) against "only an address already saved" (ruling 26); Ozi Line minute packages (Section B, T9) against telephone orders at the normal fee (rulings 46, 48); whether the family and carer plan (T1) still stands beside Ozi Plus for a family (ruling 37); whether bundles (T3) are a fee that depends on the Shopper (ruling 37, Rule Four); two-step for every staff login (Section Q) against ruling 38; organisations paying by invoice (ruling 41).
+- Rulings needed where the blueprint disagrees with itself: a one-off address with no PIN (Section D) against "only an address already saved" (ruling 26); Ozi Line minute packages (Section B, T9) against telephone orders at the normal fee (rulings 46, 48); how bundles (T3) would sit beside the plans of ruling 58; the whole-order goods cap (£150, ruling 58, pending); two-step for every staff login (Section Q) against ruling 38; organisations paying by invoice (ruling 41).

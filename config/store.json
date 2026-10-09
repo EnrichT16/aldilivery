@@ -42,8 +42,20 @@
   "fees": {
     "currency": "GBP",
     "runnerPaymentPence": 500,
-    "standardDeliveryPence": 1350,
-    "maximumGoodsPence": 6000,
+    "delivery": {
+      "payAsYouGoSmallOrderPence": 799,
+      "payAsYouGoSmallOrderUpToPence": 1500,
+      "payAsYouGoPence": 1350,
+      "membershipPence": 799,
+      "plusPence": 599
+    },
+    "itemCharge": {
+      "basePence": 50,
+      "stepPence": 50,
+      "everyPence": 600
+    },
+    "maximumProductPence": 6000,
+    "maximumOrderGoodsPence": 15000,
     "processor": {
       "percentageBasisPoints": 150,
       "fixedPence": 20
@@ -80,10 +92,19 @@
   "extras": {
     "recipePassPence": 199,
     "recipePassDays": 30,
-    "plusPence": 799,
-    "plusFamilyPence": 1199,
-    "plusDays": 30,
+    "membershipPence": 1000,
+    "plusPence": 1500,
+    "familyPence": 2000,
     "familyMaximum": 4,
+    "freeFirstMonth": true,
+    "freeMonthReminderDaysBefore": 3,
+    "freeFindItsPerMonth": 1,
+    "checkInAfterDays": 14,
+    "organisations": {
+      "clientMonthlyPence": 1000,
+      "discountEveryNthClient": 51,
+      "discountedClientMonthlyPence": 500
+    },
     "findItPence": 200,
     "findItShops": 3,
     "giftCardPence": [1000, 2000, 3000, 5000],
