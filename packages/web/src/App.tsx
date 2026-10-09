@@ -28,6 +28,7 @@ import { PartnerDashboard } from './pages/PartnerDashboard';
 import { ReportProblem } from './pages/ReportProblem';
 import { Plus } from './pages/Plus';
 import { Cookies } from './pages/Cookies';
+import { Help } from './pages/Help';
 import { Privacy } from './pages/Privacy';
 import { Recipes } from './pages/Recipes';
 import { RunnerDoor } from './pages/Runner';
@@ -133,6 +134,7 @@ export function App(): JSX.Element {
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
                 <Route path="/cookies" element={<Cookies />} />
+                <Route path="/help" element={<Help />} />
                 <Route path="/call/join" element={<CallJoin />} />
                 <Route path="/staff" element={<Staff />} />
                 <Route path="/looking-after" element={<LookingAfter />} />

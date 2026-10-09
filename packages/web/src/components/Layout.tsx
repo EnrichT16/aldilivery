@@ -98,6 +98,11 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
               </Link>
             </li>
             <li>
+              <Link to="/help" className="control px-0 text-paper underline">
+                Help and contact
+              </Link>
+            </li>
+            <li>
               <Link to="/privacy" className="control px-0 text-paper underline">
                 Privacy
               </Link>

@@ -83,7 +83,9 @@ pnpm run verify         # lint, typecheck, and every test
 | `config/store.json` | Everything about the store and the product: the product name, the store name, colours, legal entity, catalogue source, delivery fee and maximum basket, card regions. Rule Nine means nothing about the supermarket is anywhere else. |
 | `packages/core` | The fee engine, the rule constants, and the configuration contract. No framework, no I/O. |
 | `packages/api` | Fastify, PostgreSQL through Prisma, Stripe. |
-| `packages/web` | React, TypeScript, Vite, Tailwind. An installable Progressive Web App, ready for Capacitor later. |
+| `packages/web` | React, TypeScript, Vite, Tailwind. An installable Progressive Web App; "Get the app" explains putting it on an iPhone or Android home screen. |
+| `packages/mobile` | The App Store and Google Play apps: Capacitor shells around the built web app, generated into `packages/mobile/build` by `pnpm --filter mobile build`. **[docs/APP_STORES.md](docs/APP_STORES.md)** is the guide to submitting them; `docs/store-listing` holds the store text. |
+| `.github/workflows/store-apps.yml` | Builds the signed phone apps on GitHub, only when someone presses Run workflow. |
 | `docker-compose.yml` | Local PostgreSQL, and nothing else. |
 | `.do/app.yaml` | The DigitalOcean App Platform spec: the `api` service, the `web` static site, and the `aldilivery-db` database. |
 

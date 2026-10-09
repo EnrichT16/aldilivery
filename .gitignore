@@ -30,6 +30,13 @@ Thumbs.db
 # Local database volume
 .postgres-data/
 
-# Capacitor native projects (added in a later phase)
-packages/web/android/
-packages/web/ios/
+# The phone apps' native projects are generated into packages/mobile/build (covered by build/
+# above) from config/store.json each time, and never committed. docs/APP_STORES.md says why.
+# Store signing files, if anyone ever puts one in the repository folder by mistake.
+*.keystore
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
