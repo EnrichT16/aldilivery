@@ -1,5 +1,6 @@
 What the blueprint asks for that is not built yet
 
+> **9 October 2026 (ruling 56):** items 1, 2, 3, 4, 6, 7, 9, 10, 12, 13, 14 and 16 below are now built, as are the Runner SOS and navigation, the payout schedule, the private referral reward, and closing accounts with the retention sweep. See docs/changes/. Left from those: orders booked for one future time, feedback patterns on the partner dashboard, and the Runner check records kept two years after a Runner stops.
 Checked against docs/BUILD_PROMPT.md (Sections A to T and rulings 1 to 53) and against the code itself on 7 October 2026, and brought up to date for ruling 55 on 9 October 2026 (Runners paid back for the shopping, the "Send my order and pay" button, and the Runner agreement agreed before the first job: all built). Everything that is now built has been taken off. docs/MASTER_BLUEPRINT.md has the full picture of what is built. In rough order of value.
 
 Soon, worth doing next

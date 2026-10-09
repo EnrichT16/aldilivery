@@ -349,6 +349,8 @@ export interface Order {
   deliveredAt: Date | null;
   completedAt: Date | null;
   cancelledAt: Date | null;
+  /** Why it was cancelled, in plain words, for the admin panel. Null when nobody said. */
+  cancelReason?: string | null;
   items: OrderItem[];
 }
 
@@ -656,6 +658,8 @@ export interface StaffMember {
   allowedAreas: string;
   /** Raised to sign every session of this account out at once. */
   sessionVersion: number;
+  /** Two-step recovery codes, each hashed, comma separated; one is used up each time. */
+  recoveryCodes: string;
 }
 
 /** A local shop on the monthly partner plan (7 October 2026). */
@@ -812,4 +816,20 @@ export interface ShopperFeedback {
   message: string;
   creditPence: number;
   createdAt: Date;
+}
+/**
+ * One line of the admin panel's audit log (Section Q): who did what, to what, when, and from
+ * which internet address. Only ever added to; never changed, never removed.
+ */
+export interface AuditEntry {
+  id: string;
+  at: Date;
+  /** The staff account, or null for the staff key. */
+  actorId: string | null;
+  actorName: string;
+  actorRole: string;
+  action: string;
+  target: string;
+  detail: string;
+  ip: string;
 }

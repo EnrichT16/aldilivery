@@ -14,7 +14,17 @@ import { createHmac, randomBytes, randomInt, scryptSync, timingSafeEqual } from 
 
 import type { FastifyRequest } from 'fastify';
 
-import { ForbiddenError } from '../errors.js';
+import type { StoreConfig } from '@aldilivery/core';
+
+import type { StaffMember } from '../domain.js';
+import { ApiError, ForbiddenError } from '../errors.js';
+
+declare module 'fastify' {
+  interface FastifyRequest {
+    /** Who in the admin panel made this request, once checked: what the audit log records. */
+    staffActor?: StaffActor;
+  }
+}
 
 /** What a part of the admin panel is called. Each is one tab. */
 export type StaffArea =
@@ -32,7 +42,17 @@ export type StaffArea =
   /** What Ozi was asked and could not answer, for a person to approve an answer (ruling 49). */
   | 'learning'
   /** Bank transfers to the business account, to mark as received (ruling 50). */
-  | 'payments';
+  | 'payments'
+  /** Live and past orders, each with its timeline (Section Q). */
+  | 'orders'
+  /** Runners working now, and what each has earned (Section Q). */
+  | 'runners'
+  /** Signups, cancellations, refunds and price freshness (Section Q). */
+  | 'reports'
+  /** The owner's alone: opening a Shopper's account, and exporting their data. */
+  | 'accounts'
+  /** The owner's alone: the audit log of everything done in the admin panel. */
+  | 'audit';
 
 export type StaffRole =
   | 'founder'
@@ -61,15 +81,34 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
       'team',
       'learning',
       'payments',
+      'orders',
+      'runners',
+      'reports',
     ],
   },
   operations_manager: {
     title: 'Operations manager',
-    areas: ['documents', 'problems', 'feedback', 'finds', 'enquiries', 'partners', 'learning'],
+    areas: [
+      'documents',
+      'problems',
+      'feedback',
+      'finds',
+      'enquiries',
+      'partners',
+      'learning',
+      'orders',
+      'runners',
+      'reports',
+    ],
   },
   onboarding: { title: 'Runner onboarding officer', areas: ['documents'] },
-  customer_care: { title: 'Customer care officer', areas: ['problems', 'feedback', 'learning'] },
-  finance: { title: 'Finance officer', areas: ['owed', 'payments'] },
+  // Customer care looks orders up, to answer a Shopper about one.
+  customer_care: {
+    title: 'Customer care officer',
+    areas: ['problems', 'feedback', 'learning', 'orders'],
+  },
+  // Finance sees refunds and what Runners have earned, but never the owner's money totals.
+  finance: { title: 'Finance officer', areas: ['owed', 'payments', 'runners', 'reports'] },
   sourcing: { title: 'Finds It shopper', areas: ['finds'] },
   partnerships: { title: 'Partnerships officer', areas: ['enquiries', 'partners'] },
   // People the owner lets see parts of his own dashboard (Anthony, 7 October 2026), such as
@@ -78,6 +117,9 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
   family: { title: 'Family, seeing the founder’s dashboard', areas: [] },
   investor: { title: 'Investor', areas: [] },
 };
+
+/** Parts of the panel only the owner's own account, signed in with the passcode, ever has. */
+export const OWNER_ONLY_AREAS: readonly StaffArea[] = ['money', 'accounts', 'audit'];
 
 /** What the owner can switch on for a family or investor account. Never the money. */
 export const VIEWER_AREAS: readonly StaffArea[] = [
@@ -154,13 +196,18 @@ export interface StaffSession {
   version: number;
   /** Made with the owner's passcode. */
   passcode: boolean;
+  /**
+   * Only for setting up two-step codes: given to someone whose grace period is over and who
+   * has not set them up yet. It opens nothing else.
+   */
+  setup: boolean;
 }
 
 export function signStaffToken(
   staffId: string,
   expiresAt: Date,
   secret: string,
-  extra: { version?: number; passcode?: boolean } = {},
+  extra: { version?: number; passcode?: boolean; setup?: boolean } = {},
 ): string {
   const body = Buffer.from(
     JSON.stringify({
@@ -168,6 +215,7 @@ export function signStaffToken(
       exp: expiresAt.getTime(),
       v: extra.version ?? 0,
       pc: extra.passcode ?? false,
+      ...(extra.setup ? { su: true } : {}),
     }),
   ).toString('base64url');
   const mac = createHmac('sha256', `${LABEL}${secret}`).update(body).digest('base64url');
@@ -187,9 +235,15 @@ export function verifyStaffToken(token: string, secret: string, now: Date): Staf
       exp: number;
       v?: number;
       pc?: boolean;
+      su?: boolean;
     };
     if (typeof parsed.id !== 'string' || parsed.exp <= now.getTime()) return null;
-    return { id: parsed.id, version: parsed.v ?? 0, passcode: parsed.pc === true };
+    return {
+      id: parsed.id,
+      version: parsed.v ?? 0,
+      passcode: parsed.pc === true,
+      setup: parsed.su === true,
+    };
   } catch {
     return null;
   }
@@ -240,6 +294,60 @@ export function totpMatches(secret: string, code: string, at: Date): boolean {
   return [-1, 0, 1].some((step) => totpCode(secret, at, step) === given);
 }
 
+/* ------------------------------------------------------------------ two-step for everyone */
+
+const DAY = 24 * 60 * 60 * 1000;
+
+/**
+ * The moment two-step codes become a must for this person (Section Q): the grace period in
+ * config/store.json, counted from the later of the day it started and the day their account
+ * was made.
+ */
+export function twoStepDueAt(member: Pick<StaffMember, 'createdAt'>, config: StoreConfig): Date {
+  const from = Date.parse(`${config.admin.staffTwoStepFrom}T00:00:00.000Z`);
+  const start = Math.max(from, member.createdAt.getTime());
+  return new Date(start + config.admin.staffTwoStepGraceDays * DAY);
+}
+
+/** How many recovery codes are given at a time, each good once. */
+export const RECOVERY_CODE_COUNT = 8;
+
+/** Easy to read out and type: "k7m2-p9qx". */
+export function newRecoveryCodes(): string[] {
+  return Array.from({ length: RECOVERY_CODE_COUNT }, () => {
+    let value = '';
+    for (let index = 0; index < 8; index += 1) {
+      if (index === 4) value += '-';
+      value += PASSWORD_ALPHABET[randomInt(PASSWORD_ALPHABET.length)];
+    }
+    return value;
+  });
+}
+
+/** Recovery codes as kept: each hashed like a password, never as itself. */
+export function hashRecoveryCodes(codes: string[]): string {
+  return codes.map((code) => hashPassword(code)).join(',');
+}
+
+/**
+ * Whether this is one of the account's recovery codes. If it is, gives back what is left once
+ * it is used up; null if it is not one of them.
+ */
+export function useRecoveryCode(stored: string, given: string): string | null {
+  const tidy = given.trim().toLowerCase().replace(/\s+/g, '');
+  if (!/^[a-z0-9]{4}-?[a-z0-9]{4}$/.test(tidy)) return null;
+  const code = tidy.includes('-') ? tidy : `${tidy.slice(0, 4)}-${tidy.slice(4)}`;
+  const hashes = stored.split(',').filter(Boolean);
+  const index = hashes.findIndex((hash) => passwordMatches(code, hash));
+  if (index < 0) return null;
+  return hashes.filter((_hash, at) => at !== index).join(',');
+}
+
+/** How many recovery codes are left unused. */
+export function recoveryCodesLeft(stored: string): number {
+  return stored.split(',').filter(Boolean).length;
+}
+
 function header(request: FastifyRequest, name: string): string | undefined {
   const given = request.headers[name];
   return Array.isArray(given) ? given[0] : given;
@@ -249,7 +357,11 @@ function header(request: FastifyRequest, name: string): string | undefined {
  * The person signed in to the admin panel, if they may use this part of it. With no area,
  * anybody signed in. Throws otherwise, saying which part it is.
  */
-export async function staffActor(request: FastifyRequest, area?: StaffArea): Promise<StaffActor> {
+export async function staffActor(
+  request: FastifyRequest,
+  area?: StaffArea,
+  options: { allowSetup?: boolean } = {},
+): Promise<StaffActor> {
   const { env, repository, now } = request.server.ctx;
   const key = header(request, 'x-staff-key');
   if (
@@ -258,9 +370,13 @@ export async function staffActor(request: FastifyRequest, area?: StaffArea): Pro
     key.length === env.staffKey.length &&
     timingSafeEqual(Buffer.from(key), Buffer.from(env.staffKey))
   ) {
-    // The staff key is everything but the money, which needs the owner's own passcode.
+    // The staff key is everything but the owner's own parts: the money, opening a Shopper's
+    // account, and the audit log need the owner's own passcode.
     if (area === 'money') throw new ForbiddenError('Only the owner sees the money.');
-    return {
+    if (area && OWNER_ONLY_AREAS.includes(area)) {
+      throw new ForbiddenError('Only the owner can open that.');
+    }
+    const actor: StaffActor = {
       id: null,
       name: 'Founder',
       role: 'founder',
@@ -268,6 +384,8 @@ export async function staffActor(request: FastifyRequest, area?: StaffArea): Pro
       isOwner: false,
       viewOnly: false,
     };
+    request.staffActor = actor;
+    return actor;
   }
 
   const token = header(request, 'x-staff-token');
@@ -282,26 +400,45 @@ export async function staffActor(request: FastifyRequest, area?: StaffArea): Pro
   ) {
     throw new ForbiddenError('Please sign in to the admin panel.');
   }
+  // A session made only so two-step codes can be set up opens nothing else.
+  if (session.setup && !options.allowSetup) {
+    throw new ApiError(
+      403,
+      'two_step_needed',
+      'Please set up two-step codes first. Nothing else opens until you have.',
+    );
+  }
   const viewOnly = isViewerRole(member.role);
   const isOwner = member.isOwner && session.passcode;
   const areas: StaffArea[] = viewOnly
     ? VIEWER_AREAS.filter((one) => member.allowedAreas.split(',').includes(one))
     : [...STAFF_ROLES[member.role].areas];
-  if (isOwner) areas.push('money');
+  if (isOwner) areas.push(...OWNER_ONLY_AREAS);
   if (area && !areas.includes(area)) {
     throw new ForbiddenError(
       area === 'money'
         ? 'Only the owner sees the money.'
-        : viewOnly
-          ? 'The owner has not switched that on for you.'
-          : 'That part of the admin panel is not part of your job.',
+        : OWNER_ONLY_AREAS.includes(area)
+          ? 'Only the owner can open that.'
+          : viewOnly
+            ? 'The owner has not switched that on for you.'
+            : 'That part of the admin panel is not part of your job.',
     );
   }
   // Family and investors look; they never change anything.
   if (viewOnly && area && request.method !== 'GET') {
     throw new ForbiddenError('Your account can look, but not change anything.');
   }
-  return { id: member.id, name: member.name, role: member.role, areas, isOwner, viewOnly };
+  const actor: StaffActor = {
+    id: member.id,
+    name: member.name,
+    role: member.role,
+    areas,
+    isOwner,
+    viewOnly,
+  };
+  request.staffActor = actor;
+  return actor;
 }
 
 /**

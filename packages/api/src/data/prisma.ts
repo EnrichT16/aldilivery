@@ -914,6 +914,89 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         })) as any;
       },
     },
+    audit: {
+      // Only create and read: nothing here changes or removes an entry, and the database
+      // refuses to as well (migration 20261017090000_admin_audit_and_two_step).
+      async record(input) {
+        return (await prisma.auditEntry.create({ data: input })) as any;
+      },
+      async list(where) {
+        const search = where.search?.trim() ?? '';
+        const contains = (field: string) => ({
+          [field]: { contains: search, mode: 'insensitive' as const },
+        });
+        return (await prisma.auditEntry.findMany({
+          where: {
+            ...(where.since || where.until
+              ? {
+                  at: {
+                    ...(where.since ? { gte: where.since } : {}),
+                    ...(where.until ? { lt: where.until } : {}),
+                  },
+                }
+              : {}),
+            ...(where.actorId ? { actorId: where.actorId } : {}),
+            ...(where.target ? { target: where.target } : {}),
+            ...(search
+              ? {
+                  OR: ['actorName', 'actorRole', 'action', 'target', 'detail', 'ip'].map(contains),
+                }
+              : {}),
+          },
+          orderBy: [{ at: 'desc' }, { id: 'desc' }],
+          take: where.limit ?? 200,
+        })) as any;
+      },
+    },
+
+    admin: {
+      async listOrders(where) {
+        const rows = await prisma.order.findMany({
+          where: {
+            ...(where.since || where.until
+              ? {
+                  createdAt: {
+                    ...(where.since ? { gte: where.since } : {}),
+                    ...(where.until ? { lt: where.until } : {}),
+                  },
+                }
+              : {}),
+            ...(where.statuses ? { status: { in: where.statuses } } : {}),
+          },
+          orderBy: { createdAt: 'desc' },
+          take: where.limit ?? 200,
+          include: { items: true },
+        });
+        return rows.map(toOrder);
+      },
+      async listShoppersCreated(where) {
+        return (await prisma.shopper.findMany({
+          where: { createdAt: { gte: where.since, ...(where.until ? { lt: where.until } : {}) } },
+          orderBy: { createdAt: 'asc' },
+        })) as unknown as Shopper[];
+      },
+      async searchShoppers(text, limit = 20) {
+        const needle = text.trim();
+        if (needle === '') return [];
+        return (await prisma.shopper.findMany({
+          where: {
+            OR: [
+              { displayName: { contains: needle, mode: 'insensitive' } },
+              { handle: { contains: needle, mode: 'insensitive' } },
+              { phone: { contains: needle } },
+            ],
+          },
+          orderBy: { displayName: 'asc' },
+          take: limit,
+        })) as unknown as Shopper[];
+      },
+      async listProblemsDecided(where) {
+        return (await prisma.problemReport.findMany({
+          where: { decidedAt: { gte: where.since, ...(where.until ? { lt: where.until } : {}) } },
+          orderBy: { decidedAt: 'asc' },
+        })) as any;
+      },
+    },
 
     retention: {
       async eraseShopper(shopperId, at) {

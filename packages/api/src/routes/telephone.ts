@@ -707,7 +707,11 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       }));
     } catch (failure) {
       app.log.error({ err: failure, orderId: order.id }, 'A payment link could not be made.');
-      await repository.orders.update(order.id, { status: 'cancelled', cancelledAt: at });
+      await repository.orders.update(order.id, {
+        status: 'cancelled',
+        cancelledAt: at,
+        cancelReason: 'A telephone order: the payment link could not be made.',
+      });
       return goodbye(sorry);
     }
     try {
@@ -717,7 +721,11 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       );
     } catch (failure) {
       app.log.error({ err: failure, orderId: order.id }, 'The payment link could not be texted.');
-      await repository.orders.update(order.id, { status: 'cancelled', cancelledAt: at });
+      await repository.orders.update(order.id, {
+        status: 'cancelled',
+        cancelledAt: at,
+        cancelReason: 'A telephone order: the payment link could not be texted.',
+      });
       return goodbye(sorry);
     }
     return goodbye(

@@ -206,6 +206,19 @@ export interface StoreConfig {
   readonly receipts: {
     readonly photoNeededAbovePence: number;
   };
+  /** The admin panel (Section Q): who may do what, and how signing in is kept safe. */
+  readonly admin: {
+    /** A refund above this is the owner's alone to give (Section Q). £25 unless set. */
+    readonly ownerOnlyRefundAbovePence: number;
+    /**
+     * Two-step codes are asked of every staff sign-in (Section Q). Each person has this many
+     * days to set them up, counted from the later of `staffTwoStepFrom` and the day their
+     * account was made; after that they can do nothing else until they have.
+     */
+    readonly staffTwoStepGraceDays: number;
+    /** The day the grace period starts for accounts that already exist, as YYYY-MM-DD. */
+    readonly staffTwoStepFrom: string;
+  };
 }
 
 export class StoreConfigError extends Error {
@@ -338,6 +351,11 @@ export function parseStoreConfig(input: unknown): StoreConfig {
   ).map((entry: unknown, index: number) =>
     wholeNumber(entry, `runners.insuranceReminderDays[${index}]`, 1),
   );
+  const admin = root['admin'] === undefined ? {} : object(root['admin'], 'admin');
+  const staffTwoStepFrom = str(admin['staffTwoStepFrom'] ?? '2026-10-17', 'admin.staffTwoStepFrom');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(staffTwoStepFrom) || Number.isNaN(Date.parse(staffTwoStepFrom))) {
+    throw new StoreConfigError(`admin.staffTwoStepFrom must be a date written as YYYY-MM-DD.`);
+  }
   const recoveryPercentOfPay = wholeNumber(
     problems['recoveryPercentOfPay'],
     'problems.recoveryPercentOfPay',
@@ -593,6 +611,11 @@ export function parseStoreConfig(input: unknown): StoreConfig {
         'receipts.photoNeededAbovePence',
         0,
       ),
+    },
+    admin: {
+      ownerOnlyRefundAbovePence: wholeNumber(admin['ownerOnlyRefundAbovePence'] ?? 2500, 'admin.ownerOnlyRefundAbovePence', 0),
+      staffTwoStepGraceDays: wholeNumber(admin['staffTwoStepGraceDays'] ?? 14, 'admin.staffTwoStepGraceDays', 0),
+      staffTwoStepFrom,
     },
   };
 }

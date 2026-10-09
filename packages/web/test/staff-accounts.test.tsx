@@ -17,11 +17,33 @@ const ROLES = [
   {
     role: 'founder',
     title: 'Founder',
-    areas: ['documents', 'problems', 'feedback', 'owed', 'finds', 'enquiries', 'team'],
+    areas: [
+      'documents',
+      'problems',
+      'feedback',
+      'owed',
+      'finds',
+      'enquiries',
+      'team',
+      'orders',
+      'runners',
+      'reports',
+    ],
   },
-  { role: 'customer_care', title: 'Customer care officer', areas: ['problems', 'feedback'] },
-  { role: 'finance', title: 'Finance officer', areas: ['owed'] },
+  {
+    role: 'customer_care',
+    title: 'Customer care officer',
+    areas: ['problems', 'feedback', 'learning', 'orders'],
+  },
+  { role: 'finance', title: 'Finance officer', areas: ['owed', 'payments', 'runners', 'reports'] },
 ];
+
+const TWO_STEP = {
+  on: false,
+  dueAt: '2026-10-31T00:00:00.000Z',
+  setupNeeded: false,
+  recoveryCodesLeft: 0,
+};
 
 beforeEach(() => {
   sent = [];
@@ -56,8 +78,9 @@ beforeEach(() => {
           name: 'Chidi',
           role: 'customer_care',
           title: 'Customer care officer',
-          areas: ['problems', 'feedback'],
+          areas: ROLES[1]!.areas,
           mustChangePassword: mustChange,
+          twoStep: TWO_STEP,
         });
       }
       if (path === '/staff/me' && token === 'st1.chidi.sig') {
@@ -65,9 +88,10 @@ beforeEach(() => {
           name: 'Chidi',
           role: 'customer_care',
           title: 'Customer care officer',
-          areas: ['problems', 'feedback'],
+          areas: ROLES[1]!.areas,
           account: true,
           mustChangePassword: mustChange,
+          twoStep: TWO_STEP,
         });
       }
       if (path === '/staff/me' && key === 'right-key') {
@@ -79,6 +103,7 @@ beforeEach(() => {
         return reply({ message: 'Your password is changed.' });
       }
       if (path === '/staff/problems') return reply({ problems: [] });
+      if (path.startsWith('/staff/orders')) return reply({ orders: [], statuses: [] });
       if (path === '/staff/documents') return reply({ documents: [] });
       if (path === '/staff/roles') return reply({ roles: ROLES });
       if (path === '/staff/team' && method === 'GET') return reply({ team: [] });
@@ -138,7 +163,7 @@ describe('a staff member signing in', () => {
       within(nav)
         .getAllByRole('button')
         .map((b) => b.textContent),
-    ).toEqual(['Problems', 'Feedback']);
+    ).toEqual(['Problems', 'Orders', 'Feedback', 'Learning', 'Two-step codes']);
     expect(screen.getByText(/Signed in as Chidi, Customer care officer/)).toBeInTheDocument();
     const asked = sent.find((r) => r.path === '/staff/problems')?.headers ?? {};
     expect(asked['x-staff-token']).toBe('st1.chidi.sig');
@@ -169,9 +194,12 @@ describe('the founder', () => {
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
     const nav = await screen.findByRole('navigation', { name: 'Admin pages' });
-    expect(within(nav).getAllByRole('button')).toHaveLength(7);
+    // The staff key has no account, so no two-step codes of its own.
+    expect(within(nav).getAllByRole('button')).toHaveLength(10);
     await user.click(within(nav).getByRole('button', { name: 'Team' }));
-    expect(await screen.findByText('Finance officer: Money owed.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Finance officer: Money owed, Payments, Runners, Reports.'),
+    ).toBeInTheDocument();
     await user.type(screen.getByLabelText('Their name'), 'Ngozi');
     await user.type(screen.getByLabelText(/Their username/), 'ngozi');
     await user.selectOptions(screen.getByLabelText('Their job'), 'finance');

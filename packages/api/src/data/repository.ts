@@ -12,6 +12,7 @@
 
 import type {
   AccountRole,
+  AuditEntry,
   IncomeRecord,
   LearnedPhrase,
   AnalyticsEvent,
@@ -584,6 +585,39 @@ export interface Repository {
     anonymiseOrdersBefore(before: Date, at: Date): Promise<number>;
     /** Till receipt photos for orders placed before a moment. */
     deleteReceiptPhotosBefore(before: Date): Promise<number>;
+  };
+  /**
+   * The admin panel's audit log (Section Q): only ever added to. There is deliberately no way
+   * here to change or remove an entry, and the database refuses to as well.
+   */
+  audit: {
+    record(input: Omit<AuditEntry, 'id'>): Promise<AuditEntry>;
+    /** Newest first. `search` matches who, what, the target, the detail or the address. */
+    list(where: {
+      since?: Date;
+      until?: Date;
+      search?: string;
+      actorId?: string;
+      target?: string;
+      limit?: number;
+    }): Promise<AuditEntry[]>;
+  };
+
+  /** What the admin panel looks up across everybody (Section Q). Read only. */
+  admin: {
+    /** Orders, newest first, made between two moments, optionally of some statuses. */
+    listOrders(where: {
+      since?: Date;
+      until?: Date;
+      statuses?: OrderStatus[];
+      limit?: number;
+    }): Promise<Order[]>;
+    /** Shoppers who opened an account between two moments, oldest first. */
+    listShoppersCreated(where: { since: Date; until?: Date }): Promise<Shopper[]>;
+    /** Shoppers whose name, handle or phone number contains this, at most `limit`. */
+    searchShoppers(text: string, limit?: number): Promise<Shopper[]>;
+    /** Problems decided between two moments, oldest first. */
+    listProblemsDecided(where: { since: Date; until?: Date }): Promise<ProblemReport[]>;
   };
 
   /** Close any underlying connection. */

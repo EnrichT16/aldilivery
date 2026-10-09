@@ -83,6 +83,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
             await repository.orders.update(order.id, {
               status: 'cancelled',
               cancelledAt: now(),
+              cancelReason: 'The card payment failed at the bank.',
             });
           }
         }
@@ -144,7 +145,11 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       case 'checkout.session.expired': {
         const order = orderId ? await repository.orders.findById(orderId) : null;
         if (order && order.status === 'confirmed') {
-          await repository.orders.update(order.id, { status: 'cancelled', cancelledAt: now() });
+          await repository.orders.update(order.id, {
+            status: 'cancelled',
+            cancelledAt: now(),
+            cancelReason: 'The payment link ran out unpaid.',
+          });
         }
         break;
       }

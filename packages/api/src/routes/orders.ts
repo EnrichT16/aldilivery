@@ -378,6 +378,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       await repository.orders.update(confirmed.id, {
         status: 'cancelled',
         cancelledAt: now(),
+        cancelReason: 'The card was refused when the order was sent.',
       });
       // The reason belongs in the log, where it can be acted on, and not in front of
       // somebody who is only trying to buy their shopping.
@@ -514,7 +515,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     const patch: Record<string, unknown> = { status };
     if (status === 'delivered') patch['deliveredAt'] = at;
     if (status === 'completed') patch['completedAt'] = at;
-    if (status === 'cancelled') patch['cancelledAt'] = at;
+    if (status === 'cancelled') {
+      patch['cancelledAt'] = at;
+      patch['cancelReason'] = 'The Shopper cancelled before paying.';
+    }
 
     const updated = await repository.orders.update(order.id, patch);
     if (status === 'delivered') await recordOrder(app.ctx, updated, 'order_delivered', request.log);

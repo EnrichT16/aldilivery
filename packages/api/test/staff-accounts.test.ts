@@ -53,7 +53,7 @@ describe('staff accounts', () => {
       expect.objectContaining({
         name: 'Chidi',
         title: 'Customer care officer',
-        areas: ['problems', 'feedback', 'learning'],
+        areas: ['problems', 'feedback', 'learning', 'orders'],
         mustChangePassword: true,
       }),
     );
@@ -67,6 +67,8 @@ describe('staff accounts', () => {
       '/staff/find-it',
       '/staff/enquiries',
       '/staff/team',
+      '/staff/runners/now',
+      '/staff/reports/signups',
     ]) {
       const refused = await harness.app.inject({ method: 'GET', url, headers });
       expect(refused.statusCode, url).toBe(403);
@@ -205,5 +207,28 @@ describe('staff accounts', () => {
       payload: { name: 'Sam Two', username: 'sam', role: 'finance' },
     });
     expect(again.statusCode).toBe(409);
+  });
+
+  it('gives the new parts of the panel to the jobs that need them, and the owner’s to him alone', async () => {
+    const roles = (await harness.app.inject({ method: 'GET', url: '/staff/roles' })).json()
+      .roles as Array<{ role: string; areas: string[] }>;
+    const areasOf = (role: string) => roles.find((row) => row.role === role)?.areas ?? [];
+    expect(areasOf('founder')).toEqual(expect.arrayContaining(['orders', 'runners', 'reports']));
+    expect(areasOf('operations_manager')).toEqual(
+      expect.arrayContaining(['orders', 'runners', 'reports']),
+    );
+    expect(areasOf('customer_care')).toContain('orders');
+    expect(areasOf('finance')).toEqual(expect.arrayContaining(['runners', 'reports']));
+    expect(areasOf('onboarding')).toEqual(['documents']);
+    // Opening a Shopper's account, exporting their data and the audit log: no job has them.
+    for (const row of roles) {
+      expect(row.areas).not.toContain('accounts');
+      expect(row.areas).not.toContain('audit');
+      expect(row.areas).not.toContain('money');
+    }
+    for (const url of ['/staff/audit', '/staff/shoppers?search=ab']) {
+      const refused = await harness.app.inject({ method: 'GET', url, headers: STAFF });
+      expect(refused.statusCode, url).toBe(403);
+    }
   });
 });

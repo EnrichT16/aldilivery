@@ -27,6 +27,11 @@ import {
   type StaffRecovery,
   fetchLearning,
   fetchBankPayments,
+  fetchCancellations,
+  fetchRefunds,
+  fetchRunnersNow,
+  fetchSignups,
+  fetchStaffOrders,
 } from '../lib/api';
 import { money } from '../lib/money';
 import { useOzi } from '../state/ozi';
@@ -34,7 +39,12 @@ import { nameHeardIn } from '../voice/name';
 import { phraseReply } from '../voice/phrases';
 import {
   analyticsWords,
+  cancellationsWords,
   moneyWords,
+  periodRange,
+  refundsWords,
+  runnersNowWords,
+  signupsWords,
   overviewWords,
   AREA_WORDS,
   help,
@@ -229,6 +239,11 @@ export function StaffVoice({
         () => fetchTeam(key),
         (r) => r.team,
       );
+      add(
+        'orders',
+        () => fetchStaffOrders(key, { view: 'live' }),
+        (r) => r.orders,
+      );
       await Promise.all(loaders);
       lists.current = next;
     }
@@ -359,6 +374,25 @@ export function StaffVoice({
             void fetchOwnerMoney(key)
               .then((data) => say(moneyWords(data)))
               .catch(() => say('The money could not be loaded just now.'));
+            return true;
+          }
+          if (command.area === 'runners') {
+            void fetchRunnersNow(key)
+              .then((data) => say(runnersNowWords(data)))
+              .catch(() => say('The Runners could not be loaded just now.'));
+            return true;
+          }
+          if (command.area === 'reports') {
+            say(
+              'The reports are on the screen. Ask, for example, "how many signups this month", "what refunds went out yesterday and why", or "read me the cancellations".',
+            );
+            return true;
+          }
+          if (command.area === 'accounts' || command.area === 'audit') {
+            // Names stay on the screen, never read aloud (Section Q).
+            say(
+              `${AREA_WORDS[command.area].tab} is open on the screen. I don't read names out loud, for privacy.`,
+            );
             return true;
           }
           if (command.area === 'analytics') {
@@ -508,6 +542,47 @@ export function StaffVoice({
               });
             },
           );
+          return true;
+        }
+        case 'signups':
+        case 'refunds':
+        case 'cancellations': {
+          // Numbers, totals and patterns only, never a name (Section Q): the owner may be
+          // asking in a public place.
+          if (!mine.includes('reports')) {
+            say("The reports aren't part of your job, so I can't answer that.");
+            return true;
+          }
+          const range = periodRange(command.period);
+          const between = { from: range.from.toISOString(), to: range.to.toISOString() };
+          const answer =
+            command.kind === 'signups'
+              ? fetchSignups(key, 'month', between).then((data) =>
+                  signupsWords(
+                    range.words,
+                    data.between?.shoppers ?? 0,
+                    data.between?.runners ?? 0,
+                  ),
+                )
+              : command.kind === 'refunds'
+                ? fetchRefunds(key, between).then((data) => refundsWords(range.words, data))
+                : fetchCancellations(key, between).then((data) =>
+                    cancellationsWords(range.words, data),
+                  );
+          void answer
+            .then((text) => say(text))
+            .catch(() => say("I couldn't load that just now, so I don't know yet."));
+          return true;
+        }
+        case 'runners-now': {
+          if (!mine.includes('runners')) {
+            say("The Runners list isn't part of your job, so I can't answer that.");
+            return true;
+          }
+          latest.current.onOpen('runners');
+          void fetchRunnersNow(key)
+            .then((data) => say(runnersNowWords(data)))
+            .catch(() => say("I couldn't load that just now, so I don't know yet."));
           return true;
         }
         case 'rung-back': {
