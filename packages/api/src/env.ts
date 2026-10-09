@@ -83,6 +83,12 @@ export interface Env {
    */
   stripePublishableKey: string | undefined;
   stripeWebhookSecret: string | undefined;
+  /**
+   * The Runner spending card from Stripe Issuing (Anthony, 9 October 2026). Off unless
+   * STRIPE_ISSUING_ENABLED is exactly "true": Issuing must first be switched on for the Stripe
+   * account. While off, Runners pay with their own card and are paid back (ruling 55).
+   */
+  stripeIssuingEnabled: boolean;
   authTokenSecret: string;
   authTokenTtlHours: number;
   otpLength: number;
@@ -232,6 +238,7 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     stripeSecretKey,
     stripePublishableKey,
     stripeWebhookSecret,
+    stripeIssuingEnabled: source['STRIPE_ISSUING_ENABLED'] === 'true',
     authTokenSecret: authTokenSecret ?? 'development-only-secret-not-for-production',
     authTokenTtlHours: integer(source['AUTH_TOKEN_TTL_HOURS'], 720),
     otpLength: integer(source['OTP_LENGTH'], 6),

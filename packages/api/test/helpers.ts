@@ -38,6 +38,7 @@ export const testEnv: Env = {
   stripeSecretKey: undefined,
   stripePublishableKey: undefined,
   stripeWebhookSecret: undefined,
+  stripeIssuingEnabled: false,
   authTokenSecret: TEST_SECRET,
   // Long, because several tests move the clock weeks forward to reach a recurring order.
   authTokenTtlHours: 24 * 365,

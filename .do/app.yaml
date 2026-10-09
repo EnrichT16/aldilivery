@@ -150,6 +150,14 @@ services:
         type: SECRET
         value: replace_with_the_webhook_signing_secret_from_stripe
 
+      # The Runner spending card from Stripe Issuing. A plain value, not a secret. Change it to
+      # true only after Issuing is switched on for the Stripe account and the Issuing events are
+      # added to the webhook (DEPLOY.md, "Switching on the Runner spending card"). While false,
+      # Runners pay with their own card and are paid back straight away (ruling 55).
+      - key: STRIPE_ISSUING_ENABLED
+        scope: RUN_TIME
+        value: "false"
+
       # Signs session tokens. Generate one with: openssl rand -base64 48
       - key: AUTH_TOKEN_SECRET
         scope: RUN_TIME

@@ -2324,6 +2324,7 @@ function Money({ staffKey }: { staffKey: string }): JSX.Element {
               </p>
             </>
           )}
+          {data.runnerCards && <RunnerCards cards={data.runnerCards} />}
           <h3 className="font-bold m-0">The last month, by what it was for</h3>
           <ul className="m-0 ps-6">
             {data.month.byKind.map((row) => (
@@ -2344,6 +2345,90 @@ function Money({ staffKey }: { staffKey: string }): JSX.Element {
         </>
       )}
     </section>
+  );
+}
+
+/**
+ * The Runner spending cards (Stripe Issuing): each card's last four digits and whether it is
+ * frozen, what each card order was loaded with and spent, and the latest declines with reasons.
+ */
+function RunnerCards({
+  cards,
+}: {
+  cards: NonNullable<OwnerMoney['runnerCards']>;
+}): JSX.Element {
+  const cell = 'border-b border-paper/40 p-2';
+  return (
+    <>
+      <h3 className="font-bold m-0">Runner spending cards</h3>
+      <p className="m-0">
+        {cards.enabled
+          ? 'Runners who choose the card pay at the till with it, loaded for each order. The business pays the shop; nothing is paid back.'
+          : 'The card is switched off (STRIPE_ISSUING_ENABLED). Runners pay with their own card and are paid back.'}
+      </p>
+      {cards.cards.length === 0 ? (
+        <p className="m-0">No Runner has a card yet.</p>
+      ) : (
+        <ul className="m-0 ps-6">
+          {cards.cards.map((card) => (
+            <li key={card.runnerId}>
+              {card.name}: card ending {card.last4 ?? '????'},{' '}
+              {card.status === 'active' ? 'loaded for an order' : 'frozen'}
+              {card.chosen === 'own' ? ', paying with their own card for now' : ''}
+            </li>
+          ))}
+        </ul>
+      )}
+      {cards.orders.length > 0 && (
+        <table className="w-full border-collapse">
+          <caption className="text-left font-bold py-2">Card orders, the last month</caption>
+          <thead>
+            <tr>
+              {['Order', 'Runner', 'Loaded', 'Spent', 'Shop', 'Receipt'].map((heading) => (
+                <th key={heading} scope="col" className="text-left border-b-2 border-paper p-2">
+                  {heading}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {cards.orders.map((order) => (
+              <tr key={order.orderId}>
+                <th scope="row" className={`text-left font-normal ${cell}`}>
+                  {order.orderId}
+                </th>
+                <td className={cell}>{order.runnerName}</td>
+                <td className={cell}>
+                  {order.loadedPence === null ? 'none' : money(order.loadedPence)}
+                </td>
+                <td className={cell}>
+                  {order.spentPence === null ? 'nothing yet' : money(order.spentPence)}
+                </td>
+                <td className={cell}>{order.merchant ?? ''}</td>
+                <td className={cell}>
+                  {order.receiptPence === null ? 'not in yet' : money(order.receiptPence)}
+                  {order.needsPerson ? ' (needs you, on the till screen)' : ''}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <h4 className="font-bold m-0">Declined at the till</h4>
+      {cards.declines.length === 0 ? (
+        <p className="m-0">None.</p>
+      ) : (
+        <ul className="m-0 ps-6">
+          {cards.declines.map((row, index) => (
+            <li key={`${row.at}-${index}`}>
+              {new Date(row.at).toLocaleString('en-GB')}: {row.runnerName || 'unknown card'},{' '}
+              {money(row.amountPence)}
+              {row.merchant ? ` at ${row.merchant}` : ''}. {row.reason}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 

@@ -513,7 +513,12 @@ export function fetchOfferedJobs(): Promise<{ offers: OfferedJob[] }> {
   return request<{ offers: OfferedJob[] }>('/jobs/mine', undefined, 'runner');
 }
 
-export function acceptJob(offerId: string): Promise<unknown> {
+/** What taking a job says about paying at the till: the card loaded, or their own card. */
+export interface AcceptedJob {
+  till?: { payMethodUsed: 'card' | 'own'; cardLimitPence: number | null; message: string };
+}
+
+export function acceptJob(offerId: string): Promise<AcceptedJob> {
   return request(`/jobs/${encodeURIComponent(offerId)}/accept`, { method: 'POST' }, 'runner');
 }
 
@@ -534,6 +539,10 @@ export interface CurrentJob {
   /** Paying them back for the shopping (ruling 55): how much, and where it has got to. */
   reimbursementPence?: number | null;
   reimbursementStatus?: 'paid' | 'waiting' | 'owed' | null;
+  /** Paying at the till with the spending card: what it is loaded with, and has spent. */
+  payMethodUsed?: 'card' | 'own' | null;
+  cardLimitPence?: number | null;
+  cardSpentPence?: number | null;
   /** The two words to say at the door (T6). */
   doorWord?: string | null;
   items: Array<{ id: string; name: string; quantity: number; estimatedPricePence: number }>;
@@ -2007,6 +2016,35 @@ export interface OwnerMoney {
     waitingPence: number;
     owedCount: number;
     owedPence: number;
+  };
+  /** The Runner spending cards (Stripe Issuing): each card, each card order, the declines. */
+  runnerCards?: {
+    enabled: boolean;
+    cards: Array<{
+      runnerId: string;
+      name: string;
+      last4: string | null;
+      status: 'active' | 'inactive';
+      chosen: 'card' | 'own';
+    }>;
+    orders: Array<{
+      orderId: string;
+      runnerName: string;
+      loadedPence: number | null;
+      spentPence: number | null;
+      merchant: string | null;
+      receiptPence: number | null;
+      needsPerson: boolean;
+      at: string;
+    }>;
+    declines: Array<{
+      at: string;
+      runnerName: string;
+      orderId: string | null;
+      amountPence: number;
+      merchant: string;
+      reason: string;
+    }>;
   };
   recent: Array<{
     at: string;

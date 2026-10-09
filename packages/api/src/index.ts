@@ -24,6 +24,7 @@ import { twilioDialler } from './lib/twilio-voice.js';
 import { sweepOffers } from './services/dispatch.js';
 import { sweepPayouts } from './services/pay-runner.js';
 import { sweepReimbursements } from './services/reimburse.js';
+import { sweepCards } from './services/runner-card.js';
 import { sweepRetention } from './services/retention.js';
 import { sweepSets } from './services/set-runner.js';
 import { sweepInsuranceReminders } from './services/insurance.js';
@@ -248,6 +249,12 @@ async function main(): Promise<void> {
       app.log.warn({ orderId, err: failure }, 'Could not pay a Runner back yet');
     }).catch((failure: unknown) => {
       app.log.error({ err: failure }, 'The pay-back sweep failed');
+    });
+    // And any Runner spending card left switched on with no order in hand: frozen.
+    sweepCards(app.ctx, (runnerId, failure) => {
+      app.log.warn({ runnerId, err: failure }, 'Could not freeze a spending card yet');
+    }).catch((failure: unknown) => {
+      app.log.error({ err: failure }, 'The spending card sweep failed');
     });
     // And the cool bag deposit of a Runner who has left, once their account is ready.
     sweepDeposits(app.ctx, (runnerId, failure) => {

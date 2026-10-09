@@ -13,6 +13,7 @@
 import type {
   AccountRole,
   AuditEntry,
+  CardAuthorization,
   IncomeRecord,
   LearnedPhrase,
   AnalyticsEvent,
@@ -211,6 +212,24 @@ export interface Repository {
     listAll(): Promise<Runner[]>;
     /** Removes a Runner and their checks and offers. Only for one who has never had an order. */
     delete(id: string): Promise<void>;
+    /** The Runner whose spending card this is (Stripe Issuing), if any. */
+    findByIssuingCardId(cardId: string): Promise<Runner | null>;
+    /** Every Runner who has a spending card, oldest first. */
+    listWithCards(): Promise<Runner[]>;
+  };
+
+  /**
+   * Every use of a Runner's spending card: authorizations, approved or declined and why, and the
+   * transactions that followed. One row per Stripe identifier.
+   */
+  cardAuthorizations: {
+    /** Adds the row, or brings the one with the same Stripe identifier up to date. */
+    upsert(input: Omit<CardAuthorization, 'id'>): Promise<CardAuthorization>;
+    findByStripeId(stripeId: string): Promise<CardAuthorization | null>;
+    /** Oldest first. */
+    listForOrder(orderId: string): Promise<CardAuthorization[]>;
+    /** Newest first, at most `limit`, optionally only the declined ones. */
+    listRecent(where: { limit: number; declinedOnly?: boolean }): Promise<CardAuthorization[]>;
   };
 
   /** Addresses Shoppers have saved, beyond their home address. */

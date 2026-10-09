@@ -17,7 +17,14 @@ import { applyCredit } from '../services/credit.js';
 import { recordOrder } from '../lib/analytics.js';
 import { cardRegionFor } from '../lib/card-region.js';
 import { recordOrderIncome } from '../lib/ledger.js';
+import { STRIPE_API_VERSION } from '../lib/payments.js';
 import { offerOrder } from '../services/dispatch.js';
+import {
+  answerAuthorizationRequest,
+  recordAuthorization,
+  recordTransaction,
+  releaseCard,
+} from '../services/runner-card.js';
 import { tellShopper } from '../services/order-updates.js';
 
 interface PaymentIntentLike {
@@ -47,6 +54,20 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
     }
 
     const object = (event.data as { object?: PaymentIntentLike } | undefined)?.object ?? {};
+
+    // A Runner is at a till with their spending card, and Stripe is waiting about two seconds
+    // for a yes or no. The answer is the response itself, in the form Stripe asks for, with the
+    // API version we speak. Anything we cannot tie to an order in hand is declined.
+    if (event.type === 'issuing_authorization.request') {
+      let approved = false;
+      try {
+        approved = (await answerAuthorizationRequest(app.ctx, object as never)).approved;
+      } catch (failure) {
+        request.log.error({ err: failure }, 'A card authorization could not be decided: declined.');
+      }
+      void reply.status(200).header('Stripe-Version', STRIPE_API_VERSION);
+      return { approved };
+    }
     const orderId = object.metadata?.orderId;
 
     switch (event.type) {
@@ -95,6 +116,10 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           const order = await repository.orders.findById(orderId);
           if (order) {
             await repository.orders.update(order.id, { status: 'refunded' });
+            // Refunded while a Runner had it: their spending card is frozen at once.
+            if (order.payMethodUsed === 'card') {
+              await releaseCard(app.ctx, order.runnerId, order.id, request.log);
+            }
           }
         }
         break;
@@ -151,6 +176,18 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
             cancelReason: 'The payment link ran out unpaid.',
           });
         }
+        break;
+      }
+
+      // The spending card (services/runner-card.ts): what each authorization came to, and the
+      // money that actually moved, recorded on the order.
+      case 'issuing_authorization.created':
+      case 'issuing_authorization.updated': {
+        await recordAuthorization(app.ctx, object as never, request.log);
+        break;
+      }
+      case 'issuing_transaction.created': {
+        await recordTransaction(app.ctx, object as never, request.log);
         break;
       }
 

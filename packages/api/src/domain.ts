@@ -127,8 +127,45 @@ export interface Runner {
   /** Insurance reminders (ruling 14): for which expiry, and the fewest days before it sent. */
   insuranceReminderFor: Date | null;
   insuranceReminderDays: number | null;
+  /**
+   * How they pay at the till (Anthony, 9 October 2026): the spending card from Stripe Issuing,
+   * loaded for each order, or their own card, paid back straight away (ruling 55).
+   */
+  payMethod: RunnerPayMethod;
+  /** Stripe Issuing identifiers and the last four digits. Never the card number (Rule Ten). */
+  issuingCardholderId: string | null;
+  issuingCardId: string | null;
+  cardLast4: string | null;
+  /** Active while loaded for an order; inactive (frozen) otherwise. */
+  cardStatus: 'active' | 'inactive' | null;
+  /** When, and from which internet address, they accepted the cardholder terms. */
+  issuingTermsAcceptedAt: Date | null;
+  issuingTermsAcceptedIp: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** The spending card ("card") or their own card, paid back ("own"). */
+export type RunnerPayMethod = 'card' | 'own';
+
+/**
+ * A use of a Runner's spending card: an authorization the shop asked for, approved or declined
+ * and why, or a transaction that followed (spent is positive, a refund negative).
+ */
+export interface CardAuthorization {
+  id: string;
+  /** Stripe's identifier, iauth_… or ipi_…, so a repeated webhook changes nothing. */
+  stripeId: string;
+  kind: 'authorization' | 'transaction';
+  orderId: string | null;
+  runnerId: string | null;
+  amountPence: number;
+  approved: boolean;
+  reason: string;
+  /** For an authorization: pending, closed or reversed. */
+  status: string;
+  merchant: string;
+  at: Date;
 }
 
 /** Weekly unless the Runner chooses daily (ruling 16). An instant payout is asked for each time. */
@@ -337,6 +374,14 @@ export interface Order {
   tillReason: string | null;
   tillSettledBy: string | null;
   tillSettledAt: Date | null;
+  /**
+   * How the Runner paid at the till: the spending card, or their own card (paid back). With the
+   * card: what it was loaded with for this order, what it spent, and at which shop.
+   */
+  payMethodUsed: RunnerPayMethod | null;
+  cardLimitPence: number | null;
+  cardSpentPence: number | null;
+  cardMerchant: string | null;
   /** The door safe word (T6): two easy words the Runner says at the door. */
   doorWord: string | null;
   /** For an order a Set placed: which occurrence, so each is placed once only. */

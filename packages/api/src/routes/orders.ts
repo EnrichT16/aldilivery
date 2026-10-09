@@ -30,7 +30,8 @@ import { recordOrderIncome } from '../lib/ledger.js';
 import { offerOrder } from '../services/dispatch.js';
 import { alertPayments, bankReference, bankSettings } from '../lib/bank.js';
 import { tellShopper } from '../services/order-updates.js';
-import { settleTill } from '../services/till.js';
+import { settleTill, type TillOutcome } from '../services/till.js';
+import { cardTill, flagCardTill, releaseCard } from '../services/runner-card.js';
 import { payOutOrder } from '../services/pay-runner.js';
 import { keepReceiptPhoto, receiptPhotoSchema } from '../services/receipt-photo.js';
 import { startReimbursement } from '../services/reimburse.js';
@@ -521,6 +522,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const updated = await repository.orders.update(order.id, patch);
+    // The order is over for the Runner's card too: frozen, if it is not already.
+    if ((status === 'delivered' || status === 'cancelled') && order.payMethodUsed === 'card') {
+      await releaseCard(app.ctx, order.runnerId, order.id, request.log);
+    }
     if (status === 'delivered') await recordOrder(app.ctx, updated, 'order_delivered', request.log);
     if (status === 'delivering' || status === 'delivered') {
       void tellShopper(app.ctx, updated, status, request.log);
@@ -572,8 +577,19 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     // The photo first, so a pay-back that needs one sees it.
     if (input.photo) await keepReceiptPhoto(app.ctx, order.id, input.photo);
 
+    // Paid with the spending card: the till total is what the card actually paid, as long as
+    // the receipt typed matches it within a few pence; otherwise a person looks.
+    // A card that paid nothing (declined at the till, so they used their own) is an own-card
+    // order after all: they are paid back as ruling 55 has it.
+    const byCard = order.payMethodUsed === 'card' && (order.cardSpentPence ?? 0) > 0;
+    if (order.payMethodUsed === 'card' && !byCard) {
+      await repository.orders.update(order.id, { payMethodUsed: 'own' });
+      await releaseCard(app.ctx, order.runnerId, order.id, request.log);
+    }
+    const card = byCard ? cardTill(order, input.receiptTotalPence, symbol) : null;
+
     const repricing = repriceToReceipt(
-      input.receiptTotalPence,
+      card ? card.tillPence : input.receiptTotalPence,
       order.goodsEstimatePence,
       config.fees,
     );
@@ -595,18 +611,39 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       finalTotalPence: repricing.finalTotalPence,
     });
 
-    // The difference from the estimate is settled on the same card at once (ruling 52).
-    const settled = await settleTill(app.ctx, updated, request.log);
+    if (byCard) {
+      // The shopping is paid for: the card is frozen and its limit put back to nothing.
+      await releaseCard(app.ctx, order.runnerId, order.id, request.log);
+    }
+
+    // The difference from the estimate is settled on the same card at once (ruling 52). A card
+    // order whose receipt does not match the card waits for a person instead.
+    let settled: TillOutcome;
+    if (card?.mismatch) {
+      await flagCardTill(app.ctx, updated, card.mismatch, request.log);
+      settled = { kind: 'needs-person', pence: 0, reason: `card: ${card.mismatch}` };
+    } else {
+      settled = await settleTill(app.ctx, updated, request.log);
+    }
 
     // The Runner paid at the till with their own card, so they are paid back straight away,
     // or, when the till needs a person, as soon as a person approves it (ruling 55). Like
     // settling, this never undoes the receipt: a failure is logged, and the sweep tries again.
+    // With the spending card there is nothing to pay back: the business paid the shop.
     let reimbursement = null;
-    try {
-      reimbursement = await startReimbursement(app.ctx, updated, settled, request.log);
-    } catch (failure) {
-      request.log.error({ err: failure, orderId: order.id }, 'The Runner pay-back did not start.');
+    if (!byCard) {
+      try {
+        reimbursement = await startReimbursement(app.ctx, updated, settled, request.log);
+      } catch (failure) {
+        request.log.error({ err: failure, orderId: order.id }, 'The Runner pay-back did not start.');
+      }
     }
+    const delivery = formatPence(updated.runnerPaymentPence, symbol);
+    const cardWords = !byCard
+      ? null
+      : card?.mismatch
+        ? `The receipt does not match what the card paid, so a person will check it. Your ${delivery} for the delivery is not affected.`
+        : `The shop was paid with your ${config.assistantName} card, so there is nothing to pay back. Your ${delivery} for the delivery follows when you hand the shopping over.`;
 
     const tillWords =
       repricing.differenceFromEstimatePence > 0
@@ -618,7 +655,11 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       repricing,
       settled,
       reimbursement,
-      message: reimbursement ? `${tillWords} ${reimbursement.message}` : tillWords,
+      message: cardWords
+        ? `${tillWords} ${cardWords}`
+        : reimbursement
+          ? `${tillWords} ${reimbursement.message}`
+          : tillWords,
     };
   });
 }
