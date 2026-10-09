@@ -568,6 +568,13 @@ export function Confirm(): JSX.Element {
           Pressing the button below is the only thing that will ever take a payment. Nothing before
           it has charged you a penny, and nothing after it will charge you again without asking.
         </p>
+        <p className="m-0">
+          Pressing it means you agree to pay, and to our terms. You pay what the till says. You can
+          cancel free until your Runner starts shopping.
+        </p>
+        <Link to="/terms" className="control bg-paper/10 text-paper underline">
+          Read our terms
+        </Link>
       </section>
 
       {error !== '' && (

@@ -192,6 +192,14 @@ export function RunnerSignUp(): JSX.Element {
           ))}
         </fieldset>
 
+        <p className="m-0">
+          By signing up, you confirm you are 18 or over and agree to the Runner agreement. We will
+          ask you to agree to its final version before your first job.
+        </p>
+        <Link to="/runner/agreement" className="control bg-paper/10 text-paper underline">
+          Read the Runner agreement
+        </Link>
+
         <button
           type="submit"
           disabled={saving}

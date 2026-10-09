@@ -400,7 +400,7 @@ export function SignUp(): JSX.Element {
         <Field
           id="doorstepProtocol"
           label="What should your Runner do at the door?"
-          hint="For example: knock loudly and wait, I am slow to the door. You can leave this empty."
+          hint="For example: knock loudly and wait, I am slow to the door. You can leave this empty. If you tell us about your health or a disability here, we use it only to help you at the door, and your Runner sees it."
           multiline
         />
 

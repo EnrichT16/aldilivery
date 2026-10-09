@@ -55,7 +55,7 @@ brand, names and colours are configuration in config/store.json, never code (Rul
 **Where.** ozidelivery.co.uk. Medway first (Gillingham, ME7, for the soft launch). The service is
 online only, anywhere in the UK; nobody visits an office (ruling 10).
 
-**Who runs it.** Ozi Delivery Ltd (the registered details are still placeholders, see Part 7).
+**Who runs it.** Tofadachi AI and IT Solutions UK Ltd (the company number, registered office and ICO number are still placeholders, see Part 7).
 Owner and founder: Anthony Tochukwu Ibe.
 
 ---
@@ -697,10 +697,10 @@ people Anthony knows (TESTING_WITH_PEOPLE.md).
 
 | Step | Who | Status |
 | --- | --- | --- |
-| 1. Company name, number and registered office on the site | Anthony, then Claude | Waiting: placeholders in config/store.json. |
+| 1. Company name, number and registered office on the site | Anthony, then Claude | Built (ruling 54): shown in every page's footer and the legal pages from config/store.json. The company name is in; the number, registered office, ICO number and email show "to follow" until Anthony fills them in and clears each placeholder flag (docs/LEGAL_REVIEW.md). |
 | 2. A telephone number for Shoppers | Anthony, then Claude | Waiting: 0800 000 0000 placeholder. |
-| 3. Solicitor reads the privacy policy, terms and Runner agreement (including the 10% recovery and cancellation wording) | Anthony | Waiting: pages marked draft; no Runner agreement yet. |
-| 4. ICO registration | Anthony | Waiting. |
+| 3. Solicitor reads the privacy policy, terms and Runner agreement (including the 10% recovery and cancellation wording) | Anthony | AI review done instead, for now (ruling 54, docs/LEGAL_REVIEW.md): privacy and terms rewritten and no longer marked draft; cookies page added; Runner agreement written and still marked draft until employment status, paying at the till and substitution are decided. A solicitor is still advised on the risks listed there. |
+| 4. ICO registration | Anthony | Waiting: pay the data protection fee, then put the number in `store.icoRegistrationNumber` and set its flag to false; also the appropriate policy document for DBS and health data (docs/LEGAL_REVIEW.md). |
 | 5. Managed PostgreSQL with backups | Anthony, in DigitalOcean | Waiting: development database today. |
 | 6. STAFF_API_KEY, then the owner's account and staff accounts | Anthony | Waiting. |
 | 7. Stripe live keys, Connect live, live webhook, Apple Pay domain | Anthony | Waiting: test mode. |
@@ -721,7 +721,7 @@ What is already done: ordering by voice and by touch with Ozi; checkout, cards, 
 and the PIN; Runner sign-up, documents, shifts, offers, shopping, questions and delivery; Runner
 pay and the cool bag deposit; problems and refunds; in-app calls; telephone ordering; the admin
 panel with staff jobs and the owner's account; the extras; Shop Partners and organisations; the
-draft privacy policy and terms; and the checks that run before every change goes live.
+privacy policy, terms, cookies page and draft Runner agreement (ruling 54); and the checks that run before every change goes live.
 
 docs/STILL_TO_DO.md lists everything the blueprint asks for that is not built yet.
 

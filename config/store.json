@@ -7,12 +7,21 @@
   "motto": "Send me, I will help.",
   "contact": {
     "telephonePlaceholder": "0800 000 0000",
-    "telephoneIsPlaceholder": true
+    "telephoneIsPlaceholder": true,
+    "email": "hello@ozidelivery.co.uk",
+    "emailIsPlaceholder": true
   },
   "store": {
     "displayName": "Aldi",
-    "legalEntityName": "PLACEHOLDER LEGAL ENTITY LIMITED",
-    "legalEntityIsPlaceholder": true,
+    "legalEntityName": "Tofadachi AI and IT Solutions UK Ltd",
+    "legalEntityIsPlaceholder": false,
+    "companyNumber": "00000000",
+    "companyNumberIsPlaceholder": true,
+    "registeredIn": "England and Wales",
+    "registeredOffice": "Registered office address to be added",
+    "registeredOfficeIsPlaceholder": true,
+    "icoRegistrationNumber": "ZA000000",
+    "icoRegistrationIsPlaceholder": true,
     "country": "GB",
     "currency": "GBP",
     "currencySymbol": "£",
