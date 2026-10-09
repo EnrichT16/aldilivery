@@ -38,6 +38,7 @@ import {
   type CallState,
 } from '../lib/twilio-voice.js';
 import { priceLines } from '../services/basket.js';
+import { skipByText } from '../services/set-runner.js';
 
 /** A conversation is allowed this long, from its last step, before it must start again. */
 const STATE_MINUTES = 30;
@@ -857,6 +858,18 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
   app.post('/webhooks/twilio/sms', async (request, response) => {
     const params = verified(request);
     if (!params) return refused(response);
+    // The one word that stops a regular order, texted back to its notice (Rule Five).
+    const skipped = await skipByText(
+      app.ctx,
+      ukPhone(params['From'] ?? '') ?? '',
+      params['Body'] ?? '',
+    ).catch(() => null);
+    if (skipped) {
+      return reply(
+        response,
+        `<Response><Message>${escapeXml(`${config.productName}: ${skipped}`)}</Message></Response>`,
+      );
+    }
     const site = env.primaryOrigin ?? '';
     return reply(
       response,

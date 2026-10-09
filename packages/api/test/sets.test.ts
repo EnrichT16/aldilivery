@@ -19,7 +19,14 @@ import {
   noticeIsDue,
   type ScheduledSet,
 } from '../src/services/sets.js';
-import { buildTestApp, seedCatalogue, signUpShopper, type SignedInShopper, type TestHarness } from './helpers.js';
+import {
+  buildTestApp,
+  seedCatalogue,
+  signUpShopper,
+  STAFF,
+  type SignedInShopper,
+  type TestHarness,
+} from './helpers.js';
 
 const FIRE_AT = new Date('2026-09-16T09:00:00.000Z');
 
@@ -151,9 +158,15 @@ describe('the Set routes, end to end', () => {
   let harness: TestHarness;
   let shopper: SignedInShopper;
   let items: Awaited<ReturnType<typeof seedCatalogue>>;
+  let texts: Array<{ to: string; body: string }>;
 
   beforeEach(async () => {
-    harness = await buildTestApp(new Date('2026-09-09T09:00:00.000Z'));
+    texts = [];
+    harness = await buildTestApp(new Date('2026-09-09T09:00:00.000Z'), {
+      sendText: async (to, body) => {
+        texts.push({ to, body });
+      },
+    });
     items = await seedCatalogue(harness.repository);
     shopper = await signUpShopper(harness);
   });
@@ -199,7 +212,7 @@ describe('the Set routes, end to end', () => {
 
     // Jump straight to the firing time without running the notice hook.
     harness.setNow(new Date('2026-09-16T09:00:00.000Z'));
-    const run = await harness.app.inject({ method: 'POST', url: '/sets/run' });
+    const run = await harness.app.inject({ method: 'POST', url: '/sets/run', headers: STAFF });
 
     const body = run.json() as { fired: unknown[]; refused: Array<{ because: string }> };
     expect(body.fired).toHaveLength(0);
@@ -210,17 +223,16 @@ describe('the Set routes, end to end', () => {
     await createWeeklySet();
 
     harness.setNow(new Date('2026-09-16T08:30:00.000Z'));
-    const notices = await harness.app.inject({ method: 'POST', url: '/sets/notices/run' });
-    const noticeBody = notices.json() as {
-      sent: number;
-      notices: Array<{ message: string; skipWord: string }>;
-    };
+    const notices = await harness.app.inject({ method: 'POST', url: '/sets/notices/run', headers: STAFF });
+    const noticeBody = notices.json() as { sent: number };
     expect(noticeBody.sent).toBe(1);
-    expect(noticeBody.notices[0]?.message).toContain('30 minutes');
-    expect(noticeBody.notices[0]?.message).toContain('skip');
+    // The notice itself goes to the Shopper, by text here, with the one word that stops it.
+    expect(texts).toHaveLength(1);
+    expect(texts[0]?.body).toContain('30 minutes');
+    expect(texts[0]?.body).toContain('"skip"');
 
     harness.setNow(new Date('2026-09-16T09:00:00.000Z'));
-    const run = await harness.app.inject({ method: 'POST', url: '/sets/run' });
+    const run = await harness.app.inject({ method: 'POST', url: '/sets/run', headers: STAFF });
     expect((run.json() as { fired: unknown[] }).fired).toHaveLength(1);
   });
 
@@ -228,7 +240,7 @@ describe('the Set routes, end to end', () => {
     const created = await createWeeklySet();
 
     harness.setNow(new Date('2026-09-16T08:30:00.000Z'));
-    await harness.app.inject({ method: 'POST', url: '/sets/notices/run' });
+    await harness.app.inject({ method: 'POST', url: '/sets/notices/run', headers: STAFF });
 
     const skip = await harness.app.inject({
       method: 'POST',
@@ -239,7 +251,7 @@ describe('the Set routes, end to end', () => {
     expect(skip.statusCode).toBe(200);
 
     harness.setNow(new Date('2026-09-16T09:00:00.000Z'));
-    const run = await harness.app.inject({ method: 'POST', url: '/sets/run' });
+    const run = await harness.app.inject({ method: 'POST', url: '/sets/run', headers: STAFF });
     expect((run.json() as { fired: unknown[] }).fired).toHaveLength(0);
     expect(harness.payments.calls).toHaveLength(0);
   });
@@ -248,15 +260,22 @@ describe('the Set routes, end to end', () => {
     await createWeeklySet();
 
     harness.setNow(new Date('2026-09-16T08:30:00.000Z'));
-    await harness.app.inject({ method: 'POST', url: '/sets/notices/run' });
+    await harness.app.inject({ method: 'POST', url: '/sets/notices/run', headers: STAFF });
     harness.setNow(new Date('2026-09-16T09:00:00.000Z'));
-    await harness.app.inject({ method: 'POST', url: '/sets/run' });
+    await harness.app.inject({ method: 'POST', url: '/sets/run', headers: STAFF });
 
     const orders = await harness.repository.orders.listForShopper(shopper.shopperId);
     expect(orders).toHaveLength(1);
     expect(orders[0]?.status).toBe('draft');
     expect(orders[0]?.spokenConfirmationAt).toBeNull();
     expect(harness.payments.calls).toHaveLength(0);
+  });
+
+  it('is only for the server itself to run on demand', async () => {
+    const run = await harness.app.inject({ method: 'POST', url: '/sets/run' });
+    expect(run.statusCode).toBe(403);
+    const notices = await harness.app.inject({ method: 'POST', url: '/sets/notices/run' });
+    expect(notices.statusCode).toBe(403);
   });
 
   it('refuses a reply that is not the skip word', async () => {

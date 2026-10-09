@@ -16,6 +16,7 @@ import { requireSession, requireStaff } from '../app.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 import { isOfferExpired, poolOrders } from '../services/allocation.js';
 import { offerOrder } from '../services/dispatch.js';
+import { ensureDoorWord, newDoorWord } from '../services/door-word.js';
 import { tellShopper } from '../services/order-updates.js';
 import { assertTransitionAllowed } from '../services/orders.js';
 import { AGREE_FIRST, hasAgreed } from '../services/runner-agreement.js';
@@ -94,6 +95,8 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
             // Paying them back for the shopping (ruling 55): how much, and where it has got to.
             reimbursementPence: order.reimbursementPence,
             reimbursementStatus: order.reimbursementStatus,
+            // The two words to say at the door, so the Shopper knows it is their Runner (T6).
+            doorWord: await ensureDoorWord(repository, order),
             items: order.items.map((item) => ({
               id: item.id,
               name: item.name,
@@ -150,6 +153,7 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
       status: 'accepted',
       runnerId: runner.id,
       acceptedAt: at,
+      doorWord: order.doorWord ?? newDoorWord(),
     });
     void tellShopper(app.ctx, updated, 'accepted', request.log);
 

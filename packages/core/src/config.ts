@@ -174,6 +174,22 @@ export interface StoreConfig {
   readonly versionOneRestrictions: {
     readonly ageRestrictedGoodsAllowed: boolean;
   };
+  /**
+   * Feedback after a delivery (docs/BUILD_PROMPT.md, Section O). Any feedback at all, good or
+   * bad, earns this much delivery credit, once per order. £1 by default: enough to say thank
+   * you, small next to the £13.50 delivery, and never conditional on what was said.
+   */
+  readonly feedback: {
+    readonly creditPence: number;
+  };
+  /**
+   * The photo of the till receipt (STILL_TO_DO item 2). Optional for the Runner, but without
+   * one, paying them back more than this waits for a person to look. £30 by default: half of
+   * what one delivery carries.
+   */
+  readonly receipts: {
+    readonly photoNeededAbovePence: number;
+  };
 }
 
 export class StoreConfigError extends Error {
@@ -298,6 +314,8 @@ export function parseStoreConfig(input: unknown): StoreConfig {
   const calls = object(root['calls'], 'calls');
   const extras = root['extras'] === undefined ? {} : object(root['extras'], 'extras');
   const problems = object(root['problems'], 'problems');
+  const feedback = root['feedback'] === undefined ? {} : object(root['feedback'], 'feedback');
+  const receipts = root['receipts'] === undefined ? {} : object(root['receipts'], 'receipts');
   const recoveryPercentOfPay = wholeNumber(
     problems['recoveryPercentOfPay'],
     'problems.recoveryPercentOfPay',
@@ -527,6 +545,16 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     },
     versionOneRestrictions: {
       ageRestrictedGoodsAllowed,
+    },
+    feedback: {
+      creditPence: wholeNumber(feedback['creditPence'] ?? 100, 'feedback.creditPence', 0),
+    },
+    receipts: {
+      photoNeededAbovePence: wholeNumber(
+        receipts['photoNeededAbovePence'] ?? 3000,
+        'receipts.photoNeededAbovePence',
+        0,
+      ),
     },
   };
 }

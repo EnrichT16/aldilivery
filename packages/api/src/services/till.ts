@@ -41,7 +41,34 @@ export type TillOutcome =
   | { kind: 'charged'; pence: number }
   | { kind: 'needs-person'; pence: number; reason: string };
 
+/**
+ * Settle the till total, and when a person must finish it, put the order on the owner's till
+ * screen (routes/till-cases.ts) with the reason.
+ */
 export async function settleTill(
+  ctx: AppContext,
+  order: Order,
+  log: FastifyBaseLogger,
+): Promise<TillOutcome> {
+  const outcome = await settleTillOnCard(ctx, order, log);
+  if (outcome.kind === 'needs-person') {
+    await ctx.repository.orders
+      .update(order.id, { tillStatus: 'needs_person', tillReason: outcome.reason })
+      .catch((failure: unknown) =>
+        log.error({ err: failure, orderId: order.id }, 'The till case could not be recorded.'),
+      );
+  }
+  return outcome;
+}
+
+/** The till difference as it now stands: positive is more to take, negative is to give back. */
+export function tillDifferencePence(
+  order: Pick<Order, 'finalTotalPence' | 'totalEstimatePence'>,
+): number {
+  return order.finalTotalPence === null ? 0 : order.finalTotalPence - order.totalEstimatePence;
+}
+
+async function settleTillOnCard(
   ctx: AppContext,
   order: Order,
   log: FastifyBaseLogger,

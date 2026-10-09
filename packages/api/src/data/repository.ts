@@ -45,7 +45,10 @@ import type {
   ProblemEvidence,
   RunnerRecovery,
   RecurringSet,
+  ReceiptPhoto,
   ReimbursementStatus,
+  ShopperFeedback,
+  TillStatus,
   Runner,
   RunnerCheck,
   RunnerPayout,
@@ -124,6 +127,8 @@ export type CreateOrder = Pick<
       | 'confirmationStatement'
       | 'paidBy'
       | 'bankReference'
+      | 'doorWord'
+      | 'setFireAt'
     >
   > & { items: CreateOrderItem[] };
 
@@ -135,7 +140,16 @@ export type CreateRecurringSet = Pick<
   'shopperId' | 'name' | 'deliveryAddress' | 'frequency' | 'dayOfWeek' | 'timeOfDay' | 'nextFireAt'
 > &
   Partial<
-    Pick<RecurringSet, 'paymentMethodId' | 'timezone' | 'active' | 'latitude' | 'longitude'>
+    Pick<
+      RecurringSet,
+      | 'paymentMethodId'
+      | 'timezone'
+      | 'active'
+      | 'latitude'
+      | 'longitude'
+      | 'autoSendAgreedAt'
+      | 'autoSendStatement'
+    >
   > & { items: CreateSetItem[] };
 
 export type CreateJobOffer = Pick<
@@ -176,6 +190,8 @@ export interface Repository {
     countJoinedVia(via: string): Promise<number>;
     /** How many Shopper accounts there are. */
     count(): Promise<number>;
+    /** Closed accounts whose days to change their mind are over, not yet removed. */
+    listDueForErasure(at: Date): Promise<Shopper[]>;
   };
 
   runners: {
@@ -336,6 +352,10 @@ export interface Repository {
     countForRunner(runnerId: string): Promise<number>;
     /** Every order a Runner has been given, newest first. */
     listForRunner(runnerId: string): Promise<Order[]>;
+    /** Orders whose till total a person must settle with the Shopper, or has. Newest first. */
+    listByTillStatus(status: TillStatus): Promise<Order[]>;
+    /** The order a Set placed for one occurrence, if it placed one. */
+    findBySetOccurrence(setId: string, fireAt: Date): Promise<Order | null>;
   };
 
   offers: {
@@ -502,6 +522,46 @@ export interface Repository {
     record(input: Omit<IncomeRecord, 'id'>): Promise<void>;
     /** Oldest first. */
     list(where: { since: Date; until?: Date }): Promise<IncomeRecord[]>;
+  };
+
+  /** Photos of till receipts, one per order. */
+  receiptPhotos: {
+    /** Keeps the photo, replacing one sent before for the same order. */
+    save(input: Omit<ReceiptPhoto, 'id'>): Promise<ReceiptPhoto>;
+    findByOrderId(orderId: string): Promise<ReceiptPhoto | null>;
+    /** Which of these orders have a photo, without loading the photos. */
+    ordersWithPhotos(orderIds: string[]): Promise<Set<string>>;
+  };
+
+  /** What Shoppers said after deliveries (Section O). One per order. */
+  shopperFeedback: {
+    create(input: Omit<ShopperFeedback, 'id'>): Promise<ShopperFeedback>;
+    findByOrderId(orderId: string): Promise<ShopperFeedback | null>;
+    /** Oldest first, since a moment. */
+    listSince(since: Date): Promise<ShopperFeedback[]>;
+  };
+
+  /**
+   * Keeping only what the privacy page says we keep, for as long as it says (docs/LEGAL_REVIEW.md).
+   * Each returns how many records it changed or removed.
+   */
+  retention: {
+    /**
+     * A closed account, once its days to change its mind are over: name, number, addresses,
+     * doorstep words, PIN, cards, devices, saved addresses and Sets go; the orders and money
+     * records stay, without the address or doorstep words, as the privacy page says.
+     */
+    eraseShopper(shopperId: string, at: Date): Promise<void>;
+    /** Problem photos, voice notes and notes, for problems decided before a moment. */
+    deleteProblemEvidenceDecidedBefore(before: Date): Promise<number>;
+    /** Business analysis records from before a moment. */
+    deleteAnalyticsBefore(before: Date): Promise<number>;
+    /** Sign-in codes made before a moment: the security record of signing in. */
+    deleteSignInCodesBefore(before: Date): Promise<number>;
+    /** Orders placed before a moment: the address and doorstep words taken off, money kept. */
+    anonymiseOrdersBefore(before: Date, at: Date): Promise<number>;
+    /** Till receipt photos for orders placed before a moment. */
+    deleteReceiptPhotosBefore(before: Date): Promise<number>;
   };
 
   /** Close any underlying connection. */

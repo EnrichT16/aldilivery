@@ -22,6 +22,7 @@ import type {
   Runner,
   Shopper,
 } from '../domain.js';
+import { erasedOrderPatch, erasedShopperPatch } from './erasure.js';
 import type { CatalogueSearchOptions, Repository } from './repository.js';
 
 export function createPrismaClient(databaseUrl?: string): PrismaClient {
@@ -66,6 +67,11 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
       async countJoinedVia(via) {
         return prisma.shopper.count({ where: { joinedVia: via } });
+      },
+      async listDueForErasure(at) {
+        return (await prisma.shopper.findMany({
+          where: { erasedAt: null, deletionScheduledFor: { lte: at } },
+        })) as unknown as Shopper[];
       },
       async listFamily(ownerId) {
         return (await prisma.shopper.findMany({
@@ -489,6 +495,21 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         });
         return rows.map(toOrder);
       },
+      async listByTillStatus(status) {
+        const rows = await prisma.order.findMany({
+          where: { tillStatus: status },
+          include: { items: true },
+          orderBy: { updatedAt: 'desc' },
+        });
+        return rows.map(toOrder);
+      },
+      async findBySetOccurrence(setId, fireAt) {
+        const row = await prisma.order.findFirst({
+          where: { setId, setFireAt: fireAt },
+          include: { items: true },
+        });
+        return row ? toOrder(row) : null;
+      },
     },
 
     offers: {
@@ -807,6 +828,94 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           where: { at: { gte: where.since, ...(where.until ? { lt: where.until } : {}) } },
           orderBy: { at: 'asc' },
         })) as any;
+      },
+    },
+
+    receiptPhotos: {
+      async save(input) {
+        const data = { ...input, data: Buffer.from(input.data) };
+        return (await prisma.receiptPhoto.upsert({
+          where: { orderId: input.orderId },
+          create: data,
+          update: { data: data.data, contentType: data.contentType, createdAt: data.createdAt },
+        })) as any;
+      },
+      async findByOrderId(orderId) {
+        const row = await prisma.receiptPhoto.findUnique({ where: { orderId } });
+        return row ? ({ ...row, data: Buffer.from(row.data) } as any) : null;
+      },
+      async ordersWithPhotos(orderIds) {
+        const rows = await prisma.receiptPhoto.findMany({
+          where: { orderId: { in: orderIds } },
+          select: { orderId: true },
+        });
+        return new Set(rows.map((row) => row.orderId));
+      },
+    },
+
+    shopperFeedback: {
+      async create(input) {
+        return (await prisma.shopperFeedback.create({ data: input })) as any;
+      },
+      async findByOrderId(orderId) {
+        return (await prisma.shopperFeedback.findUnique({ where: { orderId } })) as any;
+      },
+      async listSince(since) {
+        return (await prisma.shopperFeedback.findMany({
+          where: { createdAt: { gte: since } },
+          orderBy: { createdAt: 'asc' },
+        })) as any;
+      },
+    },
+
+    retention: {
+      async eraseShopper(shopperId, at) {
+        // One transaction: an account is either removed or left as it was, never half of each.
+        await prisma.$transaction([
+          prisma.order.updateMany({
+            where: { shopperId },
+            data: { ...erasedOrderPatch(at), paymentMethodId: null, setId: null } as any,
+          }),
+          prisma.set.deleteMany({ where: { shopperId } }),
+          prisma.paymentMethod.deleteMany({ where: { shopperId } }),
+          prisma.pushSubscription.deleteMany({ where: { shopperId } }),
+          prisma.savedAddress.deleteMany({ where: { shopperId } }),
+          prisma.householdCircleMember.deleteMany({ where: { shopperId } }),
+          prisma.shopper.update({
+            where: { id: shopperId },
+            data: erasedShopperPatch(shopperId, at) as any,
+          }),
+        ]);
+      },
+      async deleteProblemEvidenceDecidedBefore(before) {
+        const result = await prisma.problemEvidence.deleteMany({
+          where: { report: { decidedAt: { lt: before } } },
+        });
+        return result.count;
+      },
+      async deleteAnalyticsBefore(before) {
+        return (await prisma.analyticsEvent.deleteMany({ where: { at: { lt: before } } })).count;
+      },
+      async deleteSignInCodesBefore(before) {
+        return (await prisma.oneTimeCode.deleteMany({ where: { createdAt: { lt: before } } }))
+          .count;
+      },
+      async anonymiseOrdersBefore(before, at) {
+        const result = await prisma.order.updateMany({
+          where: { createdAt: { lt: before }, anonymisedAt: null },
+          data: erasedOrderPatch(at) as any,
+        });
+        return result.count;
+      },
+      async deleteReceiptPhotosBefore(before) {
+        const old = await prisma.order.findMany({
+          where: { createdAt: { lt: before } },
+          select: { id: true },
+        });
+        const result = await prisma.receiptPhoto.deleteMany({
+          where: { orderId: { in: old.map((row) => row.id) } },
+        });
+        return result.count;
       },
     },
 

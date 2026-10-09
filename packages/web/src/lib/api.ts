@@ -169,6 +169,8 @@ export interface Shopper {
   budgetCapPence: number | null;
   /** Whether a PIN has been chosen. The PIN itself never leaves the server. */
   hasPin?: boolean;
+  /** Set when the account is closing: it is removed on this day unless kept. */
+  deletionScheduledFor?: string | null;
 }
 
 export interface RegisterShopperInput {
@@ -526,6 +528,8 @@ export interface CurrentJob {
   /** Paying them back for the shopping (ruling 55): how much, and where it has got to. */
   reimbursementPence?: number | null;
   reimbursementStatus?: 'paid' | 'waiting' | 'owed' | null;
+  /** The two words to say at the door (T6). */
+  doorWord?: string | null;
   items: Array<{ id: string; name: string; quantity: number; estimatedPricePence: number }>;
 }
 
@@ -554,10 +558,33 @@ export interface Reimbursement {
 export function submitTillTotal(
   orderId: string,
   receiptTotalPence: number,
+  /** The photo of the receipt, if the Runner took one: optional, but encouraged. */
+  photo?: { base64: string; contentType: string },
 ): Promise<{ message: string; reimbursement?: Reimbursement | null }> {
   return request<{ message: string; reimbursement?: Reimbursement | null }>(
     `/orders/${encodeURIComponent(orderId)}/receipt`,
-    { method: 'POST', body: JSON.stringify({ receiptTotalPence }) },
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        receiptTotalPence,
+        ...(photo ? { photo: { data: photo.base64, contentType: photo.contentType } } : {}),
+      }),
+    },
+    'runner',
+  );
+}
+
+/** The photo of the receipt, sent after the till total. A pay-back waiting only for it goes now. */
+export function sendReceiptPhoto(
+  orderId: string,
+  photo: { base64: string; contentType: string },
+): Promise<{ message: string; reimbursement?: Reimbursement | null }> {
+  return request<{ message: string; reimbursement?: Reimbursement | null }>(
+    `/orders/${encodeURIComponent(orderId)}/receipt-photo`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ data: photo.base64, contentType: photo.contentType }),
+    },
     'runner',
   );
 }
@@ -609,6 +636,15 @@ export interface MyOrder {
   items: Array<{ id: string; name: string; quantity: number }>;
   totalEstimatePence: number;
   deliveredAt: string | null;
+  /** The two words the Runner says at the door (T6), once a Runner has it. */
+  doorWord?: string | null;
+  /** The same, as one sentence Ozi can say. */
+  doorWordSentence?: string | null;
+  /** About when it arrives (Section G): "about 20 to 30 minutes", and the latest time. */
+  eta?: { words: string; byAt: string } | null;
+  /** Feedback after delivery (Section O): given yet, and the credit it earns. */
+  feedbackGiven?: boolean;
+  feedbackCreditPence?: number;
 }
 
 export function fetchMyOrder(): Promise<{ order: MyOrder | null; questions?: ItemQuestion[] }> {
@@ -1402,6 +1438,12 @@ export interface WeeklyShop {
   dayOfWeek: number;
   active: boolean;
   items: Array<{ catalogueItemId: string | null; name: string; quantity: number }>;
+  /** Set when the Shopper agreed it is sent and paid for by itself after the notice. */
+  autoSendAgreedAt?: string | null;
+  nextFireAt?: string;
+  /** When the thirty-minute notice for the next one went, if it has. */
+  noticeSentAt?: string | null;
+  skipRequestedForFireAt?: string | null;
 }
 
 export function fetchWeeklyShops(): Promise<{ sets: WeeklyShop[] }> {
@@ -1412,6 +1454,9 @@ export function bookWeeklyShop(input: {
   dayOfWeek: number;
   deliveryAddress: string;
   lines: Array<{ catalogueItemId: string; quantity: number }>;
+  /** Sent and paid for by itself with this saved card, after the notice (Rule One: agreed here). */
+  paymentMethodId?: string;
+  autoSend?: { confirmed: true; statement: string };
 }): Promise<{ set: WeeklyShop }> {
   return request('/sets', {
     method: 'POST',
@@ -2176,6 +2221,8 @@ export interface ReimbursementRow {
   reason: string | null;
   approvedBy: string | null;
   paidAt: string | null;
+  /** A photo of the till receipt came with it. */
+  hasReceiptPhoto?: boolean;
 }
 
 export function fetchReimbursements(
@@ -2189,4 +2236,87 @@ export function approveReimbursement(key: string, orderId: string): Promise<{ me
     method: 'POST',
     body: JSON.stringify({}),
   });
+}
+
+/** The one word skip for the next regular order, after its notice (Rule Five). */
+export function skipWeeklyShop(id: string): Promise<{ message: string }> {
+  return request(`/sets/${encodeURIComponent(id)}/skip`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * After a delivery, and closing an account
+ * ------------------------------------------------------------------------------------- */
+
+/** Feedback after a delivery (Section O). Anything at all earns the delivery credit, once. */
+export function sendOrderFeedback(
+  orderId: string,
+  input: { rating?: number; themes?: string[]; message?: string },
+): Promise<{ creditPence: number; message: string }> {
+  return request(`/orders/${encodeURIComponent(orderId)}/feedback`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/** Close the account: it waits a few days in case of a change of mind, then it is removed. */
+export function closeAccount(): Promise<{
+  deletionScheduledFor: string;
+  recycleBinDays: number;
+  message: string;
+}> {
+  return request('/account/delete', { method: 'POST', body: JSON.stringify({}) });
+}
+
+export function keepAccount(): Promise<{ restored: boolean; message: string }> {
+  return request('/account/restore', { method: 'POST', body: JSON.stringify({}) });
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * The owner's till screen (Payments tab): till totals a person settles with the Shopper
+ * ------------------------------------------------------------------------------------- */
+
+export interface TillCaseRow {
+  orderId: string;
+  reference: string;
+  shopperName: string;
+  paidBy: 'card' | 'bank';
+  bankReference: string | null;
+  estimatePence: number;
+  tillTotalPence: number | null;
+  receiptTotalPence: number | null;
+  /** Positive: more to take. Negative: to give back. */
+  differencePence: number;
+  reason: string | null;
+  status: 'needs_person' | 'settled';
+  settledBy: string | null;
+  settledAt: string | null;
+  hasReceiptPhoto: boolean;
+}
+
+export function fetchTillCases(
+  key: string,
+): Promise<{ waiting: TillCaseRow[]; settled: TillCaseRow[] }> {
+  return staffRequest(key, '/staff/till-cases');
+}
+
+export type TillAction = 'charge' | 'refund' | 'refunded_by_hand' | 'collected_by_hand' | 'let_go';
+
+export function settleTillCase(
+  key: string,
+  orderId: string,
+  action: TillAction,
+): Promise<{ message: string }> {
+  const path = action === 'charge' || action === 'refund' ? action : 'settle';
+  return staffRequest(key, `/staff/till-cases/${encodeURIComponent(orderId)}/${path}`, {
+    method: 'POST',
+    body: JSON.stringify(path === 'settle' ? { outcome: action } : {}),
+  });
+}
+
+/** The address of a receipt photo, for `fetchStaffFile`. */
+export function receiptPhotoPath(orderId: string): string {
+  return `/staff/orders/${encodeURIComponent(orderId)}/receipt-photo`;
 }

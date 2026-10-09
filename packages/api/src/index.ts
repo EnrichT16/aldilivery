@@ -24,6 +24,8 @@ import { twilioDialler } from './lib/twilio-voice.js';
 import { sweepOffers } from './services/dispatch.js';
 import { sweepPayouts } from './services/pay-runner.js';
 import { sweepReimbursements } from './services/reimburse.js';
+import { sweepRetention } from './services/retention.js';
+import { sweepSets } from './services/set-runner.js';
 
 async function main(): Promise<void> {
   const env = readEnv();
@@ -248,9 +250,41 @@ async function main(): Promise<void> {
   }, 60_000);
   paySweep.unref();
 
+  // Every minute: regular orders (Rule Five). The notice thirty minutes before, by notification
+  // or text, then, if the Shopper did not say the skip word, the order itself; once only for
+  // each occurrence, however often this runs.
+  let setsRunning = false;
+  const setSweep = setInterval(() => {
+    if (setsRunning) return;
+    setsRunning = true;
+    sweepSets(app.ctx, app.log)
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, 'The regular order sweep failed');
+      })
+      .finally(() => {
+        setsRunning = false;
+      });
+  }, 60_000);
+  setSweep.unref();
+
+  // Every hour: remove closed accounts whose seven days are up, and anything kept longer than
+  // the privacy page says (services/retention.ts).
+  const retentionSweep = setInterval(() => {
+    sweepRetention(app.ctx, app.log)
+      .then((report) => {
+        app.log.info(report, 'Retention sweep');
+      })
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, 'The retention sweep failed');
+      });
+  }, 3_600_000);
+  retentionSweep.unref();
+
   const shutdown = async (signal: string): Promise<void> => {
     clearInterval(sweep);
     clearInterval(paySweep);
+    clearInterval(setSweep);
+    clearInterval(retentionSweep);
     app.log.info(`${signal} received, shutting down`);
     await app.close();
     await repository.disconnect();

@@ -22,6 +22,7 @@ import {
   fetchMyPay,
   fetchRunnerMe,
   moveJobOn,
+  sendReceiptPhoto,
   setRunnerAvailability,
   startPaySetup,
   submitTillTotal,
@@ -35,6 +36,7 @@ import {
 import { CallControls } from '../components/CallControls';
 import { DocumentsChecklist } from '../components/DocumentsChecklist';
 import { money } from '../lib/money';
+import { preparePhoto, type ReadyPhoto } from '../lib/photo';
 import { clearRunnerToken, readRunnerToken } from '../lib/session';
 
 /**
@@ -432,6 +434,20 @@ function JobInHand({
   onNews: (text: string) => void;
 }): JSX.Element {
   const [tillError, setTillError] = useState('');
+  // The photo of the receipt (STILL_TO_DO item 2): optional, but it lets a larger pay-back go
+  // without waiting for a person.
+  const [photo, setPhoto] = useState<ReadyPhoto | null>(null);
+  const [photoNote, setPhotoNote] = useState('');
+
+  async function takePhoto(file: File | undefined): Promise<ReadyPhoto | null> {
+    if (!file) return null;
+    try {
+      return await preparePhoto(file);
+    } catch (failure) {
+      setPhotoNote(failure instanceof Error ? failure.message : 'That photo could not be read.');
+      return null;
+    }
+  }
 
   function onTill(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -444,7 +460,7 @@ function JobInHand({
     setTillError('');
     // What we say back includes being paid back for the shopping (ruling 55), in plain words.
     void act(async () => {
-      const result = await submitTillTotal(job.orderId, pence);
+      const result = await submitTillTotal(job.orderId, pence, photo ?? undefined);
       onNews(`Thank you. The till total of ${money(pence)} is in. ${result.message}`);
     }, '');
   }
@@ -495,6 +511,17 @@ function JobInHand({
         {job.doorstepProtocol !== '' && (
           <p className="m-0">At the door, in their words: {job.doorstepProtocol}</p>
         )}
+        {job.doorWord && (
+          <>
+            <p className="m-0 text-lead">
+              At the door, say: <strong>{job.doorWord}</strong>
+            </p>
+            <p className="m-0 extra">
+              {job.shopperName} has been given these two words, so they know it is you knocking. Say
+              them before anything else. Never say any numbers instead.
+            </p>
+          </>
+        )}
       </div>
 
       <div className="space-y-3">
@@ -537,6 +564,32 @@ function JobInHand({
               aria-describedby="till-hint"
               className="w-full max-w-xs min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
             />
+            <label className="control bg-paper/10 text-paper underline cursor-pointer focus-within:outline focus-within:outline-4 focus-within:outline-offset-2">
+              {photo ? 'Take the receipt photo again' : 'Take a photo of the receipt'}
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                aria-describedby="receipt-photo-hint"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = '';
+                  void takePhoto(file).then((ready) => {
+                    if (!ready) return;
+                    setPhoto(ready);
+                    setPhotoNote('The photo of the receipt is ready to go with the total.');
+                  });
+                }}
+                className="visually-hidden"
+              />
+            </label>
+            <p id="receipt-photo-hint" className="m-0 extra">
+              Optional, but it helps: with a photo, we pay you back larger amounts straight away,
+              without waiting for a person to check.
+            </p>
+            <p role="status" className="m-0">
+              {photoNote}
+            </p>
             <button
               type="submit"
               disabled={busy}
@@ -549,6 +602,35 @@ function JobInHand({
 
         {job.reimbursementStatus && job.reimbursementPence != null && (
           <p className="m-0">{payBackWords(job.reimbursementStatus, job.reimbursementPence)}</p>
+        )}
+
+        {job.reimbursementStatus === 'waiting' && job.status !== 'shopping' && (
+          <>
+            <label className="control bg-paper/10 text-paper underline cursor-pointer focus-within:outline focus-within:outline-4 focus-within:outline-offset-2">
+              Add a photo of the receipt
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                disabled={busy}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = '';
+                  void takePhoto(file).then((ready) => {
+                    if (!ready) return;
+                    void act(async () => {
+                      const result = await sendReceiptPhoto(job.orderId, ready);
+                      onNews(result.message);
+                    }, '');
+                  });
+                }}
+                className="visually-hidden"
+              />
+            </label>
+            <p role="status" className="m-0">
+              {photoNote}
+            </p>
+          </>
         )}
 
         {job.status === 'receipt_submitted' && (

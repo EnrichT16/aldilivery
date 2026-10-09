@@ -61,8 +61,9 @@ export function Privacy(): JSX.Element {
           </li>
           <li>
             <strong>Your orders</strong>: what you asked for, what the shop charged, what you paid,
-            and how you said yes. Reason: a contract, and because tax law makes us keep money
-            records.
+            and how you said yes, with a photo of the till receipt if your Runner took one, and
+            anything you told us about how the delivery went. Reason: a contract, and because tax
+            law makes us keep money records.
           </li>
           <li>
             <strong>Your card</strong>: only the last four numbers and the type of card. The full
@@ -261,8 +262,9 @@ export function Privacy(): JSX.Element {
             Order, payment and call records: seven years, as tax law requires, then made anonymous.
           </li>
           <li>
-            Your account: until you close it. When you close it, it waits {days} days in case you
-            change your mind, then it is removed, apart from the money records above.
+            Your account: until you close it, in Settings or by asking {assistant}. When you close
+            it, it waits {days} days in case you change your mind, then it is removed, apart from
+            the money records above, which are kept without your address.
           </li>
           <li>
             Problems you report, with their photos and voice notes: two years after the problem is

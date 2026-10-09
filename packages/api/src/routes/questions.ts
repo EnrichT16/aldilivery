@@ -10,6 +10,8 @@ import { z } from 'zod';
 import { requireSession } from '../app.js';
 import type { Order } from '../domain.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
+import { doorWordSentence, ensureDoorWord } from '../services/door-word.js';
+import { estimateArrival } from '../services/eta.js';
 import { notifyShopper } from '../services/notify.js';
 import { questionsForOrder, settle } from '../services/questions.js';
 
@@ -126,11 +128,32 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
     if (!order) return { order: null };
 
     const runner = order.runnerId ? await repository.runners.findById(order.runnerId) : null;
+    // The two words the Runner says at the door (T6), once somebody has the order.
+    const doorWord = runner ? await ensureDoorWord(repository, order) : null;
+    // About when it arrives (Section G), worked out afresh each time the page asks.
+    const eta = estimateArrival({
+      status: order.status,
+      now: now(),
+      acceptedAt: order.acceptedAt,
+      itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
+      travelMode: runner?.vehicleType ?? null,
+      runner: runner ? { latitude: runner.latitude, longitude: runner.longitude } : null,
+      door: { latitude: order.latitude, longitude: order.longitude },
+    });
+    const delivered = order.status === 'delivered' || order.status === 'completed';
     return {
       order: {
         id: order.id,
         status: order.status,
         runnerName: runner ? runner.name.split(' ')[0] : null,
+        doorWord,
+        doorWordSentence: runner && doorWord ? doorWordSentence(runner.name, doorWord) : null,
+        eta: eta ? { words: eta.words, byAt: eta.byAt.toISOString() } : null,
+        // Feedback after delivery (Section O): whether it has been given, and what it earns.
+        feedbackGiven: delivered
+          ? (await repository.shopperFeedback.findByOrderId(order.id)) !== null
+          : false,
+        feedbackCreditPence: app.ctx.config.feedback.creditPence,
         items: order.items.map((item) => ({
           id: item.id,
           name: item.name,

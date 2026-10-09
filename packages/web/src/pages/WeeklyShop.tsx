@@ -6,13 +6,24 @@ import {
   bookWeeklyShop,
   fetchMyOrders,
   fetchWeeklyShops,
+  listPaymentMethods,
+  skipWeeklyShop,
   stopWeeklyShop,
+  type PaymentMethod,
   type WeeklyShop as WeeklyShopRow,
 } from '../lib/api';
 import { listInWords } from '../lib/extras';
 import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
+
+/**
+ * What the Shopper agrees to when they let it go by itself (Rule One), kept on every order it
+ * places. The skip word comes from configuration (Rule Five).
+ */
+export function autoSendStatement(skipWord: string): string {
+  return `Send my weekly shop and pay for it with my saved card each week, unless I say "${skipWord}" after the 30-minute notice.`;
+}
 
 /** 1 for Monday to 7 for Sunday, as the server counts them. */
 export const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
@@ -33,13 +44,23 @@ export function WeeklyShop(): JSX.Element {
   const [news, setNews] = useState('');
   const [problem, setProblem] = useState('');
   const [busy, setBusy] = useState(false);
+  const [autoSend, setAutoSend] = useState(false);
+  const [card, setCard] = useState<PaymentMethod | null>(null);
   const current = shops?.find((row) => row.active);
+  const skipWord = storeConfig.recurringOrders.skipWord;
+  // A notice has gone for the next one, and it has not been skipped: it can be stopped now.
+  const noticeOut = current?.noticeSentAt && current.skipRequestedForFireAt !== current.nextFireAt;
 
   useEffect(() => {
     if (!shopperId) return;
     fetchWeeklyShops()
       .then((result) => setShops(result.sets))
       .catch(() => setShops([]));
+    listPaymentMethods()
+      .then(({ paymentMethods }) =>
+        setCard(paymentMethods.find((one) => one.isDefault) ?? paymentMethods[0] ?? null),
+      )
+      .catch(() => setCard(null));
   }, [shopperId]);
 
   async function book(): Promise<void> {
@@ -67,13 +88,22 @@ export function WeeklyShop(): JSX.Element {
         throw new Error('Put your usual shopping in the basket first, then book your weekly shop.');
       }
       if (current) await stopWeeklyShop(current.id);
+      const sendItself = autoSend && card !== null;
       const { set } = await bookWeeklyShop({
         dayOfWeek: day,
         deliveryAddress: shopper.deliveryAddress || 'Home',
         lines,
+        ...(sendItself
+          ? {
+              paymentMethodId: card.id,
+              autoSend: { confirmed: true as const, statement: autoSendStatement(skipWord) },
+            }
+          : {}),
       });
       setShops([set]);
-      const words = `Your weekly shop is booked for every ${DAYS[day - 1]}: ${listInWords(names)}. Each ${DAYS[day - 1]}, I'll remind you and put it in your basket, and nothing is sent until you say so.`;
+      const words = sendItself
+        ? `Your weekly shop is booked for every ${DAYS[day - 1]}: ${listInWords(names)}. Each time, I'll tell you 30 minutes before. Say "${skipWord}" to stop that one; otherwise it is sent and paid for with your card ending ${card.lastFour}.`
+        : `Your weekly shop is booked for every ${DAYS[day - 1]}: ${listInWords(names)}. Each ${DAYS[day - 1]}, I'll remind you and put it in your basket, and nothing is sent until you say so.`;
       setNews(words);
       void ozi.say(words);
     } catch (failure) {
@@ -82,6 +112,22 @@ export function WeeklyShop(): JSX.Element {
       void ozi.say(message);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function skipNext(): Promise<void> {
+    if (!current) return;
+    try {
+      const result = await skipWeeklyShop(current.id);
+      setShops((before) =>
+        (before ?? []).map((row) =>
+          row.id === current.id ? { ...row, skipRequestedForFireAt: row.nextFireAt ?? null } : row,
+        ),
+      );
+      setNews(result.message);
+      void ozi.say(result.message);
+    } catch (failure) {
+      setProblem(failure instanceof Error ? failure.message : 'That did not work.');
     }
   }
 
@@ -123,6 +169,20 @@ export function WeeklyShop(): JSX.Element {
               <p className="m-0">
                 {listInWords(current.items.map((item) => `${item.quantity} ${item.name}`))}.
               </p>
+              <p className="m-0">
+                {current.autoSendAgreedAt
+                  ? `Sent and paid for by itself, after a notice 30 minutes before. Say "${skipWord}" to stop one.`
+                  : 'A reminder only: nothing is sent until you say so.'}
+              </p>
+              {noticeOut && (
+                <button
+                  type="button"
+                  onClick={() => void skipNext()}
+                  className="control bg-highlight text-ink"
+                >
+                  Skip this one
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => void stop()}
@@ -152,6 +212,26 @@ export function WeeklyShop(): JSX.Element {
               ? 'It will be what is in your basket now.'
               : 'It will be the same as your last order.'}
           </p>
+          {card && (
+            <div className="flex items-start gap-3">
+              <input
+                id="weekly-auto"
+                type="checkbox"
+                checked={autoSend}
+                aria-describedby="weekly-auto-hint"
+                onChange={(event) => setAutoSend(event.target.checked)}
+                className="h-8 w-8 mt-1 shrink-0"
+              />
+              <div>
+                <label htmlFor="weekly-auto" className="font-bold">
+                  Send it and pay for it by itself, with my card ending {card.lastFour}
+                </label>
+                <p id="weekly-auto-hint" className="m-0">
+                  {autoSendStatement(skipWord)} You pay what the till says.
+                </p>
+              </div>
+            </div>
+          )}
           <button
             type="button"
             disabled={busy}

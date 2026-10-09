@@ -58,6 +58,8 @@ export interface Shopper {
   /** Gift card money waiting to be used, in pence. */
   creditPence: number;
   deletionScheduledFor: Date | null;
+  /** When a closed account was removed: personal details taken off, money records kept. */
+  erasedAt: Date | null;
   organisationId: string | null;
   /** Which office or team at the organisation looks after this person. */
   organisationOffice: string | null;
@@ -234,6 +236,9 @@ export interface OrderItem {
  */
 export type ReimbursementStatus = 'paid' | 'waiting' | 'owed';
 
+/** A till total waiting for a person to settle with the Shopper, and once they have. */
+export type TillStatus = 'needs_person' | 'settled';
+
 export interface Order {
   id: string;
   shopperId: string;
@@ -273,6 +278,17 @@ export interface Order {
   reimbursementTransferId: string | null;
   reimbursedAt: Date | null;
   reimbursementApprovedBy: string | null;
+  /** A till total a person must settle with the Shopper, and how it ended. See routes/till-cases.ts. */
+  tillStatus: TillStatus | null;
+  tillReason: string | null;
+  tillSettledBy: string | null;
+  tillSettledAt: Date | null;
+  /** The door safe word (T6): two easy words the Runner says at the door. */
+  doorWord: string | null;
+  /** For an order a Set placed: which occurrence, so each is placed once only. */
+  setFireAt: Date | null;
+  /** When the address and doorstep words were taken off, seven years on. */
+  anonymisedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   acceptedAt: Date | null;
@@ -336,6 +352,12 @@ export interface RecurringSet {
   noticeSentAt: Date | null;
   skipRequestedForFireAt: Date | null;
   lastFiredAt: Date | null;
+  /**
+   * When the Shopper agreed that each occurrence is sent and paid for by itself after the
+   * notice, and the words they agreed to. Null: a reminder only, and nothing is ever paid.
+   */
+  autoSendAgreedAt: Date | null;
+  autoSendStatement: string | null;
   createdAt: Date;
   updatedAt: Date;
   items: SetItem[];
@@ -715,4 +737,25 @@ export interface LearnedPhrase {
   reply: string | null;
   decidedBy: string | null;
   decidedAt: Date | null;
+}
+
+/** A photo of the till receipt, kept with the order (STILL_TO_DO item 2). */
+export interface ReceiptPhoto {
+  id: string;
+  orderId: string;
+  data: Buffer;
+  contentType: string;
+  createdAt: Date;
+}
+
+/** What a Shopper said after a delivery (Section O), and the credit it earned. */
+export interface ShopperFeedback {
+  id: string;
+  orderId: string;
+  rating: number | null;
+  /** The themes picked, comma separated. */
+  themes: string;
+  message: string;
+  creditPence: number;
+  createdAt: Date;
 }

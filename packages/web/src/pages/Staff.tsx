@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 
+import { ReceiptPhoto, TillCases } from '../components/TillCases';
+
 import {
   addBusinessUser,
   addStaffOrganisation,
@@ -1205,6 +1207,7 @@ function Payments({
           </li>
         ))}
       </ul>
+      <TillCases staffKey={staffKey} onNews={onNews} />
       <PayBacks staffKey={staffKey} onNews={onNews} />
     </section>
   );
@@ -1217,6 +1220,8 @@ const PAY_BACK_REASONS: Record<string, string> = {
   'bank transfer': 'the Shopper paid by bank transfer, and the difference is settled by hand',
   'refund failed': 'the Shopper’s refund did not go through',
   'charge failed': 'the extra could not be taken from the Shopper’s card',
+  'no receipt photo':
+    'there is no photo of the receipt, and it is more than is paid back without one',
 };
 
 /**
@@ -1262,6 +1267,12 @@ function PayBacks({
               {money(row.goodsEstimatePence)}. Waiting because{' '}
               {PAY_BACK_REASONS[row.reason ?? ''] ?? row.reason ?? 'a person must look'}.
             </p>
+            <ReceiptPhoto
+              staffKey={staffKey}
+              orderId={row.orderId}
+              has={row.hasReceiptPhoto}
+              label={`order ${row.reference}`}
+            />
             <button
               type="button"
               onClick={() => approve(row)}

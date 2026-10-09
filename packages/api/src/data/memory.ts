@@ -9,6 +9,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { newReferralCode } from '../lib/referral.js';
+import { erasedOrderPatch, erasedShopperPatch } from './erasure.js';
 
 import type { OrderStatus } from '@aldilivery/core';
 
@@ -46,12 +47,14 @@ import type {
   ProblemReport,
   ProblemEvidence,
   RunnerRecovery,
+  ReceiptPhoto,
   RecurringSet,
   Runner,
   RunnerCheck,
   RunnerPayout,
   SetItem,
   Shopper,
+  ShopperFeedback,
 } from '../domain.js';
 import type {
   CatalogueSearchOptions,
@@ -117,6 +120,8 @@ export function memoryRepository(): Repository {
   const analyticsEvents: AnalyticsEvent[] = [];
   const incomeRecords: IncomeRecord[] = [];
   const learned: LearnedPhrase[] = [];
+  const receiptPhotos = new Map<string, ReceiptPhoto>();
+  const shopperFeedback = new Map<string, ShopperFeedback>();
 
   const now = (): Date => new Date();
 
@@ -145,6 +150,7 @@ export function memoryRepository(): Repository {
           pinFailedAttempts: 0,
           pinLockedUntil: null,
           deletionScheduledFor: null,
+          erasedAt: null,
           organisationId: input.organisationId ?? null,
           organisationOffice: null,
           ageBand: null,
@@ -182,6 +188,16 @@ export function memoryRepository(): Repository {
           if (shopper.phone === phone) return clone(shopper);
         }
         return null;
+      },
+      async listDueForErasure(at) {
+        return [...shoppers.values()]
+          .filter(
+            (shopper) =>
+              shopper.erasedAt === null &&
+              shopper.deletionScheduledFor !== null &&
+              shopper.deletionScheduledFor.getTime() <= at.getTime(),
+          )
+          .map(clone);
       },
       async findByHandle(handle) {
         for (const shopper of shoppers.values()) {
@@ -740,6 +756,13 @@ export function memoryRepository(): Repository {
           reimbursementTransferId: null,
           reimbursedAt: null,
           reimbursementApprovedBy: null,
+          tillStatus: null,
+          tillReason: null,
+          tillSettledBy: null,
+          tillSettledAt: null,
+          doorWord: input.doorWord ?? null,
+          setFireAt: input.setFireAt ?? null,
+          anonymisedAt: null,
           createdAt: now(),
           updatedAt: now(),
           acceptedAt: null,
@@ -799,6 +822,20 @@ export function memoryRepository(): Repository {
           .filter((o) => o.runnerId === runnerId)
           .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
           .map(clone);
+      },
+      async listByTillStatus(status) {
+        return [...orders.values()]
+          .filter((o) => o.tillStatus === status)
+          .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+          .map(clone);
+      },
+      async findBySetOccurrence(setId, fireAt) {
+        for (const order of orders.values()) {
+          if (order.setId === setId && order.setFireAt?.getTime() === fireAt.getTime()) {
+            return clone(order);
+          }
+        }
+        return null;
       },
     },
 
@@ -897,6 +934,8 @@ export function memoryRepository(): Repository {
           noticeSentAt: null,
           skipRequestedForFireAt: null,
           lastFiredAt: null,
+          autoSendAgreedAt: input.autoSendAgreedAt ?? null,
+          autoSendStatement: input.autoSendStatement ?? null,
           createdAt: now(),
           updatedAt: now(),
           items,
@@ -1322,6 +1361,131 @@ export function memoryRepository(): Repository {
           )
           .sort((a, b) => a.at.getTime() - b.at.getTime())
           .map(clone);
+      },
+    },
+
+    receiptPhotos: {
+      async save(input) {
+        const existing = receiptPhotos.get(input.orderId);
+        const row: ReceiptPhoto = { ...input, id: existing?.id ?? id() };
+        receiptPhotos.set(input.orderId, row);
+        return clone(row);
+      },
+      async findByOrderId(orderId) {
+        const found = receiptPhotos.get(orderId);
+        return found ? clone(found) : null;
+      },
+      async ordersWithPhotos(orderIds) {
+        return new Set(orderIds.filter((orderId) => receiptPhotos.has(orderId)));
+      },
+    },
+
+    shopperFeedback: {
+      async create(input) {
+        if (shopperFeedback.has(input.orderId)) {
+          throw new Error(`Feedback for order ${input.orderId} is already in.`);
+        }
+        const row: ShopperFeedback = { ...input, id: id() };
+        shopperFeedback.set(input.orderId, row);
+        return clone(row);
+      },
+      async findByOrderId(orderId) {
+        const found = shopperFeedback.get(orderId);
+        return found ? clone(found) : null;
+      },
+      async listSince(since) {
+        return [...shopperFeedback.values()]
+          .filter((row) => row.createdAt.getTime() >= since.getTime())
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+    },
+
+    retention: {
+      async eraseShopper(shopperId, at) {
+        const shopper = shoppers.get(shopperId);
+        if (!shopper) throw new NotFoundError('Shopper', shopperId);
+        shoppers.set(shopperId, {
+          ...shopper,
+          ...erasedShopperPatch(shopperId, at),
+          updatedAt: at,
+        });
+        for (const [key, method] of paymentMethods) {
+          if (method.shopperId === shopperId) paymentMethods.delete(key);
+        }
+        for (const [key, device] of pushSubscriptions) {
+          if (device.shopperId === shopperId) pushSubscriptions.delete(key);
+        }
+        for (const [key, saved] of savedAddresses) {
+          if (saved.shopperId === shopperId) savedAddresses.delete(key);
+        }
+        for (const [key, member] of circleMembers) {
+          if (member.shopperId === shopperId) circleMembers.delete(key);
+        }
+        for (const [key, set] of sets) {
+          if (set.shopperId === shopperId) sets.delete(key);
+        }
+        for (const [key, order] of orders) {
+          if (order.shopperId !== shopperId) continue;
+          orders.set(key, {
+            ...order,
+            ...erasedOrderPatch(at),
+            paymentMethodId: null,
+            setId: null,
+            updatedAt: at,
+          });
+        }
+      },
+      async deleteProblemEvidenceDecidedBefore(before) {
+        const old = new Set(
+          [...problems.values()]
+            .filter((report) => report.decidedAt !== null && report.decidedAt < before)
+            .map((report) => report.id),
+        );
+        let removed = 0;
+        for (const [key, row] of problemEvidence) {
+          if (old.has(row.reportId)) {
+            problemEvidence.delete(key);
+            removed += 1;
+          }
+        }
+        return removed;
+      },
+      async deleteAnalyticsBefore(before) {
+        const keep = analyticsEvents.filter((row) => row.at >= before);
+        const removed = analyticsEvents.length - keep.length;
+        analyticsEvents.splice(0, analyticsEvents.length, ...keep);
+        return removed;
+      },
+      async deleteSignInCodesBefore(before) {
+        let removed = 0;
+        for (const [key, row] of oneTimeCodes) {
+          if (row.createdAt < before) {
+            oneTimeCodes.delete(key);
+            removed += 1;
+          }
+        }
+        return removed;
+      },
+      async anonymiseOrdersBefore(before, at) {
+        let changed = 0;
+        for (const [key, order] of orders) {
+          if (order.createdAt >= before || order.anonymisedAt !== null) continue;
+          orders.set(key, { ...order, ...erasedOrderPatch(at), updatedAt: at });
+          changed += 1;
+        }
+        return changed;
+      },
+      async deleteReceiptPhotosBefore(before) {
+        let removed = 0;
+        for (const [key, photo] of receiptPhotos) {
+          const order = orders.get(photo.orderId);
+          if (!order || order.createdAt < before) {
+            receiptPhotos.delete(key);
+            removed += 1;
+          }
+        }
+        return removed;
       },
     },
 

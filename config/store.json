@@ -103,6 +103,12 @@
     "recoveryPercentOfPay": 10,
     "writeOffUpToPence": 2000
   },
+  "feedback": {
+    "creditPence": 100
+  },
+  "receipts": {
+    "photoNeededAbovePence": 3000
+  },
   "versionOneRestrictions": {
     "ageRestrictedGoodsAllowed": false
   }

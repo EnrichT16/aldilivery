@@ -159,6 +159,8 @@ model Shopper {
   /// Set when the Shopper asks for deletion. The row survives for the recycle bin window
   /// and is removed afterwards. Deleting is never immediate and never silent.
   deletionScheduledFor DateTime?
+  /// When the account was removed after closing: personal details taken off, money records kept.
+  erasedAt             DateTime?
 
   /// Which office or team at the organisation looks after this person.
   organisationOffice String?
@@ -424,6 +426,23 @@ model Order {
   reimbursedAt            DateTime?
   reimbursementApprovedBy String?
 
+  /// A till total a person must settle with the Shopper (a large extra, a bank transfer, a
+  /// charge or refund that failed): "needs_person" until it is settled, then "settled", with
+  /// why, who settled it and when. Shown on the owner's till screen.
+  tillStatus    String?
+  tillReason    String?
+  tillSettledBy String?
+  tillSettledAt DateTime?
+
+  /// The door safe word (T6): two easy words the Runner says at the door.
+  doorWord String?
+
+  /// For an order placed by a Set: which occurrence, so each occurrence is placed once only.
+  setFireAt DateTime?
+
+  /// When the delivery address and doorstep words were taken off, seven years on (retention).
+  anonymisedAt DateTime?
+
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   acceptedAt  DateTime?
@@ -437,10 +456,38 @@ model Order {
   questions ItemQuestion[]
   calls     Call[]
 
+  @@unique([setId, setFireAt])
   @@index([status])
   @@index([reimbursementStatus])
+  @@index([tillStatus])
   @@index([shopperId])
   @@index([poolId])
+}
+
+/// A photo of the till receipt, taken by the Runner when the till total goes in. Kept with the
+/// order for the people approving a pay-back or settling the till.
+model ReceiptPhoto {
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  data        Bytes
+  contentType String
+  createdAt   DateTime @default(now())
+}
+
+/// What a Shopper said after a delivery (Section O). One per order, and the credit given for it,
+/// whatever it says. Shops see only patterns, never who said what.
+model ShopperFeedback {
+  id          String   @id @default(cuid())
+  orderId     String   @unique
+  /// 1 to 5, if they gave one.
+  rating      Int?
+  /// The themes they picked, comma separated, from a fixed list.
+  themes      String   @default("")
+  message     String   @default("")
+  creditPence Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model OrderItem {
@@ -543,6 +590,10 @@ model Set {
   /// occurrence has passed.
   skipRequestedForFireAt DateTime?
   lastFiredAt            DateTime?
+  /// When the Shopper agreed that each occurrence is sent and paid for by itself after the
+  /// notice, and the words they agreed to (Rule One). Null: a reminder only, nothing is paid.
+  autoSendAgreedAt       DateTime?
+  autoSendStatement      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
