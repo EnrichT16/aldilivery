@@ -47,9 +47,11 @@ export async function payOutOrder(ctx: PayContext, orderId: string): Promise<Pay
   const runner = await repository.runners.findById(order.runnerId);
   if (!runner) throw new NotFoundError('Runner');
 
+  // A Runner who has left is paid for a delivery made before they left, but nothing more is held
+  // towards a deposit they will never use (services/runner-leaving.ts pays back what is held).
   const plan = planPayout(
     {
-      coolBagDepositStatus: runner.coolBagDepositStatus,
+      coolBagDepositStatus: runner.leftAt ? 'released' : runner.coolBagDepositStatus,
       coolBagWithheldPence: runner.coolBagWithheldPence,
       completedDeliveryCount: runner.completedDeliveryCount,
     },
@@ -114,8 +116,12 @@ export async function payOutOrder(ctx: PayContext, orderId: string): Promise<Pay
   });
 
   await repository.runners.update(runner.id, {
-    coolBagDepositStatus: plan.coolBagDepositStatusAfter,
-    coolBagWithheldPence: plan.coolBagWithheldTotalAfter,
+    ...(runner.leftAt
+      ? {}
+      : {
+          coolBagDepositStatus: plan.coolBagDepositStatusAfter,
+          coolBagWithheldPence: plan.coolBagWithheldTotalAfter,
+        }),
     completedDeliveryCount: plan.completedDeliveryCountAfter,
     lastJobCompletedAt: order.deliveredAt ?? now(),
   });

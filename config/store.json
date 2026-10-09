@@ -109,6 +109,14 @@
   "receipts": {
     "photoNeededAbovePence": 3000
   },
+  "runners": {
+    "sosLinkHours": 12,
+    "instantPayoutFeeBasisPoints": 100,
+    "instantPayoutFeeMinimumPence": 50,
+    "insuranceReminderDays": [30, 7, 1],
+    "referralRewardPence": 15000,
+    "referralsForReward": 100
+  },
   "versionOneRestrictions": {
     "ageRestrictedGoodsAllowed": false
   }

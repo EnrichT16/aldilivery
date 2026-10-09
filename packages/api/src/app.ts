@@ -57,6 +57,9 @@ import { registerStaffRoutes } from './routes/staff.js';
 import { registerExtrasRoutes } from './routes/extras.js';
 import { registerProblemRoutes } from './routes/problems.js';
 import { registerRunnerAccountRoutes } from './routes/runner-account.js';
+import { registerRunnerMoneyRoutes } from './routes/runner-money.js';
+import { registerRunnerSafetyRoutes } from './routes/runner-safety.js';
+import { registerReferralRewardRoutes } from './routes/referral-reward.js';
 import { registerPushRoutes } from './routes/push.js';
 import { registerSetRoutes } from './routes/sets.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
@@ -450,6 +453,9 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerReceiptPhotoRoutes(app);
   await registerTillCaseRoutes(app);
   await registerOrderExtraRoutes(app);
+  await registerRunnerSafetyRoutes(app);
+  await registerRunnerMoneyRoutes(app);
+  await registerReferralRewardRoutes(app);
 }
 
 /**

@@ -17,6 +17,7 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '.
 import { isOfferExpired, poolOrders } from '../services/allocation.js';
 import { offerOrder } from '../services/dispatch.js';
 import { ensureDoorWord, newDoorWord } from '../services/door-word.js';
+import { drivingPaused } from '../services/insurance.js';
 import { tellShopper } from '../services/order-updates.js';
 import { assertTransitionAllowed } from '../services/orders.js';
 import { AGREE_FIRST, hasAgreed } from '../services/runner-agreement.js';
@@ -145,6 +146,13 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
     }
     // The agreement, with its pay-back and recovery terms, comes before any job (ruling 55).
     if (!hasAgreed(runner)) throw new ForbiddenError(AGREE_FIRST);
+    if (runner.leftAt) throw new ForbiddenError('Your Runner account is closed.');
+    // Driving waits for in-date insurance, checked by a person (ruling 14).
+    if (drivingPaused(runner, at)) {
+      throw new ForbiddenError(
+        'Your motor insurance has run out, so jobs by car or motorbike are paused. Switch to walking or bicycle, or send your new certificate.',
+      );
+    }
 
     await repository.offers.update(offer.id, { outcome: 'accepted', respondedAt: at });
 

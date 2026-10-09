@@ -72,6 +72,12 @@ import {
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { ShareCard } from '../components/ShareCard';
 import { StaffVoice } from '../components/StaffVoice';
+import {
+  ActiveSos,
+  ReferralRewards,
+  RemoveRunner,
+  WaitingDeposits,
+} from '../components/StaffRunnerSafety';
 import { money } from '../lib/money';
 import { useOzi } from '../state/ozi';
 import { nameHeardIn } from '../voice/name';
@@ -237,8 +243,11 @@ export function Staff(): JSX.Element {
           </nav>
           <div key={refresh}>
             {shown === 'documents' && <Documents staffKey={key} by={by} onNews={setNews} />}
+            {shown === 'documents' && <RemoveRunner staffKey={key} by={by} onNews={setNews} />}
+            {shown === 'problems' && <ActiveSos staffKey={key} by={by} onNews={setNews} />}
             {shown === 'problems' && <Problems staffKey={key} by={by} onNews={setNews} />}
             {shown === 'owed' && <Owed staffKey={key} by={by} onNews={setNews} />}
+            {shown === 'owed' && <WaitingDeposits staffKey={key} by={by} onNews={setNews} />}
             {shown === 'finds' && <Finds staffKey={key} onNews={setNews} />}
             {shown === 'enquiries' && <Enquiries staffKey={key} onNews={setNews} />}
             {shown === 'feedback' && <Feedback staffKey={key} />}
@@ -248,6 +257,7 @@ export function Staff(): JSX.Element {
             {shown === 'analytics' && <Analytics staffKey={key} />}
             {shown === 'overview' && <Overview staffKey={key} />}
             {shown === 'money' && <Money staffKey={key} />}
+            {shown === 'money' && <ReferralRewards staffKey={key} by={by} onNews={setNews} />}
             {shown === 'mine' && <MySettings staffKey={key} onNews={setNews} onSignOut={signOut} />}
             {shown === 'team' && (
               <>

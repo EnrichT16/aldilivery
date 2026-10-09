@@ -33,8 +33,13 @@ import {
   type RunnerAccount,
   type RunnerPay,
 } from '../lib/api';
+import { AgreeByVoice } from '../components/AgreeByVoice';
 import { CallControls } from '../components/CallControls';
 import { DocumentsChecklist } from '../components/DocumentsChecklist';
+import { JobNavigation } from '../components/JobNavigation';
+import { LeaveRunning } from '../components/LeaveRunning';
+import { PayoutChoice } from '../components/PayoutChoice';
+import { RunnerSos } from '../components/RunnerSos';
 import { money } from '../lib/money';
 import { preparePhoto, type ReadyPhoto } from '../lib/photo';
 import { clearRunnerToken, readRunnerToken } from '../lib/session';
@@ -81,7 +86,7 @@ const TRAVEL_WORDS: Record<VehicleType, string> = {
  * Shopper decides. Never a silent substitution, and never a Runner guessing.
  */
 const NOT_ON_THE_SHELF =
-  'If something is not on the shelf, ask the Shopper with the Cannot find it button. If they do not answer, leave it out. Never swap anything they have not agreed to.';
+  'If something is not on the shelf, ask the Shopper with the Cannot find it button, which also calls them. If they do not answer, leave it out. Never swap anything they have not agreed to.';
 
 const ANSWER_WORDS: Record<ItemAnswer, string> = {
   similar: 'bring something similar',
@@ -114,6 +119,8 @@ export function RunnerHome(): JSX.Element {
   const [news, setNews] = useState('');
   const [tab, setTab] = useState<TabKey>('today');
   const [dashboard, setDashboard] = useState<RunnerDashboard | null>(null);
+  // Raised by "Cannot find it", which starts the call in the same tap (Section H).
+  const [ringNow, setRingNow] = useState(0);
   const problemRef = useRef<HTMLParagraphElement>(null);
 
   const approved = runner
@@ -283,6 +290,14 @@ export function RunnerHome(): JSX.Element {
               </p>
             </section>
           )}
+          {dashboard?.insurance && (
+            <section aria-labelledby="insurance-heading" className="space-y-2 max-w-xl">
+              <h2 id="insurance-heading" className="text-lead font-bold">
+                Your motor insurance
+              </h2>
+              <p className="m-0">{dashboard.insurance.words}</p>
+            </section>
+          )}
           {dashboard && !job && (
             <TravelToday
               dashboard={dashboard}
@@ -316,8 +331,22 @@ export function RunnerHome(): JSX.Element {
             </section>
           ) : job ? (
             <>
-              <JobInHand job={job} questions={questions} busy={busy} act={act} onNews={setNews} />
-              <CallControls orderId={job.orderId} as="runner" otherName={job.shopperName} />
+              <JobInHand
+                job={job}
+                questions={questions}
+                busy={busy}
+                act={act}
+                onNews={setNews}
+                travelling={dashboard?.travelling ?? 'on_foot'}
+                onAsked={() => setRingNow((count) => count + 1)}
+              />
+              <CallControls
+                orderId={job.orderId}
+                as="runner"
+                otherName={job.shopperName}
+                ringNow={ringNow}
+              />
+              <RunnerSos />
               <Link
                 to={`/runner/jobs/${encodeURIComponent(job.orderId)}/problem`}
                 className="control bg-paper/10 text-paper underline"
@@ -330,9 +359,12 @@ export function RunnerHome(): JSX.Element {
               {runner.agreementCurrent === false && (
                 <AgreeFirst
                   busy={busy}
-                  onAgree={() => {
+                  onAgree={(channel) => {
                     void act(async () => {
-                      const result = await agreeToRunnerAgreement(RUNNER_AGREEMENT_VERSION);
+                      const result = await agreeToRunnerAgreement(
+                        RUNNER_AGREEMENT_VERSION,
+                        channel,
+                      );
                       setNews(result.message);
                     }, '');
                   }}
@@ -413,9 +445,30 @@ export function RunnerHome(): JSX.Element {
       )}
 
       {tab === 'jobs' && <JobHistory dashboard={dashboard} />}
-      {tab === 'money' && <Money dashboard={dashboard} />}
+      {tab === 'money' && (
+        <>
+          <Money dashboard={dashboard} />
+          <div className="max-w-xl">
+            <PayoutChoice onNews={setNews} />
+          </div>
+        </>
+      )}
       {tab === 'training' && <Training />}
-      {tab === 'more' && <More dashboard={dashboard} onNews={setNews} />}
+      {tab === 'more' && (
+        <>
+          <More dashboard={dashboard} onNews={setNews} />
+          {!dashboard?.leftAt && (
+            <div className="max-w-xl">
+              <LeaveRunning
+                onNews={(news) => {
+                  setNews(news);
+                  void refresh();
+                }}
+              />
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
@@ -426,12 +479,18 @@ function JobInHand({
   busy,
   act,
   onNews,
+  travelling,
+  onAsked,
 }: {
   job: CurrentJob;
   questions: ItemQuestion[];
   busy: boolean;
   act: (action: () => Promise<unknown>, done: string) => Promise<void>;
   onNews: (text: string) => void;
+  /** How they are travelling today, for the directions. */
+  travelling: VehicleType;
+  /** "Cannot find it" was asked: the call to the Shopper starts in the same tap. */
+  onAsked: () => void;
 }): JSX.Element {
   const [tillError, setTillError] = useState('');
   // The photo of the receipt (STILL_TO_DO item 2): optional, but it lets a larger pay-back go
@@ -487,10 +546,11 @@ function JobInHand({
                     type="button"
                     disabled={busy}
                     onClick={() => {
-                      void act(
-                        () => askAboutItem(job.orderId, item.id),
-                        `We have asked ${job.shopperName} about the ${item.name}. Their answer will appear here.`,
-                      );
+                      // One tap: the question on their screen, and the call (Section H).
+                      void act(async () => {
+                        await askAboutItem(job.orderId, item.id);
+                        onAsked();
+                      }, `We have asked ${job.shopperName} about the ${item.name}. Their answer will appear here.`);
                     }}
                     aria-label={`Cannot find it: ${item.name}`}
                     className="control bg-paper/10 text-paper underline disabled:opacity-70"
@@ -523,6 +583,12 @@ function JobInHand({
           </>
         )}
       </div>
+
+      <JobNavigation
+        address={job.deliveryAddress}
+        mode={travelling}
+        stage={job.status === 'accepted' || job.status === 'shopping' ? 'to-shop' : 'to-door'}
+      />
 
       <div className="space-y-3">
         <h3 className="text-lead font-bold m-0">Next</h3>
@@ -862,7 +928,13 @@ function payBackWords(status: 'paid' | 'waiting' | 'owed', pence: number): strin
  * Agreeing to the Runner agreement before the first job (ruling 55). A tick and a button, kept
  * with the date and the version. No job is offered until it is done.
  */
-function AgreeFirst({ busy, onAgree }: { busy: boolean; onAgree: () => void }): JSX.Element {
+function AgreeFirst({
+  busy,
+  onAgree,
+}: {
+  busy: boolean;
+  onAgree: (channel: 'button' | 'voice') => void;
+}): JSX.Element {
   const [ticked, setTicked] = useState(false);
   const [problem, setProblem] = useState('');
   return (
@@ -904,12 +976,13 @@ function AgreeFirst({ busy, onAgree }: { busy: boolean; onAgree: () => void }): 
             return;
           }
           setProblem('');
-          onAgree();
+          onAgree('button');
         }}
         className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
       >
         I agree
       </button>
+      <AgreeByVoice busy={busy} onAgree={() => onAgree('voice')} />
     </section>
   );
 }
