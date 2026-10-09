@@ -38,6 +38,8 @@ const SCREENS: Array<{ name: string; path: string }> = [
   { name: 'if you look after someone', path: '/looking-after' },
   { name: 'privacy', path: '/privacy' },
   { name: 'our terms', path: '/terms' },
+  { name: 'what we keep on your device', path: '/cookies' },
+  { name: 'the Runner agreement', path: '/runner/agreement' },
   { name: 'past orders, signed out', path: '/orders' },
   { name: 'recipes, signed out', path: '/recipes' },
   { name: 'little gifts', path: '/gifts' },

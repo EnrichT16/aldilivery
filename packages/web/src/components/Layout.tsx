@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { storeConfig } from '../config';
 import { useSession } from '../state/session';
 import { AdSquare } from './AdSquare';
+import { companyFacts } from './CompanyDetails';
 import { OziBubble } from './OziBubble';
 import { OziSwitch } from './OziSwitch';
 import { SocialLinks } from './SocialLinks';
@@ -106,16 +107,33 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
                 Our terms
               </Link>
             </li>
+            <li>
+              <Link to="/cookies" className="control px-0 text-paper underline">
+                Cookies
+              </Link>
+            </li>
           </ul>
           <SocialLinks />
-          <p className="m-0 text-paper/80 extra">
-            {storeConfig.store.legalEntityName}
-            {storeConfig.store.legalEntityIsPlaceholder ? ' (company details to follow)' : ''}
-          </p>
+          <CompanyLine />
         </div>
       </footer>
       <OziSwitch />
       <OziBubble />
     </div>
+  );
+}
+
+/**
+ * The company's name, number, registered office and email, on every page (Companies Act 2006
+ * and the trading disclosure regulations of 2015; the E-Commerce Regulations 2002). Always shown,
+ * not tucked behind "Show words on the screen". Placeholders read "to follow" (ruling 54).
+ */
+function CompanyLine(): JSX.Element {
+  const facts = companyFacts();
+  return (
+    <p className="m-0 text-paper/80">
+      {facts.name}, registered in {facts.registeredIn}, company number {facts.number}. Registered
+      office: {facts.office}. Email: {facts.email ?? 'to follow'}.
+    </p>
   );
 }

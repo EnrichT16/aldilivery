@@ -74,13 +74,77 @@ describe('the landing page', () => {
     expect(screen.queryByRole('link', { name: /admin|staff/i })).toBeNull();
   });
 
-  it('links to the privacy page and the terms from every page, marked as drafts', () => {
+  it('links to the privacy page, the terms and the cookies page from every page', () => {
     renderAt('/shop');
     expect(screen.getByRole('link', { name: 'Privacy' })).toHaveAttribute('href', '/privacy');
     expect(screen.getByRole('link', { name: 'Our terms' })).toHaveAttribute('href', '/terms');
+    expect(screen.getByRole('link', { name: 'Cookies' })).toHaveAttribute('href', '/cookies');
+  });
+
+  /**
+   * Ruling 54 (9 October 2026): the privacy page and the terms were reviewed against UK law and
+   * are no longer marked as drafts. While a company detail is still a placeholder in
+   * config/store.json, they say "to follow" rather than show a made-up number.
+   */
+  it('shows the privacy page without a draft mark, with what the law asks it to say', () => {
     renderAt('/privacy');
-    expect(screen.getByText(/This is a draft, being checked by our solicitor/)).toBeInTheDocument();
+    expect(screen.queryByText(/This is a draft/)).toBeNull();
     expect(screen.getByText(/Calls are not recorded/)).toBeInTheDocument();
+    expect(
+      screen.getAllByText(new RegExp(storeConfig.store.legalEntityName)).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByRole('heading', { name: 'How long we keep it' })).toBeInTheDocument();
+    expect(screen.getByText(/ico\.org\.uk or on 0303 123 1113/)).toBeInTheDocument();
+    expect(screen.getByText(/your explicit\s+consent/)).toBeInTheDocument();
+    if (storeConfig.store.companyNumberIsPlaceholder) {
+      expect(screen.getByText('Company number: to follow.')).toBeInTheDocument();
+      expect(screen.queryByText(new RegExp(storeConfig.store.companyNumber))).toBeNull();
+    }
+  });
+
+  it('puts the company name, number and registered office in the footer of every page', () => {
+    renderAt('/shop');
+    const footer = document.querySelector('footer');
+    expect(footer?.textContent).toContain(storeConfig.store.legalEntityName);
+    expect(footer?.textContent).toContain(`registered in ${storeConfig.store.registeredIn}`);
+    expect(footer?.textContent).toMatch(/Registered office:/);
+  });
+
+  it('says how to cancel, and keeps consumer rights, in the terms', () => {
+    renderAt('/terms');
+    expect(screen.queryByText(/This is a draft/)).toBeNull();
+    expect(screen.getByRole('heading', { name: 'Changing your mind' })).toBeInTheDocument();
+    expect(
+      screen.getByText(/We never limit our responsibility for death or injury/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Help and adjustments' })).toBeInTheDocument();
+  });
+
+  it('lists what is kept on the device, with no tracking cookies', () => {
+    renderAt('/cookies');
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'What we keep on your device' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/no advertising cookies and no tracking cookies/)).toBeInTheDocument();
+  });
+
+  it('has a Runner agreement that matches how the Runner app works', () => {
+    renderAt('/runner');
+    expect(screen.getByRole('link', { name: 'Read the Runner agreement' })).toHaveAttribute(
+      'href',
+      '/runner/agreement',
+    );
+    renderAt('/runner/agreement');
+    expect(screen.getByRole('heading', { level: 1, name: 'Runner agreement' })).toBeInTheDocument();
+    expect(screen.getByText(/You can say no to any job, without a reason/)).toBeInTheDocument();
+    expect(
+      screen.getByText(new RegExp(`${storeConfig.problems.recoveryPercentOfPay}% of each later`)),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Nothing is ever taken from your pay automatically/),
+    ).toBeInTheDocument();
+    // Still a draft on purpose: employment status and paying at the till need decisions.
+    expect(screen.getByText(/This is a draft/)).toBeInTheDocument();
   });
 
   it('keeps the invitation code from a shared link for the sign-up form', () => {
@@ -264,6 +328,8 @@ describe('the accessibility promises axe cannot see', () => {
     '/looking-after',
     '/privacy',
     '/terms',
+    '/cookies',
+    '/runner/agreement',
   ];
 
   it('gives every control a name that a person could read out, on every screen', async () => {

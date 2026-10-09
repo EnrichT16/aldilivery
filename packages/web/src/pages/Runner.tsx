@@ -53,9 +53,9 @@ export function RunnerDoor(): JSX.Element {
         </h2>
         <p className="m-0 max-w-xl">
           You will need a cool bag. We hold back {money(coolBag.withholdPerOrderPence)} from your
-          first few payments, up to {money(coolBag.depositPence)} in total, and give the whole
-          lot back to you after your {coolBag.releaseAfterCompletedDeliveries}th delivery. It is
-          held, not taken.
+          first few payments, up to {money(coolBag.depositPence)} in total, and give the whole lot
+          back to you after your {coolBag.releaseAfterCompletedDeliveries}th delivery. It is held,
+          not taken.
         </p>
       </section>
 
@@ -67,7 +67,21 @@ export function RunnerDoor(): JSX.Element {
           <li>Proof of your right to work in the United Kingdom.</li>
           <li>A criminal record check.</li>
           <li>Your own bank account, so we can pay you directly.</li>
+          <li>You must be 18 or over.</li>
         </ul>
+      </section>
+
+      <section aria-labelledby="agreement-heading" className="space-y-3">
+        <h2 id="agreement-heading" className="text-lead font-bold">
+          Working for yourself
+        </h2>
+        <p className="m-0 max-w-xl">
+          Runners are self-employed. You choose when you work, and you can say no to any job without
+          a reason. The Runner agreement says how it all works, in plain words.
+        </p>
+        <Link to="/runner/agreement" className="control bg-paper/10 text-paper underline">
+          Read the Runner agreement
+        </Link>
       </section>
 
       <Link to="/runner/sign-up" className="control bg-highlight text-ink text-lead">

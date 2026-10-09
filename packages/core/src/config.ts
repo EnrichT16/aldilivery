@@ -36,11 +36,29 @@ export interface StoreConfig {
   readonly contact: {
     readonly telephonePlaceholder: string;
     readonly telephoneIsPlaceholder: boolean;
+    /** The email address Shoppers, Runners and anyone else can write to (E-Commerce Regulations). */
+    readonly email: string;
+    readonly emailIsPlaceholder: boolean;
   };
   readonly store: {
     readonly displayName: string;
     readonly legalEntityName: string;
     readonly legalEntityIsPlaceholder: boolean;
+    /**
+     * The company that runs the service, as the law asks it to be named on the website and in
+     * the legal pages (Companies Act 2006 and the trading disclosure regulations of 2015, the
+     * E-Commerce Regulations 2002, and UK GDPR Article 13). Each has its own placeholder flag, so
+     * a page can say "to follow" instead of showing a made-up number (docs/LEGAL_REVIEW.md).
+     */
+    readonly companyNumber: string;
+    readonly companyNumberIsPlaceholder: boolean;
+    /** Where the company is registered, such as "England and Wales". */
+    readonly registeredIn: string;
+    readonly registeredOffice: string;
+    readonly registeredOfficeIsPlaceholder: boolean;
+    /** The data protection fee registration number the Information Commissioner gives. */
+    readonly icoRegistrationNumber: string;
+    readonly icoRegistrationIsPlaceholder: boolean;
     readonly country: string;
     readonly currency: string;
     readonly currencySymbol: string;
@@ -186,6 +204,14 @@ function bool(value: unknown, path: string): boolean {
     throw new StoreConfigError(`${path} must be true or false.`);
   }
   return value;
+}
+
+function emailAddress(value: unknown, path: string): string {
+  const address = str(value, path).trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
+    throw new StoreConfigError(`${path} must be an email address, received "${address}".`);
+  }
+  return address;
 }
 
 /** The gift card amounts on offer, each at least a pound. */
@@ -403,11 +429,20 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     contact: {
       telephonePlaceholder: str(contact['telephonePlaceholder'], 'contact.telephonePlaceholder'),
       telephoneIsPlaceholder: bool(contact['telephoneIsPlaceholder'], 'contact.telephoneIsPlaceholder'),
+      email: emailAddress(contact['email'], 'contact.email'),
+      emailIsPlaceholder: bool(contact['emailIsPlaceholder'], 'contact.emailIsPlaceholder'),
     },
     store: {
       displayName: str(store['displayName'], 'store.displayName'),
       legalEntityName: str(store['legalEntityName'], 'store.legalEntityName'),
       legalEntityIsPlaceholder: bool(store['legalEntityIsPlaceholder'], 'store.legalEntityIsPlaceholder'),
+      companyNumber: str(store['companyNumber'], 'store.companyNumber'),
+      companyNumberIsPlaceholder: bool(store['companyNumberIsPlaceholder'], 'store.companyNumberIsPlaceholder'),
+      registeredIn: str(store['registeredIn'], 'store.registeredIn'),
+      registeredOffice: str(store['registeredOffice'], 'store.registeredOffice'),
+      registeredOfficeIsPlaceholder: bool(store['registeredOfficeIsPlaceholder'], 'store.registeredOfficeIsPlaceholder'),
+      icoRegistrationNumber: str(store['icoRegistrationNumber'], 'store.icoRegistrationNumber'),
+      icoRegistrationIsPlaceholder: bool(store['icoRegistrationIsPlaceholder'], 'store.icoRegistrationIsPlaceholder'),
       country: str(store['country'], 'store.country'),
       currency: str(store['currency'], 'store.currency'),
       currencySymbol: str(store['currencySymbol'], 'store.currencySymbol'),

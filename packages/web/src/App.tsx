@@ -27,6 +27,7 @@ import { Organisations } from './pages/Organisations';
 import { PartnerDashboard } from './pages/PartnerDashboard';
 import { ReportProblem } from './pages/ReportProblem';
 import { Plus } from './pages/Plus';
+import { Cookies } from './pages/Cookies';
 import { Privacy } from './pages/Privacy';
 import { Recipes } from './pages/Recipes';
 import { RunnerDoor } from './pages/Runner';
@@ -36,6 +37,7 @@ import { Settings } from './pages/Settings';
 import { ShopPage, Shops } from './pages/Shops';
 import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
+import { RunnerAgreement } from './pages/RunnerAgreement';
 import { Terms } from './pages/Terms';
 import { WeeklyShop } from './pages/WeeklyShop';
 import { CallJoin } from './pages/CallJoin';
@@ -130,6 +132,7 @@ export function App(): JSX.Element {
                 <Route path="/about" element={<About />} />
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
+                <Route path="/cookies" element={<Cookies />} />
                 <Route path="/call/join" element={<CallJoin />} />
                 <Route path="/staff" element={<Staff />} />
                 <Route path="/looking-after" element={<LookingAfter />} />
@@ -158,6 +161,7 @@ export function App(): JSX.Element {
                 <Route path="/orders/:orderId/problem" element={<ReportProblem as="shopper" />} />
                 <Route path="/runner" element={<RunnerDoor />} />
                 <Route path="/runner/sign-up" element={<RunnerSignUp />} />
+                <Route path="/runner/agreement" element={<RunnerAgreement />} />
                 <Route path="/runner/home" element={<RunnerHome />} />
                 <Route path="/runner/jobs/:orderId/problem" element={<ReportProblem />} />
                 <Route path="/just-looking" element={<JustLooking />} />

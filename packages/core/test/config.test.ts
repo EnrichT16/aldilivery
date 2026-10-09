@@ -49,8 +49,22 @@ describe('the live configuration file', () => {
     expect(config.payments.supportedCardRegions).toEqual(['ANY']);
   });
 
-  it('holds the legal entity name as an acknowledged placeholder', () => {
-    expect(config.store.legalEntityIsPlaceholder).toBe(true);
+  it('names the company that runs the service, and flags each detail still to follow', () => {
+    expect(config.store.legalEntityIsPlaceholder).toBe(false);
+    expect(config.store.legalEntityName.length).toBeGreaterThan(0);
+    // Until Anthony fills them in (docs/LEGAL_REVIEW.md), the legal pages say "to follow"
+    // instead of showing a made-up number. Each flag is set by hand when the real detail is in.
+    expect(config.store.registeredIn).toBe('England and Wales');
+    expect(typeof config.store.companyNumberIsPlaceholder).toBe('boolean');
+    expect(typeof config.store.registeredOfficeIsPlaceholder).toBe('boolean');
+    expect(typeof config.store.icoRegistrationIsPlaceholder).toBe('boolean');
+    expect(config.contact.email).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+  });
+
+  it('refuses a contact email that is not an email address', () => {
+    const raw = goodConfig();
+    raw['contact'] = { ...(raw['contact'] as Record<string, unknown>), email: 'ring us' };
+    expect(() => parseStoreConfig(raw)).toThrow(/contact.email must be an email address/);
   });
 
   it('sets the accessibility floor: 20 pixel text and 48 pixel controls (Rule Seven)', () => {

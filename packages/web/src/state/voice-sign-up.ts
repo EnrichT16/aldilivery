@@ -260,7 +260,7 @@ export function useVoiceSignUp({
 
     const askDoor = (): void =>
       ask(
-        'What should your Runner do at the door? For example: knock loudly and wait. Or say nothing.',
+        'What should your Runner do at the door? For example: knock loudly and wait. Or say nothing. Anything you tell me about your health is only used to help you at the door.',
         (text) => {
           set('doorstepProtocol', NOTHING.test(text.trim()) ? '' : text.trim());
           askFinal();

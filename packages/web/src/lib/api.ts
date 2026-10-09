@@ -194,6 +194,11 @@ export function registerShopper(
   return request<{ shopper: Shopper; token: string }>('/shoppers', {
     method: 'POST',
     body: JSON.stringify(via ? { ...input, joinedVia: via } : input),
+  }).then((made) => {
+    // Its only job is done: nothing about where somebody came from stays on their device
+    // (the page "What we keep on your device", ruling 54).
+    forgetJoinedVia();
+    return made;
   });
 }
 
@@ -205,6 +210,14 @@ export function rememberJoinedVia(via: string): void {
     window.localStorage.setItem(JOINED_VIA, via);
   } catch {
     // Not counted, which is harmless.
+  }
+}
+
+function forgetJoinedVia(): void {
+  try {
+    window.localStorage.removeItem(JOINED_VIA);
+  } catch {
+    // Nothing to forget.
   }
 }
 
