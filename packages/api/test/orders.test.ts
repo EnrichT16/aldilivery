@@ -39,7 +39,7 @@ function orderPayload(overrides: Record<string, unknown> = {}) {
       confirmed: true,
       addressConfirmed: true,
       channel: 'button',
-      statement: 'Send my order. About £16.00 altogether.',
+      statement: 'Send my order and pay. About £16.00 altogether.',
       agreedTotalPence: 250 + 1350,
     },
     ...overrides,
@@ -71,7 +71,7 @@ describe('Rule One: no payment without an explicit confirmation', () => {
         confirmation: {
           confirmed: false,
           channel: 'button',
-          statement: 'Send my order.',
+          statement: 'Send my order and pay.',
           agreedTotalPence: 1600,
         },
       }),
@@ -127,7 +127,7 @@ describe('Rule One: no payment without an explicit confirmation', () => {
           confirmed: true,
           addressConfirmed: true,
           channel: 'button',
-          statement: 'Send my order.',
+          statement: 'Send my order and pay.',
           agreedTotalPence: 100,
         },
       }),
@@ -146,7 +146,7 @@ describe('Rule One: no payment without an explicit confirmation', () => {
         id: 'order_1',
         status: 'draft',
         spokenConfirmationAt: null,
-        confirmationStatement: 'Send my order.',
+        confirmationStatement: 'Send my order and pay.',
         stripePaymentIntentId: null,
       }),
     ).toThrow(ConfirmationRequiredError);
@@ -289,7 +289,7 @@ describe('a payment the bank has not approved yet', () => {
           confirmed: true,
           addressConfirmed: true,
           channel: 'button',
-          statement: 'Send my order. About £16.00 altogether.',
+          statement: 'Send my order and pay. About £16.00 altogether.',
           agreedTotalPence: 250 + 1350,
         },
       },
@@ -329,7 +329,7 @@ describe('a payment the bank has not approved yet', () => {
           confirmed: true,
           addressConfirmed: true,
           channel: 'button',
-          statement: 'Send my order. About £16.00 altogether.',
+          statement: 'Send my order and pay. About £16.00 altogether.',
           agreedTotalPence: 250 + 1350,
         },
       },
@@ -393,7 +393,7 @@ describe('a payment the gateway refuses', () => {
           confirmed: true,
           addressConfirmed: true,
           channel: 'button',
-          statement: 'Send my order. About £16.00 altogether.',
+          statement: 'Send my order and pay. About £16.00 altogether.',
           agreedTotalPence: 250 + 1350,
         },
       },
@@ -442,7 +442,7 @@ describe('a payment the gateway refuses', () => {
     // Rule One is about what was recorded, not about whether the payment went through. The
     // Shopper did confirm, and the order must still say so.
     expect(orders[0].spokenConfirmationAt).not.toBeNull();
-    expect(orders[0].confirmationStatement).toBe('Send my order. About £16.00 altogether.');
+    expect(orders[0].confirmationStatement).toBe('Send my order and pay. About £16.00 altogether.');
 
     await harness.close();
   });
@@ -465,7 +465,7 @@ describe('a payment the gateway refuses', () => {
           confirmed: true,
           addressConfirmed: true,
           channel: 'button',
-          statement: 'Send my order. About £16.00 altogether.',
+          statement: 'Send my order and pay. About £16.00 altogether.',
           agreedTotalPence: 250 + 1350,
         },
       },

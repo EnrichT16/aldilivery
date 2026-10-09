@@ -59,6 +59,12 @@ export interface CreateTransferInput {
    * failing for "insufficient funds" until the platform balance catches up.
    */
   sourcePaymentIntentId?: string | undefined;
+  /**
+   * A reference that makes the transfer happen once only, however often it is asked for, such
+   * as reimburse:<order id> for paying a Runner back for the shopping. Stripe returns the first
+   * transfer for a repeated reference instead of making a second.
+   */
+  idempotencyKey?: string | undefined;
 }
 
 /** Where a Runner is with setting up how they are paid. */
@@ -238,14 +244,20 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
         const charge = intent.latest_charge;
         sourceTransaction = typeof charge === 'string' ? charge : charge?.id;
       }
-      const transfer = await stripe.transfers.create({
-        amount: input.amountPence,
-        currency: input.currency.toLowerCase(),
-        destination: input.destinationAccountId,
-        description: input.description,
-        metadata: { orderId: input.orderId },
-        ...(sourceTransaction ? { source_transaction: sourceTransaction } : {}),
-      });
+      const transfer = await stripe.transfers.create(
+        {
+          amount: input.amountPence,
+          currency: input.currency.toLowerCase(),
+          destination: input.destinationAccountId,
+          description: input.description,
+          metadata: {
+            orderId: input.orderId,
+            ...(input.idempotencyKey ? { reference: input.idempotencyKey } : {}),
+          },
+          ...(sourceTransaction ? { source_transaction: sourceTransaction } : {}),
+        },
+        input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined,
+      );
       return { id: transfer.id, amountPence: transfer.amount };
     },
 
@@ -378,6 +390,7 @@ export interface RehearsalGateway extends PaymentsGateway {
 
 export function rehearsalGateway(): RehearsalGateway {
   const calls: RecordedCall[] = [];
+  const transfersByKey = new Map<string, TransferResult>();
   let counter = 0;
 
   const gateway: RehearsalGateway = {
@@ -420,9 +433,14 @@ export function rehearsalGateway(): RehearsalGateway {
       };
     },
     async createTransfer(input) {
+      // As Stripe does: the same reference twice gives back the first transfer, not a second.
+      const earlier = input.idempotencyKey ? transfersByKey.get(input.idempotencyKey) : undefined;
+      if (earlier) return earlier;
       counter += 1;
       calls.push({ kind: 'transfer', input });
-      return { id: `tr_rehearsal_${counter}`, amountPence: input.amountPence };
+      const transfer = { id: `tr_rehearsal_${counter}`, amountPence: input.amountPence };
+      if (input.idempotencyKey) transfersByKey.set(input.idempotencyKey, transfer);
+      return transfer;
     },
     async createConnectedAccount(input) {
       counter += 1;

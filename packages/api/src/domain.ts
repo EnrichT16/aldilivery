@@ -104,6 +104,10 @@ export interface Runner {
   latitude: number | null;
   longitude: number | null;
   lastJobCompletedAt: Date | null;
+  /** When they agreed to the Runner agreement, which version, and how (ruling 55). */
+  agreementAcceptedAt: Date | null;
+  agreementVersion: string | null;
+  agreementChannel: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -224,6 +228,12 @@ export interface OrderItem {
   createdAt: Date;
 }
 
+/**
+ * Where paying a Runner back for the shopping has got to: sent, waiting for a person to approve
+ * it, or owed because their payout account was not ready (the payout sweep sends it).
+ */
+export type ReimbursementStatus = 'paid' | 'waiting' | 'owed';
+
 export interface Order {
   id: string;
   shopperId: string;
@@ -256,6 +266,13 @@ export interface Order {
   poolId: string | null;
   runnerPaymentPence: number;
   runnerTransferId: string | null;
+  /** Paying the Runner back for the shopping (ruling 55). See services/reimburse.ts. */
+  reimbursementPence: number | null;
+  reimbursementStatus: ReimbursementStatus | null;
+  reimbursementReason: string | null;
+  reimbursementTransferId: string | null;
+  reimbursedAt: Date | null;
+  reimbursementApprovedBy: string | null;
   createdAt: Date;
   updatedAt: Date;
   acceptedAt: Date | null;

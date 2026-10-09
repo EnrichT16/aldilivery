@@ -8,7 +8,7 @@
 
 import type { FastifyInstance } from 'fastify';
 
-import type { IncomeRecord } from '../domain.js';
+import type { IncomeRecord, Order } from '../domain.js';
 import { staffActor } from '../lib/staff.js';
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -37,6 +37,30 @@ function totals(rows: IncomeRecord[]) {
 export async function registerOwnerRoutes(app: FastifyInstance): Promise<void> {
   const { repository, now, payments } = app.ctx;
 
+  /**
+   * What Runners have been paid back for the shopping they bought with their own cards
+   * (ruling 55). It passes straight through to them (Rule Ten); this is the record of it.
+   */
+  async function runnerPayBack(at: Date, startOfDay: Date) {
+    const paid = await repository.orders.listByReimbursementStatus('paid');
+    const waiting = await repository.orders.listByReimbursementStatus('waiting');
+    const owed = await repository.orders.listByReimbursementStatus('owed');
+    const sum = (orders: Order[]): number =>
+      orders.reduce((total, order) => total + (order.reimbursementPence ?? 0), 0);
+    const paidSince = (from: Date): Order[] =>
+      paid.filter((order) => (order.reimbursedAt ?? new Date(0)) >= from);
+    return {
+      todayPence: sum(paidSince(startOfDay)),
+      weekPence: sum(paidSince(new Date(at.getTime() - 7 * DAY))),
+      monthPence: sum(paidSince(new Date(at.getTime() - 30 * DAY))),
+      allTimePence: sum(paid),
+      waitingCount: waiting.length,
+      waitingPence: sum(waiting),
+      owedCount: owed.length,
+      owedPence: sum(owed),
+    };
+  }
+
   app.get('/staff/money', async (request) => {
     await staffActor(request, 'money');
     const at = now();
@@ -56,6 +80,7 @@ export async function registerOwnerRoutes(app: FastifyInstance): Promise<void> {
       month: totals(since(new Date(at.getTime() - 30 * DAY))),
       year: totals(since(new Date(at.getTime() - 365 * DAY))),
       allTime: totals(all),
+      runnerPayBack: await runnerPayBack(at, startOfDay),
       recent: all
         .slice(-50)
         .reverse()

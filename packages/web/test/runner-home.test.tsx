@@ -12,6 +12,8 @@ import axe from 'axe-core';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { RUNNER_AGREEMENT_VERSION } from '@aldilivery/core';
+
 import { App } from '../src/App';
 import { storeConfig } from '../src/config';
 import { penceFrom } from '../src/pages/RunnerHome';
@@ -26,6 +28,8 @@ interface State {
   sent: Array<{ method: string; path: string; body: unknown }>;
   travelling: 'on_foot' | 'bicycle' | 'car';
   canDrive: boolean;
+  /** Agreed to the Runner agreement as it stands (ruling 55). */
+  agreed: boolean;
 }
 
 let state: State;
@@ -64,7 +68,15 @@ function stubRunnerApi(): void {
             rightToWorkVerified: state.approved,
             criminalRecordCheckVerified: state.approved,
             available: state.available,
+            agreementCurrent: state.agreed,
           },
+        });
+      }
+      if (path === '/runners/me/agreement') {
+        state.agreed = true;
+        return reply({
+          runner: {},
+          message: 'Thank you. You have agreed to the Runner agreement, and you can take jobs.',
         });
       }
       if (path === '/runners/me/payouts') {
@@ -158,7 +170,16 @@ function stubRunnerApi(): void {
       }
       if (path === '/orders/order-1/status') {
         state.status = (body as { status: State['status'] }).status;
-        return reply({});
+        return reply(
+          state.status === 'delivered'
+            ? {
+                notes: [
+                  "You've been paid back £3.20 for the shopping and £5.00 for the delivery.",
+                  '£5.00 is on its way to your account.',
+                ],
+              }
+            : {},
+        );
       }
       if (path === '/runners/me/dashboard') {
         return reply({
@@ -188,6 +209,16 @@ function stubRunnerApi(): void {
             },
           ],
           totalTransferredPence: 400,
+          paidBack: [
+            { reference: 'OZ-ABC123', pence: 320, status: 'paid', at: '2026-10-03T08:40:00.000Z' },
+            {
+              reference: 'OZ-DEF456',
+              pence: 1200,
+              status: 'waiting',
+              at: '2026-10-03T10:00:00.000Z',
+            },
+          ],
+          paidBackTotalPence: 320,
           owing: [
             {
               reference: 'OZ-ABC123',
@@ -226,7 +257,11 @@ function stubRunnerApi(): void {
       }
       if (path === '/orders/order-1/receipt') {
         state.status = 'receipt_submitted';
-        return reply({ message: 'The shopping came to £3.20.' });
+        return reply({
+          message:
+            "The shopping came to £3.20. You've been paid back £3.20 for the shopping. Your £5.00 for the delivery follows when you hand the shopping over.",
+          reimbursement: { kind: 'paid', pence: 320, message: '' },
+        });
       }
       return reply({ error: { message: `Nothing stubbed for ${method} ${path}` } }, 404);
     }),
@@ -252,6 +287,7 @@ beforeEach(() => {
     sent: [],
     travelling: 'on_foot',
     canDrive: false,
+    agreed: true,
   };
 });
 
@@ -341,14 +377,19 @@ describe('a Runner page', () => {
     expect(state.sent.find((r) => r.path === '/orders/order-1/receipt')?.body).toEqual({
       receiptTotalPence: 320,
     });
+    // Paid back for the shopping straight away, in plain words (ruling 55).
+    expect(
+      await screen.findByText(/You've been paid back £3.20 for the shopping\. Your £5.00/),
+    ).toHaveAttribute('role', 'status');
 
     await user.click(await screen.findByRole('button', { name: 'I am on my way' }));
     await user.click(await screen.findByRole('button', { name: 'I have delivered it' }));
 
-    expect(await screen.findByText(/Delivered. Thank you. You have earned £5.00/)).toHaveAttribute(
-      'role',
-      'status',
-    );
+    expect(
+      await screen.findByText(
+        /Delivered. Thank you. You've been paid back £3.20 for the shopping and £5.00 for the delivery\./,
+      ),
+    ).toHaveAttribute('role', 'status');
     expect(state.status).toBe('delivered');
   });
 
@@ -384,6 +425,34 @@ describe('a Runner page', () => {
       await screen.findByText('Margaret says: leave it out, for the White sliced bread, 800g.'),
     ).toHaveAttribute('role', 'status');
     expect(screen.getByText('Margaret says: leave it out.')).toBeInTheDocument();
+  });
+
+  it('asks for the Runner agreement before the first job, and records the tick', async () => {
+    const user = userEvent.setup({ delay: null });
+    state.agreed = false;
+    stubRunnerApi();
+    renderHome();
+
+    expect(
+      await screen.findByRole('heading', { name: 'Before your first job' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Read the Runner agreement' })).toHaveAttribute(
+      'href',
+      '/runner/agreement',
+    );
+    await user.click(screen.getByRole('button', { name: 'I agree' }));
+    expect(await screen.findByText(/Please tick the box/)).toHaveAttribute('role', 'alert');
+    expect(state.sent.some((r) => r.path === '/runners/me/agreement')).toBe(false);
+
+    await user.click(screen.getByLabelText('I have read the Runner agreement and I agree to it'));
+    await user.click(screen.getByRole('button', { name: 'I agree' }));
+    expect(await screen.findByText(/You have agreed to the Runner agreement/)).toBeInTheDocument();
+    expect(state.sent.find((r) => r.path === '/runners/me/agreement')?.body).toEqual({
+      accepted: true,
+      version: RUNNER_AGREEMENT_VERSION,
+      channel: 'button',
+    });
+    expect(screen.queryByRole('heading', { name: 'Before your first job' })).toBeNull();
   });
 
   it('does not offer to ask before shopping has started', async () => {
@@ -502,6 +571,17 @@ describe('the Runner page tabs', () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByText(/10% of each job’s pay goes towards it/)).toBeInTheDocument();
+    // Paid back for the shopping, shown apart from earnings (ruling 55).
+    expect(screen.getByRole('heading', { name: 'Paid back for the shopping' })).toBeInTheDocument();
+    expect(screen.getByText(/£3.20 paid back so far/)).toBeInTheDocument();
+    expect(
+      screen.getByText("Order OZ-ABC123: You've been paid back £3.20 for the shopping."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Order OZ-DEF456: A person is checking the till total before we pay you back £12.00 for the shopping.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('lists the training to come, honestly marked', async () => {

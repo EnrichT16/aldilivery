@@ -17,6 +17,7 @@ import type { AppContext } from '../app.js';
 import type { Order, RunnerPayout } from '../domain.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
 import { planPayout, type PayoutPlan } from './payouts.js';
+import { paidBackWords } from './reimburse.js';
 
 type PayContext = Pick<AppContext, 'repository' | 'config' | 'payments' | 'now'>;
 
@@ -125,7 +126,15 @@ export async function payOutOrder(ctx: PayContext, orderId: string): Promise<Pay
     runnerTransferId: transferId,
   });
 
-  const notes = [`You earned ${formatPence(plan.earnedPence, symbol)} for this delivery.`];
+  // Paid back for the shopping already (ruling 55): both said together, in plain words.
+  const notes = [
+    updatedOrder.reimbursementStatus === 'paid' && updatedOrder.reimbursementPence !== null
+      ? paidBackWords(updatedOrder.reimbursementPence, symbol, {
+          pence: plan.earnedPence,
+          paid: true,
+        })
+      : `You earned ${formatPence(plan.earnedPence, symbol)} for this delivery.`,
+  ];
   if (plan.coolBagWithheldPence > 0) {
     notes.push(
       `${formatPence(plan.coolBagWithheldPence, symbol)} is held towards your cool bag deposit. You get it back after ${config.fees.coolBag.releaseAfterCompletedDeliveries} deliveries.`,

@@ -16,6 +16,7 @@ import { NOT_A_UK_NUMBER, ukPhone } from '../lib/phone.js';
 import { newReferralCode } from '../lib/referral.js';
 import { hashCode, signSession, suggestHandle, verifyPhoneProof } from '../lib/tokens.js';
 import { sweepOffers } from '../services/dispatch.js';
+import { agreementRecord, agreementSchema, hasAgreed } from '../services/runner-agreement.js';
 import { MOTOR_MODES, canDrive, documentsNeeded } from './runner-account.js';
 
 /** Checked, and turned into `+44…`, so the same number always finds the same account. */
@@ -72,6 +73,8 @@ const runnerSchema = z.object({
   /** The ID of whoever invited them, from the link they followed. */
   referredBy: z.string().trim().max(20).optional(),
   stripeConnectedAccountId: z.string().trim().max(120).optional(),
+  /** Agreeing to the Runner agreement as they sign up (ruling 55). Or later, before a job. */
+  agreement: agreementSchema.optional(),
 });
 
 const profileSchema = z.object({
@@ -160,7 +163,9 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
           ?.referralCode ?? null)
       : null;
 
+    const agreed = input.agreement ? agreementRecord(input.agreement, now()) : {};
     const runner = await repository.runners.create({
+      ...agreed,
       name: input.name,
       phone: input.phone,
       vehicleType: firstMode,
@@ -239,6 +244,22 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
   });
 
   /** Runners say when they are on shift, and where they are. */
+  /**
+   * Agreeing to the Runner agreement, for a Runner who did not at sign-up, or when it has
+   * changed (ruling 55). Kept with the date, the version and how they agreed.
+   */
+  app.post('/runners/me/agreement', async (request) => {
+    const session = requireSession(request, 'runner');
+    const input = agreementSchema.parse(request.body ?? {});
+    const runner = await repository.runners.findById(session.accountId);
+    if (!runner) throw new NotFoundError('account');
+    const updated = await repository.runners.update(runner.id, agreementRecord(input, now()));
+    return {
+      runner: publicRunner(updated),
+      message: 'Thank you. You have agreed to the Runner agreement, and you can take jobs.',
+    };
+  });
+
   app.post('/runners/me/availability', async (request) => {
     const session = requireSession(request, 'runner');
     const body = z
@@ -322,5 +343,6 @@ function publicShopper(shopper: import('../domain.js').Shopper) {
 }
 
 function publicRunner(runner: import('../domain.js').Runner) {
-  return runner;
+  // Whether they have agreed to the Runner agreement as it stands today (ruling 55).
+  return { ...runner, agreementCurrent: hasAgreed(runner) };
 }

@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom';
 
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { storeConfig } from '../config';
+import { RUNNER_AGREEMENT_VERSION } from '@aldilivery/core';
+
 import {
   acceptJob,
+  agreeToRunnerAgreement,
   ApiUnavailableError,
   fetchRunnerDashboard,
   sendRunnerFeedback,
@@ -311,7 +314,7 @@ export function RunnerHome(): JSX.Element {
             </section>
           ) : job ? (
             <>
-              <JobInHand job={job} questions={questions} busy={busy} act={act} />
+              <JobInHand job={job} questions={questions} busy={busy} act={act} onNews={setNews} />
               <CallControls orderId={job.orderId} as="runner" otherName={job.shopperName} />
               <Link
                 to={`/runner/jobs/${encodeURIComponent(job.orderId)}/problem`}
@@ -322,6 +325,17 @@ export function RunnerHome(): JSX.Element {
             </>
           ) : (
             <>
+              {runner.agreementCurrent === false && (
+                <AgreeFirst
+                  busy={busy}
+                  onAgree={() => {
+                    void act(async () => {
+                      const result = await agreeToRunnerAgreement(RUNNER_AGREEMENT_VERSION);
+                      setNews(result.message);
+                    }, '');
+                  }}
+                />
+              )}
               <section aria-labelledby="shift-heading" className="space-y-3 max-w-xl">
                 <h2 id="shift-heading" className="text-lead font-bold">
                   {runner.available ? 'You are on shift' : 'You are off shift'}
@@ -409,11 +423,13 @@ function JobInHand({
   questions,
   busy,
   act,
+  onNews,
 }: {
   job: CurrentJob;
   questions: ItemQuestion[];
   busy: boolean;
   act: (action: () => Promise<unknown>, done: string) => Promise<void>;
+  onNews: (text: string) => void;
 }): JSX.Element {
   const [tillError, setTillError] = useState('');
 
@@ -426,10 +442,11 @@ function JobInHand({
       return;
     }
     setTillError('');
-    void act(
-      () => submitTillTotal(job.orderId, pence),
-      `Thank you. The till total of ${money(pence)} is in.`,
-    );
+    // What we say back includes being paid back for the shopping (ruling 55), in plain words.
+    void act(async () => {
+      const result = await submitTillTotal(job.orderId, pence);
+      onNews(`Thank you. The till total of ${money(pence)} is in. ${result.message}`);
+    }, '');
   }
 
   return (
@@ -501,7 +518,8 @@ function JobInHand({
               What did the till say?
             </label>
             <p id="till-hint" className="m-0 text-paper/90">
-              The total on the receipt, in pounds and pence. The Shopper is charged exactly this.
+              The total on the receipt, in pounds and pence. The Shopper is charged exactly this,
+              and we pay it back to you straight away.
             </p>
             {tillError !== '' && (
               <p
@@ -529,6 +547,10 @@ function JobInHand({
           </form>
         )}
 
+        {job.reimbursementStatus && job.reimbursementPence != null && (
+          <p className="m-0">{payBackWords(job.reimbursementStatus, job.reimbursementPence)}</p>
+        )}
+
         {job.status === 'receipt_submitted' && (
           <button
             type="button"
@@ -547,10 +569,16 @@ function JobInHand({
             type="button"
             disabled={busy}
             onClick={() => {
-              void act(
-                () => moveJobOn(job.orderId, 'delivered'),
-                `Delivered. Thank you. You have earned ${money(job.runnerPaymentPence)} for this one.`,
-              );
+              void act(async () => {
+                const result = (await moveJobOn(job.orderId, 'delivered')) as {
+                  notes?: string[];
+                };
+                onNews(
+                  result.notes && result.notes.length > 0
+                    ? `Delivered. Thank you. ${result.notes.join(' ')}`
+                    : `Delivered. Thank you. You have earned ${money(job.runnerPaymentPence)} for this one.`,
+                );
+              }, '');
             }}
             className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
           >
@@ -739,6 +767,71 @@ function JobHistory({ dashboard }: { dashboard: RunnerDashboard | null }): JSX.E
 }
 
 /** What they have earned and what has been paid out, big and plain. */
+/** Where paying a Runner back for the shopping has got to, in plain words (ruling 55). */
+function payBackWords(status: 'paid' | 'waiting' | 'owed', pence: number): string {
+  if (status === 'paid') return `You've been paid back ${money(pence)} for the shopping.`;
+  if (status === 'waiting') {
+    return `A person is checking the till total before we pay you back ${money(pence)} for the shopping.`;
+  }
+  return `We owe you ${money(pence)} for the shopping. It is sent as soon as your bank details are set up.`;
+}
+
+/**
+ * Agreeing to the Runner agreement before the first job (ruling 55). A tick and a button, kept
+ * with the date and the version. No job is offered until it is done.
+ */
+function AgreeFirst({ busy, onAgree }: { busy: boolean; onAgree: () => void }): JSX.Element {
+  const [ticked, setTicked] = useState(false);
+  const [problem, setProblem] = useState('');
+  return (
+    <section aria-labelledby="agree-heading" className="space-y-3 max-w-xl">
+      <h2 id="agree-heading" className="text-lead font-bold">
+        Before your first job
+      </h2>
+      <p className="m-0">
+        Please read the Runner agreement and say you agree to it. It says how you are paid, that we
+        pay you back for the shopping straight away, and what happens if something goes wrong. No
+        job is offered to you until you have agreed.
+      </p>
+      <Link to="/runner/agreement" className="control bg-paper/10 text-paper underline">
+        Read the Runner agreement
+      </Link>
+      {problem !== '' && (
+        <p role="alert" className="m-0 border-2 border-paper bg-paper text-ink p-3 rounded-xl">
+          {problem}
+        </p>
+      )}
+      <div className="flex items-center gap-3 min-h-control">
+        <input
+          type="checkbox"
+          id="agree-runner"
+          checked={ticked}
+          onChange={(event) => setTicked(event.target.checked)}
+          className="h-6 w-6"
+        />
+        <label htmlFor="agree-runner" className="m-0">
+          I have read the Runner agreement and I agree to it
+        </label>
+      </div>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => {
+          if (!ticked) {
+            setProblem('Please tick the box to say you agree, or read the agreement first.');
+            return;
+          }
+          setProblem('');
+          onAgree();
+        }}
+        className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+      >
+        I agree
+      </button>
+    </section>
+  );
+}
+
 function Money({ dashboard }: { dashboard: RunnerDashboard | null }): JSX.Element {
   if (!dashboard) {
     return (
@@ -772,6 +865,24 @@ function Money({ dashboard }: { dashboard: RunnerDashboard | null }): JSX.Elemen
               <li key={item.reference + item.amountPence}>
                 Order {item.reference}: {money(item.remainingPence)} left of{' '}
                 {money(item.amountPence)}. {item.reason}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {dashboard.paidBack && dashboard.paidBack.length > 0 && (
+        <section aria-labelledby="paid-back-heading" className="space-y-2">
+          <h2 id="paid-back-heading" className="text-lead font-bold">
+            Paid back for the shopping
+          </h2>
+          <p className="m-0">
+            Your own money, paid back for what you bought at the till. It is not counted as
+            earnings. {money(dashboard.paidBackTotalPence ?? 0)} paid back so far.
+          </p>
+          <ul className="m-0 ps-6 space-y-2">
+            {dashboard.paidBack.map((item) => (
+              <li key={item.reference + item.at}>
+                Order {item.reference}: {payBackWords(item.status, item.pence)}
               </li>
             ))}
           </ul>

@@ -143,11 +143,11 @@ describe('sending an order', () => {
     // The sentence on the screen, next to the button. The paragraph also carries a
     // visually-hidden "You are agreeing to this: " for screen readers, which is a lead-in
     // rather than part of the agreement, so it is taken off before comparing.
-    const paragraph = screen.getByText(/Send my order\. About £/);
+    const paragraph = screen.getByText(/Send my order and pay\. About £/);
     const leadIn = paragraph.querySelector('.visually-hidden')?.textContent ?? '';
     const shown = (paragraph.textContent ?? '').slice(leadIn.length);
 
-    await user.click(screen.getByRole('button', { name: 'Send my order' }));
+    await user.click(screen.getByRole('button', { name: 'Send my order and pay' }));
 
     await waitFor(() => {
       expect(sent(recorded, 'POST', '/orders')).toBeDefined();
@@ -180,14 +180,14 @@ describe('sending an order', () => {
     });
 
     expect(screen.getByText(FAKE_SHOPPER.deliveryAddress)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Send my order' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Send my order and pay' })).toBeDisabled();
 
     await user.click(screen.getByRole('button', { name: 'Yes, this is the right address' }));
     expect(screen.getByText('You said this is the right address.')).toHaveAttribute(
       'role',
       'status',
     );
-    await user.click(screen.getByRole('button', { name: 'Send my order' }));
+    await user.click(screen.getByRole('button', { name: 'Send my order and pay' }));
     await waitFor(() => {
       expect(sent(recorded, 'POST', '/orders')).toBeDefined();
     });
@@ -199,7 +199,7 @@ describe('sending an order', () => {
   it('says the order is sent, and gives the order number', async () => {
     const recorded = stubApi({ shopper: FAKE_SHOPPER, paymentMethods: [FAKE_CARD] });
     const user = await reachTheButton(recorded);
-    await user.click(screen.getByRole('button', { name: 'Send my order' }));
+    await user.click(screen.getByRole('button', { name: 'Send my order and pay' }));
 
     expect(await screen.findByText('Your order is sent')).toBeInTheDocument();
     expect(screen.getByText(/order-1/)).toBeInTheDocument();
@@ -213,7 +213,7 @@ describe('sending an order', () => {
         'The price changed while you were deciding. It is now £10.50. Nothing has been charged. Please check it and confirm again.',
     });
     const user = await reachTheButton(recorded);
-    await user.click(screen.getByRole('button', { name: 'Send my order' }));
+    await user.click(screen.getByRole('button', { name: 'Send my order and pay' }));
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('The price changed while you were deciding');
@@ -225,7 +225,7 @@ describe('sending an order', () => {
     const recorded = stubApi({ shopper: FAKE_SHOPPER, paymentMethods: [] });
     await reachTheButton(recorded);
 
-    expect(screen.getByRole('button', { name: 'Send my order' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Send my order and pay' })).toBeDisabled();
     expect(screen.getByText(/have not saved a card yet/)).toBeInTheDocument();
     expect(sent(recorded, 'POST', '/orders')).toBeUndefined();
   });
@@ -245,7 +245,7 @@ describe('sending an order', () => {
     expect(
       screen.getByRole('heading', { level: 1, name: 'We need to know who you are' }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Send my order' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Send my order and pay' })).not.toBeInTheDocument();
     expect(sent(recorded, 'POST', '/orders')).toBeUndefined();
   });
 });
@@ -266,7 +266,7 @@ describe('Rule Ten, on the wire', () => {
       expect(sent(recorded, 'GET', '/payment-methods')).toBeDefined();
     });
     await user.click(await screen.findByRole('button', { name: 'Yes, this is the right address' }));
-    await user.click(screen.getByRole('button', { name: 'Send my order' }));
+    await user.click(screen.getByRole('button', { name: 'Send my order and pay' }));
 
     await waitFor(() => {
       expect(sent(recorded, 'POST', '/orders')).toBeDefined();

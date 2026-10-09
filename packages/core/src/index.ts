@@ -41,13 +41,7 @@ export {
 
 export { formatPence, poundsToPence } from './money.js';
 
-export {
-  parseChoice,
-  parseQuantity,
-  parseYesNo,
-  splitItems,
-  wantsToStop,
-} from './spoken-order.js';
+export { parseChoice, parseQuantity, parseYesNo, splitItems, wantsToStop } from './spoken-order.js';
 
 export {
   normalisePhrase,
@@ -55,3 +49,5 @@ export {
   phraseWithoutName,
   type PhraseNames,
 } from './phrase-text.js';
+
+export { RUNNER_AGREEMENT_VERSION } from './runner-agreement.js';

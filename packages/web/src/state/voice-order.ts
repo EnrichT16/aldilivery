@@ -338,7 +338,7 @@ export function useVoiceOrdering(
             navigate('/confirm');
             return true;
           }
-          const statement = `Shall I send your order now, and charge about ${money(current.totalPence)} to your card ending ${current.lastFour}? You pay what the till says.`;
+          const statement = `Shall I send your order and pay now, charging about ${money(current.totalPence)} to your card ending ${current.lastFour}? You pay what the till says.`;
           stage.current = {
             kind: 'payment',
             totalPence: current.totalPence,
@@ -346,14 +346,14 @@ export function useVoiceOrdering(
             cardId: current.cardId,
             statement,
           };
-          await say(`${statement} Say yes to send it, or no to stop.`);
+          await say(`${statement} Say yes to send it and pay, or no to stop.`);
           return true;
         }
 
         case 'payment': {
           const answer = parseYesNo(text);
           if (answer === null) {
-            await say('Please say yes to send it, or no to stop.');
+            await say('Please say yes to send it and pay, or no to stop.');
             return true;
           }
           const lines = picked.current.map(({ product, quantity }) => ({

@@ -308,6 +308,19 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
         at: payout.createdAt,
       })),
       totalTransferredPence: payouts.reduce((t, payout) => t + payout.transferredPence, 0),
+      // Paid back for the shopping bought with their own card (ruling 55). Their own money
+      // coming back, so it is shown apart from what they earned.
+      paidBack: orders
+        .filter((order) => order.reimbursementStatus !== null)
+        .map((order) => ({
+          reference: orderReference(order.id),
+          pence: order.reimbursementPence ?? 0,
+          status: order.reimbursementStatus,
+          at: order.reimbursedAt ?? order.updatedAt,
+        })),
+      paidBackTotalPence: orders
+        .filter((order) => order.reimbursementStatus === 'paid')
+        .reduce((t, order) => t + (order.reimbursementPence ?? 0), 0),
       owing,
       recoveryPercentOfPay: config.problems.recoveryPercentOfPay,
     };

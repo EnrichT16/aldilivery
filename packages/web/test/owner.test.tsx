@@ -13,6 +13,8 @@ import { App } from '../src/App';
 let sent: Array<{ method: string; path: string; body: unknown }>;
 let who: 'owner' | 'family';
 let familyAreas: string[];
+let ownerAreas: string[];
+let payBackWaiting: boolean;
 
 const MONEY_TOTALS = {
   inPence: 1799,
@@ -29,6 +31,8 @@ beforeEach(() => {
   sent = [];
   who = 'owner';
   familyAreas = ['overview'];
+  ownerAreas = ['overview', 'money', 'team'];
+  payBackWaiting = true;
   window.sessionStorage.clear();
   const reply = (body: unknown, status = 200): Response =>
     ({
@@ -75,7 +79,7 @@ beforeEach(() => {
               name: 'Anthony',
               role: 'founder',
               title: 'Founder',
-              areas: ['overview', 'money', 'team'],
+              areas: ownerAreas,
               account: true,
               mustChangePassword: false,
               isOwner: true,
@@ -121,8 +125,42 @@ beforeEach(() => {
           month: MONEY_TOTALS,
           year: MONEY_TOTALS,
           allTime: MONEY_TOTALS,
+          runnerPayBack: {
+            todayPence: 320,
+            weekPence: 1520,
+            monthPence: 4020,
+            allTimePence: 4020,
+            waitingCount: 1,
+            waitingPence: 1200,
+            owedCount: 0,
+            owedPence: 0,
+          },
           recent: [],
         });
+      }
+      if (path === '/staff/payments') return reply({ waiting: [], received: [] });
+      if (path === '/staff/reimbursements') {
+        const row = {
+          orderId: 'order-9',
+          reference: 'OZ-DEF456',
+          transferReference: 'reimburse:order-9',
+          runnerName: 'Tomasz',
+          goodsEstimatePence: 600,
+          receiptTotalPence: 1200,
+          amountPence: 1200,
+          reason: 'over the limit',
+          approvedBy: null,
+          paidAt: null,
+        };
+        return reply({
+          waiting: payBackWaiting ? [{ ...row, status: 'waiting' }] : [],
+          owed: [],
+          paid: payBackWaiting ? [] : [{ ...row, status: 'paid', approvedBy: 'Anthony' }],
+        });
+      }
+      if (path === '/staff/reimbursements/order-9/approve') {
+        payBackWaiting = false;
+        return reply({ message: 'Approved: £12.00 paid back to Tomasz.' });
       }
       if (path === '/staff/viewers' && method === 'GET') {
         return reply({
@@ -216,6 +254,34 @@ describe('the owner', () => {
       });
     });
     expect(screen.getByText('The money: always off. Only you see it.')).toBeInTheDocument();
+  });
+});
+
+describe('paying Runners back for the shopping (ruling 55)', () => {
+  it('shows the owner what was paid back, and approves one that waits for a person', async () => {
+    ownerAreas = ['overview', 'money', 'payments'];
+    const user = userEvent.setup({ delay: null });
+    renderStaff();
+    await signIn(user, '123456#');
+    const nav = await screen.findByRole('navigation', { name: 'Admin pages' });
+
+    await user.click(within(nav).getByRole('button', { name: 'Money' }));
+    expect(
+      await screen.findByRole('heading', { name: 'Runners paid back for the shopping' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/altogether £40.20/)).toBeInTheDocument();
+    expect(screen.getByText(/Waiting for you to approve: 1 \(£12.00\)/)).toBeInTheDocument();
+
+    await user.click(within(nav).getByRole('button', { name: 'Payments' }));
+    expect(await screen.findByText('£12.00 to Tomasz, order OZ-DEF456')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Waiting because the till came to a lot more than the estimate/),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^Approve and pay back\b.*OZ-DEF456$/ }));
+    await waitFor(() => {
+      expect(sent.some((r) => r.path === '/staff/reimbursements/order-9/approve')).toBe(true);
+    });
+    expect(await screen.findByText(/approved by Anthony/)).toBeInTheDocument();
   });
 });
 

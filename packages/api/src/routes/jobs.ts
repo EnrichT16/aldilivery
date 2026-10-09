@@ -18,6 +18,7 @@ import { isOfferExpired, poolOrders } from '../services/allocation.js';
 import { offerOrder } from '../services/dispatch.js';
 import { tellShopper } from '../services/order-updates.js';
 import { assertTransitionAllowed } from '../services/orders.js';
+import { AGREE_FIRST, hasAgreed } from '../services/runner-agreement.js';
 
 export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
   const { repository, config, now } = app.ctx;
@@ -90,6 +91,9 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
             goodsEstimatePence: order.goodsEstimatePence,
             receiptTotalPence: order.receiptTotalPence,
             runnerPaymentPence: order.runnerPaymentPence,
+            // Paying them back for the shopping (ruling 55): how much, and where it has got to.
+            reimbursementPence: order.reimbursementPence,
+            reimbursementStatus: order.reimbursementStatus,
             items: order.items.map((item) => ({
               id: item.id,
               name: item.name,
@@ -136,6 +140,8 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
     if (!runner.rightToWorkVerified || !runner.criminalRecordCheckVerified) {
       throw new ForbiddenError('We still need to finish your checks before you can take a job.');
     }
+    // The agreement, with its pay-back and recovery terms, comes before any job (ruling 55).
+    if (!hasAgreed(runner)) throw new ForbiddenError(AGREE_FIRST);
 
     await repository.offers.update(offer.id, { outcome: 'accepted', respondedAt: at });
 

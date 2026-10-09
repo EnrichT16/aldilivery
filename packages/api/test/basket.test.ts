@@ -5,7 +5,13 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { buildTestApp, seedCatalogue, signUpShopper, type SignedInShopper, type TestHarness } from './helpers.js';
+import {
+  buildTestApp,
+  seedCatalogue,
+  signUpShopper,
+  type SignedInShopper,
+  type TestHarness,
+} from './helpers.js';
 
 let harness: TestHarness;
 let shopper: SignedInShopper;
@@ -58,7 +64,7 @@ describe('Rule Six: age restricted goods', () => {
           confirmed: true,
           addressConfirmed: true,
           channel: 'button',
-          statement: 'Send my order.',
+          statement: 'Send my order and pay.',
           agreedTotalPence: 2024,
         },
       },
@@ -92,7 +98,11 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    const body = response.json() as { goodsEstimatePence: number; feePence: number; totalPence: number };
+    const body = response.json() as {
+      goodsEstimatePence: number;
+      feePence: number;
+      totalPence: number;
+    };
     expect(body.goodsEstimatePence).toBe(1);
     expect(body.feePence).toBe(harness.config.fees.standardDeliveryPence);
     expect(body.totalPence).toBe(1 + body.feePence);
@@ -122,7 +132,10 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
       payload: { lines: [{ catalogueItemId: items.milk, quantity: 2 }] },
     });
 
-    const body = response.json() as { inWords: { fee: string; total: string }; explanation: string[] };
+    const body = response.json() as {
+      inWords: { fee: string; total: string };
+      explanation: string[];
+    };
     expect(body.inWords.fee).toBe('£13.50');
     expect(body.inWords.total).toBe('£16.00');
     expect(body.explanation.join(' ')).toContain('That is the only fee.');

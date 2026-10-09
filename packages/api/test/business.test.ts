@@ -205,7 +205,7 @@ describe('organisations', () => {
           confirmed: true,
           addressConfirmed: true,
           channel: 'button',
-          statement: 'Send my order.',
+          statement: 'Send my order and pay.',
           agreedTotalPence: 250 + 1350,
         },
       },

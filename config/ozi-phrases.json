@@ -1432,7 +1432,7 @@
       "topic": "basket",
       "when": ["that's everything", "that's all", "nothing else", "that's it"],
       "replies": [
-        "Lovely. Say send my order when you're ready, and I'll read it back with the address before anything is sent.",
+        "Lovely. Say send my order and pay when you're ready, and I'll read it back with the address before anything is sent.",
         "Thank you. When you're ready, I'll read your basket back and you can say yes."
       ]
     },

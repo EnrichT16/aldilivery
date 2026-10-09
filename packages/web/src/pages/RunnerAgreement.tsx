@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 
 import { CompanyDetails, DetailsToFollowNotice, companyFacts } from '../components/CompanyDetails';
+import { RUNNER_AGREEMENT_VERSION } from '@aldilivery/core';
+
 import { storeConfig } from '../config';
 import { money } from '../lib/money';
 
@@ -14,10 +16,16 @@ import { money } from '../lib/money';
  * delivery (Rule Two); the cool bag deposit and the recovery rate come from config/store.json;
  * nothing is ever deducted without a written decision by a person.
  *
+ * Paying at the till was decided on 9 October 2026 (ruling 55): the Runner pays with their own
+ * card and is paid back the accepted till total straight away (`services/reimburse.ts`). A
+ * Runner agrees to this page before their first job; the date, the version below and how they
+ * agreed are kept, and no job is offered or accepted until they have.
+ *
  * It stays marked as a draft on purpose. Whether a Runner is self-employed in law depends on how
- * the work really happens, and two things in it still need Anthony's decision: how a Runner pays
- * at the till, and whether a Runner may send a checked substitute. See docs/LEGAL_REVIEW.md.
- * If the app changes how Runners work, this page must change with it.
+ * the work really happens, and one thing in it still needs Anthony's decision: whether a Runner
+ * may send a checked substitute. A solicitor has not yet looked at it. See docs/LEGAL_REVIEW.md.
+ * If the app changes how Runners work, this page must change with it, and so must
+ * RUNNER_AGREEMENT_VERSION in packages/core, so every Runner is asked to agree again.
  */
 export function RunnerAgreement(): JSX.Element {
   const name = storeConfig.productName;
@@ -26,14 +34,21 @@ export function RunnerAgreement(): JSX.Element {
   const { recoveryPercentOfPay, writeOffUpToPence, instantRefundUpToPence } = storeConfig.problems;
   const holdSeconds = storeConfig.allocation.offerHoldSeconds;
   const recoveryPence = Math.floor((runnerPaymentPence * recoveryPercentOfPay) / 100);
+  const { maximumGoodsPence } = storeConfig.fees;
+  const versionDate = new Date(`${RUNNER_AGREEMENT_VERSION}T12:00:00Z`).toLocaleDateString(
+    'en-GB',
+    { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' },
+  );
 
   return (
     <article className="space-y-8 max-w-2xl">
       <h1 className="text-display font-bold m-0">Runner agreement</h1>
+      <p className="m-0">Version of {versionDate}.</p>
       <p className="m-0 border-2 border-paper rounded-xl p-4">
-        This is a draft. It says how working with us as a Runner works today. We will ask you to
-        agree to the final version before your first job, and we will tell you if anything in it
-        changes.
+        This is a draft. It says how working with us as a Runner works today, and you agree to this
+        version before your first job. A solicitor has not yet looked at it, and whether you may
+        send another checked Runner in your place is still being decided. If anything in it changes,
+        we will tell you and ask you to agree again before your next job.
       </p>
       <DetailsToFollowNotice />
 
@@ -120,9 +135,9 @@ export function RunnerAgreement(): JSX.Element {
             app. Never swap anything they have not agreed to. If they do not answer, leave it out.
           </li>
           <li>
-            How you pay at the till for the Shopper&rsquo;s shopping will be set out in writing
-            before your first job. You will never be left out of pocket for a Shopper&rsquo;s
-            shopping.
+            You pay at the till for the Shopper&rsquo;s shopping with your own card. As soon as you
+            put the till total into the app, we pay it back to you, straight to your own Stripe
+            account. You are never left out of pocket for a Shopper&rsquo;s shopping.
           </li>
           <li>Type the till total exactly as it is on the receipt, and keep the receipt.</li>
           <li>
@@ -153,7 +168,23 @@ export function RunnerAgreement(): JSX.Element {
             Your pay goes to your own Stripe account, and from there to your bank. Stripe&rsquo;s
             own terms apply to that account. We send it after each delivery.
           </li>
-          <li>Your Runner page shows what you earned for each job, today, this week and in all.</li>
+          <li>
+            Paying you back for the shopping is separate from your pay, and never comes out of it.
+            We pay back the till total straight away when it is close to what the Shopper was told:
+            up to the estimate plus {money(500)} or a fifth of the estimate, whichever is more. If
+            the till came to more than that, or to more than {money(maximumGoodsPence)}, the most
+            one delivery carries, a person at {name} checks it first, the same day where we can, and
+            then pays it back. We pay back what the till says, never more, and you are told in plain
+            words each time.
+          </li>
+          <li>
+            If your Stripe account is not ready, the money is owed to you, shown on your Runner
+            page, and sent as soon as it is.
+          </li>
+          <li>
+            Your Runner page shows what you earned for each job, today, this week and in all, and
+            what you have been paid back for the shopping.
+          </li>
           <li>
             In-app calls never cost you anything. Your telephone number is never shown to a Shopper.
           </li>

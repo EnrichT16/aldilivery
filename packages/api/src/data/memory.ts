@@ -220,6 +220,9 @@ export function memoryRepository(): Repository {
           latitude: input.latitude ?? null,
           longitude: input.longitude ?? null,
           lastJobCompletedAt: null,
+          agreementAcceptedAt: input.agreementAcceptedAt ?? null,
+          agreementVersion: input.agreementVersion ?? null,
+          agreementChannel: input.agreementChannel ?? null,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -731,6 +734,12 @@ export function memoryRepository(): Repository {
           poolId: null,
           runnerPaymentPence: 500,
           runnerTransferId: null,
+          reimbursementPence: null,
+          reimbursementStatus: null,
+          reimbursementReason: null,
+          reimbursementTransferId: null,
+          reimbursedAt: null,
+          reimbursementApprovedBy: null,
           createdAt: now(),
           updatedAt: now(),
           acceptedAt: null,
@@ -778,6 +787,9 @@ export function memoryRepository(): Repository {
       },
       async listByPool(poolId) {
         return [...orders.values()].filter((o) => o.poolId === poolId).map(clone);
+      },
+      async listByReimbursementStatus(status) {
+        return [...orders.values()].filter((o) => o.reimbursementStatus === status).map(clone);
       },
       async countForRunner(runnerId) {
         return [...orders.values()].filter((o) => o.runnerId === runnerId).length;

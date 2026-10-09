@@ -135,7 +135,7 @@ export function Confirm(): JSX.Element {
     };
   }, []);
 
-  const statement = `Send my order. About ${money(pricing.totalPence)} altogether, including our fee of ${money(pricing.feePence)}.`;
+  const statement = `Send my order and pay. About ${money(pricing.totalPence)} altogether, including our fee of ${money(pricing.feePence)}.`;
 
   async function onSend(): Promise<void> {
     const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
@@ -604,7 +604,7 @@ export function Confirm(): JSX.Element {
         }}
         className="control w-full bg-highlight text-ink text-display py-8 disabled:opacity-70"
       >
-        {sending ? 'Sending your order…' : 'Send my order'}
+        {sending ? 'Sending your order…' : 'Send my order and pay'}
       </button>
 
       <p className="m-0">

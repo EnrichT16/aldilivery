@@ -14,6 +14,10 @@ A note on numbering. BUILD_PROMPT.md has two short runs that each start at 1: th
 In this document "ruling N" means the main run (2 October onwards). The first run is written
 "1 October ruling N".
 
+Ruling 55 (9 October 2026) has Runners paid back for the shopping straight away, renames the
+order button "Send my order and pay", and records each Runner's agreement to the Runner agreement
+before their first job; it is summarised at the end of this document.
+
 Ruling 50 (7 October 2026) adds paying by bank transfer to the business account, the website's
 own pages, a "Get the app" button and social media links; it is summarised in Part 4 and Part 5.
 
@@ -152,7 +156,10 @@ goods, no new price (Section J).
   Payment is taken before a Runner is sent. No paying at the door, no trial order. Someone who
   cannot enter a card has a family member, carer or someone they trust enter it for them.
 - **One explicit yes** before any payment (Rule One). Ozi reads the list back and hears a yes;
-  no PIN is needed to order (ruling 26). Over £80, the yes must be a touch.
+  no PIN is needed to order (ruling 26). Over £80, the yes must be a touch. The one button that
+  places an order reads **Send my order and pay**, and Ozi asks "Shall I send your order and pay
+  now…?" (ruling 55, so the button says plainly that it means paying, as the Consumer Contracts
+  Regulations 2013, regulation 14(3), ask).
 - **Stripe** takes the cards. Card numbers never reach Ozi (Rule Ten); only Stripe's identifier
   and the last four digits are stored. Apple Pay, Google Pay and Stripe Link come through Stripe
   (ruling 35). Cards from any country are accepted (ruling 18; configuration says "ANY").
@@ -165,9 +172,21 @@ goods, no new price (Section J).
 - **The till total.** Catalogue prices are estimates. The Runner types the total from the till
   receipt, the order is repriced to it with the same flat fee, and the Shopper is told. The
   promise is that the Shopper pays what the till said, with the goods and the fee kept as
-  separate amounts throughout (Section R, for VAT). PARTLY BUILT: the till total is recorded and
-  said, but the difference from what was charged up front is not yet refunded or taken
-  automatically.
+  separate amounts throughout (Section R, for VAT). BUILT (ruling 52): the difference from what
+  was charged up front is settled on the same card at once; less goes back, more is taken up to
+  the larger of £5 or a fifth of the estimate, and anything larger waits for a person. The till
+  total goes in once only; a mistake in it is put right by a person.
+- **Runners pay at the till with their own card and are paid back straight away** (ruling 55,
+  "choice 1"). BUILT. When the till total goes in, the Runner is paid back that total by Stripe
+  Connect transfer to their own account, with the reference `reimburse:<order id>` so it can
+  never go twice, and told "You've been paid back £X for the shopping." Their £5 follows at
+  delivery, and is then said together: "You've been paid back £X for the shopping and £5.00 for
+  the delivery." Only an accepted till total is paid back without a person: no more than the
+  estimate plus the larger of £5 or a fifth, never more than £60 (Rule Three). When the till
+  needs a person, so does the pay-back: it waits in the admin panel's Payments tab with an
+  Approve button (founder and finance officer), and the owner is texted. A Runner whose payout
+  account is not ready is owed it, shown it, and paid by the minute sweep once it is. Recorded
+  on the order; shown on the Runner's Money tab and in the owner's Money page.
 - **Refunds** (rulings 7, 8, 16). A Shopper or Runner reports a problem with voice notes,
   writing, photos or video. Ozi acknowledges at once. £5 or less is refunded straight away.
   Otherwise staff decide within 2 working days (5 at most), and the refund goes back to the card
@@ -185,7 +204,10 @@ goods, no new price (Section J).
 - **Runner pay** (Rule Two, Section M, rulings 15, 16). £5 per standard delivery, untouched;
   extras (another shop, handing to the person, tips) are paid on top, never out of it. Money goes
   straight to the Runner's own Stripe Connect account; Ozi never holds it (Rule Ten). The cool bag
-  deposit is held back from early payouts, never from the £5. Weekly payouts by default, daily
+  deposit is held back from early payouts, never from the £5 (docs/LEGAL_REVIEW.md notes that
+  while it is held, the service does hold some Runner money, against Rule Ten's wording; left
+  as it is, for Anthony to rule on). Paying back the shopping (above) is the Runner's own money
+  and is never counted as pay. Weekly payouts by default, daily
   or instant at the Runner's choice, are ruled (ruling 16) but NOT BUILT: today each delivered job
   is paid by transfer, with a sweep every minute for any that could not be paid at once.
 - **Tipping** (Section B): optional, all to the Runner, at checkout and for an hour after, no
@@ -308,6 +330,8 @@ goods, no new price (Section J).
 | Sign-up in the app: phone and code, every way they might deliver, face photo, right to work, DBS, licence and insurance for car or motorbike, bank details on Stripe's pages | BUILT | DVLA check code and automatic MOT and tax checks are not built. |
 | Staff check documents before any job is offered (right to work and basic DBS required) | BUILT | Enhanced DBS for T5, T8 and handovers not built. |
 | Switching how they deliver; car or motorbike blocked without accepted insurance | BUILT | Insurance expiry reminders not built. |
+| Agreeing to the Runner agreement before the first job: a tick at sign-up or on the Runner page (a spoken yes is accepted by the server), kept with the date, version and how | BUILT | Ruling 55. No job is offered or accepted until the current version is agreed. |
+| Paid back for the shopping straight away when the till total goes in | BUILT | Ruling 55. A person approves the ones the till needs a person for. No receipt photo is taken yet. |
 | Fair job offers with pay and distance, 60-second hold | BUILT | |
 | Dashboard: earned (big and bold), job history by reference and area, payouts, owing | BUILT | |
 | Runner ID, share link, feedback page | BUILT | |
@@ -529,7 +553,8 @@ These are for Anthony to rule on. The code's current behaviour is noted.
    Section D.
 2. **Substitutions and the till total.** Section H says the total is adjusted before payment is
    taken; ruling 29 says payment is taken before a Runner is sent. The code charges the estimate
-   first and records the till total, but does not yet refund or take the difference.
+   first, then settles the difference when the till total goes in (ruling 52), and pays the
+   Runner back for the shopping at the same moment (ruling 55).
 3. **Recurring orders.** Rule Five has Sets that fire by themselves after a 30-minute notice;
    ruling 37's weekly shop never sends or pays until the Shopper says so. Both exist in the
    code; only the second is in use.
@@ -591,13 +616,13 @@ recipes.json, gifts.json, banned-words.json, ozi-phrases.json and phrases/ for e
 | Model | What it holds |
 | --- | --- |
 | Shopper | A Shopper: name, phone, home address, door instructions, PIN hash, Stripe customer, Plus, Recipe Pass, family code, gift card credit, organisation link, age group. |
-| Runner | A Runner: name, phone, ways of delivering, referral ID, checks, insurance date, Stripe Connect account, cool bag deposit, availability and position. |
+| Runner | A Runner: name, phone, ways of delivering, referral ID, checks, insurance date, Stripe Connect account, cool bag deposit, availability and position, and when they agreed to the Runner agreement, which version and how (ruling 55). |
 | Organisation | A council, charity or business: contact, join code, monthly budget, staff-trip cost. |
 | HouseholdCircle | A group of Shoppers in one household (the start of family ordering). |
 | HouseholdCircleMember | A Shopper in a household, with recorded consent. |
 | CatalogueItem | A product with an estimated price, category, source, and whether it is age restricted or retired. |
 | PaymentMethod | A saved card: Stripe's identifier, last four digits, brand, region. Never a card number. |
-| Order | An order: estimate, fee, till total, final total, confirmation record, Stripe payment, address, pool, Runner pay. |
+| Order | An order: estimate, fee, till total, final total, confirmation record, Stripe payment, address, pool, Runner pay, and paying the Runner back for the shopping: amount, status (paid, waiting, owed), reason, transfer, when and who approved it (ruling 55). |
 | OrderItem | One line of an order, with what happened at the shelf. |
 | JobOffer | An offer of an order to a Runner, with its expiry, outcome and queue position. |
 | RunnerPayout | What a Runner was paid for an order, with any cool bag or recovery held back. |
@@ -721,7 +746,9 @@ What is already done: ordering by voice and by touch with Ozi; checkout, cards, 
 and the PIN; Runner sign-up, documents, shifts, offers, shopping, questions and delivery; Runner
 pay and the cool bag deposit; problems and refunds; in-app calls; telephone ordering; the admin
 panel with staff jobs and the owner's account; the extras; Shop Partners and organisations; the
-privacy policy, terms, cookies page and draft Runner agreement (ruling 54); and the checks that run before every change goes live.
+privacy policy, terms, cookies page and draft Runner agreement (ruling 54); paying Runners back
+for the shopping and recording their agreement before the first job (ruling 55); and the checks
+that run before every change goes live.
 
 docs/STILL_TO_DO.md lists everything the blueprint asks for that is not built yet.
 
@@ -740,3 +767,23 @@ docs/STILL_TO_DO.md lists everything the blueprint asks for that is not built ye
   D-U-N-S number. An **About us** page, social media links (`config/social.json`, shown once
   filled), and an install prompt when ordering in a browser: BUILT.
 - **Social media and community agents** on free hosting: PROPOSED, waiting for Anthony.
+
+## Ruling 55 in brief (9 October 2026)
+
+- **Runners are paid back for the shopping ("choice 1")**: BUILT. The Runner pays at the till
+  with their own card; when they put the till total in, the app pays it back straight away to
+  their own Stripe account (`packages/api/src/services/reimburse.ts`), with their £5 at
+  delivery as before. Only the accepted till total, within the same limit the Shopper's card is
+  settled within, never more than £60, once only (`reimburse:<order id>`). When the till needs a
+  person, the pay-back waits in the Payments tab for Approve, and the owner is texted. Shown on
+  the Runner's Money tab and in the owner's Money page. Rule Ten holds: the money goes straight
+  out. The cool bag deposit is unchanged (see docs/LEGAL_REVIEW.md).
+- **The order button says "Send my order and pay"**, on the Confirm page, in what the Shopper
+  agrees to, and in Ozi's question ("Shall I send your order and pay now…"). An amendment to how
+  Rule One is carried out, not to the rule.
+- **The Runner agreement is agreed before the first job**: BUILT. A tick at sign-up, or on the
+  Runner page for anyone who has not agreed (a spoken yes is accepted too), kept with the date,
+  the version (`RUNNER_AGREEMENT_VERSION` in `packages/core`) and how. Until then, no job is
+  offered and none can be accepted. The agreement page now says how paying back works. It stays
+  marked as a draft until employment status and a right to send a checked substitute are
+  decided and a solicitor has read it.

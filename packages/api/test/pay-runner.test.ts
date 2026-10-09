@@ -64,7 +64,7 @@ async function deliverAnOrder(): Promise<string> {
         confirmed: true,
         addressConfirmed: true,
         channel: 'button',
-        statement: 'Send my order.',
+        statement: 'Send my order and pay.',
         agreedTotalPence: 1600,
       },
     },
@@ -172,9 +172,12 @@ describe('the five pounds', () => {
 
     const orderId = await deliverAnOrder();
 
+    // Two transfers: the shopping paid back when the till total went in (ruling 55), then the
+    // five pounds at delivery.
     const transfers = gateway.calls.filter((c) => c.kind === 'transfer');
-    expect(transfers).toHaveLength(1);
-    expect(transfers[0]!.input).toMatchObject({
+    expect(transfers).toHaveLength(2);
+    expect(transfers[0]!.input).toMatchObject({ orderId, idempotencyKey: `reimburse:${orderId}` });
+    expect(transfers[1]!.input).toMatchObject({
       orderId,
       destinationAccountId: expect.stringMatching(/^acct_/),
       sourcePaymentIntentId: expect.stringMatching(/^pi_/),
