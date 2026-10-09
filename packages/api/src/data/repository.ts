@@ -49,6 +49,8 @@ import type {
   Runner,
   RunnerCheck,
   RunnerPayout,
+  RunnerSos,
+  ReferralReward,
   SetItem,
   Shopper,
 } from '../domain.js';
@@ -174,6 +176,8 @@ export interface Repository {
     listFamily(ownerId: string): Promise<Shopper[]>;
     /** How many accounts were opened through this share link. */
     countJoinedVia(via: string): Promise<number>;
+    /** Shoppers who came by a Shopper's or a Runner's own share link, oldest first. */
+    listReferred(): Promise<Shopper[]>;
     /** How many Shopper accounts there are. */
     count(): Promise<number>;
   };
@@ -211,6 +215,24 @@ export interface Repository {
     listSubmitted(): Promise<RunnerDocument[]>;
     update(id: string, patch: Partial<Omit<RunnerDocument, 'id'>>): Promise<RunnerDocument>;
   };
+  /** Runners pressing SOS (Section M). */
+  sos: {
+    create(input: Omit<RunnerSos, 'id'>): Promise<RunnerSos>;
+    findById(id: string): Promise<RunnerSos | null>;
+    findByLinkCodeHash(hash: string): Promise<RunnerSos | null>;
+    /** The SOS this Runner has on now, if any. */
+    findActiveForRunner(runnerId: string): Promise<RunnerSos | null>;
+    /** Every one still on, and any started since a moment. Newest first. */
+    listSince(since: Date): Promise<RunnerSos[]>;
+    update(id: string, patch: Partial<Omit<RunnerSos, 'id'>>): Promise<RunnerSos>;
+  };
+
+  /** The private referral reward (rulings 12 and 16): every one given, oldest first. */
+  referralRewards: {
+    create(input: Omit<ReferralReward, 'id'>): Promise<ReferralReward>;
+    list(): Promise<ReferralReward[]>;
+  };
+
   runnerFeedback: {
     create(input: Omit<RunnerFeedback, 'id'>): Promise<RunnerFeedback>;
     /** Newest first. */

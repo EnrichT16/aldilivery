@@ -167,6 +167,28 @@ export interface PaymentsGateway {
   createPaymentLink(input: CreatePaymentLinkInput): Promise<{ id: string; url: string }>;
   /** What a link that has been paid says, or null when it has not been paid. */
   paidByLink(sessionId: string): Promise<PaidLink | null>;
+  /**
+   * How often Stripe pays what is in a Runner's own Stripe account into their bank (ruling 16):
+   * weekly, on a Friday, or every day. Money reaches their Stripe account the same either way.
+   */
+  setPayoutSchedule(input: { accountId: string; interval: 'weekly' | 'daily' }): Promise<void>;
+  /** What a Runner's own Stripe account could pay out instantly now, in pence. */
+  instantPayoutAvailable(input: { accountId: string; currency: string }): Promise<number>;
+  /**
+   * An instant payout from a Runner's own Stripe account to their debit card, asked for by them
+   * after seeing Stripe's fee. The reference makes it happen once only.
+   */
+  createInstantPayout(input: {
+    accountId: string;
+    amountPence: number;
+    currency: string;
+    reference: string;
+  }): Promise<{ id: string; amountPence: number }>;
+  /**
+   * The same card, whoever saved it: Stripe's fingerprint for the card behind a payment method,
+   * or null when there is none. Used only to keep the referral reward honest (ruling 16).
+   */
+  cardFingerprint(paymentMethodId: string): Promise<string | null>;
 }
 
 export function stripeGateway(secretKey: string, webhookSecret: string): PaymentsGateway {
@@ -324,6 +346,41 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
       if (!session.url) throw new Error('Stripe gave no address for the payment page.');
       return { id: session.id, url: session.url };
     },
+    async setPayoutSchedule(input) {
+      await stripe.accounts.update(input.accountId, {
+        settings: {
+          payouts: {
+            schedule:
+              input.interval === 'weekly'
+                ? { interval: 'weekly', weekly_anchor: 'friday' }
+                : { interval: 'daily' },
+          },
+        },
+      });
+    },
+    async instantPayoutAvailable(input) {
+      const balance = await stripe.balance.retrieve({ stripeAccount: input.accountId });
+      const currency = input.currency.toLowerCase();
+      return (balance.instant_available ?? [])
+        .filter((row) => row.currency === currency)
+        .reduce((sum, row) => sum + row.amount, 0);
+    },
+    async createInstantPayout(input) {
+      const payout = await stripe.payouts.create(
+        {
+          amount: input.amountPence,
+          currency: input.currency.toLowerCase(),
+          method: 'instant',
+          metadata: { reference: input.reference },
+        },
+        { stripeAccount: input.accountId, idempotencyKey: input.reference },
+      );
+      return { id: payout.id, amountPence: payout.amount };
+    },
+    async cardFingerprint(paymentMethodId) {
+      const method = await stripe.paymentMethods.retrieve(paymentMethodId);
+      return method.card?.fingerprint ?? null;
+    },
     async paidByLink(sessionId) {
       const session = await stripe.checkout.sessions.retrieve(sessionId, {
         expand: ['payment_intent.payment_method'],
@@ -370,14 +427,18 @@ export interface RecordedCall {
     | 'connected_account'
     | 'saved_card_charge'
     | 'refund'
-    | 'payment_link';
+    | 'payment_link'
+    | 'payout_schedule'
+    | 'instant_payout';
   input:
     | CreatePaymentIntentInput
     | CreatePaymentLinkInput
     | CreateTransferInput
     | ChargeSavedCardInput
     | { paymentIntentId: string; amountPence: number; reference: string }
-    | { runnerId: string };
+    | { runnerId: string }
+    | { accountId: string; interval: 'weekly' | 'daily' }
+    | { accountId: string; amountPence: number; currency: string; reference: string };
 }
 
 export interface RehearsalGateway extends PaymentsGateway {
@@ -386,6 +447,10 @@ export interface RehearsalGateway extends PaymentsGateway {
   declineNextCharge: boolean;
   /** For tests: the next card cannot be kept, as one already spent would not be. */
   refuseNextSave: boolean;
+  /** For tests: what each Runner's account could pay out instantly, by account. */
+  instantAvailable: Map<string, number>;
+  /** For tests: the card behind each payment method, so two can be the same card. */
+  fingerprints: Map<string, string>;
 }
 
 export function rehearsalGateway(): RehearsalGateway {
@@ -398,6 +463,28 @@ export function rehearsalGateway(): RehearsalGateway {
     calls,
     declineNextCharge: false,
     refuseNextSave: false,
+    instantAvailable: new Map(),
+    fingerprints: new Map(),
+    async setPayoutSchedule(input) {
+      calls.push({ kind: 'payout_schedule', input });
+    },
+    async instantPayoutAvailable(input) {
+      return gateway.instantAvailable.get(input.accountId) ?? 0;
+    },
+    async createInstantPayout(input) {
+      const available = gateway.instantAvailable.get(input.accountId) ?? 0;
+      if (input.amountPence > available) {
+        throw new Error('There is not that much available for an instant payout.');
+      }
+      gateway.instantAvailable.set(input.accountId, available - input.amountPence);
+      counter += 1;
+      calls.push({ kind: 'instant_payout', input });
+      return { id: `po_rehearsal_${counter}`, amountPence: input.amountPence };
+    },
+    async cardFingerprint(paymentMethodId) {
+      // Each saved card is its own card here, unless a test says two are the same.
+      return gateway.fingerprints.get(paymentMethodId) ?? `fp_${paymentMethodId}`;
+    },
     async refundPayment(input) {
       counter += 1;
       calls.push({ kind: 'refund', input });

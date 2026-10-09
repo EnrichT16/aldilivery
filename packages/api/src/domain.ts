@@ -108,8 +108,62 @@ export interface Runner {
   agreementAcceptedAt: Date | null;
   agreementVersion: string | null;
   agreementChannel: string | null;
+  /**
+   * How often Stripe sends what is in the Runner's own Stripe account on to their bank (ruling
+   * 16). Their pay and pay-backs still reach their Stripe account straight away.
+   */
+  payoutSchedule: PayoutSchedule;
+  /** When they stopped being a Runner, closed by themselves or removed by staff, and why. */
+  leftAt: Date | null;
+  leftReason: string | null;
+  leftBy: string | null;
+  /** The cool bag deposit paid back on leaving, or the reason it waits for a person. */
+  coolBagRefundedPence: number | null;
+  coolBagRefundedAt: Date | null;
+  coolBagRefundTransferId: string | null;
+  coolBagRefundNote: string | null;
+  /** Insurance reminders (ruling 14): for which expiry, and the fewest days before it sent. */
+  insuranceReminderFor: Date | null;
+  insuranceReminderDays: number | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+/** Weekly unless the Runner chooses daily (ruling 16). An instant payout is asked for each time. */
+export type PayoutSchedule = 'weekly' | 'daily';
+
+/**
+ * A Runner pressing SOS (Section M). Where they are, kept up to date while it is on, and the
+ * hash of the code in the private link sent to the owner. Nothing about the Shopper's phone.
+ */
+export interface RunnerSos {
+  id: string;
+  runnerId: string;
+  orderId: string | null;
+  startedAt: Date;
+  endedAt: Date | null;
+  endedBy: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  accuracyMetres: number | null;
+  locationAt: Date | null;
+  linkCodeHash: string;
+  linkExpiresAt: Date;
+  alertSentAt: Date | null;
+  alertProblem: string | null;
+}
+
+/** The private referral reward (rulings 12 and 16), given by the owner. */
+export interface ReferralReward {
+  id: string;
+  /** shopper:<handle> or runner:<Runner ID>. */
+  referrer: string;
+  qualifyingCount: number;
+  amountPence: number;
+  method: 'credit' | 'transfer' | 'by_hand';
+  reference: string | null;
+  decidedBy: string;
+  createdAt: Date;
 }
 
 /**

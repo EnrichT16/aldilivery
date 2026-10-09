@@ -223,6 +223,25 @@ model Runner {
   agreementVersion    String?
   agreementChannel    String?
 
+  /// How often Stripe sends what is in their own Stripe account on to their bank: weekly
+  /// (the default) or daily (ruling 16). Pay still reaches their Stripe account after each job.
+  payoutSchedule String @default("weekly")
+
+  /// When they stopped being a Runner, closed by themselves or removed by staff, and why.
+  leftAt                  DateTime?
+  leftReason              String?
+  leftBy                  String?
+  /// The cool bag deposit paid back on leaving (docs/LEGAL_REVIEW.md), or why it waits.
+  coolBagRefundedPence    Int?
+  coolBagRefundedAt       DateTime?
+  coolBagRefundTransferId String?
+  coolBagRefundNote       String?
+
+  /// Insurance reminders (ruling 14): which expiry date they were for, and the fewest days
+  /// before it that a reminder has gone out (0 once it has run out).
+  insuranceReminderFor  DateTime?
+  insuranceReminderDays Int?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -231,6 +250,7 @@ model Runner {
   payouts   RunnerPayout[]
   checks    RunnerCheck[]
   documents RunnerDocument[]
+  sos       RunnerSos[]
 
   @@index([available, lastJobCompletedAt])
 }
@@ -1014,4 +1034,44 @@ model LearnedPhrase {
 
   @@unique([account, text])
   @@index([status, timesHeard])
+}
+
+/// A Runner pressing SOS (Section M): where they are, kept up to date while it is on, and a
+/// private link for the owner that stops working. Never anything about the Shopper's phone.
+model RunnerSos {
+  id             String    @id @default(cuid())
+  runnerId       String
+  runner         Runner    @relation(fields: [runnerId], references: [id], onDelete: Cascade)
+  /// The job they were on, if any.
+  orderId        String?
+  startedAt      DateTime  @default(now())
+  endedAt        DateTime?
+  endedBy        String?
+  latitude       Float?
+  longitude      Float?
+  accuracyMetres Float?
+  locationAt     DateTime?
+  /// The hash of the code in the private link. Never the code itself.
+  linkCodeHash   String    @unique
+  linkExpiresAt  DateTime
+  alertSentAt    DateTime?
+  alertProblem   String?
+
+  @@index([runnerId, endedAt])
+}
+
+/// The private referral reward (rulings 12 and 16), given by the owner. Not announced.
+model ReferralReward {
+  id              String   @id @default(cuid())
+  /// Whose share link: shopper:<handle> or runner:<Runner ID>.
+  referrer        String
+  qualifyingCount Int
+  amountPence     Int
+  /// credit (a Shopper's credit), transfer (a Runner's own Stripe account) or by_hand.
+  method          String
+  reference       String?
+  decidedBy       String
+  createdAt       DateTime @default(now())
+
+  @@index([referrer])
 }

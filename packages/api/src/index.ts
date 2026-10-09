@@ -24,6 +24,8 @@ import { twilioDialler } from './lib/twilio-voice.js';
 import { sweepOffers } from './services/dispatch.js';
 import { sweepPayouts } from './services/pay-runner.js';
 import { sweepReimbursements } from './services/reimburse.js';
+import { sweepInsuranceReminders } from './services/insurance.js';
+import { sweepDeposits } from './services/runner-leaving.js';
 
 async function main(): Promise<void> {
   const env = readEnv();
@@ -245,12 +247,28 @@ async function main(): Promise<void> {
     }).catch((failure: unknown) => {
       app.log.error({ err: failure }, 'The pay-back sweep failed');
     });
+    // And the cool bag deposit of a Runner who has left, once their account is ready.
+    sweepDeposits(app.ctx, (runnerId, failure) => {
+      app.log.warn({ runnerId, err: failure }, 'Could not pay a cool bag deposit back yet');
+    }).catch((failure: unknown) => {
+      app.log.error({ err: failure }, 'The cool bag deposit sweep failed');
+    });
   }, 60_000);
   paySweep.unref();
+
+  // Every hour: insurance reminders for Runners who drive, and driving paused once it has run
+  // out (ruling 14). Each reminder goes once, so the hour it lands in does not matter.
+  const insuranceSweep = setInterval(() => {
+    sweepInsuranceReminders(app.ctx, app.log).catch((failure: unknown) => {
+      app.log.error({ err: failure }, 'The insurance reminder sweep failed');
+    });
+  }, 3_600_000);
+  insuranceSweep.unref();
 
   const shutdown = async (signal: string): Promise<void> => {
     clearInterval(sweep);
     clearInterval(paySweep);
+    clearInterval(insuranceSweep);
     app.log.info(`${signal} received, shutting down`);
     await app.close();
     await repository.disconnect();

@@ -171,6 +171,22 @@ export interface StoreConfig {
     /** Owed by a Runner who leaves: written off at or below this, asked for above it. */
     readonly writeOffUpToPence: number;
   };
+  /** Runners' safety, pay timing, reminders and the private referral reward (Section M; rulings 12, 14, 16). */
+  readonly runners: {
+    /** How long the private live-location link sent with an SOS keeps working, at most. */
+    readonly sosLinkHours: number;
+    /**
+     * Stripe's fee for an instant payout, shown to the Runner before they choose it, who pays it
+     * (ruling 16): a share in basis points (100 is 1%), and never less than the minimum.
+     */
+    readonly instantPayoutFeeBasisPoints: number;
+    readonly instantPayoutFeeMinimumPence: number;
+    /** Days before motor insurance runs out that a Runner who drives is reminded (ruling 14). */
+    readonly insuranceReminderDays: readonly number[];
+    /** The private referral reward (rulings 12 and 16), never announced in the app. */
+    readonly referralRewardPence: number;
+    readonly referralsForReward: number;
+  };
   readonly versionOneRestrictions: {
     readonly ageRestrictedGoodsAllowed: boolean;
   };
@@ -298,6 +314,12 @@ export function parseStoreConfig(input: unknown): StoreConfig {
   const calls = object(root['calls'], 'calls');
   const extras = root['extras'] === undefined ? {} : object(root['extras'], 'extras');
   const problems = object(root['problems'], 'problems');
+  const runners = root['runners'] === undefined ? {} : object(root['runners'], 'runners');
+  const reminderDays = (
+    Array.isArray(runners['insuranceReminderDays']) ? runners['insuranceReminderDays'] : [30, 7, 1]
+  ).map((entry: unknown, index: number) =>
+    wholeNumber(entry, `runners.insuranceReminderDays[${index}]`, 1),
+  );
   const recoveryPercentOfPay = wholeNumber(
     problems['recoveryPercentOfPay'],
     'problems.recoveryPercentOfPay',
@@ -524,6 +546,22 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     },
     voice: {
       paymentCeilingPence: wholeNumber(voice['paymentCeilingPence'], 'voice.paymentCeilingPence', 1),
+    },
+    runners: {
+      sosLinkHours: wholeNumber(runners['sosLinkHours'] ?? 12, 'runners.sosLinkHours', 1),
+      instantPayoutFeeBasisPoints: wholeNumber(
+        runners['instantPayoutFeeBasisPoints'] ?? 100,
+        'runners.instantPayoutFeeBasisPoints',
+        0,
+      ),
+      instantPayoutFeeMinimumPence: wholeNumber(
+        runners['instantPayoutFeeMinimumPence'] ?? 50,
+        'runners.instantPayoutFeeMinimumPence',
+        0,
+      ),
+      insuranceReminderDays: [...new Set(reminderDays)].sort((a, b) => b - a),
+      referralRewardPence: wholeNumber(runners['referralRewardPence'] ?? 15000, 'runners.referralRewardPence', 1),
+      referralsForReward: wholeNumber(runners['referralsForReward'] ?? 100, 'runners.referralsForReward', 1),
     },
     versionOneRestrictions: {
       ageRestrictedGoodsAllowed,

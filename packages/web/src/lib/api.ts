@@ -78,7 +78,7 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(
+export async function request<T>(
   path: string,
   init?: RequestInit,
   as: 'shopper' | 'runner' = 'shopper',
@@ -444,6 +444,12 @@ export interface RunnerDashboard {
     reason: string;
   }>;
   recoveryPercentOfPay?: number;
+  /** How often Stripe sends their money on to their bank (ruling 16). */
+  payoutSchedule?: 'weekly' | 'daily';
+  /** Their motor insurance, when it is soon to run out or has (ruling 14). */
+  insurance?: { until: string; daysLeft: number; paused: boolean; words: string } | null;
+  /** When they closed their Runner account, or were removed. */
+  leftAt?: string | null;
 }
 
 export function fetchRunnerDashboard(): Promise<RunnerDashboard> {
@@ -1071,7 +1077,7 @@ function staffHeaders(key: string): Record<string, string> {
   return key.startsWith('st1.') ? { 'x-staff-token': key } : { 'x-staff-key': key };
 }
 
-function staffRequest<T>(key: string, path: string, init?: RequestInit): Promise<T> {
+export function staffRequest<T>(key: string, path: string, init?: RequestInit): Promise<T> {
   return request<T>(path, { ...init, headers: staffHeaders(key) });
 }
 

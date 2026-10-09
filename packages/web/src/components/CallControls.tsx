@@ -37,11 +37,17 @@ export function CallControls({
   orderId,
   as,
   otherName,
+  ringNow = 0,
 }: {
   orderId: string;
   as: 'shopper' | 'runner';
   /** Who is on the other end, in words: "your Runner", "Margaret". */
   otherName: string;
+  /**
+   * For the Runner: raised to start the call in the same tap as something else, such as "Cannot
+   * find it" (Section H). Nothing happens when calls are off, or a call is already on.
+   */
+  ringNow?: number;
 }): JSX.Element | null {
   const [pence, setPence] = useState<number | null>(null);
   const [stage, setStage] = useState<Stage>({ kind: 'idle' });
@@ -128,6 +134,15 @@ export function CallControls({
     },
     [otherName],
   );
+
+  // The one tap that asks about something not on the shelf also starts the call (Section H).
+  const rung = useRef(ringNow);
+  useEffect(() => {
+    if (ringNow === rung.current) return;
+    rung.current = ringNow;
+    if (as !== 'runner' || pence === null || stage.kind !== 'idle') return;
+    void join(() => startCall(orderId, as));
+  }, [ringNow, as, pence, stage.kind, join, orderId]);
 
   if (pence === null) return null;
   const price = `Calls cost ${pence}p a minute, paid from your card when the call ends.`;

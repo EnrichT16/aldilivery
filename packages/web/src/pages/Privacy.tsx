@@ -169,6 +169,13 @@ export function Privacy(): JSX.Element {
             where you last were, not a history of your journeys. Off shift, we do not track you.
           </li>
           <li>
+            If you press SOS, your phone shares where you are, kept up to date until you say you are
+            safe, with our owner and staff only: by a private link texted to the owner, which stops
+            working soon after, and in our admin panel. It is never shared with a Shopper. We keep a
+            record of the SOS, with the last place shared, to look after your safety and answer for
+            what we did.
+          </li>
+          <li>
             Your bank details go to Stripe, on Stripe&rsquo;s own pages, never to us. We keep a
             record of what you were paid, and of anything held back, as money records.
           </li>

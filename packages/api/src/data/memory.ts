@@ -50,6 +50,8 @@ import type {
   Runner,
   RunnerCheck,
   RunnerPayout,
+  RunnerSos,
+  ReferralReward,
   SetItem,
   Shopper,
 } from '../domain.js';
@@ -117,6 +119,8 @@ export function memoryRepository(): Repository {
   const analyticsEvents: AnalyticsEvent[] = [];
   const incomeRecords: IncomeRecord[] = [];
   const learned: LearnedPhrase[] = [];
+  const sosAlerts = new Map<string, RunnerSos>();
+  const referralRewards: ReferralReward[] = [];
 
   const now = (): Date => new Date();
 
@@ -167,6 +171,11 @@ export function memoryRepository(): Repository {
       },
       async count() {
         return shoppers.size;
+      },
+      async listReferred() {
+        return [...shoppers.values()]
+          .filter((shopper) => /^(shopper|runner):/.test(shopper.joinedVia ?? ''))
+          .map(clone);
       },
       async countJoinedVia(via) {
         return [...shoppers.values()].filter((shopper) => shopper.joinedVia === via).length;
@@ -223,6 +232,16 @@ export function memoryRepository(): Repository {
           agreementAcceptedAt: input.agreementAcceptedAt ?? null,
           agreementVersion: input.agreementVersion ?? null,
           agreementChannel: input.agreementChannel ?? null,
+          payoutSchedule: 'weekly',
+          leftAt: null,
+          leftReason: null,
+          leftBy: null,
+          coolBagRefundedPence: null,
+          coolBagRefundedAt: null,
+          coolBagRefundTransferId: null,
+          coolBagRefundNote: null,
+          insuranceReminderFor: null,
+          insuranceReminderDays: null,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -318,6 +337,52 @@ export function memoryRepository(): Repository {
         const row = { ...found, ...patch };
         runnerDocuments.set(key, row);
         return clone(row);
+      },
+    },
+
+    sos: {
+      async create(input) {
+        const row: RunnerSos = { ...input, id: id() };
+        sosAlerts.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = sosAlerts.get(key);
+        return found ? clone(found) : null;
+      },
+      async findByLinkCodeHash(hash) {
+        for (const row of sosAlerts.values()) if (row.linkCodeHash === hash) return clone(row);
+        return null;
+      },
+      async findActiveForRunner(runnerId) {
+        const active = [...sosAlerts.values()]
+          .filter((row) => row.runnerId === runnerId && row.endedAt === null)
+          .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+        return active[0] ? clone(active[0]) : null;
+      },
+      async listSince(since) {
+        return [...sosAlerts.values()]
+          .filter((row) => row.endedAt === null || row.startedAt >= since)
+          .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+          .map(clone);
+      },
+      async update(key, patch) {
+        const existing = sosAlerts.get(key);
+        if (!existing) throw new NotFoundError('SOS', key);
+        const updated = { ...existing, ...patch, id: existing.id };
+        sosAlerts.set(key, updated);
+        return clone(updated);
+      },
+    },
+
+    referralRewards: {
+      async create(input) {
+        const row: ReferralReward = { ...input, id: id() };
+        referralRewards.push(row);
+        return clone(row);
+      },
+      async list() {
+        return referralRewards.map(clone);
       },
     },
 

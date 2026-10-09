@@ -64,6 +64,17 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       async count() {
         return prisma.shopper.count();
       },
+      async listReferred() {
+        return (await prisma.shopper.findMany({
+          where: {
+            OR: [
+              { joinedVia: { startsWith: 'shopper:' } },
+              { joinedVia: { startsWith: 'runner:' } },
+            ],
+          },
+          orderBy: { createdAt: 'asc' },
+        })) as unknown as Shopper[];
+      },
       async countJoinedVia(via) {
         return prisma.shopper.count({ where: { joinedVia: via } });
       },
@@ -146,6 +157,42 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
       async update(id, patch) {
         return (await prisma.runnerDocument.update({ where: { id }, data: patch as any })) as any;
+      },
+    },
+
+    sos: {
+      async create(input) {
+        return (await prisma.runnerSos.create({ data: input })) as any;
+      },
+      async findById(id) {
+        return (await prisma.runnerSos.findUnique({ where: { id } })) as any;
+      },
+      async findByLinkCodeHash(linkCodeHash) {
+        return (await prisma.runnerSos.findUnique({ where: { linkCodeHash } })) as any;
+      },
+      async findActiveForRunner(runnerId) {
+        return (await prisma.runnerSos.findFirst({
+          where: { runnerId, endedAt: null },
+          orderBy: { startedAt: 'desc' },
+        })) as any;
+      },
+      async listSince(since) {
+        return (await prisma.runnerSos.findMany({
+          where: { OR: [{ endedAt: null }, { startedAt: { gte: since } }] },
+          orderBy: { startedAt: 'desc' },
+        })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.runnerSos.update({ where: { id }, data: patch })) as any;
+      },
+    },
+
+    referralRewards: {
+      async create(input) {
+        return (await prisma.referralReward.create({ data: input })) as any;
+      },
+      async list() {
+        return (await prisma.referralReward.findMany({ orderBy: { createdAt: 'asc' } })) as any;
       },
     },
 
