@@ -14,6 +14,7 @@ import type { OrderStatus } from '@aldilivery/core';
 
 import type {
   AccountRole,
+  AuditEntry,
   IncomeRecord,
   LearnedPhrase,
   AnalyticsEvent,
@@ -117,6 +118,7 @@ export function memoryRepository(): Repository {
   const analyticsEvents: AnalyticsEvent[] = [];
   const incomeRecords: IncomeRecord[] = [];
   const learned: LearnedPhrase[] = [];
+  const auditEntries: AuditEntry[] = [];
 
   const now = (): Date => new Date();
 
@@ -746,6 +748,7 @@ export function memoryRepository(): Repository {
           deliveredAt: null,
           completedAt: null,
           cancelledAt: null,
+          cancelReason: null,
           items,
         };
         orders.set(order.id, order);
@@ -1077,6 +1080,7 @@ export function memoryRepository(): Repository {
           totpEnabled: false,
           allowedAreas: '',
           sessionVersion: 0,
+          recoveryCodes: '',
         };
         staffMembers.set(row.id, row);
         return clone(row);
@@ -1321,6 +1325,84 @@ export function memoryRepository(): Repository {
             (row) => row.at >= where.since && (where.until === undefined || row.at < where.until),
           )
           .sort((a, b) => a.at.getTime() - b.at.getTime())
+          .map(clone);
+      },
+    },
+
+    audit: {
+      async record(input) {
+        // Frozen, so not even code in this process can change an entry once it is written.
+        const row: AuditEntry = Object.freeze({ ...input, id: id() });
+        auditEntries.push(row);
+        return clone(row);
+      },
+      async list(where) {
+        const needle = where.search?.trim().toLowerCase() ?? '';
+        // Newest first; of two at the same moment, the one written later first.
+        return [...auditEntries]
+          .reverse()
+          .filter(
+            (row) =>
+              (where.since === undefined || row.at >= where.since) &&
+              (where.until === undefined || row.at < where.until) &&
+              (where.actorId === undefined || row.actorId === where.actorId) &&
+              (where.target === undefined || row.target === where.target) &&
+              (needle === '' ||
+                [row.actorName, row.actorRole, row.action, row.target, row.detail, row.ip].some(
+                  (field) => field.toLowerCase().includes(needle),
+                )),
+          )
+          .sort((a, b) => b.at.getTime() - a.at.getTime())
+          .slice(0, where.limit ?? 200)
+          .map(clone);
+      },
+    },
+
+    admin: {
+      async listOrders(where) {
+        return [...orders.values()]
+          .filter(
+            (row) =>
+              (where.since === undefined || row.createdAt >= where.since) &&
+              (where.until === undefined || row.createdAt < where.until) &&
+              (where.statuses === undefined || where.statuses.includes(row.status)),
+          )
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .slice(0, where.limit ?? 200)
+          .map(clone);
+      },
+      async listShoppersCreated(where) {
+        return [...shoppers.values()]
+          .filter(
+            (row) =>
+              row.createdAt >= where.since &&
+              (where.until === undefined || row.createdAt < where.until),
+          )
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async searchShoppers(text, limit = 20) {
+        const needle = text.trim().toLowerCase();
+        if (needle === '') return [];
+        return [...shoppers.values()]
+          .filter((row) =>
+            [row.displayName, row.handle, row.phone].some((field) =>
+              field.toLowerCase().includes(needle),
+            ),
+          )
+          .sort((a, b) => a.displayName.localeCompare(b.displayName))
+          .slice(0, limit)
+          .map(clone);
+      },
+      async listProblemsDecided(where) {
+        return [...problems.values()]
+          .filter(
+            (row) =>
+              row.decidedAt !== null &&
+              row.decidedAt >= where.since &&
+              (where.until === undefined || row.decidedAt < where.until),
+          )
+          .sort((a, b) => (a.decidedAt?.getTime() ?? 0) - (b.decidedAt?.getTime() ?? 0))
           .map(clone);
       },
     },

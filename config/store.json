@@ -103,6 +103,11 @@
     "recoveryPercentOfPay": 10,
     "writeOffUpToPence": 2000
   },
+  "admin": {
+    "ownerOnlyRefundAbovePence": 2500,
+    "staffTwoStepGraceDays": 14,
+    "staffTwoStepFrom": "2026-10-17"
+  },
   "versionOneRestrictions": {
     "ageRestrictedGoodsAllowed": false
   }

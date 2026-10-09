@@ -23,6 +23,10 @@ import type {
   TeamMember,
   LearningRow,
   BankPaymentRow,
+  CancellationsReport,
+  RefundsReport,
+  RunnersNow,
+  StaffOrderRow,
 } from '../lib/api';
 import { money } from '../lib/money';
 import { pairsAloud } from '../lib/phone-aloud';
@@ -46,7 +50,27 @@ export interface StaffLists {
   learning?: LearningRow[];
   /** Bank transfers waiting to be checked against the business account (ruling 50). */
   payments?: BankPaymentRow[];
+  /** Live orders, read one at a time with no Shopper's name (Section Q). */
+  orders?: StaffOrderRow[];
+  /** Numbers, not lists to work through. */
+  runners?: never[];
+  reports?: never[];
+  accounts?: never[];
+  audit?: never[];
 }
+
+/** Parts that are figures or screens rather than things waiting for somebody. */
+const NOT_WAITING: readonly StaffArea[] = [
+  'team',
+  'analytics',
+  'overview',
+  'money',
+  'orders',
+  'runners',
+  'reports',
+  'accounts',
+  'audit',
+];
 
 /** What each part is called aloud, as one and as many. */
 export const AREA_WORDS: Record<StaffArea, { one: string; many: string; tab: string }> = {
@@ -79,6 +103,11 @@ export const AREA_WORDS: Record<StaffArea, { one: string; many: string; tab: str
     many: 'questions Ozi could not answer',
     tab: 'Learning',
   },
+  orders: { one: 'live order', many: 'live orders', tab: 'Orders' },
+  runners: { one: 'Runner', many: 'Runners', tab: 'Runners' },
+  reports: { one: 'report', many: 'reports', tab: 'Reports' },
+  accounts: { one: 'Shopper account', many: 'Shopper accounts', tab: 'Shopper accounts' },
+  audit: { one: 'audit entry', many: 'audit entries', tab: 'Audit log' },
 };
 
 /** The items of one part that are still waiting for somebody. */
@@ -102,8 +131,7 @@ export function summary(
 ): string {
   const parts: string[] = [];
   for (const area of areas) {
-    if (area === 'team' || area === 'analytics' || area === 'overview' || area === 'money')
-      continue;
+    if (NOT_WAITING.includes(area)) continue;
     const count = waiting(lists, area).length;
     if (count === 0) continue;
     const words = AREA_WORDS[area];
@@ -127,10 +155,8 @@ export function summary(
 
 function firstNoun(areas: readonly StaffArea[], lists: StaffLists): string {
   const area =
-    areas.find(
-      (one) =>
-        !['team', 'analytics', 'overview', 'money'].includes(one) && waiting(lists, one).length > 0,
-    ) ?? (areas.includes('analytics') ? 'analytics' : 'problems');
+    areas.find((one) => !NOT_WAITING.includes(one) && waiting(lists, one).length > 0) ??
+    (areas.includes('analytics') ? 'analytics' : 'problems');
   return {
     documents: 'documents',
     problems: 'complaints',
@@ -145,6 +171,11 @@ function firstNoun(areas: readonly StaffArea[], lists: StaffLists): string {
     team: 'team',
     learning: 'learning list',
     payments: 'payments',
+    orders: 'orders',
+    runners: 'Runners',
+    reports: 'reports',
+    accounts: 'Shopper accounts',
+    audit: 'audit log',
   }[area];
 }
 
@@ -241,9 +272,18 @@ export function readItem(area: StaffArea, item: unknown, position: string): stri
         `. ${row.hasPhoto ? 'It has a photo.' : 'It has no photo.'} Say "accept" or "turn it down", or "next".`
       );
     }
+    case 'orders': {
+      // No Shopper's name aloud: the screen has it, for whoever needs it.
+      const row = item as StaffOrderRow;
+      return `Order ${position}, ${row.reference.split('').join(' ')}: ${row.statusWords}. ${row.itemCount} ${row.itemCount === 1 ? 'item' : 'items'}${row.area ? `, to ${row.area.split('').join(' ')}` : ''}${row.runnerName ? `, with ${row.runnerName}` : ''}. Say "next", or open it on the screen for its timeline.`;
+    }
     case 'analytics':
     case 'overview':
     case 'money':
+    case 'runners':
+    case 'reports':
+    case 'accounts':
+    case 'audit':
       return '';
     case 'team': {
       const row = item as TeamMember;
@@ -267,9 +307,76 @@ export type StaffCommand =
   | { kind: 'not-found' }
   | { kind: 'found' }
   | { kind: 'rung-back' }
-  | { kind: 'sign-out' };
+  | { kind: 'sign-out' }
+  /** "How many signups this month?" (Section Q). */
+  | { kind: 'signups'; period: SpokenPeriod }
+  /** "What refunds went out yesterday and why?" */
+  | { kind: 'refunds'; period: SpokenPeriod }
+  /** "Read me the cancellations." */
+  | { kind: 'cancellations'; period: SpokenPeriod }
+  /** "How many Runners are active right now?" */
+  | { kind: 'runners-now' };
+
+/** A stretch of time, as people say it. */
+export type SpokenPeriod =
+  'today' | 'yesterday' | 'week' | 'last-week' | 'seven-days' | 'month' | 'last-month' | 'year';
+
+/** "this month", "yesterday", "last week": null when nothing like it was said. */
+export function spokenPeriod(text: string): SpokenPeriod | null {
+  const said = text.toLowerCase();
+  if (/\btoday\b/.test(said)) return 'today';
+  if (/\byesterday\b/.test(said)) return 'yesterday';
+  if (/\blast week\b/.test(said)) return 'last-week';
+  if (/\b(last|past) (7|seven) days\b|\bpast week\b/.test(said)) return 'seven-days';
+  if (/\bthis week\b/.test(said)) return 'week';
+  if (/\blast month\b/.test(said)) return 'last-month';
+  if (/\b(this|the) month\b|\bpast month\b/.test(said)) return 'month';
+  if (/\b(this|the) year\b/.test(said)) return 'year';
+  return null;
+}
+
+/** The two moments a period runs between, on this device's own clock, and how it is said. */
+export function periodRange(
+  period: SpokenPeriod,
+  now = new Date(),
+): { from: Date; to: Date; words: string } {
+  const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const day = 24 * 60 * 60 * 1000;
+  const monday = new Date(midnight.getTime() - ((midnight.getDay() + 6) % 7) * day);
+  const soon = new Date(now.getTime() + 1000);
+  switch (period) {
+    case 'today':
+      return { from: midnight, to: soon, words: 'Today' };
+    case 'yesterday':
+      return { from: new Date(midnight.getTime() - day), to: midnight, words: 'Yesterday' };
+    case 'week':
+      return { from: monday, to: soon, words: 'This week' };
+    case 'last-week':
+      return { from: new Date(monday.getTime() - 7 * day), to: monday, words: 'Last week' };
+    case 'seven-days':
+      return { from: new Date(now.getTime() - 7 * day), to: soon, words: 'In the last seven days' };
+    case 'month':
+      return {
+        from: new Date(now.getFullYear(), now.getMonth(), 1),
+        to: soon,
+        words: 'This month',
+      };
+    case 'last-month':
+      return {
+        from: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+        to: new Date(now.getFullYear(), now.getMonth(), 1),
+        words: 'Last month',
+      };
+    case 'year':
+      return { from: new Date(now.getFullYear(), 0, 1), to: soon, words: 'This year' };
+  }
+}
 
 const AREA_PATTERNS: Array<[StaffArea, RegExp]> = [
+  ['audit', /\b(audit( log)?|who did what)\b/],
+  ['accounts', /\b(shopper accounts?|open (a |the )?shopper'?s? account)\b/],
+  ['orders', /\b(live orders|the orders|orders)\b/],
+  ['reports', /\b(reports?|price freshness|how fresh)\b/],
   ['payments', /\b(payments?|bank transfers?|transfers?)\b/],
   [
     'money',
@@ -341,6 +448,23 @@ export function understand(said: string): StaffCommand | null {
   if (/\b(what'?s waiting|summary|anything new|what'?s new|catch me up|overview)\b/.test(text)) {
     return { kind: 'summary' };
   }
+  // The owner's questions about the business (Section Q): numbers, totals and patterns only.
+  if (/\b(sign ?-?ups?|signed up|new (shoppers|runners|accounts)|joined)\b/.test(text)) {
+    return { kind: 'signups', period: spokenPeriod(text) ?? 'month' };
+  }
+  if (/\brefunds\b|\brefunds? (went|go|gone|given|issued|sent)\b/.test(text)) {
+    return { kind: 'refunds', period: spokenPeriod(text) ?? 'seven-days' };
+  }
+  if (/\bcancell?ations?\b|\bcancell?ed( orders)?\b/.test(text)) {
+    return { kind: 'cancellations', period: spokenPeriod(text) ?? 'seven-days' };
+  }
+  if (
+    /\b(runners? (are |is )?(active|working|on shift|out)|active runners|who'?s (working|on shift)|runners (right )?now|read me the runners)\b/.test(
+      text,
+    )
+  ) {
+    return { kind: 'runners-now' };
+  }
   if (/\b(rung (them )?back|called (them )?back|done|handled|i'?ve rung)\b/.test(text))
     return { kind: 'rung-back' };
   if (/\b(next|skip|carry on|the next one)\b/.test(text)) return { kind: 'next' };
@@ -383,6 +507,9 @@ export function help(areas: readonly StaffArea[]): string {
     `You can say: "what's waiting", to hear everything; "read me the" and then ${listWords(tabs)}; ` +
     '"next", "back", or "again", to move through a list; and the decision itself, such as "accept", ' +
     '"nobody at fault, refund 2 pounds 50", "write it off", "not found" or "rung back". ' +
+    (areas.includes('reports')
+      ? 'You can ask "how many signups this month", "what refunds went out yesterday and why" or "read me the cancellations". '
+      : '') +
     'I always read a decision back and wait for your yes. Say "sign me out" when you finish.'
   );
 }
@@ -434,6 +561,53 @@ export function moneyWords(data: OwnerMoney): string {
     `${money(data.month.netPence)} kept.` +
     (gateways.length ? ` By gateway: ${listWords(gateways)}.` : '')
   );
+}
+
+function times(count: number): string {
+  return count === 1 ? 'once' : count === 2 ? 'twice' : `${count} times`;
+}
+
+/** "The Shopper cancelled before paying." as "the Shopper cancelled before paying". */
+function clause(reason: string): string {
+  const trimmed = reason.trim().replace(/[.!]+$/, '');
+  return /^(The|A|An|No) /.test(trimmed) ? trimmed[0]!.toLowerCase() + trimmed.slice(1) : trimmed;
+}
+
+/** "How many signups this month?": numbers only, no names. */
+export function signupsWords(when: string, shoppers: number, runners: number): string {
+  if (shoppers === 0 && runners === 0) return `${when}, nobody has signed up.`;
+  const parts = [
+    `${shoppers} ${shoppers === 1 ? 'Shopper' : 'Shoppers'}`,
+    `${runners} ${runners === 1 ? 'Runner' : 'Runners'}`,
+  ];
+  return `${when}, ${listWords(parts)} signed up.`;
+}
+
+/**
+ * "What refunds went out yesterday and why?": how many, why in groups, and the total only for
+ * the owner (the server leaves it out for anyone else). Never a name.
+ */
+export function refundsWords(when: string, report: RefundsReport): string {
+  if (report.count === 0) return `${when}, no refunds went out.`;
+  const groups = report.byReason.map((row) => `${row.count} for ${row.reason}`);
+  return (
+    `${when}, ${report.count} ${report.count === 1 ? 'refund' : 'refunds'} went out: ${listWords(groups)}.` +
+    (report.totalPence !== null ? ` ${money(report.totalPence)} altogether.` : '')
+  );
+}
+
+/** "Read me the cancellations": how many, and why, in patterns. Never a name. */
+export function cancellationsWords(when: string, report: CancellationsReport): string {
+  if (report.count === 0) return `${when}, no orders were cancelled.`;
+  const reasons = report.byReason.map((row) => `${times(row.count)}, ${clause(row.reason)}`);
+  const why = listWords(reasons);
+  return `${when}, ${report.count} ${report.count === 1 ? 'order was' : 'orders were'} cancelled. ${why.charAt(0).toUpperCase()}${why.slice(1)}.`;
+}
+
+/** "How many Runners are active right now?" */
+export function runnersNowWords(data: RunnersNow): string {
+  if (data.activeNow === 0) return 'No Runners are active right now.';
+  return `${data.activeNow} ${data.activeNow === 1 ? 'Runner is' : 'Runners are'} active right now: ${data.onShift} on shift and ${data.onAJob} on a job.`;
 }
 
 /** What Ozi says first when the owner asks for something (ruling 44), taken in turn. */

@@ -20,6 +20,7 @@ import type { AccountRole } from './domain.js';
 import { ApiError, ForbiddenError, TooManyRequestsError, UnauthorisedError } from './errors.js';
 import type { Env } from './env.js';
 import { bankSettings } from './lib/bank.js';
+import { auditChange } from './lib/audit.js';
 import { addSecurityHeaders, limiter } from './lib/guard.js';
 import type { CallProvider } from './lib/livekit.js';
 import type { VoiceEngineLink } from './lib/oluoma-voice.js';
@@ -29,6 +30,7 @@ import type { SendText } from './lib/sms.js';
 import type { PlaceCall } from './lib/twilio-voice.js';
 import { verifySession } from './lib/tokens.js';
 import { gitCommit } from './lib/version.js';
+import { registerAdminRoutes } from './routes/admin.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerAccountRoutes } from './routes/accounts.js';
 import { registerBasketRoutes } from './routes/basket.js';
@@ -209,6 +211,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   app.decorate('ctx', ctx);
   app.decorateRequest('session', undefined);
+  app.decorateRequest('staffActor', undefined);
 
   // The browser origins allowed to call this API. In production this is exactly the site
   // the web app is served from, named in `ALLOWED_ORIGIN`, and nothing else.
@@ -269,8 +272,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     }
   });
 
-  app.addHook('onSend', async (_request, reply) => {
+  app.addHook('onSend', async (request, reply) => {
     addSecurityHeaders(reply);
+    // Every change made in the admin panel goes in the audit log (Section Q).
+    await auditChange(request, reply);
   });
 
   app.setErrorHandler((error, request, reply) => {
@@ -444,6 +449,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerVoiceRoutes(app);
   await registerPaymentRoutes(app);
   await registerReimbursementRoutes(app);
+  await registerAdminRoutes(app);
 }
 
 /**
@@ -466,6 +472,15 @@ export function requireStaff(request: FastifyRequest, staffKey: string | undefin
     value.length === staffKey.length &&
     timingSafeEqual(Buffer.from(value), Buffer.from(staffKey));
   if (!ok) throw new ForbiddenError('That is only for the server itself.');
+  // Whatever is done with the staff key goes in the audit log too.
+  request.staffActor = {
+    id: null,
+    name: 'The server',
+    role: 'founder',
+    areas: [],
+    isOwner: false,
+    viewOnly: false,
+  };
 }
 
 /** Require a signed-in account, optionally of a particular kind. */

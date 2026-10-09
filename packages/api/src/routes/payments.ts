@@ -104,7 +104,11 @@ export async function registerPaymentRoutes(app: FastifyInstance): Promise<void>
     if (!order || order.paidBy !== 'bank') throw new NotFoundError('bank transfer order');
     if (order.status !== 'confirmed')
       throw new ConflictError('That order is not waiting for a transfer.');
-    await repository.orders.update(order.id, { status: 'cancelled', cancelledAt: now() });
+    await repository.orders.update(order.id, {
+      status: 'cancelled',
+      cancelledAt: now(),
+      cancelReason: 'The bank transfer never came; cancelled by staff.',
+    });
     return { message: `Cancelled: reference ${order.bankReference}. Nothing was taken.` };
   });
 

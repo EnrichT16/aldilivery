@@ -7,7 +7,6 @@ import {
   addTeamMember,
   addViewer,
   changePasscode,
-  confirmTwoStep,
   fetchOwnerExists,
   fetchOwnerMoney,
   fetchStaffOverview,
@@ -15,8 +14,6 @@ import {
   killSwitch,
   setUpOwner,
   setViewer,
-  startTwoStep,
-  twoStepOff,
   type OwnerMoney,
   type StaffOverview,
   type Viewer,
@@ -32,6 +29,8 @@ import {
   fetchStaffRoles,
   fetchTeam,
   resetTeamPassword,
+  resetTeamTwoStep,
+  type StaffTwoStep,
   staffSignIn,
   updateTeamMember,
   decideFind,
@@ -70,6 +69,15 @@ import {
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { ShareCard } from '../components/ShareCard';
 import { StaffVoice } from '../components/StaffVoice';
+import {
+  AuditLog,
+  Orders,
+  Reports,
+  RunnersNow,
+  ShopperAccounts,
+  TwoStepCodes,
+  TwoStepRequired,
+} from './StaffAdmin';
 import { money } from '../lib/money';
 import { useOzi } from '../state/ozi';
 import { nameHeardIn } from '../voice/name';
@@ -86,7 +94,7 @@ import { nameHeardIn } from '../voice/name';
 const KEY = 'ozidelivery.staff.key';
 const NAME = 'ozidelivery.staff.name';
 
-type TabKey = StaffArea | 'mine';
+type TabKey = StaffArea | 'mine' | 'twostep';
 type StaffMe = Awaited<ReturnType<typeof fetchStaffMe>>;
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'overview', label: 'Overview' },
@@ -94,6 +102,8 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'payments', label: 'Payments' },
   { key: 'documents', label: 'Documents' },
   { key: 'problems', label: 'Problems' },
+  { key: 'orders', label: 'Orders' },
+  { key: 'runners', label: 'Runners' },
   { key: 'owed', label: 'Money owed' },
   { key: 'finds', label: 'Finds It' },
   { key: 'enquiries', label: 'Enquiries' },
@@ -101,7 +111,11 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'analytics', label: 'Analytics' },
   { key: 'feedback', label: 'Feedback' },
   { key: 'learning', label: 'Learning' },
+  { key: 'reports', label: 'Reports' },
+  { key: 'accounts', label: 'Shopper accounts' },
+  { key: 'audit', label: 'Audit log' },
   { key: 'team', label: 'Team' },
+  { key: 'twostep', label: 'Two-step codes' },
   { key: 'mine', label: 'My settings' },
 ];
 
@@ -174,9 +188,18 @@ export function Staff(): JSX.Element {
   }
 
   // "My settings" is the owner's alone: his passcode, two-step codes, the kill switch, and who
-  // sees his dashboard.
+  // sees his dashboard. Everyone else with their own account, family and investors too, has
+  // their two-step codes.
   const allowed = (key: TabKey): boolean =>
-    key === 'mine' ? me.isOwner === true : me.areas.includes(key);
+    key === 'mine'
+      ? me.isOwner === true
+      : key === 'twostep'
+        ? me.account && me.isOwner !== true
+        : me.areas.includes(key);
+  const freshSession = (token: string): void => {
+    remember(KEY, token);
+    setKey(token);
+  };
   const tabs = TABS.filter((item) => allowed(item.key));
   const shown = tab && allowed(tab) ? tab : (tabs[0]?.key ?? null);
 
@@ -200,6 +223,14 @@ export function Staff(): JSX.Element {
             setNews(message);
             setMe({ ...me, mustChangePassword: false });
           }}
+        />
+      ) : me.twoStep?.setupNeeded ? (
+        <TwoStepRequired
+          staffKey={key}
+          state={me.twoStep}
+          owner={me.isOwner === true}
+          onNews={setNews}
+          onSession={freshSession}
         />
       ) : (
         <>
@@ -246,7 +277,29 @@ export function Staff(): JSX.Element {
             {shown === 'analytics' && <Analytics staffKey={key} />}
             {shown === 'overview' && <Overview staffKey={key} />}
             {shown === 'money' && <Money staffKey={key} />}
-            {shown === 'mine' && <MySettings staffKey={key} onNews={setNews} onSignOut={signOut} />}
+            {shown === 'orders' && <Orders staffKey={key} />}
+            {shown === 'runners' && <RunnersNow staffKey={key} />}
+            {shown === 'reports' && <Reports staffKey={key} />}
+            {shown === 'accounts' && <ShopperAccounts staffKey={key} />}
+            {shown === 'audit' && <AuditLog staffKey={key} />}
+            {shown === 'twostep' && (
+              <TwoStepCodes
+                staffKey={key}
+                state={me.twoStep}
+                level={2}
+                onNews={setNews}
+                onSession={freshSession}
+              />
+            )}
+            {shown === 'mine' && (
+              <MySettings
+                staffKey={key}
+                twoStep={me.twoStep ?? null}
+                onNews={setNews}
+                onSignOut={signOut}
+                onSession={freshSession}
+              />
+            )}
             {shown === 'team' && (
               <>
                 {!me.account && <OwnerSetup staffKey={key} onNews={setNews} />}
@@ -389,14 +442,13 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
           {needs.includes('code') && (
             <>
               <label htmlFor="staff-code" className="block font-bold">
-                The 6-digit code from your authenticator app
+                The 6-digit code from your authenticator app, or a recovery code
               </label>
               <input
                 id="staff-code"
                 name="staff-code"
-                inputMode="numeric"
                 autoComplete="one-time-code"
-                maxLength={6}
+                maxLength={9}
                 className={field}
               />
             </>
@@ -1485,6 +1537,7 @@ function Team({
             </h3>
             <p className="m-0">
               Signs in as {member.username}.{' '}
+              {member.twoStepOn ? 'Two-step codes on. ' : 'Two-step codes not set up yet. '}
               {member.lastSignInAt
                 ? `Last signed in ${new Date(member.lastSignInAt).toLocaleDateString('en-GB')}.`
                 : 'Has not signed in yet.'}
@@ -1517,6 +1570,27 @@ function Team({
               >
                 New password<span className="visually-hidden"> for {member.name}</span>
               </button>
+              {member.twoStepOn && !member.title.includes('owner') && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void resetTeamTwoStep(staffKey, member.id)
+                      .then((result) => {
+                        setPassword(result.message);
+                        list.reload();
+                      })
+                      .catch((failure: unknown) =>
+                        setProblem(
+                          failure instanceof Error ? failure.message : 'That did not work.',
+                        ),
+                      )
+                  }
+                  className="control bg-paper text-ink"
+                >
+                  Reset two-step codes
+                  <span className="visually-hidden"> for {member.name}</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => change(member, { active: !member.active })}
@@ -2347,17 +2421,20 @@ const VIEWER_AREA_WORDS: Record<string, string> = {
 /** The owner's own settings: passcode, two-step codes, the kill switch, and who sees what. */
 function MySettings({
   staffKey,
+  twoStep,
   onNews,
   onSignOut,
+  onSession,
 }: {
   staffKey: string;
+  twoStep: StaffTwoStep | null;
   onNews: (text: string) => void;
   onSignOut: () => void;
+  onSession: (token: string) => void;
 }): JSX.Element {
   const viewers = useList(() => fetchViewers(staffKey));
   const [problem, setProblem] = useState('');
   const [password, setPassword] = useState('');
-  const [twoStep, setTwoStep] = useState<{ secret: string; otpauth: string } | null>(null);
   const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
   const fail = (failure: unknown): void =>
     setProblem(failure instanceof Error ? failure.message : 'That did not work.');
@@ -2537,81 +2614,13 @@ function MySettings({
         </button>
       </form>
 
-      <section aria-labelledby="two-step-heading" className="space-y-2">
-        <h3 id="two-step-heading" className="text-lead font-bold m-0">
-          Two-step codes
-        </h3>
-        <p className="m-0">
-          With these on, signing in also asks for the 6-digit code from an authenticator app on your
-          phone.
-        </p>
-        {twoStep ? (
-          <form
-            onSubmit={(event) => {
-              const value = values(event);
-              confirmTwoStep(staffKey, value('two-step-code').trim())
-                .then((result) => {
-                  setTwoStep(null);
-                  onNews(result.message);
-                })
-                .catch(fail);
-            }}
-            className="space-y-2"
-          >
-            <p className="m-0 break-all">
-              Add this key to your authenticator app:{' '}
-              <span aria-label={twoStep.secret.split('').join(' ')}>{twoStep.secret}</span>
-            </p>
-            <a href={twoStep.otpauth} className="control bg-paper text-ink">
-              Open it in my authenticator app
-            </a>
-            <label htmlFor="two-step-code" className="block">
-              The 6-digit code it shows
-            </label>
-            <input
-              id="two-step-code"
-              name="two-step-code"
-              inputMode="numeric"
-              maxLength={6}
-              className={field}
-            />
-            <button type="submit" className="control bg-highlight text-ink">
-              Switch two-step codes on
-            </button>
-          </form>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() =>
-                void startTwoStep(staffKey)
-                  .then((result) => setTwoStep(result))
-                  .catch(fail)
-              }
-              className="control bg-paper text-ink"
-            >
-              Set up two-step codes
-            </button>
-            <form
-              onSubmit={(event) => {
-                const value = values(event);
-                twoStepOff(staffKey, value('off-passcode'))
-                  .then((result) => onNews(result.message))
-                  .catch(fail);
-              }}
-              className="flex flex-wrap gap-2 items-end"
-            >
-              <label className="block">
-                Passcode, to switch them off
-                <input name="off-passcode" type="password" maxLength={7} className={field} />
-              </label>
-              <button type="submit" className="control bg-paper/10 text-paper underline">
-                Switch two-step codes off
-              </button>
-            </form>
-          </div>
-        )}
-      </section>
+      <TwoStepCodes
+        staffKey={staffKey}
+        state={twoStep}
+        owner
+        onNews={onNews}
+        onSession={onSession}
+      />
 
       <form
         onSubmit={(event) => {

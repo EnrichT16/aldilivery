@@ -430,6 +430,8 @@ model Order {
   deliveredAt DateTime?
   completedAt DateTime?
   cancelledAt DateTime?
+  /// Why it was cancelled, in plain words, for the admin panel's cancellations list.
+  cancelReason String?
 
   items     OrderItem[]
   offers    JobOffer[]
@@ -875,6 +877,8 @@ model StaffMember {
   allowedAreas       String    @default("")
   /// Raised to sign every session of this account out at once.
   sessionVersion     Int       @default(0)
+  /// Two-step recovery codes, each hashed, comma separated. One is used up each time.
+  recoveryCodes      String    @default("")
   createdAt          DateTime  @default(now())
 }
 
@@ -1014,4 +1018,26 @@ model LearnedPhrase {
 
   @@unique([account, text])
   @@index([status, timesHeard])
+}
+
+/// Who did what in the admin panel, and when (Section Q). Only ever added to: the server has
+/// no way to change or remove an entry, and the database refuses to (see the migration).
+model AuditEntry {
+  id        String   @id @default(cuid())
+  at        DateTime @default(now())
+  /// The staff account, or null for the staff key.
+  actorId   String?
+  actorName String
+  actorRole String
+  /// What was done, such as "POST /staff/problems/:id/decide" or "shopper.opened".
+  action    String
+  /// What it was done to, such as an order or a Shopper.
+  target    String   @default("")
+  /// A short record of what was sent, with every password, passcode and code taken out.
+  detail    String   @default("")
+  /// The internet address it came from.
+  ip        String   @default("")
+
+  @@index([at])
+  @@index([actorId])
 }

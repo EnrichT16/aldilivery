@@ -1093,7 +1093,22 @@ export type StaffArea =
   | 'money'
   | 'team'
   | 'learning'
-  | 'payments';
+  | 'payments'
+  | 'orders'
+  | 'runners'
+  | 'reports'
+  | 'accounts'
+  | 'audit';
+
+/** Where someone's two-step codes stand (Section Q). */
+export interface StaffTwoStep {
+  on: boolean;
+  /** When they become a must. */
+  dueAt: string;
+  /** Past the grace period and not set up: nothing else opens until they are. */
+  setupNeeded: boolean;
+  recoveryCodesLeft: number;
+}
 
 export interface StaffSignedIn {
   token: string;
@@ -1102,6 +1117,9 @@ export interface StaffSignedIn {
   title: string;
   areas: StaffArea[];
   mustChangePassword: boolean;
+  twoStep?: StaffTwoStep;
+  /** Said when a recovery code was used. */
+  message?: string;
 }
 
 export function staffSignIn(
@@ -1123,6 +1141,8 @@ export function fetchStaffMe(key: string): Promise<
     address?: string | null;
     viewOnly?: boolean;
     totpEnabled?: boolean;
+    /** Null for the staff key, which has no account. */
+    twoStep?: StaffTwoStep | null;
   }
 > {
   return staffRequest(key, '/staff/me');
@@ -1159,6 +1179,7 @@ export interface TeamMember {
   mustChangePassword: boolean;
   lastSignInAt: string | null;
   createdAt: string;
+  twoStepOn?: boolean;
 }
 
 export function fetchTeam(key: string): Promise<{ team: TeamMember[] }> {
@@ -2004,7 +2025,7 @@ export function startTwoStep(
   });
 }
 
-export function confirmTwoStep(key: string, code: string): Promise<{ message: string }> {
+export function confirmTwoStep(key: string, code: string): Promise<TwoStepConfirmed> {
   return staffRequest(key, '/staff/owner/two-step/confirm', {
     method: 'POST',
     body: JSON.stringify({ code }),
@@ -2189,4 +2210,291 @@ export function approveReimbursement(key: string, orderId: string): Promise<{ me
     method: 'POST',
     body: JSON.stringify({}),
   });
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * Two-step codes for every staff sign-in (Section Q): set up with an authenticator app,
+ * with recovery codes for a lost phone.
+ * ------------------------------------------------------------------------------------- */
+
+export interface TwoStepConfirmed {
+  message: string;
+  /** Each works once. Shown only now. */
+  recoveryCodes?: string[];
+  /** A fresh session, for someone who could only set two-step codes up until now. */
+  token?: string;
+}
+
+export function startMyTwoStep(
+  key: string,
+): Promise<{ secret: string; otpauth: string; message: string }> {
+  return staffRequest(key, '/staff/two-step/start', { method: 'POST', body: '{}' });
+}
+
+export function confirmMyTwoStep(key: string, code: string): Promise<TwoStepConfirmed> {
+  return staffRequest(key, '/staff/two-step/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}
+
+export function myTwoStepOff(key: string, password: string): Promise<{ message: string }> {
+  return staffRequest(key, '/staff/two-step/off', {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  });
+}
+
+export function newRecoveryCodes(
+  key: string,
+  code: string,
+): Promise<{ message: string; recoveryCodes: string[] }> {
+  return staffRequest(key, '/staff/two-step/recovery-codes', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}
+
+export function resetTeamTwoStep(key: string, id: string): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/team/${encodeURIComponent(id)}/two-step-reset`, {
+    method: 'POST',
+    body: '{}',
+  });
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * The admin panel's reports (Section Q): orders and their timelines, Runners working now,
+ * signups, cancellations, refunds and price freshness; for the owner alone, Shoppers'
+ * accounts, their data, and the audit log.
+ * ------------------------------------------------------------------------------------- */
+
+function query(params: Record<string, string | number | undefined>): string {
+  const pairs = Object.entries(params).filter(
+    (pair): pair is [string, string | number] => pair[1] !== undefined && pair[1] !== '',
+  );
+  return pairs.length === 0
+    ? ''
+    : `?${pairs.map(([name, value]) => `${name}=${encodeURIComponent(String(value))}`).join('&')}`;
+}
+
+export interface StaffOrderRow {
+  id: string;
+  reference: string;
+  status: string;
+  statusWords: string;
+  createdAt: string;
+  shopperName: string | null;
+  shopperHandle: string | null;
+  runnerName: string | null;
+  itemCount: number;
+  totalEstimatePence: number;
+  finalTotalPence: number | null;
+  paidBy: 'card' | 'bank';
+  area: string | null;
+  cancelReason: string | null;
+}
+
+export function fetchStaffOrders(
+  key: string,
+  filters: {
+    view?: 'live' | 'past' | 'all';
+    status?: string;
+    search?: string;
+    from?: string;
+    to?: string;
+  } = {},
+): Promise<{ orders: StaffOrderRow[]; statuses: Array<{ status: string; words: string }> }> {
+  return staffRequest(key, `/staff/orders${query(filters)}`);
+}
+
+export interface StaffOrderDetail {
+  order: StaffOrderRow & {
+    goodsEstimatePence: number;
+    feePence: number;
+    receiptTotalPence: number | null;
+    items: Array<{ name: string; quantity: number; outcome: string }>;
+  };
+  timeline: Array<{ at: string; what: string }>;
+}
+
+export function fetchStaffOrder(key: string, id: string): Promise<StaffOrderDetail> {
+  return staffRequest(key, `/staff/orders/${encodeURIComponent(id)}`);
+}
+
+export interface RunnerNowRow {
+  id: string;
+  name: string;
+  onShift: boolean;
+  activeNow: boolean;
+  travel: string;
+  job: { id: string; reference: string; status: string } | null;
+  jobsCompleted: number;
+  jobsToday: number;
+  earnedTodayPence: number;
+  earnedWeekPence: number;
+  earnedAllTimePence: number;
+}
+
+export interface RunnersNow {
+  activeNow: number;
+  onShift: number;
+  onAJob: number;
+  runners: RunnerNowRow[];
+}
+
+export function fetchRunnersNow(key: string): Promise<RunnersNow> {
+  return staffRequest(key, '/staff/runners/now');
+}
+
+export interface SignupBucket {
+  label: string;
+  from: string;
+  to: string;
+  shoppers: number;
+  runners: number;
+}
+
+export function fetchSignups(
+  key: string,
+  period: 'day' | 'week' | 'month',
+  range: { from?: string; to?: string } = {},
+): Promise<{
+  period: string;
+  buckets: SignupBucket[];
+  /** Given a from: who signed up between the two moments. */
+  between: { from: string; to: string; shoppers: number; runners: number } | null;
+}> {
+  return staffRequest(key, `/staff/reports/signups${query({ period, ...range })}`);
+}
+
+export interface CancellationsReport {
+  from: string;
+  to: string;
+  count: number;
+  byReason: Array<{ reason: string; count: number }>;
+  cancellations: Array<{ id: string; reference: string; at: string; reason: string }>;
+}
+
+export function fetchCancellations(
+  key: string,
+  range: { from?: string; to?: string } = {},
+): Promise<CancellationsReport> {
+  return staffRequest(key, `/staff/reports/cancellations${query(range)}`);
+}
+
+export interface RefundsReport {
+  from: string;
+  to: string;
+  count: number;
+  /** Null for everyone but the owner: money totals are his alone. */
+  totalPence: number | null;
+  ownerOnlyAbovePence: number;
+  byReason: Array<{ reason: string; count: number }>;
+  refunds: Array<{
+    at: string;
+    amountPence: number;
+    kind: string;
+    group: string;
+    reason: string;
+    orderId: string | null;
+    decidedBy: string | null;
+  }>;
+}
+
+export function fetchRefunds(
+  key: string,
+  range: { from?: string; to?: string } = {},
+): Promise<RefundsReport> {
+  return staffRequest(key, `/staff/reports/refunds${query(range)}`);
+}
+
+export interface PriceFreshness {
+  catalogue: {
+    total: number;
+    fresh: number;
+    ageing: number;
+    stale: number;
+    oldest: Array<{
+      id: string;
+      name: string;
+      category: string;
+      pricePence: number;
+      lastSeenAt: string;
+    }>;
+  };
+  shops: Array<{
+    id: string;
+    name: string;
+    products: number;
+    lastUpdatedAt: string | null;
+    stale: boolean;
+  }>;
+}
+
+export function fetchPriceFreshness(key: string): Promise<PriceFreshness> {
+  return staffRequest(key, '/staff/reports/prices');
+}
+
+export function searchShopperAccounts(
+  key: string,
+  search: string,
+): Promise<{
+  shoppers: Array<{ id: string; displayName: string; handle: string; createdAt: string }>;
+}> {
+  return staffRequest(key, `/staff/shoppers${query({ search })}`);
+}
+
+export interface ShopperAccountView {
+  account: Record<string, unknown> & {
+    id: string;
+    displayName: string;
+    handle: string;
+    phone: string;
+    deliveryAddress: string;
+    createdAt: string;
+  };
+  savedAddresses: Array<{ label: string; address: string }>;
+  cards: Array<{ brand: string | null; lastFour: string; isDefault: boolean }>;
+  orders: Array<{
+    id: string;
+    reference: string;
+    status: string;
+    createdAt: string;
+    totalEstimatePence: number;
+    finalTotalPence: number | null;
+    items: string;
+  }>;
+  regularOrders: Array<{ name: string; frequency: string; active: boolean; items: string }>;
+  problems: Array<{ orderId: string; summary: string; decision: string | null }>;
+  findIt: Array<{ description: string; status: string }>;
+  giftCardsBought: Array<{ amountPence: number; recipientName: string; redeemed: boolean }>;
+}
+
+export function fetchShopperAccount(key: string, id: string): Promise<ShopperAccountView> {
+  return staffRequest(key, `/staff/shoppers/${encodeURIComponent(id)}`);
+}
+
+/** Everything held about a Shopper, as a CSV file to save: a link to it. */
+export function shopperExportLink(key: string, id: string): Promise<string> {
+  return fetchStaffFile(key, `/staff/shoppers/${encodeURIComponent(id)}/export.csv`);
+}
+
+export interface AuditEntryRow {
+  id: string;
+  at: string;
+  actorId: string | null;
+  actorName: string;
+  actorRole: string;
+  action: string;
+  words: string;
+  target: string;
+  detail: string;
+  ip: string;
+}
+
+export function fetchAuditLog(
+  key: string,
+  filters: { search?: string; from?: string; to?: string } = {},
+): Promise<{ entries: AuditEntryRow[] }> {
+  return staffRequest(key, `/staff/audit${query(filters)}`);
 }
