@@ -112,6 +112,10 @@ export interface ApiStubOptions {
   confirmAtSignUp?: boolean;
   /** What checking a sign-in code answers: a token, no account, or a wrong code. */
   verifyResult?: 'signed-in' | 'no-account' | 'wrong-code';
+  /** What asking for a code answers when texts are not on yet (503), for a real number. */
+  requestCodeUnavailable?: string;
+  /** Whether paying by bank transfer is switched on (ruling 50; on since ruling 61). */
+  bankTransfer?: boolean;
 }
 
 /**
@@ -214,10 +218,14 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
             byCall: options.signInByCall ?? false,
             confirmAtSignUp: options.confirmAtSignUp ?? false,
           },
+          ...(options.bankTransfer ? { bankTransfer: { enabled: true } } : {}),
         });
       }
 
       if (path === '/auth/request-code' && method === 'POST') {
+        if (options.requestCodeUnavailable) {
+          return reply({ error: { code: 'unavailable', message: options.requestCodeUnavailable } }, 503);
+        }
         const asked = (body ?? {}) as { channel?: string };
         return reply({
           sent: true,

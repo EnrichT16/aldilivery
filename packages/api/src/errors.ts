@@ -119,11 +119,17 @@ export class PaymentFailedError extends ApiError {
 
 /** Raised when a basket is larger than the largest fee band can price without breaking Rule Three. */
 export class BasketTooLargeError extends ApiError {
-  constructor(goodsPence: number, maximumPence: number) {
+  /**
+   * Over the most one order carries, the Shopper may keep everything as linked orders (ruling
+   * 61); over the most one basket holds (`basket`), they must take something out.
+   */
+  constructor(goodsPence: number, maximumPence: number, basket = false) {
     super(
       422,
       'basket_too_large',
-      `This comes to £${(goodsPence / 100).toFixed(2)} of shopping, and one order carries up to £${(maximumPence / 100).toFixed(2)}. We can split it into two deliveries.`,
+      basket
+        ? `This comes to £${(goodsPence / 100).toFixed(2)} of shopping, and one basket holds up to £${(maximumPence / 100).toFixed(2)}, brought by several Runners. Please take something out.`
+        : `This comes to £${(goodsPence / 100).toFixed(2)} of shopping, and one order carries up to £${(maximumPence / 100).toFixed(2)}. You can take something out, or keep everything and a second Runner brings the rest.`,
       { goodsPence, maximumPence },
     );
   }

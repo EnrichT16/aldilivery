@@ -6,10 +6,10 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import { formatPence, needsVehicle } from '@aldilivery/core';
+import { formatPence, needsVehicle, overOneRunnerWords } from '@aldilivery/core';
 import { z } from 'zod';
 
-import { priceLines } from '../services/basket.js';
+import { priceLinesInParts, type PricedBasketInParts } from '../services/basket.js';
 import { largeOrderShopperWords } from '../services/dispatch.js';
 import { deliveryPlanFor } from '../services/plans.js';
 
@@ -42,10 +42,12 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
     const plan = shopper ? await deliveryPlanFor(app.ctx, shopper, now()) : 'payg';
 
     // Throws on an age restricted item (Rule Six), on a product over the most one product may
-    // cost, and on a basket over the most one order carries.
-    const priced = priceLines(lines, items, config.fees, plan);
+    // cost, and on a basket over the most one basket holds (ruling 61: £450). Over one order
+    // (£150), it is priced both ways the Shopper may choose (basketChoice).
+    const priced = priceLinesInParts(lines, items, config.fees, plan);
 
     const symbol = config.store.currencySymbol;
+    if (priced.parts.length > 1) return basketChoice(priced);
     const shopping = priced.goodsPence + priced.itemChargesPence;
     // Rulings 59 and 60: a large shop goes to a Runner with a vehicle who can carry it, or
     // comes in parts if none takes it, which may take a little longer.
@@ -77,4 +79,58 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
       ],
     };
   });
+
+  /**
+   * A basket over £150 (ruling 61): the Shopper is told plainly, before paying, that it is more
+   * than one Runner can carry, and given both choices: take something out or swap it, or keep
+   * everything as linked orders. Nothing hidden: every order, its Runner and its delivery.
+   */
+  function basketChoice(priced: PricedBasketInParts) {
+    const money = (pence: number) => formatPence(pence, config.store.currencySymbol);
+    const shopping = priced.goodsPence + priced.itemChargesPence;
+    const choice = overOneRunnerWords(config.fees, money);
+    const parts = priced.parts.map((part) => ({
+      part: part.part,
+      runner: `Runner ${part.part}`,
+      goodsPence: part.goodsPence,
+      itemChargesPence: part.itemChargesPence,
+      feePence: part.feePence,
+      totalPence: part.totalPence,
+      extra: part.extra,
+      tinyExtra: part.extra && part.goodsPence < config.dispatch.tinyExtraBelowPence,
+      carNeeded: needsVehicle(part.goodsPence, config.dispatch.maxGoodsPenceByMode),
+      lines: part.lines,
+      words: `Runner ${part.part}: ${money(part.goodsPence)} of shopping at the shop's prices and ${money(part.itemChargesPence)} of item charges, delivery ${money(part.feePence)}${part.extra ? ', taken only when this Runner collects it' : ''}.`,
+    }));
+    return {
+      overOneRunner: true,
+      choice,
+      maximumOrderGoodsPence: config.fees.maximumOrderGoodsPence,
+      maximumBasketGoodsPence: config.fees.maximumBasketGoodsPence,
+      goodsEstimatePence: priced.goodsPence,
+      itemChargesPence: priced.itemChargesPence,
+      // Keeping everything: every order's delivery added up.
+      feePence: priced.feePence,
+      totalPence: priced.totalPence,
+      extraDeliveryPence: priced.extraDeliveryPence,
+      deliveryPlan: priced.plan,
+      carNeeded: true,
+      lines: priced.lines,
+      parts,
+      inWords: {
+        goods: money(priced.goodsPence),
+        itemCharges: money(priced.itemChargesPence),
+        shopping: money(shopping),
+        fee: money(priced.feePence),
+        total: money(priced.totalPence),
+      },
+      explanation: [
+        choice,
+        `If you keep everything, it comes as ${priced.parts.length} orders, each with its own Runner:`,
+        ...parts.map((part) => part.words),
+        `So about ${money(priced.totalPence)} altogether, delivery ${money(priced.feePence)} of it.`,
+        'You pay what the till says for the shopping, so the total may change a little.',
+      ],
+    };
+  }
 }

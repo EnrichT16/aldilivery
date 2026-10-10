@@ -84,8 +84,18 @@ export function Terms(): JSX.Element {
             {money(storeConfig.fees.largeOrderFromPence)} or more of shopping.
           </li>
           <li>
-            One order carries up to {money(maximumOrderGoodsPence)} of shopping. More than that goes
-            as a second delivery, with its own delivery charge, and we tell you before you order.
+            One order carries up to {money(maximumOrderGoodsPence)} of shopping, which is what one
+            Runner can carry. If your basket is over that, we tell you before you pay, and you
+            choose: take something out or swap it, or keep everything. If you keep everything, it
+            goes as linked orders of up to {money(maximumOrderGoodsPence)} each, each with its own
+            Runner, up to {money(storeConfig.fees.maximumBasketGoodsPence)} in all. The first has
+            your usual delivery; each one after it costs{' '}
+            {money(storeConfig.fees.extraRunnerDeliveryPence)} delivery, whatever your plan. On a
+            card that extra delivery is taken only when that Runner collects the order. If a further
+            Runner is not needed after all (for example, the first Runner carries a small extra),
+            you are not charged for them: anything already paid goes back to your card or, if that
+            is not possible (such as a bank transfer), is kept on your account as Unused Runner fee
+            credit and comes off your next order.
           </li>
           <li>
             The prices shown are estimates. You pay what the shop&rsquo;s till charges, shown on the

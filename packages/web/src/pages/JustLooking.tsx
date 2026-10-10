@@ -54,7 +54,9 @@ export function JustLooking(): JSX.Element {
         </p>
         <p className="m-0 max-w-xl">
           One order carries up to {money(maximumOrderGoodsPence)} of shopping. If you need more than
-          that, it goes as two deliveries.
+          that, you can keep everything and a second Runner brings the rest, for an extra{' '}
+          {money(storeConfig.fees.extraRunnerDeliveryPence)} delivery, taken only when they collect
+          it.
         </p>
 
         <p className="m-0 max-w-xl">

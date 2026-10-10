@@ -15,6 +15,7 @@ import { z } from 'zod';
 import { requireSession, requireStaff } from '../app.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 import { isOfferExpired, poolOrders } from '../services/allocation.js';
+import { collectExtraDelivery } from '../services/basket-orders.js';
 import { canCarry, largeOrderWords, offerOrder } from '../services/dispatch.js';
 import { ensureDoorWord, newDoorWord } from '../services/door-word.js';
 import { drivingPaused } from '../services/insurance.js';
@@ -192,6 +193,10 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
     });
     void tellShopper(app.ctx, updated, 'accepted', request.log);
     await syncSplitParent(app.ctx, updated.splitParentId);
+
+    // A further Runner of a basket kept whole (ruling 61): their delivery is taken from the
+    // Shopper's card now that they have collected the job, and not before.
+    await collectExtraDelivery(app.ctx, updated.splitParentId ? ((await repository.orders.findById(updated.splitParentId)) ?? updated) : updated, request.log);
 
     // How they pay at the till: their spending card, loaded for this order now, or their own
     // card, paid back (Anthony, 9 October 2026). Never stops the job being theirs.

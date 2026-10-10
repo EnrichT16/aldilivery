@@ -36,6 +36,7 @@ import type { Order } from '../domain.js';
 import { ConflictError, NotFoundError } from '../errors.js';
 import { canBePaid } from './pay-runner.js';
 import { tillLimitPence, type TillOutcome } from './till.js';
+import { mostOneOrderCarries } from './basket-orders.js';
 
 type ReimburseContext = Pick<
   AppContext,
@@ -134,7 +135,7 @@ export async function startReimbursement(
   const plan = planReimbursement({
     receiptTotalPence: order.receiptTotalPence,
     goodsEstimatePence: order.goodsEstimatePence,
-    maximumGoodsPence: ctx.config.fees.maximumOrderGoodsPence,
+    maximumGoodsPence: mostOneOrderCarries(ctx.config, order),
     tillNeedsPerson: settled.kind === 'needs-person' ? settled.reason : null,
     receiptPhoto: {
       has: (await ctx.repository.receiptPhotos.findByOrderId(order.id)) !== null,
@@ -228,7 +229,7 @@ export async function sendReimbursement(
   if (!runner) throw new NotFoundError('Runner');
 
   // Never more than one delivery carries, whoever asks.
-  const pence = Math.min(order.reimbursementPence, config.fees.maximumOrderGoodsPence);
+  const pence = Math.min(order.reimbursementPence, mostOneOrderCarries(config, order));
   const owed = async (): Promise<ReimbursementOutcome> => {
     await repository.orders.update(order.id, {
       reimbursementPence: pence,

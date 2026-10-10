@@ -35,6 +35,7 @@ export function RunnerAgreement(): JSX.Element {
   const holdSeconds = storeConfig.allocation.offerHoldSeconds;
   const recoveryPence = Math.floor((runnerPaymentPence * recoveryPercentOfPay) / 100);
   const { maximumOrderGoodsPence } = storeConfig.fees;
+  const { maxGoodsPenceByMode, splitAfterMinutes, splitPartMaxPenceByMode } = storeConfig.dispatch;
   const versionDate = new Date(`${RUNNER_AGREEMENT_VERSION}T12:00:00Z`).toLocaleDateString(
     'en-GB',
     { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' },
@@ -130,6 +131,22 @@ export function RunnerAgreement(): JSX.Element {
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>Before you accept, you see the pay and the distance.</li>
+          <li>
+            How much shopping, at the shop&rsquo;s prices, each way of travelling carries: on foot or
+            by bicycle up to {money(maxGoodsPenceByMode.foot)}, by motorbike up to{' '}
+            {money(maxGoodsPenceByMode.motorbike)}, by car or van up to{' '}
+            {money(maxGoodsPenceByMode.car)}. You are only offered an order your way of travelling
+            can carry. A motorbike, car or van needs your driving licence and in-date insurance
+            checked.
+          </li>
+          <li>
+            An order that nobody who can carry it takes within {splitAfterMinutes} minutes is split
+            into parts, using as few Runners as possible: parts of up to{' '}
+            {money(splitPartMaxPenceByMode.motorbike)} for motorbike riders first (a car or van may
+            take one too), then parts of up to {money(splitPartMaxPenceByMode.foot)} for Runners on
+            foot or by bicycle. Each part is offered only to Runners of its kind. Bring only the
+            items on your list; another Runner brings the rest.
+          </li>
           <li>
             Buy what the Shopper asked for. If something is not on the shelf, ask the Shopper in the
             app. Never swap anything they have not agreed to. If they do not answer, leave it out.

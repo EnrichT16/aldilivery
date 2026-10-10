@@ -1,7 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { deliveryFeePence, itemChargesForLines } from '@aldilivery/core';
+import { deliveryFeePence, itemChargesForLines, overOneRunnerWords } from '@aldilivery/core';
 
 import { storeConfig } from '../config';
 import { createOrder, listPaymentMethods, searchCatalogue, type CatalogueItem } from '../lib/api';
@@ -153,8 +153,12 @@ export function useVoiceOrdering(
 
       if (goodsPence > maximumOrderGoodsPence) {
         reset();
+        // Ruling 61: told plainly, with both choices. Keeping everything is chosen on the screen,
+        // where every order, its Runner and its delivery are shown.
         await say(
-          `${notes}Your shopping comes to about ${money(goodsPence)} at the shop's prices. One order carries up to ${money(maximumOrderGoodsPence)}. I've put it all in your basket, so you can take some things out and send the rest as a second delivery.`,
+          goodsPence > storeConfig.fees.maximumBasketGoodsPence
+            ? `${notes}Your shopping comes to about ${money(goodsPence)} at the shop's prices, and one basket holds up to ${money(storeConfig.fees.maximumBasketGoodsPence)}. I've put it all in your basket, so you can take some things out.`
+            : `${notes}${overOneRunnerWords(storeConfig.fees, money)} I've put it all in your basket, where you can take something out, or keep everything and see what each Runner brings.`,
         );
         navigate('/basket');
         return;

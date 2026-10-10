@@ -19,6 +19,7 @@ import { cardRegionFor } from '../lib/card-region.js';
 import { recordOrderIncome } from '../lib/ledger.js';
 import { STRIPE_API_VERSION } from '../lib/payments.js';
 import { offerOrder } from '../services/dispatch.js';
+import { basketGroup, chargedNowPence } from '../services/basket-orders.js';
 import {
   answerAuthorizationRequest,
   recordAuthorization,
@@ -76,11 +77,24 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           const order = await repository.orders.findById(orderId);
           // Only ever confirms a payment for an order that was already confirmed and sent.
           if (order && order.status === 'confirmed') {
-            await repository.orders.update(order.id, { status: 'paid' });
+            // A basket kept whole (ruling 61): the one payment is for every linked order.
+            const group = (await basketGroup(app.ctx, order)).filter(
+              (row) => row.status === 'confirmed' && row.stripePaymentIntentId === order.stripePaymentIntentId,
+            );
+            for (const row of group) {
+              await repository.orders.update(row.id, { status: 'paid' });
+              if (row.id !== order.id) {
+                const sibling = await repository.orders.findById(row.id);
+                if (sibling) {
+                  await recordOrder(app.ctx, sibling, 'order_paid', request.log);
+                  await recordOrderIncome(repository, app.ctx.payments, sibling, now(), chargedNowPence(sibling));
+                }
+              }
+            }
             // The bank has approved it: now it can go to a Runner. The sweep catches it if
             // nobody is free right now.
             if (app.ctx.autoOffer) {
-              await offerOrder(app.ctx, order.id).catch(() => undefined);
+              for (const row of group) await offerOrder(app.ctx, row.id).catch(() => undefined);
             }
             // Their card has just been charged successfully: anything waiting for calls is
             // taken now too (ruling, 2 October 2026).
@@ -89,7 +103,7 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
             const paid = await repository.orders.findById(order.id);
             if (paid) {
               await recordOrder(app.ctx, paid, 'order_paid', request.log);
-              await recordOrderIncome(repository, app.ctx.payments, paid, now());
+              await recordOrderIncome(repository, app.ctx.payments, paid, now(), chargedNowPence(paid));
               void tellShopper(app.ctx, paid, 'paid', request.log);
             }
           }
@@ -101,11 +115,15 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
         if (orderId) {
           const order = await repository.orders.findById(orderId);
           if (order && (order.status === 'confirmed' || order.status === 'paid')) {
-            await repository.orders.update(order.id, {
-              status: 'cancelled',
-              cancelledAt: now(),
-              cancelReason: 'The card payment failed at the bank.',
-            });
+            for (const row of await basketGroup(app.ctx, order)) {
+              if (row.id !== order.id && row.status !== 'confirmed') continue;
+              await repository.orders.update(row.id, {
+                status: 'cancelled',
+                cancelledAt: now(),
+                cancelReason: 'The card payment failed at the bank.',
+                ...(row.extraDeliveryStatus ? { extraDeliveryStatus: 'waived' as const } : {}),
+              });
+            }
           }
         }
         break;

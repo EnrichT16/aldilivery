@@ -6,7 +6,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { setBankSettings } from '../src/lib/bank.js';
+import { bankSettings, setBankSettings } from '../src/lib/bank.js';
 import {
   buildTestApp,
   seedCatalogue,
@@ -147,6 +147,30 @@ describe('paying by bank transfer', () => {
     expect((await order()).statusCode).toBe(400);
     // A card still works as before.
     expect((await order('card')).statusCode).toBe(201);
+  });
+
+  it('is switched on in config/bank.json (ruling 61), says plainly when the Runner is sent, and texts the owner for each order', async () => {
+    // The live file, not the test's settings.
+    setBankSettings(null);
+    const live = bankSettings();
+    expect(live.enabled).toBe(true);
+    expect(live.sortCode).toMatch(/^\d{2}-\d{2}-\d{2}$/);
+    expect(live.accountNumber).toMatch(/^\d{8}$/);
+    const config = await harness.app.inject({ method: 'GET', url: '/config' });
+    expect(config.json().bankTransfer).toEqual({ enabled: true });
+
+    const first = await order();
+    expect(first.statusCode, first.body).toBe(201);
+    expect(first.json().message).toContain(
+      'A Runner is sent once your transfer arrives. A Faster Payments transfer usually arrives within minutes, and staff check for transfers at least every morning and evening.',
+    );
+    const second = await order();
+    expect(second.statusCode, second.body).toBe(201);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const ownerTexts = texts.filter((text) => text.to === '+447700900999');
+    expect(ownerTexts).toHaveLength(2);
+    expect(ownerTexts[0]!.body).toContain(first.json().bank.reference);
+    expect(ownerTexts[1]!.body).toContain(second.json().bank.reference);
   });
 
   it('is only for staff whose job includes payments', async () => {

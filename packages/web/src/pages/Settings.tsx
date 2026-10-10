@@ -178,6 +178,20 @@ export function Settings(): JSX.Element {
 
       {shopper && <AgeGroup />}
 
+      {shopper && (shopper.unusedRunnerFeeCreditPence ?? 0) > 0 && (
+        // Ruling 61: a further Runner's delivery, paid but not needed, kept for the next order.
+        <section aria-labelledby="runner-credit-heading" className="space-y-3 max-w-xl">
+          <h2 id="runner-credit-heading" className="text-lead font-bold">
+            Unused Runner fee credit
+          </h2>
+          <p className="m-0">
+            You have {money(shopper.unusedRunnerFeeCreditPence ?? 0)} of Unused Runner fee credit:
+            a delivery you paid for a further Runner who was not needed. It comes off your next
+            order.
+          </p>
+        </section>
+      )}
+
       {shopper && (
         // A shared phone (Anthony, 4 October 2026). By voice: "sign me out", "change account".
         <section aria-labelledby="account-heading" className="space-y-3 max-w-xl">

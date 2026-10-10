@@ -8,7 +8,8 @@
  *
  * Rule Four: there is no minimum. A basket of one tin is priced and accepted like any
  * other. There is a maximum, which one order carries (`fees.maximumOrderGoodsPence`). Above it
- * the Shopper is told so in plain words and offered two deliveries, never charged more.
+ * the Shopper is told so in plain words before paying and chooses (ruling 61): take something
+ * out, or keep everything as linked orders, each with its own Runner (`priceLinesInParts`).
  *
  * Rule Three as amended on 9 October 2026 (ruling 58): every unit carries an item charge, and
  * the price shown for it always includes that charge; no single product may cost more than
@@ -19,6 +20,8 @@ import {
   displayPricePence,
   itemChargePence,
   priceBasket,
+  priceBasketInParts,
+  type BasketPartFees,
   productAllowed,
   type BasketPricing,
   type DeliveryFees,
@@ -68,6 +71,98 @@ export function priceLines(
   options: PriceBasketOptions,
   plan: DeliveryPlan = 'payg',
 ): PricedBasket {
+  const pricedLines = checkedLines(lines, catalogueItems, options);
+  const goodsPence = pricedLines.reduce((sum, line) => sum + line.linePence, 0);
+
+  if (goodsPence > options.maximumOrderGoodsPence) {
+    throw new BasketTooLargeError(goodsPence, options.maximumOrderGoodsPence);
+  }
+
+  const pricing = priceBasket(
+    pricedLines.map((line) => ({ shopPricePence: line.unitPricePence, quantity: line.quantity })),
+    plan,
+    options,
+  );
+  return { ...pricing, lines: pricedLines };
+}
+
+/** One linked order of a basket kept whole (ruling 61), with its own priced lines. */
+export interface PricedBasketPart extends BasketPricing {
+  part: number;
+  extra: boolean;
+  lines: PricedLine[];
+}
+
+/** A basket priced as linked orders (ruling 61): one part when it is within one order. */
+export interface PricedBasketInParts extends BasketPricing {
+  lines: PricedLine[];
+  parts: PricedBasketPart[];
+  /** The extra Runners' deliveries, taken only when each of them collects. */
+  extraDeliveryPence: number;
+}
+
+/**
+ * Price a basket that may be over one order (ruling 61): the same checks as `priceLines`, then
+ * linked orders of up to £150 of shopping each, the first at the Shopper's plan price and each
+ * after it at `extraRunnerDeliveryPence`. Refuses a basket over `maximumBasketGoodsPence`.
+ */
+export function priceLinesInParts(
+  lines: readonly BasketLine[],
+  catalogueItems: readonly CatalogueItem[],
+  options: BasketPartFees,
+  plan: DeliveryPlan = 'payg',
+): PricedBasketInParts {
+  const pricedLines = checkedLines(lines, catalogueItems, options);
+  const goodsPence = pricedLines.reduce((sum, line) => sum + line.linePence, 0);
+  if (goodsPence > options.maximumBasketGoodsPence) {
+    throw new BasketTooLargeError(goodsPence, options.maximumBasketGoodsPence, true);
+  }
+  const inParts = priceBasketInParts(
+    pricedLines.map((line) => ({
+      key: line.catalogueItemId,
+      unitPricePence: line.unitPricePence,
+      quantity: line.quantity,
+    })),
+    plan,
+    options,
+  );
+  const byId = new Map(pricedLines.map((line) => [line.catalogueItemId, line]));
+  const parts = inParts.parts.map((part) => ({
+    part: part.part,
+    extra: part.extra,
+    goodsPence: part.goodsPence,
+    itemChargesPence: part.itemChargesPence,
+    feePence: part.feePence,
+    totalPence: part.totalPence,
+    plan: part.plan,
+    lines: part.lines.map((line) => {
+      const whole = byId.get(line.key) as PricedLine;
+      return {
+        ...whole,
+        quantity: line.quantity,
+        linePence: whole.unitPricePence * line.quantity,
+        lineDisplayPence: whole.unitDisplayPence * line.quantity,
+      };
+    }),
+  }));
+  return {
+    goodsPence: inParts.goodsPence,
+    itemChargesPence: inParts.itemChargesPence,
+    feePence: inParts.feePence,
+    totalPence: inParts.totalPence,
+    plan: inParts.plan,
+    extraDeliveryPence: inParts.extraDeliveryPence,
+    lines: pricedLines,
+    parts,
+  };
+}
+
+/** The checks every basket goes through, and its lines priced one by one. */
+function checkedLines(
+  lines: readonly BasketLine[],
+  catalogueItems: readonly CatalogueItem[],
+  options: PriceBasketOptions,
+): PricedLine[] {
   if (lines.length === 0) {
     throw new BadRequestError('There is nothing in the basket yet.');
   }
@@ -118,16 +213,5 @@ export function priceLines(
     };
   });
 
-  const goodsPence = pricedLines.reduce((sum, line) => sum + line.linePence, 0);
-
-  if (goodsPence > options.maximumOrderGoodsPence) {
-    throw new BasketTooLargeError(goodsPence, options.maximumOrderGoodsPence);
-  }
-
-  const pricing = priceBasket(
-    pricedLines.map((line) => ({ shopPricePence: line.unitPricePence, quantity: line.quantity })),
-    plan,
-    options,
-  );
-  return { ...pricing, lines: pricedLines };
+  return pricedLines;
 }

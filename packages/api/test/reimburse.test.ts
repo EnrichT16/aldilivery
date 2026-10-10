@@ -443,6 +443,39 @@ describe('the Runner agreement, before the first job', () => {
     expect((await post(`/jobs/${offer.id}/accept`, {}, newcomer.authHeader)).statusCode).toBe(200);
   });
 
+  it('asks every Runner who agreed to the 9 October version to agree again (ruling 61)', async () => {
+    expect(RUNNER_AGREEMENT_VERSION).toBe('2026-10-10');
+    await harness.repository.runners.update(runner.runnerId, {
+      agreementVersion: '2026-10-09',
+      agreementAcceptedAt: new Date('2026-10-09T09:00:00.000Z'),
+    });
+    const me = await harness.app.inject({ method: 'GET', url: '/me', headers: runner.authHeader });
+    expect(JSON.stringify(me.json())).toContain('"agreementCurrent":false');
+    // Not offered anything until they agree to the current version.
+    const placed = await post(
+      '/orders',
+      {
+        lines: [{ catalogueItemId: milk, quantity: 1 }],
+        deliveryAddress: '12 Example Street',
+        paymentMethodId: shopper.paymentMethodId,
+        confirmation: {
+          confirmed: true,
+          addressConfirmed: true,
+          channel: 'button',
+          statement: 'Send my order and pay.',
+          agreedTotalPence: 125 + 50 + 799,
+        },
+      },
+      shopper.authHeader,
+    );
+    expect(placed.statusCode, placed.body).toBe(201);
+    const orderId = placed.json().order.id as string;
+    expect(await harness.repository.offers.listForOrder(orderId)).toHaveLength(0);
+    await post('/runners/me/agreement', { accepted: true, version: RUNNER_AGREEMENT_VERSION }, runner.authHeader);
+    await harness.app.inject({ method: 'POST', url: `/jobs/${orderId}/offer`, headers: STAFF });
+    expect((await harness.repository.offers.listForOrder(orderId))[0]?.runnerId).toBe(runner.runnerId);
+  });
+
   it('is offered work once agreed', async () => {
     await harness.repository.runners.update(runner.runnerId, { available: false });
     const newcomer = await signUpRunner(harness, {

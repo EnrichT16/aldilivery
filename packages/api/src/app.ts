@@ -66,6 +66,7 @@ import { registerReferralRewardRoutes } from './routes/referral-reward.js';
 import { registerPushRoutes } from './routes/push.js';
 import { registerSetRoutes } from './routes/sets.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
+import { demoPhone } from './services/demo.js';
 
 export interface AppContext {
   config: StoreConfig;
@@ -423,7 +424,10 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
     },
     /** Whether a code can be sent, so the sign-in screen can say so before anybody tries. */
     signIn: {
-      byText: ctx.codeDelivery !== 'off',
+      // Texts on, or the app store reviewers' demo sign-in set up (ruling 60): either way the
+      // form is shown. Which of the two is never said; a real number with texts off is told
+      // plainly that texts are not on yet.
+      byText: ctx.codeDelivery !== 'off' || demoPhone(ctx.env) !== null,
       byCall: ctx.callDelivery !== 'off',
       // A new account's number is confirmed with a code once codes really go out (ruling 33).
       confirmAtSignUp: phoneConfirmedAtSignUp(ctx),

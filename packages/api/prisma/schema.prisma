@@ -156,6 +156,8 @@ model Shopper {
   familyOwnerId           String?
   /// Gift card money waiting to be used, in pence.
   creditPence             Int                    @default(0)
+  /// How much of creditPence is "Unused Runner fee credit" (ruling 61), shown in the account.
+  unusedRunnerFeeCreditPence Int                @default(0)
   preferredLanguage       String                 @default("en-GB")
   /// Free text the Runner reads at the door: "knock loudly, I am slow to the door".
   doorstepProtocol        String                 @default("")
@@ -533,6 +535,21 @@ model Order {
   splitParts    Order[]   @relation("SplitParts")
   splitPart     Int?
   splitOf       Int?
+  /// On a part (ruling 61): "motorbike" (a motorbike rider, or a car or van Runner) or "foot"
+  /// (on foot or by bicycle). Null on a whole order and on parts split before ruling 61.
+  splitMode     String?
+  /// On a part (ruling 61): when it was planned, at the split or when the rest was planned again.
+  splitPlannedAt DateTime?
+
+  /// A basket over one order kept whole (ruling 61): linked orders sharing the first order's id,
+  /// each order basketPart of basketOf. On a linked order after the first, where its extra
+  /// Runner's delivery has got to (pending, charged, failed, transfer, waived, refunded,
+  /// credited) and the card payment that took it.
+  basketGroupId          String?
+  basketPart             Int?
+  basketOf               Int?
+  extraDeliveryStatus    String?
+  extraDeliveryPaymentId String?
 
   /// A demo order (ruling 60), placed by the app store reviewers' demo account: no card is
   /// charged and no Runner is ever sent.

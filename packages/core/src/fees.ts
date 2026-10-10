@@ -21,6 +21,7 @@
  * The functions here are pure: same inputs, same outputs, no clock, no random, no I/O.
  */
 
+import { packFirstFit, type SplitLine } from './dispatch.js';
 import { RUNNER_PAYMENT_PENCE } from './rules.js';
 
 /**
@@ -256,6 +257,103 @@ export function runnerPaymentFor(
   fees: { readonly largeOrderRunnerPaymentPence: number; readonly largeOrderFromPence: number },
 ): number {
   return goodsPence >= fees.largeOrderFromPence ? fees.largeOrderRunnerPaymentPence : RUNNER_PAYMENT_PENCE;
+}
+
+/** What pricing a basket over one order reads (ruling 61). */
+export interface BasketPartFees extends DeliveryFees {
+  /** The most one basket may hold, kept as linked orders (£450). */
+  readonly maximumBasketGoodsPence: number;
+  /** The delivery for each linked order after the first (£13.50), whatever the plan. */
+  readonly extraRunnerDeliveryPence: number;
+}
+
+/** One line of a basket to be priced in parts: which line, its shop price, and how many. */
+export type BasketPartLine = SplitLine;
+
+/** One linked order of a basket kept whole (ruling 61): its items, its prices and its Runner. */
+export interface BasketPartPricing extends BasketPricing {
+  /** 1 for the first order, 2 for the next, and so on: one Runner each. */
+  readonly part: number;
+  readonly lines: ReadonlyArray<{ key: string; quantity: number; unitPricePence: number }>;
+  /** Whether this order's delivery is the extra-Runner delivery, taken when it is collected. */
+  readonly extra: boolean;
+}
+
+/** A basket kept whole, as linked orders, and what it all comes to. */
+export interface BasketInParts extends BasketPricing {
+  readonly parts: readonly BasketPartPricing[];
+  /** The extra-Runner deliveries, taken only when each of those Runners collects. */
+  readonly extraDeliveryPence: number;
+}
+
+/**
+ * A basket over the most one order carries, priced as linked orders (ruling 61, Anthony,
+ * 10 October 2026). The first order is filled with items up to `maximumOrderGoodsPence` (£150),
+ * then the next up to £150, and so on, dearest first; no product is ever split. The first order
+ * keeps the Shopper's own delivery for its plan; every order after it costs
+ * `extraRunnerDeliveryPence` (£13.50) whatever the plan. A basket within one order is one part,
+ * priced exactly as `priceBasket`. Refuses a basket over `maximumBasketGoodsPence` (£450).
+ *
+ * So £172 of shopping on pay as you go is £150 with £13.50 delivery and £22 with £13.50 more.
+ */
+export function priceBasketInParts(
+  lines: readonly BasketPartLine[],
+  plan: DeliveryPlan,
+  fees: BasketPartFees,
+): BasketInParts {
+  for (const line of lines) assertProductAllowed(line.unitPricePence, fees);
+  const goods = lines.reduce((sum, line) => sum + line.unitPricePence * line.quantity, 0);
+  if (goods > fees.maximumBasketGoodsPence) {
+    throw new BasketOverMaximumError(goods, fees.maximumBasketGoodsPence);
+  }
+  const packed =
+    goods <= fees.maximumOrderGoodsPence
+      ? [{ lines: lines.map(({ key, quantity, unitPricePence }) => ({ key, quantity, unitPricePence })), goodsPence: goods }]
+      : packFirstFit(lines, fees.maximumOrderGoodsPence, () => ({
+          tag: null,
+          capacityPence: fees.maximumOrderGoodsPence,
+        }));
+  const parts = packed.map((bin, index): BasketPartPricing => {
+    const itemChargesPence = itemChargesForLines(
+      bin.lines.map((line) => ({ shopPricePence: line.unitPricePence, quantity: line.quantity })),
+      fees,
+    );
+    const extra = index > 0;
+    const feePence = extra ? fees.extraRunnerDeliveryPence : deliveryFeePence(bin.goodsPence, plan, fees);
+    return {
+      part: index + 1,
+      lines: bin.lines,
+      extra,
+      goodsPence: bin.goodsPence,
+      itemChargesPence,
+      feePence,
+      totalPence: bin.goodsPence + itemChargesPence + feePence,
+      plan,
+    };
+  });
+  const sum = (pick: (part: BasketPartPricing) => number) => parts.reduce((total, part) => total + pick(part), 0);
+  return {
+    parts,
+    goodsPence: goods,
+    itemChargesPence: sum((part) => part.itemChargesPence),
+    feePence: sum((part) => part.feePence),
+    totalPence: sum((part) => part.totalPence),
+    extraDeliveryPence: sum((part) => (part.extra ? part.feePence : 0)),
+    plan,
+  };
+}
+
+/**
+ * What the Shopper is told, before paying, when their basket is over one order (ruling 61):
+ * plainly and gently, with both choices.
+ */
+export function overOneRunnerWords(
+  fees: Pick<BasketPartFees, 'maximumOrderGoodsPence' | 'extraRunnerDeliveryPence'>,
+  formatMoney: (pence: number) => string,
+): string {
+  // "over £150", as Anthony said it: whole pounds without the pence.
+  const most = formatMoney(fees.maximumOrderGoodsPence).replace(/\.00$/, '');
+  return `Your shopping is over ${most}, which is more than one Runner can carry. You can take something out or swap it to stay with one Runner, or keep everything and a second Runner will bring the rest for an extra ${formatMoney(fees.extraRunnerDeliveryPence)} delivery.`;
 }
 
 /** The full economics of an order, for internal reporting. */

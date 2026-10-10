@@ -221,17 +221,33 @@ describe('the most one order carries, and the most one product may cost', () => 
     });
   });
 
-  it('says plainly when a basket is over, and offers two deliveries', async () => {
+  it('says plainly when a basket is over one order, and offers both choices (ruling 61)', async () => {
     const response = await harness.app.inject({
       method: 'POST',
       url: '/basket/price',
       payload: { lines: [{ catalogueItemId: await product(1500), quantity: 11 }] },
     });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      overOneRunner: true,
+      choice:
+        'Your shopping is over £150, which is more than one Runner can carry. You can take something out or swap it to stay with one Runner, or keep everything and a second Runner will bring the rest for an extra £13.50 delivery.',
+      goodsEstimatePence: 16500,
+      feePence: 2700,
+    });
+  });
+
+  it('refuses a basket over the most one basket holds (£450), in plain words', async () => {
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/basket/price',
+      payload: { lines: [{ catalogueItemId: await product(5000), quantity: 10 }] },
+    });
     expect(response.statusCode).toBe(422);
     expect(response.json().error).toMatchObject({
       code: 'basket_too_large',
       message:
-        'This comes to £165.00 of shopping, and one order carries up to £150.00. We can split it into two deliveries.',
+        'This comes to £500.00 of shopping, and one basket holds up to £450.00, brought by several Runners. Please take something out.',
     });
   });
 

@@ -561,6 +561,11 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         });
         return toOrder(row);
       },
+      async addItem(orderId, item) {
+        return (await prisma.orderItem.create({
+          data: { ...item, orderId } as any,
+        })) as unknown as OrderItem;
+      },
       async updateItem(itemId, patch) {
         return (await prisma.orderItem.update({
           where: { id: itemId },
@@ -577,7 +582,8 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
       async listParts(parentId) {
         const rows = await prisma.order.findMany({
-          where: { splitParentId: parentId },
+          // A part replaced when the rest was planned again (ruling 61) is cancelled, not a part.
+          where: { splitParentId: parentId, status: { not: 'cancelled' } },
           include: { items: true },
           orderBy: { splitPart: 'asc' },
         });

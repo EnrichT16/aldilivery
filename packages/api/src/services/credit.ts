@@ -37,6 +37,11 @@ export async function applyCredit(
     return 0;
   }
   await repository.orders.update(order.id, { creditAppliedPence: amountPence });
-  await repository.shoppers.update(shopper.id, { creditPence: shopper.creditPence - amountPence });
+  const remaining = shopper.creditPence - amountPence;
+  await repository.shoppers.update(shopper.id, {
+    creditPence: remaining,
+    // "Unused Runner fee credit" (ruling 61) is part of the credit, and is used with it.
+    unusedRunnerFeeCreditPence: Math.min(shopper.unusedRunnerFeeCreditPence, remaining),
+  });
   return amountPence;
 }

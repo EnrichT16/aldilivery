@@ -175,6 +175,8 @@ export interface Shopper {
   /** On somebody else's Family and Carer plan, whose card pays. */
   familyOwnerId?: string | null;
   creditPence?: number;
+  /** Ruling 61: how much of the credit is a further Runner's delivery that was not needed. */
+  unusedRunnerFeeCreditPence?: number;
   ageBand?: 'under_25' | '25_44' | '45_64' | '65_plus' | null;
   displayName: string;
   handle: string;
@@ -935,6 +937,8 @@ export function createOrder(input: {
   paymentMethodId?: string;
   /** A card through Stripe, or a bank transfer to the business account (ruling 50). */
   payBy?: 'card' | 'bank' | 'family';
+  /** Ruling 61: a basket over £150 kept whole, as linked orders each with its own Runner. */
+  keepEverything?: boolean;
   confirmation: {
     statement: string;
     agreedTotalPence: number;
@@ -951,6 +955,7 @@ export function createOrder(input: {
       deliveryAddress: input.deliveryAddress,
       ...(input.paymentMethodId ? { paymentMethodId: input.paymentMethodId } : {}),
       payBy: input.payBy ?? 'card',
+      ...(input.keepEverything ? { keepEverything: true } : {}),
       confirmation: {
         confirmed: true,
         addressConfirmed: input.confirmation.addressConfirmed,
@@ -2386,6 +2391,31 @@ export function markBankPayment(
   outcome: 'received' | 'cancel',
 ): Promise<{ message: string }> {
   return staffRequest(key, `/staff/payments/${encodeURIComponent(orderId)}/${outcome}`, {
+    method: 'POST',
+  });
+}
+
+/** A tiny extra (ruling 61): a linked order after the first with under £5 of shopping. */
+export interface TinyExtraRow {
+  orderId: string;
+  reference: string;
+  firstOrderId: string | null;
+  firstReference: string | null;
+  part: number | null;
+  of: number | null;
+  goodsPence: number;
+  extraDeliveryPence: number;
+  items: string[];
+  firstRunner: { name: string; phone: string } | null;
+  firstStatus: string | null;
+}
+
+export function fetchTinyExtras(key: string): Promise<{ tinyExtras: TinyExtraRow[] }> {
+  return staffRequest(key, '/staff/tiny-extras');
+}
+
+export function carryWithFirstRunner(key: string, orderId: string): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/tiny-extras/${encodeURIComponent(orderId)}/carry-with-first`, {
     method: 'POST',
   });
 }

@@ -124,8 +124,9 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     }
 
     if (!byCall && codeDelivery === 'off') {
+      // The same words whether or not the demo sign-in is set up, so nothing gives it away.
       throw new UnavailableError(
-        'Signing in by text message is not switched on yet. Please set up your account on this device for now.',
+        'Signing in by text message is not switched on yet; please use the phone or computer you set up on.',
       );
     }
     if (byCall && callDelivery === 'off') {

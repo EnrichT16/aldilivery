@@ -1,9 +1,10 @@
 /**
- * Split jobs (ruling 60, Anthony, 10 October 2026).
+ * Split jobs (ruling 60, with the cascade by vehicle of ruling 61, Anthony, 10 October 2026).
  *
  * An order over what walking and cycling carry (£60 of shopping at shop prices) that no Runner
- * with a motorbike, car or van takes within fifteen minutes is split by item into parts of no
- * more than £60, each offered as its own job to Runners on foot and by bicycle, labelled "Split
+ * with a motorbike, car or van takes within ten minutes is split by item for the fewest Runners,
+ * motorbike riders first (parts up to £75), then Runners on foot or bicycle (parts up to £60),
+ * each offered as its own job only to Runners of its kind, labelled "Split
  * job — part 1 of 2", paying £5 each, shown before anyone says yes. Each part has its own till
  * total, pay-back, receipt photo and delivery; the Shopper's card is settled once, on the whole
  * order, with the parts' till totals added together. Delivery to the Shopper does not change.
@@ -103,12 +104,12 @@ async function offerFor(runner: SignedInRunner) {
 }
 
 describe('splitting an order nobody who can carry it has taken', () => {
-  it('waits fifteen minutes, then splits it by item into parts of no more than £60', async () => {
+  it('waits ten minutes, then splits it by item into parts of no more than £60 for foot and bicycle', async () => {
     const amara = await cyclist('Amara Okafor', '+447700900301');
     const order = await placeLarge();
     expect(await harness.repository.offers.listForOrder(order.id)).toHaveLength(0);
 
-    later(14);
+    later(9);
     await sweepOffers(harness.app.ctx);
     expect(await harness.repository.orders.listParts(order.id)).toHaveLength(0);
 
@@ -129,6 +130,8 @@ describe('splitting an order nobody who can carry it has taken', () => {
       expect(part.feePence).toBe(0);
       expect(part.runnerPaymentPence).toBe(500);
       expect(part.stripePaymentIntentId).toBeNull();
+      // No motorbike rider was on shift, so both parts are for foot or bicycle (ruling 61).
+      expect(part.splitMode).toBe('foot');
     }
     expect(parts.reduce((sum, part) => sum + part.goodsEstimatePence, 0)).toBe(6420);
     const units = (name: string) =>
@@ -145,7 +148,7 @@ describe('splitting an order nobody who can carry it has taken', () => {
     // The Shopper is told it comes in two parts, and the owner is told it was split.
     expect(texts.some((text) => /coming in two parts/.test(text.body))).toBe(true);
     expect(ownerTexts()).toHaveLength(1);
-    expect(ownerTexts()[0]!.body).toMatch(/split into 2 parts/);
+    expect(ownerTexts()[0]!.body).toMatch(/split into 2 parts: on foot or bicycle/);
   });
 
   it('is not split when a Runner with a car takes it in time', async () => {
@@ -161,8 +164,8 @@ describe('splitting an order nobody who can carry it has taken', () => {
   it('withdraws the whole order from a car Runner who did not answer, and never lets it be taken whole', async () => {
     const driver = await signUpRunner(harness);
     const order = await placeLarge();
-    // The driver keeps not answering; at fifteen minutes it is split.
-    for (let minute = 0; minute < 15; minute += 1) {
+    // The driver keeps not answering; at ten minutes it is split.
+    for (let minute = 0; minute < 10; minute += 1) {
       later(1);
       await sweepOffers(harness.app.ctx);
     }
@@ -176,7 +179,7 @@ describe('splitting an order nobody who can carry it has taken', () => {
 
   it('tells the owner again, once, when a part is not taken either', async () => {
     const order = await placeLarge();
-    later(15);
+    later(10);
     await sweepOffers(harness.app.ctx);
     expect(await harness.repository.orders.listParts(order.id)).toHaveLength(2);
     expect(ownerTexts()).toHaveLength(1);
@@ -198,7 +201,7 @@ describe('a split job from offer to door', () => {
     const amara = await cyclist('Amara Okafor', '+447700900301');
     const bilal = await cyclist('Bilal Hussain', '+447700900302');
     const order = await placeLarge();
-    later(15);
+    later(10);
     await sweepOffers(harness.app.ctx);
     const parts = await harness.repository.orders.listParts(order.id);
     const runners = [amara, bilal];
@@ -290,7 +293,7 @@ describe('a split job from offer to door', () => {
     dispatch.splitRunnerPayPence = 600;
     try {
       const order = await placeLarge();
-      later(15);
+      later(10);
       await sweepOffers(harness.app.ctx);
       const parts = await harness.repository.orders.listParts(order.id);
       expect(parts.map((part) => part.runnerPaymentPence)).toEqual([600, 600]);
@@ -355,10 +358,189 @@ describe('big orders pay the Runner more (ruling 60)', () => {
 
   it('pays split parts of a big order £5 each, not £7', async () => {
     const big = await placeMilk(96);
-    later(15);
+    later(10);
     await sweepOffers(harness.app.ctx);
     const parts = await harness.repository.orders.listParts(big);
     expect(parts.length).toBeGreaterThanOrEqual(2);
     expect(parts.every((part) => part.runnerPaymentPence === 500)).toBe(true);
+  });
+});
+
+describe('the split cascade by vehicle (ruling 61)', () => {
+  /** So many £5.00 bags of rice: 30 is £150.00, 26 is £130.00. */
+  async function placeRice(bags: number): Promise<string> {
+    const rice = await harness.repository.catalogue.create({
+      name: 'Long grain rice, 5kg',
+      category: 'Cupboard',
+      estimatedPricePence: 500,
+      source: 'community',
+    });
+    const lines = [{ catalogueItemId: rice.id, quantity: bags }];
+    const priced = await post('/basket/price', { lines }, shopper.authHeader);
+    const response = await post(
+      '/orders',
+      {
+        lines,
+        deliveryAddress: '12 Example Street, Gillingham ME7 1AA',
+        latitude: 52.4862,
+        longitude: -1.8904,
+        paymentMethodId: shopper.paymentMethodId,
+        confirmation: {
+          confirmed: true,
+          addressConfirmed: true,
+          channel: 'button',
+          statement: 'Send my order and pay.',
+          agreedTotalPence: (priced.json() as { totalPence: number }).totalPence,
+        },
+      },
+      shopper.authHeader,
+    );
+    expect(response.statusCode, response.body).toBe(201);
+    return (response.json() as { order: { id: string } }).order.id;
+  }
+
+  /** A motorbike rider, licence and insurance checked. */
+  async function rider(name: string, phone: string): Promise<SignedInRunner> {
+    const runner = await signUpRunner(harness, { name, phone });
+    await harness.repository.runners.update(runner.runnerId, { vehicleType: 'motorbike' });
+    return runner;
+  }
+
+  async function splitAfterTen(orderId: string) {
+    later(10);
+    await sweepOffers(harness.app.ctx);
+    return (await harness.repository.orders.listParts(orderId)).map((part) => ({
+      id: part.id,
+      mode: part.splitMode,
+      pence: part.goodsEstimatePence,
+      part: part.splitPart,
+      of: part.splitOf,
+    }));
+  }
+
+  it('gives £150 to two motorbike riders when two are on shift, and none to a cyclist', async () => {
+    const ade = await rider('Ade Bello', '+447700900401');
+    const bea = await rider('Bea Clarke', '+447700900402');
+    const amara = await cyclist('Amara Okafor', '+447700900301');
+    const orderId = await placeRice(30);
+    // A motorbike carries £70 whole, so nobody is offered £150 whole.
+    expect(await harness.repository.offers.listForOrder(orderId)).toHaveLength(0);
+
+    const parts = await splitAfterTen(orderId);
+    expect(parts.map(({ mode, pence }) => [mode, pence])).toEqual([
+      ['motorbike', 7500],
+      ['motorbike', 7500],
+    ]);
+    expect((await offerFor(ade))?.orderId).toBeDefined();
+    expect((await offerFor(bea))?.orderId).toBeDefined();
+    expect(await offerFor(amara)).toBeUndefined();
+    expect(ownerTexts().at(-1)!.body).toMatch(/split into 2 parts: motorbike £75\.00 and motorbike £75\.00, each paying its Runner £5\.00/);
+  });
+
+  it('gives £150 to one motorbike rider (£75) and two footers (£60 and £15) with one rider', async () => {
+    const ade = await rider('Ade Bello', '+447700900401');
+    const amara = await cyclist('Amara Okafor', '+447700900301');
+    const orderId = await placeRice(30);
+    const parts = await splitAfterTen(orderId);
+    expect(parts.map(({ mode, pence, part, of }) => [mode, pence, part, of])).toEqual([
+      ['motorbike', 7500, 1, 3],
+      ['foot', 6000, 2, 3],
+      ['foot', 1500, 3, 3],
+    ]);
+    expect((await offerFor(ade))?.orderId).toBe(parts[0]!.id);
+    expect((await offerFor(amara))?.orderId).toBe(parts[1]!.id);
+  });
+
+  it('gives £130 to one motorbike rider and one footer', async () => {
+    await rider('Ade Bello', '+447700900401');
+    const orderId = await placeRice(26);
+    const parts = await splitAfterTen(orderId);
+    expect(parts.map(({ mode, pence }) => [mode, pence])).toEqual([
+      ['motorbike', 7500],
+      ['foot', 5500],
+    ]);
+  });
+
+  it('gives £150 to three footers, each £60 or less, with no motorbike rider', async () => {
+    await cyclist('Amara Okafor', '+447700900301');
+    const orderId = await placeRice(30);
+    const parts = await splitAfterTen(orderId);
+    expect(parts).toHaveLength(3);
+    expect(parts.every((part) => part.mode === 'foot' && part.pence <= 6000)).toBe(true);
+    expect(parts.reduce((sum, part) => sum + part.pence, 0)).toBe(15000);
+    expect(texts.some((text) => /coming in three parts/.test(text.body))).toBe(true);
+  });
+
+  it('lets a car Runner take a motorbike part, and never a Runner on foot or bicycle', async () => {
+    const ade = await rider('Ade Bello', '+447700900401');
+    const orderId = await placeRice(30);
+    const parts = await splitAfterTen(orderId);
+    const motorbikePart = parts.find((part) => part.mode === 'motorbike')!;
+    const offer = (await offerFor(ade))!;
+    expect(offer.orderId).toBe(motorbikePart.id);
+
+    // The rider switches to a bicycle: the part is not theirs to take.
+    await harness.repository.runners.update(ade.runnerId, { vehicleType: 'bicycle' });
+    const refused = await post(`/jobs/${offer.id}/accept`, {}, ade.authHeader);
+    expect(refused.statusCode).toBe(403);
+    expect(refused.json().error.message).toBe(
+      'This part of a split job goes to a Runner with a motorbike, car or van.',
+    );
+    // In a car, it is.
+    await harness.repository.runners.update(ade.runnerId, { vehicleType: 'car' });
+    const taken = await post(`/jobs/${offer.id}/accept`, {}, ade.authHeader);
+    expect(taken.statusCode, taken.body).toBe(200);
+    expect(taken.json().youWillEarnPence).toBe(500);
+  });
+
+  it('plans the rest again when a planned motorbike rider goes off shift before taking it', async () => {
+    const ade = await rider('Ade Bello', '+447700900401');
+    const bea = await rider('Bea Clarke', '+447700900402');
+    const orderId = await placeRice(30);
+    const parts = await splitAfterTen(orderId);
+    expect(parts.map((part) => part.mode)).toEqual(['motorbike', 'motorbike']);
+
+    // Ade takes his part; Bea goes off shift before taking hers.
+    const adeOffer = (await offerFor(ade))!;
+    expect((await post(`/jobs/${adeOffer.id}/accept`, {}, ade.authHeader)).statusCode).toBe(200);
+    const beaPartId = (await offerFor(bea))!.orderId;
+    await harness.repository.runners.update(bea.runnerId, { available: false });
+    const amara = await cyclist('Amara Okafor', '+447700900301');
+
+    // Not before another ten minutes.
+    later(9);
+    await sweepOffers(harness.app.ctx);
+    expect((await harness.repository.orders.listParts(orderId)).map((part) => part.id)).toContain(beaPartId);
+
+    later(1);
+    await sweepOffers(harness.app.ctx);
+    const after = await harness.repository.orders.listParts(orderId);
+    expect(after.map((part) => [part.splitMode, part.goodsEstimatePence, part.splitPart, part.splitOf])).toEqual([
+      ['motorbike', 7500, 1, 3],
+      ['foot', 6000, 2, 3],
+      ['foot', 1500, 3, 3],
+    ]);
+    // Bea's part is replaced, its offer withdrawn; Ade keeps his; the cyclist is offered a new part.
+    const replaced = (await harness.repository.orders.findById(beaPartId))!;
+    expect(replaced.status).toBe('cancelled');
+    expect(replaced.splitPart).toBeNull();
+    expect(after[0]!.runnerId).toBe(ade.runnerId);
+    expect([after[1]!.id, after[2]!.id]).toContain((await offerFor(amara))?.orderId);
+    expect(ownerTexts().at(-1)!.body).toMatch(/planned again: on foot or bicycle £60\.00 and on foot or bicycle £15\.00/);
+    // Every unit is still in exactly one live part.
+    const bags = after.flatMap((part) => part.items).reduce((sum, item) => sum + item.quantity, 0);
+    expect(bags).toBe(30);
+  });
+
+  it('leaves the parts alone while their kind of Runner is simply busy or the plan would not change', async () => {
+    const orderId = await placeRice(30);
+    const parts = await splitAfterTen(orderId);
+    expect(parts.map((part) => part.mode)).toEqual(['foot', 'foot', 'foot']);
+    // Nobody at all on shift: planned again, the plan would be the same, so nothing changes.
+    later(30);
+    await sweepOffers(harness.app.ctx);
+    expect((await harness.repository.orders.listParts(orderId)).map((part) => part.id)).toEqual(
+      parts.map((part) => part.id),
+    );
   });
 });

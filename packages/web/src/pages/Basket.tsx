@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import { GetTheApp } from '../components/GetTheApp';
+import { OverOneRunner } from '../components/OverOneRunner';
 import { storeConfig } from '../config';
 import { deliveryWords, money, shownPrice } from '../lib/money';
 import { useBasket } from '../state/basket';
@@ -14,7 +15,7 @@ import { useBasket } from '../state/basket';
  * this page charges anybody.
  */
 export function Basket(): JSX.Element {
-  const { lines, pricing, overMaximum, setQuantity, remove } = useBasket();
+  const { lines, pricing, overMaximum, overOneRunner, parts, setQuantity, remove } = useBasket();
 
   if (lines.length === 0) {
     return (
@@ -134,12 +135,23 @@ export function Basket(): JSX.Element {
         </p>
       </section>
 
+      {overOneRunner && <OverOneRunner parts={parts} />}
+
       {overMaximum ? (
         <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
           This comes to about {money(pricing.goodsPence)} of shopping at the shop&rsquo;s prices,
-          and one order carries up to {money(storeConfig.fees.maximumOrderGoodsPence)}. Take some
-          things out and send this as one delivery, then order the rest as a second delivery.
+          and one basket holds up to {money(storeConfig.fees.maximumBasketGoodsPence)}, brought by
+          several Runners. Please take some things out.
         </p>
+      ) : overOneRunner ? (
+        <div className="space-y-3">
+          <p className="m-0">
+            To stay with one Runner, take something out or swap it above. Or keep everything:
+          </p>
+          <Link to="/confirm" className="control w-full bg-highlight text-ink text-lead">
+            Keep everything and check my order
+          </Link>
+        </div>
       ) : (
         <Link to="/confirm" className="control w-full bg-highlight text-ink text-lead">
           Check and send my order

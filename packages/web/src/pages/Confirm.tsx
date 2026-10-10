@@ -5,6 +5,7 @@ import { largeOrderShopperWords, needsVehicle, runnerPaymentFor } from '@aldiliv
 import { moneyIn, moneyOut } from '../lib/alert';
 
 import { NotifyMe } from '../components/NotifyMe';
+import { OverOneRunner } from '../components/OverOneRunner';
 import { PinGate } from '../components/PinGate';
 import { storeConfig } from '../config';
 import {
@@ -40,7 +41,9 @@ import { useSession } from '../state/session';
  * again, not a reason to charge a different amount.
  */
 export function Confirm(): JSX.Element {
-  const { lines, pricing, overMaximum, clear } = useBasket();
+  const { lines, pricing, overMaximum, overOneRunner, parts, clear } = useBasket();
+  /** Ruling 61: over £150, the Shopper chooses to keep everything. Never ticked for them. */
+  const [keepEverything, setKeepEverything] = useState(false);
   const { shopper, restoring, replaceShopper } = useSession();
 
   const [cards, setCards] = useState<PaymentMethod[] | null>(null);
@@ -139,7 +142,10 @@ export function Confirm(): JSX.Element {
 
   // Ozi Family and Carer: a member's order is paid with the payer's card (ruling 58).
   const byFamily = Boolean(shopper?.familyOwnerId) && shopper?.activePlan === 'family';
-  const statement = `Send my order and pay. About ${money(pricing.totalPence)} altogether: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}.`;
+  const extraDeliveryPence = parts.reduce((sum, part) => sum + (part.extra ? part.feePence : 0), 0);
+  const statement = overOneRunner
+    ? `Send my order and pay. About ${money(pricing.totalPence)} altogether, as ${parts.length} orders each with its own Runner: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}, of which ${money(extraDeliveryPence)} for further Runners is ${bankOn && payBy === 'bank' && !(Boolean(shopper?.familyOwnerId) && shopper?.activePlan === 'family') ? 'given back as credit if they are not needed' : 'taken only when each collects'}.`
+    : `Send my order and pay. About ${money(pricing.totalPence)} altogether: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}.`;
 
   async function onSend(): Promise<void> {
     const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
@@ -149,6 +155,7 @@ export function Confirm(): JSX.Element {
       sending ||
       address.trim() === '' ||
       overMaximum ||
+      (overOneRunner && !keepEverything) ||
       !addressConfirmed
     )
       return;
@@ -167,6 +174,7 @@ export function Confirm(): JSX.Element {
           : byBank || !card
             ? { payBy: 'bank' as const }
             : { paymentMethodId: card.id }),
+        ...(overOneRunner ? { keepEverything: true } : {}),
         confirmation: { statement, agreedTotalPence: pricing.totalPence, addressConfirmed: true },
       });
       if (result.bank) {
@@ -308,6 +316,7 @@ export function Confirm(): JSX.Element {
     (card !== undefined || byBank || byFamily) &&
     address.trim() !== '' &&
     !overMaximum &&
+    (!overOneRunner || keepEverything) &&
     addressConfirmed;
 
   return (
@@ -340,9 +349,36 @@ export function Confirm(): JSX.Element {
         <p className="m-0 text-lead font-bold">Altogether, about {money(pricing.totalPence)}.</p>
         <p className="m-0">
           {deliveryWords(pricing.plan)} You pay what the till says for the shopping, so this may
-          change a little. Your Runner gets {money(runnerPaymentFor(pricing.goodsPence, storeConfig.fees))} of the
-          delivery.
+          change a little.
+          {!overOneRunner && (
+            <>
+              {' '}Your Runner gets {money(runnerPaymentFor(pricing.goodsPence, storeConfig.fees))} of
+              the delivery.
+            </>
+          )}
         </p>
+        {overOneRunner && (
+          <>
+            <OverOneRunner parts={parts} />
+            <div className="flex items-start gap-3 min-h-control">
+              <input
+                id="keep-everything"
+                type="checkbox"
+                checked={keepEverything}
+                onChange={(event) => setKeepEverything(event.target.checked)}
+                className="h-7 w-7 shrink-0"
+              />
+              <label htmlFor="keep-everything">
+                Keep everything, as {parts.length} orders each with its own Runner
+              </label>
+            </div>
+            <p className="m-0">
+              <Link to="/basket" className="underline">
+                Or take something out or swap it, to stay with one Runner
+              </Link>
+            </p>
+          </>
+        )}
         {byFamily && <p className="m-0">This is paid with your family plan&rsquo;s card.</p>}
         {needsVehicle(pricing.goodsPence, storeConfig.dispatch.maxGoodsPenceByMode) && (
           <p className="m-0">{largeOrderShopperWords(pricing.goodsPence, storeConfig.dispatch.maxGoodsPenceByMode)}</p>
@@ -564,8 +600,9 @@ export function Confirm(): JSX.Element {
             </div>
             <p id="pay-bank-hint" className="m-0">
               We give you our bank details and a reference. A Runner is sent once your transfer
-              arrives, usually within a working day. A refund to a bank transfer takes longer than
-              to a card.
+              arrives. A Faster Payments transfer usually arrives within minutes, and staff check
+              for transfers at least every morning and evening. A refund to a bank transfer takes
+              longer than to a card.
             </p>
           </fieldset>
         )}
@@ -618,9 +655,8 @@ export function Confirm(): JSX.Element {
       {overMaximum && (
         <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
           This comes to about {money(pricing.goodsPence)} of shopping at the shop&rsquo;s prices,
-          and one order carries up to {money(storeConfig.fees.maximumOrderGoodsPence)}. Go back to
-          your basket, take some things out to send as one delivery, and order the rest as a second
-          delivery.
+          and one basket holds up to {money(storeConfig.fees.maximumBasketGoodsPence)}, brought by
+          several Runners. Go back to your basket and take some things out.
         </p>
       )}
 

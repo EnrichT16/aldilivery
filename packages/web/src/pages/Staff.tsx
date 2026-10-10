@@ -62,11 +62,14 @@ import {
   fetchLearning,
   type LearningRow,
   fetchBankPayments,
+  fetchTinyExtras,
+  carryWithFirstRunner,
   markBankPayment,
   fetchReimbursements,
   approveReimbursement,
   type ReimbursementRow,
   type BankPaymentRow,
+  type TinyExtraRow,
 } from '../lib/api';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { ShareCard } from '../components/ShareCard';
@@ -1269,9 +1272,66 @@ function Payments({
           </li>
         ))}
       </ul>
+      <TinyExtras staffKey={staffKey} onNews={onNews} />
       <TillCases staffKey={staffKey} onNews={onNews} />
       <PayBacks staffKey={staffKey} onNews={onNews} />
     </section>
+  );
+}
+
+/**
+ * Tiny extras (ruling 61): a basket kept whole whose further order has under £5 of shopping. Ask
+ * the first Runner to carry it; then one press moves it onto the first order and cancels the
+ * extra £13.50, which is never taken (or is given back).
+ */
+function TinyExtras({
+  staffKey,
+  onNews,
+}: {
+  staffKey: string;
+  onNews: (text: string) => void;
+}): JSX.Element {
+  const list = useList(() => fetchTinyExtras(staffKey));
+  const carry = (row: TinyExtraRow): void => {
+    void carryWithFirstRunner(staffKey, row.orderId)
+      .then((result) => {
+        onNews(result.message);
+        list.reload();
+      })
+      .catch((failure: unknown) =>
+        onNews(failure instanceof Error ? failure.message : 'That did not work.'),
+      );
+  };
+  return (
+    <>
+      <h3 className="m-0 font-bold">Tiny extras</h3>
+      <p className="m-0 extra">
+        Part of a big basket with only a little shopping in it. Ask the first Runner to carry it
+        too, then press the button: the Shopper is not charged the extra delivery.
+      </p>
+      <Failure text={list.problem} />
+      {list.data?.tinyExtras.length === 0 && <p className="m-0">None waiting.</p>}
+      <ul className="m-0 p-0 list-none space-y-3">
+        {list.data?.tinyExtras.map((row) => (
+          <li key={row.orderId} className="border-2 border-paper rounded-xl p-4 space-y-2">
+            <p className="m-0 font-bold">
+              {money(row.goodsPence)} of shopping, order {row.part} of {row.of} of{' '}
+              {row.firstReference ?? row.reference}
+            </p>
+            <p className="m-0">{row.items.join(', ')}.</p>
+            <p className="m-0">
+              {row.firstRunner
+                ? `First Runner: ${row.firstRunner.name}, ${row.firstRunner.phone}.`
+                : 'The first order has no Runner yet.'}{' '}
+              Extra delivery not taken: {money(row.extraDeliveryPence)}.
+            </p>
+            <button type="button" onClick={() => carry(row)} className="control bg-highlight text-ink">
+              Carry with the first Runner<span className="visually-hidden">: {row.reference}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 
