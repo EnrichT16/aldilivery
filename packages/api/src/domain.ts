@@ -75,6 +75,8 @@ export interface Shopper {
   deletionScheduledFor: Date | null;
   /** When a closed account was removed: personal details taken off, money records kept. */
   erasedAt: Date | null;
+  /** The app store reviewers' demo account (ruling 60): no card charged, no Runner sent. */
+  isDemo: boolean;
   organisationId: string | null;
   /** Which office or team at the organisation looks after this person. */
   organisationOffice: string | null;
@@ -134,6 +136,10 @@ export interface Runner {
   leftAt: Date | null;
   leftReason: string | null;
   leftBy: string | null;
+  /** When a Runner who left had their personal details removed (ruling 60). */
+  erasedAt: Date | null;
+  /** The app store reviewers' demo Runner (ruling 60): never offered a real job. */
+  isDemo: boolean;
   /** The cool bag deposit paid back on leaving, or the reason it waits for a person. */
   coolBagRefundedPence: number | null;
   coolBagRefundedAt: Date | null;
@@ -419,6 +425,16 @@ export interface Order {
    * (ruling 59), so it is texted once only.
    */
   waitingAlertSentAt: Date | null;
+  /**
+   * Split jobs (ruling 60). On the whole order: when it was split into parts. On a part: the
+   * whole order, which part this is, and of how many.
+   */
+  splitAt: Date | null;
+  splitParentId: string | null;
+  splitPart: number | null;
+  splitOf: number | null;
+  /** A demo order (ruling 60): no card is charged and no Runner is sent. */
+  isDemo: boolean;
   createdAt: Date;
   updatedAt: Date;
   acceptedAt: Date | null;

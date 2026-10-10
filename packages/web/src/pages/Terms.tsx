@@ -79,7 +79,9 @@ export function Terms(): JSX.Element {
             is {money(delivery.membershipPence)}, and on {assistant} Plus or Family and Carer{' '}
             {money(delivery.plusPence)}, whatever the size of the shop. People an organisation looks
             after pay the Membership delivery. There is no minimum spend and no extra charge at busy
-            times. {money(runnerPaymentPence)} of every delivery goes to your Runner.
+            times. {money(runnerPaymentPence)} of every delivery goes to your Runner, or{' '}
+            {money(storeConfig.fees.largeOrderRunnerPaymentPence)} for an order of{' '}
+            {money(storeConfig.fees.largeOrderFromPence)} or more of shopping.
           </li>
           <li>
             One order carries up to {money(maximumOrderGoodsPence)} of shopping. More than that goes

@@ -5,8 +5,8 @@ obeys them. A change that breaks one of these rules must break a test.
 
 Where anything here conflicts with **[docs/BUILD_PROMPT.md](docs/BUILD_PROMPT.md)** (30 September
 2026, version two), that document wins. Rules Two and Three were changed to match it on 30
-September 2026, and Rule Three was amended again on 9 October 2026 (ruling 58); the other eight
-stand as they were.
+September 2026, Rule Three was amended again on 9 October 2026 (ruling 58), and Rule Two on 10
+October 2026 (ruling 60); the other eight stand as they were.
 
 ---
 
@@ -17,6 +17,8 @@ stand as they were.
 *Amended 9 October 2026 (ruling 55): the one control that gives that confirmation reads* Send my order and pay*, so it says plainly that it means paying (Consumer Contracts Regulations 2013, regulation 14(3)). The rule itself is unchanged.*
 
 **Two.** The Runner receives five pounds on every standard delivery, untouched, whatever the basket.
+
+*Amended 10 October 2026 (ruling 60, Anthony's decisions): five pounds stays the pay for every standard delivery; an order whose shopping at shop prices comes to £120.00 or more, delivered whole by one Runner, pays that Runner £7.00 (`fees.largeOrderRunnerPaymentPence` and `fees.largeOrderFromPence` in config/store.json); each part of a split job (an order too big for any available Runner, split into parts of up to £60) pays its Runner £5.00 (`dispatch.splitRunnerPayPence`), shown before they say yes. On Plus and Family and Carer, whose delivery is £5.99, a £7 order makes a small loss on the delivery fee, covered by its item charges.*
 
 **Three.** Delivery is priced by plan and by the size of the shop, every price covering the Runner and shown before any yes; every product carries an item charge, always included in the price shown; no single product may cost more than sixty pounds, and one order carries at most the configured most of shopping.
 
@@ -45,7 +47,7 @@ stand as they were.
 | Rule | Enforcement point |
 | --- | --- |
 | One | `POST /orders` refuses to create a Stripe payment intent unless `spokenConfirmationAt` has already been written to the order. `packages/api/src/routes/orders.ts`, proved in `packages/api/test/orders.test.ts`. The web confirmation screen has exactly one confirming control, reading *Send my order and pay* (ruling 55), proved in `packages/web/test/shell.test.tsx` and `packages/web/test/wiring.test.tsx`; Ozi's spoken question asks "Shall I send your order and pay now…" (`packages/web/test/voice-order.test.tsx`). |
-| Two | `RUNNER_PAYMENT_PENCE` in `packages/core/src/rules.ts` is the only source of the figure, and the configuration parser refuses any delivery price, on any plan, that would not cover it. The payout transfers exactly that amount per standard delivery; pooled orders each pay it in full. Extras (another shop, handing to the person, tips) are paid on top and never out of it. Proved in `packages/core/test/fees.test.ts`, `packages/core/test/config.test.ts` and `packages/api/test/jobs.test.ts`. |
+| Two | `RUNNER_PAYMENT_PENCE` in `packages/core/src/rules.ts` is the only source of the standard figure (ruling 60: `runnerPaymentFor` in `packages/core/src/fees.ts` gives £7 for £120 or more delivered whole, and a split part pays `dispatch.splitRunnerPayPence`; `payOutOrder` refuses any other figure, proved in `packages/api/test/split.test.ts`), and the configuration parser refuses any delivery price, on any plan, that would not cover it. The payout transfers exactly that amount per standard delivery; pooled orders each pay it in full. Extras (another shop, handing to the person, tips) are paid on top and never out of it. Proved in `packages/core/test/fees.test.ts`, `packages/core/test/config.test.ts` and `packages/api/test/jobs.test.ts`. |
 | Three | `deliveryFeePence` in `packages/core/src/fees.ts` returns, from `fees.delivery` in `config/store.json`, 799 pay as you go up to `payAsYouGoSmallOrderUpToPence` (1500) and 1350 above, 799 on Membership, 599 on Plus and Family and Carer, and refuses a basket over `fees.maximumOrderGoodsPence` (15000) with an offer of two deliveries; `itemChargePence` adds 50p plus 50p for every whole £6 to every unit; `priceBasket` refuses a product over `fees.maximumProductPence` (6000). Proved one penny at a time in `packages/core/test/fees.test.ts` (with the worked examples: £80.36, £74.85, £14.18); the API in `packages/api/test/basket.test.ts` and `packages/api/test/plans.test.ts`; the screens in `packages/web/test/shell.test.tsx` and `packages/web/test/pricing.test.tsx`. The plan comes from the account on the server (`deliveryPlanFor` in `packages/api/src/services/plans.ts`). The figures are configuration because the owner can change pricing; the tests pin them so a change is made on purpose. |
 | Four | Delivery depends only on the goods total and the plan the Shopper chose. No time input, no demand input, no distance input, no order count input reaches `deliveryFeePence`; its signature makes surge pricing unrepresentable. A smaller shop is never dearer to deliver, and no minimum basket value exists in `POST /basket/price`. Proved in `packages/core/test/fees.test.ts`. |
 | Five | `packages/api/src/services/sets.ts` computes `noticeDueAt` as fire time minus the configured `noticeMinutesBefore` (30) and refuses to fire a Set whose notice was not sent. The skip token is one word, configured, and case insensitive. Proved in `packages/api/test/sets.test.ts`. |

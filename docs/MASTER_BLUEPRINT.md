@@ -43,12 +43,12 @@ registered blind, and runs the business through the admin panel, by voice and sc
 appear anywhere (Section A). The words used on every screen are **Shopper** (never customer,
 user or client) and **Runner** (never driver or courier).
 
-**The motto.** "Send me, I will help." Ozi says it when it introduces itself, and it is on the
+**The motto.** "Send me, I will deliver." Ozi says it when it introduces itself, and it is on the
 first screen (ruling 19). The tagline in configuration is "Say it, Ozi shops it, a Runner brings
 it".
 
 **Ozi, the assistant.** Ozi speaks first, aloud, from the first launch: "Hello, I'm Ozi, your
-shopping assistant. Send me, I will help." (ruling 20). It holds a back-and-forth conversation,
+shopping assistant. Send me, I will deliver." (ruling 20). It holds a back-and-forth conversation,
 takes whole orders by voice, repeats itself when asked, and explains itself.
 
 **The brand.** Navy (#0B1F3A), gold (#D4AF37) and white, with a bright green (#2FBF71) for Ozi's
@@ -59,7 +59,7 @@ brand, names and colours are configuration in config/store.json, never code (Rul
 **Where.** ozidelivery.co.uk. Medway first (Gillingham, ME7, for the soft launch). The service is
 online only, anywhere in the UK; nobody visits an office (ruling 10).
 
-**Who runs it.** OZIDELIVERY LTD, registered in England and Wales, registered office 107 King Street, Gillingham, ME7 1ER (ruling 59); D-U-N-S number 235209172. The company number and ICO number are still placeholders, shown as "to follow" (see Part 7). Anthony's separate company is not named on the site.
+**Who runs it.** OZIDELIVERY LTD, registered in England and Wales, registered office 107 King Street, Gillingham, ME7 1ER (ruling 59); D-U-N-S number 235209172; company number 17497650 (ruling 60). The ICO number is still a placeholder, shown as "to follow" (see Part 7). Anthony's separate company is not named on the site.
 Owner and founder: Anthony Tochukwu Ibe.
 
 ---
@@ -118,6 +118,9 @@ them there; tests pin the core ones so a change is made on purpose.
 | Delivery, Ozi Membership, and people an organisation looks after | **£7.99**, whatever the size | Ruling 58 |
 | Delivery, Ozi Plus and Ozi Family and Carer | **£5.99**, whatever the size | Ruling 58 |
 | Runner's share of every delivery | **£5.00**, untouched, whatever the basket and plan; the business keeps the rest and the item charges | Section B, Rule Two |
+| Runner's pay for a big order delivered whole | **£7.00** for £120.00 or more of shopping at shop prices; on Plus and Family and Carer (£5.99 delivery) the delivery fee then makes a small loss, covered by the item charges | Ruling 60 (`fees.largeOrderRunnerPaymentPence`, `fees.largeOrderFromPence`) |
+| Runner's pay for each part of a split job | **£5.00** a part; the Shopper's delivery does not change | Ruling 60 (`dispatch.splitRunnerPayPence`) |
+| Most shopping each way of travelling carries | on foot and bicycle **£60**, motorbike **£70**, car and van **£150** | Ruling 60 (`dispatch.maxGoodsPenceByMode`) |
 | Most any single product may cost | **£60.00** in the shop; dearer products are refused in plain words | Ruling 58, Rule Three (amended) |
 | Most shopping in one order | **£150.00** at shop prices (confirmed by Anthony, ruling 59); above it Ozi says so and offers two deliveries | Ruling 58 (`fees.maximumOrderGoodsPence`) |
 | First month of membership | **Free** for every new Shopper, with pay-as-you-go delivery; reminder about 3 days before it ends; nothing taken without choosing to join | Ruling 58 |
@@ -216,7 +219,9 @@ person) is replaced by Ozi Family and Carer (ruling 58).
   the amount is kept as an outstanding balance and taken next time; above £10 it must be paid
   before more people are added. "Ring their phone instead" costs the Shopper nothing. A Runner
   never pays for a call.
-- **Runner pay** (Rule Two, Section M, rulings 15, 16). £5 per standard delivery, untouched;
+- **Runner pay** (Rule Two, Section M, rulings 15, 16, 60). £5 per standard delivery, untouched;
+  £7 for an order of £120 or more of shopping delivered whole, and £5 for each part of a split job
+  (ruling 60);
   extras (another shop, handing to the person, tips) are paid on top, never out of it. Money goes
   straight to the Runner's own Stripe Connect account; Ozi never holds it (Rule Ten). The cool bag
   deposit is held back from early payouts, never from the £5 (docs/LEGAL_REVIEW.md notes that
@@ -349,7 +354,11 @@ person) is replaced by Ozi Family and Carer (ruling 58).
 | Agreeing to the Runner agreement before the first job: a tick at sign-up or on the Runner page (a spoken yes is accepted by the server), kept with the date, version and how | BUILT | Ruling 55. No job is offered or accepted until the current version is agreed. |
 | Paid back for the shopping straight away when the till total goes in | BUILT | Ruling 55. A person approves the ones the till needs a person for. No receipt photo is taken yet. |
 | Fair job offers with pay and distance, 60-second hold | BUILT | |
-| Large orders (over £60 of shopping at shop prices) offered and accepted only by a Runner with a car and in-date insurance; owner texted once after 15 minutes if none is free | BUILT | Ruling 59. `dispatch.carOnlyAbovePence`, `dispatch.waitingAlertMinutes`. |
+| Carrying limits by way of travelling: on foot and bicycle up to £60 of shopping, motorbike up to £70, car and van up to £150; a motorbike, car or van needs an accepted, in-date licence and insurance; owner texted once after 15 minutes | BUILT | Rulings 59 and 60. `dispatch.maxGoodsPenceByMode`, `dispatch.waitingAlertMinutes`. |
+| Split jobs: a large order nobody who can carry it takes within 15 minutes is split by item into parts of up to £60, each its own job ("Split job — part 1 of 2", £5 a part), with its own till total, card load or pay-back, receipt photo and delivery; the Shopper sees every part's arrival time and is settled once on the sum; owner told again once if a part is not taken | BUILT | Ruling 60. `dispatch.splitAfterMinutes`, `dispatch.splitRunnerPayPence`; `packages/api/src/services/split.ts`. |
+| £7 to the Runner for an order of £120 or more delivered whole | BUILT | Ruling 60. Rule Two amended. |
+| Demo sign-in for app store reviewers (DEMO_SIGNIN_PHONE and DEMO_SIGNIN_CODE), a labelled demo Shopper and demo Runner, no card charged and no Runner sent | BUILT | Ruling 60. `packages/api/src/services/demo.ts`. |
+| Runners close their account in the app (two presses, or by voice), details removed after the same days as a Shopper, pay records kept | BUILT | Ruling 60 (Apple guideline 5.1.1(v)). |
 | Dashboard: earned (big and bold), job history by reference and area, payouts, owing | BUILT | |
 | Runner ID, share link, feedback page | BUILT | |
 | Report a problem per job with voice notes, photos, video | BUILT | |
@@ -488,8 +497,10 @@ RULES.md names the file and test that enforces each.
   before sheltered housing rounds, wellbeing checks and handovers to the person (ruling 16).
 - On foot or bicycle need no insurance; a car, motorbike or scooter needs business or
   hire-and-reward cover; switching down is instant (rulings 2 Oct 4, 9).
-- Orders over £60 of shopping go only to a Runner with a car (or van) and in-date insurance
-  (ruling 59).
+- Each way of travelling carries its own most of shopping: on foot and bicycle £60, motorbike
+  £70, car and van £150 (ruling 60, replacing ruling 59's single £60 line); a large order nobody
+  takes in 15 minutes is split into parts of up to £60, £5 a part. A Runner earns £7 for £120 or
+  more delivered whole.
 - Runners see an order reference and the area only (ruling 16).
 - Payouts weekly by default, daily or instant at the Runner's choice and cost (ruling 16).
 - A Runner may decline any sending job without reason or penalty; no Runner is expected to
@@ -745,7 +756,7 @@ people Anthony knows (TESTING_WITH_PEOPLE.md).
 
 | Step | Who | Status |
 | --- | --- | --- |
-| 1. Company name, number and registered office on the site | Anthony, then Claude | Built (ruling 54): shown in every page's footer and the legal pages from config/store.json. The company name (OZIDELIVERY LTD) and registered office (107 King Street, Gillingham, ME7 1ER) are in (ruling 59); the number, ICO number and email show "to follow" until Anthony fills them in and clears each placeholder flag (docs/LEGAL_REVIEW.md). |
+| 1. Company name, number and registered office on the site | Anthony, then Claude | Built (ruling 54): shown in every page's footer and the legal pages from config/store.json. The company name (OZIDELIVERY LTD) and registered office (107 King Street, Gillingham, ME7 1ER) are in (ruling 59), and the company number 17497650 (ruling 60); the ICO number and email show "to follow" until Anthony fills them in and clears each placeholder flag (docs/LEGAL_REVIEW.md). |
 | 2. A telephone number for Shoppers | Anthony, then Claude | Waiting: 0800 000 0000 placeholder. |
 | 3. Solicitor reads the privacy policy, terms and Runner agreement (including the 10% recovery and cancellation wording) | Anthony | AI review done instead, for now (ruling 54, docs/LEGAL_REVIEW.md): privacy and terms rewritten and no longer marked draft; cookies page added; Runner agreement written and still marked draft until employment status, paying at the till and substitution are decided. A solicitor is still advised on the risks listed there. |
 | 4. ICO registration | Anthony | Waiting: pay the data protection fee, then put the number in `store.icoRegistrationNumber` and set its flag to false; also the appropriate policy document for DBS and health data (docs/LEGAL_REVIEW.md). |
@@ -841,6 +852,6 @@ The first round of missing features is built: the owner's till screen, receipt p
   for large orders only. Migration `20261021090000_large_orders_by_car`.
 - **The whole-order goods cap is £150**, confirmed by Anthony.
 - **The company is OZIDELIVERY LTD**, 107 King Street, Gillingham, ME7 1ER, registered in England
-  and Wales; D-U-N-S 235209172 (`store.dunsNumber`). Company number and ICO number to follow.
+  and Wales; D-U-N-S 235209172 (`store.dunsNumber`); company number 17497650 (`store.companyNumber`, ruling 60). ICO number to follow.
   Apple and Google accounts are enrolled as OZIDELIVERY LTD exactly as on the D-U-N-S record.
 

@@ -299,16 +299,20 @@ describe('the confirmation screen', () => {
     await user.click(await screen.findByRole('link', { name: 'Check and send my order' }));
   }
 
-  it('says a large order goes to a Runner with a car (ruling 59)', async () => {
+  it('says who carries a large order, and that it may come in parts (rulings 59 and 60)', async () => {
     // 49 pints at £1.25 is £61.25 at the shop's prices: over the £60 line.
     await confirmWithMilk(49);
-    expect(screen.getByText('Large orders go to a Runner with a car.')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Large orders go to a Runner with a motorbike, car or van. If none is free, it may come in parts, for the same price.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('says nothing about cars for an order of £60 or less', async () => {
     await confirmWithMilk(48);
     expect(screen.getByRole('heading', { name: 'What it will cost' })).toBeInTheDocument();
-    expect(screen.queryByText('Large orders go to a Runner with a car.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Large orders go to a Runner/)).not.toBeInTheDocument();
   });
 
   it('has exactly one button that could ever take a payment', async () => {

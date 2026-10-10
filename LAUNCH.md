@@ -7,9 +7,9 @@ None of this needs doing for testing with people you know (TESTING_WITH_PEOPLE.m
 
 Step 1. The company's details on the site. Anthony, then Claude.
 
-The law (the Companies Act and the Consumer Contracts Regulations) says the website must show the company's registered name, its company number, where it is registered (England and Wales), and its registered office address. The registered name, OZIDELIVERY LTD, and the registered office, 107 King Street, Gillingham, ME7 1ER, are in (ruling 59, 10 October 2026); the company number still shows "to follow".
+The law (the Companies Act and the Consumer Contracts Regulations) says the website must show the company's registered name, its company number, where it is registered (England and Wales), and its registered office address. The registered name, OZIDELIVERY LTD, and the registered office, 107 King Street, Gillingham, ME7 1ER, are in (ruling 59, 10 October 2026), and the company number, 17497650 (ruling 60, the same day).
 
-Send Claude: the company number from Companies House (and check the name and address there match letter for letter). Claude puts it in config/store.json, and it then appears in the privacy page, the terms and the footer.
+Done: the company number from Companies House, 17497650, is in config/store.json and appears in the privacy page, the terms and the footer. Still worth checking that the name and address on Companies House match letter for letter.
 
 
 Step 2. A telephone number for Shoppers. Anthony, then Claude.

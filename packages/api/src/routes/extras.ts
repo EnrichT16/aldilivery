@@ -16,6 +16,7 @@ import { z } from 'zod';
 
 import { requireSession } from '../app.js';
 import { NEVER_FOUND } from '../lib/restricted.js';
+import { refuseIfDemo } from '../services/demo.js';
 import { staffActor } from '../lib/staff.js';
 import type { FindRequest, GiftCard, Shopper, ShopperPlan } from '../domain.js';
 import {
@@ -94,6 +95,8 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
     what: string,
     reference: string,
   ): Promise<{ id: string; lastFour: string }> {
+    // Nothing is bought on the demo account (ruling 60).
+    refuseIfDemo(shopper);
     const cards = await repository.paymentMethods.listForShopper(shopper.id);
     const card = cards.find((method) => method.isDefault) ?? cards[0];
     if (!card) throw new ConflictError('Please save a card first. Nothing has been charged.');

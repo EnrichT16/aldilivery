@@ -192,6 +192,9 @@ describe('the retention periods on the privacy page', () => {
 
   it('makes orders anonymous after seven years, keeping the money, and removes the receipt photo', async () => {
     const orderId = await placeOrder();
+    // The in-memory store stamps an order with the real clock, not the test's; pinned to the
+    // test's start so this does not depend on the day and hour it runs.
+    await harness.repository.orders.update(orderId, { createdAt: START });
     await harness.repository.receiptPhotos.save({
       orderId,
       data: Buffer.from('receipt'),

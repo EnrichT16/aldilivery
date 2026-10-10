@@ -140,6 +140,13 @@ export interface Env {
   oluomaVoiceUrl: string | undefined;
   oluomaVoiceKey: string | undefined;
   /**
+   * The demo sign-in for app store reviewers (ruling 60): one telephone number that accepts one
+   * fixed code without a text. Both, or it is off. The code is a secret: environment only, never
+   * in the repository and never in a log.
+   */
+  demoSignInPhone: string | undefined;
+  demoSignInCode: string | undefined;
+  /**
    * Fill an empty catalogue at startup. On by default, because a deployed service with
    * no catalogue looks broken. Set `SEED_ON_START=false` once the catalogue comes from
    * somewhere else.
@@ -260,6 +267,8 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     humanLinePhone: realValue(source['HUMAN_LINE_PHONE']),
     oluomaVoiceUrl: realValue(source['OLUOMA_VOICE_URL']),
     oluomaVoiceKey: realValue(source['OLUOMA_VOICE_KEY']),
+    demoSignInPhone: realValue(source['DEMO_SIGNIN_PHONE']?.trim() || undefined),
+    demoSignInCode: realValue(source['DEMO_SIGNIN_CODE']?.trim() || undefined),
     seedOnStart: source['SEED_ON_START'] !== 'false',
   };
 }

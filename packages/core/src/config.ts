@@ -17,6 +17,7 @@ import {
   RUNNER_PAYMENT_PENCE,
   SET_NOTICE_MINUTES_BEFORE,
 } from './rules.js';
+import { TRAVEL_MODES, type MaxGoodsByMode } from './dispatch.js';
 import type {
   DeliveryPrices,
   ItemChargeRule,
@@ -101,6 +102,14 @@ export interface StoreConfig {
      * offered. £150 until Anthony confirms the figure (ruling 58).
      */
     readonly maximumOrderGoodsPence: number;
+    /**
+     * Big orders pay the Runner more (ruling 60, Anthony, 10 October 2026): an order whose shop
+     * prices come to `largeOrderFromPence` (£120) or more, delivered whole, pays its Runner
+     * `largeOrderRunnerPaymentPence` (£7) instead of five pounds. A part of a split job still
+     * pays `dispatch.splitRunnerPayPence`.
+     */
+    readonly largeOrderRunnerPaymentPence: number;
+    readonly largeOrderFromPence: number;
     readonly processor: ProcessorModel;
     readonly coolBag: {
       readonly depositPence: number;
@@ -234,15 +243,19 @@ export interface StoreConfig {
     readonly photoNeededAbovePence: number;
   };
   /**
-   * Who may be offered which job (ruling 59). An order whose goods total at shop prices is over
-   * `carOnlyAbovePence` (£60 by default) is offered only to a Runner delivering by car (or van)
-   * with a licence and in-date insurance accepted; on foot and by bicycle are treated alike, up to
-   * that figure. If no such Runner takes it, the owner is texted once after
-   * `waitingAlertMinutes` (15 by default).
+   * Who may be offered which job (ruling 59, as changed by ruling 60). Each way of travelling
+   * carries up to its own most of shopping at shop prices (`maxGoodsPenceByMode`): on foot and by
+   * bicycle £60, by motorbike £70, by car and by van up to the whole-order cap. A motorbike, car
+   * or van also needs a licence and in-date insurance accepted. If no Runner who can carry an
+   * order takes it, the owner is texted once after `waitingAlertMinutes` (15); after
+   * `splitAfterMinutes` (15) it is split into parts that walking and cycling carry, each paying
+   * its Runner `splitRunnerPayPence` (£5, Anthony's figure).
    */
   readonly dispatch: {
-    readonly carOnlyAbovePence: number;
+    readonly maxGoodsPenceByMode: MaxGoodsByMode;
     readonly waitingAlertMinutes: number;
+    readonly splitAfterMinutes: number;
+    readonly splitRunnerPayPence: number;
   };
   /** The admin panel (Section Q): who may do what, and how signing in is kept safe. */
   readonly admin: {
@@ -310,6 +323,46 @@ function wholeNumber(value: unknown, path: string, minimum = 0): number {
     throw new StoreConfigError(`${path} must be a whole number of at least ${minimum}.`);
   }
   return value;
+}
+
+/**
+ * The most each way of travelling carries (ruling 60). By default: on foot and by bicycle £60,
+ * motorbike £70, car and van the whole-order cap. Walking and cycling must carry at least the
+ * dearest single product, or a split part could never hold it.
+ */
+function parseMaxGoodsByMode(
+  value: unknown,
+  maximumProductPence: number,
+  maximumOrderGoodsPence: number,
+): MaxGoodsByMode {
+  const defaults: Record<string, number> = {
+    foot: 6000,
+    bicycle: 6000,
+    motorbike: 7000,
+    car: maximumOrderGoodsPence,
+    van: maximumOrderGoodsPence,
+  };
+  const given =
+    value === undefined ? {} : object(value, 'dispatch.maxGoodsPenceByMode');
+  for (const key of Object.keys(given)) {
+    if (!(TRAVEL_MODES as readonly string[]).includes(key)) {
+      throw new StoreConfigError(
+        `dispatch.maxGoodsPenceByMode.${key} is not a way of travelling: use ${TRAVEL_MODES.join(', ')}.`,
+      );
+    }
+  }
+  const limits = Object.fromEntries(
+    TRAVEL_MODES.map((mode) => [
+      mode,
+      wholeNumber(given[mode] ?? defaults[mode], `dispatch.maxGoodsPenceByMode.${mode}`, 0),
+    ]),
+  ) as Record<(typeof TRAVEL_MODES)[number], number>;
+  if (Math.min(limits.foot, limits.bicycle) < maximumProductPence) {
+    throw new StoreConfigError(
+      `dispatch.maxGoodsPenceByMode.foot and .bicycle must each be at least fees.maximumProductPence (${maximumProductPence}p), so a split part can always hold the dearest product.`,
+    );
+  }
+  return limits;
 }
 
 function positiveNumber(value: unknown, path: string): number {
@@ -502,6 +555,16 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       `fees.maximumOrderGoodsPence (${maximumOrderGoodsPence}p) must be at least fees.maximumProductPence (${maximumProductPence}p), or the dearest product could never be ordered.`,
     );
   }
+  const largeOrderRunnerPaymentPence = wholeNumber(
+    fees['largeOrderRunnerPaymentPence'] ?? 700,
+    'fees.largeOrderRunnerPaymentPence',
+    RUNNER_PAYMENT_PENCE,
+  );
+  const largeOrderFromPence = wholeNumber(
+    fees['largeOrderFromPence'] ?? 12000,
+    'fees.largeOrderFromPence',
+    maximumProductPence + 1,
+  );
 
   // Rule Two, Rule Five and Rule Six are checked against the constants, not trusted from the
   // file.
@@ -630,6 +693,8 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       itemCharge,
       maximumProductPence,
       maximumOrderGoodsPence,
+      largeOrderRunnerPaymentPence,
+      largeOrderFromPence,
       processor,
       coolBag: {
         depositPence: wholeNumber(coolBag['depositPence'], 'fees.coolBag.depositPence'),
@@ -737,8 +802,10 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       ),
     },
     dispatch: {
-      carOnlyAbovePence: wholeNumber(dispatch['carOnlyAbovePence'] ?? 6000, 'dispatch.carOnlyAbovePence', 0),
+      maxGoodsPenceByMode: parseMaxGoodsByMode(dispatch['maxGoodsPenceByMode'], maximumProductPence, maximumOrderGoodsPence),
       waitingAlertMinutes: wholeNumber(dispatch['waitingAlertMinutes'] ?? 15, 'dispatch.waitingAlertMinutes', 1),
+      splitAfterMinutes: wholeNumber(dispatch['splitAfterMinutes'] ?? 15, 'dispatch.splitAfterMinutes', 1),
+      splitRunnerPayPence: wholeNumber(dispatch['splitRunnerPayPence'] ?? 500, 'dispatch.splitRunnerPayPence', 1),
     },
     admin: {
       ownerOnlyRefundAbovePence: wholeNumber(admin['ownerOnlyRefundAbovePence'] ?? 2500, 'admin.ownerOnlyRefundAbovePence', 0),

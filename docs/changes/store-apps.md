@@ -83,9 +83,10 @@ database migration. The step-by-step guide for Anthony and Yvette is docs/APP_ST
 
 ## 7. Found, and still to do before submitting
 
-- Reviewers need a sign-in that does not need a text message (a demo number with a fixed code).
-  Not built: it changes sign-in, so it needs Anthony's yes.
-- Runners cannot close their account in the app (Apple guideline 5.1.1(v)); Shoppers can.
+- ~~Reviewers need a sign-in that does not need a text message~~: built (ruling 60), the demo
+  sign-in, `DEMO_SIGNIN_PHONE` and `DEMO_SIGNIN_CODE`.
+- ~~Runners cannot close their account in the app (Apple guideline 5.1.1(v))~~: built (ruling
+  60), on the Runner page and by voice.
 - The Recipe Pass and Ozi Plus are digital, so the stores would insist on their own payment
   systems. Recommendation: do not sell them inside the store apps for the first version.
 - ALLOWED_ORIGIN in DigitalOcean must add capacitor://localhost and https://localhost for the

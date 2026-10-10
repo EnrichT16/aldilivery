@@ -217,7 +217,7 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
         ),
         // Rule Two, from the constant. The figure a Runner is told is the figure the
         // payout route transfers, because both read the same number.
-        `You will be paid ${formatPence(RUNNER_PAYMENT_PENCE, config.store.currencySymbol)} for every order you complete.`,
+        `You will be paid ${formatPence(RUNNER_PAYMENT_PENCE, config.store.currencySymbol)} for every order you complete, or ${formatPence(config.fees.largeOrderRunnerPaymentPence, config.store.currencySymbol)} for an order of ${formatPence(config.fees.largeOrderFromPence, config.store.currencySymbol)} or more of shopping.`,
       ],
     };
   });
@@ -314,7 +314,7 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
     const session = requireSession(request);
     if (session.role !== 'shopper') {
       throw new BadRequestError(
-        'Runner accounts are closed by talking to us, so we can settle your pay.',
+        `A Runner account is closed with Close my Runner account on your Runner page, or by asking ${config.assistantName}, so your pay and deposit are settled.`,
       );
     }
 

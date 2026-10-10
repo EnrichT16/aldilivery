@@ -85,12 +85,24 @@ export async function tellShopper(
     if (!shopper) return;
     const runner = order.runnerId ? await repository.runners.findById(order.runnerId) : null;
     const who = runner ? firstName(runner.name) : 'Your Runner';
-    const body = {
+    const whole = {
       paid: 'We have your order and are finding a Runner now.',
       accepted: `${who} has your order and will do your shopping.`,
       delivering: `${who} has your shopping and is on the way to you.`,
       delivered: `${who} has delivered your shopping. ${config.motto}`,
     }[stage];
+    // A part of a split order (ruling 60) says which part, so two Runners make sense.
+    const body =
+      order.splitPart !== null && order.splitOf !== null
+        ? `Part ${order.splitPart} of ${order.splitOf} of your order: ${
+            {
+              paid: 'we are finding a Runner for it now.',
+              accepted: `${who} has it and will do that part of your shopping.`,
+              delivering: `${who} has it and is on the way to you.`,
+              delivered: `${who} has delivered it.`,
+            }[stage]
+          }`
+        : whole;
     // Ozi Family and Carer: the payer is told at every stage too (ruling 58).
     void tellFamilyPayer(
       ctx,

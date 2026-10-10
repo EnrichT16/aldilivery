@@ -90,6 +90,10 @@ export function takeInstantPayout(youGetPence: number): Promise<{ message: strin
 
 /* ------------------------------------------------------------------ leaving */
 
+/** What Ozi asks before closing a Runner account by voice (ruling 60). */
+export const CLOSE_QUESTION =
+  'Do you want to close your Runner account? You will not be offered any more jobs. We pay what is owed for your jobs, and pay back any cool bag deposit we hold. Say yes to close it, or no to keep it.';
+
 export function leaveRunning(): Promise<{ left: true; message: string }> {
   return request(
     '/runners/me/leave',

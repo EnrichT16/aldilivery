@@ -57,7 +57,22 @@ export function Help(): JSX.Element {
         <p className="m-0">
           It waits {days} days in case you change your mind, then your details are deleted. The law
           makes us keep the records of what you paid, for tax, for seven years, without your
-          address. Runners can close their Runner account by ringing or emailing us.
+          address.
+        </p>
+        <h3 className="text-lead font-bold m-0">Closing a Runner account</h3>
+        <ul className="m-0 ps-6 space-y-2">
+          <li>
+            On your <Link to="/runner">Runner page</Link>, under More: choose Close my Runner
+            account, then Yes, close my Runner account.
+          </li>
+          <li>Ask {assistantName} on your Runner page: say &ldquo;close my Runner account&rdquo;.</li>
+          <li>Ring us or email us.</li>
+        </ul>
+        <p className="m-0">
+          You cannot close it while a job is in hand. What you are owed for jobs is paid as normal,
+          and any cool bag deposit we hold is paid back. Your name, number and photos are deleted{' '}
+          {days} days later. We keep the records of what you were paid for seven years, as the law
+          asks, and the record of your checks for two years.
         </p>
       </section>
 

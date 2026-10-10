@@ -8,6 +8,8 @@
  */
 
 import type { FastifyInstance } from 'fastify';
+
+import { refuseIfDemo } from '../services/demo.js';
 import { z } from 'zod';
 
 import { requireSession } from '../app.js';
@@ -46,6 +48,8 @@ export async function registerPaymentMethodRoutes(app: FastifyInstance): Promise
     // attached is spent after one payment.
     const shopper = await repository.shoppers.findById(session.accountId);
     if (!shopper) throw new NotFoundError('account');
+    // The demo account (ruling 60) keeps its demo card: no real card is ever saved on it.
+    refuseIfDemo(shopper);
     let customerId: string;
     try {
       ({ customerId } = await payments.saveCardForReuse({

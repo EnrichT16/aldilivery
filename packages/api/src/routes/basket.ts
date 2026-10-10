@@ -6,10 +6,11 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import { formatPence, needsCarRunner } from '@aldilivery/core';
+import { formatPence, needsVehicle } from '@aldilivery/core';
 import { z } from 'zod';
 
 import { priceLines } from '../services/basket.js';
+import { largeOrderShopperWords } from '../services/dispatch.js';
 import { deliveryPlanFor } from '../services/plans.js';
 
 const basketSchema = z.object({
@@ -46,8 +47,9 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
 
     const symbol = config.store.currencySymbol;
     const shopping = priced.goodsPence + priced.itemChargesPence;
-    // Ruling 59: a large shop goes to a Runner with a car, which may take a little longer.
-    const carNeeded = needsCarRunner(priced.goodsPence, config.dispatch.carOnlyAbovePence);
+    // Rulings 59 and 60: a large shop goes to a Runner with a vehicle who can carry it, or
+    // comes in parts if none takes it, which may take a little longer.
+    const carNeeded = needsVehicle(priced.goodsPence, config.dispatch.maxGoodsPenceByMode);
 
     return {
       goodsEstimatePence: priced.goodsPence,
@@ -71,7 +73,7 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
         `Delivery is ${formatPence(priced.feePence, symbol)}.`,
         `So about ${formatPence(priced.totalPence, symbol)} altogether.`,
         'You pay what the till says for the shopping, so the total may change a little.',
-        ...(carNeeded ? ['Large orders go to a Runner with a car.'] : []),
+        ...(carNeeded ? [largeOrderShopperWords(config, priced.goodsPence)] : []),
       ],
     };
   });

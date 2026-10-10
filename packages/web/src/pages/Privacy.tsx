@@ -190,6 +190,12 @@ export function Privacy(): JSX.Element {
             or full address once the job is done.
           </li>
           <li>
+            You can close your Runner account at any time on your Runner page, or by asking{' '}
+            {assistant}. Your name, number, where you last were and any document photos are deleted{' '}
+            {days} days later, once nothing is owed either way. Pay records are kept as money
+            records, and the record of your checks for two years.
+          </li>
+          <li>
             Jobs are offered by a fair rotation: nearest first, then whoever has waited longest. A
             computer does the sharing out, but whether you may deliver at all, and any decision that
             you were responsible for a problem, is always made by a person.
@@ -282,6 +288,11 @@ export function Privacy(): JSX.Element {
             than 30 days.
           </li>
           <li>Runner document photos: until a person has checked them.</li>
+          <li>
+            A Runner account: until you close it on your Runner page or by asking {assistant}. It
+            is removed {days} days later, apart from the records of what you were paid, which are
+            kept for seven years as money records.
+          </li>
           <li>
             Records of a Runner&rsquo;s checks: while they are a Runner, and two years after they
             stop.

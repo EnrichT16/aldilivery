@@ -246,6 +246,18 @@ export function processorCostPence(totalTransactionPence: number, processor: Pro
   return percentagePart + processor.fixedPence;
 }
 
+/**
+ * What the Runner earns for delivering an order whole (Rule Two, amended by ruling 60): five
+ * pounds, or `largeOrderRunnerPaymentPence` (£7) when the shop prices come to
+ * `largeOrderFromPence` (£120) or more. A part of a split job pays its own figure instead.
+ */
+export function runnerPaymentFor(
+  goodsPence: number,
+  fees: { readonly largeOrderRunnerPaymentPence: number; readonly largeOrderFromPence: number },
+): number {
+  return goodsPence >= fees.largeOrderFromPence ? fees.largeOrderRunnerPaymentPence : RUNNER_PAYMENT_PENCE;
+}
+
 /** The full economics of an order, for internal reporting. */
 export function orderEconomics(pricing: BasketPricing, processor: ProcessorModel): OrderEconomics {
   const cost = processorCostPence(pricing.totalPence, processor);

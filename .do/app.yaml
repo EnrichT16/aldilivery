@@ -164,6 +164,18 @@ services:
         type: SECRET
         value: replace_with_a_long_random_value_at_least_32_chars
 
+      # The demo sign-in for app store reviewers (ruling 60, docs/APP_STORES.md). Off unless both
+      # are real. The number is written in docs/store-listing/review-notes.md; the code is a
+      # secret, set here and given to Apple and Google only, never in the repository.
+      - key: DEMO_SIGNIN_PHONE
+        scope: RUN_TIME
+        value: replace_with_the_demo_mobile_number
+
+      - key: DEMO_SIGNIN_CODE
+        scope: RUN_TIME
+        type: SECRET
+        value: replace_with_the_demo_code
+
       # Signing back in, by a code sent in a text. DEPLOY.md, "Signing in by text message".
       # Until all three Twilio values are real, signing in by text is switched off and the
       # sign-in screen says so. The server still starts: this is not one of the three secrets

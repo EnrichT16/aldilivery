@@ -22,7 +22,7 @@ export function agreementSummary(): string {
   const { recoveryPercentOfPay } = storeConfig.problems;
   return [
     `Here is the Runner agreement in short.`,
-    `You are paid ${money(runnerPaymentPence)} for every delivery, whatever the basket.`,
+    `You are paid ${money(runnerPaymentPence)} for every delivery, whatever the basket, and ${money(storeConfig.fees.largeOrderRunnerPaymentPence)} for an order of ${money(storeConfig.fees.largeOrderFromPence)} or more delivered whole.`,
     `You pay at the till with your own card, and we pay you back the till total straight away.`,
     `We hold back a little of your first payments, up to ${money(coolBag.depositPence)}, as a cool bag deposit, and pay it all back after your ${coolBag.releaseAfterCompletedDeliveries}th delivery, or when you stop.`,
     `Nothing is ever taken from your pay automatically. Only if a person decides you were responsible for a refund, ${recoveryPercentOfPay}% of later jobs' pay goes towards it.`,

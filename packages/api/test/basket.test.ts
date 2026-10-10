@@ -158,7 +158,7 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
     );
   });
 
-  it('says a large order goes to a Runner with a car, and only for a large order (ruling 59)', async () => {
+  it('says who carries a large order, and that it may come in parts, only for a large order (rulings 59 and 60)', async () => {
     const price = async (quantity: number) =>
       (
         await harness.app.inject({
@@ -171,10 +171,17 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
     // 48 pints is £60.00 at the shop: not over the line. 49 is £61.25.
     const atLimit = await price(48);
     expect(atLimit.carNeeded).toBe(false);
-    expect(atLimit.explanation.join(' ')).not.toContain('Runner with a car');
+    expect(atLimit.explanation.join(' ')).not.toContain('Large orders');
     const large = await price(49);
     expect(large.carNeeded).toBe(true);
-    expect(large.explanation).toContain('Large orders go to a Runner with a car.');
+    expect(large.explanation).toContain(
+      'Large orders go to a Runner with a motorbike, car or van. If none is free, it may come in parts, for the same price.',
+    );
+    // Over £70 a motorbike cannot carry it.
+    const larger = await price(57);
+    expect(larger.explanation).toContain(
+      'Large orders go to a Runner with a car or van. If none is free, it may come in parts, for the same price.',
+    );
   });
 
   it('refuses an empty basket kindly rather than pricing nothing', async () => {

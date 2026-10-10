@@ -21,7 +21,7 @@
 
 import type { FastifyBaseLogger } from 'fastify';
 
-import { formatPence } from '@aldilivery/core';
+import { formatPence, runnerPaymentFor } from '@aldilivery/core';
 
 import type { AppContext } from '../app.js';
 import type { Order, RecurringSet } from '../domain.js';
@@ -167,6 +167,7 @@ async function leaveDraft(ctx: AppContext, set: RecurringSet): Promise<SetOutcom
     setFireAt: set.nextFireAt,
     status: 'draft',
     goodsEstimatePence: goodsPence,
+    runnerPaymentPence: runnerPaymentFor(goodsPence, ctx.config.fees),
     itemChargesPence: 0,
     feePence: 0,
     totalEstimatePence: goodsPence,
@@ -264,6 +265,7 @@ export async function placeSetOrder(
     setFireAt: fireAt,
     status: 'draft',
     goodsEstimatePence: priced.goodsPence,
+    runnerPaymentPence: runnerPaymentFor(priced.goodsPence, config.fees),
     itemChargesPence: priced.itemChargesPence,
     feePence: priced.feePence,
     totalEstimatePence: priced.totalPence,

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { largeOrderShopperWords, needsVehicle, runnerPaymentFor } from '@aldilivery/core';
+
 import { moneyIn, moneyOut } from '../lib/alert';
 
 import { NotifyMe } from '../components/NotifyMe';
@@ -338,12 +340,12 @@ export function Confirm(): JSX.Element {
         <p className="m-0 text-lead font-bold">Altogether, about {money(pricing.totalPence)}.</p>
         <p className="m-0">
           {deliveryWords(pricing.plan)} You pay what the till says for the shopping, so this may
-          change a little. Your Runner gets {money(storeConfig.fees.runnerPaymentPence)} of the
+          change a little. Your Runner gets {money(runnerPaymentFor(pricing.goodsPence, storeConfig.fees))} of the
           delivery.
         </p>
         {byFamily && <p className="m-0">This is paid with your family plan&rsquo;s card.</p>}
-        {pricing.goodsPence > storeConfig.dispatch.carOnlyAbovePence && (
-          <p className="m-0">Large orders go to a Runner with a car.</p>
+        {needsVehicle(pricing.goodsPence, storeConfig.dispatch.maxGoodsPenceByMode) && (
+          <p className="m-0">{largeOrderShopperWords(pricing.goodsPence, storeConfig.dispatch.maxGoodsPenceByMode)}</p>
         )}
       </section>
 

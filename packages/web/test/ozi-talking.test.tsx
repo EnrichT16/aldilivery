@@ -79,7 +79,7 @@ describe('the switch, and turning talking off and on by voice', () => {
     await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-checked', 'true');
     await waitFor(() => {
-      expect(said(engine)).toContain("I'm talking out loud again. Send me, I will help.");
+      expect(said(engine)).toContain("I'm talking out loud again. Send me, I will deliver.");
     });
   });
 
@@ -102,7 +102,7 @@ describe('the switch, and turning talking off and on by voice', () => {
 
     // Still listening while silent, so it can be turned back on by voice.
     await say(engine, 'Hey Ozi, turn on');
-    expect(said(engine).at(-1)).toBe("I'm talking out loud again. Send me, I will help.");
+    expect(said(engine).at(-1)).toBe("I'm talking out loud again. Send me, I will deliver.");
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
   });
 });
@@ -408,7 +408,7 @@ describe('everyday phrases, answered by the server (ruling 44)', () => {
 
     await say(engine, 'Ozi, thank you');
     await waitFor(() => {
-      expect(said(engine).at(-1)).toBe("You're welcome. Send me, I will help.");
+      expect(said(engine).at(-1)).toBe("You're welcome. Send me, I will deliver.");
     });
     const asked = recorded.find((r) => r.path === '/ozi/reply');
     expect(asked?.body).toEqual({ text: 'Ozi, thank you', mode: 'exact', turn: 0 });

@@ -45,7 +45,9 @@ act for it.
 
 **The number has come (10 October 2026, ruling 59): 235209172**, for **OZIDELIVERY LTD, 107 King
 Street, Gillingham ME7 1ER**. It is public, and is kept in `config/store.json` as
-`store.dunsNumber`. OZIDELIVERY LTD is the company that runs Ozi Delivery. Anthony's other
+`store.dunsNumber`. Its Companies House number is **17497650** (`store.companyNumber`, given by
+Anthony on 10 October 2026, ruling 60), shown on the site; Apple and Google may ask for it.
+OZIDELIVERY LTD is the company that runs Ozi Delivery. Anthony's other
 company is separate and is not named anywhere on the site or in the store listings.
 
 Both the Apple and the Google accounts must be enrolled as **OZIDELIVERY LTD**, written exactly
@@ -82,13 +84,23 @@ Apple's, Google's or GitHub's own pages.
 These are the things that would get the apps rejected, or not work, if submitted today. Each one
 is a job for Claude once Anthony says yes.
 
-1. **A sign-in for the reviewers.** Reviewers cannot receive our text messages. They need one
-   demo telephone number which accepts one fixed code without sending a text. It must work only
-   for that number, only when both values are set in DigitalOcean, and the demo account must
-   hold no real person's details. Anthony to say yes, then Claude builds it.
-2. **Runners closing their account in the app.** Apple requires anyone who can make an account
-   in an app to be able to delete it there. Shoppers can, in Settings. Runners can only ring or
-   email today. Claude to build it.
+1. **A sign-in for the reviewers.** Built (ruling 60). One demo telephone number accepts one
+   fixed code without a text being sent, only when both `DEMO_SIGNIN_PHONE` and
+   `DEMO_SIGNIN_CODE` are set on the api component in DigitalOcean (the code as a secret). It
+   opens a demo account with the banner "Demo account — no real orders": a demo Shopper, or a
+   demo Runner if the reviewer signs in on the Runner page. Demo orders go through the whole
+   flow to the confirmation and the one yes, but are never sent to Stripe, so no card is charged,
+   and never reach a Runner; cards cannot be added and nothing can be bought on it. Ten wrong
+   codes in a quarter of an hour rest it. **Anthony**: choose a UK mobile number nobody uses
+   (one of Ofcom's drama numbers, 07700 900000 to 07700 900999, is fine) and a code of six
+   digits; set both in DigitalOcean; write the number in docs/store-listing/review-notes.md and
+   in App Store Connect and Play Console, and the code **only** in App Store Connect and Play
+   Console, never in the repository or a chat.
+2. **Runners closing their account in the app.** Built (ruling 60). On the Runner page, under
+   More: Close my Runner account, then Yes, close my Runner account; or Close it by talking to
+   Ozi; or say "close my Runner account" to Ozi on the Runner page. Refused while a job is in
+   hand; the cool bag deposit is paid back; their details are removed after the same days as a
+   Shopper's closed account, keeping pay records.
 3. **The Recipe Pass and Ozi Plus.** These are digital, so inside an iPhone or Android app Apple
    and Google insist they are sold through their own payment systems, taking 15 percent. The
    simplest choice for the first version is to not sell them inside the store apps: the website

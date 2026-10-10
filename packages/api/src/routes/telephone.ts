@@ -29,8 +29,7 @@ import {
   parseYesNo,
   productAllowed,
   splitItems,
-  wantsToStop,
-} from '@aldilivery/core';
+  wantsToStop, runnerPaymentFor } from '@aldilivery/core';
 
 import type { CatalogueItem } from '../domain.js';
 import { isUkMobile, ukPhone } from '../lib/phone.js';
@@ -724,6 +723,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       shopperId: shopper.id,
       status: 'confirmed',
       goodsEstimatePence: priced.goodsPence,
+      runnerPaymentPence: runnerPaymentFor(priced.goodsPence, config.fees),
       itemChargesPence: priced.itemChargesPence,
       feePence: priced.feePence,
       totalEstimatePence: priced.totalPence,

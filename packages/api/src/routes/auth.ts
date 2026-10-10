@@ -20,6 +20,10 @@ import {
 } from '../errors.js';
 import { isUkMobile, NOT_A_UK_NUMBER, ukPhone } from '../lib/phone.js';
 import { codesMatch, generateCode, hashCode, signPhoneProof, signSession } from '../lib/tokens.js';
+import { demoRunner, demoShopper, isDemoCode, isDemoPhone } from '../services/demo.js';
+
+/** Wrong demo codes allowed in a quarter of an hour before the demo sign-in rests (ruling 60). */
+export const DEMO_TRIES = { count: 10, minutes: 15 } as const;
 
 /** How long the proof of holding a number lasts, between the code and opening the account. */
 const PHONE_PROOF_MINUTES = 30;
@@ -78,6 +82,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
   // per-number limits are in the database, so they survive a restart.
   const byAddress = new Map<string, number[]>();
   const byServer: number[] = [];
+  // Wrong guesses at the fixed demo code, so it cannot be found by trying (ruling 60).
+  let demoMisses: number[] = [];
 
   function withinWindow(times: number[], minutes: number): number[] {
     const since = now().getTime() - minutes * 60_000;
@@ -98,6 +104,16 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     const role = input.role;
     const phone = ukPhone(input.phone);
     if (!phone) throw new BadRequestError(NOT_A_UK_NUMBER);
+    // The demo number for app store reviewers (ruling 60): no text is sent and no code made; the
+    // fixed code from the server's environment is the one that works. The answer looks the same.
+    if (isDemoPhone(env, phone)) {
+      return {
+        sent: true,
+        channel: input.channel,
+        expiresInSeconds: env.otpTtlSeconds,
+        message: 'We have sent you a code. It lasts ten minutes.',
+      };
+    }
     const byCall = input.channel === 'call';
     if (!byCall && !isUkMobile(phone)) {
       throw new BadRequestError(
@@ -202,6 +218,24 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
     const { role, code } = input;
     const phone = ukPhone(input.phone);
     if (!phone) throw new BadRequestError(NOT_A_UK_NUMBER);
+
+    // The demo sign-in (ruling 60): the demo number and the fixed code open the demo account,
+    // a Shopper or a Runner as chosen. The code is never logged.
+    if (isDemoPhone(env, phone)) {
+      demoMisses = withinWindow(demoMisses, DEMO_TRIES.minutes);
+      if (demoMisses.length >= DEMO_TRIES.count) {
+        throw new TooManyRequestsError(TOO_MANY);
+      }
+      if (!isDemoCode(env, code)) {
+        demoMisses.push(now().getTime());
+        throw new UnauthorisedError('That code was not right. Try again.');
+      }
+      const account =
+        role === 'runner' ? await demoRunner(app.ctx, phone) : await demoShopper(app.ctx, phone);
+      const expiresAt = Math.floor(now().getTime() / 1000) + env.authTokenTtlHours * 3600;
+      const token = signSession({ accountId: account.id, role, expiresAt }, env.authTokenSecret);
+      return { registrationRequired: false, role, token, accountId: account.id, demo: true };
+    }
 
     const stored = await repository.oneTimeCodes.findLatestUnconsumed(phone, role);
     if (!stored) {

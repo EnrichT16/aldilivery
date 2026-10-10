@@ -178,6 +178,9 @@ model Shopper {
   deletionScheduledFor    DateTime?
   /// When the account was removed after closing: personal details taken off, money records kept.
   erasedAt                DateTime?
+  /// The app store reviewers' demo account (ruling 60): its orders charge no card and reach
+  /// no Runner.
+  isDemo                  Boolean                @default(false)
 
   /// Which office or team at the organisation looks after this person.
   organisationOffice String?
@@ -255,6 +258,11 @@ model Runner {
   coolBagRefundedAt       DateTime?
   coolBagRefundTransferId String?
   coolBagRefundNote       String?
+  /// When a Runner who left had their personal details removed, after the same days to change
+  /// their mind as a Shopper (ruling 60). Pay records stay, as money records.
+  erasedAt                DateTime?
+  /// The app store reviewers' demo Runner (ruling 60): never offered a real job.
+  isDemo                  Boolean   @default(false)
 
   /// Insurance reminders (ruling 14): which expiry date they were for, and the fewest days
   /// before it that a reminder has gone out (0 once it has run out).
@@ -514,6 +522,22 @@ model Order {
   /// (ruling 59), so it is texted once only.
   waitingAlertSentAt DateTime?
 
+  /// Split jobs (ruling 60). On the whole order: when it was split into parts because no Runner
+  /// who could carry it took it in time. On each part: the whole order it belongs to, which part
+  /// it is and of how many. A part carries only its own items, its own till total, Runner card
+  /// load or pay-back, receipt photo and delivery; the Shopper's card is settled on the whole
+  /// order once every part has a till total.
+  splitAt       DateTime?
+  splitParentId String?
+  splitParent   Order?    @relation("SplitParts", fields: [splitParentId], references: [id], onDelete: Cascade)
+  splitParts    Order[]   @relation("SplitParts")
+  splitPart     Int?
+  splitOf       Int?
+
+  /// A demo order (ruling 60), placed by the app store reviewers' demo account: no card is
+  /// charged and no Runner is ever sent.
+  isDemo Boolean @default(false)
+
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   acceptedAt   DateTime?
@@ -536,6 +560,7 @@ model Order {
   @@index([tillStatus])
   @@index([shopperId])
   @@index([poolId])
+  @@unique([splitParentId, splitPart])
 }
 
 /// A photo of the till receipt, taken by the Runner when the till total goes in. Kept with the

@@ -27,6 +27,7 @@ import {
   type Shopper,
 } from '../lib/api';
 import { addNamedItems, currentOffers, listInWords } from '../lib/extras';
+import { CLOSE_QUESTION, leaveRunning } from '../lib/runner-api';
 import { nameHeardIn, onlyName } from '../voice/name';
 import { phraseReply } from '../voice/phrases';
 import { answerShoppingQuestion, orderWhere } from '../voice/shopping-questions';
@@ -64,7 +65,7 @@ export type Presence =
   /** This phone or browser cannot listen; Ozi can still speak. */
   | 'cannot-listen';
 
-/** The motto (Anthony, 4 October 2026): "Send me, I will help." */
+/** The motto (Anthony, 4 October 2026; changed 10 October 2026, ruling 60): "Send me, I will deliver." */
 const MOTTO = storeConfig.motto;
 
 /** "Turn off", "turn off talking", "turn the talking switch off", "stop talking". */
@@ -86,6 +87,10 @@ const SIGN_IN =
 /** "What are the door words?", "the safe word", "who's coming to the door?" (T6). */
 const DOOR_WORD =
   /\b(door|safe|secret)\s*words?\b|\bwho('?s| is) (coming|at the door|knocking)\b|\bwhat will (my|the) runner say\b/;
+
+/** "Close my Runner account", "stop being a Runner" (ruling 60). */
+const CLOSE_RUNNER_ACCOUNT =
+  /\b(close|delete|cancel|remove|end)\s+(my\s+)?runner\s+account\b|\bstop\s+being\s+a\s+runner\b/;
 
 /** "Close my account", "delete my account". */
 const CLOSE_ACCOUNT = /\b(close|delete|cancel|remove)\s+(my|this)\s+account\b/;
@@ -544,6 +549,30 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
             );
         },
       );
+      return;
+    }
+    // "Close my Runner account" on the Runner's pages (ruling 60): asked once more, then closed,
+    // refused while a job is in hand.
+    if (
+      !ordering.busy() &&
+      CLOSE_RUNNER_ACCOUNT.test(words) &&
+      window.location.pathname.startsWith('/runner')
+    ) {
+      listenFor(CLOSE_QUESTION, (answer) => {
+        if (!/\b(yes|yeah|yep|close it|please)\b/i.test(answer) || /\bno\b/i.test(answer)) {
+          void sayRef.current('All right. Your Runner account stays open.');
+          return;
+        }
+        void leaveRunning()
+          .then((result) => sayRef.current(result.message))
+          .catch((failure: unknown) =>
+            sayRef.current(
+              failure instanceof Error
+                ? failure.message
+                : "I couldn't close it just now. Please press Close my Runner account on your Runner page.",
+            ),
+          );
+      });
       return;
     }
     // "Close my account": asked once more, then closed, with the days to change your mind.

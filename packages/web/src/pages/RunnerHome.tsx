@@ -40,6 +40,7 @@ import { JobNavigation } from '../components/JobNavigation';
 import { LeaveRunning } from '../components/LeaveRunning';
 import { PayoutChoice } from '../components/PayoutChoice';
 import { RunnerSos } from '../components/RunnerSos';
+import { DemoBanner } from '../components/DemoBanner';
 import { TillPayment } from '../components/TillPayment';
 import { money } from '../lib/money';
 import { preparePhoto, type ReadyPhoto } from '../lib/photo';
@@ -238,6 +239,7 @@ export function RunnerHome(): JSX.Element {
   return (
     <div className="space-y-8">
       <h1 className="text-display font-bold m-0">Hello, {runner.name}</h1>
+      {runner.isDemo && <DemoBanner />}
       <details className="max-w-xl">
         <summary className="control px-0 text-paper underline">The screen</summary>
         <ShowWordsSwitch />
@@ -403,8 +405,12 @@ export function RunnerHome(): JSX.Element {
                   className="space-y-3 max-w-xl border-2 border-highlight rounded-xl p-4"
                 >
                   <h2 id="offer-heading" className="text-lead font-bold m-0">
-                    A job for you
+                    {offer.job.split ? offer.job.split.label : 'A job for you'}
                   </h2>
+                  {offer.job.split && (
+                    <p className="m-0 font-bold">{offer.job.split.earnWords}</p>
+                  )}
+                  {offer.job.split && <p className="m-0">{offer.job.split.rest}</p>}
                   <p className="m-0">
                     {offer.job.itemCount} {offer.job.itemCount === 1 ? 'thing' : 'things'}, about{' '}
                     {money(offer.job.goodsEstimatePence)} of shopping
@@ -539,6 +545,12 @@ function JobInHand({
       <h2 id="job-heading" className="text-lead font-bold">
         Your job: shopping for {job.shopperName}
       </h2>
+      {job.split && (
+        <div className="space-y-1 border-2 border-highlight rounded-xl p-4">
+          <p className="m-0 font-bold">{job.split.label}</p>
+          <p className="m-0">{job.split.rest}</p>
+        </div>
+      )}
 
       {byCard && (job.status === 'accepted' || job.status === 'shopping') && (
         <div className="space-y-2 border-2 border-highlight rounded-xl p-4">
