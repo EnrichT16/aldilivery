@@ -1,18 +1,29 @@
 /**
  * Pricing a basket.
  *
- * Two rules meet here.
+ * Three rules meet here.
  *
  * Rule Six: an age restricted item is refused at basket time. Not hidden from search and
  * then quietly dropped at checkout — refused, by name, so the Shopper knows why.
  *
  * Rule Four: there is no minimum. A basket of one tin is priced and accepted like any
- * other. There is a maximum, which is operational rather than a price: one delivery carries
- * what one Runner can carry safely (docs/BUILD_PROMPT.md, Section B). Above it the Shopper is
- * told so in plain words and offered two deliveries, never charged more.
+ * other. There is a maximum, which one order carries (`fees.maximumOrderGoodsPence`). Above it
+ * the Shopper is told so in plain words and offered two deliveries, never charged more.
+ *
+ * Rule Three as amended on 9 October 2026 (ruling 58): every unit carries an item charge, and
+ * the price shown for it always includes that charge; no single product may cost more than
+ * £60 in the shop; delivery depends on the plan and the size of the shop.
  */
 
-import { priceBasket, type BasketPricing, type DeliveryFees } from '@aldilivery/core';
+import {
+  displayPricePence,
+  itemChargePence,
+  priceBasket,
+  productAllowed,
+  type BasketPricing,
+  type DeliveryFees,
+  type DeliveryPlan,
+} from '@aldilivery/core';
 
 import type { BasketLine, CatalogueItem } from '../domain.js';
 import {
@@ -20,16 +31,23 @@ import {
   BadRequestError,
   BasketTooLargeError,
   NotFoundError,
+  ProductTooDearError,
 } from '../errors.js';
 
 export interface PricedLine {
   catalogueItemId: string;
   name: string;
   quantity: number;
-  /** The estimated price for one of them. */
+  /** The estimated shop price for one of them: what the till is expected to say. */
   unitPricePence: number;
-  /** Unit price times quantity. */
+  /** The item charge on one of them. */
+  unitChargePence: number;
+  /** The price shown and spoken for one of them: shop price and item charge together. */
+  unitDisplayPence: number;
+  /** Shop price times quantity. */
   linePence: number;
+  /** Shown price times quantity. */
+  lineDisplayPence: number;
 }
 
 export interface PricedBasket extends BasketPricing {
@@ -39,7 +57,7 @@ export interface PricedBasket extends BasketPricing {
 export type PriceBasketOptions = DeliveryFees;
 
 /**
- * Turn basket lines and the catalogue rows they point at into a price.
+ * Turn basket lines and the catalogue rows they point at into a price, for the Shopper's plan.
  *
  * The catalogue rows are passed in rather than looked up here, so this function stays pure
  * and the age restriction check can be proved without a database.
@@ -48,6 +66,7 @@ export function priceLines(
   lines: readonly BasketLine[],
   catalogueItems: readonly CatalogueItem[],
   options: PriceBasketOptions,
+  plan: DeliveryPlan = 'payg',
 ): PricedBasket {
   if (lines.length === 0) {
     throw new BadRequestError('There is nothing in the basket yet.');
@@ -64,11 +83,19 @@ export function priceLines(
   }
 
   // Rule Six, before anything is priced.
-  const restricted = lines
-    .map((line) => byId.get(line.catalogueItemId) as CatalogueItem)
-    .filter((item) => item.ageRestricted);
+  const items = lines.map((line) => byId.get(line.catalogueItemId) as CatalogueItem);
+  const restricted = items.filter((item) => item.ageRestricted);
   if (restricted.length > 0) {
     throw new AgeRestrictedItemError(restricted.map((item) => item.name));
+  }
+
+  // No single product over the most one product may cost (ruling 58).
+  const tooDear = items.filter((item) => !productAllowed(item.estimatedPricePence, options));
+  if (tooDear.length > 0) {
+    throw new ProductTooDearError(
+      tooDear.map((item) => item.name),
+      options.maximumProductPence,
+    );
   }
 
   const pricedLines: PricedLine[] = lines.map((line) => {
@@ -78,21 +105,29 @@ export function priceLines(
         `How many ${item.name} would you like? Please give a whole number.`,
       );
     }
+    const unitDisplayPence = displayPricePence(item.estimatedPricePence, options);
     return {
       catalogueItemId: item.id,
       name: item.name,
       quantity: line.quantity,
       unitPricePence: item.estimatedPricePence,
+      unitChargePence: itemChargePence(item.estimatedPricePence, options),
+      unitDisplayPence,
       linePence: item.estimatedPricePence * line.quantity,
+      lineDisplayPence: unitDisplayPence * line.quantity,
     };
   });
 
   const goodsPence = pricedLines.reduce((sum, line) => sum + line.linePence, 0);
 
-  if (goodsPence > options.maximumGoodsPence) {
-    throw new BasketTooLargeError(goodsPence, options.maximumGoodsPence);
+  if (goodsPence > options.maximumOrderGoodsPence) {
+    throw new BasketTooLargeError(goodsPence, options.maximumOrderGoodsPence);
   }
 
-  const pricing = priceBasket(goodsPence, options);
+  const pricing = priceBasket(
+    pricedLines.map((line) => ({ shopPricePence: line.unitPricePence, quantity: line.quantity })),
+    plan,
+    options,
+  );
   return { ...pricing, lines: pricedLines };
 }

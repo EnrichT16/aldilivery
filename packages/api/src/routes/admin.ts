@@ -293,7 +293,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       order: {
         ...(await orderRow(order, lookup)),
         goodsEstimatePence: order.goodsEstimatePence,
+        itemChargesPence: order.itemChargesPence,
         feePence: order.feePence,
+        deliveryPlan: order.deliveryPlan,
         receiptTotalPence: order.receiptTotalPence,
         items: order.items.map((item) => ({
           name: item.name,
@@ -585,8 +587,9 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         budgetCapPence: shopper.budgetCapPence,
         hasPin: shopper.pinHash !== null,
         recipePassUntil: shopper.recipePassUntil,
-        plusUntil: shopper.plusUntil,
-        plusFamily: shopper.plusFamily,
+        plan: shopper.plan,
+        planUntil: shopper.planUntil,
+        planRenews: shopper.planRenews,
         creditPence: shopper.creditPence,
         ageBand: shopper.ageBand,
         joinedVia: shopper.joinedVia,

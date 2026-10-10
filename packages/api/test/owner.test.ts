@@ -147,17 +147,17 @@ describe('the money', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send it.',
-          agreedTotalPence: 1600,
+          agreedTotalPence: 250 + 100 + 799,
         },
       },
       shopper.authHeader,
     );
     await post('/extras/recipe-pass', { priceAccepted: true }, shopper.authHeader);
     const money = (await get('/staff/money', headers)).json();
-    expect(money.today.inPence).toBe(1600 + 199);
+    expect(money.today.inPence).toBe(1149 + 199);
     expect(money.today.byKind).toEqual(
       expect.arrayContaining([
-        { name: 'order', pence: 1600 },
+        { name: 'order', pence: 1149 },
         { name: 'recipe-pass', pence: 199 },
       ]),
     );

@@ -101,18 +101,32 @@ describe('the configuration parser refuses to contradict a rule', () => {
     expect(() => parseStoreConfig(withFees({ runnerPaymentPence: 450 }))).toThrow(StoreConfigError);
   });
 
-  it('rejects a standard delivery fee that would not cover the Runner (Rule Two)', () => {
-    expect(() => parseStoreConfig(withFees({ standardDeliveryPence: 500 }))).toThrow(
-      /does not cover the Runner/,
+  it('rejects any delivery price, on any plan, that would not cover the Runner (Rule Two)', () => {
+    const delivery = (goodConfig()['fees'] as Record<string, Record<string, unknown>>)['delivery'];
+    for (const key of [
+      'payAsYouGoSmallOrderPence',
+      'payAsYouGoPence',
+      'membershipPence',
+      'plusPence',
+    ]) {
+      expect(() => parseStoreConfig(withFees({ delivery: { ...delivery, [key]: 500 } }))).toThrow(
+        /does not cover the Runner/,
+      );
+    }
+  });
+
+  it('requires the delivery prices, the item charge and the most one product may cost', () => {
+    expect(() => parseStoreConfig(withFees({ delivery: undefined }))).toThrow(StoreConfigError);
+    expect(() => parseStoreConfig(withFees({ itemCharge: undefined }))).toThrow(StoreConfigError);
+    expect(() => parseStoreConfig(withFees({ maximumProductPence: undefined }))).toThrow(
+      StoreConfigError,
     );
   });
 
-  it('requires a maximum basket and a standard delivery fee', () => {
-    expect(() => parseStoreConfig(withFees({ maximumGoodsPence: undefined }))).toThrow(
-      StoreConfigError,
-    );
-    expect(() => parseStoreConfig(withFees({ standardDeliveryPence: undefined }))).toThrow(
-      StoreConfigError,
+  it('defaults the whole-order goods cap to £150, and refuses one below the dearest product', () => {
+    expect(parseStoreConfig(withFees({ maximumOrderGoodsPence: undefined })).fees.maximumOrderGoodsPence).toBe(15000);
+    expect(() => parseStoreConfig(withFees({ maximumOrderGoodsPence: 5000 }))).toThrow(
+      /at least fees.maximumProductPence/,
     );
   });
 

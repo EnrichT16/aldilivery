@@ -22,7 +22,15 @@
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
-import { formatPence, parseQuantity, parseYesNo, splitItems, wantsToStop } from '@aldilivery/core';
+import {
+  displayPricePence,
+  formatPence,
+  parseQuantity,
+  parseYesNo,
+  productAllowed,
+  splitItems,
+  wantsToStop,
+} from '@aldilivery/core';
 
 import type { CatalogueItem } from '../domain.js';
 import { isUkMobile, ukPhone } from '../lib/phone.js';
@@ -38,6 +46,7 @@ import {
   type CallState,
 } from '../lib/twilio-voice.js';
 import { priceLines } from '../services/basket.js';
+import { CANCEL_PLAN, cancelPlanFor, deliveryPlanFor, freeMonthEnd } from '../services/plans.js';
 import { skipByText } from '../services/set-runner.js';
 
 /** A conversation is allowed this long, from its last step, before it must start again. */
@@ -201,16 +210,29 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
   const OFFER =
     "A card is never given to me on a call. But I can take your order now, and text you a secure link from our payment company to pay and give your delivery address. You don't need an account. Would you like to order now? Say yes or no.";
 
-  /** What is in the basket, in words, and what it comes to. */
-  async function readBack(lines: Array<[string, number]>) {
+  /**
+   * What is in the basket, in words, and what it comes to, at the caller's own delivery price
+   * (their plan, or pay as you go for somebody with no account yet).
+   */
+  async function readBack(lines: Array<[string, number]>, shopperId?: string) {
     const items = await repository.catalogue.findManyByIds(lines.map(([id]) => id));
+    const shopper = shopperId ? await repository.shoppers.findById(shopperId) : null;
     const priced = priceLines(
       lines.map(([catalogueItemId, quantity]) => ({ catalogueItemId, quantity })),
       items,
       config.fees,
+      shopper ? await deliveryPlanFor(app.ctx, shopper, now()) : 'payg',
     );
     const words = listWords(priced.lines.map((line) => `${line.quantity} ${line.name}`));
     return { priced, words };
+  }
+
+  /**
+   * The cost, read aloud: the shopping with its item charges included (prices are always said
+   * with them in, ruling 58), then delivery, then the total.
+   */
+  function costWords(priced: { goodsPence: number; itemChargesPence: number; feePence: number; totalPence: number }): string {
+    return `The shopping comes to about ${money(priced.goodsPence + priced.itemChargesPence)}, with the item charges included. Delivery is ${money(priced.feePence)}. So the total is about ${money(priced.totalPence)}`;
   }
 
   /** The order so far, then "anything else?". */
@@ -476,6 +498,21 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       }
 
       case 'items': {
+        // "Cancel my membership": as easy by telephone as joining (ruling 58).
+        if (CANCEL_PLAN.test(heard) && state.shopperId) {
+          const caller = await repository.shoppers.findById(state.shopperId);
+          if (caller) {
+            const { message } = await cancelPlanFor(app.ctx, caller);
+            return reply(
+              response,
+              ask(
+                `${message} Is there anything you'd like from the shop? If not, say goodbye.`,
+                next({ ...state, quiet: 0 }, sid),
+              ),
+            );
+          }
+        }
+
         if (wantsToStop(heard)) {
           finish(sid);
           return reply(response, goodbye('All right, nothing has been ordered. Goodbye.'));
@@ -529,6 +566,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
         const { items: asked } = splitItems(heard, config.assistantName);
         const added: string[] = [];
         const missing: string[] = [];
+        const tooDear: string[] = [];
         const lines = [...state.lines];
         for (const phrase of asked) {
           const wanted = thingAskedFor(phrase);
@@ -549,15 +587,25 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
             missing.push(wanted);
             continue;
           }
+          // No single product over the most one product may cost (ruling 58).
+          if (!productAllowed(item.estimatedPricePence, config.fees)) {
+            tooDear.push(item.name);
+            continue;
+          }
           const existing = lines.findIndex(([id]) => id === item.id);
           if (existing >= 0)
             lines[existing] = [item.id, Math.min(99, lines[existing]![1] + quantity)];
           else lines.push([item.id, quantity]);
+          // The price said includes the item charge, as every price shown or said does.
           added.push(
-            `${quantity} ${item.name}, about ${money(item.estimatedPricePence * quantity)}`,
+            `${quantity} ${item.name}, about ${money(displayPricePence(item.estimatedPricePence, config.fees) * quantity)}`,
           );
         }
-        const notFound = missing.length > 0 ? ` I couldn't find ${listWords(missing)}.` : '';
+        const notFound =
+          (missing.length > 0 ? ` I couldn't find ${listWords(missing)}.` : '') +
+          (tooDear.length > 0
+            ? ` I can't bring ${listWords(tooDear)}: no single product can cost more than ${money(config.fees.maximumProductPence)}.`
+            : '');
         if (added.length === 0) {
           return reply(
             response,
@@ -601,7 +649,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
   /** The order read back slowly: everything, the cost, the card and the address. */
   async function confirmTwiml(state: CallState, sid: string, opening = ''): Promise<string> {
     if (state.link) {
-      const { priced, words } = await readBack(state.lines);
+      const { priced, words } = await readBack(state.lines, state.shopperId);
       const ceiling = config.voice.paymentCeilingPence;
       if (priced.totalPence > ceiling) {
         return ask(
@@ -610,14 +658,14 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
         );
       }
       return ask(
-        `${opening ? `${opening} ` : ''}Here is your order. ${words}. The shopping comes to about ${money(priced.goodsPence)}. Delivery is ${money(priced.feePence)}. So the total is about ${money(priced.totalPence)}. You pay what the till says for the shopping. I'll text you a secure link from our payment company to pay and give your delivery address, and your card is kept safely by them for next time. A Runner is sent once you've paid. Shall I send the link? Say yes or no.`,
+        `${opening ? `${opening} ` : ''}Here is your order. ${words}. ${costWords(priced)}. You pay what the till says for the shopping. I'll text you a secure link from our payment company to pay and give your delivery address, and your card is kept safely by them for next time. A Runner is sent once you've paid. Shall I send the link? Say yes or no.`,
         next({ ...state, step: 'confirm', agreedTotalPence: priced.totalPence, quiet: 0 }, sid),
       );
     }
     const shopper = state.shopperId ? await repository.shoppers.findById(state.shopperId) : null;
     if (!shopper)
       return goodbye('Sorry, I could not find your account. Please ring again. Goodbye.');
-    const { priced, words } = await readBack(state.lines);
+    const { priced, words } = await readBack(state.lines, shopper.id);
     const ceiling = config.voice.paymentCeilingPence;
     if (priced.totalPence > ceiling) {
       return ask(
@@ -628,7 +676,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     const cards = await repository.paymentMethods.listForShopper(shopper.id);
     const card = cards[0];
     return ask(
-      `${opening ? `${opening} ` : ''}Here is your order. ${words}. The shopping comes to about ${money(priced.goodsPence)}. Delivery is ${money(priced.feePence)}. So the total is about ${money(priced.totalPence)}, taken from your card ending ${card?.lastFour.split('').join(' ') ?? ''}. You pay what the till says for the shopping. It goes to your home address: ${shopper.deliveryAddress}. Shall I send it? Say yes or no.`,
+      `${opening ? `${opening} ` : ''}Here is your order. ${words}. ${costWords(priced)}, taken from your card ending ${card?.lastFour.split('').join(' ') ?? ''}. You pay what the till says for the shopping. It goes to your home address: ${shopper.deliveryAddress}. Shall I send it? Say yes or no.`,
       next({ ...state, step: 'confirm', agreedTotalPence: priced.totalPence, quiet: 0 }, sid),
     );
   }
@@ -643,7 +691,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     const sorry =
       'Sorry, I could not send the link just now. Nothing has been charged. Please ring again. Goodbye.';
     if (!phone || state.agreedTotalPence === undefined || !app.ctx.sendText) return goodbye(sorry);
-    const { priced, words } = await readBack(state.lines);
+    const { priced, words } = await readBack(state.lines, state.shopperId);
     if (priced.totalPence !== state.agreedTotalPence) {
       return goodbye(
         `The price changed while we were talking. It is now ${money(priced.totalPence)}. Nothing has been charged. Please ring again. Goodbye.`,
@@ -667,6 +715,8 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
         deliveryAddress: '',
         substitutionDefault: 'ask_me',
         budgetCapPence: null,
+        // Their free month starts with this first order (ruling 58), with pay-as-you-go delivery.
+        freeMonthUntil: freeMonthEnd(config, now()),
       });
     }
     const at = now();
@@ -674,8 +724,10 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       shopperId: shopper.id,
       status: 'confirmed',
       goodsEstimatePence: priced.goodsPence,
+      itemChargesPence: priced.itemChargesPence,
       feePence: priced.feePence,
       totalEstimatePence: priced.totalPence,
+      deliveryPlan: priced.plan,
       deliveryAddress: '',
       doorstepProtocolSnapshot: shopper.doorstepProtocol,
       spokenConfirmationAt: at,

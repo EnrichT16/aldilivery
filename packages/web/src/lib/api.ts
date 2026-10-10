@@ -133,6 +133,7 @@ export function searchCatalogue(query: string): Promise<CatalogueResult> {
 
 export interface BasketPrice {
   goodsEstimatePence: number;
+  itemChargesPence: number;
   feePence: number;
   totalPence: number;
   explanation: string[];
@@ -157,7 +158,20 @@ export interface Shopper {
   id: string;
   /** Ozi Recipes is unlocked until then (ISO date), or never bought. */
   recipePassUntil?: string | null;
-  plusUntil?: string | null;
+  /** The monthly plan chosen (ruling 58), and until when it is paid up. */
+  plan?: 'membership' | 'plus' | 'family' | null;
+  planUntil?: string | null;
+  /** Which delivery price applies now: the server decides, the basket follows. */
+  deliveryPlan?: import('@aldilivery/core').DeliveryPlan;
+  activePlan?: 'membership' | 'plus' | 'family' | null;
+  inFreeMonth?: boolean;
+  freeMonthUntil?: string | null;
+  /** Recipes and a free Finds It a month: on any plan and in the free month. */
+  membershipExtras?: boolean;
+  /** Plus and Family: no adverts. */
+  plusExtras?: boolean;
+  /** On somebody else's Family and Carer plan, whose card pays. */
+  familyOwnerId?: string | null;
   creditPence?: number;
   ageBand?: 'under_25' | '25_44' | '45_64' | '65_plus' | null;
   displayName: string;
@@ -843,6 +857,8 @@ export interface PlacedOrder {
 
 export interface CreateOrderResult {
   order: PlacedOrder;
+  /** Ozi Family and Carer: over the payer's limit, so nothing is taken until they approve. */
+  waitingForApproval?: boolean;
   /** Absent for a bank transfer, which takes nothing from a card. */
   payment?: {
     id: string;
@@ -877,7 +893,7 @@ export function createOrder(input: {
   /** The saved card; not needed when paying by bank transfer. */
   paymentMethodId?: string;
   /** A card through Stripe, or a bank transfer to the business account (ruling 50). */
-  payBy?: 'card' | 'bank';
+  payBy?: 'card' | 'bank' | 'family';
   confirmation: {
     statement: string;
     agreedTotalPence: number;
@@ -1375,26 +1391,79 @@ export async function fetchStaffFile(key: string, path: string): Promise<string>
  * weekly shop day, and organisations asking to work with us. Every price agreed first.
  * ------------------------------------------------------------------------------------- */
 
+export type PlanName = 'membership' | 'plus' | 'family';
+
 export interface PlusState {
-  active: boolean;
-  plusUntil: string | null;
-  family: boolean;
+  plan: PlanName | null;
+  planName: string | null;
+  planUntil: string | null;
+  renews: boolean;
+  cancelled: boolean;
+  monthlyPence: number | null;
+  freeMonthUntil: string | null;
+  deliveryPlan: import('@aldilivery/core').DeliveryPlan;
   familyCode: string | null;
-  members: string[];
+  members: Array<{ id: string; name: string }>;
   joinedFamilyOf: string | null;
+  approvalLimitPence: number | null;
   familyMaximum: number;
   creditPence: number;
 }
 
 export function fetchPlus(): Promise<PlusState> {
-  return request<PlusState>('/extras/plus');
+  return request<PlusState>('/plans');
 }
 
-export function buyPlus(plan: 'single' | 'family'): Promise<PlusState & { message: string }> {
-  return request('/extras/plus', {
+/**
+ * Joining a plan: the monthly price agreed, and that it is taken each month until cancelled
+ * (ruling 58). The screen asks both in plain words before this is sent.
+ */
+export function buyPlus(plan: PlanName): Promise<PlusState & { message: string }> {
+  return request('/plans/join', {
     method: 'POST',
-    body: JSON.stringify({ plan, priceAccepted: true }),
+    body: JSON.stringify({ plan, priceAccepted: true, monthlyAccepted: true }),
   });
+}
+
+/** One button: nothing more is taken; the plan runs to the end of the month paid for. */
+export function cancelPlan(): Promise<PlusState & { message: string }> {
+  return request('/plans/cancel', { method: 'POST', body: JSON.stringify({}) });
+}
+
+export function setApprovalLimit(
+  limitPence: number | null,
+): Promise<PlusState & { message: string }> {
+  return request('/extras/family/approval-limit', {
+    method: 'POST',
+    body: JSON.stringify({ limitPence }),
+  });
+}
+
+export interface FamilyOrder {
+  id: string;
+  person: string;
+  status: string;
+  approvalStatus: 'waiting' | 'approved' | 'declined' | null;
+  totalPence: number;
+  items: number;
+  createdAt: string;
+}
+
+export function fetchFamilyOrders(): Promise<{
+  orders: FamilyOrder[];
+  approvalLimitPence: number | null;
+}> {
+  return request('/plans/family/orders');
+}
+
+export function decideFamilyOrder(id: string, approve: boolean): Promise<{ message?: string }> {
+  return request(
+    `/plans/family/orders/${encodeURIComponent(id)}/${approve ? 'approve' : 'decline'}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({}),
+    },
+  );
 }
 
 export function joinFamily(code: string): Promise<PlusState & { message: string }> {
@@ -1743,6 +1812,16 @@ export interface OrganisationDashboard {
   }>;
   upcoming: Array<{ person: string; office: string; dayOfWeek: number; estimatePence: number }>;
   deliveryFeePence: number;
+  /** What the organisation pays a month: £10 a client, every 51st client £5 (ruling 58). */
+  plan?: {
+    clients: number;
+    monthlyPence: number;
+    clientMonthlyPence: number;
+    discountEveryNthClient: number;
+    discountedClientMonthlyPence: number;
+    discountedClients: number;
+    words: string;
+  };
   /** The link the organisation shares, for people to link to it. */
   sharePath: string | null;
   /** People linked, and accounts opened through the link. */

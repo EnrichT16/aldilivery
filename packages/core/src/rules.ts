@@ -19,7 +19,7 @@ export function inviolableRules(productName: string): readonly string[] {
   return [
     'A single explicit confirmation from the Shopper is required before any payment is taken.',
     'The Runner receives five pounds on every standard delivery, untouched, whatever the basket.',
-    'Standard delivery is thirteen pounds fifty, flat, and one delivery carries at most sixty pounds of shopping.',
+    'Delivery is priced by plan and by the size of the shop, every price covering the Runner and shown before any yes; every product carries an item charge, always included in the price shown; no single product may cost more than sixty pounds, and one order carries at most the configured most of shopping.',
     'No surge pricing, no small order fee, no minimum spend.',
     'A notice is sent thirty minutes before any recurring Set order fires, with a one word skip.',
     'No age restricted goods in version one.',
@@ -50,8 +50,8 @@ export const AGE_RESTRICTED_GOODS_ALLOWED = false;
  * Rule Four, expressed as an absence.
  *
  * There is no surge multiplier, no small order fee and no minimum spend anywhere in this
- * codebase. Standard delivery is one flat fee — see `feeForGoodsPence`, whose signature
- * accepts no time, no distance, no demand and no order history, which is what makes surge pricing unrepresentable rather than merely
+ * codebase. Delivery depends only on the plan and the shop total — see `deliveryFeePence`,
+ * whose signature accepts no time, no distance, no demand and no order history, which is what makes surge pricing unrepresentable rather than merely
  * forbidden.
  */
 export const MINIMUM_SPEND_PENCE = 0;

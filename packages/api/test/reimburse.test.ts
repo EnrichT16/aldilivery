@@ -70,7 +70,7 @@ async function orderBeingShopped(as: SignedInRunner = runner): Promise<string> {
         addressConfirmed: true,
         channel: 'button',
         statement: 'Send my order and pay.',
-        agreedTotalPence: 1600,
+        agreedTotalPence: 250 + 100 + 799,
       },
     },
     shopper.authHeader,
@@ -286,16 +286,17 @@ describe('a pay-back that needs a person', () => {
 
   it('never pays back more than the till said, nor more than one delivery carries', async () => {
     const orderId = await orderBeingShopped();
-    await till(orderId, 7000);
-    expect((await harness.repository.orders.findById(orderId))!.reimbursementPence).toBe(6000);
+    // The whole-order goods cap (ruling 58, £150 pending Anthony): shop prices only.
+    await till(orderId, 16000);
+    expect((await harness.repository.orders.findById(orderId))!.reimbursementPence).toBe(15000);
 
     const approved = await post(
       `/staff/reimbursements/${orderId}/approve`,
-      { amountPence: 9000 },
+      { amountPence: 20000 },
       STAFF,
     );
-    expect(approved.json().outcome).toMatchObject({ kind: 'paid', pence: 6000 });
-    expect(payBacks()[0]!.input).toMatchObject({ amountPence: 6000 });
+    expect(approved.json().outcome).toMatchObject({ kind: 'paid', pence: 15000 });
+    expect(payBacks()[0]!.input).toMatchObject({ amountPence: 15000 });
   });
 
   it('can be approved for less, if the person decides so', async () => {
@@ -399,7 +400,7 @@ describe('the Runner agreement, before the first job', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay.',
-          agreedTotalPence: 1475,
+          agreedTotalPence: 125 + 50 + 799,
         },
       },
       shopper.authHeader,
@@ -465,7 +466,7 @@ describe('the Runner agreement, before the first job', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay.',
-          agreedTotalPence: 1475,
+          agreedTotalPence: 125 + 50 + 799,
         },
       },
       shopper.authHeader,

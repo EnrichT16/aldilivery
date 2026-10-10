@@ -44,7 +44,15 @@ export function statementCsv(data: Dashboard): string {
       order.id,
     ].join(','),
   );
-  return ['Date,Person,Office,Items,Paid (GBP),Status,Order reference', ...rows].join('\n');
+  const lines = ['Date,Person,Office,Items,Paid (GBP),Status,Order reference', ...rows];
+  // What the organisation pays a month for the people it looks after (ruling 58).
+  if (data.plan) {
+    lines.push(
+      '',
+      `Monthly plan,${quote(data.plan.words)},,,${(data.plan.monthlyPence / 100).toFixed(2)},,`,
+    );
+  }
+  return lines.join('\n');
 }
 
 /** What Ozi says about the money, in one go. */
@@ -52,7 +60,8 @@ export function spendingWords(data: Dashboard): string {
   const t = data.totals;
   return (
     `This month, ${money(t.spentThisMonthPence)} on ${t.deliveriesThisMonth} deliver${t.deliveriesThisMonth === 1 ? 'y' : 'ies'}. ` +
-    `Last month, ${money(t.spentLastMonthPence)}. Altogether, ${money(t.spentAllTimePence)}.`
+    `Last month, ${money(t.spentLastMonthPence)}. Altogether, ${money(t.spentAllTimePence)}.` +
+    (data.plan ? ` Your plan is ${money(data.plan.monthlyPence)} a month.` : '')
   );
 }
 
@@ -262,6 +271,11 @@ export function OrganisationDashboard(): JSX.Element {
             </div>
           ))}
         </dl>
+        {data.plan && (
+          <p className="m-0">
+            Your monthly plan: {money(data.plan.monthlyPence)} a month. {data.plan.words}
+          </p>
+        )}
         <button
           type="button"
           onClick={() =>

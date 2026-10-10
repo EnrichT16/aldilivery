@@ -52,7 +52,7 @@ async function placeOrder(shopper: SignedInShopper, milk = 2): Promise<string> {
         addressConfirmed: true,
         channel: 'button',
         statement: 'Send my order and pay.',
-        agreedTotalPence: milk * 125 + 1350,
+        agreedTotalPence: milk * 175 + (milk * 125 <= 1500 ? 799 : 1350),
       },
     },
     shopper.authHeader,

@@ -311,7 +311,10 @@
       "id": "staff-delivery-fee",
       "topic": "rules",
       "when": ["delivery fee", "how much is delivery"],
-      "replies": ["{fee} for every delivery, the same for everyone.", "{fee}, always."]
+      "replies": [
+        "Pay as you go, {smallFee} up to {smallUpTo} of shopping and {fee} above. Members {memberFee}, Plus and Family {plusFee}. Item charges on every product.",
+        "{smallFee} or {fee} pay as you go; {memberFee} members; {plusFee} Plus."
+      ]
     },
     {
       "id": "staff-runner-pay",
@@ -1756,8 +1759,8 @@
       "topic": "enquiries",
       "when": ["they want a price", "they ask about cost"],
       "replies": [
-        "Delivery is {fee}, the same for everyone. For anything special, say the founder will come back to them.",
-        "{fee} for delivery. The founder handles anything special."
+        "Delivery is {smallFee} or {fee} on pay as you go, {memberFee} for members, {plusFee} on Plus, with item charges included in every product's price. For anything special, say the founder will come back to them.",
+        "From {plusFee} to {fee} for delivery. The founder handles anything special."
       ]
     },
     {
@@ -2074,7 +2077,10 @@
       "id": "staff-what-is-the-maximum-shop",
       "topic": "rules",
       "when": ["what's the most someone can spend", "maximum shop"],
-      "replies": ["The most for one shop is {maximum}.", "{maximum}."]
+      "replies": [
+        "The most for one order is {maximum}, and no single product over {maximumProduct}.",
+        "{maximum}."
+      ]
     },
     {
       "id": "staff-what-is-the-call-price",
@@ -2818,7 +2824,10 @@
       "id": "staff-why-the-same-fee",
       "topic": "rules",
       "when": ["why is the fee the same for everyone", "flat fee"],
-      "replies": ["Fairness and simplicity. {fee}, whoever you are.", "So it's fair and simple."]
+      "replies": [
+        "Delivery depends only on the plan and the size of the shop, so it is fair and simple, and never surge priced.",
+        "So it's fair and simple."
+      ]
     },
     {
       "id": "staff-what-is-age-restricted",

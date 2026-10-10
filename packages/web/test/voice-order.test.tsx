@@ -175,21 +175,22 @@ describe('ordering by voice alone', () => {
       'How many Bananas, loose would you like?',
     );
     expect(await say(engine, 'six')).toMatch(
-      /^I found 2 kinds of milk: one, Semi skimmed milk, 2 pints, about £1\.25; two, Whole milk, 2 pints, about £1\.30\. Which would you like\?/,
+      /^I found 2 kinds of milk: one, Semi skimmed milk, 2 pints, about £1\.75; two, Whole milk, 2 pints, about £1\.80\. Which would you like\?/,
     );
     expect(await say(engine, 'the first one')).toBe(
       'How many Semi skimmed milk, 2 pints would you like?',
     );
 
-    // 6 x 20p + 2 x £1.25 = £3.70 of shopping, £13.50 delivery: £17.20.
+    // 6 x 20p + 2 x £1.25 = £3.70 of shopping, with eight item charges of 50p is £7.70; pay as
+    // you go, £15 or less, so £7.99 delivery: £15.69 (ruling 58).
     const readBack = await say(engine, 'two');
     expect(readBack).toBe(
-      `Here is your order: 6 Bananas, loose, and 2 Semi skimmed milk, 2 pints. Your shopping comes to about £3.70, and delivery is £13.50, so about £17.20 altogether. It will be delivered to your home address: ${FAKE_SHOPPER.deliveryAddress}. Is that right?`,
+      `Here is your order: 6 Bananas, loose, and 2 Semi skimmed milk, 2 pints. Your shopping comes to about £7.70, with the item charges included, and delivery is £7.99, so about £15.69 altogether. It will be delivered to your home address: ${FAKE_SHOPPER.deliveryAddress}. Is that right?`,
     );
     expect(sent.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(false);
 
     expect(await say(engine, 'yes')).toBe(
-      'Shall I send your order and pay now, charging about £17.20 to your card ending 4242? You pay what the till says. Say yes to send it and pay, or no to stop.',
+      'Shall I send your order and pay now, charging about £15.69 to your card ending 4242? You pay what the till says. Say yes to send it and pay, or no to stop.',
     );
     expect(sent.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(false);
 
@@ -206,9 +207,9 @@ describe('ordering by voice alone', () => {
         confirmed: true,
         channel: 'voice',
         addressConfirmed: true,
-        agreedTotalPence: 1720,
+        agreedTotalPence: 1569,
         statement:
-          'Shall I send your order and pay now, charging about £17.20 to your card ending 4242? You pay what the till says.',
+          'Shall I send your order and pay now, charging about £15.69 to your card ending 4242? You pay what the till says.',
       },
     });
     expect(await screen.findByRole('heading', { name: 'Your order' })).toBeInTheDocument();

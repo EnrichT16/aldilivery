@@ -150,8 +150,8 @@
       "topic": "savings",
       "when": ["how do you work out savings", "is the saving real"],
       "replies": [
-        "Each delivery costs {fee}. If a staff trip costs you more, the difference is the saving, using your own figure.",
-        "It's your staff trip cost, minus our {fee} delivery, for each delivery."
+        "Each of your clients' deliveries costs {memberFee}. If a staff trip costs you more, the difference is the saving, using your own figure.",
+        "It's your staff trip cost, minus the {memberFee} delivery, for each delivery."
       ]
     },
     {
@@ -186,18 +186,15 @@
       "topic": "delivery",
       "when": ["how much is delivery", "delivery fee"],
       "replies": [
-        "{fee} for each delivery, the same for everyone.",
-        "Always {fee}, whatever the basket."
+        "{memberFee} for each delivery for the people you support, whatever the size, plus the item charges on each product.",
+        "{memberFee}, whatever the basket."
       ]
     },
     {
       "id": "org-what-is-the-biggest-order",
       "topic": "delivery",
       "when": ["what is the biggest order", "maximum basket"],
-      "replies": [
-        "Up to {maximum} of shopping in one delivery.",
-        "{maximum} at most, so a Runner can carry it safely."
-      ]
+      "replies": ["Up to {maximum} of shopping in one order.", "{maximum} at most."]
     },
     {
       "id": "org-who-delivers",
@@ -1265,8 +1262,8 @@
       "topic": "orders",
       "when": ["are the prices the same as the shop", "shelf prices", "do you mark up prices"],
       "replies": [
-        "The Runner pays the shelf price, and the person is charged what the receipt says, plus the {fee} delivery.",
-        "Shelf price, plus {fee} for delivery."
+        "The Runner pays the shelf price, and the person is charged what the receipt says, plus the item charges and the {memberFee} delivery.",
+        "Shelf price, item charges, and {memberFee} for delivery."
       ]
     },
     {
@@ -1274,7 +1271,7 @@
       "topic": "orders",
       "when": ["why did it cost more", "more than expected"],
       "replies": [
-        "Prices shown before are estimates. The person is charged the actual receipt, plus the delivery.",
+        "Prices shown before are estimates. The person is charged the actual receipt, plus the item charges and delivery agreed.",
         "Estimates first, then the real receipt."
       ]
     },
@@ -1464,7 +1461,7 @@
       "topic": "money",
       "when": ["when is money taken", "when are they charged"],
       "replies": [
-        "The person agrees the order, and is charged for what is bought, plus delivery. A till sound plays when money is taken.",
+        "The person agrees the order, and is charged for what is bought, the item charges and delivery. A till sound plays when money is taken.",
         "When the order is paid, after they agree it."
       ]
     },
@@ -1477,18 +1474,15 @@
         "do we get a discount"
       ],
       "replies": [
-        "Delivery is {fee} for everyone, every time. It never depends on who the person is.",
-        "The same {fee} for everyone."
+        "Everyone you support pays the Membership delivery of {memberFee}, every time. It never depends on the time or how busy it is.",
+        "The same {memberFee} for everyone you support."
       ]
     },
     {
       "id": "org-what-is-the-most-they-can-spend",
       "topic": "money",
       "when": ["how much can they spend", "spending limit", "is there a cap"],
-      "replies": [
-        "Up to {maximum} of shopping in one delivery, so a Runner can carry it safely.",
-        "{maximum} of shopping per delivery."
-      ]
+      "replies": ["Up to {maximum} of shopping in one order.", "{maximum} of shopping per order."]
     },
     {
       "id": "org-money-figures-wrong",
@@ -1510,7 +1504,7 @@
       "topic": "money",
       "when": ["vat", "is vat included"],
       "replies": [
-        "The person pays what the shop receipt says, plus delivery. For tax questions, please ask your finance team.",
+        "The person pays what the shop receipt says, plus the item charges and delivery. For tax questions, please ask your finance team.",
         "Your finance team is best placed to answer that."
       ]
     },
@@ -1669,8 +1663,8 @@
       "topic": "savings",
       "when": ["why are savings zero", "we saved nothing"],
       "replies": [
-        "Either there are no deliveries yet this month, or your staff trip figure is not more than the {fee} delivery.",
-        "No deliveries yet, or the trip cost is no more than {fee}."
+        "Either there are no deliveries yet this month, or your staff trip figure is not more than the {memberFee} delivery.",
+        "No deliveries yet, or the trip cost is no more than {memberFee}."
       ]
     },
     {
@@ -1696,8 +1690,8 @@
       "topic": "savings",
       "when": ["saving per delivery", "how much per delivery do we save"],
       "replies": [
-        "Your staff trip cost minus the {fee} delivery, for each delivery.",
-        "Trip cost minus {fee}."
+        "Your staff trip cost minus the {memberFee} delivery, for each delivery.",
+        "Trip cost minus {memberFee}."
       ]
     },
     {
@@ -2839,8 +2833,8 @@
       "topic": "money",
       "when": ["will delivery go up", "is delivery going up"],
       "replies": [
-        "Delivery is {fee}, the same for everyone. Any change would be shown before anyone pays.",
-        "It is {fee} now, for everyone."
+        "Delivery is {memberFee} for the people you support. Any change would be shown before anyone pays.",
+        "It is {memberFee} now, for everyone you support."
       ]
     },
     {
@@ -2932,8 +2926,8 @@
       "topic": "savings",
       "when": ["what does the saving include", "how is the saving worked out exactly"],
       "replies": [
-        "This month's deliveries, each multiplied by your staff trip cost less the {fee} delivery.",
-        "Deliveries times your trip cost, less {fee} each."
+        "This month's deliveries, each multiplied by your staff trip cost less the {memberFee} delivery.",
+        "Deliveries times your trip cost, less {memberFee} each."
       ]
     },
     {

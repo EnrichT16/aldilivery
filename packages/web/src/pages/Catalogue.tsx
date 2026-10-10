@@ -10,7 +10,7 @@ import {
   type Advert,
   type CatalogueItem,
 } from '../lib/api';
-import { money } from '../lib/money';
+import { money, sellable, shownPrice, tooDearWords } from '../lib/money';
 import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
@@ -34,6 +34,8 @@ export function Catalogue(): JSX.Element {
   const [query, setQuery] = useState(params.get('q') ?? '');
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [lastAdded, setLastAdded] = useState('');
+  // A product dearer than any one product may be is refused, in plain words (ruling 58).
+  const [refused, setRefused] = useState('');
   const basket = useBasket();
   const ozi = useOzi();
   const { shopper } = useSession();
@@ -118,7 +120,7 @@ export function Catalogue(): JSX.Element {
       </form>
 
       <p role="status" aria-live="polite" className="m-0 min-h-control">
-        {lastAdded === '' ? '' : `${lastAdded} added to your basket.`}
+        {refused !== '' ? refused : lastAdded === '' ? '' : `${lastAdded} added to your basket.`}
       </p>
 
       {state.kind === 'loading' && <p className="m-0">Getting the shopping list…</p>}
@@ -158,15 +160,15 @@ export function Catalogue(): JSX.Element {
                 <div>
                   <p className="m-0 text-lead font-bold">{item.name}</p>
                   <p className="m-0 text-paper/90">
-                    {item.category} · about {money(item.estimatedPricePence)}
+                    {item.category} · about {money(shownPrice(item.estimatedPricePence))}
                   </p>
                 </div>
                 <button
                   type="button"
                   className="control bg-highlight text-ink"
                   onClick={() => {
-                    basket.add(item);
-                    setLastAdded(item.name);
+                    setLastAdded(basket.add(item) ? item.name : '');
+                    setRefused(sellable(item.estimatedPricePence) ? '' : tooDearWords(item.name));
                   }}
                 >
                   <span aria-hidden="true">+</span>
@@ -198,8 +200,8 @@ export function Catalogue(): JSX.Element {
               onClick={() =>
                 void fetchCatalogueItem(advert.catalogueItemId ?? '').then(({ item }) => {
                   if (!item) return;
-                  basket.add(item);
-                  setLastAdded(item.name);
+                  setLastAdded(basket.add(item) ? item.name : '');
+                  setRefused(sellable(item.estimatedPricePence) ? '' : tooDearWords(item.name));
                 })
               }
             >

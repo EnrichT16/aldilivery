@@ -11,7 +11,7 @@ import {
   type PublicShop,
   type PublicShopProduct,
 } from '../lib/api';
-import { money } from '../lib/money';
+import { money, shownPrice, tooDearWords } from '../lib/money';
 import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
@@ -85,7 +85,10 @@ export function ShopPage(): JSX.Element {
       setNews('That is no longer available.');
       return;
     }
-    basket.add(item);
+    if (!basket.add(item)) {
+      setNews(tooDearWords(product.name));
+      return;
+    }
     const words = `I've put ${product.name} in your basket. Shall we look at your basket?`;
     setNews(words);
     ozi.listenFor(words, (heard) => {
@@ -139,7 +142,7 @@ export function ShopPage(): JSX.Element {
                   {product.name}
                 </h2>
                 <p className="m-0">
-                  About {money(product.pricePence)}.
+                  About {money(shownPrice(product.pricePence))}.
                   {product.expiresOn
                     ? ` Best before ${new Date(product.expiresOn).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}.`
                     : ''}

@@ -219,7 +219,9 @@ describe('questions about the shopping', () => {
       text: "In your basket: 3 Semi skimmed milk, 2 pints, and 6 Bananas, loose. That's about £18.45 with delivery.",
     });
     expect(answerShoppingQuestion('how much will it cost', basket)).toMatchObject({
-      text: expect.stringMatching(/^About £4\.95 for the shopping, plus £13\.50 delivery/),
+      text: expect.stringMatching(
+        /^About £4\.95 for the shopping, with the item charges included, plus £13\.50 delivery/,
+      ),
     });
   });
 

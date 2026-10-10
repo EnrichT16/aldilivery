@@ -1837,7 +1837,7 @@
       "topic": "plan",
       "when": ["who pays the delivery fee", "do i pay for delivery", "delivery charge"],
       "replies": [
-        "The Shopper does. Delivery is a flat {fee}. You don't pay for deliveries.",
+        "The Shopper does. You don't pay for deliveries.",
         "Shoppers pay the delivery fee, not you."
       ]
     },

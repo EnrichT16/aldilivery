@@ -72,6 +72,7 @@ export type CreateShopper = Pick<Shopper, 'displayName' | 'handle' | 'phone'> &
       | 'substitutionDefault'
       | 'budgetCapPence'
       | 'organisationId'
+      | 'freeMonthUntil'
     >
   >;
 
@@ -133,6 +134,10 @@ export type CreateOrder = Pick<
       | 'bankReference'
       | 'doorWord'
       | 'setFireAt'
+      | 'payerShopperId'
+      | 'approvalStatus'
+      | 'itemChargesPence'
+      | 'deliveryPlan'
     >
   > & { items: CreateOrderItem[] };
 
@@ -198,6 +203,15 @@ export interface Repository {
     count(): Promise<number>;
     /** Closed accounts whose days to change their mind are over, not yet removed. */
     listDueForErasure(at: Date): Promise<Shopper[]>;
+    /**
+     * Plans the Shopper chose to renew monthly, not cancelled, whose paid month ended by then
+     * (payers only, never family members).
+     */
+    listPlansDue(at: Date): Promise<Shopper[]>;
+    /** Shoppers on no plan whose free month ends between the two times, not yet reminded. */
+    listFreeMonthEnding(from: Date, to: Date): Promise<Shopper[]>;
+    /** Shoppers whose plan is paid up beyond then. */
+    listOnPlan(at: Date): Promise<Shopper[]>;
   };
 
   runners: {

@@ -90,7 +90,7 @@ describe('the telephone line', () => {
       SpeechResult: 'Two milk and a loaf of bread please',
     });
     expect(spoken(added.body)).toMatch(
-      /I've added 2 Semi skimmed milk, 2 pints, about £2\.50 and 1 White sliced bread, 800g, about £0\.89\. Anything else\?/,
+      /I've added 2 Semi skimmed milk, 2 pints, about £3\.50 and 1 White sliced bread, 800g, about £1\.39\. Anything else\?/,
     );
 
     const readBack = await twilio(nextStep(added.body), {
@@ -98,7 +98,11 @@ describe('the telephone line', () => {
       SpeechResult: "That's everything.",
     });
     expect(spoken(readBack.body)).toMatch(/Here is your order\. 2 Semi skimmed milk/);
-    expect(spoken(readBack.body)).toMatch(/Delivery is £13\.50/);
+    // Prices are read with their item charges in (ruling 58): £3.39 at the shop and £1.50 of
+    // item charges is £4.89; a shop of £15 or less on pay as you go has the £7.99 delivery.
+    expect(spoken(readBack.body)).toMatch(
+      /The shopping comes to about £4\.89, with the item charges included\. Delivery is £7\.99\. So the total is about £12\.88/,
+    );
     expect(spoken(readBack.body)).toMatch(/card ending 4 2 4 2/);
     expect(spoken(readBack.body)).toMatch(
       /home address: 1 High Street, London\. Shall I send it\?/,
@@ -123,6 +127,28 @@ describe('the telephone line', () => {
         body: `${harness.config.productName}: We have your order and are finding a Runner now.`,
       });
     });
+  });
+
+  it('cancels a membership when the caller says so, as easily as joining (ruling 58)', async () => {
+    const shopper = await readyShopper();
+    await harness.repository.shoppers.update(shopper.shopperId, {
+      plan: 'membership',
+      planUntil: new Date(harness.now().getTime() + 10 * 24 * 3600 * 1000),
+      planRenews: true,
+    });
+    const call = { CallSid: 'CA9', From: '+447700900001', Direction: 'inbound' };
+    const hello = await twilio('/api/webhooks/twilio/voice', call);
+    const cancelled = await twilio(nextStep(hello.body), {
+      ...call,
+      SpeechResult: 'Cancel my membership please',
+    });
+    expect(spoken(cancelled.body)).toMatch(
+      /^Ozi Membership is cancelled\. Nothing more will be taken\. You keep it until /,
+    );
+    const after = await harness.repository.shoppers.findById(shopper.shopperId);
+    expect(after?.planRenews).toBe(false);
+    expect(after?.planCancelledAt).not.toBeNull();
+    expect(harness.payments.calls).toHaveLength(0);
   });
 
   it('takes something off, and sends nothing after a no', async () => {

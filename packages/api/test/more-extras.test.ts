@@ -1,7 +1,6 @@
 /**
- * Ozi Plus and the family plan, Ozi Finds It, gift cards and organisation enquiries
- * (7 October 2026). Every price agreed first; nothing renews by itself; the delivery fee never
- * changes (Rule Four).
+ * The family code, Ozi Finds It, gift cards and organisation enquiries (7 October 2026). Every
+ * price agreed first. The monthly plans (ruling 58) are proved in plans.test.ts.
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -40,84 +39,21 @@ function refunds() {
   return harness.payments.calls.filter((call) => call.kind === 'refund');
 }
 
-describe('Ozi Plus', () => {
-  it('needs the price agreed, then gives thirty days, Recipes included, never renewing', async () => {
-    const refused = await post('/extras/plus', { plan: 'single' });
-    expect(refused.statusCode).toBe(400);
-    expect(refused.json().error.message).toMatch(/agree to the price first: £7\.99/);
-    expect(charges()).toEqual([]);
-
-    const bought = await post('/extras/plus', { plan: 'single', priceAccepted: true });
-    expect(bought.statusCode, bought.body).toBe(200);
-    expect(bought.json().message).toMatch(
-      /^Ozi Plus is on until Friday 6 November\. £7\.99 was taken from your card ending 4242\. It does not renew by itself\.$/,
-    );
-    expect(charges()).toEqual([
-      expect.objectContaining({ input: expect.objectContaining({ amountPence: 799 }) }),
-    ]);
-    const me = await harness.app.inject({ method: 'GET', url: '/me', headers: shopper.authHeader });
-    expect(me.json().shopper.recipePassUntil).toBe(me.json().shopper.plusUntil);
-  });
-
-  it('a family plan gives a code, and up to four people share it', async () => {
-    const bought = await post('/extras/plus', { plan: 'family', priceAccepted: true });
-    expect(bought.statusCode, bought.body).toBe(200);
-    expect(charges()[0]?.input).toEqual(expect.objectContaining({ amountPence: 1199 }));
-    const code = bought.json().familyCode as string;
-    expect(code).toMatch(/^[A-Z2-9]{6}$/);
-    expect(bought.json().message).toContain(`give them your family code: ${code}`);
-
-    const others = [];
-    for (const [index, name] of ['Tunde', 'Ngozi', 'Ada', 'Emeka'].entries()) {
-      others.push(
-        await signUpShopper(harness, { displayName: name, phone: `+44770090010${index}` }),
-      );
-    }
-    for (const other of others.slice(0, 3)) {
-      const joined = await post('/extras/family/join', { code: code.toLowerCase() }, other);
-      expect(joined.statusCode, joined.body).toBe(200);
-      expect(joined.json().message).toMatch(/^You've joined Margaret's family plan/);
-    }
-    const full = await post('/extras/family/join', { code }, others[3]!);
-    expect(full.statusCode).toBe(409);
-    expect(full.json().error.message).toMatch(/up to 4 people/);
-
-    const state = await harness.app.inject({
-      method: 'GET',
-      url: '/extras/plus',
-      headers: shopper.authHeader,
-    });
-    expect(state.json().members).toEqual(['Tunde', 'Ngozi', 'Ada']);
-
-    // Buying again moves everybody's date on together.
-    await post('/extras/plus', { plan: 'family', priceAccepted: true });
-    const member = await harness.repository.shoppers.findById(others[0]!.shopperId);
-    expect(member?.plusUntil?.toISOString().slice(0, 10)).toBe('2026-12-06');
-
-    const left = await post('/extras/family/leave', {}, others[0]!);
-    expect(left.json().active).toBe(false);
-  });
-
+describe('the family code', () => {
   it('a wrong family code finds nothing', async () => {
     const response = await post('/extras/family/join', { code: 'ZZZZZZ' });
     expect(response.statusCode).toBe(404);
   });
-
-  it('never changes the delivery fee (Rule Four)', async () => {
-    const items = await seedCatalogue(harness.repository);
-    await post('/extras/plus', { plan: 'single', priceAccepted: true });
-    const price = await harness.app.inject({
-      method: 'POST',
-      url: '/basket/price',
-      headers: shopper.authHeader,
-      payload: { lines: [{ catalogueItemId: items.milk, quantity: 1 }] },
-    });
-    expect(price.json().feePence).toBe(harness.config.fees.standardDeliveryPence);
-  });
 });
+
+/** Out of the free month, so the Finds It fee applies. */
+async function freeMonthOver(who: SignedInShopper = shopper): Promise<void> {
+  await harness.repository.shoppers.update(who.shopperId, { freeMonthUntil: null });
+}
 
 describe('Ozi Finds It', () => {
   it('takes the agreed fee, and a person finds it: it goes in the catalogue to add to a basket', async () => {
+    await freeMonthOver();
     const refused = await post('/extras/find-it', { description: 'Welsh cakes' });
     expect(refused.statusCode).toBe(400);
     expect(refused.json().error.message).toMatch(/agree to the price first: £2\.00/);
@@ -165,6 +101,7 @@ describe('Ozi Finds It', () => {
   });
 
   it('gives the fee back when it cannot be found', async () => {
+    await freeMonthOver();
     const asked = await post('/extras/find-it', {
       description: 'A blue teapot',
       priceAccepted: true,
@@ -182,14 +119,20 @@ describe('Ozi Finds It', () => {
     ]);
   });
 
-  it('is included in Ozi Plus, and never looks for things we never bring', async () => {
-    await post('/extras/plus', { plan: 'single', priceAccepted: true });
+  it('gives one free a month on a plan or in the free month, and never looks for things we never bring', async () => {
     const covered = await post('/extras/find-it', { description: 'Welsh cakes' });
     expect(covered.statusCode).toBe(201);
-    expect(covered.json().message).toMatch(/included in your Ozi Plus/);
-    expect(charges()).toHaveLength(1);
+    expect(covered.json().message).toMatch(/your free Ozi Finds It for this month/);
+    expect(charges()).toHaveLength(0);
+    // The second in the same month has the fee, agreed first.
+    const second = await post('/extras/find-it', { description: 'A blue teapot' });
+    expect(second.statusCode).toBe(400);
+    expect(second.json().error.message).toMatch(/agree to the price first: £2\.00/);
 
-    const never = await post('/extras/find-it', { description: 'a bottle of gin' });
+    const never = await post('/extras/find-it', {
+      description: 'a bottle of gin',
+      priceAccepted: true,
+    });
     expect(never.statusCode).toBe(400);
     expect(never.json().error.message).toMatch(/never brings alcohol/);
   });
@@ -240,20 +183,20 @@ describe('gift cards', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay.',
-          agreedTotalPence: 250 + 1350,
+          agreedTotalPence: 250 + 100 + 799,
         },
       },
       mum,
     );
     expect(order.statusCode, order.body).toBe(201);
     expect(order.json().message).toMatch(
-      /£16\.00\. £16\.00 of gift card money is going straight back to your card\./,
+      /£11\.49\. £11\.49 of gift card money is going straight back to your card\./,
     );
     expect(refunds()).toEqual([
-      expect.objectContaining({ input: expect.objectContaining({ amountPence: 1600 }) }),
+      expect.objectContaining({ input: expect.objectContaining({ amountPence: 1149 }) }),
     ]);
     const after = await harness.repository.shoppers.findById(mum.shopperId);
-    expect(after?.creditPence).toBe(400);
+    expect(after?.creditPence).toBe(2000 - 1149);
   });
 });
 

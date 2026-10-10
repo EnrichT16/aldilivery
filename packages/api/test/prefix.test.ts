@@ -68,7 +68,7 @@ describe('every route answers with and without the /api prefix', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ feePence: 1350 });
+    expect(response.json()).toMatchObject({ feePence: 799, itemChargesPence: 100 });
   });
 
   it('keeps Rule Six on the prefixed path: the prefix is not a way round a rule', async () => {

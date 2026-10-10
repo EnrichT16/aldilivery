@@ -17,7 +17,12 @@ import {
   RUNNER_PAYMENT_PENCE,
   SET_NOTICE_MINUTES_BEFORE,
 } from './rules.js';
-import type { ProcessorModel } from './fees.js';
+import type {
+  DeliveryPrices,
+  ItemChargeRule,
+  OrganisationPricing,
+  ProcessorModel,
+} from './fees.js';
 
 export type CatalogueSourceMode = 'partner_feed' | 'community';
 
@@ -80,10 +85,17 @@ export interface StoreConfig {
   readonly fees: {
     readonly currency: string;
     readonly runnerPaymentPence: number;
-    /** Standard delivery, flat (docs/BUILD_PROMPT.md, Section B). */
-    readonly standardDeliveryPence: number;
-    /** The most shopping one delivery carries; above it, two deliveries are offered. */
-    readonly maximumGoodsPence: number;
+    /** Delivery by plan (ruling 58, 9 October 2026). Every one covers the Runner's five pounds. */
+    readonly delivery: DeliveryPrices;
+    /** The charge on every unit, from its shop price (ruling 58). Never removed by a plan. */
+    readonly itemCharge: ItemChargeRule;
+    /** No single product may cost more than this in the shop (ruling 58: £60). */
+    readonly maximumProductPence: number;
+    /**
+     * The most shopping, at shop prices, one order carries; above it, two deliveries are
+     * offered. £150 until Anthony confirms the figure (ruling 58).
+     */
+    readonly maximumOrderGoodsPence: number;
     readonly processor: ProcessorModel;
     readonly coolBag: {
       readonly depositPence: number;
@@ -128,15 +140,25 @@ export interface StoreConfig {
     readonly recipePassPence: number;
     readonly recipePassDays: number;
     /**
-     * Ozi Plus, for one person and for a family, for a number of days, never renewing by
-     * itself. It never changes the delivery fee (Rule Four): it includes Recipes and the
-     * Ozi Finds It fee.
+     * The monthly plans (ruling 58, 9 October 2026), each taken monthly by card only once the
+     * Shopper has chosen to join, cancelled with one button or by saying so: Ozi Membership,
+     * Ozi Plus, and Ozi Family and Carer.
      */
+    readonly membershipPence: number;
     readonly plusPence: number;
-    readonly plusFamilyPence: number;
-    readonly plusDays: number;
-    /** Everybody on a family plan, the person who bought it included. */
+    readonly familyPence: number;
+    /** Everybody on a Family and Carer plan, the person who pays included. */
     readonly familyMaximum: number;
+    /** Every new Shopper's membership is free for their first month (with pay-as-you-go delivery). */
+    readonly freeFirstMonth: boolean;
+    /** The reminder that the free month is ending goes this many days before. */
+    readonly freeMonthReminderDaysBefore: number;
+    /** Free Ozi Finds It searches a month on any plan. */
+    readonly freeFindItsPerMonth: number;
+    /** Ozi Plus: a friendly check-in after this many days without an order. */
+    readonly checkInAfterDays: number;
+    /** What organisations pay for the people they look after (ruling 58). */
+    readonly organisations: OrganisationPricing;
     /** Ozi Finds It: a person looks in up to this many shops, for this fee. */
     readonly findItPence: number;
     readonly findItShops: number;
@@ -322,6 +344,26 @@ function parseCatalogueMode(value: unknown, path: string, allowed: readonly stri
  * Throws `StoreConfigError` with a plain sentence saying what is wrong. Nothing in the
  * application reads store configuration by any other route.
  */
+function organisationPricing(raw: Unknown): OrganisationPricing {
+  return {
+    clientMonthlyPence: wholeNumber(
+      raw['clientMonthlyPence'] ?? 1000,
+      'extras.organisations.clientMonthlyPence',
+      0,
+    ),
+    discountEveryNthClient: wholeNumber(
+      raw['discountEveryNthClient'] ?? 51,
+      'extras.organisations.discountEveryNthClient',
+      1,
+    ),
+    discountedClientMonthlyPence: wholeNumber(
+      raw['discountedClientMonthlyPence'] ?? 500,
+      'extras.organisations.discountedClientMonthlyPence',
+      0,
+    ),
+  };
+}
+
 export function parseStoreConfig(input: unknown): StoreConfig {
   const root = object(input, 'the configuration file');
 
@@ -387,15 +429,54 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     fixedPence: wholeNumber(processorRaw['fixedPence'], 'fees.processor.fixedPence'),
   };
 
-  const maximumGoodsPence = wholeNumber(fees['maximumGoodsPence'], 'fees.maximumGoodsPence', 1);
-  const standardDeliveryPence = wholeNumber(
-    fees['standardDeliveryPence'],
-    'fees.standardDeliveryPence',
+  const deliveryRaw = object(fees['delivery'], 'fees.delivery');
+  const itemChargeRaw = object(fees['itemCharge'], 'fees.itemCharge');
+  const delivery: DeliveryPrices = {
+    payAsYouGoSmallOrderPence: wholeNumber(
+      deliveryRaw['payAsYouGoSmallOrderPence'],
+      'fees.delivery.payAsYouGoSmallOrderPence',
+      1,
+    ),
+    payAsYouGoSmallOrderUpToPence: wholeNumber(
+      deliveryRaw['payAsYouGoSmallOrderUpToPence'],
+      'fees.delivery.payAsYouGoSmallOrderUpToPence',
+      0,
+    ),
+    payAsYouGoPence: wholeNumber(deliveryRaw['payAsYouGoPence'], 'fees.delivery.payAsYouGoPence', 1),
+    membershipPence: wholeNumber(deliveryRaw['membershipPence'], 'fees.delivery.membershipPence', 1),
+    plusPence: wholeNumber(deliveryRaw['plusPence'], 'fees.delivery.plusPence', 1),
+  };
+  // Rule Two: every delivery price, on every plan, must cover the Runner's five pounds.
+  for (const key of [
+    'payAsYouGoSmallOrderPence',
+    'payAsYouGoPence',
+    'membershipPence',
+    'plusPence',
+  ] as const) {
+    if (delivery[key] <= RUNNER_PAYMENT_PENCE) {
+      throw new StoreConfigError(
+        `fees.delivery.${key} is ${delivery[key]}p, which does not cover the Runner's ${RUNNER_PAYMENT_PENCE}p. Rule Two: the Runner's five pounds is untouched.`,
+      );
+    }
+  }
+  const itemCharge: ItemChargeRule = {
+    basePence: wholeNumber(itemChargeRaw['basePence'], 'fees.itemCharge.basePence', 0),
+    stepPence: wholeNumber(itemChargeRaw['stepPence'], 'fees.itemCharge.stepPence', 0),
+    everyPence: wholeNumber(itemChargeRaw['everyPence'], 'fees.itemCharge.everyPence', 1),
+  };
+  const maximumProductPence = wholeNumber(
+    fees['maximumProductPence'],
+    'fees.maximumProductPence',
     1,
   );
-  if (standardDeliveryPence <= RUNNER_PAYMENT_PENCE) {
+  const maximumOrderGoodsPence = wholeNumber(
+    fees['maximumOrderGoodsPence'] ?? 15000,
+    'fees.maximumOrderGoodsPence',
+    1,
+  );
+  if (maximumOrderGoodsPence < maximumProductPence) {
     throw new StoreConfigError(
-      `fees.standardDeliveryPence is ${standardDeliveryPence}p, which does not cover the Runner's ${RUNNER_PAYMENT_PENCE}p. Rule Two: the Runner's five pounds is untouched.`,
+      `fees.maximumOrderGoodsPence (${maximumOrderGoodsPence}p) must be at least fees.maximumProductPence (${maximumProductPence}p), or the dearest product could never be ordered.`,
     );
   }
 
@@ -521,8 +602,10 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     fees: {
       currency: str(fees['currency'], 'fees.currency'),
       runnerPaymentPence: RUNNER_PAYMENT_PENCE,
-      standardDeliveryPence,
-      maximumGoodsPence,
+      delivery,
+      itemCharge,
+      maximumProductPence,
+      maximumOrderGoodsPence,
       processor,
       coolBag: {
         depositPence: wholeNumber(coolBag['depositPence'], 'fees.coolBag.depositPence'),
@@ -563,10 +646,27 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     extras: {
       recipePassPence: wholeNumber(extras['recipePassPence'] ?? 199, 'extras.recipePassPence', 1),
       recipePassDays: wholeNumber(extras['recipePassDays'] ?? 30, 'extras.recipePassDays', 1),
-      plusPence: wholeNumber(extras['plusPence'] ?? 799, 'extras.plusPence', 1),
-      plusFamilyPence: wholeNumber(extras['plusFamilyPence'] ?? 1199, 'extras.plusFamilyPence', 1),
-      plusDays: wholeNumber(extras['plusDays'] ?? 30, 'extras.plusDays', 1),
+      membershipPence: wholeNumber(extras['membershipPence'] ?? 1000, 'extras.membershipPence', 1),
+      plusPence: wholeNumber(extras['plusPence'] ?? 1500, 'extras.plusPence', 1),
+      familyPence: wholeNumber(extras['familyPence'] ?? 2000, 'extras.familyPence', 1),
       familyMaximum: wholeNumber(extras['familyMaximum'] ?? 4, 'extras.familyMaximum', 2),
+      freeFirstMonth: bool(extras['freeFirstMonth'] ?? true, 'extras.freeFirstMonth'),
+      freeMonthReminderDaysBefore: wholeNumber(
+        extras['freeMonthReminderDaysBefore'] ?? 3,
+        'extras.freeMonthReminderDaysBefore',
+        1,
+      ),
+      freeFindItsPerMonth: wholeNumber(
+        extras['freeFindItsPerMonth'] ?? 1,
+        'extras.freeFindItsPerMonth',
+        0,
+      ),
+      checkInAfterDays: wholeNumber(extras['checkInAfterDays'] ?? 14, 'extras.checkInAfterDays', 1),
+      organisations: organisationPricing(
+        extras['organisations'] === undefined
+          ? {}
+          : object(extras['organisations'], 'extras.organisations'),
+      ),
       findItPence: wholeNumber(extras['findItPence'] ?? 200, 'extras.findItPence', 1),
       findItShops: wholeNumber(extras['findItShops'] ?? 3, 'extras.findItShops', 1),
       giftCardPence: giftCardAmounts(extras['giftCardPence'] ?? [1000, 2000, 3000, 5000]),

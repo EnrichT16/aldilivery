@@ -1,5 +1,5 @@
 {
-  "about": "What Ozi says to everyday words (ruling 34). Added to every day (50 a day, ruling 44) by a scheduled task, checked by the tests before it goes live. Each entry: an id, a topic, the words people say ('when'), and replies, one chosen in turn. In replies, {assistant} becomes Ozi's name, {product} the product's name, {motto} the motto, and {fee}, {maximum}, {runnerPay}, {callPrice} and {instantRefund} the figures from config/store.json, so a price is never written here. Ozi only uses these when nothing about an order or the basket was meant, and only when the whole sentence is one of the 'when' phrases or Ozi was called by name.",
+  "about": "What Ozi says to everyday words (ruling 34). Added to every day (50 a day, ruling 44) by a scheduled task, checked by the tests before it goes live. Each entry: an id, a topic, the words people say ('when'), and replies, one chosen in turn. In replies, {assistant} becomes Ozi's name, {product} the product's name, {motto} the motto, and {fee}, {smallFee}, {smallUpTo}, {memberFee}, {plusFee}, {itemCharge}, {membership}, {plusPrice}, {familyPrice}, {orgClient}, {maximum}, {maximumProduct}, {runnerPay}, {callPrice} and {instantRefund} the figures from config/store.json, so a price is never written here. Ozi only uses these when nothing about an order or the basket was meant, and only when the whole sentence is one of the 'when' phrases or Ozi was called by name.",
   "phrases": [
     {
       "id": "thanks",
@@ -91,8 +91,8 @@
         "is delivery free"
       ],
       "replies": [
-        "Delivery is one flat fee, the same every time: {fee}. You pay what the till says for the shopping itself.",
-        "It's {fee} for delivery, whatever you order, up to {maximum} of shopping. {runnerPay} of that always goes to your Runner."
+        "Delivery is {smallFee} for shopping of {smallUpTo} or less, and {fee} above that, if you pay as you go. Members pay {memberFee} every time, and Plus {plusFee}. You pay what the till says for the shopping itself.",
+        "It's {smallFee} up to {smallUpTo} of shopping and {fee} above, on pay as you go; {memberFee} for members; {plusFee} on Plus. {runnerPay} of it always goes to your Runner."
       ]
     },
     {
@@ -105,7 +105,7 @@
         "maximum order"
       ],
       "replies": [
-        "One delivery carries up to {maximum} of shopping, about as much as one Runner can carry safely. More than that goes as a second delivery."
+        "One order carries up to {maximum} of shopping, and no single product can cost more than {maximumProduct}. More than that goes as a second delivery."
       ]
     },
     {
@@ -164,7 +164,7 @@
       "topic": "payment",
       "when": ["how do i pay", "how does payment work", "when do i pay", "do i pay now"],
       "replies": [
-        "You save a card once, and it's charged when you send an order. You pay what the shop's till says, plus the {fee} delivery. Nothing is charged without your yes."
+        "You save a card once, and it's charged when you send an order. You pay what the shop's till says, the item charges, and delivery. Nothing is charged without your yes."
       ]
     },
     {
@@ -370,7 +370,7 @@
       "topic": "plus",
       "when": ["what is ozi plus", "tell me about plus", "membership"],
       "replies": [
-        "Ozi Plus includes Recipes and Finds It, for you or your whole family. It never renews by itself.",
+        "{assistant} Plus is {plusPrice} a month: delivery at {plusFee}, your regular Runner where possible, priority at busy times, no adverts, and everything in Membership. You choose to join, and can cancel at any time.",
         "A membership with Recipes and Finds It included."
       ]
     },
@@ -1099,7 +1099,7 @@
       "topic": "the app",
       "when": ["what's in more", "what is the more page", "what extras are there"],
       "replies": [
-        "The More page has Recipes, Little Gifts, Finds It, your weekly shop, gift cards and Plus. Say any of those to hear about it.",
+        "The More page has Recipes, Little Gifts, Finds It, your weekly shop, gift cards and the plans. Say any of those to hear about it.",
         "On More you'll find the extras, like Recipes and Little Gifts. Which would you like to hear about?"
       ]
     },
@@ -1595,7 +1595,7 @@
         "do i have to spend a lot"
       ],
       "replies": [
-        "There's no minimum. You can order just one thing. Delivery is the same {fee} whatever you buy.",
+        "There's no minimum. You can order just one thing. On pay as you go, a shop of {smallUpTo} or less has the lower delivery of {smallFee}.",
         "No minimum at all. Even one item is fine."
       ]
     },
@@ -1604,8 +1604,8 @@
       "topic": "ordering",
       "when": ["what if i go over the limit", "too much in my basket", "my basket is too big"],
       "replies": [
-        "If your shopping is more than {maximum}, I'll tell you and offer to split it into two deliveries. One Runner can only carry so much safely.",
-        "Above {maximum}, it goes as two deliveries, so your Runner can carry it safely."
+        "If your shopping is more than {maximum}, I'll tell you and offer to split it into two deliveries.",
+        "Above {maximum}, it goes as two deliveries."
       ]
     },
     {
@@ -1758,7 +1758,7 @@
         "the price was different"
       ],
       "replies": [
-        "Prices on the app are estimates, and you pay exactly what the till says, plus the {fee} delivery. Your receipt is on Past orders.",
+        "Prices on the app are estimates, and you pay exactly what the till says, plus the item charges and delivery you agreed. Your receipt is on Past orders.",
         "Shop prices change, so the till decides the final amount. If something looks wrong, choose Report a problem in Past orders."
       ]
     },
@@ -1846,8 +1846,8 @@
       "topic": "prices",
       "when": ["is it expensive", "is it worth it", "it's too dear", "that's a lot"],
       "replies": [
-        "You pay the shop's own prices, plus one flat delivery of {fee}, whatever you buy up to {maximum}. Making a list helps get the most from each delivery.",
-        "The shopping costs what the till says. Delivery is one flat {fee}, and {runnerPay} of it goes to your Runner."
+        "You pay the shop's own prices, with a small item charge on each product, from {itemCharge}, already in the prices I tell you, and delivery from {plusFee} to {fee}, depending on your plan and the size of the shop.",
+        "The shopping costs what the till says, plus the item charges shown in every price. Delivery is {smallFee} or {fee} on pay as you go, and {runnerPay} of it goes to your Runner."
       ]
     },
     {
@@ -1864,7 +1864,7 @@
       "topic": "prices",
       "when": ["is delivery cheaper with plus", "do members pay less", "discount on delivery"],
       "replies": [
-        "Delivery is the same {fee} for everyone, members too. Plus includes Recipes and the Finds It fee instead.",
+        "Yes. Members pay {memberFee} for delivery every time, and Plus and Family {plusFee}. On pay as you go it's {smallFee} up to {smallUpTo} of shopping and {fee} above.",
         "No, delivery is the same for everybody. That's only fair."
       ]
     },
@@ -1878,7 +1878,7 @@
         "is there a service charge"
       ],
       "replies": [
-        "No hidden charges. The shopping, the {fee} delivery, and any extra you agree to first, like a call at {callPrice} a minute.",
+        "No hidden charges. Every price I tell you already includes its item charge. Then there's delivery, and any extra you agree to first, like a call at {callPrice} a minute.",
         "Nothing is taken without your yes. I always say the price first."
       ]
     },
@@ -2182,7 +2182,7 @@
       "topic": "delivery",
       "when": ["can you bring heavy things", "can i order heavy things"],
       "replies": [
-        "Yes, within what one Runner can carry, up to {maximum} of shopping. Very heavy shops can go as two deliveries.",
+        "Yes, up to {maximum} of shopping in one order. Very heavy shops can go as two deliveries.",
         "Your Runner can carry a good amount. If it's a lot, I'll offer two deliveries."
       ]
     },
@@ -2667,8 +2667,8 @@
         "how do i cancel plus"
       ],
       "replies": [
-        "Plus never renews by itself. It lasts thirty days, and you choose whether to have it again. Nothing is taken without your yes.",
-        "It doesn't renew on its own, so there's nothing to cancel. Say Plus to hear more."
+        "A plan is taken monthly only if you choose to join, and I always remind you before your free month ends. You can cancel at any time with one button in Settings, or by saying cancel my membership.",
+        "Nothing is taken without your yes. To stop a plan, say cancel my membership, or press Cancel in Settings. It's as easy as joining."
       ]
     },
     {
@@ -2681,8 +2681,8 @@
         "benefits of plus"
       ],
       "replies": [
-        "Plus includes Recipes and the Finds It fee, for thirty days. Delivery stays the same for everyone. Say Plus to hear the price.",
-        "If you enjoy Recipes or use Finds It, Plus covers both. I'll always tell you the price before you choose."
+        "If you order most weeks, Membership at {membership} a month brings delivery down to {memberFee}, with Recipes and a free Finds It each month. Plus at {plusPrice} brings it to {plusFee}.",
+        "It depends how often you order. I'll always tell you the price before you choose, and you can cancel any time."
       ]
     },
     {
@@ -2690,8 +2690,8 @@
       "topic": "plus",
       "when": ["how much is plus", "what does plus cost", "price of membership"],
       "replies": [
-        "Open the Plus page and the price is shown clearly. It's only taken from your saved card after you agree.",
-        "The Plus page tells you the price. Nothing is charged until you say yes."
+        "Membership is {membership} a month, Plus {plusPrice}, and Family and Carer {familyPrice}. It's only taken from your saved card after you choose to join.",
+        "The plans page shows every price. Nothing is charged until you say yes."
       ]
     },
     {
@@ -2704,8 +2704,8 @@
         "how does the family plan work"
       ],
       "replies": [
-        "There's a family Plus for up to four people. Each one joins with a six-letter family code. Say Plus to hear more.",
-        "Up to four people can share family Plus, joined with a family code."
+        "{assistant} Family and Carer is {familyPrice} a month for up to four people in different homes. The person who pays sees every order, can approve bigger ones, and gets a weekly summary. Each person joins with a six-letter family code.",
+        "Up to four people can share Family and Carer, joined with a family code, all paid with one card."
       ]
     },
     {
@@ -2718,8 +2718,8 @@
         "i have a family code"
       ],
       "replies": [
-        "A family code is six letters, given by whoever bought family Plus. Type it on the Plus page to join.",
-        "Ask the person with family Plus for the six-letter code, then enter it on the Plus page."
+        "A family code is six letters, given by whoever pays for Family and Carer. Type it on the plans page to join.",
+        "Ask the person who pays for Family and Carer for the six-letter code, then enter it on the plans page."
       ]
     },
     {
@@ -3863,7 +3863,7 @@
         "why should i use you"
       ],
       "replies": [
-        "You can do it all by talking, a real person shops for you, and you pay the shop's own prices plus one flat delivery.",
+        "You can do it all by talking, a real person shops for you, and you pay the shop's own prices with a small item charge on each product, and delivery.",
         "No screens to battle with. Just tell me what you need, and a local Runner brings it."
       ]
     },
@@ -3908,7 +3908,7 @@
       "topic": "basket",
       "when": ["how many things have i got", "how many items is that", "is my basket full"],
       "replies": [
-        "Ask what's in my basket, and I'll read each item. One delivery holds up to {maximum} of shopping.",
+        "Ask what's in my basket, and I'll read each item. One order holds up to {maximum} of shopping.",
         "I'll read the basket to you. Just ask what's in my basket."
       ]
     },

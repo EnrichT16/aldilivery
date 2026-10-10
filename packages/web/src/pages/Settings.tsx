@@ -6,12 +6,16 @@ import { CloseAccount } from '../components/CloseAccount';
 import { ShareCard } from '../components/ShareCard';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import {
+  cancelPlan,
   fetchMyOrganisation,
   fetchMyShareLink,
+  fetchPlus,
   joinOrganisation,
   leaveOrganisation,
   updateMe,
+  type PlusState,
 } from '../lib/api';
+import { money } from '../lib/money';
 import { useSession } from '../state/session';
 import { useVoice } from '../state/voice';
 import type { OutputVoice, VoiceReadiness } from '../voice';
@@ -168,6 +172,8 @@ export function Settings(): JSX.Element {
 
       {shopper && <ShareCard load={fetchMyShareLink} onNews={setNews} />}
 
+      {shopper && <YourPlan />}
+
       {shopper && <OrganisationLink />}
 
       {shopper && <AgeGroup />}
@@ -197,6 +203,77 @@ export function Settings(): JSX.Element {
 
       {shopper && <CloseAccount />}
     </div>
+  );
+}
+
+/**
+ * Your plan (ruling 58): what you are on, when it renews, and one button to cancel, as easy as
+ * joining. "Cancel my membership" said to Ozi, or on the telephone, does the same.
+ */
+function YourPlan(): JSX.Element {
+  const { shopper, replaceShopper } = useSession();
+  const [state, setState] = useState<PlusState | null>(null);
+  const [news, setNews] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    fetchPlus()
+      .then(setState)
+      .catch(() => undefined);
+  }, []);
+
+  async function cancel(): Promise<void> {
+    setBusy(true);
+    try {
+      const result = await cancelPlan();
+      setState(result);
+      setNews(result.message);
+      if (shopper) replaceShopper({ ...shopper, deliveryPlan: result.deliveryPlan });
+    } catch (failure) {
+      setNews(failure instanceof Error ? failure.message : 'That did not work.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const when = (iso: string): string =>
+    new Date(iso).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+
+  return (
+    <section aria-labelledby="plan-heading" className="space-y-3 max-w-xl">
+      <h2 id="plan-heading" className="text-lead font-bold">
+        Your plan
+      </h2>
+      <p role="status" className="m-0">
+        {news}
+      </p>
+      <p className="m-0">
+        {!state
+          ? ''
+          : state.joinedFamilyOf
+            ? `You're on ${state.joinedFamilyOf}'s family plan. They pay for it.`
+            : state.plan && state.planName && state.planUntil
+              ? state.renews
+                ? `${state.planName}, ${money(state.monthlyPence ?? 0)} a month. It renews on ${when(state.planUntil)}.`
+                : `${state.planName} until ${when(state.planUntil)}. It is cancelled: nothing more will be taken.`
+              : state.freeMonthUntil
+                ? `Your free month runs until ${when(state.freeMonthUntil)}. You pay as you go, and nothing is taken unless you choose to join.`
+                : 'You pay as you go. Nothing is taken each month.'}
+      </p>
+      {state?.renews && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void cancel()}
+          className="control bg-paper text-ink"
+        >
+          Cancel my plan
+        </button>
+      )}
+      <Link to="/plus" className="control bg-paper/10 text-paper underline">
+        See the plans and prices
+      </Link>
+    </section>
   );
 }
 

@@ -30,7 +30,13 @@ export function About(): JSX.Element {
           <li>Say or tap what you need. {assistantName} reads it back to you.</li>
           <li>You say yes. A Runner buys it, and you pay what the till says.</li>
           <li>
-            It comes to your door. Delivery is {money(fees.standardDeliveryPence)}, every time.
+            It comes to your door. Delivery is from {money(fees.delivery.plusPence)} to{' '}
+            {money(fees.delivery.payAsYouGoPence)}, depending on your plan and the size of the shop,
+            and every price you see already includes its small item charge.{' '}
+            <Link to="/plus" className="underline">
+              See the prices and plans
+            </Link>
+            .
           </li>
         </ol>
         <Link to="/shop" className="control bg-highlight text-ink">

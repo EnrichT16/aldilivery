@@ -195,7 +195,7 @@ The pages now promise these; the code does not yet do all of them:
    too: if they spend their own money and wait to be paid back, that is a fairness and status
    problem, and today the code pays only the £5, not the shopping (`pay-runner.ts`). *Since
    ruling 55 they are paid back the till total straight away when they put it in
-   (`services/reimburse.ts`); only a till total far over the estimate, over £60, or on an order
+   (`services/reimburse.ts`); only a till total far over the estimate, over the whole-order cap (£60 then; £150 pending since ruling 58), or on an order
    the till itself needs a person for, waits for a person to approve, the same day where
    possible.*
 2. **Liability caps.** The terms deliberately have no money cap on our liability to Shoppers,
@@ -250,4 +250,4 @@ Anthony decided three of the open points:
 
 Still worth knowing: the Runner types the till total and keeps the receipt; no photo of the
 receipt is taken by the app yet, so the limits above (the estimate plus the larger of £5 or a
-fifth, never over £60, a person for anything else) are what protect against a wrong figure.
+fifth, never over the whole-order cap, a person for anything else) are what protect against a wrong figure.

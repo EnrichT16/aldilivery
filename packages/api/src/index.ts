@@ -29,6 +29,7 @@ import { sweepRetention } from './services/retention.js';
 import { sweepSets } from './services/set-runner.js';
 import { sweepInsuranceReminders } from './services/insurance.js';
 import { sweepDeposits } from './services/runner-leaving.js';
+import { sweepPlans } from './services/plans.js';
 
 async function main(): Promise<void> {
   const env = readEnv();
@@ -302,6 +303,17 @@ async function main(): Promise<void> {
     });
   }, 3_600_000);
   insuranceSweep.unref();
+  // Every hour: the monthly plans (ruling 58). Renewals only for plans the Shopper chose to
+  // renew, the free-month reminder about three days before it ends, Plus check-ins and the
+  // Family and Carer weekly summary. Each goes once, so the hour it lands in does not matter.
+  const planSweep = setInterval(() => {
+    sweepPlans(app.ctx, app.log)
+      .then((report) => app.log.info(report, 'Plan sweep'))
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, 'The plan sweep failed');
+      });
+  }, 3_600_000);
+  planSweep.unref();
 
   const shutdown = async (signal: string): Promise<void> => {
     clearInterval(sweep);
@@ -309,6 +321,7 @@ async function main(): Promise<void> {
     clearInterval(setSweep);
     clearInterval(retentionSweep);
     clearInterval(insuranceSweep);
+    clearInterval(planSweep);
     app.log.info(`${signal} received, shutting down`);
     await app.close();
     await repository.disconnect();

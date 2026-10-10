@@ -27,7 +27,8 @@ export function Recipes(): JSX.Element {
   const [busy, setBusy] = useState(false);
   const { recipePassPence, recipePassDays } = storeConfig.extras;
   const price = money(recipePassPence);
-  const unlocked = recipePassActive(shopper?.recipePassUntil);
+  // Every plan includes Recipes, and so does the free month (ruling 58).
+  const unlocked = recipePassActive(shopper?.recipePassUntil) || Boolean(shopper?.membershipExtras);
 
   async function unlock(): Promise<void> {
     setBusy(true);

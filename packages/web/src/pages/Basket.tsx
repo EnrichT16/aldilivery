@@ -2,15 +2,15 @@ import { Link } from 'react-router-dom';
 
 import { GetTheApp } from '../components/GetTheApp';
 import { storeConfig } from '../config';
-import { money } from '../lib/money';
+import { deliveryWords, money, shownPrice } from '../lib/money';
 import { useBasket } from '../state/basket';
 
 /**
  * The basket.
  *
- * Rule Four and Rule One both show themselves on this screen. The fee is stated in words,
- * on its own line, with a sentence saying it is the only one, before there is any way to
- * carry on. And the only way to carry on is a link to the confirmation screen: nothing on
+ * Rule Four and Rule One both show themselves on this screen. Every price includes its item
+ * charge (ruling 58), and the shopping, the item charges and delivery are each stated on their
+ * own line before there is any way to carry on. And the only way to carry on is a link to the confirmation screen: nothing on
  * this page charges anybody.
  */
 export function Basket(): JSX.Element {
@@ -43,8 +43,8 @@ export function Basket(): JSX.Element {
             <div>
               <p className="m-0 text-lead font-bold">{line.item.name}</p>
               <p className="m-0 text-paper/90">
-                {line.quantity} × about {money(line.item.estimatedPricePence)} ={' '}
-                {money(line.item.estimatedPricePence * line.quantity)}
+                {line.quantity} × about {money(shownPrice(line.item.estimatedPricePence))} ={' '}
+                {money(shownPrice(line.item.estimatedPricePence) * line.quantity)}
               </p>
             </div>
 
@@ -92,13 +92,27 @@ export function Basket(): JSX.Element {
           <tbody>
             <tr>
               <th scope="row" className="text-left font-normal py-2">
-                Your shopping, about
+                Your shopping, with item charges, about
+              </th>
+              <td className="text-right py-2">
+                {money(pricing.goodsPence + pricing.itemChargesPence)}
+              </td>
+            </tr>
+            <tr>
+              <th scope="row" className="text-left font-normal py-2 ps-6">
+                At the shop&rsquo;s prices
               </th>
               <td className="text-right py-2">{money(pricing.goodsPence)}</td>
             </tr>
             <tr>
+              <th scope="row" className="text-left font-normal py-2 ps-6">
+                Item charges
+              </th>
+              <td className="text-right py-2">{money(pricing.itemChargesPence)}</td>
+            </tr>
+            <tr>
               <th scope="row" className="text-left font-normal py-2">
-                Our fee
+                Delivery
               </th>
               <td className="text-right py-2">{money(pricing.feePence)}</td>
             </tr>
@@ -112,8 +126,8 @@ export function Basket(): JSX.Element {
         </table>
 
         <p className="m-0">
-          {money(pricing.feePence)} is the only fee. There is no charge for a small order, no charge
-          for being busy, and no smallest order.
+          {deliveryWords(pricing.plan)} There is no charge for a small order, no charge for being
+          busy, and no smallest order. Every price we show already includes its item charge.
         </p>
         <p className="m-0">
           You pay what the till says for the shopping, so the total may change a little.
@@ -122,10 +136,9 @@ export function Basket(): JSX.Element {
 
       {overMaximum ? (
         <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
-          This comes to about {money(pricing.goodsPence)} of shopping, and one delivery carries up
-          to {money(storeConfig.fees.maximumGoodsPence)}: about as much as one Runner can carry
-          safely. Take some things out and send this as one delivery, then order the rest as a
-          second delivery.
+          This comes to about {money(pricing.goodsPence)} of shopping at the shop&rsquo;s prices,
+          and one order carries up to {money(storeConfig.fees.maximumOrderGoodsPence)}. Take some
+          things out and send this as one delivery, then order the rest as a second delivery.
         </p>
       ) : (
         <Link to="/confirm" className="control w-full bg-highlight text-ink text-lead">

@@ -14,9 +14,9 @@ export function PriceConfirm({
 }: {
   /** The first button: "Get Ozi Plus". */
   start: string;
-  /** "£7.99 will be taken from your saved card now, for 30 days. Is that all right?" */
+  /** "£10.00 will be taken from your saved card now, and each month until you cancel. Is that all right?" */
   question: string;
-  /** The button that takes the money: "Yes, get Ozi Plus for £7.99". */
+  /** The button that takes the money: "Yes, join Ozi Membership for £10.00 a month". */
   yes: string;
   busy: boolean;
   onYes: () => void;

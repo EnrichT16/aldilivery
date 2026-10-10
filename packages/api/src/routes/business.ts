@@ -11,10 +11,11 @@
 import { randomInt } from 'node:crypto';
 
 import type { FastifyInstance } from 'fastify';
-import { formatPence } from '@aldilivery/core';
+import { displayPricePence, formatPence, organisationMonthlyPence } from '@aldilivery/core';
 import { z } from 'zod';
 
 import { requireSession } from '../app.js';
+import { hasPlusExtras } from '../services/plans.js';
 import type {
   BusinessKind,
   BusinessUser,
@@ -492,6 +493,9 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
   app.get('/spotlight', async (request) => {
     const session = requireSession(request, 'shopper');
     const { q } = z.object({ q: z.string().trim().min(2).max(80) }).parse(request.query);
+    // Ozi Plus and Family and Carer: no adverts, ever (ruling 58).
+    const shopper = await repository.shoppers.findById(session.accountId);
+    if (shopper && hasPlusExtras(shopper, now())) return { advert: null };
     return { advert: await chooseAdvert(app.ctx, session.accountId, q) };
   });
 
@@ -547,9 +551,14 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
           person: person.displayName,
           office: person.organisationOffice ?? '',
           dayOfWeek: set.dayOfWeek,
+          // The people an organisation looks after have Membership delivery, and item charges
+          // on every unit (ruling 58).
           estimatePence:
-            set.items.reduce((sum, item) => sum + item.estimatedPricePence * item.quantity, 0) +
-            config.fees.standardDeliveryPence,
+            set.items.reduce(
+              (sum, item) =>
+                sum + displayPricePence(item.estimatedPricePence, config.fees) * item.quantity,
+              0,
+            ) + config.fees.delivery.membershipPence,
         });
       }
     }
@@ -571,7 +580,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     const savedThisMonth =
       tripCost === null
         ? null
-        : thisMonth.length * Math.max(0, tripCost - config.fees.standardDeliveryPence);
+        : thisMonth.length * Math.max(0, tripCost - config.fees.delivery.membershipPence);
 
     return {
       organisation: {
@@ -601,7 +610,9 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       })),
       orders: orders.slice(0, 200),
       upcoming,
-      deliveryFeePence: config.fees.standardDeliveryPence,
+      deliveryFeePence: config.fees.delivery.membershipPence,
+      // What the organisation pays a month for the people it looks after (ruling 58).
+      plan: organisationPlan(people.length),
       sharePath: organisation.joinCode ? `/join/organisation/${organisation.joinCode}` : null,
       referrals:
         (organisation.joinCode
@@ -609,6 +620,33 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
           : 0) + people.length,
     };
   });
+
+  /** 51 becomes "51st", 2 "2nd", 13 "13th". */
+  function ordinal(n: number): string {
+    const tens = n % 100;
+    const suffix =
+      tens >= 11 && tens <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] ?? 'th');
+    return `${n}${suffix}`;
+  }
+
+  /** £10 a client a month, every 51st client half price, from config/store.json. */
+  function organisationPlan(clients: number) {
+    const pricing = config.extras.organisations;
+    const discounted = Math.floor(clients / pricing.discountEveryNthClient);
+    const monthlyPence = organisationMonthlyPence(clients, pricing);
+    return {
+      clients,
+      monthlyPence,
+      clientMonthlyPence: pricing.clientMonthlyPence,
+      discountEveryNthClient: pricing.discountEveryNthClient,
+      discountedClientMonthlyPence: pricing.discountedClientMonthlyPence,
+      discountedClients: discounted,
+      words:
+        `${clients} client${clients === 1 ? '' : 's'}: ${clients - discounted} at ${money(pricing.clientMonthlyPence)}` +
+        (discounted > 0 ? ` and ${discounted} at ${money(pricing.discountedClientMonthlyPence)}` : '') +
+        `, ${money(monthlyPence)} a month. Every ${ordinal(pricing.discountEveryNthClient)} client is ${money(pricing.discountedClientMonthlyPence)}. Each client's orders have the item charges and Membership delivery at ${money(config.fees.delivery.membershipPence)}.`,
+    };
+  }
 
   app.get('/organisation/statement.pdf', async (request, reply) => {
     const { organisation } = await myOrganisation(request);
@@ -633,6 +671,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       ...(rows.length === 0 ? ['No orders yet.'] : rows.map((row) => row.line)),
       '',
       `Total: ${money(rows.reduce((sum, row) => sum + row.pence, 0))} over ${rows.length} order${rows.length === 1 ? '' : 's'}.`,
+      '',
+      `Monthly plan: ${organisationPlan(people.length).words}`,
     ];
     void reply.header('content-type', 'application/pdf');
     void reply.header(

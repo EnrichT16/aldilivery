@@ -232,8 +232,8 @@
       "topic": "prices",
       "when": ["what are our prices", "price list"],
       "replies": [
-        "Delivery {fee}, Shop Partner {partnerPlan} a month, Spotlight {spotlight}, Spotlight Plus {spotlightPlus}, sir.",
-        "Delivery is {fee}, sir."
+        "Delivery {smallFee} or {fee} pay as you go, {memberFee} members, {plusFee} Plus; item charges from {itemCharge}; plans {membership}, {plusPrice} and {familyPrice}; Shop Partner {partnerPlan}, Spotlight {spotlight}, Spotlight Plus {spotlightPlus}, sir.",
+        "Delivery is {smallFee} or {fee} pay as you go, {memberFee} for members, {plusFee} on Plus, sir."
       ]
     },
     {
@@ -528,15 +528,18 @@
       "topic": "money",
       "when": ["is the fee the same for everyone", "does anyone pay more for delivery"],
       "replies": [
-        "Everyone pays the same, sir: {fee}, one flat fee. Rule Four allows nothing else.",
-        "One flat fee for all, sir: {fee}."
+        "By plan and size only, sir: {smallFee} up to {smallUpTo} and {fee} above pay as you go, {memberFee} members, {plusFee} Plus. Never by time or demand.",
+        "By plan and size, never surge, sir."
       ]
     },
     {
       "id": "owner-basket-limit",
       "topic": "money",
       "when": ["what's the most someone can spend", "what's the basket limit", "maximum basket"],
-      "replies": ["The shopping can come to {maximum} at most, sir.", "Up to {maximum}, sir."]
+      "replies": [
+        "One order can come to {maximum} at most, and no product over {maximumProduct}, sir.",
+        "Up to {maximum}, sir."
+      ]
     },
     {
       "id": "owner-runner-pay-always",
@@ -651,8 +654,8 @@
       "topic": "money",
       "when": ["does plus change the delivery fee", "do members get cheaper delivery"],
       "replies": [
-        "No, sir. Rule Four keeps the fee the same for everyone. Plus includes Recipes and the Finds It fee instead.",
-        "The fee never changes, sir. Plus gives extras instead."
+        "Yes, sir. Members pay {memberFee} and Plus {plusFee} for delivery, by your ruling of the ninth of October. Item charges stay on every plan.",
+        "Plus brings delivery to {plusFee}, sir."
       ]
     },
     {
@@ -2529,7 +2532,7 @@
       "topic": "building",
       "when": ["plus membership", "family plan membership"],
       "replies": [
-        "Plus and Plus for a family are built, sir: never renewing by themselves, up to four people with a family code.",
+        "Membership, Plus, and Family and Carer are built, sir: taken monthly only when the Shopper chooses to join, cancelled with one button, up to four people with a family code.",
         "Built, sir."
       ]
     },
@@ -2621,7 +2624,7 @@
       "id": "owner-advert-plus-hide",
       "topic": "adverts",
       "when": ["can members hide adverts", "hide the square"],
-      "replies": ["Yes, sir. Plus members can hide the square.", "They can, sir."]
+      "replies": ["Yes, sir. Plus and Family members see no adverts.", "They can, sir."]
     },
     {
       "id": "owner-advert-flashing",
@@ -3243,7 +3246,7 @@
       "topic": "rules",
       "when": ["what is rule four", "why one fee"],
       "replies": [
-        "One flat delivery fee, the same for everyone, sir. It never depends on who the Shopper is.",
+        "Delivery by plan and shop size only, sir, never by time, place or demand. No small order fee and no minimum.",
         "The same for all, sir."
       ]
     },
@@ -3402,7 +3405,7 @@
       "topic": "growth",
       "when": ["what makes us different", "our selling point"],
       "replies": [
-        "Run by voice from the first screen, sir, for people others leave out, with one flat fee and the receipt charged, nothing more.",
+        "Run by voice from the first screen, sir, for people others leave out, with every price shown up front and the receipt charged, nothing more.",
         "Voice first, sir."
       ]
     }

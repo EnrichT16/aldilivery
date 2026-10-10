@@ -9,7 +9,7 @@
  * - The card is frozen (inactive) whenever it is not loaded for an order.
  * - When a Runner who chose the card accepts an order, it is loaded with the shopping estimate
  *   plus the larger of £5 or a fifth of it (`tillLimitPence`, the same margin the Shopper's card
- *   is settled within), never more than one delivery carries (£60, Rule Three), grocery shops
+ *   is settled within), never more than one order carries (`fees.maximumOrderGoodsPence`, ruling 58), grocery shops
  *   only, and switched on.
  * - Every payment at a till is asked of us by Stripe in real time
  *   (`issuing_authorization.request`): approved only for a card tied to an order in hand for
@@ -51,7 +51,7 @@ export function cardSwitchedOn(ctx: Pick<AppContext, 'env'>): boolean {
   return ctx.env.stripeIssuingEnabled;
 }
 
-/** What the card is loaded with for an order: estimate plus the margin, never over £60. */
+/** What the card is loaded with for an order: estimate plus the margin, never over the whole-order goods cap (shop prices only: item charges go to the business). */
 export function cardLimitFor(goodsEstimatePence: number, maximumGoodsPence: number): number {
   return Math.min(goodsEstimatePence + tillLimitPence(goodsEstimatePence), maximumGoodsPence);
 }
@@ -225,7 +225,7 @@ export async function loadCardForOrder(
     await ctx.repository.orders.update(order.id, { payMethodUsed: 'own' });
     return own;
   }
-  const limit = cardLimitFor(order.goodsEstimatePence, ctx.config.fees.maximumGoodsPence);
+  const limit = cardLimitFor(order.goodsEstimatePence, ctx.config.fees.maximumOrderGoodsPence);
   try {
     await ctx.payments.loadCard({
       cardId: runner.issuingCardId,

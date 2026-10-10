@@ -15,6 +15,7 @@ import { ConflictError, NotFoundError } from '../errors.js';
 import { buildOfferQueue, isOfferExpired, nextRunnerToOffer, offerExpiryAt } from './allocation.js';
 import { drivingPaused } from './insurance.js';
 import { hasAgreed } from './runner-agreement.js';
+import { hasPlusExtras } from './plans.js';
 
 export type OfferResult =
   | { offer: JobOffer; alreadyOffered: boolean; holdSeconds: number; queueLength: number }
@@ -75,7 +76,7 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
   const runners = (await repository.runners.listAvailable()).filter(
     (r) => !busy.has(r.id) && hasAgreed(r) && !r.leftAt && !drivingPaused(r, at),
   );
-  const queue = buildOfferQueue(
+  const fairQueue = buildOfferQueue(
     { latitude: order.latitude, longitude: order.longitude },
     runners.map((runner) => ({
       id: runner.id,
@@ -88,6 +89,16 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
     })),
     at,
   );
+  // Ozi Plus and Family and Carer: "my regular Runner" where possible (ruling 58). Their last
+  // good Runner, if on shift and free, is offered the job first; everybody else keeps their
+  // place in the fair rotation behind them.
+  const regular = await regularRunnerFor(ctx, order, at);
+  const queue = regular
+    ? [
+        ...fairQueue.filter((entry) => entry.runnerId === regular),
+        ...fairQueue.filter((entry) => entry.runnerId !== regular),
+      ]
+    : fairQueue;
 
   let next = nextRunnerToOffer(
     queue,
@@ -128,6 +139,41 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
 }
 
 /**
+ * The Runner who last delivered to this Shopper with no problem reported on that order, when the
+ * Shopper is on Ozi Plus or Family and Carer. Null otherwise.
+ */
+export async function regularRunnerFor(
+  ctx: DispatchContext,
+  order: Order,
+  at: Date,
+): Promise<string | null> {
+  const shopper = await ctx.repository.shoppers.findById(order.shopperId);
+  if (!shopper || !hasPlusExtras(shopper, at)) return null;
+  const past = (await ctx.repository.orders.listForShopper(shopper.id))
+    .filter(
+      (row) =>
+        row.id !== order.id &&
+        row.runnerId !== null &&
+        (row.status === 'delivered' || row.status === 'completed'),
+    )
+    .sort(
+      (a, b) =>
+        (b.deliveredAt ?? b.createdAt).getTime() - (a.deliveredAt ?? a.createdAt).getTime(),
+    );
+  for (const row of past) {
+    const problems = await ctx.repository.problems.listForOrder(row.id);
+    if (problems.length === 0) return row.runnerId;
+  }
+  return null;
+}
+
+/** Whether this order's Shopper has priority at busy times (Ozi Plus, Family and Carer). */
+async function hasPriority(ctx: DispatchContext, order: Order, at: Date): Promise<boolean> {
+  const shopper = await ctx.repository.shoppers.findById(order.shopperId);
+  return shopper !== null && hasPlusExtras(shopper, at);
+}
+
+/**
  * Offer every paid order that has nobody yet. Run on a timer by the server. Each order is
  * tried on its own, so one that fails does not hold up the rest.
  */
@@ -139,6 +185,19 @@ export async function sweepOffers(
     ...(await ctx.repository.orders.listByStatus('paid')),
     ...(await ctx.repository.orders.listByStatus('offered')),
   ].filter((order) => order.runnerId === null);
+
+  // Priority at busy times (ruling 58): when orders are waiting for Runners, those of Shoppers on
+  // Ozi Plus or Family and Carer are offered first; otherwise the oldest first, as before.
+  const at = ctx.now();
+  const priority = new Set<string>();
+  for (const order of waiting) {
+    if (await hasPriority(ctx, order, at)) priority.add(order.id);
+  }
+  waiting.sort(
+    (a, b) =>
+      Number(priority.has(b.id)) - Number(priority.has(a.id)) ||
+      a.createdAt.getTime() - b.createdAt.getTime(),
+  );
 
   let offered = 0;
   for (const order of waiting) {

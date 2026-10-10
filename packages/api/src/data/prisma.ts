@@ -84,6 +84,31 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           where: { erasedAt: null, deletionScheduledFor: { lte: at } },
         })) as unknown as Shopper[];
       },
+      async listPlansDue(at) {
+        return (await prisma.shopper.findMany({
+          where: {
+            erasedAt: null,
+            plan: { not: null },
+            planRenews: true,
+            familyOwnerId: null,
+            planUntil: { lte: at },
+          },
+        })) as unknown as Shopper[];
+      },
+      async listFreeMonthEnding(from, to) {
+        return (await prisma.shopper.findMany({
+          where: {
+            erasedAt: null,
+            freeMonthReminderSentAt: null,
+            freeMonthUntil: { gt: from, lte: to },
+          },
+        })) as unknown as Shopper[];
+      },
+      async listOnPlan(at) {
+        return (await prisma.shopper.findMany({
+          where: { erasedAt: null, plan: { not: null }, planUntil: { gt: at } },
+        })) as unknown as Shopper[];
+      },
       async listFamily(ownerId) {
         return (await prisma.shopper.findMany({
           where: { familyOwnerId: ownerId },

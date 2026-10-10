@@ -10,12 +10,20 @@ import type { FastifyInstance } from 'fastify';
 import { formatPence, RUNNER_PAYMENT_PENCE } from '@aldilivery/core';
 import { z } from 'zod';
 
-import { phoneConfirmedAtSignUp, requireSession } from '../app.js';
+import { phoneConfirmedAtSignUp, requireSession, type AppContext } from '../app.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 import { NOT_A_UK_NUMBER, ukPhone } from '../lib/phone.js';
 import { newReferralCode } from '../lib/referral.js';
 import { hashCode, signSession, suggestHandle, verifyPhoneProof } from '../lib/tokens.js';
 import { sweepOffers } from '../services/dispatch.js';
+import {
+  activePlan,
+  deliveryPlanFor,
+  freeMonthEnd,
+  hasMembershipExtras,
+  hasPlusExtras,
+  inFreeMonth,
+} from '../services/plans.js';
 import { agreementRecord, agreementSchema, hasAgreed } from '../services/runner-agreement.js';
 import { MOTOR_MODES, canDrive, documentsNeeded } from './runner-account.js';
 
@@ -129,6 +137,9 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       deliveryAddress: input.deliveryAddress ?? '',
       substitutionDefault: input.substitutionDefault ?? 'ask_me',
       budgetCapPence: input.budgetCapPence ?? null,
+      // Every new Shopper's first month of membership is free (ruling 58), with pay-as-you-go
+      // delivery; membership's extras (Recipes, a free Finds It) are open for it.
+      freeMonthUntil: freeMonthEnd(config, now()),
     });
     if (input.joinedVia) {
       await repository.shoppers.update(shopper.id, { joinedVia: input.joinedVia });
@@ -141,7 +152,7 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
     );
 
     void reply.status(201);
-    return { shopper: publicShopper(shopper), token };
+    return { shopper: await publicShopper(app.ctx, shopper), token };
   });
 
   app.post('/runners', async (request, reply) => {
@@ -220,7 +231,7 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
     }
     const shopper = await repository.shoppers.findById(session.accountId);
     if (!shopper) throw new NotFoundError('account');
-    return { role: 'shopper', shopper: publicShopper(shopper) };
+    return { role: 'shopper', shopper: await publicShopper(app.ctx, shopper) };
   });
 
   app.patch('/me', async (request) => {
@@ -240,7 +251,7 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       );
     }
     const shopper = await repository.shoppers.update(session.accountId, patch);
-    return { shopper: publicShopper(shopper) };
+    return { shopper: await publicShopper(app.ctx, shopper) };
   });
 
   /** Runners say when they are on shift, and where they are. */
@@ -333,7 +344,15 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
   });
 }
 
-function publicShopper(shopper: import('../domain.js').Shopper) {
+/**
+ * What a Shopper's own screens may know about their account, with the delivery price that
+ * applies to them now (their plan, or an organisation that looks after them), so the basket
+ * shows the same total the server will charge.
+ */
+async function publicShopper(
+  ctx: Pick<AppContext, 'repository' | 'now'>,
+  shopper: import('../domain.js').Shopper,
+) {
   const {
     spokenCodeHash: _code,
     pinHash,
@@ -342,7 +361,18 @@ function publicShopper(shopper: import('../domain.js').Shopper) {
     stripeCustomerId: _customer,
     ...rest
   } = shopper;
-  return { ...rest, hasPin: pinHash !== null };
+  const at = ctx.now();
+  return {
+    ...rest,
+    hasPin: pinHash !== null,
+    deliveryPlan: await deliveryPlanFor(ctx, shopper, at),
+    activePlan: activePlan(shopper, at),
+    inFreeMonth: inFreeMonth(shopper, at),
+    // Recipes and a free Finds It a month: on any plan, and during the free month.
+    membershipExtras: hasMembershipExtras(shopper, at),
+    // Plus and Family: no adverts.
+    plusExtras: hasPlusExtras(shopper, at),
+  };
 }
 
 function publicRunner(runner: import('../domain.js').Runner) {

@@ -19,6 +19,7 @@ import { z } from 'zod';
 import { requireSession, requireStaff } from '../app.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../errors.js';
 import { priceLines } from '../services/basket.js';
+import { deliveryPlanFor } from '../services/plans.js';
 import { runDueSets, sendDueNotices } from '../services/set-runner.js';
 import { firstFireAt, isSkipInstruction, noticeDueAt } from '../services/sets.js';
 
@@ -65,8 +66,15 @@ export async function registerSetRoutes(app: FastifyInstance): Promise<void> {
       input.lines.map((line) => line.catalogueItemId),
     );
 
-    // Rule Six applies to a Set exactly as it applies to a one off order.
-    const priced = priceLines(input.lines, catalogueItems, config.fees);
+    // Rule Six applies to a Set exactly as it applies to a one off order, priced at the
+    // Shopper's own delivery price.
+    const shopper = await repository.shoppers.findById(session.accountId);
+    const priced = priceLines(
+      input.lines,
+      catalogueItems,
+      config.fees,
+      shopper ? await deliveryPlanFor(app.ctx, shopper, now()) : 'payg',
+    );
 
     // Sending and paying by itself needs a saved card of the Shopper's own.
     if (input.autoSend) {
@@ -107,6 +115,7 @@ export async function registerSetRoutes(app: FastifyInstance): Promise<void> {
       set: recurringSet,
       estimate: {
         goodsPence: priced.goodsPence,
+        itemChargesPence: priced.itemChargesPence,
         feePence: priced.feePence,
         totalPence: priced.totalPence,
       },

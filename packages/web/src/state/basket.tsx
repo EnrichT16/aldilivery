@@ -1,9 +1,16 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
-import { feeForGoodsPence, type BasketPricing } from '@aldilivery/core';
+import {
+  deliveryFeePence,
+  itemChargesForLines,
+  productAllowed,
+  type BasketPricing,
+  type DeliveryPlan,
+} from '@aldilivery/core';
 
 import { storeConfig } from '../config';
 import type { CatalogueItem } from '../lib/api';
+import { useOptionalSession } from './session';
 
 export interface BasketLine {
   item: CatalogueItem;
@@ -12,7 +19,11 @@ export interface BasketLine {
 
 interface BasketValue {
   lines: BasketLine[];
-  add: (item: CatalogueItem) => void;
+  /**
+   * Puts one more in the basket. Refused, with nothing added, for a product dearer than any one
+   * product may be (ruling 58: no single product over £60); the screen says so in plain words.
+   */
+  add: (item: CatalogueItem) => boolean;
   remove: (itemId: string) => void;
   setQuantity: (itemId: string, quantity: number) => void;
   clear: () => void;
@@ -30,14 +41,19 @@ const BasketContext = createContext<BasketValue | null>(null);
 /**
  * The basket, and the price of it.
  *
- * The fee is worked out with the very same function the server uses, from the very same
- * figures in `config/store.json`. The two cannot drift, so what the Shopper is shown before
+ * The item charges and the delivery fee are worked out with the very same functions the server
+ * uses, from the very same figures in `config/store.json`, for the Shopper's own plan. The two cannot drift, so what the Shopper is shown before
  * they confirm is what they will be charged.
  */
 export function BasketProvider({ children }: { children: ReactNode }): JSX.Element {
   const [lines, setLines] = useState<BasketLine[]>([]);
 
-  const add = useCallback((item: CatalogueItem) => {
+  const session = useOptionalSession();
+  // The delivery price follows the signed-in Shopper's plan, exactly as the server decides it.
+  const plan: DeliveryPlan = session?.shopper?.deliveryPlan ?? 'payg';
+
+  const add = useCallback((item: CatalogueItem): boolean => {
+    if (!productAllowed(item.estimatedPricePence, storeConfig.fees)) return false;
     setLines((current) => {
       const existing = current.find((line) => line.item.id === item.id);
       if (existing) {
@@ -47,6 +63,7 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
       }
       return [...current, { item, quantity: 1 }];
     });
+    return true;
   }, []);
 
   const remove = useCallback((itemId: string) => {
@@ -72,18 +89,34 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
     );
     // An empty basket has no fee to show. Rule Four means there is no minimum, so a basket
     // of one penny is priced exactly like any other.
-    if (goodsPence === 0) {
-      return { goodsPence: 0, feePence: 0, totalPence: 0 };
+    if (lines.length === 0) {
+      return { goodsPence: 0, itemChargesPence: 0, feePence: 0, totalPence: 0, plan };
     }
-    // Over the maximum, the fee is still the flat fee; `overMaximum` says it cannot go as one.
-    const feePence =
-      goodsPence > storeConfig.fees.maximumGoodsPence
-        ? storeConfig.fees.standardDeliveryPence
-        : feeForGoodsPence(goodsPence, storeConfig.fees);
-    return { goodsPence, feePence, totalPence: goodsPence + feePence };
-  }, [lines]);
+    // Every unit carries its item charge (ruling 58), shown within its price.
+    const itemChargesPence = itemChargesForLines(
+      lines.map((line) => ({
+        shopPricePence: line.item.estimatedPricePence,
+        quantity: line.quantity,
+      })),
+      storeConfig.fees,
+    );
+    // Over the maximum, the fee shown is the one for the most one order carries;
+    // `overMaximum` says it cannot go as one.
+    const feePence = deliveryFeePence(
+      Math.min(goodsPence, storeConfig.fees.maximumOrderGoodsPence),
+      plan,
+      storeConfig.fees,
+    );
+    return {
+      goodsPence,
+      itemChargesPence,
+      feePence,
+      totalPence: goodsPence + itemChargesPence + feePence,
+      plan,
+    };
+  }, [lines, plan]);
 
-  const overMaximum = pricing.goodsPence > storeConfig.fees.maximumGoodsPence;
+  const overMaximum = pricing.goodsPence > storeConfig.fees.maximumOrderGoodsPence;
 
   const value = useMemo<BasketValue>(
     () => ({

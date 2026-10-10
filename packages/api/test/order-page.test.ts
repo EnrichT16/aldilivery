@@ -118,7 +118,7 @@ describe('the order page and the Runner’s job', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay.',
-          agreedTotalPence: 1600,
+          agreedTotalPence: 250 + 100 + 799,
         },
       },
       shopper.authHeader,

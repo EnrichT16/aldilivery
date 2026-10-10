@@ -95,7 +95,7 @@ export interface RecordedRequest {
 
 export interface ApiStubOptions {
   /** Present means signed in: a token is stored and `/me` answers with this Shopper. */
-  shopper?: typeof FAKE_SHOPPER | undefined;
+  shopper?: (typeof FAKE_SHOPPER & { deliveryPlan?: 'payg' | 'membership' | 'plus' }) | undefined;
   paymentMethods?: Array<typeof FAKE_CARD>;
   /** `rehearsal` keeps the card screen from ever reaching for Stripe.js. */
   paymentsMode?: 'stripe' | 'rehearsal';

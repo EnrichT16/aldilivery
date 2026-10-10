@@ -17,7 +17,7 @@ Say it, and Ozi shops for you
 ## Apple promotional text (170)
 
 Order your groceries by talking to Ozi. A local Runner buys them at the shelf price and brings
-them to your door, for one flat fee. Built for blind people first.
+them to your door. Every price up front. Built for blind people first.
 
 ## Google short description (80)
 
@@ -47,8 +47,10 @@ How it works
 
 1. Say or tap what you need. Ozi reads it back to you.
 2. You say yes. A Runner buys it at the shelf price, and you pay what the till receipt says.
-3. It comes to your door. Delivery is £13.50 every time, with no surge pricing, no small order
-   fee and no minimum spend. One delivery carries up to £60 of shopping.
+3. It comes to your door. Delivery is £7.99 for a shop of £15 or less, £13.50 above, or £7.99
+   with Ozi Membership and £5.99 with Ozi Plus. Every price you see includes a small item
+   charge. No surge pricing, no small order fee and no minimum spend. Your first month of
+   membership is free, and nothing is charged unless you choose to join.
 
 Your Runner
 

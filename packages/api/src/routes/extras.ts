@@ -3,8 +3,9 @@
  * and gift cards; and organisations asking to work with us.
  *
  * Rule One: every price is said and agreed before anything is taken, and the agreement travels
- * with the request. Nothing renews by itself: when the days run out, it is simply off again.
- * Rule Four: none of this ever changes the delivery fee.
+ * with the request. Recipes and Finds It never renew by themselves. The monthly plans (ruling
+ * 58) renew monthly only for a Shopper who agreed to that when joining, and cancel with one
+ * button; the plan, never the time or demand, decides the delivery price (Rule Four).
  */
 
 import { randomInt } from 'node:crypto';
@@ -16,8 +17,24 @@ import { z } from 'zod';
 import { requireSession } from '../app.js';
 import { NEVER_FOUND } from '../lib/restricted.js';
 import { staffActor } from '../lib/staff.js';
-import type { FindRequest, GiftCard, Shopper } from '../domain.js';
-import { BadRequestError, ConflictError, NotFoundError, UnavailableError } from '../errors.js';
+import type { FindRequest, GiftCard, Shopper, ShopperPlan } from '../domain.js';
+import {
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  UnavailableError,
+} from '../errors.js';
+import {
+  activePlan,
+  addMonths,
+  cancelPlanFor,
+  hasMembershipExtras,
+  inFreeMonth,
+  planName,
+  planPricePence,
+  planView,
+} from '../services/plans.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -101,11 +118,7 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
     }
   }
 
-  function plusActive(shopper: Shopper): boolean {
-    return shopper.plusUntil !== null && shopper.plusUntil.getTime() > now().getTime();
-  }
-
-  /** Recipes stays open at least as long as Plus does: Plus includes it. */
+  /** Recipes stays open at least as long as the plan does: every plan includes it. */
   function laterOf(a: Date | null, b: Date): Date {
     return a && a.getTime() > b.getTime() ? a : b;
   }
@@ -143,87 +156,109 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
     };
   });
 
-  /* ------------------------------------------------------------------ Ozi Plus */
+  /* ------------------------------------------------- the monthly plans (ruling 58) */
 
-  async function plusState(shopper: Shopper) {
-    const owner =
-      shopper.familyOwnerId !== null
-        ? await repository.shoppers.findById(shopper.familyOwnerId)
-        : null;
-    const members = shopper.plusFamily ? await repository.shoppers.listFamily(shopper.id) : [];
-    return {
-      active: plusActive(shopper),
-      plusUntil: shopper.plusUntil,
-      family: shopper.plusFamily,
-      familyCode: shopper.plusFamily ? shopper.familyCode : null,
-      members: members.map((member) => member.displayName),
-      joinedFamilyOf: owner?.displayName ?? null,
-      familyMaximum: extras.familyMaximum,
-      creditPence: shopper.creditPence,
-    };
+  const planSchema = z.enum(['membership', 'plus', 'family']);
+
+  /** Plan state, at /extras/plus (kept for the screens already using it) and at /plans. */
+  for (const path of ['/extras/plus', '/plans']) {
+    app.get(path, async (request) => planView(app.ctx, await signedInShopper(request)));
   }
 
-  app.get('/extras/plus', async (request) => {
-    const shopper = await signedInShopper(request);
-    return plusState(shopper);
-  });
-
-  app.post('/extras/plus', async (request) => {
+  /**
+   * Joining a plan. The Shopper chooses it, agrees the monthly price and that it is taken each
+   * month until they cancel; nothing is taken without both. During the free month, joining
+   * Membership takes nothing until the free month ends.
+   */
+  async function join(request: FastifyRequest) {
     const body = z
-      .object({ plan: z.enum(['single', 'family']), priceAccepted: z.literal(true).optional() })
+      .object({ plan: planSchema.default('membership') })
+      .passthrough()
       .parse(request.body ?? {});
-    const family = body.plan === 'family';
-    const pricePence = family ? extras.plusFamilyPence : extras.plusPence;
+    const plan: ShopperPlan = body.plan;
+    const pricePence = planPricePence(plan, config);
     const price = money(pricePence);
-    z.object({ priceAccepted: agreed(price) }).parse(request.body ?? {});
+    z.object({ priceAccepted: agreed(`${price} a month`) }).parse(request.body ?? {});
+    z.object({
+      monthlyAccepted: z.literal(true, {
+        errorMap: () => ({
+          message: `Please agree that ${price} is taken each month until you cancel. You can cancel at any time.`,
+        }),
+      }),
+    }).parse(request.body ?? {});
     const shopper = await signedInShopper(request);
     if (shopper.familyOwnerId !== null) {
       throw new ConflictError(
-        'You are already on a family plan, so you have Plus already. To buy your own, leave the family plan first.',
+        'You are on a family plan already, so you have its benefits. To join your own plan, leave the family plan first.',
       );
     }
 
     const at = now();
-    const until = new Date(laterOf(shopper.plusUntil, at).getTime() + extras.plusDays * DAY_MS);
-    const name = family ? 'Plus for a family' : 'Plus';
-    const card = await take(
-      request,
-      shopper,
-      pricePence,
-      `${name}, ${extras.plusDays} days`,
-      'plus',
-    );
+    const name = planName(plan, config.assistantName);
+    // The free month covers Membership: joining it then takes nothing until the month ends.
+    const coveredByFreeMonth =
+      plan === 'membership' && inFreeMonth(shopper, at) && activePlan(shopper, at) === null;
+    let until: Date;
+    let taken = '';
+    if (coveredByFreeMonth && shopper.freeMonthUntil) {
+      until = shopper.freeMonthUntil;
+    } else {
+      const card = await take(request, shopper, pricePence, `${name}, one month`, 'plan');
+      until = addMonths(at, 1);
+      taken = ` ${price} was taken from your card ending ${card.lastFour}.`;
+    }
 
     let familyCode = shopper.familyCode;
-    if (family && !familyCode) {
+    if (plan === 'family' && !familyCode) {
       do {
         familyCode = randomCode(6);
       } while (await repository.shoppers.findByFamilyCode(familyCode));
     }
     const updated = await repository.shoppers.update(shopper.id, {
-      plusUntil: until,
-      // The plan just bought decides: a single plan does not carry a family along with it.
-      plusFamily: family,
+      plan,
+      planUntil: until,
+      planRenews: true,
+      planStartedAt: at,
+      planCancelledAt: null,
       familyCode,
       recipePassUntil: laterOf(shopper.recipePassUntil, until),
     });
-    // On a family plan, everybody who joined gets the new date too.
-    for (const member of family ? await repository.shoppers.listFamily(shopper.id) : []) {
-      await repository.shoppers.update(member.id, {
-        plusUntil: until,
-        recipePassUntil: laterOf(member.recipePassUntil, until),
-      });
+    // Everybody who joined a family plan follows the plan the payer has now.
+    for (const member of await repository.shoppers.listFamily(shopper.id)) {
+      await repository.shoppers.update(
+        member.id,
+        plan === 'family'
+          ? { plan, planUntil: until, recipePassUntil: laterOf(member.recipePassUntil, until) }
+          : { familyOwnerId: null, plan: null, planUntil: null },
+      );
     }
 
     const share =
-      family && familyCode
+      plan === 'family' && familyCode
         ? ` To add up to ${extras.familyMaximum - 1} more people, give them your family code: ${familyCode}.`
         : '';
+    const when = coveredByFreeMonth
+      ? ` Your free month carries on: the first ${price} is taken on ${longDate(until)}, then each month until you cancel.`
+      : ` It renews on ${longDate(until)}, and each month after, until you cancel.`;
     return {
-      ...(await plusState(updated)),
-      message: `${config.assistantName} ${name} is on until ${longDate(until)}. ${price} was taken from your card ending ${card.lastFour}. It does not renew by itself.${share}`,
+      ...(await planView(app.ctx, updated)),
+      message: `You've joined ${name}, ${price} a month.${taken}${when} Cancel at any time in Settings, or say "cancel my membership".${share}`,
     };
-  });
+  }
+  app.post('/extras/plus', join);
+  app.post('/plans/join', join);
+
+  /**
+   * Cancelling: one button, or by voice or telephone ("cancel my membership"). Nothing more is
+   * taken; the plan runs to the end of the month already paid for, then it is pay as you go.
+   */
+  async function cancel(request: FastifyRequest) {
+    const shopper = await signedInShopper(request);
+    const result = await cancelPlanFor(app.ctx, shopper);
+    return { ...(await planView(app.ctx, result.shopper)), message: result.message };
+  }
+  app.post('/extras/plus/cancel', cancel);
+  app.post('/plans/cancel', cancel);
 
   app.post('/extras/family/join', async (request) => {
     const { code } = z
@@ -233,7 +268,7 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
     const owner = await repository.shoppers.findByFamilyCode(
       code.toUpperCase().replace(/[^A-Z0-9]/g, ''),
     );
-    if (!owner || !owner.plusFamily || !plusActive(owner)) {
+    if (!owner || activePlan(owner, now()) !== 'family') {
       throw new NotFoundError('family plan with that code');
     }
     if (owner.id === shopper.id) {
@@ -250,14 +285,18 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
         `That family plan is full: it is for up to ${extras.familyMaximum} people.`,
       );
     }
+    const until = owner.planUntil ?? now();
     const updated = await repository.shoppers.update(shopper.id, {
       familyOwnerId: owner.id,
-      plusUntil: owner.plusUntil,
-      recipePassUntil: laterOf(shopper.recipePassUntil, owner.plusUntil ?? now()),
+      plan: 'family',
+      planUntil: until,
+      // Their own plan, if they had one, stops renewing: the family plan pays now.
+      planRenews: false,
+      recipePassUntil: laterOf(shopper.recipePassUntil, until),
     });
     return {
-      ...(await plusState(updated)),
-      message: `You've joined ${owner.displayName}'s family plan. You have ${config.assistantName} Plus until ${longDate(owner.plusUntil ?? now())}.`,
+      ...(await planView(app.ctx, updated)),
+      message: `You've joined ${owner.displayName}'s family plan. You have ${planName('family', config.assistantName)} until ${longDate(until)}, and ${owner.displayName} sees your orders.`,
     };
   });
 
@@ -268,9 +307,31 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
     }
     const updated = await repository.shoppers.update(shopper.id, {
       familyOwnerId: null,
-      plusUntil: null,
+      plan: null,
+      planUntil: null,
     });
-    return { ...(await plusState(updated)), message: 'You have left the family plan.' };
+    return { ...(await planView(app.ctx, updated)), message: 'You have left the family plan.' };
+  });
+
+  /** Family and Carer: the payer's limit, above which a member's order waits for their yes. */
+  app.post('/extras/family/approval-limit', async (request) => {
+    const { limitPence } = z
+      .object({ limitPence: z.number().int().min(0).max(1_000_000).nullable() })
+      .parse(request.body ?? {});
+    const shopper = await signedInShopper(request);
+    if (shopper.familyOwnerId !== null || activePlan(shopper, now()) !== 'family') {
+      throw new ForbiddenError('That is for the person who pays for a family plan.');
+    }
+    const updated = await repository.shoppers.update(shopper.id, {
+      approvalLimitPence: limitPence,
+    });
+    return {
+      ...(await planView(app.ctx, updated)),
+      message:
+        limitPence === null
+          ? 'Orders on your family plan go straight through, without asking you first.'
+          : `Orders over ${money(limitPence)} on your family plan will wait for you to approve them.`,
+    };
   });
 
   /* ------------------------------------------------------------------ Ozi Finds It */
@@ -291,6 +352,17 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
     };
   }
 
+  /** Every plan, and the free month, include a number of free Finds It searches a month. */
+  async function freeFindItLeft(shopper: Shopper): Promise<boolean> {
+    const at = now();
+    if (!hasMembershipExtras(shopper, at) || extras.freeFindItsPerMonth === 0) return false;
+    const monthAgo = addMonths(at, -1);
+    const freeThisMonth = (await repository.findRequests.listForShopper(shopper.id)).filter(
+      (row) => row.feePence === 0 && row.createdAt.getTime() > monthAgo.getTime(),
+    ).length;
+    return freeThisMonth < extras.freeFindItsPerMonth;
+  }
+
   app.get('/extras/find-it', async (request) => {
     const shopper = await signedInShopper(request);
     const requests = await repository.findRequests.listForShopper(shopper.id);
@@ -299,7 +371,7 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
 
   app.post('/extras/find-it', async (request, reply) => {
     const shopper = await signedInShopper(request);
-    const covered = plusActive(shopper);
+    const covered = await freeFindItLeft(shopper);
     const price = money(extras.findItPence);
     const body = z
       .object({
@@ -332,7 +404,7 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
         `Thank you. A person will look for ${body.description} in up to ${extras.findItShops} shops, and tell you here what they find and the price. ` +
         (charge
           ? `${price} was taken from your card ending ${charge.lastFour}, and it comes back if it can't be found.`
-          : `It's included in your ${config.assistantName} Plus.`),
+          : `It's your free ${config.assistantName} Finds It for this month.`),
     };
   });
 

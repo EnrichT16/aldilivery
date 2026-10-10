@@ -14,6 +14,7 @@ import type { AppContext } from '../app.js';
 import type { Order } from '../domain.js';
 import { isUkMobile } from '../lib/phone.js';
 import { notifyShopper } from './notify.js';
+import { tellFamilyPayer } from './plans.js';
 
 export type OrderStage = 'paid' | 'accepted' | 'delivering' | 'delivered';
 
@@ -90,6 +91,18 @@ export async function tellShopper(
       delivering: `${who} has your shopping and is on the way to you.`,
       delivered: `${who} has delivered your shopping. ${config.motto}`,
     }[stage];
+    // Ozi Family and Carer: the payer is told at every stage too (ruling 58).
+    void tellFamilyPayer(
+      ctx,
+      order,
+      {
+        paid: 'it has been ordered and we are finding a Runner.',
+        accepted: `${who} has it and will do the shopping.`,
+        delivering: 'it is on its way.',
+        delivered: 'it has been delivered.',
+      }[stage],
+      log,
+    );
     const devices = await repository.pushSubscriptions.listForShopper(shopper.id);
     if (devices.length > 0 && ctx.sendPush) {
       await notifyShopper({ repository, sendPush: ctx.sendPush, log }, shopper.id, {
