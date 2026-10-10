@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { companyFacts } from '../components/CompanyDetails';
 import { GetTheApp } from '../components/GetTheApp';
 import { storeConfig } from '../config';
+import { ALLOW_LINE, allowStep } from '../voice/microphone-help';
 
 /**
  * Help and contact, at /help. The page the App Store and Google Play listings name as the
@@ -36,6 +37,29 @@ export function Help(): JSX.Element {
         </p>
       </section>
 
+      <section aria-labelledby="help-voice" className="space-y-3">
+        <h2 id="help-voice" className="text-lead font-bold">
+          Talking to {assistantName}
+        </h2>
+        <ol className="m-0 ps-6 space-y-2">
+          <li>Tap the big button, Tap to talk to {assistantName}.</li>
+          <li>
+            {ALLOW_LINE} {allowStep(assistantName)}
+          </li>
+          <li>Then just say what you need.</li>
+        </ol>
+        <p className="m-0">
+          If you tapped Don&rsquo;t Allow by mistake: on an iPhone, tap the aA button by the web
+          address, then Website Settings, then Microphone, Allow. On Android, tap the lock by the
+          web address, then Permissions, then Microphone, Allow.
+        </p>
+        <p className="m-0">
+          Opened from Instagram, Facebook, Gmail or another app? Open the page in Safari on an
+          iPhone, or Chrome on Android, for {assistantName}&rsquo;s voice. You can always type
+          instead, or ring us.
+        </p>
+      </section>
+
       <GetTheApp />
 
       <section aria-labelledby="close-account-heading" id="close-account" className="space-y-3">
@@ -65,7 +89,9 @@ export function Help(): JSX.Element {
             On your <Link to="/runner">Runner page</Link>, under More: choose Close my Runner
             account, then Yes, close my Runner account.
           </li>
-          <li>Ask {assistantName} on your Runner page: say &ldquo;close my Runner account&rdquo;.</li>
+          <li>
+            Ask {assistantName} on your Runner page: say &ldquo;close my Runner account&rdquo;.
+          </li>
           <li>Ring us or email us.</li>
         </ul>
         <p className="m-0">

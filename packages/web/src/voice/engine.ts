@@ -46,6 +46,11 @@ export interface OutputVoice {
 export type VoiceErrorKind =
   /** The Shopper, or their device settings, refused the microphone. */
   | 'not-allowed'
+  /**
+   * The browser's speech service itself is switched off or missing: on an iPhone, Siri and
+   * Dictation turned off, or a page opened inside another app (ruling 62).
+   */
+  | 'service-not-allowed'
   /** Listening started and nothing was said. */
   | 'no-speech'
   /** The engine needed the network and could not reach it. */
@@ -100,6 +105,15 @@ export interface VoiceEngine {
   /** Report readiness: whether listening and speaking work in this language here. */
   readiness(language: LanguageTag): Promise<VoiceReadiness>;
 
+  /**
+   * Whether the first listening of a visit has to start inside a tap (ruling 62). A browser
+   * only shows its own "Allow microphone?" question when the microphone is asked for straight
+   * from a person's tap; asked for any other way, an iPhone refuses without asking. True until
+   * the browser says the microphone is already allowed for this site. Absent means no tap is
+   * needed: a phone app that asks for the microphone itself, or a test.
+   */
+  firstListenNeedsTap?(): Promise<boolean>;
+
   /** Start listening. Recognised text comes back through `options.onText`. */
   startListening(options: ListenOptions): void;
 
@@ -118,6 +132,21 @@ export interface VoiceEngine {
 
   /** The voices available for a language, for the choice in Settings. */
   voices(language: LanguageTag): Promise<OutputVoice[]>;
+}
+
+/**
+ * Whether the browser already allows the microphone for this site, so listening can start
+ * without a tap. False when it cannot say: asking with a tap is never wrong.
+ */
+export async function microphoneAlreadyAllowed(): Promise<boolean> {
+  try {
+    const permissions = (navigator as Navigator | undefined)?.permissions;
+    if (!permissions?.query) return false;
+    const status = await permissions.query({ name: 'microphone' as PermissionName });
+    return status.state === 'granted';
+  } catch {
+    return false;
+  }
 }
 
 /** Listen once, and resolve with what was said; empty if nothing was. */

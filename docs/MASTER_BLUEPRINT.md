@@ -272,6 +272,7 @@ person) is replaced by Ozi Family and Carer (ruling 58).
 
 | Feature | Status | Notes |
 | --- | --- | --- |
+| The first listening of a visit only from a tap ("Tap to talk to Ozi"), so the browser asks for the microphone; plain words for a refusal by phone, Dictation off, no voice, or a page inside another app; notes never over a form | BUILT | Ruling 62. `packages/web/src/voice/microphone-help.ts`, `components/MicrophoneHelp.tsx`, `tapToTalk` in `state/ozi.tsx`. |
 | Ozi speaks and hears through Oluoma Voice; the phone's own speech as the fallback | BUILT | Ruling 53. packages/web/src/voice/oluoma-engine.ts behind the interface in engine.ts (docs/OLUOMA_VOICE.md); GET /voice/session gives the app a five-minute token, never the key. On when OLUOMA_VOICE_URL and OLUOMA_VOICE_KEY are set; the phone's own speech otherwise, and the moment the engine fails. The telephone line still uses Polly until the Oluoma phone bridge. |
 | Ozi speaks first; "Tap anywhere" on the website | BUILT | Rulings 3 (1 Oct), 20. |
 | Round green button: glows while listening, moveable by drag or arrow keys, "Muted" not by colour alone, gentle reminders while muted (2 min, then 3, then every 3) | BUILT | 1 October ruling 3. |
@@ -871,3 +872,15 @@ The first round of missing features is built: the owner's till screen, receipt p
 - **Runner agreement**: version 2026-10-10; every Runner agrees again.
 - **Sign-in with texts off**: the form shows when the demo sign-in is set up.
 - See docs/changes/split-cascade.md.
+
+## Ruling 62 in brief (10 October 2026)
+
+- **Microphone in one tap**: BUILT. Ozi no longer starts listening by itself before the
+  microphone has been allowed: one big "Tap to talk to Ozi" button asks for it inside the tap,
+  so Safari and Chrome show their own Allow question. Afterwards Ozi listens by itself as before.
+- **Plain words**: what to tap on an iPhone or Android when refused, Dictation for an iPhone
+  with it off, and which browser to use when there is no voice; in a note that pushes the page
+  down and closes with one tap.
+- **Inside Instagram, Facebook and other apps**: a banner to open the page in Safari or Chrome,
+  with Copy the link and, on Android, Open in Chrome.
+- See docs/changes/microphone.md.

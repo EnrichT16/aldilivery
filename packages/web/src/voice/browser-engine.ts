@@ -13,6 +13,7 @@
 
 import {
   SPEAKING_RATE,
+  microphoneAlreadyAllowed,
   type LanguageTag,
   type ListenOptions,
   type OutputVoice,
@@ -68,7 +69,7 @@ function synthesis(): SpeechSynthesis | undefined {
 
 const ERROR_KINDS: Record<string, VoiceErrorKind> = {
   'not-allowed': 'not-allowed',
-  'service-not-allowed': 'not-allowed',
+  'service-not-allowed': 'service-not-allowed',
   'no-speech': 'no-speech',
   network: 'network',
   'audio-capture': 'unavailable',
@@ -76,8 +77,9 @@ const ERROR_KINDS: Record<string, VoiceErrorKind> = {
 };
 
 const ERROR_WORDS: Record<VoiceErrorKind, string> = {
-  'not-allowed':
-    'The microphone is not allowed for this site. You can allow it in your phone or browser settings.',
+  // Plain words only: Ozi itself chooses the instruction for the phone in hand (ruling 62).
+  'not-allowed': 'The microphone is not allowed for this site.',
+  'service-not-allowed': 'Voice is switched off in this browser.',
   'no-speech': 'I did not hear anything.',
   network: 'I could not reach the speech service. Please check your connection.',
   unavailable: 'This phone or browser cannot listen.',
@@ -130,6 +132,16 @@ export function browserVoiceEngine(): VoiceEngine {
       };
     },
 
+    // The first listening of a visit waits for a tap, so the browser shows its own "Allow
+    // microphone?" question (ruling 62), unless the microphone is already allowed.
+    async firstListenNeedsTap(): Promise<boolean> {
+      return !(await microphoneAlreadyAllowed());
+    },
+
+    /**
+     * Starts straight away, in the same moment it is called, with nothing awaited first: called
+     * from a tap, the browser counts it as the person's own doing and asks for the microphone.
+     */
     startListening(options: ListenOptions): void {
       const Constructor = recognitionConstructor();
       if (!Constructor) {
@@ -168,7 +180,13 @@ export function browserVoiceEngine(): VoiceEngine {
         if (recognition === current) recognition = null;
         options.onEnd?.();
       };
-      current.start();
+      try {
+        current.start();
+      } catch {
+        // Some browsers throw rather than report, when they will not start without a tap.
+        options.onError?.({ kind: 'not-allowed', message: ERROR_WORDS['not-allowed'] });
+        current.onend?.();
+      }
     },
 
     stopListening(): void {

@@ -6,6 +6,7 @@ import { useSession } from '../state/session';
 import { AdSquare } from './AdSquare';
 import { companyFacts } from './CompanyDetails';
 import { DemoBanner } from './DemoBanner';
+import { MicrophoneHelp } from './MicrophoneHelp';
 import { OziBubble } from './OziBubble';
 import { OziSwitch } from './OziSwitch';
 import { SocialLinks } from './SocialLinks';
@@ -89,6 +90,9 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
               <DemoBanner />
             </div>
           )}
+          {/* Ozi's "Tap to talk" and microphone notes, in the flow of the page, so they push
+              it down and never cover a form field (ruling 62). */}
+          <MicrophoneHelp />
           {children}
         </div>
       </main>

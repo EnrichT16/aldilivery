@@ -44,12 +44,12 @@ describe('the landing page', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Can’t listen' }));
 
-    // Shown and announced beside Ozi's round button.
-    const shown = await screen.findAllByText(/I can't listen on this phone or browser yet/);
-    const message = shown.find((element) => element.getAttribute('role') === 'status');
+    // Shown and announced in its own note, in the flow of the page, never over it (ruling 62).
+    const shown = await screen.findAllByText(/^Voice doesn't work in this browser\. You can type/);
+    const message = shown.find((element) => element.closest('[role="status"]') !== null);
     expect(message).toBeDefined();
-    // Nothing can be spoken here, so the words are announced instead.
-    expect(message).toHaveAttribute('aria-live', 'polite');
+    expect(message!.closest('main')).not.toBeNull();
+    expect(message!.closest('[data-ozi]')).toBeNull();
   });
 
   it('asks who you are, with words under each choice, and no door for staff', () => {
@@ -153,7 +153,9 @@ describe('the landing page', () => {
     // Ruling 61: a new version, so every Runner agrees again, with the new terms on the page.
     expect(screen.getByText(/Version of 10 October 2026/)).toBeInTheDocument();
     expect(screen.getByText(/by motorbike up to £70\.00/)).toBeInTheDocument();
-    expect(screen.getByText(/parts of up to £75\.00 for motorbike riders first/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/parts of up to £75\.00 for motorbike riders first/),
+    ).toBeInTheDocument();
     expect(screen.getByText(/pays\s+£5\.00 for your part/)).toBeInTheDocument();
   });
 
@@ -271,16 +273,24 @@ describe('the basket', () => {
       ),
     ).toBeInTheDocument();
     // Nothing hidden: each Runner and their delivery.
-    expect(screen.getByText(/Runner 2: .*delivery £13\.50, taken only when this Runner collects it/)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Keep everything and check my order' })).toBeInTheDocument();
+    expect(
+      screen.getByText(/Runner 2: .*delivery £13\.50, taken only when this Runner collects it/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: 'Keep everything and check my order' }),
+    ).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Check and send my order' })).not.toBeInTheDocument();
   });
 
   it('offers no way to send a basket over the most one basket holds (£450)', async () => {
     await addTwoThings();
-    fireEvent.change(screen.getByLabelText(/How many Semi skimmed milk/), { target: { value: '361' } });
+    fireEvent.change(screen.getByLabelText(/How many Semi skimmed milk/), {
+      target: { value: '361' },
+    });
     expect(await screen.findByRole('alert')).toHaveTextContent(/one basket holds up to £450\.00/);
-    expect(screen.queryByRole('link', { name: /Check and send my order|Keep everything/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: /Check and send my order|Keep everything/ }),
+    ).not.toBeInTheDocument();
   });
 
   it('says the fee is the only one, and that there is no smallest order', async () => {
@@ -333,8 +343,12 @@ describe('the confirmation screen', () => {
     renderAt('/shop');
     await user.click(await screen.findByRole('button', { name: /Add Semi skimmed milk/ }));
     await user.click(screen.getByRole('link', { name: 'Basket' }));
-    fireEvent.change(screen.getByLabelText(/How many Semi skimmed milk/), { target: { value: '121' } });
-    await user.click(await screen.findByRole('link', { name: 'Keep everything and check my order' }));
+    fireEvent.change(screen.getByLabelText(/How many Semi skimmed milk/), {
+      target: { value: '121' },
+    });
+    await user.click(
+      await screen.findByRole('link', { name: 'Keep everything and check my order' }),
+    );
     const yes = screen.queryByRole('button', { name: 'Yes, this is the right address' });
     if (yes) await user.click(yes);
     const send = screen.getByRole('button', { name: 'Send my order and pay' });
@@ -344,13 +358,18 @@ describe('the confirmation screen', () => {
     await user.click(keep);
     await waitFor(() => expect(send).toBeEnabled());
     await user.click(send);
-    await waitFor(() => expect(recorded.some((call) => call.method === 'POST' && call.path === '/orders')).toBe(true));
-    const body = recorded.find((call) => call.method === 'POST' && call.path === '/orders')!.body as {
+    await waitFor(() =>
+      expect(recorded.some((call) => call.method === 'POST' && call.path === '/orders')).toBe(true),
+    );
+    const body = recorded.find((call) => call.method === 'POST' && call.path === '/orders')!
+      .body as {
       keepEverything: boolean;
       confirmation: { statement: string };
     };
     expect(body.keepEverything).toBe(true);
-    expect(body.confirmation.statement).toMatch(/as 2 orders each with its own Runner.*taken only when each collects/);
+    expect(body.confirmation.statement).toMatch(
+      /as 2 orders each with its own Runner.*taken only when each collects/,
+    );
   });
 
   it('says nothing about cars for an order of £60 or less', async () => {
