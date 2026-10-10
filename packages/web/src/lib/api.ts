@@ -156,6 +156,8 @@ export type SubstitutionChoice = 'no_substitutes' | 'similar_item' | 'ask_me';
 
 export interface Shopper {
   id: string;
+  /** The app store reviewers' demo account (ruling 60): no real orders. */
+  isDemo?: boolean;
   /** Ozi Recipes is unlocked until then (ISO date), or never bought. */
   recipePassUntil?: string | null;
   /** The monthly plan chosen (ruling 58), and until when it is paid up. */
@@ -351,6 +353,8 @@ export interface RunnerAccount {
   agreementCurrent?: boolean;
   agreementAcceptedAt?: string | null;
   agreementVersion?: string | null;
+  /** The app store reviewers' demo Runner (ruling 60). */
+  isDemo?: boolean;
 }
 
 /** Agreeing to the Runner agreement before the first job (ruling 55). */
@@ -512,6 +516,20 @@ export function startPaySetup(): Promise<{ url: string }> {
   return request<{ url: string }>('/runners/me/payouts/setup', { method: 'POST' }, 'runner');
 }
 
+/**
+ * A part of a split job (ruling 60): which part, its pay in words, and that another Runner brings
+ * the rest. Never who.
+ */
+export interface SplitJob {
+  part: number;
+  of: number;
+  /** "Split job — part 1 of 2". */
+  label: string;
+  /** "Split job — you earn £2.50". */
+  earnWords: string;
+  rest: string;
+}
+
 export interface OfferedJob {
   offer: { id: string };
   secondsLeft: number;
@@ -520,6 +538,7 @@ export interface OfferedJob {
     goodsEstimatePence: number;
     runnerPaymentPence: number;
     distanceMiles: number | null;
+    split?: SplitJob | null;
   } | null;
 }
 
@@ -559,6 +578,8 @@ export interface CurrentJob {
   cardSpentPence?: number | null;
   /** The two words to say at the door (T6). */
   doorWord?: string | null;
+  /** A part of a split job (ruling 60). */
+  split?: SplitJob | null;
   items: Array<{ id: string; name: string; quantity: number; estimatedPricePence: number }>;
 }
 
@@ -674,6 +695,26 @@ export interface MyOrder {
   /** Feedback after delivery (Section O): given yet, and the credit it earns. */
   feedbackGiven?: boolean;
   feedbackCreditPence?: number;
+  /** A demo order (ruling 60): nothing charged, no Runner sent. */
+  isDemo?: boolean;
+  /**
+   * An order coming in parts (ruling 60): each part's Runner, door words, items and arrival
+   * time. Null for an order coming whole.
+   */
+  split?: {
+    of: number;
+    words: string;
+    parts: Array<{
+      part: number | null;
+      of: number | null;
+      status: string;
+      runnerName: string | null;
+      doorWord: string | null;
+      doorWordSentence: string | null;
+      eta: { words: string; byAt: string } | null;
+      items: Array<{ id: string; name: string; quantity: number }>;
+    }>;
+  } | null;
 }
 
 export function fetchMyOrder(): Promise<{ order: MyOrder | null; questions?: ItemQuestion[] }> {

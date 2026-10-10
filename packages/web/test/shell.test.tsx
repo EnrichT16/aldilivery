@@ -284,6 +284,37 @@ describe('the confirmation screen', () => {
     return stubApi({ shopper: FAKE_SHOPPER, paymentMethods: [FAKE_CARD] });
   }
 
+  async function confirmWithMilk(pints: number) {
+    signedInWithACard();
+    const user = userEvent.setup();
+    renderAt('/shop');
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Add Semi skimmed milk/ })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: /Add Semi skimmed milk/ }));
+    await user.click(screen.getByRole('link', { name: 'Basket' }));
+    fireEvent.change(screen.getByLabelText(/How many Semi skimmed milk/), {
+      target: { value: String(pints) },
+    });
+    await user.click(await screen.findByRole('link', { name: 'Check and send my order' }));
+  }
+
+  it('says who carries a large order, and that it may come in parts (rulings 59 and 60)', async () => {
+    // 49 pints at £1.25 is £61.25 at the shop's prices: over the £60 line.
+    await confirmWithMilk(49);
+    expect(
+      screen.getByText(
+        'Large orders go to a Runner with a motorbike, car or van. If none is free, it may come in parts, for the same price.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('says nothing about cars for an order of £60 or less', async () => {
+    await confirmWithMilk(48);
+    expect(screen.getByRole('heading', { name: 'What it will cost' })).toBeInTheDocument();
+    expect(screen.queryByText(/Large orders go to a Runner/)).not.toBeInTheDocument();
+  });
+
   it('has exactly one button that could ever take a payment', async () => {
     signedInWithACard();
     const user = userEvent.setup();

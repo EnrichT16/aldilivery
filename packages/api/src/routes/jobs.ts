@@ -15,13 +15,14 @@ import { z } from 'zod';
 import { requireSession, requireStaff } from '../app.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 import { isOfferExpired, poolOrders } from '../services/allocation.js';
-import { offerOrder } from '../services/dispatch.js';
+import { canCarry, largeOrderWords, offerOrder } from '../services/dispatch.js';
 import { ensureDoorWord, newDoorWord } from '../services/door-word.js';
 import { drivingPaused } from '../services/insurance.js';
 import { tellShopper } from '../services/order-updates.js';
 import { assertTransitionAllowed } from '../services/orders.js';
 import { AGREE_FIRST, hasAgreed } from '../services/runner-agreement.js';
 import { loadCardForOrder } from '../services/runner-card.js';
+import { splitView, syncSplitParent } from '../services/split.js';
 
 export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
   const { repository, config, now } = app.ctx;
@@ -47,12 +48,16 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
     const mine = pending.filter(
       (offer) => offer.runnerId === session.accountId && !isOfferExpired(offer, at),
     );
+    const runner = await repository.runners.findById(session.accountId);
 
     // Enough to decide whether to take it, and no more. The address, the doorstep
     // instructions and who the Shopper is only reach the Runner who accepts.
     const withOrders = await Promise.all(
       mine.map(async (offer) => {
         const order = await repository.orders.findById(offer.orderId);
+        // A large order is not shown to a Runner who has since switched to a way of travelling
+        // that cannot carry it (rulings 59 and 60); it lapses and goes on to one who can.
+        if (order && runner && !canCarry(config, runner, order, at)) return null;
         return {
           offer,
           secondsLeft: Math.max(0, Math.round((offer.expiresAt.getTime() - at.getTime()) / 1000)),
@@ -62,13 +67,16 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
                 goodsEstimatePence: order.goodsEstimatePence,
                 runnerPaymentPence: order.runnerPaymentPence,
                 distanceMiles: offer.distanceMiles,
+                // A part of a split job (ruling 60): labelled, with its own pay, shown before
+                // anyone says yes, and only its own items.
+                split: splitView(config, order),
               }
             : null,
         };
       }),
     );
 
-    return { offers: withOrders };
+    return { offers: withOrders.filter((entry) => entry !== null) };
   });
 
   /**
@@ -94,6 +102,8 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
             goodsEstimatePence: order.goodsEstimatePence,
             receiptTotalPence: order.receiptTotalPence,
             runnerPaymentPence: order.runnerPaymentPence,
+            // A part of a split job: which part, and that another Runner brings the rest.
+            split: splitView(config, order),
             // Paying them back for the shopping (ruling 55): how much, and where it has got to.
             reimbursementPence: order.reimbursementPence,
             reimbursementStatus: order.reimbursementStatus,
@@ -143,6 +153,14 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
       await repository.offers.update(offer.id, { outcome: 'superseded', respondedAt: at });
       throw new ConflictError('Another Runner took that one first.');
     }
+    if (order.splitAt || order.isDemo) {
+      await repository.offers.update(offer.id, { outcome: 'superseded', respondedAt: at });
+      throw new ConflictError(
+        order.isDemo
+          ? 'That is a demo order, so there is nothing to deliver.'
+          : 'That order has been split into smaller parts, offered as jobs of their own.',
+      );
+    }
 
     const runner = await repository.runners.findById(session.accountId);
     if (!runner) throw new NotFoundError('account');
@@ -158,6 +176,10 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
         'Your motor insurance has run out, so jobs by car or motorbike are paused. Switch to walking or bicycle, or send your new certificate.',
       );
     }
+    // A large order goes only to a Runner who can carry it (rulings 59 and 60).
+    if (!canCarry(config, runner, order, at)) {
+      throw new ForbiddenError(largeOrderWords(config, order, runner));
+    }
 
     await repository.offers.update(offer.id, { outcome: 'accepted', respondedAt: at });
 
@@ -169,6 +191,7 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
       doorWord: order.doorWord ?? newDoorWord(),
     });
     void tellShopper(app.ctx, updated, 'accepted', request.log);
+    await syncSplitParent(app.ctx, updated.splitParentId);
 
     // How they pay at the till: their spending card, loaded for this order now, or their own
     // card, paid back (Anthony, 9 October 2026). Never stops the job being theirs.
@@ -179,6 +202,7 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
       till,
       doorstepProtocol: updated.doorstepProtocolSnapshot,
       youWillEarnPence: updated.runnerPaymentPence,
+      split: splitView(config, updated),
     };
   });
 
@@ -241,7 +265,11 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
     return {
       pools: pools.map((pool) => ({
         orderIds: pool.orderIds,
-        runnerPaymentPence: pool.runnerPaymentPence,
+        // Every order in the pool pays in full: £5, or £7 for £120 or more (ruling 60).
+        runnerPaymentPence: pool.orderIds.reduce(
+          (sum, id) => sum + (found.find((order) => order.id === id)?.runnerPaymentPence ?? 0),
+          0,
+        ),
       })),
       radiusMiles: config.allocation.poolingRadiusMiles,
     };

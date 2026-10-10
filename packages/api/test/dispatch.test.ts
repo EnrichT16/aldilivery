@@ -8,7 +8,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { sweepOffers } from '../src/services/dispatch.js';
+import { canCarry, sweepOffers } from '../src/services/dispatch.js';
 import {
   buildTestApp,
   STAFF,
@@ -200,6 +200,8 @@ describe('what a Runner sees', () => {
       goodsEstimatePence: expect.any(Number),
       runnerPaymentPence: 500,
       distanceMiles: expect.any(Number),
+      // Not part of a split job (ruling 60).
+      split: null,
     });
     expect(JSON.stringify(body)).not.toContain('Example Street');
     expect(JSON.stringify(body)).not.toContain('Knock twice');
@@ -327,5 +329,228 @@ describe('who may move an order on', () => {
       headers: runner.authHeader,
     });
     expect(current.json()).toEqual({ job: null });
+  });
+});
+
+/**
+ * Rulings 59 and 60 (Anthony, 10 October 2026): each way of travelling carries up to its own most
+ * of shopping at shop prices (`dispatch.maxGoodsPenceByMode`): on foot and by bicycle £60, by
+ * motorbike £70, by car and van any order up to the £150 cap; a motorbike, car or van needs an
+ * accepted, in-date licence and insurance.
+ */
+describe('carrying limits by way of travelling', () => {
+  /** Places an order of so many pints of milk (£1.25 each), at the price the basket says. */
+  async function placeMilk(pints: number): Promise<string> {
+    const lines = [{ catalogueItemId: items.milk, quantity: pints }];
+    const priced = await harness.app.inject({
+      method: 'POST',
+      url: '/basket/price',
+      headers: shopper.authHeader,
+      payload: { lines },
+    });
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/orders',
+      headers: shopper.authHeader,
+      payload: {
+        lines,
+        deliveryAddress: '12 Example Street, Birmingham',
+        latitude: 52.4862,
+        longitude: -1.8904,
+        paymentMethodId: shopper.paymentMethodId,
+        confirmation: {
+          confirmed: true,
+          addressConfirmed: true,
+          channel: 'button',
+          statement: 'Send my order and pay.',
+          agreedTotalPence: (priced.json() as { totalPence: number }).totalPence,
+        },
+      },
+    });
+    expect(response.statusCode, response.body).toBe(201);
+    return (response.json() as { order: { id: string } }).order.id;
+  }
+  /** Fifty pints: £62.50 at the shop, over what walking and cycling carry. */
+  const placeLargeOrder = () => placeMilk(50);
+
+  async function travelling(runnerId: string, vehicleType: 'on_foot' | 'bicycle' | 'motorbike' | 'car' | 'van') {
+    await harness.repository.runners.update(runnerId, { vehicleType });
+  }
+
+  it('reads the limits from configuration: £60, £60, £70, £150, £150', () => {
+    expect(harness.config.dispatch.maxGoodsPenceByMode).toEqual({
+      foot: 6000,
+      bicycle: 6000,
+      motorbike: 7000,
+      car: 15000,
+      van: 15000,
+    });
+    expect(harness.config.dispatch.waitingAlertMinutes).toBe(15);
+    expect(harness.config.dispatch.splitAfterMinutes).toBe(15);
+  });
+
+  it('does not offer a large order to a Runner on foot or by bicycle', async () => {
+    const walker = await signUpRunner(harness, { name: 'Ayesha', phone: '+447700900201' });
+    const cyclist = await signUpRunner(harness, { name: 'Tomasz', phone: '+447700900202' });
+    await travelling(walker.runnerId, 'on_foot');
+    await travelling(cyclist.runnerId, 'bicycle');
+
+    const orderId = await placeLargeOrder();
+    expect(await offersFor(orderId)).toHaveLength(0);
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${orderId}/offer`,
+      headers: STAFF,
+    });
+    expect(response.json().message).toMatch(/Runner with a motorbike, car or van/);
+  });
+
+  it('offers a large order to a Runner with a car, passing over one on a bicycle', async () => {
+    const cyclist = await signUpRunner(harness, { name: 'Ayesha', phone: '+447700900201' });
+    await travelling(cyclist.runnerId, 'bicycle');
+    const driver = await signUpRunner(harness, { name: 'Tomasz', phone: '+447700900202' });
+
+    const orderId = await placeLargeOrder();
+    const offers = await offersFor(orderId);
+    expect(offers).toHaveLength(1);
+    expect(offers[0]!.runnerId).toBe(driver.runnerId);
+  });
+
+  it('offers a motorbike Runner up to £70, and passes over them above it', async () => {
+    const rider = await signUpRunner(harness);
+    await travelling(rider.runnerId, 'motorbike');
+    const upTo70 = await placeMilk(56); // £70.00
+    expect((await offersFor(upTo70))[0]!.runnerId).toBe(rider.runnerId);
+    await harness.repository.offers.update((await offersFor(upTo70))[0]!.id, { outcome: 'declined' });
+
+    const over70 = await placeMilk(57); // £71.25
+    expect(await offersFor(over70)).toHaveLength(0);
+  });
+
+  it('needs an accepted licence and in-date insurance for a motorbike, as for a car', async () => {
+    const rider = await signUpRunner(harness);
+    await travelling(rider.runnerId, 'motorbike');
+    await harness.repository.runners.update(rider.runnerId, { drivingLicenceVerified: false });
+    const orderId = await placeLargeOrder();
+    expect(await offersFor(orderId)).toHaveLength(0);
+  });
+
+  it('still offers an ordinary order to a Runner on foot or by bicycle', async () => {
+    const cyclist = await signUpRunner(harness);
+    await travelling(cyclist.runnerId, 'bicycle');
+    const orderId = await placeOrder();
+    expect((await offersFor(orderId))[0]!.runnerId).toBe(cyclist.runnerId);
+  });
+
+  it('does not offer a large order to a car Runner whose insurance has run out (ruling 56)', async () => {
+    const driver = await signUpRunner(harness);
+    await harness.repository.runners.update(driver.runnerId, {
+      motorInsuranceUntil: new Date('2026-09-01T00:00:00.000Z'),
+    });
+    const orderId = await placeLargeOrder();
+    expect(await offersFor(orderId)).toHaveLength(0);
+  });
+
+  it('will not let a Runner who switched to a bicycle accept a large order, or see it', async () => {
+    const driver = await signUpRunner(harness);
+    const orderId = await placeLargeOrder();
+    const offer = (await offersFor(orderId))[0]!;
+    await travelling(driver.runnerId, 'bicycle');
+
+    const mine = await harness.app.inject({
+      method: 'GET',
+      url: '/jobs/mine',
+      headers: driver.authHeader,
+    });
+    expect(mine.json()).toEqual({ offers: [] });
+
+    const accept = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${offer.id}/accept`,
+      headers: driver.authHeader,
+    });
+    expect(accept.statusCode).toBe(403);
+    expect(accept.json().error.message).toMatch(
+      /£62\.50 of shopping, more than £60\.00, so it goes to a Runner with a motorbike, car or van/,
+    );
+    expect((await harness.repository.orders.findById(orderId))!.runnerId).toBeNull();
+
+    await travelling(driver.runnerId, 'car');
+    const taken = await harness.app.inject({
+      method: 'POST',
+      url: `/jobs/${offer.id}/accept`,
+      headers: driver.authHeader,
+    });
+    expect(taken.statusCode, taken.body).toBe(200);
+  });
+
+  it('counts only shop prices, mode by mode', async () => {
+    const runner = (await harness.repository.runners.findById(
+      (await signUpRunner(harness)).runnerId,
+    ))!;
+    const at = harness.now();
+    const as = (vehicleType: 'on_foot' | 'bicycle' | 'motorbike' | 'car' | 'van') => ({ ...runner, vehicleType });
+    expect(canCarry(harness.config, as('on_foot'), { goodsEstimatePence: 6000 }, at)).toBe(true);
+    expect(canCarry(harness.config, as('on_foot'), { goodsEstimatePence: 6001 }, at)).toBe(false);
+    expect(canCarry(harness.config, as('bicycle'), { goodsEstimatePence: 6001 }, at)).toBe(false);
+    expect(canCarry(harness.config, as('motorbike'), { goodsEstimatePence: 7000 }, at)).toBe(true);
+    expect(canCarry(harness.config, as('motorbike'), { goodsEstimatePence: 7001 }, at)).toBe(false);
+    expect(canCarry(harness.config, as('car'), { goodsEstimatePence: 15000 }, at)).toBe(true);
+    expect(canCarry(harness.config, as('van'), { goodsEstimatePence: 15000 }, at)).toBe(true);
+    const unchecked = { ...as('car'), drivingLicenceVerified: false };
+    expect(canCarry(harness.config, unchecked, { goodsEstimatePence: 6001 }, at)).toBe(false);
+    // An ordinary order goes to anyone.
+    expect(canCarry(harness.config, unchecked, { goodsEstimatePence: 6000 }, at)).toBe(true);
+  });
+});
+
+describe('a large order nobody who can carry it has taken', () => {
+  it('waits, and texts the owner once after fifteen minutes', async () => {
+    const texts: Array<{ to: string; body: string }> = [];
+    harness = await buildTestApp(START, {
+      autoOffer: true,
+      env: { ownerAlertPhone: '+447700900999' },
+      sendText: async (to, body) => {
+        texts.push({ to, body });
+      },
+    });
+    items = await seedCatalogue(harness.repository);
+    shopper = await signUpShopper(harness);
+
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/orders',
+      headers: shopper.authHeader,
+      payload: {
+        lines: [{ catalogueItemId: items.milk, quantity: 50 }],
+        deliveryAddress: '12 Example Street, Birmingham',
+        latitude: 52.4862,
+        longitude: -1.8904,
+        paymentMethodId: shopper.paymentMethodId,
+        confirmation: {
+          confirmed: true,
+          addressConfirmed: true,
+          channel: 'button',
+          statement: 'Send my order and pay.',
+          agreedTotalPence: 6250 + 2500 + 1350,
+        },
+      },
+    });
+    expect(response.statusCode, response.body).toBe(201);
+    const orderId = (response.json() as { order: { id: string } }).order.id;
+    const ownerTexts = () => texts.filter((text) => text.to === '+447700900999');
+
+    later(14 * 60);
+    await sweepOffers(harness.app.ctx);
+    expect(ownerTexts()).toHaveLength(0);
+
+    later(60);
+    await sweepOffers(harness.app.ctx);
+    later(60);
+    await sweepOffers(harness.app.ctx);
+    // Once: either the waiting alert, or the split that follows it at the same moment.
+    expect(ownerTexts()).toHaveLength(1);
+    expect(ownerTexts()[0]!.body).toContain('£62.50');
+    expect((await harness.repository.orders.findById(orderId))!.waitingAlertSentAt).not.toBeNull();
   });
 });

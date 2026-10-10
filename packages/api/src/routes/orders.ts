@@ -10,7 +10,7 @@
  */
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { formatPence, type OrderStatus } from '@aldilivery/core';
+import { formatPence, type OrderStatus, runnerPaymentFor } from '@aldilivery/core';
 import { z } from 'zod';
 
 import { requireSession } from '../app.js';
@@ -31,10 +31,12 @@ import { offerOrder } from '../services/dispatch.js';
 import { alertPayments, bankReference, bankSettings } from '../lib/bank.js';
 import { tellShopper } from '../services/order-updates.js';
 import { settleTill, type TillOutcome } from '../services/till.js';
+import { settleSplitTill, syncSplitParent } from '../services/split.js';
 import { cardTill, flagCardTill, releaseCard } from '../services/runner-card.js';
 import { payOutOrder } from '../services/pay-runner.js';
 import { keepReceiptPhoto, receiptPhotoSchema } from '../services/receipt-photo.js';
 import { startReimbursement } from '../services/reimburse.js';
+import { DEMO_BANNER, DEMO_REFUSED } from '../services/demo.js';
 import { activePlan, deliveryPlanFor } from '../services/plans.js';
 import { tellShopperById } from '../services/order-updates.js';
 import {
@@ -203,6 +205,8 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       shopperId: shopper.id,
       status: 'confirmed',
       goodsEstimatePence: priced.goodsPence,
+      // Rule Two as amended by ruling 60: £5, or £7 for £120 or more of shopping.
+      runnerPaymentPence: runnerPaymentFor(priced.goodsPence, config.fees),
       itemChargesPence: priced.itemChargesPence,
       feePence: priced.feePence,
       totalEstimatePence: priced.totalPence,
@@ -247,6 +251,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     const shopper = await repository.shoppers.findById(session.accountId);
     if (!shopper) throw new NotFoundError('account');
 
+    // The demo account (ruling 60) orders with its demo card only: nothing is ever charged.
+    if (shopper.isDemo && input.payBy !== 'card') {
+      throw new ForbiddenError(DEMO_REFUSED);
+    }
     if (input.payBy === 'bank') {
       return placeBankTransferOrder(request, reply, shopper, input);
     }
@@ -359,6 +367,8 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       shopperId: shopper.id,
       status: 'draft',
       goodsEstimatePence: priced.goodsPence,
+      // Rule Two as amended by ruling 60: £5, or £7 for £120 or more of shopping.
+      runnerPaymentPence: runnerPaymentFor(priced.goodsPence, config.fees),
       itemChargesPence: priced.itemChargesPence,
       feePence: priced.feePence,
       totalEstimatePence: priced.totalPence,
@@ -370,6 +380,8 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       latitude: input.latitude ?? null,
       longitude: input.longitude ?? null,
       paymentMethodId: paymentMethod.id,
+      // A demo order (ruling 60): no card is charged and no Runner is sent.
+      ...(shopper.isDemo ? { isDemo: true } : {}),
       // The doorstep instructions as they stand right now, so a later profile edit cannot
       // change what the Runner was told.
       doorstepProtocolSnapshot: shopper.doorstepProtocol,
@@ -448,6 +460,19 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     confirmedAt: Date,
   ) {
     assertConfirmedBeforePayment(confirmed);
+
+    // A demo order (ruling 60), from the app store reviewers' demo account: it is never sent to
+    // Stripe, so no card is charged, and never offered to a Runner. The whole flow up to here,
+    // the price read back and the one yes (Rule One), is exactly as it is for real.
+    if (confirmed.isDemo) {
+      const placed = await repository.orders.update(confirmed.id, { status: 'paid' });
+      return {
+        order: placed,
+        payment: { id: `demo_${placed.id}`, status: 'succeeded', clientSecret: null, requiresAction: false },
+        demo: true,
+        message: `${DEMO_BANNER}. This order was not really placed: nothing was charged and no Runner is sent.`,
+      };
+    }
     //
     // If the gateway refuses, the order is closed rather than left where it stands. It used
     // to stay `confirmed` for ever — no payment, no rollback, no retry and no way for the
@@ -697,6 +722,8 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const updated = await repository.orders.update(order.id, patch);
+    // The whole order of a split part follows its parts (ruling 60).
+    await syncSplitParent(app.ctx, updated.splitParentId);
     // The order is over for the Runner's card too: frozen, if it is not already.
     if ((status === 'delivered' || status === 'cancelled') && order.payMethodUsed === 'card') {
       await releaseCard(app.ctx, order.runnerId, order.id, request.log);
@@ -789,13 +816,19 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
     // The difference from the estimate is settled on the same card at once (ruling 52). A card
     // order whose receipt does not match the card waits for a person instead.
+    // A split part (ruling 60): the Shopper's card is settled once, on the whole order, when
+    // every part's till total is in (services/split.ts).
     let settled: TillOutcome;
     if (card?.mismatch) {
       await flagCardTill(app.ctx, updated, card.mismatch, request.log);
       settled = { kind: 'needs-person', pence: 0, reason: `card: ${card.mismatch}` };
+      if (updated.splitParentId) await settleSplitTill(app.ctx, updated, request.log);
+    } else if (updated.splitParentId) {
+      settled = await settleSplitTill(app.ctx, updated, request.log);
     } else {
       settled = await settleTill(app.ctx, updated, request.log);
     }
+    await syncSplitParent(app.ctx, updated.splitParentId);
 
     // The Runner paid at the till with their own card, so they are paid back straight away,
     // or, when the till needs a person, as soon as a person approves it (ruling 55). Like

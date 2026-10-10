@@ -6,7 +6,8 @@
  * already earned, taken a little at a time from early payouts, held, and then paid over in
  * full once the Runner has completed their twentieth delivery.
  *
- * `earnedPence` in every plan below is always five hundred. If that ever stops being true,
+ * `earnedPence` in every plan for a standard delivery is always five hundred; only a part of a
+ * split job (ruling 60) pays its own configured figure. If that ever stops being true,
  * the tests in `test/payouts.test.ts` fail.
  */
 
@@ -58,8 +59,12 @@ export class PayoutRuleError extends Error {
  * withholding of five pounds or more. Once this delivery takes the Runner to their
  * twentieth, everything held is released and transferred along with the earning.
  */
-export function planPayout(runner: RunnerPayoutState, policy: CoolBagPolicy): PayoutPlan {
-  const earnedPence = RUNNER_PAYMENT_PENCE;
+export function planPayout(
+  runner: RunnerPayoutState,
+  policy: CoolBagPolicy,
+  /** Five pounds (Rule Two), or a split part's pay (ruling 60). */
+  earnedPence: number = RUNNER_PAYMENT_PENCE,
+): PayoutPlan {
 
   const completedDeliveryCountAfter = runner.completedDeliveryCount + 1;
   const alreadyHeld = runner.coolBagWithheldPence;

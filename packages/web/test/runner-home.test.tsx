@@ -32,6 +32,8 @@ interface State {
   agreed: boolean;
   /** Paying at the till with the spending card, loaded for the job (9 October 2026). */
   byCard?: boolean;
+  /** The offer is one part of a split job (ruling 60). */
+  split?: boolean;
 }
 
 let state: State;
@@ -109,6 +111,15 @@ function stubRunnerApi(): void {
                     goodsEstimatePence: 339,
                     runnerPaymentPence: 500,
                     distanceMiles: 0.4,
+                    split: state.split
+                      ? {
+                          part: 1,
+                          of: 2,
+                          label: 'Split job — part 1 of 2',
+                          earnWords: 'Split job — you earn £5.00',
+                          rest: 'Another Runner is delivering the rest of this order. Bring only the items on your list.',
+                        }
+                      : null,
                   },
                 },
               ]
@@ -368,6 +379,19 @@ describe('a Runner page', () => {
       '3 things, about £3.39 of shopping, 0.4 miles away. You get £5.00.',
     );
     expect(offer).not.toHaveTextContent('Example Street');
+  });
+
+  it('labels a split job and what it pays before the Runner says yes (ruling 60)', async () => {
+    const user = userEvent.setup({ delay: null });
+    state.split = true;
+    state.offered = true;
+    stubRunnerApi();
+    renderHome();
+    await user.click(await screen.findByRole('button', { name: 'Go on shift' }));
+    const offer = await screen.findByRole('alert');
+    expect(offer).toHaveTextContent('Split job — part 1 of 2');
+    expect(offer).toHaveTextContent('Split job — you earn £5.00');
+    expect(offer).toHaveTextContent('Another Runner is delivering the rest of this order.');
   });
 
   it('takes a job through to the door, with the till total before setting off', async () => {

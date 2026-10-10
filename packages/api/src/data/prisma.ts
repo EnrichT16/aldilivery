@@ -22,7 +22,7 @@ import type {
   Runner,
   Shopper,
 } from '../domain.js';
-import { erasedOrderPatch, erasedShopperPatch } from './erasure.js';
+import { erasedOrderPatch, erasedRunnerPatch, erasedShopperPatch } from './erasure.js';
 import type { CatalogueSearchOptions, Repository } from './repository.js';
 
 export function createPrismaClient(databaseUrl?: string): PrismaClient {
@@ -569,9 +569,17 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
       async listForShopper(shopperId) {
         const rows = await prisma.order.findMany({
-          where: { shopperId },
+          where: { shopperId, splitParentId: null },
           include: { items: true },
           orderBy: { createdAt: 'desc' },
+        });
+        return rows.map(toOrder);
+      },
+      async listParts(parentId) {
+        const rows = await prisma.order.findMany({
+          where: { splitParentId: parentId },
+          include: { items: true },
+          orderBy: { splitPart: 'asc' },
         });
         return rows.map(toOrder);
       },
@@ -1079,6 +1087,21 @@ export function prismaRepository(prisma: PrismaClient): Repository {
             data: erasedShopperPatch(shopperId, at) as any,
           }),
         ]);
+      },
+      async eraseRunner(runnerId, at) {
+        await prisma.$transaction([
+          prisma.runnerDocument.deleteMany({ where: { runnerId } }),
+          prisma.runner.update({
+            where: { id: runnerId },
+            data: erasedRunnerPatch(runnerId, at) as any,
+          }),
+        ]);
+      },
+      async deleteRunnerChecksLeftBefore(before) {
+        const result = await prisma.runnerCheck.deleteMany({
+          where: { runner: { leftAt: { lt: before } } },
+        });
+        return result.count;
       },
       async deleteProblemEvidenceDecidedBefore(before) {
         const result = await prisma.problemEvidence.deleteMany({

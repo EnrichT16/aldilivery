@@ -18,7 +18,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
-import { RUNNER_PAYMENT_PENCE, formatPence } from '@aldilivery/core';
+import { formatPence } from '@aldilivery/core';
 
 import { requireSession } from '../app.js';
 import { decidedBy, staffActor } from '../lib/staff.js';
@@ -268,7 +268,7 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
           reference: orderReference(order.id),
           deliveredAt: when,
           area: areaOf(order.deliveryAddress),
-          earnedPence: payout?.earnedPence ?? RUNNER_PAYMENT_PENCE,
+          earnedPence: payout?.earnedPence ?? order.runnerPaymentPence,
           paid: payout !== undefined,
           day: ukDay(when),
         };
@@ -341,6 +341,8 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
       // Closed or removed, and the cool bag deposit paid back on leaving.
       leftAt: runner.leftAt,
       coolBagRefundedPence: runner.coolBagRefundedPence,
+      // The app store reviewers' demo Runner (ruling 60): shown as demo, offered no real job.
+      isDemo: runner.isDemo,
     };
   });
 

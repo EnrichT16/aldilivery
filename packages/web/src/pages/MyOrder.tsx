@@ -261,6 +261,43 @@ export function MyOrder(): JSX.Element {
             )}
           </section>
 
+          {/* An order coming in parts (ruling 60): every part's arrival time and door words. */}
+          {order.split && (
+            <section aria-labelledby="parts-heading" className="space-y-3 max-w-xl">
+              <h2 id="parts-heading" className="text-lead font-bold">
+                Your order comes in {order.split.of} parts
+              </h2>
+              <p className="m-0">{order.split.words}</p>
+              <ul className="m-0 ps-6 space-y-3">
+                {order.split.parts.map((part) => (
+                  <li key={part.part ?? 0} className="space-y-1">
+                    <p className="m-0 font-bold">
+                      Part {part.part} of {part.of}:{' '}
+                      {['delivered', 'completed'].includes(part.status)
+                        ? 'delivered.'
+                        : part.runnerName
+                          ? `${part.runnerName} has it.`
+                          : 'finding a Runner.'}
+                    </p>
+                    {part.eta && !['delivered', 'completed'].includes(part.status) && (
+                      <p className="m-0">
+                        Expected in {part.eta.words}, by around {clockTime(part.eta.byAt)}.
+                      </p>
+                    )}
+                    {part.doorWord && part.runnerName && (
+                      <p className="m-0">
+                        {part.runnerName} will say: <strong>{part.doorWord}</strong>
+                      </p>
+                    )}
+                    <p className="m-0 extra">
+                      {part.items.map((item) => `${item.quantity} × ${item.name}`).join(', ')}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           {order.doorWord &&
             order.runnerName &&
             !['delivered', 'completed'].includes(order.status) && (

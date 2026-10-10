@@ -59,7 +59,8 @@ export function JustLooking(): JSX.Element {
 
         <p className="m-0 max-w-xl">
           {money(runnerPaymentPence)} of every delivery goes to the Runner who does your shopping,
-          whatever the order.
+          whatever the order, and {money(storeConfig.fees.largeOrderRunnerPaymentPence)} for an
+          order of {money(storeConfig.fees.largeOrderFromPence)} or more.
         </p>
       </section>
 

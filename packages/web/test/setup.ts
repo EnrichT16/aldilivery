@@ -192,8 +192,8 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
           .replace(/\s+/g, ' ')
           .trim();
         const known: Record<string, string> = {
-          'thank you': "You're welcome. Send me, I will help.",
-          thanks: "You're welcome. Send me, I will help.",
+          'thank you': "You're welcome. Send me, I will deliver.",
+          thanks: "You're welcome. Send me, I will deliver.",
           'who are you': "I'm Ozi, your shopping assistant.",
         };
         const hit = Object.keys(known).find((when) =>

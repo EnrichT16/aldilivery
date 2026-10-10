@@ -36,7 +36,14 @@ export function bankSettings(explicitConfigPath?: string): BankSettings {
     ) as Partial<BankSettings>;
     cached = {
       enabled: raw.enabled === true,
-      accountName: String(raw.accountName ?? ''),
+      // "{legalEntityName}" stands for the company's name in config/store.json, which Rule Nine
+      // keeps in that one file; the business account is held in the company's own name.
+      accountName: String(raw.accountName ?? '').replace('{legalEntityName}', () => {
+        const store = JSON.parse(readFileSync(storeConfigPath(explicitConfigPath), 'utf8')) as {
+          store?: { legalEntityName?: string };
+        };
+        return store.store?.legalEntityName ?? '';
+      }),
       sortCode: String(raw.sortCode ?? ''),
       accountNumber: String(raw.accountNumber ?? ''),
       referencePrefix: String(raw.referencePrefix ?? 'REF').toUpperCase(),

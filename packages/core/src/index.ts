@@ -30,6 +30,7 @@ export {
   processorCostPence,
   priceBasket,
   orderEconomics,
+  runnerPaymentFor,
   organisationMonthlyPence,
   BasketOverMaximumError,
   ProductOverMaximumError,
@@ -50,6 +51,24 @@ export {
   type StoreConfig,
   type CatalogueSourceMode,
 } from './config.js';
+
+export {
+  isMotorMode,
+  largeOrderShopperWords,
+  maxGoodsFor,
+  modeCarries,
+  MOTOR_TRAVEL_MODES,
+  needsVehicle,
+  splitIntoParts,
+  splitPartLimitPence,
+  TRAVEL_MODES,
+  travelModeOf,
+  vehiclesWords,
+  type MaxGoodsByMode,
+  type SplitLine,
+  type SplitPart,
+  type TravelMode,
+} from './dispatch.js';
 
 export { formatPence, poundsToPence } from './money.js';
 

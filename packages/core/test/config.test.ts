@@ -9,7 +9,17 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { inviolableRules, parseStoreConfig, StoreConfigError } from '../src/index.js';
+import {
+  inviolableRules,
+  maxGoodsFor,
+  modeCarries,
+  needsVehicle,
+  parseStoreConfig,
+  runnerPaymentFor,
+  splitIntoParts,
+  splitPartLimitPence,
+  StoreConfigError,
+} from '../src/index.js';
 import { findWorkspaceRoot, loadStoreConfig, storeConfigPath } from '../src/node.js';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -59,6 +69,108 @@ describe('the live configuration file', () => {
     expect(typeof config.store.registeredOfficeIsPlaceholder).toBe('boolean');
     expect(typeof config.store.icoRegistrationIsPlaceholder).toBe('boolean');
     expect(config.contact.email).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+  });
+
+  it('names OZIDELIVERY LTD of Gillingham as the company, its D-U-N-S number public (ruling 59)', () => {
+    expect(config.store.legalEntityName).toBe('OZIDELIVERY LTD');
+    expect(config.store.registeredOffice).toBe('107 King Street, Gillingham, ME7 1ER');
+    expect(config.store.registeredOfficeIsPlaceholder).toBe(false);
+    expect(config.store.registeredIn).toBe('England and Wales');
+    expect(config.store.dunsNumber).toBe('235209172');
+    // The company number is in (Companies House, 10 October 2026, ruling 60); the ICO number is
+    // still to follow.
+    expect(config.store.companyNumber).toBe('17497650');
+    expect(config.store.companyNumberIsPlaceholder).toBe(false);
+    expect(config.store.icoRegistrationIsPlaceholder).toBe(true);
+  });
+
+  it('refuses a D-U-N-S number that is not nine digits, and allows none', () => {
+    const raw = goodConfig();
+    raw['store'] = { ...(raw['store'] as Record<string, unknown>), dunsNumber: '12345' };
+    expect(() => parseStoreConfig(raw)).toThrow(/store.dunsNumber must be nine digits/);
+    raw['store'] = { ...(raw['store'] as Record<string, unknown>), dunsNumber: undefined };
+    expect(parseStoreConfig(raw).store.dunsNumber).toBeNull();
+  });
+
+  it('carries up to £60 on foot or bicycle, £70 by motorbike, any order by car or van (ruling 60)', () => {
+    const limits = config.dispatch.maxGoodsPenceByMode;
+    expect(limits).toEqual({ foot: 6000, bicycle: 6000, motorbike: 7000, car: 15000, van: 15000 });
+    expect(config.dispatch.waitingAlertMinutes).toBe(15);
+    expect(config.dispatch.splitAfterMinutes).toBe(15);
+    // Anthony's figure: £5 for each Runner of a split job.
+    expect(config.dispatch.splitRunnerPayPence).toBe(500);
+    expect(maxGoodsFor('on_foot', limits)).toBe(6000);
+    expect(modeCarries('bicycle', 6000, limits)).toBe(true);
+    expect(modeCarries('bicycle', 6001, limits)).toBe(false);
+    expect(modeCarries('motorbike', 7000, limits)).toBe(true);
+    expect(modeCarries('motorbike', 7001, limits)).toBe(false);
+    expect(modeCarries('car', 15000, limits)).toBe(true);
+    expect(modeCarries('van', 15000, limits)).toBe(true);
+    expect(modeCarries('hovercraft', 1, limits)).toBe(false);
+    expect(needsVehicle(6000, limits)).toBe(false);
+    expect(needsVehicle(6001, limits)).toBe(true);
+    expect(splitPartLimitPence(limits)).toBe(6000);
+    // The whole-order goods cap stays £150 (Anthony confirmed, 10 October 2026).
+    expect(config.fees.maximumOrderGoodsPence).toBe(15000);
+    const raw = goodConfig();
+    delete raw['dispatch'];
+    expect(parseStoreConfig(raw).dispatch).toEqual({
+      maxGoodsPenceByMode: { foot: 6000, bicycle: 6000, motorbike: 7000, car: 15000, van: 15000 },
+      waitingAlertMinutes: 15,
+      splitAfterMinutes: 15,
+      splitRunnerPayPence: 500,
+    });
+  });
+
+  it('changes split-part pay with one line of configuration (ruling 60)', () => {
+    const raw = goodConfig();
+    raw['dispatch'] = { splitRunnerPayPence: 600 };
+    expect(parseStoreConfig(raw).dispatch.splitRunnerPayPence).toBe(600);
+  });
+
+  it('pays £7 for an order of £120 or more delivered whole, £5 below (ruling 60)', () => {
+    expect(config.fees.largeOrderRunnerPaymentPence).toBe(700);
+    expect(config.fees.largeOrderFromPence).toBe(12000);
+    expect(runnerPaymentFor(11999, config.fees)).toBe(500);
+    expect(runnerPaymentFor(12000, config.fees)).toBe(700);
+    expect(runnerPaymentFor(15000, config.fees)).toBe(700);
+    const raw = goodConfig();
+    raw['fees'] = { ...(raw['fees'] as Record<string, unknown>), largeOrderRunnerPaymentPence: 400 };
+    expect(() => parseStoreConfig(raw)).toThrow(/largeOrderRunnerPaymentPence must be a whole number of at least 500/);
+  });
+
+  it('refuses a walking or cycling limit below the dearest product, and an unknown way of travelling', () => {
+    const raw = goodConfig();
+    raw['dispatch'] = { maxGoodsPenceByMode: { foot: 5000 } };
+    expect(() => parseStoreConfig(raw)).toThrow(/foot and .bicycle must each be at least/);
+    raw['dispatch'] = { maxGoodsPenceByMode: { rocket: 9000 } };
+    expect(() => parseStoreConfig(raw)).toThrow(/not a way of travelling/);
+  });
+
+  it('splits an order by item into parts of no more than £60, two where two will do', () => {
+    const parts = splitIntoParts(
+      [
+        { key: 'a', unitPricePence: 2500, quantity: 2 },
+        { key: 'b', unitPricePence: 1000, quantity: 3 },
+        { key: 'c', unitPricePence: 450, quantity: 4 },
+      ],
+      6000,
+    );
+    expect(parts).toHaveLength(2);
+    expect(parts.every((part) => part.goodsPence <= 6000)).toBe(true);
+    expect(parts.reduce((sum, part) => sum + part.goodsPence, 0)).toBe(2500 * 2 + 1000 * 3 + 450 * 4);
+    const units = (key: string) =>
+      parts.flatMap((part) => part.lines).filter((line) => line.key === key).reduce((n, line) => n + line.quantity, 0);
+    expect([units('a'), units('b'), units('c')]).toEqual([2, 3, 4]);
+  });
+
+  it('uses three parts or more only when needed, and never splits one item', () => {
+    const parts = splitIntoParts([{ key: 'x', unitPricePence: 5000, quantity: 3 }], 6000);
+    expect(parts.map((part) => part.goodsPence)).toEqual([5000, 5000, 5000]);
+    const big = splitIntoParts([{ key: 'y', unitPricePence: 1500, quantity: 10 }], 6000);
+    expect(big).toHaveLength(3);
+    expect(big.every((part) => part.goodsPence <= 6000)).toBe(true);
+    expect(() => splitIntoParts([{ key: 'z', unitPricePence: 6001, quantity: 1 }], 6000)).toThrow(RangeError);
   });
 
   it('refuses a contact email that is not an email address', () => {
@@ -253,6 +365,16 @@ describe('Rule Nine: nothing about the store is hard coded', () => {
     }
 
     expect(offenders).toEqual([]);
+  });
+
+  /**
+   * Anthony's separate company runs other projects, not this service (ruling 59). Its name
+   * must never be shown as the operator of this site.
+   */
+  it('never names the separate company as the operator in any source file', () => {
+    const other = /Tofadachi AI and IT Solutions/i;
+    const offenders = sourceFiles(workspaceRoot).filter((file) => other.test(readFileSync(file, 'utf8')));
+    expect(offenders.map((file) => relative(workspaceRoot, file))).toEqual([]);
   });
 
   /**

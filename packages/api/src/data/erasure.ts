@@ -4,7 +4,7 @@
  * these, so a removed account looks the same whichever database holds it.
  */
 
-import type { Order, Shopper } from '../domain.js';
+import type { Order, Runner, Shopper } from '../domain.js';
 
 /**
  * What a removed account keeps: nothing that says who it was. The phone number and handle must
@@ -44,5 +44,25 @@ export function erasedOrderPatch(at: Date): Partial<Order> {
     longitude: null,
     doorstepProtocolSnapshot: '',
     anonymisedAt: at,
+  };
+}
+
+/**
+ * What a Runner who left keeps once their days to change their mind are over (ruling 60):
+ * nothing that says who they were or where they went. Their pay records stay, as money records,
+ * against the same id; the record of their checks stays for two years after they stopped, as the
+ * privacy page says. The phone number must stay unique, so it becomes a marker from the id.
+ */
+export function erasedRunnerPatch(runnerId: string, at: Date): Partial<Runner> {
+  return {
+    name: 'Closed Runner account',
+    phone: `closed:${runnerId}`,
+    latitude: null,
+    longitude: null,
+    available: false,
+    issuingTermsAcceptedIp: null,
+    insuranceReminderFor: null,
+    insuranceReminderDays: null,
+    erasedAt: at,
   };
 }

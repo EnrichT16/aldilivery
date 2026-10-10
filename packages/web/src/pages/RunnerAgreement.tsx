@@ -165,6 +165,16 @@ export function RunnerAgreement(): JSX.Element {
             for each.
           </li>
           <li>
+            For an order of {money(storeConfig.fees.largeOrderFromPence)} or more of shopping at the
+            shop&rsquo;s prices, delivered whole, you get{' '}
+            {money(storeConfig.fees.largeOrderRunnerPaymentPence)} instead.
+          </li>
+          <li>
+            A split job, one part of an order too big for one Runner to carry, pays{' '}
+            {money(storeConfig.dispatch.splitRunnerPayPence)} for your part. You are told it is a
+            split job, and what it pays, before you say yes.
+          </li>
+          <li>
             Your pay goes to your own Stripe account, and from there to your bank. Stripe&rsquo;s
             own terms apply to that account. We send it after each delivery. Stripe then pays it
             into your bank once a week, on a Friday, or every day if you choose that on your Money

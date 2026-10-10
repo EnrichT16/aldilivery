@@ -3565,7 +3565,7 @@
     {
       "id": "shopper-motto",
       "topic": "small talk",
-      "when": ["what is your motto", "what's your slogan", "send me i will help"],
+      "when": ["what is your motto", "what's your slogan", "send me i will deliver"],
       "replies": ["{motto} That's my promise. What can I do for you?", "My motto is: {motto}"]
     },
     {

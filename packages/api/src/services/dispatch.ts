@@ -7,21 +7,109 @@
  * Runner" for ever, however many Runners were on shift. Now it is one function, called
  * straight after a payment succeeds and by a sweep every few seconds that moves lapsed offers
  * on and picks up orders that were waiting when a Runner came on shift.
+ *
+ * Who may carry what (ruling 59, as changed by ruling 60, Anthony, 10 October 2026): each way of
+ * travelling carries up to its own most of shopping at shop prices (`dispatch.maxGoodsPenceByMode`):
+ * on foot and by bicycle £60, by motorbike £70, by car and by van any order up to the £150 cap. A
+ * motorbike, car or van also needs a licence and in-date insurance a person has accepted. An
+ * ordinary order (within what walking and cycling carry) goes to everyone, as before. If nobody
+ * who can carry a large order takes it, the owner is texted once after
+ * `dispatch.waitingAlertMinutes` (15), and after `dispatch.splitAfterMinutes` (15) it is split
+ * into parts that walking and cycling carry (services/split.ts), each offered as its own job.
+ *
+ * A demo order (the app store reviewers' demo account) is never offered to anybody, and the demo
+ * Runner is never offered a real job.
  */
 
+import {
+  formatPence,
+  isMotorMode,
+  maxGoodsFor,
+  modeCarries,
+  needsVehicle,
+  largeOrderShopperWords as coreLargeOrderShopperWords,
+  splitPartLimitPence,
+  vehiclesWords,
+} from '@aldilivery/core';
+
 import type { AppContext } from '../app.js';
-import type { JobOffer, Order } from '../domain.js';
+import type { JobOffer, Order, Runner } from '../domain.js';
 import { ConflictError, NotFoundError } from '../errors.js';
 import { buildOfferQueue, isOfferExpired, nextRunnerToOffer, offerExpiryAt } from './allocation.js';
 import { drivingPaused } from './insurance.js';
 import { hasAgreed } from './runner-agreement.js';
 import { hasPlusExtras } from './plans.js';
+import { alertIfSplitPartWaiting, shouldSplit, splitOrder } from './split.js';
+import { canDrive, orderReference } from '../routes/runner-account.js';
 
 export type OfferResult =
   | { offer: JobOffer; alreadyOffered: boolean; holdSeconds: number; queueLength: number }
   | { offer: null; alreadyOffered: false; message: string };
 
-type DispatchContext = Pick<AppContext, 'repository' | 'config' | 'now'>;
+export type DispatchContext = Pick<AppContext, 'repository' | 'config' | 'now'> &
+  Partial<Pick<AppContext, 'env' | 'sendText' | 'sendPush'>>;
+
+/** "a motorbike, car or van": the vehicles that may carry this much shopping. */
+export function vehiclesFor(config: AppContext['config'], goodsPence: number): string {
+  return vehiclesWords(goodsPence, config.dispatch.maxGoodsPenceByMode);
+}
+
+/**
+ * What the Shopper is told about a large order before they say yes (rulings 59 and 60): who
+ * carries it, and that it may come in parts, for the same price.
+ */
+export function largeOrderShopperWords(config: AppContext['config'], goodsPence: number): string {
+  return coreLargeOrderShopperWords(goodsPence, config.dispatch.maxGoodsPenceByMode);
+}
+
+/** What a Runner is told when a large order is not theirs to take. */
+export function largeOrderWords(
+  config: AppContext['config'],
+  order: Pick<Order, 'goodsEstimatePence'>,
+  runner?: Pick<Runner, 'vehicleType'>,
+): string {
+  const money = (pence: number) => formatPence(pence, config.store.currencySymbol);
+  const limits = config.dispatch.maxGoodsPenceByMode;
+  const goods = order.goodsEstimatePence;
+  const yours = runner ? maxGoodsFor(runner.vehicleType, limits) : splitPartLimitPence(limits);
+  if (runner && isMotorMode(runner.vehicleType) && goods <= yours) {
+    return 'Before you can take orders this large, we need your driving licence and insurance checked and in date.';
+  }
+  return `This order is ${money(goods)} of shopping, more than ${money(yours)}, so it goes to a Runner with ${vehiclesFor(config, goods)}.`;
+}
+
+/** Whether this order is over what walking and cycling carry (ruling 60). */
+export function isLargeOrder(
+  config: AppContext['config'],
+  order: Pick<Order, 'goodsEstimatePence'>,
+): boolean {
+  return needsVehicle(order.goodsEstimatePence, config.dispatch.maxGoodsPenceByMode);
+}
+
+/**
+ * Whether this Runner may carry this order: anyone for an ordinary one; for a large one, only a
+ * Runner whose way of travelling today carries that much, and for a motorbike, car or van, with
+ * a licence and in-date insurance accepted.
+ */
+export function canCarry(
+  config: AppContext['config'],
+  runner: Runner,
+  order: Pick<Order, 'goodsEstimatePence'>,
+  at: Date,
+): boolean {
+  if (!isLargeOrder(config, order)) return true;
+  const limits = config.dispatch.maxGoodsPenceByMode;
+  if (!modeCarries(runner.vehicleType, order.goodsEstimatePence, limits)) return false;
+  return !isMotorMode(runner.vehicleType) || canDrive(runner, at);
+}
+
+/**
+ * When an order started waiting for a Runner: when a bank transfer arrived, or the Shopper's yes,
+ * which comes just before a card payment (Rule One).
+ */
+export function waitingSince(order: Order): Date {
+  return order.bankReceivedAt ?? order.spokenConfirmationAt ?? order.createdAt;
+}
 
 /** Only an order that has been paid for, and has nobody yet, is ever offered. */
 const OFFERABLE = new Set<Order['status']>(['paid', 'offered']);
@@ -40,6 +128,22 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
 
   const order = await repository.orders.findById(orderId);
   if (!order) throw new NotFoundError('order');
+  // A demo order (ruling 60) is never sent to anybody: nothing is bought and nobody goes.
+  if (order.isDemo) {
+    return {
+      offer: null,
+      alreadyOffered: false,
+      message: 'This is a demo order, so no Runner is sent and nothing is bought.',
+    };
+  }
+  // A split order is offered as its parts, each on its own (ruling 60), never as a whole.
+  if (order.splitAt) {
+    return {
+      offer: null,
+      alreadyOffered: false,
+      message: 'This order has been split into parts, and each part is offered on its own.',
+    };
+  }
   if (order.runnerId) throw new ConflictError('That order already has a Runner.');
   if (!OFFERABLE.has(order.status)) {
     // An unpaid, cancelled or refunded order must never reach a Runner, who would spend
@@ -72,9 +176,17 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
     }
   }
   // Nobody is offered a job they could not accept: the Runner agreement comes first (ruling 55),
-  // nobody who has left is offered anything, and driving waits for in-date insurance (ruling 14).
+  // nobody who has left is offered anything, driving waits for in-date insurance (ruling 14),
+  // a large order goes only to a Runner who can carry it (rulings 59 and 60), and the demo
+  // Runner is never offered a real job.
   const runners = (await repository.runners.listAvailable()).filter(
-    (r) => !busy.has(r.id) && hasAgreed(r) && !r.leftAt && !drivingPaused(r, at),
+    (r) =>
+      !busy.has(r.id) &&
+      !r.isDemo &&
+      hasAgreed(r) &&
+      !r.leftAt &&
+      !drivingPaused(r, at) &&
+      canCarry(config, r, order, at),
   );
   const fairQueue = buildOfferQueue(
     { latitude: order.latitude, longitude: order.longitude },
@@ -119,7 +231,9 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
     return {
       offer: null,
       alreadyOffered: false,
-      message: 'No Runner is free for this order yet. We will keep looking.',
+      message: isLargeOrder(config, order)
+        ? `This is a large order, so it waits for a Runner with ${vehiclesFor(config, order.goodsEstimatePence)}. We will keep looking.`
+        : 'No Runner is free for this order yet. We will keep looking.',
     };
   }
 
@@ -184,7 +298,7 @@ export async function sweepOffers(
   const waiting = [
     ...(await ctx.repository.orders.listByStatus('paid')),
     ...(await ctx.repository.orders.listByStatus('offered')),
-  ].filter((order) => order.runnerId === null);
+  ].filter((order) => order.runnerId === null && order.splitAt === null && !order.isDemo);
 
   // Priority at busy times (ruling 58): when orders are waiting for Runners, those of Shoppers on
   // Ozi Plus or Family and Carer are offered first; otherwise the oldest first, as before.
@@ -202,11 +316,56 @@ export async function sweepOffers(
   let offered = 0;
   for (const order of waiting) {
     try {
+      // Nobody who could carry it took it in time: split it into parts that walking and
+      // cycling carry, and offer each part on its own (ruling 60).
+      if (shouldSplit(ctx, order, at)) {
+        const parts = await splitOrder(ctx, order, at);
+        for (const part of parts) {
+          const result = await offerOrder(ctx, part.id);
+          if (result.offer && !result.alreadyOffered) offered += 1;
+        }
+        if (parts.length > 0) continue;
+      }
       const result = await offerOrder(ctx, order.id);
       if (result.offer && !result.alreadyOffered) offered += 1;
+      if (!result.offer) await alertIfLargeOrderWaiting(ctx, order, at);
+      // A part that nobody has taken either: the owner is told again, once (ruling 60).
+      await alertIfSplitPartWaiting(ctx, order, at);
     } catch (failure) {
       onError(order.id, failure);
     }
   }
   return offered;
+}
+
+/**
+ * A large order that nobody who can carry it has taken (rulings 59 and 60): once it has waited
+ * `dispatch.waitingAlertMinutes`, text the owner's alert phone, once only. Recorded on the order
+ * either way, so a missing phone or a failed text does not mean a text every ten seconds.
+ */
+export async function alertIfLargeOrderWaiting(
+  ctx: DispatchContext,
+  order: Order,
+  at: Date,
+): Promise<boolean> {
+  const { config } = ctx;
+  if (order.waitingAlertSentAt || order.splitParentId || !isLargeOrder(config, order)) return false;
+  // Counted from the Shopper's yes, which comes just before payment (Rule One).
+  const since = waitingSince(order);
+  const waitedMinutes = Math.floor((at.getTime() - since.getTime()) / 60_000);
+  if (waitedMinutes < config.dispatch.waitingAlertMinutes) return false;
+
+  await ctx.repository.orders.update(order.id, { waitingAlertSentAt: at });
+  const phone = ctx.env?.ownerAlertPhone;
+  if (!phone || !ctx.sendText) return false;
+  const money = (pence: number) => formatPence(pence, config.store.currencySymbol);
+  try {
+    await ctx.sendText(
+      phone,
+      `${config.productName}: order ${orderReference(order.id)}, ${money(order.goodsEstimatePence)} of shopping, has waited ${waitedMinutes} minutes. Orders over ${money(splitPartLimitPence(config.dispatch.maxGoodsPenceByMode))} go only to a Runner with ${vehiclesFor(config, order.goodsEstimatePence)}, and none has taken it. If nobody does, it is split into parts for Runners on foot or bicycle ${config.dispatch.splitAfterMinutes} minutes after the Shopper's yes. Please find a Runner, or ring the Shopper.`,
+    );
+  } catch {
+    return false;
+  }
+  return true;
 }

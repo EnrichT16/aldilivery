@@ -61,6 +61,8 @@ export const testEnv: Env = {
   humanLinePhone: undefined,
   oluomaVoiceUrl: undefined,
   oluomaVoiceKey: undefined,
+  demoSignInPhone: undefined,
+  demoSignInCode: undefined,
   seedOnStart: true,
 };
 

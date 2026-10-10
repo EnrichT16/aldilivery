@@ -38,7 +38,7 @@ What was built for Anthony's new pricing, in plain English, matching the approve
   words, by the server (`product_too_dear`), the basket, Ozi and the telephone line: "We can't
   bring X: no single product can cost more than £60.00."
 - **The whole-order cap** is now `fees.maximumOrderGoodsPence`, **£150 of shopping at shop
-  prices, pending Anthony's confirmation** (he has not confirmed this number yet). Above it, the
+  prices**, confirmed by Anthony on 10 October 2026 (ruling 59). Above it, the
   Shopper is offered two deliveries. The till limit helpers (pay-back and Ozi card) follow the
   same cap.
 
@@ -146,7 +146,6 @@ Proved in `packages/core/test/fees.test.ts`, `packages/api/test/plans.test.ts`,
 
 ## Pending
 
-- **Anthony to confirm the whole-order goods cap** (£150 for now).
 - A reminder before any future price change (none is planned yet).
 - A PDF receipt for each monthly plan payment (today it is told by notification or text).
 - Charging organisations the monthly amount (shown, not billed).

@@ -18,6 +18,7 @@ import type { Order, RunnerPayout } from '../domain.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
 import { planPayout, type PayoutPlan } from './payouts.js';
 import { paidBackWords } from './reimburse.js';
+import { syncSplitParent } from './split.js';
 
 type PayContext = Pick<AppContext, 'repository' | 'config' | 'payments' | 'now'>;
 
@@ -49,6 +50,22 @@ export async function payOutOrder(ctx: PayContext, orderId: string): Promise<Pay
 
   // A Runner who has left is paid for a delivery made before they left, but nothing more is held
   // towards a deposit they will never use (services/runner-leaving.ts pays back what is held).
+  // What the Runner was shown before taking the job, checked rather than assumed: five pounds
+  // on every standard delivery (Rule Two); £7 for an order of £120 or more of shopping
+  // delivered whole (Rule Two as amended by ruling 60, `fees.largeOrderRunnerPaymentPence`); a
+  // part of a split job its own configured figure (ruling 60, £5).
+  const isSplitPart = order.splitParentId !== null;
+  const earned = order.runnerPaymentPence;
+  const allowed = isSplitPart
+    ? earned > 0
+    : earned === RUNNER_PAYMENT_PENCE ||
+      (order.goodsEstimatePence >= config.fees.largeOrderFromPence &&
+        earned === config.fees.largeOrderRunnerPaymentPence);
+  if (!allowed) {
+    throw new Error(
+      'Rule Two: a Runner earns five pounds on every standard delivery, or the large-order pay for £120 or more delivered whole.',
+    );
+  }
   const plan = planPayout(
     {
       coolBagDepositStatus: runner.leftAt ? 'released' : runner.coolBagDepositStatus,
@@ -56,12 +73,8 @@ export async function payOutOrder(ctx: PayContext, orderId: string): Promise<Pay
       completedDeliveryCount: runner.completedDeliveryCount,
     },
     config.fees.coolBag,
+    earned,
   );
-
-  // Rule Two, checked rather than assumed.
-  if (plan.earnedPence !== RUNNER_PAYMENT_PENCE) {
-    throw new Error('Rule Two: a Runner earns five pounds on every completed order.');
-  }
 
   // A refund the Runner was found at fault for (rulings of 2 October 2026): a small part of
   // each job's pay, never all of it, oldest first, until it is repaid. The earning stays five
@@ -131,6 +144,7 @@ export async function payOutOrder(ctx: PayContext, orderId: string): Promise<Pay
     completedAt: order.completedAt ?? now(),
     runnerTransferId: transferId,
   });
+  await syncSplitParent(ctx, updatedOrder.splitParentId);
 
   // Paid back for the shopping already (ruling 55): both said together, in plain words.
   const notes = [

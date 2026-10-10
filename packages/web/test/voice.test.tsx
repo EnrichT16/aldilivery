@@ -132,7 +132,7 @@ describe('the first launch', () => {
     expect(intro).toMatch(/pinch the screen open with two fingers/);
     // Anthony's words, 4 October 2026: who Ozi is, the motto, then how to turn it off.
     expect(intro).toMatch(
-      new RegExp(`^Hello, I'm ${assistant}, your shopping assistant\\. Send me, I will help\\.`),
+      new RegExp(`^Hello, I'm ${assistant}, your shopping assistant\\. Send me, I will deliver\\.`),
     );
     expect(intro).toMatch(
       /turn off the switch at the bottom of the screen, or just say "turn off talking"/,
@@ -169,7 +169,7 @@ describe('the first launch', () => {
     const view = renderAt('/');
     await waitFor(() => {
       expect(engine.spoken.map((s) => s.text).join(' ')).toMatch(
-        /^Hello, I'm Ozi, your shopping assistant\. Send me, I will help\. If you're a Runner, a shop, or an organisation, just say which\. Would you like to create an account, or sign in\?/,
+        /^Hello, I'm Ozi, your shopping assistant\. Send me, I will deliver\. If you're a Runner, a shop, or an organisation, just say which\. Would you like to create an account, or sign in\?/,
       );
     });
     view.unmount();

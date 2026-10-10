@@ -97,7 +97,13 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
     if (role !== 'shopper') throw new ForbiddenError('Only the Shopper can answer.');
 
     const found = await repository.itemQuestions.findById(questionId);
-    if (!found || found.orderId !== order.id) throw new NotFoundError('question');
+    // A question about a part of a split order (ruling 60) is answered from the whole order.
+    const partIds = order.splitAt
+      ? (await repository.orders.listParts(order.id)).map((part) => part.id)
+      : [];
+    if (!found || (found.orderId !== order.id && !partIds.includes(found.orderId))) {
+      throw new NotFoundError('question');
+    }
     const question = await settle(repository, found, now());
     if (question.answer !== null) {
       throw new ConflictError(
@@ -119,14 +125,8 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
    * A Shopper's order while it is on its way: where it has got to, and any question waiting
    * for them. The most recent order that has been sent, or null.
    */
-  app.get('/orders/current', async (request) => {
-    const session = requireSession(request, 'shopper');
-    const orders = (await repository.orders.listForShopper(session.accountId))
-      .filter((order) => !['draft', 'confirmed', 'cancelled', 'refunded'].includes(order.status))
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    const order = orders[0];
-    if (!order) return { order: null };
-
+  /** Who has an order, their door words, and when it should arrive. */
+  async function partView(order: Order) {
     const runner = order.runnerId ? await repository.runners.findById(order.runnerId) : null;
     // The two words the Runner says at the door (T6), once somebody has the order.
     const doorWord = runner ? await ensureDoorWord(repository, order) : null;
@@ -140,15 +140,41 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
       runner: runner ? { latitude: runner.latitude, longitude: runner.longitude } : null,
       door: { latitude: order.latitude, longitude: order.longitude },
     });
+    return {
+      status: order.status,
+      runnerName: runner ? runner.name.split(' ')[0] : null,
+      doorWord,
+      doorWordSentence: runner && doorWord ? doorWordSentence(runner.name, doorWord) : null,
+      eta: eta ? { words: eta.words, byAt: eta.byAt.toISOString() } : null,
+      items: order.items.map((item) => ({ id: item.id, name: item.name, quantity: item.quantity })),
+    };
+  }
+
+  app.get('/orders/current', async (request) => {
+    const session = requireSession(request, 'shopper');
+    const orders = (await repository.orders.listForShopper(session.accountId))
+      .filter((order) => !['draft', 'confirmed', 'cancelled', 'refunded'].includes(order.status))
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const order = orders[0];
+    if (!order) return { order: null };
+
+    const view = await partView(order);
     const delivered = order.status === 'delivered' || order.status === 'completed';
+    // A split order (ruling 60): the Shopper is told it comes in parts, and sees each part's
+    // arrival time, door words and items. Never a Runner's number, nor anything of the other's.
+    const parts = order.splitAt ? await repository.orders.listParts(order.id) : [];
+    const partViews = await Promise.all(parts.map(async (part) => ({ part: part.splitPart, of: part.splitOf, ...(await partView(part)) })));
+    const questionLists = await Promise.all(
+      [order, ...parts].map((row) => questionsForOrder(repository, row.id, now())),
+    );
     return {
       order: {
         id: order.id,
         status: order.status,
-        runnerName: runner ? runner.name.split(' ')[0] : null,
-        doorWord,
-        doorWordSentence: runner && doorWord ? doorWordSentence(runner.name, doorWord) : null,
-        eta: eta ? { words: eta.words, byAt: eta.byAt.toISOString() } : null,
+        runnerName: view.runnerName,
+        doorWord: view.doorWord,
+        doorWordSentence: view.doorWordSentence,
+        eta: view.eta,
         // Feedback after delivery (Section O): whether it has been given, and what it earns.
         feedbackGiven: delivered
           ? (await repository.shopperFeedback.findByOrderId(order.id)) !== null
@@ -161,8 +187,17 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
         })),
         totalEstimatePence: order.totalEstimatePence,
         deliveredAt: order.deliveredAt,
+        isDemo: order.isDemo,
+        split:
+          parts.length > 0
+            ? {
+                of: parts.length,
+                words: `Your order is coming in ${parts.length} parts, each brought by a different Runner. You pay the same.`,
+                parts: partViews,
+              }
+            : null,
       },
-      questions: await questionsForOrder(repository, order.id, now()),
+      questions: questionLists.flat(),
     };
   });
 }

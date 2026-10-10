@@ -73,6 +73,7 @@ export type CreateShopper = Pick<Shopper, 'displayName' | 'handle' | 'phone'> &
       | 'budgetCapPence'
       | 'organisationId'
       | 'freeMonthUntil'
+      | 'isDemo'
     >
   >;
 
@@ -93,6 +94,7 @@ export type CreateRunner = Pick<Runner, 'name' | 'phone'> &
       | 'available'
       | 'latitude'
       | 'longitude'
+      | 'isDemo'
     >
   >;
 
@@ -138,6 +140,11 @@ export type CreateOrder = Pick<
       | 'approvalStatus'
       | 'itemChargesPence'
       | 'deliveryPlan'
+      | 'runnerPaymentPence'
+      | 'splitParentId'
+      | 'splitPart'
+      | 'splitOf'
+      | 'isDemo'
     >
   > & { items: CreateOrderItem[] };
 
@@ -399,7 +406,10 @@ export interface Repository {
     findById(id: string): Promise<Order | null>;
     update(id: string, patch: Partial<Omit<Order, 'items'>>): Promise<Order>;
     updateItem(itemId: string, patch: Partial<OrderItem>): Promise<OrderItem>;
+    /** A Shopper's whole orders. The parts of a split order are not among them (ruling 60). */
     listForShopper(shopperId: string): Promise<Order[]>;
+    /** The parts a split order became, part 1 first (ruling 60). */
+    listParts(parentId: string): Promise<Order[]>;
     listByStatus(status: OrderStatus): Promise<Order[]>;
     listByPool(poolId: string): Promise<Order[]>;
     /** Orders whose Runner is paid back for the shopping, by where that has got to (ruling 55). */
@@ -608,6 +618,14 @@ export interface Repository {
      * records stay, without the address or doorstep words, as the privacy page says.
      */
     eraseShopper(shopperId: string, at: Date): Promise<void>;
+    /**
+     * A Runner who left, once the same days to change their mind are over (ruling 60): name,
+     * number, where they last were, document photos and card details go; pay records, and the
+     * record of their checks for two years, stay.
+     */
+    eraseRunner(runnerId: string, at: Date): Promise<void>;
+    /** Records of checks of Runners who left before a moment (two years, as the privacy page says). */
+    deleteRunnerChecksLeftBefore(before: Date): Promise<number>;
     /** Problem photos, voice notes and notes, for problems decided before a moment. */
     deleteProblemEvidenceDecidedBefore(before: Date): Promise<number>;
     /** Business analysis records from before a moment. */

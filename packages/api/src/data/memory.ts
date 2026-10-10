@@ -9,7 +9,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { newReferralCode } from '../lib/referral.js';
-import { erasedOrderPatch, erasedShopperPatch } from './erasure.js';
+import { erasedOrderPatch, erasedRunnerPatch, erasedShopperPatch } from './erasure.js';
 
 import type { OrderStatus } from '@aldilivery/core';
 
@@ -167,6 +167,7 @@ export function memoryRepository(): Repository {
           pinLockedUntil: null,
           deletionScheduledFor: null,
           erasedAt: null,
+          isDemo: input.isDemo ?? false,
           organisationId: input.organisationId ?? null,
           organisationOffice: null,
           ageBand: null,
@@ -300,6 +301,8 @@ export function memoryRepository(): Repository {
           leftAt: null,
           leftReason: null,
           leftBy: null,
+          erasedAt: null,
+          isDemo: input.isDemo ?? false,
           coolBagRefundedPence: null,
           coolBagRefundedAt: null,
           coolBagRefundTransferId: null,
@@ -910,7 +913,7 @@ export function memoryRepository(): Repository {
           latitude: input.latitude ?? null,
           longitude: input.longitude ?? null,
           poolId: null,
-          runnerPaymentPence: 500,
+          runnerPaymentPence: input.runnerPaymentPence ?? 500,
           runnerTransferId: null,
           reimbursementPence: null,
           reimbursementStatus: null,
@@ -929,6 +932,12 @@ export function memoryRepository(): Repository {
           doorWord: input.doorWord ?? null,
           setFireAt: input.setFireAt ?? null,
           anonymisedAt: null,
+          waitingAlertSentAt: null,
+          splitAt: null,
+          splitParentId: input.splitParentId ?? null,
+          splitPart: input.splitPart ?? null,
+          splitOf: input.splitOf ?? null,
+          isDemo: input.isDemo ?? false,
           createdAt: now(),
           updatedAt: now(),
           acceptedAt: null,
@@ -970,7 +979,15 @@ export function memoryRepository(): Repository {
         throw new NotFoundError('Order item', itemId);
       },
       async listForShopper(shopperId) {
-        return [...orders.values()].filter((o) => o.shopperId === shopperId).map(clone);
+        return [...orders.values()]
+          .filter((o) => o.shopperId === shopperId && o.splitParentId === null)
+          .map(clone);
+      },
+      async listParts(parentId) {
+        return [...orders.values()]
+          .filter((o) => o.splitParentId === parentId)
+          .sort((a, b) => (a.splitPart ?? 0) - (b.splitPart ?? 0))
+          .map(clone);
       },
       async listByStatus(status: OrderStatus) {
         return [...orders.values()].filter((o) => o.status === status).map(clone);
@@ -1631,6 +1648,29 @@ export function memoryRepository(): Repository {
             updatedAt: at,
           });
         }
+      },
+      async eraseRunner(runnerId, at) {
+        const runner = runners.get(runnerId);
+        if (!runner) throw new NotFoundError('Runner', runnerId);
+        runners.set(runnerId, { ...runner, ...erasedRunnerPatch(runnerId, at), updatedAt: at });
+        for (const [key, document] of runnerDocuments) {
+          if (document.runnerId === runnerId) runnerDocuments.delete(key);
+        }
+      },
+      async deleteRunnerChecksLeftBefore(before) {
+        const gone = new Set(
+          [...runners.values()]
+            .filter((runner) => runner.leftAt !== null && runner.leftAt < before)
+            .map((runner) => runner.id),
+        );
+        let removed = 0;
+        for (let i = runnerChecks.length - 1; i >= 0; i -= 1) {
+          if (gone.has(runnerChecks[i]!.runnerId)) {
+            runnerChecks.splice(i, 1);
+            removed += 1;
+          }
+        }
+        return removed;
       },
       async deleteProblemEvidenceDecidedBefore(before) {
         const old = new Set(

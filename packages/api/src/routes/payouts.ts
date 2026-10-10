@@ -58,12 +58,15 @@ export async function registerPayoutRoutes(app: FastifyInstance): Promise<void> 
       payouts,
       totalEarnedPence: payouts.reduce((sum, payout) => sum + payout.earnedPence, 0),
       totalTransferredPence: payouts.reduce((sum, payout) => sum + payout.transferredPence, 0),
-      owedPence: owed.length * RUNNER_PAYMENT_PENCE,
+      // What each delivery pays: £5, £7 for £120 or more delivered whole, or a split part's pay.
+      owedPence: owed.reduce((sum, order) => sum + order.runnerPaymentPence, 0),
       owedDeliveries: owed.length,
       coolBagHeldPence: runner.coolBagWithheldPence,
       coolBagDepositStatus: runner.coolBagDepositStatus,
       completedDeliveryCount: runner.completedDeliveryCount,
       perOrderPence: RUNNER_PAYMENT_PENCE,
+      largeOrderPence: app.ctx.config.fees.largeOrderRunnerPaymentPence,
+      largeOrderFromPence: app.ctx.config.fees.largeOrderFromPence,
     };
   });
 

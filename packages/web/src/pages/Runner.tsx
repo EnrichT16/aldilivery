@@ -10,7 +10,8 @@ import { money } from '../lib/money';
  * Runner ever sees, with nothing hedged and no asterisk.
  */
 export function RunnerDoor(): JSX.Element {
-  const { runnerPaymentPence, coolBag } = storeConfig.fees;
+  const { runnerPaymentPence, coolBag, largeOrderFromPence, largeOrderRunnerPaymentPence } =
+    storeConfig.fees;
 
   return (
     <div className="space-y-8">
@@ -18,7 +19,10 @@ export function RunnerDoor(): JSX.Element {
 
       <p className="text-lead m-0 max-w-xl">
         You get {money(runnerPaymentPence)} for every order you complete. Every order, without
-        exception.
+        exception. For an order of {money(largeOrderFromPence)} or more of shopping, delivered
+        whole by car or van, you get {money(largeOrderRunnerPaymentPence)}. When a big order is
+        split between Runners, each part pays {money(storeConfig.dispatch.splitRunnerPayPence)},
+        shown before you say yes.
       </p>
 
       <section aria-labelledby="how-heading" className="space-y-3">

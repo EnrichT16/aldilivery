@@ -5,6 +5,7 @@ import { storeConfig } from '../config';
 import { useSession } from '../state/session';
 import { AdSquare } from './AdSquare';
 import { companyFacts } from './CompanyDetails';
+import { DemoBanner } from './DemoBanner';
 import { OziBubble } from './OziBubble';
 import { OziSwitch } from './OziSwitch';
 import { SocialLinks } from './SocialLinks';
@@ -81,7 +82,15 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
 
       <main id="main" tabIndex={-1} className="flex-1 px-5 py-8">
         <AdSquare />
-        <div className="mx-auto w-full max-w-3xl">{children}</div>
+        <div className="mx-auto w-full max-w-3xl">
+          {/* The app store reviewers' demo account (ruling 60), named on every page. */}
+          {shopper?.isDemo && (
+            <div className="mb-6">
+              <DemoBanner />
+            </div>
+          )}
+          {children}
+        </div>
       </main>
 
       <footer className="px-5 py-6 border-t-2 border-paper/25">
