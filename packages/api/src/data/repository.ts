@@ -144,6 +144,12 @@ export type CreateOrder = Pick<
       | 'splitParentId'
       | 'splitPart'
       | 'splitOf'
+      | 'splitMode'
+      | 'splitPlannedAt'
+      | 'basketGroupId'
+      | 'basketPart'
+      | 'basketOf'
+      | 'extraDeliveryStatus'
       | 'isDemo'
     >
   > & { items: CreateOrderItem[] };
@@ -406,9 +412,14 @@ export interface Repository {
     findById(id: string): Promise<Order | null>;
     update(id: string, patch: Partial<Omit<Order, 'items'>>): Promise<Order>;
     updateItem(itemId: string, patch: Partial<OrderItem>): Promise<OrderItem>;
+    /** Add an item to an order (ruling 61: a tiny extra carried by the first Runner). */
+    addItem(orderId: string, item: CreateOrderItem): Promise<OrderItem>;
     /** A Shopper's whole orders. The parts of a split order are not among them (ruling 60). */
     listForShopper(shopperId: string): Promise<Order[]>;
-    /** The parts a split order became, part 1 first (ruling 60). */
+    /**
+     * The parts a split order became, part 1 first (ruling 60). A part replaced when the rest of
+     * the order was planned again (ruling 61) is cancelled and not among them.
+     */
     listParts(parentId: string): Promise<Order[]>;
     listByStatus(status: OrderStatus): Promise<Order[]>;
     listByPool(poolId: string): Promise<Order[]>;

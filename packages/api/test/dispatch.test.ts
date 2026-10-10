@@ -386,7 +386,9 @@ describe('carrying limits by way of travelling', () => {
       van: 15000,
     });
     expect(harness.config.dispatch.waitingAlertMinutes).toBe(15);
-    expect(harness.config.dispatch.splitAfterMinutes).toBe(15);
+    // Ruling 61: split after ten minutes, motorbike parts up to £75, foot and bicycle up to £60.
+    expect(harness.config.dispatch.splitAfterMinutes).toBe(10);
+    expect(harness.config.dispatch.splitPartMaxPenceByMode).toEqual({ motorbike: 7500, foot: 6000 });
   });
 
   it('does not offer a large order to a Runner on foot or by bicycle', async () => {
@@ -505,7 +507,7 @@ describe('carrying limits by way of travelling', () => {
 });
 
 describe('a large order nobody who can carry it has taken', () => {
-  it('waits, and texts the owner once after fifteen minutes', async () => {
+  it('waits, and texts the owner once, when it is split after ten minutes', async () => {
     const texts: Array<{ to: string; body: string }> = [];
     harness = await buildTestApp(START, {
       autoOffer: true,
@@ -540,15 +542,17 @@ describe('a large order nobody who can carry it has taken', () => {
     const orderId = (response.json() as { order: { id: string } }).order.id;
     const ownerTexts = () => texts.filter((text) => text.to === '+447700900999');
 
-    later(14 * 60);
+    later(9 * 60);
     await sweepOffers(harness.app.ctx);
     expect(ownerTexts()).toHaveLength(0);
 
     later(60);
     await sweepOffers(harness.app.ctx);
-    later(60);
+    // At ten minutes it is split (ruling 61), and the owner is told so; at fifteen, not again.
+    expect(ownerTexts()).toHaveLength(1);
+    expect(ownerTexts()[0]!.body).toMatch(/split into 2 parts/);
+    later(5 * 60);
     await sweepOffers(harness.app.ctx);
-    // Once: either the waiting alert, or the split that follows it at the same moment.
     expect(ownerTexts()).toHaveLength(1);
     expect(ownerTexts()[0]!.body).toContain('£62.50');
     expect((await harness.repository.orders.findById(orderId))!.waitingAlertSentAt).not.toBeNull();

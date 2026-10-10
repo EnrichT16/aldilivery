@@ -16,7 +16,8 @@ import {
   needsVehicle,
   parseStoreConfig,
   runnerPaymentFor,
-  splitIntoParts,
+  modeTakesPart,
+  planSplit,
   splitPartLimitPence,
   StoreConfigError,
 } from '../src/index.js';
@@ -96,7 +97,9 @@ describe('the live configuration file', () => {
     const limits = config.dispatch.maxGoodsPenceByMode;
     expect(limits).toEqual({ foot: 6000, bicycle: 6000, motorbike: 7000, car: 15000, van: 15000 });
     expect(config.dispatch.waitingAlertMinutes).toBe(15);
-    expect(config.dispatch.splitAfterMinutes).toBe(15);
+    // Ruling 61: ten minutes before splitting.
+    expect(config.dispatch.splitAfterMinutes).toBe(10);
+    expect(config.dispatch.splitPartMaxPenceByMode).toEqual({ motorbike: 7500, foot: 6000 });
     // Anthony's figure: £5 for each Runner of a split job.
     expect(config.dispatch.splitRunnerPayPence).toBe(500);
     expect(maxGoodsFor('on_foot', limits)).toBe(6000);
@@ -117,7 +120,9 @@ describe('the live configuration file', () => {
     expect(parseStoreConfig(raw).dispatch).toEqual({
       maxGoodsPenceByMode: { foot: 6000, bicycle: 6000, motorbike: 7000, car: 15000, van: 15000 },
       waitingAlertMinutes: 15,
-      splitAfterMinutes: 15,
+      splitAfterMinutes: 10,
+      splitPartMaxPenceByMode: { motorbike: 7500, foot: 6000 },
+      tinyExtraBelowPence: 500,
       splitRunnerPayPence: 500,
     });
   });
@@ -147,30 +152,92 @@ describe('the live configuration file', () => {
     expect(() => parseStoreConfig(raw)).toThrow(/not a way of travelling/);
   });
 
-  it('splits an order by item into parts of no more than £60, two where two will do', () => {
-    const parts = splitIntoParts(
-      [
-        { key: 'a', unitPricePence: 2500, quantity: 2 },
+  describe('the split cascade by vehicle (ruling 61)', () => {
+    const MAX = { motorbike: 7500, foot: 6000 };
+    /** £150 of shopping: ten items of £15. */
+    const ORDER_150 = [{ key: 'item', unitPricePence: 1500, quantity: 10 }];
+    /** £130 of shopping: twenty-six items of £5. */
+    const ORDER_130 = [{ key: 'item', unitPricePence: 500, quantity: 26 }];
+    const shape = (parts: ReturnType<typeof planSplit>) =>
+      parts.map((part) => [part.mode, part.goodsPence]);
+
+    it('gives £150 to two motorbike riders when two or more are on shift', () => {
+      expect(shape(planSplit(ORDER_150, 2, MAX))).toEqual([
+        ['motorbike', 7500],
+        ['motorbike', 7500],
+      ]);
+      // A third rider is not used: the fewest Runners possible.
+      expect(shape(planSplit(ORDER_150, 5, MAX))).toEqual([
+        ['motorbike', 7500],
+        ['motorbike', 7500],
+      ]);
+    });
+
+    it('gives £150 to one motorbike rider (£75) and two footers (£60 and £15) with one rider', () => {
+      expect(shape(planSplit(ORDER_150, 1, MAX))).toEqual([
+        ['motorbike', 7500],
+        ['foot', 6000],
+        ['foot', 1500],
+      ]);
+    });
+
+    it('gives £130 to one motorbike rider and one footer', () => {
+      expect(shape(planSplit(ORDER_130, 1, MAX))).toEqual([
+        ['motorbike', 7500],
+        ['foot', 5500],
+      ]);
+      // Thirteen £10 items fill the motorbike part as far as whole items go: £70 and £60.
+      expect(shape(planSplit([{ key: 'ten', unitPricePence: 1000, quantity: 13 }], 1, MAX))).toEqual([
+        ['motorbike', 7000],
+        ['foot', 6000],
+      ]);
+    });
+
+    it('gives £150 to three footers, each part £60 or less, with no motorbike riders', () => {
+      const parts = planSplit(ORDER_150, 0, MAX);
+      expect(parts).toHaveLength(3);
+      expect(parts.every((part) => part.mode === 'foot' && part.goodsPence <= 6000)).toBe(true);
+      expect(parts.reduce((sum, part) => sum + part.goodsPence, 0)).toBe(15000);
+    });
+
+    it('never splits a product, fills the larger parts first, and keeps every unit', () => {
+      const lines = [
+        { key: 'a', unitPricePence: 4000, quantity: 2 },
         { key: 'b', unitPricePence: 1000, quantity: 3 },
         { key: 'c', unitPricePence: 450, quantity: 4 },
-      ],
-      6000,
-    );
-    expect(parts).toHaveLength(2);
-    expect(parts.every((part) => part.goodsPence <= 6000)).toBe(true);
-    expect(parts.reduce((sum, part) => sum + part.goodsPence, 0)).toBe(2500 * 2 + 1000 * 3 + 450 * 4);
-    const units = (key: string) =>
-      parts.flatMap((part) => part.lines).filter((line) => line.key === key).reduce((n, line) => n + line.quantity, 0);
-    expect([units('a'), units('b'), units('c')]).toEqual([2, 3, 4]);
-  });
+      ];
+      const parts = planSplit(lines, 1, MAX);
+      expect(parts[0]!.mode).toBe('motorbike');
+      expect(parts.every((part) => part.goodsPence <= MAX[part.mode])).toBe(true);
+      const units = (key: string) =>
+        parts.flatMap((part) => part.lines).filter((line) => line.key === key).reduce((n, line) => n + line.quantity, 0);
+      expect([units('a'), units('b'), units('c')]).toEqual([2, 3, 4]);
+      expect(parts.reduce((sum, part) => sum + part.goodsPence, 0)).toBe(4000 * 2 + 1000 * 3 + 450 * 4);
+      // Three £50 items with no riders: one per footer, never cut.
+      expect(shape(planSplit([{ key: 'x', unitPricePence: 5000, quantity: 3 }], 0, MAX))).toEqual([
+        ['foot', 5000],
+        ['foot', 5000],
+        ['foot', 5000],
+      ]);
+      expect(() => planSplit([{ key: 'z', unitPricePence: 6001, quantity: 1 }], 1, MAX)).toThrow(RangeError);
+    });
 
-  it('uses three parts or more only when needed, and never splits one item', () => {
-    const parts = splitIntoParts([{ key: 'x', unitPricePence: 5000, quantity: 3 }], 6000);
-    expect(parts.map((part) => part.goodsPence)).toEqual([5000, 5000, 5000]);
-    const big = splitIntoParts([{ key: 'y', unitPricePence: 1500, quantity: 10 }], 6000);
-    expect(big).toHaveLength(3);
-    expect(big.every((part) => part.goodsPence <= 6000)).toBe(true);
-    expect(() => splitIntoParts([{ key: 'z', unitPricePence: 6001, quantity: 1 }], 6000)).toThrow(RangeError);
+    it('offers a motorbike part to motorbike, car and van, and a foot part to foot and bicycle', () => {
+      expect(['motorbike', 'car', 'van'].map((mode) => modeTakesPart(mode, 'motorbike'))).toEqual([true, true, true]);
+      expect(['on_foot', 'bicycle'].map((mode) => modeTakesPart(mode, 'motorbike'))).toEqual([false, false]);
+      expect(['on_foot', 'bicycle'].map((mode) => modeTakesPart(mode, 'foot'))).toEqual([true, true]);
+      expect(['motorbike', 'car', 'van'].map((mode) => modeTakesPart(mode, 'foot'))).toEqual([false, false, false]);
+    });
+
+    it('takes its part sizes from configuration, each at least the dearest product', () => {
+      const raw = goodConfig();
+      raw['dispatch'] = { splitPartMaxPenceByMode: { motorbike: 8000 } };
+      expect(parseStoreConfig(raw).dispatch.splitPartMaxPenceByMode).toEqual({ motorbike: 8000, foot: 6000 });
+      raw['dispatch'] = { splitPartMaxPenceByMode: { foot: 1000 } };
+      expect(() => parseStoreConfig(raw)).toThrow(/must each be at least fees.maximumProductPence/);
+      raw['dispatch'] = { splitPartMaxPenceByMode: { car: 9000 } };
+      expect(() => parseStoreConfig(raw)).toThrow(/not a kind of split part/);
+    });
   });
 
   it('refuses a contact email that is not an email address', () => {

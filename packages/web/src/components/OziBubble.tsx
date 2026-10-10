@@ -76,9 +76,11 @@ export function OziBubble(): JSX.Element {
       ? 'Listening'
       : muted
         ? 'Muted'
-        : ozi.presence === 'cannot-listen'
-          ? 'Can’t listen'
-          : 'Starting';
+        : ozi.presence === 'needs-tap'
+          ? 'Tap to talk'
+          : ozi.presence === 'cannot-listen'
+            ? 'Can’t listen'
+            : 'Starting';
   // The button's name is exactly its visible word, so a voice control user says what they
   // see. What a press does is its description, read after the name.
   const action = ozi.talking
@@ -87,9 +89,11 @@ export function OziBubble(): JSX.Element {
       ? `${assistant} is listening. Press to mute.`
       : muted
         ? `${assistant} is muted and not listening. Press to listen.`
-        : ozi.presence === 'cannot-listen'
-          ? `${assistant} can’t listen on this phone or browser. Press to hear why.`
-          : `${assistant} is starting.`;
+        : ozi.presence === 'needs-tap'
+          ? `${assistant} is ready. Press to talk; your phone will ask to use the microphone.`
+          : ozi.presence === 'cannot-listen'
+            ? `${assistant} can’t listen on this phone or browser. Press to hear why.`
+            : `${assistant} is starting.`;
 
   function placeFromPointer(clientX: number, clientY: number): { x: number; y: number } {
     const half = SIZE / 2;
@@ -151,12 +155,15 @@ export function OziBubble(): JSX.Element {
   }
 
   const captionLive = voice.speaking && !ozi.announce ? 'off' : 'polite';
+  // A microphone note or the tap button already shows these words in their own place on the
+  // page, so they are not put over the form beside the button as well (ruling 62).
+  const captionText = ozi.captionOff ? '' : ozi.said;
 
   return (
     <aside data-ozi aria-label={assistant} className="fixed z-50" style={{ left, top }}>
       <div
         className={
-          captionShown && (ozi.said !== '' || ozi.heard !== '')
+          captionShown && (captionText !== '' || ozi.heard !== '')
             ? `absolute top-0 ${captionSide} w-56 max-w-[60vw] max-h-[45vh] overflow-y-auto rounded-xl border-2 border-ink bg-paper text-ink p-3 m-0 shadow-lg text-base`
             : 'visually-hidden'
         }
@@ -169,7 +176,7 @@ export function OziBubble(): JSX.Element {
           </p>
         )}
         <p role="status" aria-live={captionLive} className="m-0">
-          {ozi.said}
+          {captionText}
         </p>
       </div>
       <button

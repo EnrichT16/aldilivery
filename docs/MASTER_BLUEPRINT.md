@@ -119,10 +119,13 @@ them there; tests pin the core ones so a change is made on purpose.
 | Delivery, Ozi Plus and Ozi Family and Carer | **£5.99**, whatever the size | Ruling 58 |
 | Runner's share of every delivery | **£5.00**, untouched, whatever the basket and plan; the business keeps the rest and the item charges | Section B, Rule Two |
 | Runner's pay for a big order delivered whole | **£7.00** for £120.00 or more of shopping at shop prices; on Plus and Family and Carer (£5.99 delivery) the delivery fee then makes a small loss, covered by the item charges | Ruling 60 (`fees.largeOrderRunnerPaymentPence`, `fees.largeOrderFromPence`) |
-| Runner's pay for each part of a split job | **£5.00** a part; the Shopper's delivery does not change | Ruling 60 (`dispatch.splitRunnerPayPence`) |
+| Runner's pay for each part of a split job | **£5.00** a part; the Shopper's delivery does not change (a three-way split pays £15 against £13.50 delivery, covered by item charges) | Ruling 60 (`dispatch.splitRunnerPayPence`) |
+| Split parts, after **10 minutes** (`dispatch.splitAfterMinutes`) | fewest Runners, **motorbike parts up to £75** first, then **foot or bicycle parts up to £60**; each part only to its kind of Runner | Ruling 61 (`dispatch.splitPartMaxPenceByMode`) |
+| A basket over £150, kept whole | linked orders of up to £150 each, up to **£450** in all; the first at the plan's delivery, **each further order £13.50 whatever the plan**, taken only when its Runner collects it; never charged for a Runner not used (refund, or Unused Runner fee credit) | Ruling 61 (`fees.maximumBasketGoodsPence`, `fees.extraRunnerDeliveryPence`) |
+| Tiny extra | a further order under **£5** of shopping: owner texted, "Carry with the first Runner" in the admin panel cancels the extra £13.50 | Ruling 61 (`dispatch.tinyExtraBelowPence`) |
 | Most shopping each way of travelling carries | on foot and bicycle **£60**, motorbike **£70**, car and van **£150** | Ruling 60 (`dispatch.maxGoodsPenceByMode`) |
 | Most any single product may cost | **£60.00** in the shop; dearer products are refused in plain words | Ruling 58, Rule Three (amended) |
-| Most shopping in one order | **£150.00** at shop prices (confirmed by Anthony, ruling 59); above it Ozi says so and offers two deliveries | Ruling 58 (`fees.maximumOrderGoodsPence`) |
+| Most shopping in one order | **£150.00** at shop prices (confirmed by Anthony, ruling 59); above it the Shopper is told before paying and chooses: take something out, or keep everything with a second Runner (ruling 61) | Ruling 58 (`fees.maximumOrderGoodsPence`) |
 | First month of membership | **Free** for every new Shopper, with pay-as-you-go delivery; reminder about 3 days before it ends; nothing taken without choosing to join | Ruling 58 |
 | Most that can be confirmed by voice alone | **£80.00** (above it, touch confirmation) | Section E (setting, default £80) |
 | In-app calls | **5p a minute**, paid by the Shopper; a Runner never pays | Section B, rulings 2 Oct 1 and 16 |
@@ -269,6 +272,7 @@ person) is replaced by Ozi Family and Carer (ruling 58).
 
 | Feature | Status | Notes |
 | --- | --- | --- |
+| The first listening of a visit only from a tap ("Tap to talk to Ozi"), so the browser asks for the microphone; plain words for a refusal by phone, Dictation off, no voice, or a page inside another app; notes never over a form | BUILT | Ruling 62. `packages/web/src/voice/microphone-help.ts`, `components/MicrophoneHelp.tsx`, `tapToTalk` in `state/ozi.tsx`. |
 | Ozi speaks and hears through Oluoma Voice; the phone's own speech as the fallback | BUILT | Ruling 53. packages/web/src/voice/oluoma-engine.ts behind the interface in engine.ts (docs/OLUOMA_VOICE.md); GET /voice/session gives the app a five-minute token, never the key. On when OLUOMA_VOICE_URL and OLUOMA_VOICE_KEY are set; the phone's own speech otherwise, and the moment the engine fails. The telephone line still uses Polly until the Oluoma phone bridge. |
 | Ozi speaks first; "Tap anywhere" on the website | BUILT | Rulings 3 (1 Oct), 20. |
 | Round green button: glows while listening, moveable by drag or arrow keys, "Muted" not by colour alone, gentle reminders while muted (2 min, then 3, then every 3) | BUILT | 1 October ruling 3. |
@@ -355,7 +359,7 @@ person) is replaced by Ozi Family and Carer (ruling 58).
 | Paid back for the shopping straight away when the till total goes in | BUILT | Ruling 55. A person approves the ones the till needs a person for. No receipt photo is taken yet. |
 | Fair job offers with pay and distance, 60-second hold | BUILT | |
 | Carrying limits by way of travelling: on foot and bicycle up to £60 of shopping, motorbike up to £70, car and van up to £150; a motorbike, car or van needs an accepted, in-date licence and insurance; owner texted once after 15 minutes | BUILT | Rulings 59 and 60. `dispatch.maxGoodsPenceByMode`, `dispatch.waitingAlertMinutes`. |
-| Split jobs: a large order nobody who can carry it takes within 15 minutes is split by item into parts of up to £60, each its own job ("Split job — part 1 of 2", £5 a part), with its own till total, card load or pay-back, receipt photo and delivery; the Shopper sees every part's arrival time and is settled once on the sum; owner told again once if a part is not taken | BUILT | Ruling 60. `dispatch.splitAfterMinutes`, `dispatch.splitRunnerPayPence`; `packages/api/src/services/split.ts`. |
+| Split jobs: a large order nobody who can carry it takes within 10 minutes (ruling 61) is split by item for the fewest Runners, motorbike parts of up to £75 first, then foot or bicycle parts of up to £60 (each only to its kind of Runner), each its own job ("Split job — part 1 of 2", £5 a part), with its own till total, card load or pay-back, receipt photo and delivery; the Shopper sees every part's arrival time and is settled once on the sum; owner told again once if a part is not taken | BUILT | Ruling 60. `dispatch.splitAfterMinutes`, `dispatch.splitRunnerPayPence`; `packages/api/src/services/split.ts`. |
 | £7 to the Runner for an order of £120 or more delivered whole | BUILT | Ruling 60. Rule Two amended. |
 | Demo sign-in for app store reviewers (DEMO_SIGNIN_PHONE and DEMO_SIGNIN_CODE), a labelled demo Shopper and demo Runner, no card charged and no Runner sent | BUILT | Ruling 60. `packages/api/src/services/demo.ts`. |
 | Runners close their account in the app (two presses, or by voice), details removed after the same days as a Shopper, pay records kept | BUILT | Ruling 60 (Apple guideline 5.1.1(v)). |
@@ -790,8 +794,9 @@ docs/STILL_TO_DO.md lists everything the blueprint asks for that is not built ye
 
 ## Ruling 50 in brief (7 October 2026)
 
-- **Paying by bank transfer** to the business account: BUILT, off until the account details are
-  filled in `config/bank.json` and `enabled` is set to true. Each order gets its own reference
+- **Paying by bank transfer** to the business account: BUILT, and switched on (ruling 61,
+  `"enabled": true` in `config/bank.json`); the checkout says a Runner is sent once the transfer
+  arrives (Faster Payments usually within minutes; staff check at least morning and evening). Each order gets its own reference
   (such as OZI-7K3Q2M); the owner is texted at once (OWNER_ALERT_PHONE); staff mark it received
   in the admin panel's **Payments** tab (founder and finance officer), and only then is it paid
   and offered to a Runner. Refunds to a bank transfer are made by staff and take longer.
@@ -855,3 +860,27 @@ The first round of missing features is built: the owner's till screen, receipt p
   and Wales; D-U-N-S 235209172 (`store.dunsNumber`); company number 17497650 (`store.companyNumber`, ruling 60). ICO number to follow.
   Apple and Google accounts are enrolled as OZIDELIVERY LTD exactly as on the D-U-N-S record.
 
+## Ruling 61 in brief (10 October 2026)
+
+- **Split cascade by vehicle**: BUILT. After 10 minutes a large order is split for the fewest
+  Runners, motorbike parts (up to £75) first, then foot or bicycle parts (up to £60); each part
+  only to its kind of Runner; planned again if that kind goes off shift. £5 a part.
+- **Baskets over £150**: BUILT. Told plainly before paying with both choices; kept, linked
+  orders up to £150 each (to £450), each further order £13.50 delivery taken only when its Runner
+  collects it; tiny extras (under £5) can be carried by the first Runner from the admin panel.
+- **Bank transfer**: switched on.
+- **Runner agreement**: version 2026-10-10; every Runner agrees again.
+- **Sign-in with texts off**: the form shows when the demo sign-in is set up.
+- See docs/changes/split-cascade.md.
+
+## Ruling 62 in brief (10 October 2026)
+
+- **Microphone in one tap**: BUILT. Ozi no longer starts listening by itself before the
+  microphone has been allowed: one big "Tap to talk to Ozi" button asks for it inside the tap,
+  so Safari and Chrome show their own Allow question. Afterwards Ozi listens by itself as before.
+- **Plain words**: what to tap on an iPhone or Android when refused, Dictation for an iPhone
+  with it off, and which browser to use when there is no voice; in a note that pushes the page
+  down and closes with one tap.
+- **Inside Instagram, Facebook and other apps**: a banner to open the page in Safari or Chrome,
+  with Copy the link and, on Android, Open in Chrome.
+- See docs/changes/microphone.md.

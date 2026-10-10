@@ -18,7 +18,10 @@ import {
   itemChargesForLines,
   orderEconomics,
   organisationMonthlyPence,
+  overOneRunnerWords,
   priceBasket,
+  priceBasketInParts,
+  formatPence,
   processorCostPence,
   ProductOverMaximumError,
   RUNNER_PAYMENT_PENCE,
@@ -241,5 +244,60 @@ describe('organisationMonthlyPence', () => {
       sum += n % 51 === 0 ? 500 : 1000;
       expect(organisationMonthlyPence(n, pricing)).toBe(sum);
     }
+  });
+});
+
+describe('baskets over £150 (ruling 61)', () => {
+  /** So many units of one price, as basket lines. */
+  const of = (unitPricePence: number, quantity: number, key = 'x') => ({ key, unitPricePence, quantity });
+
+  it('reads £450 for the whole basket, £13.50 for each extra Runner and £5 for a tiny extra', () => {
+    expect(fees.maximumBasketGoodsPence).toBe(45000);
+    expect(fees.extraRunnerDeliveryPence).toBe(1350);
+    expect(config.dispatch.tinyExtraBelowPence).toBe(500);
+  });
+
+  it('keeps £148 as one order, priced exactly as before', () => {
+    const basket = priceBasketInParts([of(400, 37)], 'payg', fees);
+    expect(basket.parts).toHaveLength(1);
+    expect(basket.extraDeliveryPence).toBe(0);
+    expect(basket.totalPence).toBe(priceBasket([{ shopPricePence: 400, quantity: 37 }], 'payg', fees).totalPence);
+  });
+
+  it('makes £172 kept two orders, £13.50 + £13.50 delivery on pay as you go', () => {
+    const basket = priceBasketInParts([of(200, 86)], 'payg', fees);
+    expect(basket.parts.map((part) => [part.goodsPence, part.feePence, part.extra])).toEqual([
+      [15000, 1350, false],
+      [2200, 1350, true],
+    ]);
+    expect(basket.feePence).toBe(2700);
+    expect(basket.extraDeliveryPence).toBe(1350);
+    expect(basket.totalPence).toBe(17200 + basket.itemChargesPence + 2700);
+  });
+
+  it('charges each extra Runner £13.50 whatever the plan; the first order keeps the plan price', () => {
+    const plus = priceBasketInParts([of(200, 86)], 'plus', fees);
+    expect(plus.parts.map((part) => part.feePence)).toEqual([599, 1350]);
+    const member = priceBasketInParts([of(200, 86)], 'membership', fees);
+    expect(member.parts.map((part) => part.feePence)).toEqual([799, 1350]);
+  });
+
+  it('fills the first order up to £150, then the next, never splitting a product', () => {
+    const basket = priceBasketInParts([of(5000, 3, 'a'), of(2500, 3, 'b'), of(150, 1, 'c')], 'payg', fees);
+    expect(basket.parts.map((part) => part.goodsPence)).toEqual([15000, 7650]);
+    // £151.50: a tiny extra of £1.50.
+    const tiny = priceBasketInParts([of(5000, 3, 'a'), of(150, 1, 'c')], 'payg', fees);
+    expect(tiny.parts.map((part) => part.goodsPence)).toEqual([15000, 150]);
+  });
+
+  it('refuses a basket over £450', () => {
+    expect(priceBasketInParts([of(5000, 9)], 'payg', fees).parts).toHaveLength(3);
+    expect(() => priceBasketInParts([of(5000, 9), of(1, 1, 'p')], 'payg', fees)).toThrow(BasketOverMaximumError);
+  });
+
+  it('tells the Shopper plainly, with both choices', () => {
+    expect(overOneRunnerWords(fees, (pence) => formatPence(pence))).toBe(
+      'Your shopping is over £150, which is more than one Runner can carry. You can take something out or swap it to stay with one Runner, or keep everything and a second Runner will bring the rest for an extra £13.50 delivery.',
+    );
   });
 });

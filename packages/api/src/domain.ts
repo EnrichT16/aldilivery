@@ -6,6 +6,8 @@
  * generated client. The Prisma backed repository maps rows onto these types at the edge.
  */
 
+import type { SplitPartMode } from '@aldilivery/core';
+
 export type VehicleType = 'on_foot' | 'bicycle' | 'motorbike' | 'car' | 'van';
 
 export type SubstitutionPreference = 'no_substitutes' | 'similar_item' | 'ask_me';
@@ -22,7 +24,17 @@ export type SetFrequency = 'weekly' | 'fortnightly' | 'monthly';
 
 export type AccountRole = 'shopper' | 'runner';
 
-export type { OrderStatus } from '@aldilivery/core';
+/** Where an extra Runner's delivery on a linked order has got to (ruling 61). */
+export type ExtraDeliveryStatus =
+  | 'pending'
+  | 'charged'
+  | 'failed'
+  | 'transfer'
+  | 'waived'
+  | 'refunded'
+  | 'credited';
+
+export type { OrderStatus, SplitPartMode } from '@aldilivery/core';
 
 export interface Shopper {
   id: string;
@@ -72,6 +84,12 @@ export interface Shopper {
   familyOwnerId: string | null;
   /** Gift card money waiting to be used, in pence. */
   creditPence: number;
+  /**
+   * How much of `creditPence` is an "Unused Runner fee credit" (ruling 61): an extra Runner's
+   * delivery already paid (by bank transfer) for a Runner who was not needed. Shown in their
+   * account; used, like the rest of the credit, on their next order. Never more than creditPence.
+   */
+  unusedRunnerFeeCreditPence: number;
   deletionScheduledFor: Date | null;
   /** When a closed account was removed: personal details taken off, money records kept. */
   erasedAt: Date | null;
@@ -433,6 +451,34 @@ export interface Order {
   splitParentId: string | null;
   splitPart: number | null;
   splitOf: number | null;
+  /**
+   * On a part (ruling 61): who it is for, a motorbike rider ('motorbike', which a car or van
+   * Runner may also take) or a Runner on foot or bicycle ('foot'). Null on a whole order, and on
+   * parts split before ruling 61, which went to everyone.
+   */
+  splitMode: SplitPartMode | null;
+  /**
+   * On a part (ruling 61): when it was planned, at the split or when the rest was planned again,
+   * so another `dispatch.splitAfterMinutes` is waited before it is planned again.
+   */
+  splitPlannedAt: Date | null;
+  /**
+   * A basket over one order kept whole (ruling 61): the linked orders share `basketGroupId` (the
+   * first order's id), and each is order `basketPart` of `basketOf`. Null on an ordinary order.
+   */
+  basketGroupId: string | null;
+  basketPart: number | null;
+  basketOf: number | null;
+  /**
+   * On a linked order after the first: where its extra-Runner delivery (`feePence`, £13.50) has
+   * got to. 'pending' until its Runner collects it (then taken from the card, 'charged', or
+   * 'failed' when the card would not pay); 'transfer' when it came in a bank transfer; 'waived'
+   * when the Runner was never needed and nothing was taken; 'refunded' to the card, or
+   * 'credited' to the Shopper's account as "Unused Runner fee credit" when it had been taken.
+   */
+  extraDeliveryStatus: ExtraDeliveryStatus | null;
+  /** The card payment that took the extra-Runner delivery, so it can be given back. */
+  extraDeliveryPaymentId: string | null;
   /** A demo order (ruling 60): no card is charged and no Runner is sent. */
   isDemo: boolean;
   createdAt: Date;

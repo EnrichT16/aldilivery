@@ -15,6 +15,7 @@ let who: 'owner' | 'family';
 let familyAreas: string[];
 let ownerAreas: string[];
 let payBackWaiting: boolean;
+let tinyWaiting: boolean;
 
 const MONEY_TOTALS = {
   inPence: 1799,
@@ -33,6 +34,7 @@ beforeEach(() => {
   familyAreas = ['overview'];
   ownerAreas = ['overview', 'money', 'team'];
   payBackWaiting = true;
+  tinyWaiting = true;
   window.sessionStorage.clear();
   const reply = (body: unknown, status = 200): Response =>
     ({
@@ -158,6 +160,31 @@ beforeEach(() => {
           paid: payBackWaiting ? [] : [{ ...row, status: 'paid', approvedBy: 'Anthony' }],
         });
       }
+      if (path === '/staff/tiny-extras') {
+        return reply({
+          tinyExtras: tinyWaiting
+            ? [
+                {
+                  orderId: 'order-12',
+                  reference: 'OZ-TINY12',
+                  firstOrderId: 'order-11',
+                  firstReference: 'OZ-FIRST1',
+                  part: 2,
+                  of: 2,
+                  goodsPence: 150,
+                  extraDeliveryPence: 1350,
+                  items: ['1 × Tin of soup'],
+                  firstRunner: { name: 'Tomasz', phone: '+447700900101' },
+                  firstStatus: 'accepted',
+                },
+              ]
+            : [],
+        });
+      }
+      if (path === '/staff/tiny-extras/order-12/carry-with-first') {
+        tinyWaiting = false;
+        return reply({ message: 'Done: the £1.50 of shopping goes with the first Runner.' });
+      }
       if (path === '/staff/reimbursements/order-9/approve') {
         payBackWaiting = false;
         return reply({ message: 'Approved: £12.00 paid back to Tomasz.' });
@@ -277,6 +304,13 @@ describe('paying Runners back for the shopping (ruling 55)', () => {
     expect(
       screen.getByText(/Waiting because the till came to a lot more than the estimate/),
     ).toBeInTheDocument();
+    // Ruling 61: a tiny extra, carried by the first Runner with one press.
+    expect(await screen.findByText(/£1\.50 of shopping, order 2 of 2 of OZ-FIRST1/)).toBeInTheDocument();
+    expect(screen.getByText(/First Runner: Tomasz/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^Carry with the first Runner\b.*OZ-TINY12$/ }));
+    await waitFor(() => {
+      expect(sent.some((r) => r.path === '/staff/tiny-extras/order-12/carry-with-first')).toBe(true);
+    });
     await user.click(screen.getByRole('button', { name: /^Approve and pay back\b.*OZ-DEF456$/ }));
     await waitFor(() => {
       expect(sent.some((r) => r.path === '/staff/reimbursements/order-9/approve')).toBe(true);

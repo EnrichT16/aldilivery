@@ -168,6 +168,17 @@ describe('sending an order', () => {
     expect(body.paymentMethodId).toBe(FAKE_CARD.id);
   });
 
+  it('offers a bank transfer and says plainly when the Runner is sent (ruling 61)', async () => {
+    const recorded = stubApi({ shopper: FAKE_SHOPPER, paymentMethods: [FAKE_CARD], bankTransfer: true });
+    await reachTheButton(recorded);
+    expect(await screen.findByLabelText('Bank transfer to us')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /A Runner is sent once your transfer arrives\. A Faster Payments transfer usually arrives within minutes, and staff check for transfers at least every morning and evening\./,
+      ),
+    ).toBeInTheDocument();
+  });
+
   it('will not send until the Shopper has said the address is right, and says so on the order', async () => {
     const recorded = stubApi({ shopper: FAKE_SHOPPER, paymentMethods: [FAKE_CARD] });
     const user = userEvent.setup({ delay: null });

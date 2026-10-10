@@ -1604,8 +1604,8 @@
       "topic": "ordering",
       "when": ["what if i go over the limit", "too much in my basket", "my basket is too big"],
       "replies": [
-        "If your shopping is more than {maximum}, I'll tell you and offer to split it into two deliveries.",
-        "Above {maximum}, it goes as two deliveries."
+        "If your shopping is more than {maximum}, I'll tell you before you pay: you can take something out, or keep everything and a second Runner brings the rest for an extra delivery.",
+        "Above {maximum}, you can keep everything and a second Runner brings the rest."
       ]
     },
     {
@@ -1614,7 +1614,7 @@
       "when": ["why is there a limit", "why can't i order more", "why the maximum"],
       "replies": [
         "It's about four or five carrier bags, what one Runner can carry safely on foot or on a bus.",
-        "So your Runner can carry everything safely. Bigger shops go as two deliveries."
+        "So your Runner can carry everything safely. For a bigger shop, a second Runner can bring the rest."
       ]
     },
     {

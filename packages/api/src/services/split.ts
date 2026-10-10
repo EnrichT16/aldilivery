@@ -1,18 +1,25 @@
 /**
- * Split jobs (ruling 60, Anthony, 10 October 2026).
+ * Split jobs (ruling 60, with the cascade by vehicle of ruling 61, Anthony, 10 October 2026).
  *
  * An order over what walking and cycling carry (£60 of shopping at shop prices) goes to a Runner
  * with a motorbike, car or van who can carry it (services/dispatch.ts). If none of them takes it
- * within `dispatch.splitAfterMinutes` (15) of the Shopper's yes, it is split by item into two
- * parts, or more only when needed, each no more than £60, and each part is offered as its own job
- * to every Runner, on foot and by bicycle included.
+ * within `dispatch.splitAfterMinutes` (10) of the Shopper's yes, it is split by item for the
+ * fewest Runners possible, motorbike riders first, then Runners on foot or bicycle, counting who
+ * is on shift and free right now (`planSplit` in core): each motorbike part up to
+ * `dispatch.splitPartMaxPenceByMode.motorbike` (£75), each foot or bicycle part up to `.foot`
+ * (£60). So £150 is two motorbike parts with two motorbike riders, motorbike £75 + foot £60 +
+ * foot £15 with one, and three foot parts with none. Each part is offered only to Runners of its
+ * kind (a car or van Runner may also take a motorbike part). If a part's kind of Runner is no
+ * longer on shift and it has waited another `splitAfterMinutes`, the parts nobody has taken are
+ * planned again with whoever is on shift then (`replanStrandedParts`).
  *
  * How it is kept, the simplest correct way: each part is its own order row, pointing at the whole
  * order (`splitParentId`, `splitPart` of `splitOf`), carrying only its own items. So everything a
  * Runner does goes through the code that already does it for any order, once per part: the offer,
  * the Ozi card load (per Runner card) or the own-card pay-back, the receipt photo, the till total,
- * the delivery, and the Runner's pay, `dispatch.splitRunnerPayPence` (£2.50, Anthony's figure) for
- * each part. The whole order keeps the Shopper's payment, item charges and delivery fee, which do
+ * the delivery, and the Runner's pay, `dispatch.splitRunnerPayPence` (£5, Anthony's figure) for
+ * each part, so a three-way split pays £15 against a £13.50 delivery fee, the difference covered
+ * by the item charges. The whole order keeps the Shopper's payment, item charges and delivery fee, which do
  * not change. The Shopper's card is settled once, on the whole order, when every part has its
  * till total: the till totals are added up and settled as one (services/till.ts), so the Shopper
  * sees one refund or one extra charge, never one per part.
@@ -23,13 +30,22 @@
 
 import type { FastifyBaseLogger } from 'fastify';
 
-import { formatPence, splitIntoParts, splitPartLimitPence, type OrderStatus } from '@aldilivery/core';
+import {
+  formatPence,
+  planSplit,
+  splitPartLimitPence,
+  type OrderStatus,
+  type PlannedPart,
+  type SplitLine,
+  type SplitPartMode,
+} from '@aldilivery/core';
 
 import type { AppContext } from '../app.js';
 import type { Order } from '../domain.js';
 import { orderReference } from '../routes/runner-account.js';
 import { tellShopperWords } from './order-updates.js';
 import { repriceToReceipt } from './orders.js';
+import { freeRunnersByPartMode } from './runner-pool.js';
 import { settleTill, type TillOutcome } from './till.js';
 
 type SplitContext = Pick<AppContext, 'repository' | 'config' | 'now'> &
@@ -48,7 +64,7 @@ export interface SplitView {
   of: number;
   /** "Split job — part 1 of 2". */
   label: string;
-  /** "Split job — you earn £2.50". */
+  /** "Split job — you earn £5.00". */
   earnWords: string;
   /** That another Runner is delivering the rest. Never who. */
   rest: string;
@@ -91,6 +107,107 @@ export function shouldSplit(ctx: Pick<AppContext, 'config'>, order: Order, at: D
   return at.getTime() - since.getTime() >= ctx.config.dispatch.splitAfterMinutes * 60_000;
 }
 
+/** An order's items as lines to split, keyed by the item. */
+function linesOf(orders: readonly Order[]): SplitLine[] {
+  return orders.flatMap((row) =>
+    row.items.map((item) => ({
+      key: item.id,
+      unitPricePence: item.estimatedPricePence,
+      quantity: item.quantity,
+    })),
+  );
+}
+
+const PART_WORDS: Record<SplitPartMode, string> = {
+  motorbike: 'motorbike',
+  foot: 'on foot or bicycle',
+};
+
+/** "motorbike £75.00, on foot or bicycle £60.00 and on foot or bicycle £15.00", for the owner. */
+function planWords(config: AppContext['config'], plan: readonly PlannedPart[]): string {
+  const words = plan.map(
+    (part) => `${PART_WORDS[part.mode]} ${formatPence(part.goodsPence, config.store.currencySymbol)}`,
+  );
+  return words.length <= 1 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`;
+}
+
+/** Make each planned part its own job, numbered from `firstNumber`, of `of` parts in all. */
+async function createParts(
+  ctx: SplitContext,
+  whole: Order,
+  plan: readonly PlannedPart[],
+  items: Order['items'],
+  firstNumber: number,
+  of: number,
+  at: Date,
+): Promise<Order[]> {
+  const { repository, config } = ctx;
+  const byId = new Map(items.map((item) => [item.id, item]));
+  const parts: Order[] = [];
+  for (const [index, part] of plan.entries()) {
+    parts.push(
+      await repository.orders.create({
+        shopperId: whole.shopperId,
+        status: 'paid',
+        // Only the shop prices travel with a part: the item charges and delivery stay on the
+        // whole order, which the Shopper paid, and do not change.
+        goodsEstimatePence: part.goodsPence,
+        itemChargesPence: 0,
+        feePence: 0,
+        totalEstimatePence: part.goodsPence,
+        deliveryPlan: whole.deliveryPlan,
+        deliveryAddress: whole.deliveryAddress,
+        latitude: whole.latitude,
+        longitude: whole.longitude,
+        doorstepProtocolSnapshot: whole.doorstepProtocolSnapshot,
+        // The Shopper's one yes, on the whole order, is the yes for every part (Rule One).
+        spokenConfirmationAt: whole.spokenConfirmationAt,
+        confirmationChannel: whole.confirmationChannel,
+        confirmationStatement: whole.confirmationStatement,
+        paidBy: whole.paidBy,
+        ...(whole.payerShopperId ? { payerShopperId: whole.payerShopperId } : {}),
+        runnerPaymentPence: config.dispatch.splitRunnerPayPence,
+        splitParentId: whole.id,
+        splitPart: firstNumber + index,
+        splitOf: of,
+        // Offered only to Runners of this kind (ruling 61).
+        splitMode: part.mode,
+        splitPlannedAt: at,
+        items: part.lines.map((line) => {
+          const item = byId.get(line.key);
+          return {
+            catalogueItemId: item?.catalogueItemId ?? null,
+            name: item?.name ?? 'item',
+            quantity: line.quantity,
+            estimatedPricePence: line.unitPricePence,
+            ...(item?.note ? { note: item.note } : {}),
+          };
+        }),
+      }),
+    );
+  }
+  return parts;
+}
+
+/**
+ * The plan for splitting a whole order now (ruling 61): the fewest Runners, motorbike riders
+ * first, counting the motorbike riders on shift and free. A plan of one motorbike part (an order
+ * of £75 or less) would be no split at all, only the whole order for one motorbike rider, beyond
+ * the £70 a motorbike carries whole (`dispatch.maxGoodsPenceByMode`), so then it is planned for
+ * foot and bicycle instead: always at least two parts.
+ */
+export async function planWholeSplit(
+  ctx: Pick<AppContext, 'repository' | 'config'>,
+  order: Order,
+  at: Date,
+): Promise<PlannedPart[]> {
+  const partMax = ctx.config.dispatch.splitPartMaxPenceByMode;
+  const riders = (await freeRunnersByPartMode(ctx, at)).motorbike;
+  const lines = linesOf([order]);
+  const plan = planSplit(lines, riders, partMax);
+  return plan.length === 1 ? planSplit(lines, 0, partMax) : plan;
+}
+
 /**
  * Split the order into parts and make each its own job. Returns the parts, or nothing when the
  * order was taken or split in the meantime. The Shopper is told, and the owner too.
@@ -100,15 +217,7 @@ export async function splitOrder(ctx: SplitContext, order: Order, at: Date): Pro
   const fresh = await repository.orders.findById(order.id);
   if (!fresh || !shouldSplit(ctx, fresh, at)) return [];
 
-  const limit = splitPartLimitPence(config.dispatch.maxGoodsPenceByMode);
-  const plan = splitIntoParts(
-    fresh.items.map((item) => ({
-      key: item.id,
-      unitPricePence: item.estimatedPricePence,
-      quantity: item.quantity,
-    })),
-    limit,
-  );
+  const plan = await planWholeSplit(ctx, fresh, at);
   if (plan.length < 2) return [];
 
   // The whole order is marked first, so nobody can take it whole any more, and anything still
@@ -123,47 +232,7 @@ export async function splitOrder(ctx: SplitContext, order: Order, at: Date): Pro
     }
   }
 
-  const byId = new Map(fresh.items.map((item) => [item.id, item]));
-  const parts: Order[] = [];
-  for (const [index, part] of plan.entries()) {
-    parts.push(
-      await repository.orders.create({
-        shopperId: fresh.shopperId,
-        status: 'paid',
-        // Only the shop prices travel with a part: the item charges and delivery stay on the
-        // whole order, which the Shopper paid, and do not change.
-        goodsEstimatePence: part.goodsPence,
-        itemChargesPence: 0,
-        feePence: 0,
-        totalEstimatePence: part.goodsPence,
-        deliveryPlan: fresh.deliveryPlan,
-        deliveryAddress: fresh.deliveryAddress,
-        latitude: fresh.latitude,
-        longitude: fresh.longitude,
-        doorstepProtocolSnapshot: fresh.doorstepProtocolSnapshot,
-        // The Shopper's one yes, on the whole order, is the yes for every part (Rule One).
-        spokenConfirmationAt: fresh.spokenConfirmationAt,
-        confirmationChannel: fresh.confirmationChannel,
-        confirmationStatement: fresh.confirmationStatement,
-        paidBy: fresh.paidBy,
-        ...(fresh.payerShopperId ? { payerShopperId: fresh.payerShopperId } : {}),
-        runnerPaymentPence: config.dispatch.splitRunnerPayPence,
-        splitParentId: fresh.id,
-        splitPart: index + 1,
-        splitOf: plan.length,
-        items: part.lines.map((line) => {
-          const item = byId.get(line.key);
-          return {
-            catalogueItemId: item?.catalogueItemId ?? null,
-            name: item?.name ?? 'item',
-            quantity: line.quantity,
-            estimatedPricePence: line.unitPricePence,
-            ...(item?.note ? { note: item.note } : {}),
-          };
-        }),
-      }),
-    );
-  }
+  const parts = await createParts(ctx, fresh, plan, fresh.items, 1, plan.length, at);
 
   const telling = ctx as AppContext;
   await tellShopperWords(
@@ -182,7 +251,93 @@ export async function splitOrder(ctx: SplitContext, order: Order, at: Date): Pro
     await ctx
       .sendText(
         phone,
-        `${config.productName}: order ${orderReference(fresh.id)}, ${money(fresh.goodsEstimatePence)} of shopping, was not taken by a Runner who could carry it, so it has been split into ${parts.length} parts of up to ${money(limit)}, each paying its Runner ${money(config.dispatch.splitRunnerPayPence)}.`,
+        `${config.productName}: order ${orderReference(fresh.id)}, ${money(fresh.goodsEstimatePence)} of shopping, was not taken by a Runner who could carry it, so it has been split into ${parts.length} parts: ${planWords(config, plan)}, each paying its Runner ${money(config.dispatch.splitRunnerPayPence)}.`,
+      )
+      .catch(() => undefined);
+  }
+  return parts;
+}
+
+/** A part nobody has taken yet. */
+const UNTAKEN = new Set<OrderStatus>(['paid', 'offered']);
+
+/**
+ * A part whose kind of Runner has gone (ruling 61): once it has waited another
+ * `dispatch.splitAfterMinutes` with no Runner of its kind on shift and free, every part of the
+ * order nobody has taken yet is planned again, with whoever is on shift now, the same way
+ * (motorbike riders first). The untaken parts are replaced (cancelled, no longer parts) by the
+ * new ones; parts already taken keep going. Nothing changes when the new plan has the same kinds
+ * of part as before, so an order is not churned while it simply waits. Returns the new parts, or
+ * null when nothing was planned again.
+ */
+export async function replanStrandedParts(
+  ctx: SplitContext,
+  stale: Order,
+  at: Date,
+): Promise<Order[] | null> {
+  const { repository, config } = ctx;
+  const part = await repository.orders.findById(stale.id);
+  if (!part?.splitParentId || !part.splitMode || part.runnerId || !UNTAKEN.has(part.status)) {
+    return null;
+  }
+  const plannedAt = part.splitPlannedAt ?? part.createdAt;
+  if (at.getTime() - plannedAt.getTime() < config.dispatch.splitAfterMinutes * 60_000) {
+    return null;
+  }
+  const free = await freeRunnersByPartMode(ctx, at);
+  if (free[part.splitMode] > 0) return null;
+  const whole = await repository.orders.findById(part.splitParentId);
+  if (!whole?.splitAt || ['cancelled', 'refunded'].includes(whole.status)) return null;
+
+  const siblings = await repository.orders.listParts(whole.id);
+  const untaken = siblings.filter((row) => !row.runnerId && UNTAKEN.has(row.status));
+  const kept = siblings.filter((row) => !untaken.includes(row));
+  const plan = planSplit(linesOf(untaken), free.motorbike, config.dispatch.splitPartMaxPenceByMode);
+  const shape = (modes: Array<SplitPartMode | null>) => [...modes].sort().join(',');
+  if (shape(plan.map((row) => row.mode)) === shape(untaken.map((row) => row.splitMode))) return null;
+  // Always at least two parts in all, as at the split.
+  if (kept.length + plan.length < 2) return null;
+
+  // The untaken parts are replaced: cancelled, no longer numbered, anything offered withdrawn.
+  for (const old of untaken) {
+    await repository.orders.update(old.id, {
+      status: 'cancelled',
+      cancelledAt: at,
+      cancelReason: 'Planned again: no Runner of its kind was on shift (ruling 61).',
+      splitPart: null,
+    });
+    for (const offer of await repository.offers.listForOrder(old.id)) {
+      if (offer.outcome === 'pending') {
+        await repository.offers.update(offer.id, { outcome: 'superseded', respondedAt: at });
+      }
+    }
+  }
+  // The parts already taken come first, in their order, then the new ones.
+  const of = kept.length + plan.length;
+  for (const [index, row] of kept.entries()) {
+    await repository.orders.update(row.id, { splitPart: index + 1, splitOf: of });
+  }
+  const parts = await createParts(
+    ctx,
+    whole,
+    plan,
+    untaken.flatMap((row) => row.items),
+    kept.length + 1,
+    of,
+    at,
+  );
+  // The owner's one alert for a part still waiting stays one for the whole order.
+  const alertedAt = siblings.find((row) => row.waitingAlertSentAt)?.waitingAlertSentAt;
+  if (alertedAt) {
+    for (const row of parts) await repository.orders.update(row.id, { waitingAlertSentAt: alertedAt });
+  }
+
+  const phone = ctx.env?.ownerAlertPhone;
+  if (phone && ctx.sendText) {
+    await ctx
+      .sendText(
+        phone,
+        `${config.productName}: order ${orderReference(whole.id)}: no Runner of the kind a part was planned for is on shift, so what nobody has taken yet has been planned again: ${planWords(config, plan)}.`,
       )
       .catch(() => undefined);
   }

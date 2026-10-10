@@ -28,6 +28,15 @@ import {
 } from '../lib/api';
 import { addNamedItems, currentOffers, listInWords } from '../lib/extras';
 import { CLOSE_QUESTION, leaveRunning } from '../lib/runner-api';
+import {
+  ALLOW_LINE,
+  currentBrowser,
+  deniedMessage,
+  serviceOffMessage,
+  tapToTalkLabel,
+  unsupportedMessage,
+  type BrowserFacts,
+} from '../voice/microphone-help';
 import { nameHeardIn, onlyName } from '../voice/name';
 import { phraseReply } from '../voice/phrases';
 import { answerShoppingQuestion, orderWhere } from '../voice/shopping-questions';
@@ -62,8 +71,25 @@ export type Presence =
   | 'starting'
   | 'listening'
   | 'muted'
+  /**
+   * Ozi is ready to listen, and waiting for a tap to start (ruling 62): the first listening of
+   * a visit must come from a tap, or a browser refuses the microphone without asking.
+   */
+  | 'needs-tap'
   /** This phone or browser cannot listen; Ozi can still speak. */
   | 'cannot-listen';
+
+/** A note about the microphone, shown in its own place on the page, never over anything. */
+export interface MicNote {
+  kind: 'denied' | 'service-off' | 'unsupported';
+  text: string;
+}
+
+/** Our telephone number from config, or null while it is still a placeholder. */
+function ourTelephone(): string | null {
+  const { contact } = storeConfig;
+  return contact.telephoneIsPlaceholder ? null : contact.telephonePlaceholder;
+}
 
 /** The motto (Anthony, 4 October 2026; changed 10 October 2026, ruling 60): "Send me, I will deliver." */
 const MOTTO = storeConfig.motto;
@@ -209,6 +235,21 @@ interface OziValue {
   setPageCommands: (handler: ((text: string) => boolean) | null) => void;
   /** "Would you like to create an account, or sign in?" (ruling 47), after `lead` if given. */
   offerAccount: (lead?: string) => void;
+  /**
+   * The tap that starts listening (ruling 62). Asks for the microphone in the same moment, so
+   * the browser shows its own "Allow microphone?" question. Call it straight from a click.
+   */
+  tapToTalk: () => void;
+  /** What went wrong with the microphone, and what to tap, until closed. */
+  micNote: MicNote | null;
+  dismissMicNote: () => void;
+  /**
+   * What Ozi is saying is already shown in its own place on the page (the tap button, or a
+   * microphone note), so the words beside Ozi's button stay out of the way of the form.
+   */
+  captionOff: boolean;
+  /** The browser in hand: an iPhone, Android, or inside another app. */
+  browser: BrowserFacts;
 }
 
 const OziContext = createContext<OziValue | null>(null);
@@ -226,6 +267,14 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   const [announce, setAnnounce] = useState(false);
   const [heard, setHeard] = useState('');
   const [waitingForTouch, setWaitingForTouch] = useState(false);
+  const [micNote, setMicNote] = useState<MicNote | null>(null);
+  const [captionOff, setCaptionOff] = useState(false);
+  const browser = useMemo(() => currentBrowser(), []);
+  // Whether listening may start without a tap: false until the microphone has been allowed
+  // once this visit, when the engine says the first listening needs one (ruling 62).
+  const micReady = useRef(true);
+  // Why Ozi cannot listen: no recognition at all, or the microphone refused after a tap.
+  const cannotReason = useRef<MicNote | null>(null);
 
   const presenceRef = useRef<Presence>('starting');
   const talkingRef = useRef(false);
@@ -248,7 +297,8 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   /* ------------------------------------------------------------------ listening */
 
   // Declared before use through a ref, because listening and speaking call each other.
-  const listenRef = useRef<() => void>(() => {});
+  const listenRef = useRef<(fromTap?: boolean) => void>(() => {});
+  const tapLine = `${tapToTalkLabel(assistant)}. ${ALLOW_LINE}`;
   const heardRef = useRef<(text: string) => void>(() => {});
 
   const stopListening = useCallback(() => {
@@ -258,20 +308,72 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     }
   }, [engine]);
 
-  listenRef.current = () => {
-    if (presenceRef.current !== 'listening' || talkingRef.current || listeningNow.current) return;
+  /** A microphone note: said by Ozi, and shown in its own place on the page. */
+  const showNote = (note: MicNote): void => {
+    cannotReason.current = note;
+    setMicNote(note);
+    void sayRef.current(note.text, true);
+  };
+
+  /**
+   * Ozi wants to listen, but the microphone has not been allowed yet this visit: show the big
+   * "Tap to talk" button, and say what will happen, once, if the page can make a sound yet.
+   */
+  const askForTap = (): void => {
+    setPresence('needs-tap');
+    const canBeHeard = touched.current || soundWorks.current;
+    if (canBeHeard && !talkingRef.current && lastSaid.current !== tapLine) {
+      void sayRef.current(tapLine, true);
+    }
+  };
+
+  listenRef.current = (fromTap = false) => {
+    const state = presenceRef.current;
+    if (listeningNow.current) return;
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+    if (!fromTap) {
+      if (talkingRef.current) return;
+      if (state === 'needs-tap') {
+        askForTap();
+        return;
+      }
+      if (state !== 'listening') return;
+    }
+    if (!fromTap && !micReady.current) {
+      askForTap();
+      return;
+    }
+    if (fromTap) setPresence('listening');
     listeningNow.current = true;
+    let refused = false;
     engine.startListening({
       language: voiceRef.current.settings.language,
       onText: (text, isFinal) => {
         retryDelay.current = 250;
+        micReady.current = true;
         if (isFinal && text.trim() !== '') heardRef.current(text.trim());
       },
       onError: (error) => {
-        if (error.kind === 'not-allowed' || error.kind === 'unavailable') {
+        if (error.kind === 'not-allowed' || error.kind === 'service-not-allowed') {
+          refused = true;
+          micReady.current = false;
+          if (!fromTap) {
+            // Started by itself and refused: a browser that wants a tap. Wait for one,
+            // quietly, rather than calling it an error (ruling 62).
+            askForTap();
+            return;
+          }
           setPresence('cannot-listen');
-          void sayRef.current(error.message);
+          const telephone = ourTelephone();
+          showNote(
+            error.kind === 'not-allowed'
+              ? { kind: 'denied', text: deniedMessage(browser, telephone) }
+              : { kind: 'service-off', text: serviceOffMessage(browser, telephone) },
+          );
+        } else if (error.kind === 'unavailable') {
+          refused = true;
+          setPresence('cannot-listen');
+          showNote({ kind: 'unsupported', text: unsupportedMessage(browser) });
         } else if (error.kind === 'network' || error.kind === 'other') {
           // Say it once, then keep trying quietly, more slowly each time, up to a minute.
           if (retryDelay.current === 250) void sayRef.current(error.message);
@@ -283,6 +385,9 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       },
       onEnd: () => {
         listeningNow.current = false;
+        // Listening ran without being refused: the microphone is allowed for this visit, and
+        // Ozi can listen again by itself from now on, where the browser lets it.
+        if (!refused) micReady.current = true;
         // Keep listening for as long as Ozi is meant to be.
         window.setTimeout(() => {
           listenRef.current();
@@ -291,6 +396,26 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     });
   };
 
+  /**
+   * The tap (ruling 62). Everything up to `startListening` happens in this same moment, with
+   * nothing awaited, so the browser counts the microphone request as the person's own tap.
+   */
+  const tapToTalk = useCallback(() => {
+    touched.current = true;
+    setWaitingForTouch(false);
+    setMicNote(null);
+    if (talkingRef.current) {
+      // Ozi stops talking at once, so it does not hear itself.
+      voiceRef.current.interrupt();
+      talkingRef.current = false;
+      setTalking(false);
+    }
+    if (reminderTimer.current !== null) window.clearTimeout(reminderTimer.current);
+    reminderTimer.current = null;
+    remindersGiven.current = 0;
+    listenRef.current(true);
+  }, []);
+
   /* ------------------------------------------------------------------ speaking */
 
   // The last thing Ozi said, for "say that again".
@@ -298,10 +423,16 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   // Said while the browser would not let Ozi speak yet: said again at the first touch.
   const unheard = useRef<string | null>(null);
   const touched = useRef(false);
+  // Something Ozi said has been heard aloud this visit, so the page can make a sound.
+  const soundWorks = useRef(false);
 
-  const sayRef = useRef<(text: string) => Promise<SpeakOutcome>>(async () => 'finished');
-  sayRef.current = async (text: string) => {
+  const sayRef = useRef<(text: string, inline?: boolean) => Promise<SpeakOutcome>>(
+    async () => 'finished',
+  );
+  sayRef.current = async (text: string, inline = false) => {
     lastSaid.current = text;
+    // Words shown in their own place on the page are not shown again beside Ozi's button.
+    setCaptionOff(inline);
     // Ozi does not listen while it talks, or it would hear itself.
     talkingRef.current = true;
     setTalking(true);
@@ -309,10 +440,11 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     setAnnounce(false);
     setSaid(text);
     const outcome = await voiceRef.current.say(text);
+    if (outcome === 'finished') soundWorks.current = true;
     if (outcome === 'not-spoken') {
       // A browser will not let a page make a sound until it has been touched once. Keep what
       // was meant to be heard, and say it at the first touch.
-      if (!touched.current && !voiceRef.current.settings.muted) {
+      if (!touched.current && !voiceRef.current.settings.muted && !inline) {
         unheard.current = text;
         setWaitingForTouch(true);
       }
@@ -1012,6 +1144,11 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   };
 
   const press = useCallback(() => {
+    // Waiting for a tap, the round button is that tap too (ruling 62).
+    if (presenceRef.current === 'needs-tap') {
+      tapToTalk();
+      return;
+    }
     if (talkingRef.current) {
       voiceRef.current.interrupt();
       return;
@@ -1020,12 +1157,13 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       mute();
     } else if (presenceRef.current === 'muted') {
       wake();
+    } else if (cannotReason.current && cannotReason.current.kind !== 'unsupported') {
+      // Refused before: perhaps allowed in the browser since. Ask again, from this tap.
+      tapToTalk();
     } else {
-      void sayRef.current(
-        "I can't listen on this phone or browser yet, but I can still talk to you. Chrome, Edge or Safari can listen.",
-      );
+      showNoteRef.current({ kind: 'unsupported', text: unsupportedMessage(browser) });
     }
-  }, [mute, wake]);
+  }, [mute, wake, tapToTalk, browser]);
 
   const setVoiceOn = useCallback(
     (on: boolean) => {
@@ -1038,6 +1176,9 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     },
     [turnOff],
   );
+
+  const showNoteRef = useRef(showNote);
+  showNoteRef.current = showNote;
 
   const setVoiceOnRef = useRef(setVoiceOn);
   setVoiceOnRef.current = setVoiceOn;
@@ -1093,11 +1234,12 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     settings,
     setPresence,
     wakeHint,
+    browser,
     signedIn: shopper !== null,
   });
 
   useEffect(() => {
-    const { assistant, engine, settings, setPresence, wakeHint } = firstLaunch.current;
+    const { assistant, engine, settings, setPresence, wakeHint, browser } = firstLaunch.current;
     let cancelled = false;
     // Anthony's words, 4 October 2026: who Ozi is, the motto, how to turn talking off and back
     // on, by the switch or by voice, and that it will say anything again.
@@ -1112,8 +1254,15 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
 
     void (async () => {
       const ready = await engine.readiness(settings.language);
+      // The first listening of a visit waits for a tap, unless the microphone is already
+      // allowed here (ruling 62). Ozi still speaks first.
+      const needsTap = ready.canListen ? ((await engine.firstListenNeedsTap?.()) ?? false) : false;
       if (cancelled) return;
-      setPresence(ready.canListen ? 'listening' : 'cannot-listen');
+      micReady.current = !needsTap;
+      if (!ready.canListen) {
+        cannotReason.current = { kind: 'unsupported', text: unsupportedMessage(browser) };
+      }
+      setPresence(ready.canListen ? (needsTap ? 'needs-tap' : 'listening') : 'cannot-listen');
       if (settings.introHeard) {
         listenRef.current();
         return;
@@ -1204,6 +1353,11 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       waitingForTouch,
       setPageCommands,
       offerAccount: (lead?: string) => offerAccountRef.current(lead),
+      tapToTalk,
+      micNote,
+      dismissMicNote: () => setMicNote(null),
+      captionOff,
+      browser,
     }),
     [
       presence,
@@ -1219,6 +1373,10 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       setVoiceOn,
       waitingForTouch,
       setPageCommands,
+      tapToTalk,
+      micNote,
+      captionOff,
+      browser,
     ],
   );
 

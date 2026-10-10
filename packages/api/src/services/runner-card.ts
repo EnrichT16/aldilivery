@@ -36,6 +36,7 @@ import type { CardAuthorization, Order, Runner, RunnerPayMethod } from '../domai
 import { ConflictError } from '../errors.js';
 import { GROCERY_CATEGORIES } from '../lib/payments.js';
 import { tillLimitPence } from './till.js';
+import { mostOneOrderCarries } from './basket-orders.js';
 
 type CardContext = Pick<AppContext, 'repository' | 'config' | 'payments' | 'now' | 'env'> &
   Partial<Pick<AppContext, 'sendText'>>;
@@ -225,7 +226,7 @@ export async function loadCardForOrder(
     await ctx.repository.orders.update(order.id, { payMethodUsed: 'own' });
     return own;
   }
-  const limit = cardLimitFor(order.goodsEstimatePence, ctx.config.fees.maximumOrderGoodsPence);
+  const limit = cardLimitFor(order.goodsEstimatePence, mostOneOrderCarries(ctx.config, order));
   try {
     await ctx.payments.loadCard({
       cardId: runner.issuingCardId,

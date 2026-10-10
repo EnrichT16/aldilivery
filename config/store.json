@@ -57,6 +57,8 @@
     },
     "maximumProductPence": 6000,
     "maximumOrderGoodsPence": 15000,
+    "maximumBasketGoodsPence": 45000,
+    "extraRunnerDeliveryPence": 1350,
     "largeOrderRunnerPaymentPence": 700,
     "largeOrderFromPence": 12000,
     "processor": {
@@ -82,7 +84,12 @@
       "van": 15000
     },
     "waitingAlertMinutes": 15,
-    "splitAfterMinutes": 15,
+    "splitAfterMinutes": 10,
+    "splitPartMaxPenceByMode": {
+      "motorbike": 7500,
+      "foot": 6000
+    },
+    "tinyExtraBelowPence": 500,
     "splitRunnerPayPence": 500
   },
   "allocation": {

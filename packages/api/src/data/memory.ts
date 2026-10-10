@@ -163,6 +163,7 @@ export function memoryRepository(): Repository {
           familyCode: null,
           familyOwnerId: null,
           creditPence: 0,
+          unusedRunnerFeeCreditPence: 0,
           pinFailedAttempts: 0,
           pinLockedUntil: null,
           deletionScheduledFor: null,
@@ -937,6 +938,13 @@ export function memoryRepository(): Repository {
           splitParentId: input.splitParentId ?? null,
           splitPart: input.splitPart ?? null,
           splitOf: input.splitOf ?? null,
+          splitMode: input.splitMode ?? null,
+          splitPlannedAt: input.splitPlannedAt ?? null,
+          basketGroupId: input.basketGroupId ?? null,
+          basketPart: input.basketPart ?? null,
+          basketOf: input.basketOf ?? null,
+          extraDeliveryStatus: input.extraDeliveryStatus ?? null,
+          extraDeliveryPaymentId: null,
           isDemo: input.isDemo ?? false,
           createdAt: now(),
           updatedAt: now(),
@@ -967,6 +975,25 @@ export function memoryRepository(): Repository {
         orders.set(key, updated);
         return clone(updated);
       },
+      async addItem(orderId, item) {
+        const order = orders.get(orderId);
+        if (!order) throw new NotFoundError('Order', orderId);
+        const added: OrderItem = {
+          id: id(),
+          orderId,
+          catalogueItemId: item.catalogueItemId ?? null,
+          name: item.name,
+          quantity: item.quantity,
+          estimatedPricePence: item.estimatedPricePence,
+          substitutionOutcome: 'pending',
+          substitutedForName: null,
+          actualPricePence: null,
+          note: item.note ?? null,
+          createdAt: now(),
+        };
+        order.items.push(added);
+        return clone(added);
+      },
       async updateItem(itemId, patch) {
         for (const order of orders.values()) {
           const index = order.items.findIndex((item) => item.id === itemId);
@@ -985,7 +1012,8 @@ export function memoryRepository(): Repository {
       },
       async listParts(parentId) {
         return [...orders.values()]
-          .filter((o) => o.splitParentId === parentId)
+          // A part replaced when the rest was planned again (ruling 61) is cancelled, not a part.
+          .filter((o) => o.splitParentId === parentId && o.status !== 'cancelled')
           .sort((a, b) => (a.splitPart ?? 0) - (b.splitPart ?? 0))
           .map(clone);
       },

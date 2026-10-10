@@ -63,13 +63,15 @@ export async function recordOrderIncome(
   payments: PaymentsGateway,
   order: Order,
   at: Date,
+  /** What was actually taken, when not the whole estimate (ruling 61: a deferred delivery). */
+  amountPence: number = order.totalEstimatePence,
 ): Promise<void> {
   await repository.income
     .record({
       at,
       gateway: gatewayName(payments),
       kind: 'order',
-      amountPence: order.totalEstimatePence,
+      amountPence,
       reference: order.stripePaymentIntentId ?? order.id,
     })
     .catch(() => undefined);

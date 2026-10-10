@@ -13,9 +13,11 @@
  * on foot and by bicycle £60, by motorbike £70, by car and by van any order up to the £150 cap. A
  * motorbike, car or van also needs a licence and in-date insurance a person has accepted. An
  * ordinary order (within what walking and cycling carry) goes to everyone, as before. If nobody
- * who can carry a large order takes it, the owner is texted once after
- * `dispatch.waitingAlertMinutes` (15), and after `dispatch.splitAfterMinutes` (15) it is split
- * into parts that walking and cycling carry (services/split.ts), each offered as its own job.
+ * who can carry a large order takes it, after `dispatch.splitAfterMinutes` (10) it is split into
+ * parts for the fewest Runners possible, motorbike riders first, then Runners on foot or bicycle
+ * (services/split.ts, ruling 61), each offered as its own job only to Runners of its kind. The
+ * owner is texted when it is split, and once if it (or a part) has waited
+ * `dispatch.waitingAlertMinutes` (15).
  *
  * A demo order (the app store reviewers' demo account) is never offered to anybody, and the demo
  * Runner is never offered a real job.
@@ -29,6 +31,7 @@ import {
   needsVehicle,
   largeOrderShopperWords as coreLargeOrderShopperWords,
   splitPartLimitPence,
+  splitPartWho,
   vehiclesWords,
 } from '@aldilivery/core';
 
@@ -39,7 +42,13 @@ import { buildOfferQueue, isOfferExpired, nextRunnerToOffer, offerExpiryAt } fro
 import { drivingPaused } from './insurance.js';
 import { hasAgreed } from './runner-agreement.js';
 import { hasPlusExtras } from './plans.js';
-import { alertIfSplitPartWaiting, shouldSplit, splitOrder } from './split.js';
+import { runnersWithJobInHand, takesPart } from './runner-pool.js';
+import {
+  alertIfSplitPartWaiting,
+  replanStrandedParts,
+  shouldSplit,
+  splitOrder,
+} from './split.js';
 import { canDrive, orderReference } from '../routes/runner-account.js';
 
 export type OfferResult =
@@ -65,9 +74,16 @@ export function largeOrderShopperWords(config: AppContext['config'], goodsPence:
 /** What a Runner is told when a large order is not theirs to take. */
 export function largeOrderWords(
   config: AppContext['config'],
-  order: Pick<Order, 'goodsEstimatePence'>,
+  order: Pick<Order, 'goodsEstimatePence'> & Partial<Pick<Order, 'splitMode'>>,
   runner?: Pick<Runner, 'vehicleType'>,
 ): string {
+  // A part of a split job goes only to Runners of its kind (ruling 61).
+  if (order.splitMode) {
+    if (runner && order.splitMode === 'motorbike' && isMotorMode(runner.vehicleType)) {
+      return 'Before you can take this part, we need your driving licence and insurance checked and in date.';
+    }
+    return `This part of a split job goes to ${splitPartWho(order.splitMode)}.`;
+  }
   const money = (pence: number) => formatPence(pence, config.store.currencySymbol);
   const limits = config.dispatch.maxGoodsPenceByMode;
   const goods = order.goodsEstimatePence;
@@ -89,14 +105,17 @@ export function isLargeOrder(
 /**
  * Whether this Runner may carry this order: anyone for an ordinary one; for a large one, only a
  * Runner whose way of travelling today carries that much, and for a motorbike, car or van, with
- * a licence and in-date insurance accepted.
+ * a licence and in-date insurance accepted; for a part of a split job, only a Runner of its kind.
  */
 export function canCarry(
   config: AppContext['config'],
   runner: Runner,
-  order: Pick<Order, 'goodsEstimatePence'>,
+  order: Pick<Order, 'goodsEstimatePence'> & Partial<Pick<Order, 'splitMode'>>,
   at: Date,
 ): boolean {
+  // A part of a split job (ruling 61): a motorbike part to a motorbike rider (or a car or van
+  // Runner) with a licence and insurance checked; a foot part to a Runner on foot or bicycle.
+  if (order.splitMode) return takesPart(runner, order.splitMode, at);
   if (!isLargeOrder(config, order)) return true;
   const limits = config.dispatch.maxGoodsPenceByMode;
   if (!modeCarries(runner.vehicleType, order.goodsEstimatePence, limits)) return false;
@@ -113,14 +132,6 @@ export function waitingSince(order: Order): Date {
 
 /** Only an order that has been paid for, and has nobody yet, is ever offered. */
 const OFFERABLE = new Set<Order['status']>(['paid', 'offered']);
-
-/** A Runner with an order in one of these has a job in hand. */
-const ACTIVE: readonly Order['status'][] = [
-  'accepted',
-  'shopping',
-  'receipt_submitted',
-  'delivering',
-];
 
 export async function offerOrder(ctx: DispatchContext, orderId: string): Promise<OfferResult> {
   const { repository, config, now } = ctx;
@@ -170,11 +181,7 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
   for (const offer of await repository.offers.listByOutcome('pending')) {
     if (offer.orderId !== order.id && !isOfferExpired(offer, at)) busy.add(offer.runnerId);
   }
-  for (const status of ACTIVE) {
-    for (const active of await repository.orders.listByStatus(status)) {
-      if (active.runnerId) busy.add(active.runnerId);
-    }
-  }
+  for (const runnerId of await runnersWithJobInHand(ctx)) busy.add(runnerId);
   // Nobody is offered a job they could not accept: the Runner agreement comes first (ruling 55),
   // nobody who has left is offered anything, driving waits for in-date insurance (ruling 14),
   // a large order goes only to a Runner who can carry it (rulings 59 and 60), and the demo
@@ -231,7 +238,9 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
     return {
       offer: null,
       alreadyOffered: false,
-      message: isLargeOrder(config, order)
+      message: order.splitMode
+        ? `This part waits for ${splitPartWho(order.splitMode)}. We will keep looking.`
+        : isLargeOrder(config, order)
         ? `This is a large order, so it waits for a Runner with ${vehiclesFor(config, order.goodsEstimatePence)}. We will keep looking.`
         : 'No Runner is free for this order yet. We will keep looking.',
     };
@@ -316,8 +325,8 @@ export async function sweepOffers(
   let offered = 0;
   for (const order of waiting) {
     try {
-      // Nobody who could carry it took it in time: split it into parts that walking and
-      // cycling carry, and offer each part on its own (ruling 60).
+      // Nobody who could carry it took it in time: split it into parts, motorbike riders first,
+      // then foot and bicycle, and offer each part on its own (rulings 60 and 61).
       if (shouldSplit(ctx, order, at)) {
         const parts = await splitOrder(ctx, order, at);
         for (const part of parts) {
@@ -325,6 +334,20 @@ export async function sweepOffers(
           if (result.offer && !result.alreadyOffered) offered += 1;
         }
         if (parts.length > 0) continue;
+      }
+      // A part whose kind of Runner is no longer on shift: the rest is planned again (ruling 61).
+      if (order.splitParentId) {
+        // Another part's planning may have just replaced this one.
+        const fresh = await ctx.repository.orders.findById(order.id);
+        if (!fresh || fresh.runnerId || !OFFERABLE.has(fresh.status)) continue;
+        const replanned = await replanStrandedParts(ctx, order, at);
+        if (replanned) {
+          for (const part of replanned) {
+            const result = await offerOrder(ctx, part.id);
+            if (result.offer && !result.alreadyOffered) offered += 1;
+          }
+          continue;
+        }
       }
       const result = await offerOrder(ctx, order.id);
       if (result.offer && !result.alreadyOffered) offered += 1;
@@ -362,7 +385,7 @@ export async function alertIfLargeOrderWaiting(
   try {
     await ctx.sendText(
       phone,
-      `${config.productName}: order ${orderReference(order.id)}, ${money(order.goodsEstimatePence)} of shopping, has waited ${waitedMinutes} minutes. Orders over ${money(splitPartLimitPence(config.dispatch.maxGoodsPenceByMode))} go only to a Runner with ${vehiclesFor(config, order.goodsEstimatePence)}, and none has taken it. If nobody does, it is split into parts for Runners on foot or bicycle ${config.dispatch.splitAfterMinutes} minutes after the Shopper's yes. Please find a Runner, or ring the Shopper.`,
+      `${config.productName}: order ${orderReference(order.id)}, ${money(order.goodsEstimatePence)} of shopping, has waited ${waitedMinutes} minutes. Orders over ${money(splitPartLimitPence(config.dispatch.maxGoodsPenceByMode))} go only to a Runner with ${vehiclesFor(config, order.goodsEstimatePence)}, and none has taken it. If nobody does, it is split into parts, motorbike riders first, then Runners on foot or bicycle, ${config.dispatch.splitAfterMinutes} minutes after the Shopper's yes. Please find a Runner, or ring the Shopper.`,
     );
   } catch {
     return false;

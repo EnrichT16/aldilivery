@@ -72,12 +72,14 @@ export async function alertPayments(
   ctx: AppContext,
   order: Order,
   log: FastifyBaseLogger,
+  /** The whole transfer, for a basket kept whole as linked orders (ruling 61). */
+  amountPence: number = order.totalEstimatePence,
 ): Promise<void> {
   if (!ctx.env.ownerAlertPhone || !ctx.sendText) return;
   try {
     await ctx.sendText(
       ctx.env.ownerAlertPhone,
-      `${ctx.config.productName} payments: a bank transfer order of ${formatPence(order.totalEstimatePence, ctx.config.store.currencySymbol)}, reference ${order.bankReference}, is waiting. Check the Payments tab when it arrives.`,
+      `${ctx.config.productName} payments: a bank transfer order of ${formatPence(amountPence, ctx.config.store.currencySymbol)}, reference ${order.bankReference}, is waiting. Check the Payments tab when it arrives.`,
     );
   } catch (failure) {
     log.warn({ err: failure, orderId: order.id }, 'The owner could not be told about a payment.');

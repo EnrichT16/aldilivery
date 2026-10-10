@@ -18,7 +18,9 @@ import { ConflictError, NotFoundError } from '../errors.js';
 import { recordOrder } from '../lib/analytics.js';
 import { textPdf } from '../lib/pdf.js';
 import { staffActor } from '../lib/staff.js';
+import { basketGroup, carryWithFirstRunner, listTinyExtras } from '../services/basket-orders.js';
 import { offerOrder } from '../services/dispatch.js';
+import { orderReference } from './runner-account.js';
 import { tellShopper } from '../services/order-updates.js';
 
 const PAID: Order['status'][] = [
@@ -38,10 +40,13 @@ export async function registerPaymentRoutes(app: FastifyInstance): Promise<void>
 
   async function row(order: Order) {
     const shopper = await repository.shoppers.findById(order.shopperId);
+    // A basket kept whole (ruling 61) is one transfer for every linked order.
+    const group = await basketGroup(app.ctx, order);
     return {
       orderId: order.id,
       reference: order.bankReference,
-      amountPence: order.totalEstimatePence,
+      amountPence: group.reduce((sum, linked) => sum + linked.totalEstimatePence, 0),
+      orders: group.length,
       shopperName: shopper?.displayName ?? 'A Shopper',
       placedAt: order.spokenConfirmationAt ?? order.createdAt,
       receivedAt: order.bankReceivedAt,
@@ -52,12 +57,12 @@ export async function registerPaymentRoutes(app: FastifyInstance): Promise<void>
   app.get('/staff/payments', async (request) => {
     await staffActor(request, 'payments');
     const waiting = (await repository.orders.listByStatus('confirmed')).filter(
-      (order) => order.paidBy === 'bank',
+      (order) => order.paidBy === 'bank' && (order.basketPart ?? 1) === 1,
     );
     const received: Order[] = [];
     for (const status of PAID) {
       for (const order of await repository.orders.listByStatus(status)) {
-        if (order.paidBy === 'bank') received.push(order);
+        if (order.paidBy === 'bank' && (order.basketPart ?? 1) === 1) received.push(order);
       }
     }
     received.sort(
@@ -77,23 +82,31 @@ export async function registerPaymentRoutes(app: FastifyInstance): Promise<void>
     if (order.status !== 'confirmed')
       throw new ConflictError('That order is not waiting for a transfer.');
     const at = now();
-    const paid = await repository.orders.update(order.id, { status: 'paid', bankReceivedAt: at });
+    // Every linked order of a basket kept whole came in the one transfer (ruling 61).
+    const group = (await basketGroup(app.ctx, order)).filter((row) => row.status === 'confirmed');
+    let paid = order;
+    let amountPence = 0;
+    for (const linked of group) {
+      const updated = await repository.orders.update(linked.id, { status: 'paid', bankReceivedAt: at });
+      if (linked.id === order.id) paid = updated;
+      amountPence += updated.totalEstimatePence;
+      if (app.ctx.autoOffer) await offerOrder(app.ctx, updated.id).catch(() => undefined);
+      await recordOrder(app.ctx, updated, 'order_paid', request.log);
+    }
     await repository.income.record({
       at,
       gateway: 'Bank transfer',
       kind: 'order',
-      amountPence: paid.totalEstimatePence,
+      amountPence,
       reference: paid.bankReference ?? paid.id,
     });
-    if (app.ctx.autoOffer) await offerOrder(app.ctx, paid.id).catch(() => undefined);
-    await recordOrder(app.ctx, paid, 'order_paid', request.log);
     void tellShopper(app.ctx, paid, 'paid', request.log);
     request.log.info(
       { orderId: paid.id, by: actor.name },
       'A bank transfer was marked as received.',
     );
     return {
-      message: `Marked as received: ${money(paid.totalEstimatePence)}, reference ${paid.bankReference}. The order is going to a Runner.`,
+      message: `Marked as received: ${money(amountPence)}, reference ${paid.bankReference}. The order is going to a Runner.`,
     };
   });
 
@@ -104,12 +117,58 @@ export async function registerPaymentRoutes(app: FastifyInstance): Promise<void>
     if (!order || order.paidBy !== 'bank') throw new NotFoundError('bank transfer order');
     if (order.status !== 'confirmed')
       throw new ConflictError('That order is not waiting for a transfer.');
-    await repository.orders.update(order.id, {
-      status: 'cancelled',
-      cancelledAt: now(),
-      cancelReason: 'The bank transfer never came; cancelled by staff.',
-    });
+    for (const linked of await basketGroup(app.ctx, order)) {
+      if (linked.status !== 'confirmed') continue;
+      await repository.orders.update(linked.id, {
+        status: 'cancelled',
+        cancelledAt: now(),
+        cancelReason: 'The bank transfer never came; cancelled by staff.',
+        ...(linked.extraDeliveryStatus ? { extraDeliveryStatus: 'waived' as const } : {}),
+      });
+    }
     return { message: `Cancelled: reference ${order.bankReference}. Nothing was taken.` };
+  });
+
+  /**
+   * Tiny extras (ruling 61): a linked order after the first with under £5 of shopping, so a
+   * person can ask the first Runner to carry it instead of sending another for £13.50.
+   */
+  app.get('/staff/tiny-extras', async (request) => {
+    await staffActor(request, 'payments');
+    const rows = await listTinyExtras(app.ctx);
+    return {
+      tinyExtras: await Promise.all(
+        rows.map(async ({ order, first }) => {
+          const firstRunner = first?.runnerId ? await repository.runners.findById(first.runnerId) : null;
+          return {
+            orderId: order.id,
+            reference: orderReference(order.id),
+            firstOrderId: first?.id ?? null,
+            firstReference: first ? orderReference(first.id) : null,
+            part: order.basketPart,
+            of: order.basketOf,
+            goodsPence: order.goodsEstimatePence,
+            extraDeliveryPence: order.feePence,
+            items: order.items.map((item) => `${item.quantity} × ${item.name}`),
+            // Who to ask: the first order's Runner, once there is one.
+            firstRunner: firstRunner ? { name: firstRunner.name, phone: firstRunner.phone } : null,
+            firstStatus: first?.status ?? null,
+          };
+        }),
+      ),
+    };
+  });
+
+  app.post('/staff/tiny-extras/:orderId/carry-with-first', async (request) => {
+    const actor = await staffActor(request, 'payments');
+    const { orderId } = z.object({ orderId: z.string().min(1) }).parse(request.params);
+    const { first, extra } = await carryWithFirstRunner(app.ctx, orderId, request.log);
+    request.log.info({ orderId, by: actor.name }, 'A tiny extra was carried with the first Runner.');
+    return {
+      first,
+      extra,
+      message: `Done: the ${money(extra.goodsEstimatePence)} of shopping goes with the first Runner, order ${orderReference(first.id)}, and the extra ${money(extra.feePence)} delivery is not taken.`,
+    };
   });
 
   /** A receipt for a paid order, as a PDF, for the Shopper who placed it. */

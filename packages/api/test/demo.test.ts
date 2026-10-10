@@ -239,3 +239,39 @@ describe('a Runner closing their account in the app', () => {
     expect((await sweepRetention(harness.app.ctx)).runnerChecksRemoved).toBe(1);
   });
 });
+
+describe('the demo sign-in while texts are not switched on (live fix, 10 October 2026)', () => {
+  async function textsOff(demo: boolean) {
+    harness = await buildTestApp(START, {
+      codeDelivery: 'off',
+      env: demo ? { demoSignInPhone: DEMO_PHONE, demoSignInCode: DEMO_CODE } : {},
+    });
+  }
+
+  it('shows the form, signs the demo number in, and tells a real number plainly', async () => {
+    await textsOff(true);
+    const config = await harness.app.inject({ method: 'GET', url: '/config' });
+    expect(config.json().signIn.byText).toBe(true);
+    // Nothing else in the answer says the demo is set up.
+    expect(config.body).not.toMatch(/demo/i);
+
+    const signedIn = await demoSignIn();
+    expect(signedIn.statusCode, signedIn.body).toBe(200);
+    expect(signedIn.json()).toMatchObject({ demo: true });
+
+    const real = await post('/auth/request-code', { phone: '07700 900123', role: 'shopper' });
+    expect(real.statusCode).toBe(503);
+    expect(real.json().error.message).toBe(
+      'Signing in by text message is not switched on yet; please use the phone or computer you set up on.',
+    );
+    expect(harness.deliveredCodes).toHaveLength(0);
+  });
+
+  it('is unchanged with the demo off: no form', async () => {
+    await textsOff(false);
+    const config = await harness.app.inject({ method: 'GET', url: '/config' });
+    expect(config.json().signIn.byText).toBe(false);
+    const real = await post('/auth/request-code', { phone: '07700 900123', role: 'shopper' });
+    expect(real.statusCode).toBe(503);
+  });
+});

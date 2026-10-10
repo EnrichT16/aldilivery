@@ -17,7 +17,7 @@ import {
   RUNNER_PAYMENT_PENCE,
   SET_NOTICE_MINUTES_BEFORE,
 } from './rules.js';
-import { TRAVEL_MODES, type MaxGoodsByMode } from './dispatch.js';
+import { SPLIT_PART_MODES, TRAVEL_MODES, type MaxGoodsByMode, type SplitPartMaxByMode } from './dispatch.js';
 import type {
   DeliveryPrices,
   ItemChargeRule,
@@ -102,6 +102,17 @@ export interface StoreConfig {
      * offered. £150 until Anthony confirms the figure (ruling 58).
      */
     readonly maximumOrderGoodsPence: number;
+    /**
+     * Baskets over one order (ruling 61, Anthony, 10 October 2026): the most shopping, at shop
+     * prices, one basket may hold when the Shopper keeps everything and it goes as linked
+     * orders of up to `maximumOrderGoodsPence` each. £450 (three orders) unless set; adjustable.
+     */
+    readonly maximumBasketGoodsPence: number;
+    /**
+     * The delivery for each linked order after the first (ruling 61): £13.50 whatever the
+     * Shopper's plan, taken only when that order's Runner collects it.
+     */
+    readonly extraRunnerDeliveryPence: number;
     /**
      * Big orders pay the Runner more (ruling 60, Anthony, 10 October 2026): an order whose shop
      * prices come to `largeOrderFromPence` (£120) or more, delivered whole, pays its Runner
@@ -247,14 +258,24 @@ export interface StoreConfig {
    * carries up to its own most of shopping at shop prices (`maxGoodsPenceByMode`): on foot and by
    * bicycle £60, by motorbike £70, by car and by van up to the whole-order cap. A motorbike, car
    * or van also needs a licence and in-date insurance accepted. If no Runner who can carry an
-   * order takes it, the owner is texted once after `waitingAlertMinutes` (15); after
-   * `splitAfterMinutes` (15) it is split into parts that walking and cycling carry, each paying
-   * its Runner `splitRunnerPayPence` (£5, Anthony's figure).
+   * order takes it, after `splitAfterMinutes` (10, ruling 61) it is split into parts for the
+   * fewest Runners possible, motorbike riders first (each part up to
+   * `splitPartMaxPenceByMode.motorbike`, £75), then Runners on foot or bicycle (each up to
+   * `splitPartMaxPenceByMode.foot`, £60), each paying its Runner `splitRunnerPayPence` (£5,
+   * Anthony's figure). The owner is texted when it is split, and once after `waitingAlertMinutes`
+   * (15) if a large order or a part is still waiting.
    */
   readonly dispatch: {
     readonly maxGoodsPenceByMode: MaxGoodsByMode;
     readonly waitingAlertMinutes: number;
     readonly splitAfterMinutes: number;
+    readonly splitPartMaxPenceByMode: SplitPartMaxByMode;
+    /**
+     * A linked order after the first with less shopping than this (ruling 61: £5) is a tiny
+     * extra: the owner is texted and it is shown in the admin panel, so a person can ask the
+     * first Runner to carry it instead.
+     */
+    readonly tinyExtraBelowPence: number;
     readonly splitRunnerPayPence: number;
   };
   /** The admin panel (Section Q): who may do what, and how signing in is kept safe. */
@@ -360,6 +381,34 @@ function parseMaxGoodsByMode(
   if (Math.min(limits.foot, limits.bicycle) < maximumProductPence) {
     throw new StoreConfigError(
       `dispatch.maxGoodsPenceByMode.foot and .bicycle must each be at least fees.maximumProductPence (${maximumProductPence}p), so a split part can always hold the dearest product.`,
+    );
+  }
+  return limits;
+}
+
+/**
+ * The most of shopping each kind of split part carries (ruling 61): motorbike £75 and foot or
+ * bicycle £60 unless set. Each must hold the dearest product, since products are never split.
+ */
+function parseSplitPartMax(value: unknown, maximumProductPence: number): SplitPartMaxByMode {
+  const defaults: Record<string, number> = { motorbike: 7500, foot: 6000 };
+  const given = value === undefined ? {} : object(value, 'dispatch.splitPartMaxPenceByMode');
+  for (const key of Object.keys(given)) {
+    if (!(SPLIT_PART_MODES as readonly string[]).includes(key)) {
+      throw new StoreConfigError(
+        `dispatch.splitPartMaxPenceByMode.${key} is not a kind of split part: use ${SPLIT_PART_MODES.join(', ')} (foot covers bicycle too).`,
+      );
+    }
+  }
+  const limits = Object.fromEntries(
+    SPLIT_PART_MODES.map((mode) => [
+      mode,
+      wholeNumber(given[mode] ?? defaults[mode], `dispatch.splitPartMaxPenceByMode.${mode}`, 1),
+    ]),
+  ) as Record<(typeof SPLIT_PART_MODES)[number], number>;
+  if (Math.min(limits.motorbike, limits.foot) < maximumProductPence) {
+    throw new StoreConfigError(
+      `dispatch.splitPartMaxPenceByMode.motorbike and .foot must each be at least fees.maximumProductPence (${maximumProductPence}p), so a split part can always hold the dearest product.`,
     );
   }
   return limits;
@@ -555,6 +604,16 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       `fees.maximumOrderGoodsPence (${maximumOrderGoodsPence}p) must be at least fees.maximumProductPence (${maximumProductPence}p), or the dearest product could never be ordered.`,
     );
   }
+  const maximumBasketGoodsPence = wholeNumber(
+    fees['maximumBasketGoodsPence'] ?? 45000,
+    'fees.maximumBasketGoodsPence',
+    maximumOrderGoodsPence,
+  );
+  const extraRunnerDeliveryPence = wholeNumber(
+    fees['extraRunnerDeliveryPence'] ?? 1350,
+    'fees.extraRunnerDeliveryPence',
+    0,
+  );
   const largeOrderRunnerPaymentPence = wholeNumber(
     fees['largeOrderRunnerPaymentPence'] ?? 700,
     'fees.largeOrderRunnerPaymentPence',
@@ -693,6 +752,8 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       itemCharge,
       maximumProductPence,
       maximumOrderGoodsPence,
+      maximumBasketGoodsPence,
+      extraRunnerDeliveryPence,
       largeOrderRunnerPaymentPence,
       largeOrderFromPence,
       processor,
@@ -804,7 +865,9 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     dispatch: {
       maxGoodsPenceByMode: parseMaxGoodsByMode(dispatch['maxGoodsPenceByMode'], maximumProductPence, maximumOrderGoodsPence),
       waitingAlertMinutes: wholeNumber(dispatch['waitingAlertMinutes'] ?? 15, 'dispatch.waitingAlertMinutes', 1),
-      splitAfterMinutes: wholeNumber(dispatch['splitAfterMinutes'] ?? 15, 'dispatch.splitAfterMinutes', 1),
+      splitAfterMinutes: wholeNumber(dispatch['splitAfterMinutes'] ?? 10, 'dispatch.splitAfterMinutes', 1),
+      splitPartMaxPenceByMode: parseSplitPartMax(dispatch['splitPartMaxPenceByMode'], maximumProductPence),
+      tinyExtraBelowPence: wholeNumber(dispatch['tinyExtraBelowPence'] ?? 500, 'dispatch.tinyExtraBelowPence', 0),
       splitRunnerPayPence: wholeNumber(dispatch['splitRunnerPayPence'] ?? 500, 'dispatch.splitRunnerPayPence', 1),
     },
     admin: {

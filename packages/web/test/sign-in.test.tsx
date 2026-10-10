@@ -119,6 +119,15 @@ describe('signing in', () => {
     expect(screen.queryByLabelText('Your phone number')).not.toBeInTheDocument();
   });
 
+  it('shows the form when the server says so with texts off (the demo sign-in), and tells a real number plainly', async () => {
+    const words =
+      'Signing in by text message is not switched on yet; please use the phone or computer you set up on.';
+    renderAt('/sign-in', { signInByText: true, requestCodeUnavailable: words });
+    expect(await screen.findByLabelText('Your phone number')).toBeInTheDocument();
+    await askForCode();
+    expect(await screen.findByRole('alert')).toHaveTextContent(words);
+  });
+
   it('is offered from the sign up screen and before sending an order', async () => {
     renderAt('/sign-up');
     expect(await screen.findByRole('link', { name: /Sign in/ })).toHaveAttribute(

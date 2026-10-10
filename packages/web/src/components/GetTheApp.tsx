@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { storeConfig } from '../config';
+import { allowStep } from '../voice/microphone-help';
 
 /** What Chrome hands over when the app can be installed. Not in the standard types. */
 interface InstallPrompt extends Event {
@@ -70,6 +71,7 @@ function IPhoneSteps(): JSX.Element {
         </li>
         <li>Scroll down the list and choose Add to Home Screen.</li>
         <li>Press Add, at the top right.</li>
+        <li>{allowStep(storeConfig.assistantName)}</li>
       </ol>
     </section>
   );
@@ -91,6 +93,7 @@ function AndroidSteps(): JSX.Element {
         </li>
         <li>Choose Install app, or Add to Home screen.</li>
         <li>Press Install.</li>
+        <li>{allowStep(storeConfig.assistantName)}</li>
       </ol>
     </section>
   );

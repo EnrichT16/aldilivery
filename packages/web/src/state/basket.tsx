@@ -3,7 +3,9 @@ import { createContext, useCallback, useContext, useMemo, useState, type ReactNo
 import {
   deliveryFeePence,
   itemChargesForLines,
+  priceBasketInParts,
   productAllowed,
+  type BasketPartPricing,
   type BasketPricing,
   type DeliveryPlan,
 } from '@aldilivery/core';
@@ -29,10 +31,18 @@ interface BasketValue {
   clear: () => void;
   pricing: BasketPricing;
   /**
-   * More shopping than one delivery carries. The Shopper is told so in plain words and offered
-   * two deliveries; the order cannot be sent as it is.
+   * More shopping than one basket holds (ruling 61: £450, several Runners). The order cannot
+   * be sent as it is; the Shopper is told so in plain words.
    */
   overMaximum: boolean;
+  /**
+   * More shopping than one Runner carries (£150) but within one basket (ruling 61). The Shopper
+   * chooses: take something out, or keep everything as `parts`, one Runner each, the first at
+   * their plan price and each after it with the extra Runner's delivery. `pricing` is then the
+   * keep-everything price.
+   */
+  overOneRunner: boolean;
+  parts: readonly BasketPartPricing[];
   itemCount: number;
 }
 
@@ -82,7 +92,7 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
     setLines([]);
   }, []);
 
-  const pricing = useMemo<BasketPricing>(() => {
+  const priced = useMemo<BasketPricing & { parts?: readonly BasketPartPricing[] }>(() => {
     const goodsPence = lines.reduce(
       (sum, line) => sum + line.item.estimatedPricePence * line.quantity,
       0,
@@ -100,6 +110,29 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
       })),
       storeConfig.fees,
     );
+    // Over one order but within one basket (ruling 61): priced as linked orders.
+    if (
+      goodsPence > storeConfig.fees.maximumOrderGoodsPence &&
+      goodsPence <= storeConfig.fees.maximumBasketGoodsPence
+    ) {
+      const inParts = priceBasketInParts(
+        lines.map((line) => ({
+          key: line.item.id,
+          unitPricePence: line.item.estimatedPricePence,
+          quantity: line.quantity,
+        })),
+        plan,
+        storeConfig.fees,
+      );
+      return {
+        goodsPence,
+        itemChargesPence,
+        feePence: inParts.feePence,
+        totalPence: inParts.totalPence,
+        plan,
+        parts: inParts.parts,
+      };
+    }
     // Over the maximum, the fee shown is the one for the most one order carries;
     // `overMaximum` says it cannot go as one.
     const feePence = deliveryFeePence(
@@ -116,7 +149,13 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
     };
   }, [lines, plan]);
 
-  const overMaximum = pricing.goodsPence > storeConfig.fees.maximumOrderGoodsPence;
+  const pricing = useMemo<BasketPricing>(() => {
+    const { parts: _parts, ...rest } = priced;
+    return rest;
+  }, [priced]);
+  const parts = useMemo(() => priced.parts ?? [], [priced]);
+  const overMaximum = pricing.goodsPence > storeConfig.fees.maximumBasketGoodsPence;
+  const overOneRunner = parts.length > 1;
 
   const value = useMemo<BasketValue>(
     () => ({
@@ -127,9 +166,11 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
       clear,
       pricing,
       overMaximum,
+      overOneRunner,
+      parts,
       itemCount: lines.reduce((sum, line) => sum + line.quantity, 0),
     }),
-    [lines, add, remove, setQuantity, clear, pricing, overMaximum],
+    [lines, add, remove, setQuantity, clear, pricing, overMaximum, overOneRunner, parts],
   );
 
   return <BasketContext.Provider value={value}>{children}</BasketContext.Provider>;

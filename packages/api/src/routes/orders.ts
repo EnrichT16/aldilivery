@@ -10,7 +10,7 @@
  */
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { formatPence, type OrderStatus, runnerPaymentFor } from '@aldilivery/core';
+import { formatPence, overOneRunnerWords, type OrderStatus, runnerPaymentFor } from '@aldilivery/core';
 import { z } from 'zod';
 
 import { requireSession } from '../app.js';
@@ -23,7 +23,13 @@ import {
 } from '../errors.js';
 import type { Order, PaymentMethod, Shopper } from '../domain.js';
 import { cardAccepted } from '../lib/card-region.js';
-import { priceLines } from '../services/basket.js';
+import { priceLinesInParts, type PricedBasketInParts } from '../services/basket.js';
+import {
+  alertTinyExtras,
+  basketGroup,
+  chargedNowPence,
+  releaseExtraDelivery,
+} from '../services/basket-orders.js';
 import { applyCredit } from '../services/credit.js';
 import { recordOrder } from '../lib/analytics.js';
 import { recordOrderIncome } from '../lib/ledger.js';
@@ -91,6 +97,11 @@ const createOrderSchema = z.object({
     agreedTotalPence: z.number().int().min(0),
   }),
   overrideBudgetCap: z.boolean().optional(),
+  /**
+   * A basket over £150 (ruling 61): true when the Shopper chose to keep everything, as linked
+   * orders each with its own Runner, rather than take something out.
+   */
+  keepEverything: z.boolean().optional(),
 });
 
 const statusSchema = z.object({
@@ -139,6 +150,85 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
   const symbol = config.store.currencySymbol;
 
   /**
+   * Price the basket, which may be over one order (ruling 61). Over £150, the Shopper must have
+   * chosen to keep everything; if not, they are told plainly, with both choices, and nothing is
+   * charged.
+   */
+  function pricedForOrder(
+    input: z.infer<typeof createOrderSchema>,
+    catalogueItems: Parameters<typeof priceLinesInParts>[1],
+    plan: Parameters<typeof priceLinesInParts>[3],
+  ): PricedBasketInParts {
+    const priced = priceLinesInParts(input.lines, catalogueItems, config.fees, plan);
+    if (priced.parts.length > 1 && !input.keepEverything) {
+      const money = (pence: number) => formatPence(pence, symbol);
+      throw new BadRequestError(
+        `${overOneRunnerWords(config.fees, money)} Nothing has been charged.`,
+        {
+          overOneRunner: true,
+          parts: priced.parts.map((part) => ({
+            part: part.part,
+            goodsPence: part.goodsPence,
+            itemChargesPence: part.itemChargesPence,
+            feePence: part.feePence,
+          })),
+          totalPence: priced.totalPence,
+        },
+      );
+    }
+    return priced;
+  }
+
+  /**
+   * Write the order, or, for a basket kept whole (ruling 61), its linked orders: the first
+   * filled up to £150, then the next, each with its own Runner pay, the first at the Shopper's
+   * plan price and each after it with the extra Runner's delivery (taken on collection for a
+   * card, paid with the rest in a bank transfer). Returns them, the first first.
+   */
+  async function createOrders(
+    priced: PricedBasketInParts,
+    fields: Omit<
+      Parameters<typeof repository.orders.create>[0],
+      'goodsEstimatePence' | 'itemChargesPence' | 'feePence' | 'totalEstimatePence' | 'items' | 'runnerPaymentPence'
+    >,
+    extraStatus: 'pending' | 'transfer',
+  ): Promise<Order[]> {
+    const linked = priced.parts.length > 1;
+    const created: Order[] = [];
+    for (const part of priced.parts) {
+      created.push(
+        await repository.orders.create({
+          ...fields,
+          goodsEstimatePence: part.goodsPence,
+          // Rule Two as amended by ruling 60: £5, or £7 for £120 or more of shopping.
+          runnerPaymentPence: runnerPaymentFor(part.goodsPence, config.fees),
+          itemChargesPence: part.itemChargesPence,
+          feePence: part.feePence,
+          totalEstimatePence: part.totalPence,
+          ...(linked
+            ? {
+                ...(created[0] ? { basketGroupId: created[0].id } : {}),
+                basketPart: part.part,
+                basketOf: priced.parts.length,
+                ...(part.extra ? { extraDeliveryStatus: extraStatus } : {}),
+              }
+            : {}),
+          items: part.lines.map((line) => ({
+            catalogueItemId: line.catalogueItemId,
+            name: line.name,
+            quantity: line.quantity,
+            estimatedPricePence: line.unitPricePence,
+          })),
+        }),
+      );
+    }
+    if (linked && created[0]) {
+      created[0] = await repository.orders.update(created[0].id, { basketGroupId: created[0].id });
+    }
+    return created;
+  }
+
+  /**
    * An order paid by bank transfer to the business account (ruling 50, Anthony, 7 October
    * 2026). The same checks as a card order (prices, the cap, the confirmation, the voice
    * ceiling and home address), then the order waits, confirmed, with a reference for the
@@ -160,12 +250,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     const catalogueItems = await repository.catalogue.findManyByIds(
       input.lines.map((line) => line.catalogueItemId),
     );
-    const priced = priceLines(
-      input.lines,
-      catalogueItems,
-      config.fees,
-      await deliveryPlanFor(app.ctx, shopper, now()),
-    );
+    const priced = pricedForOrder(input, catalogueItems, await deliveryPlanFor(app.ctx, shopper, now()));
     if (!input.overrideBudgetCap && exceedsBudgetCap(priced.goodsPence, shopper.budgetCapPence)) {
       throw new BadRequestError(
         `This shop comes to ${formatPence(priced.goodsPence, symbol)}, which is over the limit you set of ${formatPence(shopper.budgetCapPence ?? 0, symbol)}. Say the word and we will send it anyway.`,
@@ -201,15 +286,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       );
       if (!taken) break;
     }
-    const order = await repository.orders.create({
+    // One transfer, one reference, for the whole basket, extra Runners' deliveries included.
+    const group = await createOrders(priced, {
       shopperId: shopper.id,
       status: 'confirmed',
-      goodsEstimatePence: priced.goodsPence,
-      // Rule Two as amended by ruling 60: £5, or £7 for £120 or more of shopping.
-      runnerPaymentPence: runnerPaymentFor(priced.goodsPence, config.fees),
-      itemChargesPence: priced.itemChargesPence,
-      feePence: priced.feePence,
-      totalEstimatePence: priced.totalPence,
       deliveryPlan: priced.plan,
       deliveryAddress: input.deliveryAddress,
       latitude: input.latitude ?? null,
@@ -220,14 +300,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       confirmationStatement: input.confirmation.statement,
       paidBy: 'bank',
       bankReference: reference,
-      items: priced.lines.map((line) => ({
-        catalogueItemId: line.catalogueItemId,
-        name: line.name,
-        quantity: line.quantity,
-        estimatedPricePence: line.unitPricePence,
-      })),
-    });
-    void alertPayments(app.ctx, order, request.log);
+    }, 'transfer');
+    const order = group[0]!;
+    void alertPayments(app.ctx, order, request.log, priced.totalPence);
+    await alertTinyExtras(app.ctx, group);
     const amount = formatPence(priced.totalPence, symbol);
     void reply.status(201);
     return {
@@ -240,7 +316,8 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         amountPence: priced.totalPence,
         payWithinHours: bank.payWithinHours,
       },
-      message: `Thank you. Please pay ${amount} by bank transfer to ${bank.accountName}, sort code ${bank.sortCode}, account ${bank.accountNumber}, with the reference ${reference}. A Runner is sent as soon as we see it arrive, usually within a working day. Nothing is taken from a card.`,
+      ...(group.length > 1 ? { orders: group } : {}),
+      message: `Thank you. Please pay ${amount} by bank transfer to ${bank.accountName}, sort code ${bank.sortCode}, account ${bank.accountNumber}, with the reference ${reference}.${group.length > 1 ? ` Your shopping comes as ${group.length} orders, each with its own Runner. If a further Runner is not needed, their ${formatPence(config.fees.extraRunnerDeliveryPence, symbol)} delivery comes back to your account as Unused Runner fee credit.` : ''} A Runner is sent once your transfer arrives. A Faster Payments transfer usually arrives within minutes, and staff check for transfers at least every morning and evening. Nothing is taken from a card.`,
     };
   }
 
@@ -310,12 +387,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
     // Rule Six is applied again here, not only at basket time, because the catalogue can
     // change between pricing a basket and sending it. Delivery follows the Shopper's plan.
-    const priced = priceLines(
-      input.lines,
-      catalogueItems,
-      config.fees,
-      await deliveryPlanFor(app.ctx, shopper, now()),
-    );
+    const priced = pricedForOrder(input, catalogueItems, await deliveryPlanFor(app.ctx, shopper, now()));
 
     if (!input.overrideBudgetCap && exceedsBudgetCap(priced.goodsPence, shopper.budgetCapPence)) {
       throw new BadRequestError(
@@ -362,16 +434,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       payer.approvalLimitPence !== null &&
       priced.totalPence > payer.approvalLimitPence;
 
-    // Step one: write the order. Nothing has been charged.
-    const order = await repository.orders.create({
+    // Step one: write the order (or a basket's linked orders). Nothing has been charged.
+    const drafts = await createOrders(priced, {
       shopperId: shopper.id,
       status: 'draft',
-      goodsEstimatePence: priced.goodsPence,
-      // Rule Two as amended by ruling 60: £5, or £7 for £120 or more of shopping.
-      runnerPaymentPence: runnerPaymentFor(priced.goodsPence, config.fees),
-      itemChargesPence: priced.itemChargesPence,
-      feePence: priced.feePence,
-      totalEstimatePence: priced.totalPence,
       deliveryPlan: priced.plan,
       ...(input.payBy === 'family'
         ? { payerShopperId: payer.id, approvalStatus: needsApproval ? 'waiting' : 'approved' }
@@ -385,29 +451,28 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       // The doorstep instructions as they stand right now, so a later profile edit cannot
       // change what the Runner was told.
       doorstepProtocolSnapshot: shopper.doorstepProtocol,
-      items: priced.lines.map((line) => ({
-        catalogueItemId: line.catalogueItemId,
-        name: line.name,
-        quantity: line.quantity,
-        estimatedPricePence: line.unitPricePence,
-      })),
-    });
+    }, 'pending');
 
-    assertNotAlreadyConfirmed(order);
-    assertNotAlreadyPaid(order);
-
-    // Step two: record the single explicit confirmation.
+    // Step two: record the single explicit confirmation, on every linked order alike.
     const confirmedAt = now();
-    const confirmed = await repository.orders.update(order.id, {
-      status: 'confirmed',
-      spokenConfirmationAt: confirmedAt,
-      confirmationChannel: input.confirmation.channel,
-      confirmationStatement: input.confirmation.statement,
-    });
+    const confirmedAll: Order[] = [];
+    for (const order of drafts) {
+      assertNotAlreadyConfirmed(order);
+      assertNotAlreadyPaid(order);
+      confirmedAll.push(
+        await repository.orders.update(order.id, {
+          status: 'confirmed',
+          spokenConfirmationAt: confirmedAt,
+          confirmationChannel: input.confirmation.channel,
+          confirmationStatement: input.confirmation.statement,
+        }),
+      );
+    }
+    const confirmed = confirmedAll[0]!;
 
     // Step three: refuse to go further unless the confirmation is on the stored order.
     // Rule One.
-    assertConfirmedBeforePayment(confirmed);
+    for (const order of confirmedAll) assertConfirmedBeforePayment(order);
 
     if (needsApproval) {
       const total = formatPence(priced.totalPence, symbol);
@@ -481,10 +546,16 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     // this order is not going to happen, nothing was charged, send it again if you want to.
     // The confirmation stays written on the order either way, because it did happen and
     // Rule One is about the record, not about the outcome.
+    // A basket kept whole (ruling 61): one payment for every linked order, without the further
+    // Runners' deliveries, which are taken only as each of them collects.
+    const group = (await basketGroup(app.ctx, confirmed)).filter(
+      (row) => row.status === 'confirmed',
+    );
+    const amountPence = group.reduce((sum, row) => sum + chargedNowPence(row), 0);
     let intent;
     try {
       intent = await payments.createPaymentIntent({
-        amountPence: confirmed.totalEstimatePence,
+        amountPence,
         currency: config.fees.currency,
         paymentMethodId: paymentMethod.stripePaymentMethodId,
         customerId,
@@ -493,11 +564,14 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         confirmationRecordedAt: confirmedAt.toISOString(),
       });
     } catch (failure) {
-      await repository.orders.update(confirmed.id, {
-        status: 'cancelled',
-        cancelledAt: now(),
-        cancelReason: 'The card was refused when the order was sent.',
-      });
+      for (const row of group) {
+        await repository.orders.update(row.id, {
+          status: 'cancelled',
+          cancelledAt: now(),
+          cancelReason: 'The card was refused when the order was sent.',
+          ...(row.extraDeliveryStatus ? { extraDeliveryStatus: 'waived' as const } : {}),
+        });
+      }
       // The reason belongs in the log, where it can be acted on, and not in front of
       // somebody who is only trying to buy their shopping.
       request.log.error(
@@ -522,29 +596,45 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
      */
     const succeeded = intent.status === 'succeeded';
 
-    const placed = await repository.orders.update(confirmed.id, {
-      ...(succeeded ? { status: 'paid' as const } : {}),
-      stripePaymentIntentId: intent.id,
-    });
+    const placedAll: Order[] = [];
+    for (const row of group) {
+      placedAll.push(
+        await repository.orders.update(row.id, {
+          ...(succeeded ? { status: 'paid' as const } : {}),
+          stripePaymentIntentId: intent.id,
+        }),
+      );
+    }
+    const placed = placedAll[0]!;
 
     // Straight to a Runner, rather than waiting for the next sweep. A failure to find one is
     // not a failure of the order: the sweep keeps trying, and the Shopper has paid.
     if (succeeded && app.ctx.autoOffer) {
-      await offerOrder(app.ctx, placed.id).catch((failure: unknown) => {
-        request.log.warn({ orderId: placed.id, err: failure }, 'Could not offer the order yet');
-      });
+      for (const row of placedAll) {
+        await offerOrder(app.ctx, row.id).catch((failure: unknown) => {
+          request.log.warn({ orderId: row.id, err: failure }, 'Could not offer the order yet');
+        });
+      }
     }
 
     // Gift card credit goes straight back to the card, now that the payment has gone through.
     const creditPence = succeeded ? await applyCredit(app.ctx, placed.id, request.log) : 0;
     if (succeeded) {
-      await recordOrder(app.ctx, placed, 'order_paid', request.log);
-      await recordOrderIncome(repository, payments, placed, now());
+      for (const row of placedAll) {
+        await recordOrder(app.ctx, row, 'order_paid', request.log);
+        await recordOrderIncome(repository, payments, row, now(), chargedNowPence(row));
+      }
       void tellShopper(app.ctx, placed, 'paid', request.log);
     }
+    await alertTinyExtras(app.ctx, placedAll);
+    const extraWords =
+      placedAll.length > 1
+        ? ` Your shopping comes as ${placedAll.length} orders, each with its own Runner. The ${formatPence(config.fees.extraRunnerDeliveryPence, symbol)} delivery for each further Runner is taken only when that Runner collects it.`
+        : '';
 
     return {
       order: creditPence > 0 ? { ...placed, creditAppliedPence: creditPence } : placed,
+      ...(placedAll.length > 1 ? { orders: placedAll } : {}),
       payment: {
         id: intent.id,
         status: intent.status,
@@ -553,7 +643,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         requiresAction: !succeeded,
       },
       message: succeeded
-        ? `Thank you. Your order is on its way to a Runner. We have taken ${formatPence(placed.totalEstimatePence, symbol)}.` +
+        ? `Thank you. Your order is on its way to a Runner. We have taken ${formatPence(amountPence, symbol)}.${extraWords}` +
           (creditPence > 0
             ? ` ${formatPence(creditPence, symbol)} of gift card money is going straight back to your card.`
             : '')
@@ -610,6 +700,12 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       approvalStatus: 'approved',
       paymentMethodId: card.id,
     });
+    // A basket kept whole (ruling 61): the payer's yes is for every linked order.
+    for (const row of await basketGroup(app.ctx, approved)) {
+      if (row.id !== approved.id && row.status === 'confirmed') {
+        await repository.orders.update(row.id, { approvalStatus: 'approved', paymentMethodId: card.id });
+      }
+    }
     const outcome = await chargeAndSend(
       request,
       approved,
@@ -635,6 +731,17 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       cancelledAt: now(),
       cancelReason: 'The family plan payer did not approve it.',
     });
+    for (const row of await basketGroup(app.ctx, updated)) {
+      if (row.id !== updated.id && row.status === 'confirmed') {
+        await repository.orders.update(row.id, {
+          approvalStatus: 'declined',
+          status: 'cancelled',
+          cancelledAt: now(),
+          cancelReason: 'The family plan payer did not approve it.',
+          ...(row.extraDeliveryStatus ? { extraDeliveryStatus: 'waived' as const } : {}),
+        });
+      }
+    }
     void tellShopperById(
       app.ctx,
       order.shopperId,
@@ -724,6 +831,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     const updated = await repository.orders.update(order.id, patch);
     // The whole order of a split part follows its parts (ruling 60).
     await syncSplitParent(app.ctx, updated.splitParentId);
+    // A further Runner of a basket who is now not needed is never charged for (ruling 61).
+    if (status === 'cancelled' && updated.extraDeliveryStatus) {
+      await releaseExtraDelivery(app.ctx, updated, request.log);
+    }
     // The order is over for the Runner's card too: frozen, if it is not already.
     if ((status === 'delivered' || status === 'cancelled') && order.payMethodUsed === 'card') {
       await releaseCard(app.ctx, order.runnerId, order.id, request.log);

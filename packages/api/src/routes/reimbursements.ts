@@ -18,6 +18,7 @@ import { ConflictError, NotFoundError } from '../errors.js';
 import { decidedBy, staffActor } from '../lib/staff.js';
 import { reimbursementReference, sendReimbursement } from '../services/reimburse.js';
 import { orderReference } from './runner-account.js';
+import { mostOneOrderCarries } from '../services/basket-orders.js';
 
 const approveSchema = z.object({
   /** A smaller amount, if the person decides only part of the till total should be paid back. */
@@ -73,7 +74,7 @@ export async function registerReimbursementRoutes(app: FastifyInstance): Promise
     }
 
     // Never more than the till said, and never more than one delivery carries.
-    const most = Math.min(order.receiptTotalPence, config.fees.maximumOrderGoodsPence);
+    const most = Math.min(order.receiptTotalPence, mostOneOrderCarries(config, order));
     const pence = Math.min(body.amountPence ?? order.reimbursementPence ?? most, most);
     await repository.orders.update(order.id, { reimbursementPence: pence });
 

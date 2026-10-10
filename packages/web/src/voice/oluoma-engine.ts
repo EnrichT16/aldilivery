@@ -21,6 +21,7 @@
 
 import {
   SPEAKING_RATE,
+  microphoneAlreadyAllowed,
   type LanguageTag,
   type ListenOptions,
   type OutputVoice,
@@ -224,6 +225,9 @@ export function browserAudio(): AudioPorts {
       };
       let stopEarly = false;
       const audio = (async (): Promise<Blob | null> => {
+        // Both asked for before anything is awaited, so a tap counts for them (ruling 62): the
+        // sound, which a browser keeps paused until a touch, and the microphone.
+        const context = audioContext();
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: { echoCancellation: true, noiseSuppression: true },
         });
@@ -233,7 +237,6 @@ export function browserAudio(): AudioPorts {
           if (event.data.size > 0) pieces.push(event.data);
         };
         // How loud the microphone is, to tell when the Shopper starts and stops talking.
-        const context = audioContext();
         const input = context.createMediaStreamSource(stream);
         const meter = context.createAnalyser();
         meter.fftSize = 1024;
@@ -304,6 +307,8 @@ export function oluomaVoiceEngine(options: {
 
   let pass: OluomaSession | null = null;
   let decided: Promise<boolean> | null = null;
+  /** The choice, once made, so listening can start without waiting on anything. */
+  let decision: boolean | null = null;
   let inUse = false;
   let speech: { abort: AbortController; settle: (outcome: SpeakOutcome) => void } | null = null;
   let player: SoundPlayer | null = null;
@@ -338,7 +343,9 @@ export function oluomaVoiceEngine(options: {
         },
       );
     });
-    return (await decided) && inUse;
+    const chosen = await decided;
+    decision = chosen;
+    return chosen && inUse;
   }
 
   async function currentPass(): Promise<OluomaSession> {
@@ -431,6 +438,12 @@ export function oluomaVoiceEngine(options: {
 
     wakeWordOnDevice: false,
 
+    // Both ways of listening need a tap the first time: Oluoma Voice asks the browser for the
+    // microphone, and so does the phone's own speech (ruling 62).
+    async firstListenNeedsTap(): Promise<boolean> {
+      return !(await microphoneAlreadyAllowed());
+    },
+
     async readiness(language: LanguageTag): Promise<VoiceReadiness> {
       if (!(await oluomaChosen())) return fallback.readiness(language);
       try {
@@ -475,17 +488,7 @@ export function oluomaVoiceEngine(options: {
         else listenOptions.onEnd?.();
       };
 
-      void (async () => {
-        if (!(await oluomaChosen()) || !audio.canRecord()) {
-          handOver();
-          return;
-        }
-        if (mine.cancelled) {
-          end();
-          return;
-        }
-        const recording = audio.record();
-        mine.recording = recording;
+      const listen = async (recording: Recording): Promise<void> => {
         let heard: Blob | null;
         try {
           heard = await recording.audio;
@@ -493,8 +496,7 @@ export function oluomaVoiceEngine(options: {
           if (isRefusedMicrophone(error)) {
             listenOptions.onError?.({
               kind: 'not-allowed',
-              message:
-                'The microphone is not allowed for this site. You can allow it in your phone or browser settings.',
+              message: 'The microphone is not allowed for this site.',
             });
             end();
           } else {
@@ -535,7 +537,31 @@ export function oluomaVoiceEngine(options: {
           giveUp();
           handOver();
         }
-      })();
+      };
+
+      /**
+       * The microphone is asked for here, in the same moment, with nothing awaited first:
+       * called from a tap, the browser counts it as the person's own doing and shows its own
+       * "Allow microphone?" question (ruling 62). An iPhone asked any later refuses without
+       * asking.
+       */
+      const begin = (useOluoma: boolean): void => {
+        if (!useOluoma || !audio.canRecord()) {
+          handOver();
+          return;
+        }
+        if (mine.cancelled) {
+          end();
+          return;
+        }
+        const recording = audio.record();
+        mine.recording = recording;
+        void listen(recording);
+      };
+
+      // Once the choice is made, which it is by the time anybody taps, start at once.
+      if (decision !== null) begin(decision && inUse);
+      else void oluomaChosen().then(begin);
     },
 
     stopListening(): void {

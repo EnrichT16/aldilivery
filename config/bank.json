@@ -1,6 +1,6 @@
 {
-  "about": "Paying by bank transfer straight to the business account (ruling 50). Off until Anthony fills in the account and switches it on. Staff mark each transfer as received in the admin panel's Payments tab; only then is a Runner sent. The account name \"{legalEntityName}\" is the company name from store.json.",
-  "enabled": false,
+  "about": "Paying by bank transfer straight to the business account (ruling 50). Switched on by Anthony on 10 October 2026 (ruling 61). Staff mark each transfer as received in the admin panel's Payments tab; only then is a Runner sent. The account name \"{legalEntityName}\" is the company name from store.json.",
+  "enabled": true,
   "accountName": "{legalEntityName}",
   "sortCode": "23-01-63",
   "accountNumber": "90271204",

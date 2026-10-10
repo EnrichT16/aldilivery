@@ -24,6 +24,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import {
   displayPricePence,
+  overOneRunnerWords,
   formatPence,
   parseQuantity,
   parseYesNo,
@@ -44,7 +45,7 @@ import {
   signedByTwilio,
   type CallState,
 } from '../lib/twilio-voice.js';
-import { priceLines } from '../services/basket.js';
+import { priceLinesInParts } from '../services/basket.js';
 import { CANCEL_PLAN, cancelPlanFor, deliveryPlanFor, freeMonthEnd } from '../services/plans.js';
 import { skipByText } from '../services/set-runner.js';
 
@@ -216,7 +217,9 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
   async function readBack(lines: Array<[string, number]>, shopperId?: string) {
     const items = await repository.catalogue.findManyByIds(lines.map(([id]) => id));
     const shopper = shopperId ? await repository.shoppers.findById(shopperId) : null;
-    const priced = priceLines(
+    // Priced as linked orders when over one order (ruling 61), so a big basket is explained
+    // rather than refused with an error.
+    const priced = priceLinesInParts(
       lines.map(([catalogueItemId, quantity]) => ({ catalogueItemId, quantity })),
       items,
       config.fees,
@@ -645,11 +648,23 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     }
   });
 
+  /**
+   * A basket over £150 (ruling 61), told plainly and gently with both choices. By phone the most
+   * that can be taken is the voice ceiling, so keeping everything is for the app or website.
+   */
+  function overOneRunnerOnPhone(state: CallState, sid: string): string {
+    return ask(
+      `${overOneRunnerWords(config.fees, money)} By phone I can take up to ${money(config.voice.paymentCeilingPence)}, so to keep everything, please use the app or the website. Or say take off and something, or say cancel.`,
+      next({ ...state, step: 'items', quiet: 0 }, sid),
+    );
+  }
+
   /** The order read back slowly: everything, the cost, the card and the address. */
   async function confirmTwiml(state: CallState, sid: string, opening = ''): Promise<string> {
     if (state.link) {
       const { priced, words } = await readBack(state.lines, state.shopperId);
       const ceiling = config.voice.paymentCeilingPence;
+      if (priced.parts.length > 1) return overOneRunnerOnPhone(state, sid);
       if (priced.totalPence > ceiling) {
         return ask(
           `That comes to ${money(priced.totalPence)}, and the most I can take by phone is ${money(ceiling)}. Please say take off and something, or say cancel.`,
@@ -666,6 +681,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       return goodbye('Sorry, I could not find your account. Please ring again. Goodbye.');
     const { priced, words } = await readBack(state.lines, shopper.id);
     const ceiling = config.voice.paymentCeilingPence;
+    if (priced.parts.length > 1) return overOneRunnerOnPhone(state, sid);
     if (priced.totalPence > ceiling) {
       return ask(
         `That comes to ${money(priced.totalPence)}, and the most I can take by phone is ${money(ceiling)}. Please say take off and something, or say cancel.`,
