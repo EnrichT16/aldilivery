@@ -414,6 +414,11 @@ export interface Order {
   setFireAt: Date | null;
   /** When the address and doorstep words were taken off, seven years on. */
   anonymisedAt: Date | null;
+  /**
+   * When the owner was texted that this large order is still waiting for a Runner with a car
+   * (ruling 59), so it is texted once only.
+   */
+  waitingAlertSentAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   acceptedAt: Date | null;

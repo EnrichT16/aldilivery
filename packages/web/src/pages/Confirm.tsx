@@ -342,6 +342,9 @@ export function Confirm(): JSX.Element {
           delivery.
         </p>
         {byFamily && <p className="m-0">This is paid with your family plan&rsquo;s card.</p>}
+        {pricing.goodsPence > storeConfig.dispatch.carOnlyAbovePence && (
+          <p className="m-0">Large orders go to a Runner with a car.</p>
+        )}
       </section>
 
       <section aria-labelledby="where-heading" className="space-y-3">

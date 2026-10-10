@@ -510,6 +510,10 @@ model Order {
   /// When the delivery address and doorstep words were taken off, seven years on (retention).
   anonymisedAt DateTime?
 
+  /// When the owner was texted that this large order is still waiting for a Runner with a car
+  /// (ruling 59), so it is texted once only.
+  waitingAlertSentAt DateTime?
+
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   acceptedAt   DateTime?

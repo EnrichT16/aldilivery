@@ -7,9 +7,9 @@ None of this needs doing for testing with people you know (TESTING_WITH_PEOPLE.m
 
 Step 1. The company's details on the site. Anthony, then Claude.
 
-The law (the Companies Act and the Consumer Contracts Regulations) says the website must show the company's registered name, its company number, where it is registered (England and Wales), and its registered office address. Today the site shows a placeholder.
+The law (the Companies Act and the Consumer Contracts Regulations) says the website must show the company's registered name, its company number, where it is registered (England and Wales), and its registered office address. The registered name, OZIDELIVERY LTD, and the registered office, 107 King Street, Gillingham, ME7 1ER, are in (ruling 59, 10 October 2026); the company number still shows "to follow".
 
-Send Claude: the exact registered name of Ozi Delivery Ltd as it appears on Companies House, the company number, and the registered office address. Claude puts them in config/store.json, and they then appear in the privacy page, the terms and the footer.
+Send Claude: the company number from Companies House (and check the name and address there match letter for letter). Claude puts it in config/store.json, and it then appears in the privacy page, the terms and the footer.
 
 
 Step 2. A telephone number for Shoppers. Anthony, then Claude.
@@ -107,7 +107,7 @@ Before each widening, open ozidelivery.co.uk/api/health. It should show the late
 
 Step 14. The phone apps. Waiting.
 
-The Apple and Google store accounts are waiting on the company's D-U-N-S number. The website works on phones in the meantime, and can be added to the home screen. Nothing here waits on the apps.
+The D-U-N-S number, 235209172, has come, for OZIDELIVERY LTD, 107 King Street, Gillingham ME7 1ER. Next, the Apple and Google accounts are enrolled as OZIDELIVERY LTD (docs/APP_STORES.md). The website works on phones in the meantime, and can be added to the home screen. Nothing here waits on the apps.
 
 
 What is already done

@@ -20,7 +20,7 @@ stand as they were.
 
 **Three.** Delivery is priced by plan and by the size of the shop, every price covering the Runner and shown before any yes; every product carries an item charge, always included in the price shown; no single product may cost more than sixty pounds, and one order carries at most the configured most of shopping.
 
-*Amended 9 October 2026 (ruling 58): delivery is now tiered and item charges apply. Pay as you go is £7.99 for shopping of £15 or less and £13.50 above; Ozi Membership £7.99; Ozi Plus and Ozi Family and Carer £5.99; an item charge of 50p, plus 50p for every whole £6 of shop price, on every unit; no product over £60; one order up to £150 of shopping (pending Anthony's confirmation). Every figure is in config/store.json. This replaces the Rule Three ruled on 29 September 2026, "Standard delivery is thirteen pounds fifty, flat, and one delivery carries at most sixty pounds of shopping", which itself replaced the earlier two pound net floor and its fee bands.*
+*Amended 9 October 2026 (ruling 58): delivery is now tiered and item charges apply. Pay as you go is £7.99 for shopping of £15 or less and £13.50 above; Ozi Membership £7.99; Ozi Plus and Ozi Family and Carer £5.99; an item charge of 50p, plus 50p for every whole £6 of shop price, on every unit; no product over £60; one order up to £150 of shopping (confirmed by Anthony on 10 October 2026, ruling 59). Every figure is in config/store.json. This replaces the Rule Three ruled on 29 September 2026, "Standard delivery is thirteen pounds fifty, flat, and one delivery carries at most sixty pounds of shopping", which itself replaced the earlier two pound net floor and its fee bands.*
 
 **Four.** No surge pricing, no small order fee, no minimum spend.
 

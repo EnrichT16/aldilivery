@@ -158,6 +158,25 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
     );
   });
 
+  it('says a large order goes to a Runner with a car, and only for a large order (ruling 59)', async () => {
+    const price = async (quantity: number) =>
+      (
+        await harness.app.inject({
+          method: 'POST',
+          url: '/basket/price',
+          payload: { lines: [{ catalogueItemId: items.milk, quantity }] },
+        })
+      ).json() as { carNeeded: boolean; explanation: string[] };
+
+    // 48 pints is £60.00 at the shop: not over the line. 49 is £61.25.
+    const atLimit = await price(48);
+    expect(atLimit.carNeeded).toBe(false);
+    expect(atLimit.explanation.join(' ')).not.toContain('Runner with a car');
+    const large = await price(49);
+    expect(large.carNeeded).toBe(true);
+    expect(large.explanation).toContain('Large orders go to a Runner with a car.');
+  });
+
   it('refuses an empty basket kindly rather than pricing nothing', async () => {
     const response = await harness.app.inject({
       method: 'POST',

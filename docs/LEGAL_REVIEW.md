@@ -133,7 +133,7 @@ In `config/store.json`, put the real value in, then set its flag to `false`:
 | `store.legalEntityName` | `legalEntityIsPlaceholder` (already false) | Check it matches Companies House exactly, letter for letter, including "Ltd" or "Limited". |
 | `store.companyNumber` | `companyNumberIsPlaceholder` | The 8-character number from Companies House. |
 | `store.registeredIn` | none | "England and Wales" unless the company is registered in Scotland or Northern Ireland. |
-| `store.registeredOffice` | `registeredOfficeIsPlaceholder` | The registered office address exactly as at Companies House. |
+| `store.registeredOffice` | `registeredOfficeIsPlaceholder` | Done (ruling 59): 107 King Street, Gillingham, ME7 1ER, flag false. The company is OZIDELIVERY LTD. |
 | `store.icoRegistrationNumber` | `icoRegistrationIsPlaceholder` | After paying the data protection fee at ico.org.uk (about £52 a year for a small company). |
 | `contact.email` | `emailIsPlaceholder` | A mailbox that is read every working day. The value there now is a guess. |
 | `contact.telephonePlaceholder` | `telephoneIsPlaceholder` | The Twilio number Shoppers ring (Part 7, step 2). |
@@ -195,7 +195,7 @@ The pages now promise these; the code does not yet do all of them:
    too: if they spend their own money and wait to be paid back, that is a fairness and status
    problem, and today the code pays only the £5, not the shopping (`pay-runner.ts`). *Since
    ruling 55 they are paid back the till total straight away when they put it in
-   (`services/reimburse.ts`); only a till total far over the estimate, over the whole-order cap (£60 then; £150 pending since ruling 58), or on an order
+   (`services/reimburse.ts`); only a till total far over the estimate, over the whole-order cap (£60 then; £150 since ruling 58, confirmed in ruling 59), or on an order
    the till itself needs a person for, waits for a person to approve, the same day where
    possible.*
 2. **Liability caps.** The terms deliberately have no money cap on our liability to Shoppers,

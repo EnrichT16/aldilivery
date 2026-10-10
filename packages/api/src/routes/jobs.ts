@@ -15,7 +15,7 @@ import { z } from 'zod';
 import { requireSession, requireStaff } from '../app.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 import { isOfferExpired, poolOrders } from '../services/allocation.js';
-import { offerOrder } from '../services/dispatch.js';
+import { canCarry, largeOrderWords, offerOrder } from '../services/dispatch.js';
 import { ensureDoorWord, newDoorWord } from '../services/door-word.js';
 import { drivingPaused } from '../services/insurance.js';
 import { tellShopper } from '../services/order-updates.js';
@@ -47,12 +47,16 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
     const mine = pending.filter(
       (offer) => offer.runnerId === session.accountId && !isOfferExpired(offer, at),
     );
+    const runner = await repository.runners.findById(session.accountId);
 
     // Enough to decide whether to take it, and no more. The address, the doorstep
     // instructions and who the Shopper is only reach the Runner who accepts.
     const withOrders = await Promise.all(
       mine.map(async (offer) => {
         const order = await repository.orders.findById(offer.orderId);
+        // A large order is not shown to a Runner who has since switched to walking or cycling
+        // (ruling 59); it lapses and goes on to a Runner with a car.
+        if (order && runner && !canCarry(config, runner, order, at)) return null;
         return {
           offer,
           secondsLeft: Math.max(0, Math.round((offer.expiresAt.getTime() - at.getTime()) / 1000)),
@@ -68,7 +72,7 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
       }),
     );
 
-    return { offers: withOrders };
+    return { offers: withOrders.filter((entry) => entry !== null) };
   });
 
   /**
@@ -158,6 +162,8 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
         'Your motor insurance has run out, so jobs by car or motorbike are paused. Switch to walking or bicycle, or send your new certificate.',
       );
     }
+    // A large order goes only to a Runner with a car (ruling 59).
+    if (!canCarry(config, runner, order, at)) throw new ForbiddenError(largeOrderWords(config));
 
     await repository.offers.update(offer.id, { outcome: 'accepted', respondedAt: at });
 

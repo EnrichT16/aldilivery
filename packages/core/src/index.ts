@@ -51,6 +51,8 @@ export {
   type CatalogueSourceMode,
 } from './config.js';
 
+export { LARGE_ORDER_TRAVEL_MODES, needsCarRunner, travelModeCarriesLargeOrders } from './dispatch.js';
+
 export { formatPence, poundsToPence } from './money.js';
 
 export { parseChoice, parseQuantity, parseYesNo, splitItems, wantsToStop } from './spoken-order.js';

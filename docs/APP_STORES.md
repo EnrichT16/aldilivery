@@ -10,7 +10,7 @@ on the day, because Apple and Google change them.
 The short version. Everything on our side that can be ready is ready: the iPhone and Android
 apps are built automatically from the website, with the right name, icon, permissions and
 wording, and a button on GitHub turns them into the files each store needs. What is left is
-signing up to each store, which needs the company's D-U-N-S number, then a few changes listed
+signing up to each store (the D-U-N-S number has come: Part 2), then a few changes listed
 under "Before submitting", then filling in the store pages from docs/store-listing.
 
 Until then, people put the website on their phone's home screen. The "Get the app" button on the
@@ -22,8 +22,7 @@ website explains how, for an iPhone and for Android.
    when you enrol. It must be renewed every year or the app is taken off the App Store.
 2. **Google Play developer account**: 25 US dollars once, about 20 pounds, paid by card when you
    sign up. No yearly fee.
-3. **D-U-N-S number**: free. Ask for it through Apple's own D-U-N-S page, not through a company
-   offering to speed it up for a fee.
+3. **D-U-N-S number**: free, and it has come: **235209172** (Part 2).
 4. **Building the iPhone app**: it needs a Mac, which we do not have. The plan is GitHub's own
    Macs, through the workflow already in the repository. GitHub's free allowance covers a few
    iPhone builds a month for a private repository (Mac minutes count ten times; a build takes
@@ -41,8 +40,17 @@ Total to start: about 100 pounds, then about 79 pounds a year.
 ## Part 2. What the D-U-N-S number is for
 
 A D-U-N-S number is a nine-digit number from the company Dun and Bradstreet that identifies a
-business. Apple and Google both use it to check that Tofadachi AI and IT Solutions UK Ltd is a
-real company and that Anthony may act for it.
+business. Apple and Google both use it to check that the company is real and that Anthony may
+act for it.
+
+**The number has come (10 October 2026, ruling 59): 235209172**, for **OZIDELIVERY LTD, 107 King
+Street, Gillingham ME7 1ER**. It is public, and is kept in `config/store.json` as
+`store.dunsNumber`. OZIDELIVERY LTD is the company that runs Ozi Delivery. Anthony's other
+company is separate and is not named anywhere on the site or in the store listings.
+
+Both the Apple and the Google accounts must be enrolled as **OZIDELIVERY LTD**, written exactly
+as it is on the D-U-N-S record (capital letters, "LTD"), with the address 107 King Street,
+Gillingham ME7 1ER. A different spelling or address stops the enrolment.
 
 With it, the store pages say the app is published by the company, not by Anthony personally,
 and Anthony's home address is not shown. Without it, the only option is a personal account. A
@@ -142,15 +150,15 @@ For the iPhone:
 
 ## Part 6. The App Store, step by step
 
-1. **Anthony**: when the D-U-N-S number arrives, check the company details match Companies House
-   (Part 2).
+1. **Anthony**: check the company details on the D-U-N-S record (OZIDELIVERY LTD, 107 King
+   Street, Gillingham ME7 1ER, number 235209172) match Companies House (Part 2).
 2. **Anthony**: make sure his Apple ID has two-factor authentication on, and uses an email
    address he reads. A company email address on ozidelivery.co.uk is better, because Apple may
    ask for one that matches the website.
 3. **Anthony, with Yvette**: enrol in the Apple Developer Program as an **organisation**. The
    easiest way is the Apple Developer app on the iPhone, which works with VoiceOver: Account,
    Enroll Now. Or developer.apple.com/programs/enroll in Safari. Give the company's legal name
-   exactly as registered, the D-U-N-S number, the website https://ozidelivery.co.uk, and say
+   exactly as on the D-U-N-S record, **OZIDELIVERY LTD**, the D-U-N-S number 235209172, the website https://ozidelivery.co.uk, and say
    Anthony is the director with authority to sign. Pay the yearly fee.
 4. **Anthony**: Apple may ring to confirm he works for the company and can sign for it. Approval
    usually takes from a day to two weeks.
@@ -183,7 +191,7 @@ For the iPhone:
 ## Part 7. Google Play, step by step
 
 1. **Anthony**: sign up at play.google.com/console as an **organisation**, with the company's
-   name, the D-U-N-S number, the website and a contact email and telephone number. Pay the one-off
+   name exactly as on the D-U-N-S record, **OZIDELIVERY LTD**, the D-U-N-S number 235209172, the website and a contact email and telephone number. Pay the one-off
    fee.
 2. **Anthony, with Yvette**: Google checks identity: it may ask for a photo of Anthony's passport
    or driving licence, and confirms the email and telephone number with codes. It can take a few

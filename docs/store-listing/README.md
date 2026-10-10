@@ -43,5 +43,6 @@ Read these in this order:
 - `REVIEW_PHONE_NUMBER` and `REVIEW_CODE` in review-notes.md: the review sign-in, which has to
   be built first (docs/APP_STORES.md, "Before submitting").
 - The telephone number and email above.
-- Company number and registered office (config/store.json), which Apple and Google show for a
-  trader in some countries.
+- Company number (config/store.json), which Apple and Google show for a trader in some
+  countries. The company name (OZIDELIVERY LTD) and registered office (107 King Street,
+  Gillingham, ME7 1ER) are in (ruling 59).

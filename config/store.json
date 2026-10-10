@@ -13,15 +13,16 @@
   },
   "store": {
     "displayName": "Aldi",
-    "legalEntityName": "Tofadachi AI and IT Solutions UK Ltd",
+    "legalEntityName": "OZIDELIVERY LTD",
     "legalEntityIsPlaceholder": false,
     "companyNumber": "00000000",
     "companyNumberIsPlaceholder": true,
     "registeredIn": "England and Wales",
-    "registeredOffice": "Registered office address to be added",
-    "registeredOfficeIsPlaceholder": true,
+    "registeredOffice": "107 King Street, Gillingham, ME7 1ER",
+    "registeredOfficeIsPlaceholder": false,
     "icoRegistrationNumber": "ZA000000",
     "icoRegistrationIsPlaceholder": true,
+    "dunsNumber": "235209172",
     "country": "GB",
     "currency": "GBP",
     "currencySymbol": "£",
@@ -69,6 +70,10 @@
   "payments": {
     "provider": "stripe",
     "supportedCardRegions": ["ANY"]
+  },
+  "dispatch": {
+    "carOnlyAbovePence": 6000,
+    "waitingAlertMinutes": 15
   },
   "allocation": {
     "offerHoldSeconds": 60,

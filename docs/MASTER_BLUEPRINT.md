@@ -59,7 +59,7 @@ brand, names and colours are configuration in config/store.json, never code (Rul
 **Where.** ozidelivery.co.uk. Medway first (Gillingham, ME7, for the soft launch). The service is
 online only, anywhere in the UK; nobody visits an office (ruling 10).
 
-**Who runs it.** Tofadachi AI and IT Solutions UK Ltd (the company number, registered office and ICO number are still placeholders, see Part 7).
+**Who runs it.** OZIDELIVERY LTD, registered in England and Wales, registered office 107 King Street, Gillingham, ME7 1ER (ruling 59); D-U-N-S number 235209172. The company number and ICO number are still placeholders, shown as "to follow" (see Part 7). Anthony's separate company is not named on the site.
 Owner and founder: Anthony Tochukwu Ibe.
 
 ---
@@ -119,7 +119,7 @@ them there; tests pin the core ones so a change is made on purpose.
 | Delivery, Ozi Plus and Ozi Family and Carer | **£5.99**, whatever the size | Ruling 58 |
 | Runner's share of every delivery | **£5.00**, untouched, whatever the basket and plan; the business keeps the rest and the item charges | Section B, Rule Two |
 | Most any single product may cost | **£60.00** in the shop; dearer products are refused in plain words | Ruling 58, Rule Three (amended) |
-| Most shopping in one order | **£150.00** at shop prices, **pending Anthony's confirmation**; above it Ozi says so and offers two deliveries | Ruling 58 (`fees.maximumOrderGoodsPence`) |
+| Most shopping in one order | **£150.00** at shop prices (confirmed by Anthony, ruling 59); above it Ozi says so and offers two deliveries | Ruling 58 (`fees.maximumOrderGoodsPence`) |
 | First month of membership | **Free** for every new Shopper, with pay-as-you-go delivery; reminder about 3 days before it ends; nothing taken without choosing to join | Ruling 58 |
 | Most that can be confirmed by voice alone | **£80.00** (above it, touch confirmation) | Section E (setting, default £80) |
 | In-app calls | **5p a minute**, paid by the Shopper; a Runner never pays | Section B, rulings 2 Oct 1 and 16 |
@@ -197,7 +197,7 @@ person) is replaced by Ozi Family and Carer (ruling 58).
   delivery, and is then said together: "You've been paid back £X for the shopping and £5.00 for
   the delivery." Only an accepted till total is paid back without a person: no more than the
   estimate plus the larger of £5 or a fifth, never more than the whole-order goods cap (£150,
-  pending Anthony, ruling 58). When the till
+  rulings 58 and 59). When the till
   needs a person, so does the pay-back: it waits in the admin panel's Payments tab with an
   Approve button (founder and finance officer), and the owner is texted. A Runner whose payout
   account is not ready is owed it, shown it, and paid by the minute sweep once it is. Recorded
@@ -349,6 +349,7 @@ person) is replaced by Ozi Family and Carer (ruling 58).
 | Agreeing to the Runner agreement before the first job: a tick at sign-up or on the Runner page (a spoken yes is accepted by the server), kept with the date, version and how | BUILT | Ruling 55. No job is offered or accepted until the current version is agreed. |
 | Paid back for the shopping straight away when the till total goes in | BUILT | Ruling 55. A person approves the ones the till needs a person for. No receipt photo is taken yet. |
 | Fair job offers with pay and distance, 60-second hold | BUILT | |
+| Large orders (over £60 of shopping at shop prices) offered and accepted only by a Runner with a car and in-date insurance; owner texted once after 15 minutes if none is free | BUILT | Ruling 59. `dispatch.carOnlyAbovePence`, `dispatch.waitingAlertMinutes`. |
 | Dashboard: earned (big and bold), job history by reference and area, payouts, owing | BUILT | |
 | Runner ID, share link, feedback page | BUILT | |
 | Report a problem per job with voice notes, photos, video | BUILT | |
@@ -464,7 +465,7 @@ RULES.md names the file and test that enforces each.
 - An item charge on every unit (50p, plus 50p for every whole £6 of shop price), always in the
   price shown; delivery by plan and shop size (pay as you go £7.99 up to £15, £13.50 above;
   Membership £7.99; Plus and Family £5.99); no product over £60; one order up to £150 of
-  shopping (pending Anthony); £5 to the Runner; no surge, no small order fee, no minimum
+  shopping (confirmed, ruling 59); £5 to the Runner; no surge, no small order fee, no minimum
   (ruling 58, Rules Two to Four, Rule Three amended 9 October 2026).
 - No card, no order; paid before a Runner is sent (ruling 29). Pay-by-link for telephone callers
   from a mobile (ruling 48).
@@ -487,6 +488,8 @@ RULES.md names the file and test that enforces each.
   before sheltered housing rounds, wellbeing checks and handovers to the person (ruling 16).
 - On foot or bicycle need no insurance; a car, motorbike or scooter needs business or
   hire-and-reward cover; switching down is instant (rulings 2 Oct 4, 9).
+- Orders over £60 of shopping go only to a Runner with a car (or van) and in-date insurance
+  (ruling 59).
 - Runners see an order reference and the area only (ruling 16).
 - Payouts weekly by default, daily or instant at the Runner's choice and cost (ruling 16).
 - A Runner may decline any sending job without reason or penalty; no Runner is expected to
@@ -742,7 +745,7 @@ people Anthony knows (TESTING_WITH_PEOPLE.md).
 
 | Step | Who | Status |
 | --- | --- | --- |
-| 1. Company name, number and registered office on the site | Anthony, then Claude | Built (ruling 54): shown in every page's footer and the legal pages from config/store.json. The company name is in; the number, registered office, ICO number and email show "to follow" until Anthony fills them in and clears each placeholder flag (docs/LEGAL_REVIEW.md). |
+| 1. Company name, number and registered office on the site | Anthony, then Claude | Built (ruling 54): shown in every page's footer and the legal pages from config/store.json. The company name (OZIDELIVERY LTD) and registered office (107 King Street, Gillingham, ME7 1ER) are in (ruling 59); the number, ICO number and email show "to follow" until Anthony fills them in and clears each placeholder flag (docs/LEGAL_REVIEW.md). |
 | 2. A telephone number for Shoppers | Anthony, then Claude | Waiting: 0800 000 0000 placeholder. |
 | 3. Solicitor reads the privacy policy, terms and Runner agreement (including the 10% recovery and cancellation wording) | Anthony | AI review done instead, for now (ruling 54, docs/LEGAL_REVIEW.md): privacy and terms rewritten and no longer marked draft; cookies page added; Runner agreement written and still marked draft until employment status, paying at the till and substitution are decided. A solicitor is still advised on the risks listed there. |
 | 4. ICO registration | Anthony | Waiting: pay the data protection fee, then put the number in `store.icoRegistrationNumber` and set its flag to false; also the appropriate policy document for DBS and health data (docs/LEGAL_REVIEW.md). |
@@ -755,7 +758,7 @@ people Anthony knows (TESTING_WITH_PEOPLE.md).
 | 11. Public liability insurance (and goods in transit) | Anthony | Waiting. |
 | 12. First Runners checked in the admin panel | Anthony | Waiting. |
 | 13. Soft launch in Gillingham, ME7, by invitation | Anthony | After the above. |
-| 14. Phone apps | Waiting | On the D-U-N-S number. |
+| 14. Phone apps | Waiting | D-U-N-S number 235209172 is in (OZIDELIVERY LTD, ruling 59); next, Apple and Google enrolment as OZIDELIVERY LTD (docs/APP_STORES.md). |
 
 Also needed before opening to everyone: an accessibility check by real screen reader users with
 NVDA, VoiceOver, axe and WAVE, covering the admin panel (Section R); database backups and
@@ -818,7 +821,7 @@ The first round of missing features is built: the owner's till screen, receipt p
 - **Item charges**: 50p on every unit, plus 50p for every whole £6 of its shop price
   (`itemChargePence` in `packages/core/src/fees.ts`), in every price shown or spoken; the
   receipt shows the shop total, item charges and delivery as lines. Till, pay-backs and the Ozi
-  card use shop prices only. No product over £60; one order up to £150 (pending Anthony).
+  card use shop prices only. No product over £60; one order up to £150 (confirmed, ruling 59).
 - **Delivery** (`deliveryFeePence`): pay as you go £7.99 up to £15.00 of shopping, £13.50 above;
   Membership and organisation clients £7.99; Plus and Family and Carer £5.99. Runner £5 always.
 - **First month free** for every new Shopper, with pay-as-you-go delivery; a reminder about three
@@ -827,3 +830,17 @@ The first round of missing features is built: the owner's till screen, receipt p
   £20 a month, renewing monthly only when chosen; one-button and spoken cancelling.
 - **Organisations**: £10 a client, every 51st client £5 (`organisationMonthlyPence`).
 - Migration `20261020090000_pricing_plans`. docs/changes/pricing.md has the detail.
+
+## Ruling 59 in brief (10 October 2026)
+
+- **Large orders by car**: an order over £60 of shopping at shop prices
+  (`dispatch.carOnlyAbovePence`) is offered to, shown to and accepted by only a Runner on a car
+  or van with an accepted, in-date licence and insurance; on foot and bicycle are treated alike.
+  With none free, the order waits and the owner is texted once after 15 minutes
+  (`dispatch.waitingAlertMinutes`). The Shopper is told "Large orders go to a Runner with a car."
+  for large orders only. Migration `20261021090000_large_orders_by_car`.
+- **The whole-order goods cap is £150**, confirmed by Anthony.
+- **The company is OZIDELIVERY LTD**, 107 King Street, Gillingham, ME7 1ER, registered in England
+  and Wales; D-U-N-S 235209172 (`store.dunsNumber`). Company number and ICO number to follow.
+  Apple and Google accounts are enrolled as OZIDELIVERY LTD exactly as on the D-U-N-S record.
+

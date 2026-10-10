@@ -929,6 +929,7 @@ export function memoryRepository(): Repository {
           doorWord: input.doorWord ?? null,
           setFireAt: input.setFireAt ?? null,
           anonymisedAt: null,
+          waitingAlertSentAt: null,
           createdAt: now(),
           updatedAt: now(),
           acceptedAt: null,

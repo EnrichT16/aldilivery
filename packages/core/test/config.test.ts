@@ -9,7 +9,13 @@ import { fileURLToPath } from 'node:url';
 
 import { describe, expect, it } from 'vitest';
 
-import { inviolableRules, parseStoreConfig, StoreConfigError } from '../src/index.js';
+import {
+  inviolableRules,
+  needsCarRunner,
+  parseStoreConfig,
+  StoreConfigError,
+  travelModeCarriesLargeOrders,
+} from '../src/index.js';
 import { findWorkspaceRoot, loadStoreConfig, storeConfigPath } from '../src/node.js';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -59,6 +65,39 @@ describe('the live configuration file', () => {
     expect(typeof config.store.registeredOfficeIsPlaceholder).toBe('boolean');
     expect(typeof config.store.icoRegistrationIsPlaceholder).toBe('boolean');
     expect(config.contact.email).toMatch(/^[^\s@]+@[^\s@]+\.[^\s@]+$/);
+  });
+
+  it('names OZIDELIVERY LTD of Gillingham as the company, its D-U-N-S number public (ruling 59)', () => {
+    expect(config.store.legalEntityName).toBe('OZIDELIVERY LTD');
+    expect(config.store.registeredOffice).toBe('107 King Street, Gillingham, ME7 1ER');
+    expect(config.store.registeredOfficeIsPlaceholder).toBe(false);
+    expect(config.store.registeredIn).toBe('England and Wales');
+    expect(config.store.dunsNumber).toBe('235209172');
+    // The company number and ICO number are still to follow.
+    expect(config.store.companyNumberIsPlaceholder).toBe(true);
+    expect(config.store.icoRegistrationIsPlaceholder).toBe(true);
+  });
+
+  it('refuses a D-U-N-S number that is not nine digits, and allows none', () => {
+    const raw = goodConfig();
+    raw['store'] = { ...(raw['store'] as Record<string, unknown>), dunsNumber: '12345' };
+    expect(() => parseStoreConfig(raw)).toThrow(/store.dunsNumber must be nine digits/);
+    raw['store'] = { ...(raw['store'] as Record<string, unknown>), dunsNumber: undefined };
+    expect(parseStoreConfig(raw).store.dunsNumber).toBeNull();
+  });
+
+  it('sends orders over £60 of shopping to Runners with a car, and alerts after 15 minutes (ruling 59)', () => {
+    expect(config.dispatch.carOnlyAbovePence).toBe(6000);
+    expect(config.dispatch.waitingAlertMinutes).toBe(15);
+    expect(needsCarRunner(6000, config.dispatch.carOnlyAbovePence)).toBe(false);
+    expect(needsCarRunner(6001, config.dispatch.carOnlyAbovePence)).toBe(true);
+    expect(['car', 'van'].every(travelModeCarriesLargeOrders)).toBe(true);
+    expect(['on_foot', 'bicycle', 'motorbike'].some(travelModeCarriesLargeOrders)).toBe(false);
+    // The whole-order goods cap stays £150 (Anthony confirmed, 10 October 2026).
+    expect(config.fees.maximumOrderGoodsPence).toBe(15000);
+    const raw = goodConfig();
+    delete raw['dispatch'];
+    expect(parseStoreConfig(raw).dispatch).toEqual({ carOnlyAbovePence: 6000, waitingAlertMinutes: 15 });
   });
 
   it('refuses a contact email that is not an email address', () => {
@@ -253,6 +292,16 @@ describe('Rule Nine: nothing about the store is hard coded', () => {
     }
 
     expect(offenders).toEqual([]);
+  });
+
+  /**
+   * Anthony's separate company runs other projects, not this service (ruling 59). Its name
+   * must never be shown as the operator of this site.
+   */
+  it('never names the separate company as the operator in any source file', () => {
+    const other = /Tofadachi AI and IT Solutions/i;
+    const offenders = sourceFiles(workspaceRoot).filter((file) => other.test(readFileSync(file, 'utf8')));
+    expect(offenders.map((file) => relative(workspaceRoot, file))).toEqual([]);
   });
 
   /**

@@ -64,6 +64,11 @@ export interface StoreConfig {
     /** The data protection fee registration number the Information Commissioner gives. */
     readonly icoRegistrationNumber: string;
     readonly icoRegistrationIsPlaceholder: boolean;
+    /**
+     * The company's D-U-N-S number from Dun and Bradstreet, which Apple and Google use to check
+     * the company (docs/APP_STORES.md). Public, so it is no secret; null when there is none yet.
+     */
+    readonly dunsNumber: string | null;
     readonly country: string;
     readonly currency: string;
     readonly currencySymbol: string;
@@ -227,6 +232,17 @@ export interface StoreConfig {
    */
   readonly receipts: {
     readonly photoNeededAbovePence: number;
+  };
+  /**
+   * Who may be offered which job (ruling 59). An order whose goods total at shop prices is over
+   * `carOnlyAbovePence` (£60 by default) is offered only to a Runner delivering by car (or van)
+   * with a licence and in-date insurance accepted; on foot and by bicycle are treated alike, up to
+   * that figure. If no such Runner takes it, the owner is texted once after
+   * `waitingAlertMinutes` (15 by default).
+   */
+  readonly dispatch: {
+    readonly carOnlyAbovePence: number;
+    readonly waitingAlertMinutes: number;
   };
   /** The admin panel (Section Q): who may do what, and how signing in is kept safe. */
   readonly admin: {
@@ -394,6 +410,13 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     wholeNumber(entry, `runners.insuranceReminderDays[${index}]`, 1),
   );
   const admin = root['admin'] === undefined ? {} : object(root['admin'], 'admin');
+  const dispatch = root['dispatch'] === undefined ? {} : object(root['dispatch'], 'dispatch');
+  const dunsRaw = store['dunsNumber'];
+  const dunsNumber =
+    dunsRaw === undefined || dunsRaw === null ? null : str(dunsRaw, 'store.dunsNumber');
+  if (dunsNumber !== null && !/^\d{9}$/.test(dunsNumber)) {
+    throw new StoreConfigError('store.dunsNumber must be nine digits.');
+  }
   const staffTwoStepFrom = str(admin['staffTwoStepFrom'] ?? '2026-10-17', 'admin.staffTwoStepFrom');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(staffTwoStepFrom) || Number.isNaN(Date.parse(staffTwoStepFrom))) {
     throw new StoreConfigError(`admin.staffTwoStepFrom must be a date written as YYYY-MM-DD.`);
@@ -582,6 +605,7 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       registeredOfficeIsPlaceholder: bool(store['registeredOfficeIsPlaceholder'], 'store.registeredOfficeIsPlaceholder'),
       icoRegistrationNumber: str(store['icoRegistrationNumber'], 'store.icoRegistrationNumber'),
       icoRegistrationIsPlaceholder: bool(store['icoRegistrationIsPlaceholder'], 'store.icoRegistrationIsPlaceholder'),
+      dunsNumber,
       country: str(store['country'], 'store.country'),
       currency: str(store['currency'], 'store.currency'),
       currencySymbol: str(store['currencySymbol'], 'store.currencySymbol'),
@@ -711,6 +735,10 @@ export function parseStoreConfig(input: unknown): StoreConfig {
         'receipts.photoNeededAbovePence',
         0,
       ),
+    },
+    dispatch: {
+      carOnlyAbovePence: wholeNumber(dispatch['carOnlyAbovePence'] ?? 6000, 'dispatch.carOnlyAbovePence', 0),
+      waitingAlertMinutes: wholeNumber(dispatch['waitingAlertMinutes'] ?? 15, 'dispatch.waitingAlertMinutes', 1),
     },
     admin: {
       ownerOnlyRefundAbovePence: wholeNumber(admin['ownerOnlyRefundAbovePence'] ?? 2500, 'admin.ownerOnlyRefundAbovePence', 0),

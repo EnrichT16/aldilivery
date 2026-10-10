@@ -114,7 +114,7 @@ searches from the name.)
 - Google, Contact email: hello@ozidelivery.co.uk (must be a working mailbox).
 - Google, Website: https://ozidelivery.co.uk
 - Google, Phone: optional; leave blank until the real number exists.
-- Apple, Copyright: 2026 Tofadachi AI and IT Solutions UK Ltd
+- Apple, Copyright: 2026 OZIDELIVERY LTD
 
 ## What's new (first version)
 
