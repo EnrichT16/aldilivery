@@ -207,9 +207,15 @@ export function RunnerSignUp(): JSX.Element {
           and we pay you back straight away, and what happens if something goes wrong. Please read
           it before you agree.
         </p>
-        <Link to="/runner/agreement" className="control bg-paper/10 text-paper underline">
-          Read the Runner agreement
-        </Link>
+        {/* A new tab, so what has been typed here is still here afterwards (16 October 2026). */}
+        <a
+          href="/runner/agreement"
+          target="_blank"
+          rel="noopener"
+          className="control bg-paper/10 text-paper underline"
+        >
+          Read the Runner agreement<span className="visually-hidden"> (opens in a new tab)</span>
+        </a>
         <div className="flex items-center gap-3 min-h-control">
           <input type="checkbox" id="agreement" name="agreement" value="yes" className="h-6 w-6" />
           <label htmlFor="agreement" className="m-0">

@@ -18,6 +18,7 @@ import {
   closeAccount,
   fetchMyOrder,
   fetchMyOrders,
+  fetchSignInOptions,
   fetchWeeklyShops,
   isUkMobileNumber,
   skipWeeklyShop,
@@ -137,6 +138,10 @@ const CHANGE_ACCOUNT =
 /** "Repeat", "say that again", "come again", "pardon", "I beg your pardon". */
 const REPEAT =
   /\b(repeat(?!\s+(my|the|that|last)\b)|say (that|it) again|come again|pardon|what did you say|didn'?t (hear|catch)|once more|one more time)\b/;
+
+/** "Send my order", "send the basket", "place my order", "check out": the basket as it stands. */
+const SEND_ORDER =
+  /\b(send|place|submit|finish|complete|pay for)\s+(my|the|this)\s+(order|basket|shopping)\b|\bsend (it|my shopping) (now|off)\b|\bcheck ?out\b/;
 
 /** "Same as last time", "order the same again", "my usual": the last order's shopping again. */
 const REORDER =
@@ -731,6 +736,12 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       );
       return;
     }
+    // "Send my order": the basket read back whole, then the address and the payment, by voice
+    // (16 October 2026). Nothing is sent without both yeses.
+    if (!ordering.busy() && SEND_ORDER.test(words)) {
+      void ordering.sendBasket();
+      return;
+    }
     // Questions about the shopping: the basket, the total, taking something out, the order.
     if (!ordering.busy()) {
       const b = basketRef.current;
@@ -1089,6 +1100,17 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     };
     const sendCode = async (digits: string): Promise<void> => {
       const channel = isUkMobileNumber(digits) ? 'text' : 'call';
+      // A landline is rung with its code only while calls are switched on (16 October 2026):
+      // otherwise Ozi says so, and offers the phone line instead of a call that cannot be made.
+      if (channel === 'call') {
+        const options = await fetchSignInOptions().catch(() => null);
+        if (options && !options.byCall) {
+          sayPhoneNumber(
+            "That's a landline, and I can't ring a landline with a code just now. If you have a mobile, say sign in and give me that number. Or ring us, and we'll take your order on the phone. ",
+          );
+          return;
+        }
+      }
       try {
         await requestSignInCode(digits, { channel });
       } catch (failure) {

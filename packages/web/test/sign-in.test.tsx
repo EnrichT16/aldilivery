@@ -33,6 +33,50 @@ async function askForCode() {
   return user;
 }
 
+describe('a Runner signing in on a new phone (16 October 2026)', () => {
+  it('asks the server for a Runner code, keeps the token as the Runner’s, and opens the Runner page', async () => {
+    const { recorded } = renderAt('/runner/sign-in');
+    expect(await screen.findByRole('heading', { name: 'Runner sign in' })).toBeInTheDocument();
+    const user = await askForCode();
+    expect(recorded.find((r) => r.path === '/auth/request-code')?.body).toMatchObject({
+      role: 'runner',
+      phone: '07700 900123',
+    });
+    await user.type(await screen.findByLabelText('The code from the text'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByRole('heading', { name: 'Your Runner page' })).toBeInTheDocument();
+    expect(recorded.find((r) => r.path === '/auth/verify-code')?.body).toMatchObject({
+      role: 'runner',
+    });
+    expect(window.localStorage.getItem('ozidelivery.runner.token')).toBe('signed-in-token');
+    // The Shopper's own sign-in is left alone.
+    expect(window.localStorage.getItem('ozidelivery.session.token')).toBeNull();
+  });
+
+  it('points a new Runner to signing up, and is reached from the Runner door', async () => {
+    renderAt('/runner/sign-in', { verifyResult: 'no-account' });
+    const user = await askForCode();
+    await user.type(await screen.findByLabelText('The code from the text'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(
+      (await screen.findByText(/There is no Runner account on that number yet/)).closest(
+        '[role="alert"]',
+      ),
+    ).not.toBeNull();
+    expect(screen.getByRole('link', { name: /Sign up to run/ })).toHaveAttribute(
+      'href',
+      '/runner/sign-up',
+    );
+  });
+
+  it('is linked from the Runner door for anybody already signed up', async () => {
+    renderAt('/runner');
+    expect(
+      await screen.findByRole('link', { name: 'Already signed up? Sign in to your Runner page' }),
+    ).toHaveAttribute('href', '/runner/sign-in');
+  });
+});
+
 describe('signing in', () => {
   it('asks for the mobile number with a real label and a hint', async () => {
     renderAt('/sign-in');

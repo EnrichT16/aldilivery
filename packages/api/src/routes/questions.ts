@@ -4,7 +4,7 @@
  * The rules are in `services/questions.ts`.
  */
 
-import type { FastifyInstance } from 'fastify';
+import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import { z } from 'zod';
 
 import { requireSession } from '../app.js';
@@ -12,8 +12,9 @@ import type { Order } from '../domain.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 import { doorWordSentence, ensureDoorWord } from '../services/door-word.js';
 import { estimateArrival } from '../services/eta.js';
+import { isUkMobile } from '../lib/phone.js';
 import { notifyShopper } from '../services/notify.js';
-import { questionsForOrder, settle } from '../services/questions.js';
+import { questionText, questionsForOrder, settle } from '../services/questions.js';
 
 const ANSWER_WORDS = {
   similar: 'bring something similar',
@@ -36,6 +37,28 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
         : order.runnerId === session.accountId;
     if (!mine) throw new ForbiddenError('That order is not yours.');
     return { order, role: session.role };
+  }
+
+  async function textQuestion(
+    shopperId: string,
+    runnerFirstName: string,
+    itemName: string,
+    log: FastifyBaseLogger,
+  ): Promise<void> {
+    try {
+      const { sendText, sendPush, config } = app.ctx;
+      if (!sendText) return;
+      const devices = sendPush ? await repository.pushSubscriptions.listForShopper(shopperId) : [];
+      if (devices.length > 0) return;
+      const shopper = await repository.shoppers.findById(shopperId);
+      if (!shopper || !isUkMobile(shopper.phone)) return;
+      await sendText(
+        shopper.phone,
+        `${config.productName}: ${questionText(runnerFirstName, itemName)}`,
+      );
+    } catch (failure) {
+      log.warn({ err: failure, shopperId }, 'The question could not be texted.');
+    }
   }
 
   /** The Runner cannot find one thing on the list. Asks once per item; asking again returns it. */
@@ -63,17 +86,21 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
       void reply.status(201);
       // Not waited for: the Runner should not stand at the shelf while a push service answers.
       const runner = order.runnerId ? await repository.runners.findById(order.runnerId) : null;
+      const runnerFirstName = runner ? (runner.name.split(' ')[0] ?? runner.name) : 'Your Runner';
       const itemName = order.items.find((item) => item.id === orderItemId)?.name ?? 'something';
       void notifyShopper(
         { repository, sendPush: app.ctx.sendPush, log: request.log },
         order.shopperId,
         {
           title: 'A question from your Runner',
-          body: `${runner ? runner.name.split(' ')[0] : 'Your Runner'} cannot find ${itemName}. Open this to choose what they do.`,
+          body: `${runnerFirstName} cannot find ${itemName}. Open this to choose what they do.`,
           url: '/my-order',
           tag: `question-${question.id}`,
         },
       );
+      // No device of theirs shows notifications: the question goes by text to a mobile, with the
+      // two reply words (16 October 2026). Nobody's phone number reaches the other.
+      void textQuestion(order.shopperId, runnerFirstName, itemName, request.log);
     }
     const views = await questionsForOrder(repository, order.id, now());
     return { question: views.find((view) => view.orderItemId === orderItemId) };
@@ -163,7 +190,13 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
     // A split order (ruling 60): the Shopper is told it comes in parts, and sees each part's
     // arrival time, door words and items. Never a Runner's number, nor anything of the other's.
     const parts = order.splitAt ? await repository.orders.listParts(order.id) : [];
-    const partViews = await Promise.all(parts.map(async (part) => ({ part: part.splitPart, of: part.splitOf, ...(await partView(part)) })));
+    const partViews = await Promise.all(
+      parts.map(async (part) => ({
+        part: part.splitPart,
+        of: part.splitOf,
+        ...(await partView(part)),
+      })),
+    );
     const questionLists = await Promise.all(
       [order, ...parts].map((row) => questionsForOrder(repository, row.id, now())),
     );

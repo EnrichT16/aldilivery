@@ -30,7 +30,22 @@ import { useSession } from '../state/session';
  *
  * A new question also chimes and buzzes, once, for somebody who has put the phone down with the
  * page open. For a closed page, the Shopper can allow notifications here (`NotifyMe`).
+ *
+ * And Ozi asks it aloud (16 October 2026): "Sam can't find bananas. Say similar, or leave it
+ * out", and listens for the answer, as well as the two buttons. Said once per question.
  */
+
+/** What the Shopper said back to Ozi, or null when it was neither answer. */
+export function spokenAnswer(text: string): ItemAnswer | null {
+  const words = text.toLowerCase();
+  if (/\b(leave|without|skip|forget|drop|don'?t (want|need|bother))\b/.test(words)) {
+    return 'leave_out';
+  }
+  if (/\b(similar|something else|another|alternative|swap|replace|substitute|yes)\b/.test(words)) {
+    return 'similar';
+  }
+  return null;
+}
 
 const POLL_MS = 5000;
 
@@ -86,6 +101,17 @@ export function MyOrder(): JSX.Element {
   const [news, setNews] = useState('');
   const problemRef = useRef<HTMLParagraphElement>(null);
   const heard = useRef(new Set<string>());
+  // The question Ozi is waiting for an answer to, and how to stop waiting.
+  const listening = useRef<{ questionId: string; stop: () => void } | null>(null);
+  const live = useRef({ ozi });
+  live.current = { ozi };
+
+  useEffect(
+    () => () => {
+      listening.current?.stop();
+    },
+    [],
+  );
 
   const refresh = useCallback(async () => {
     try {
@@ -100,6 +126,17 @@ export function MyOrder(): JSX.Element {
       if (fresh.length > 0) {
         chime();
         buzz();
+      }
+      const first = fresh[0];
+      if (first && result.order) askAloudRef.current(result.order, first);
+      // Answered on the screen, or settled: Ozi stops waiting for the words.
+      const waitingFor = listening.current;
+      if (
+        waitingFor &&
+        !questions.some((q) => q.id === waitingFor.questionId && q.answer === null)
+      ) {
+        waitingFor.stop();
+        listening.current = null;
       }
     } catch (failure) {
       setProblem(failure instanceof Error ? failure.message : 'We could not check your order.');
@@ -123,8 +160,48 @@ export function MyOrder(): JSX.Element {
     if (problem !== '') problemRef.current?.focus();
   }, [problem]);
 
+  /** The question said aloud, with Ozi listening for "similar" or "leave it out". */
+  const askAloudRef = useRef(askAloud);
+  askAloudRef.current = askAloud;
+  function askAloud(forOrder: Order, question: ItemQuestion, retried = false): void {
+    const o = live.current.ozi;
+    listening.current?.stop();
+    const runner = forOrder.runnerName ?? 'Your Runner';
+    const prompt = retried
+      ? "Sorry, I didn't catch that. Say similar, or leave it out. Or press one of the buttons on the screen."
+      : `${runner} can't find ${question.itemName}. Say 'similar' or 'leave it out'.`;
+    const stop = o.listenFor(prompt, (text) => {
+      listening.current = null;
+      const value = spokenAnswer(text);
+      if (value === null) {
+        if (!retried) askAloud(forOrder, question, true);
+        else void o.say('All right. The two buttons are on the screen whenever you are ready.');
+        return;
+      }
+      void answerQuestion(forOrder.id, question.id, value)
+        .then((result) => {
+          setNews(result.message);
+          void o.say(result.message);
+        })
+        .catch((failure: unknown) => {
+          const words =
+            failure instanceof Error ? failure.message : 'We could not send your answer.';
+          setProblem(words);
+          void o.say(words);
+        })
+        .finally(() => {
+          void refresh();
+        });
+    });
+    listening.current = { questionId: question.id, stop };
+  }
+
   async function answer(question: ItemQuestion, value: ItemAnswer): Promise<void> {
     if (!order || busy) return;
+    if (listening.current?.questionId === question.id) {
+      listening.current.stop();
+      listening.current = null;
+    }
     setBusy(true);
     setProblem('');
     try {

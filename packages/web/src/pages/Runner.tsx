@@ -19,10 +19,10 @@ export function RunnerDoor(): JSX.Element {
 
       <p className="text-lead m-0 max-w-xl">
         You get {money(runnerPaymentPence)} for every order you complete. Every order, without
-        exception. For an order of {money(largeOrderFromPence)} or more of shopping, delivered
-        whole by car or van, you get {money(largeOrderRunnerPaymentPence)}. When a big order is
-        split between Runners, each part pays {money(storeConfig.dispatch.splitRunnerPayPence)},
-        shown before you say yes.
+        exception. For an order of {money(largeOrderFromPence)} or more of shopping, delivered whole
+        by car or van, you get {money(largeOrderRunnerPaymentPence)}. When a big order is split
+        between Runners, each part pays {money(storeConfig.dispatch.splitRunnerPayPence)}, shown
+        before you say yes.
       </p>
 
       <section aria-labelledby="how-heading" className="space-y-3">
@@ -94,8 +94,8 @@ export function RunnerDoor(): JSX.Element {
       <Link to="/runner/sign-up" className="control bg-highlight text-ink text-lead">
         Start signing up as a Runner
       </Link>
-      <Link to="/runner/home" className="control bg-paper/10 text-paper underline">
-        Already signed up? Go to your Runner page
+      <Link to="/runner/sign-in" className="control bg-paper/10 text-paper underline">
+        Already signed up? Sign in to your Runner page
       </Link>
     </div>
   );

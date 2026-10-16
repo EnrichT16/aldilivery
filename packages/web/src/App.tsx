@@ -163,6 +163,7 @@ export function App(): JSX.Element {
                 <Route path="/orders/:orderId/problem" element={<ReportProblem as="shopper" />} />
                 <Route path="/runner" element={<RunnerDoor />} />
                 <Route path="/runner/sign-up" element={<RunnerSignUp />} />
+                <Route path="/runner/sign-in" element={<SignIn as="runner" />} />
                 <Route path="/runner/agreement" element={<RunnerAgreement />} />
                 <Route path="/runner/home" element={<RunnerHome />} />
                 <Route path="/runner/jobs/:orderId/problem" element={<ReportProblem />} />

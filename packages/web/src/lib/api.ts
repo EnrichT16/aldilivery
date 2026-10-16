@@ -286,15 +286,18 @@ export function isUkMobileNumber(phone: string): boolean {
   return /^(\+44|0044|0)7\d{9}$/.test(digits);
 }
 
+/** Who is signing in: a Shopper, or a Runner on a new phone (16 October 2026). */
+export type SignInRole = 'shopper' | 'runner';
+
 export function requestSignInCode(
   phone: string,
-  options: { channel?: 'text' | 'call'; purpose?: 'sign-in' | 'sign-up' } = {},
+  options: { channel?: 'text' | 'call'; purpose?: 'sign-in' | 'sign-up'; role?: SignInRole } = {},
 ): Promise<{ message: string }> {
   return request<{ message: string }>('/auth/request-code', {
     method: 'POST',
     body: JSON.stringify({
       phone,
-      role: 'shopper',
+      role: options.role ?? 'shopper',
       channel: options.channel ?? 'text',
       purpose: options.purpose ?? 'sign-in',
     }),
@@ -305,10 +308,14 @@ export type SignInResult =
   | { registrationRequired: false; token: string }
   | { registrationRequired: true; phone: string; message: string; phoneProof?: string };
 
-export function verifySignInCode(phone: string, code: string): Promise<SignInResult> {
+export function verifySignInCode(
+  phone: string,
+  code: string,
+  role: SignInRole = 'shopper',
+): Promise<SignInResult> {
   return request<SignInResult>('/auth/verify-code', {
     method: 'POST',
-    body: JSON.stringify({ phone, code, role: 'shopper' }),
+    body: JSON.stringify({ phone, code, role }),
   });
 }
 

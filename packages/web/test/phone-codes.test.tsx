@@ -64,6 +64,94 @@ describe('signing in from a landline', () => {
   });
 });
 
+describe('the phone number asked for by voice (16 October 2026)', () => {
+  it('asks for a mobile while calls are off, and will not take a landline for a code', async () => {
+    introHeard();
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const sent = stubApi({ confirmAtSignUp: true, verifyResult: 'no-account' });
+    renderAt('/sign-up?talk=1');
+    await waitFor(() => {
+      expect(lastSaid(engine)).toMatch(/what's your name\?/);
+    });
+    await say(engine, 'Margaret');
+    expect(lastSaid(engine)).toBe("Thank you, Margaret. What's your mobile number?");
+    await say(engine, '01634 123456');
+    expect(lastSaid(engine)).toMatch(/^That sounds like a landline\./);
+    expect(sent.some((r) => r.path === '/auth/request-code')).toBe(false);
+    await say(engine, '07700 900123');
+    expect(lastSaid(engine)).toMatch(/^I heard zero seven/);
+  });
+
+  it('offers a landline too once calls are switched on', async () => {
+    introHeard();
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubApi({ signInByCall: true });
+    renderAt('/sign-up?talk=1');
+    await waitFor(() => {
+      expect(lastSaid(engine)).toMatch(/what's your name\?/);
+    });
+    await say(engine, 'Margaret');
+    expect(lastSaid(engine)).toBe(
+      "Thank you, Margaret. What's your phone number? A mobile or a landline.",
+    );
+  });
+
+  it('after a no at the end, asks which part is wrong, asks that one again, and reads it all back', async () => {
+    introHeard();
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const sent = stubApi();
+    renderAt('/sign-up?talk=1');
+    await waitFor(() => {
+      expect(lastSaid(engine)).toMatch(/what's your name\?/);
+    });
+    await say(engine, 'Margret');
+    await say(engine, '07700 900123');
+    await say(engine, 'yes');
+    await say(engine, '12 Example Street Gillingham ME7 1AA');
+    await say(engine, 'yes');
+    await say(engine, 'nothing');
+    expect(lastSaid(engine)).toMatch(
+      /^That's everything\. You are Margret, your phone number is zero seven/,
+    );
+    await say(engine, 'no');
+    expect(lastSaid(engine)).toMatch(/Which part is wrong: name, number, address or door\?$/);
+    await say(engine, 'the name');
+    expect(lastSaid(engine)).toBe("All right. What's your name?");
+    await say(engine, 'Margaret');
+    expect(lastSaid(engine)).toMatch(/^That's everything\. You are Margaret, your phone number is/);
+    expect(screen.getByLabelText('Your name')).toHaveValue('Margaret');
+    expect(sent.some((r) => r.path === '/shoppers')).toBe(false);
+    await say(engine, 'yes');
+    await waitFor(() => {
+      expect(sent.find((r) => r.path === '/shoppers')?.body).toMatchObject({
+        displayName: 'Margaret',
+      });
+    });
+  });
+
+  it('signing in by voice: will not ring a landline while calls are off, and offers the phone line', async () => {
+    introHeard();
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const sent = stubApi();
+    renderAt('/shop');
+    await say(engine, 'sign in');
+    expect(lastSaid(engine)).toMatch(/What's the phone number on your account\?/);
+    await say(engine, '01634 123456');
+    expect(lastSaid(engine)).toMatch(/^I heard zero one, six three/);
+    await say(engine, 'yes');
+    await waitFor(() => {
+      expect(lastSaid(engine)).toMatch(
+        /^That's a landline, and I can't ring a landline with a code just now\..*Our phone number is:/,
+      );
+    });
+    expect(sent.some((r) => r.path === '/auth/request-code')).toBe(false);
+  });
+});
+
 describe('confirming a new account’s number', () => {
   it('on the form: sends a code, then creates the account with the proof', async () => {
     introHeard();
