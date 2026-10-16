@@ -6,7 +6,7 @@
  * judged on what a Runner meets at each step, not on a single snapshot.
  */
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { MemoryRouter } from 'react-router-dom';
@@ -16,7 +16,9 @@ import { RUNNER_AGREEMENT_VERSION } from '@aldilivery/core';
 
 import { App } from '../src/App';
 import { storeConfig } from '../src/config';
-import { penceFrom } from '../src/pages/RunnerHome';
+import { penceFrom, placeInLine } from '../src/pages/RunnerHome';
+import { setVoiceEngine } from '../src/voice';
+import { fakeEngine } from './fake-voice';
 
 interface State {
   approved: boolean;
@@ -34,6 +36,10 @@ interface State {
   byCard?: boolean;
   /** The offer is one part of a split job (ruling 60). */
   split?: boolean;
+  /** The offer is chained from the door of the job in hand (ruling 64). */
+  chained?: boolean;
+  /** Their place in the fair queue, 0 first (ruling 64). */
+  queuePosition?: number;
 }
 
 let state: State;
@@ -106,6 +112,10 @@ function stubRunnerApi(): void {
                 {
                   offer: { id: 'offer-1' },
                   secondsLeft: 42,
+                  chained: state.chained ?? false,
+                  chainedWords: state.chained
+                    ? 'Your next job, near where you are now. Say no if you would rather not, and it goes to the queue.'
+                    : null,
                   job: {
                     itemCount: 3,
                     goodsEstimatePence: 339,
@@ -291,6 +301,23 @@ function stubRunnerApi(): void {
       if (path === '/runners/me/documents') {
         return reply({ documents: [], stillNeeded: [] });
       }
+      if (path === '/runners/me/queue-position') {
+        const ordinal = ['first', 'second', 'third'][state.queuePosition ?? 0] ?? 'fourth';
+        return reply(
+          state.available
+            ? {
+                position: state.queuePosition ?? 0,
+                reason: null,
+                words: `You are ${ordinal} in line for the next job.`,
+              }
+            : {
+                position: null,
+                reason: 'off_shift',
+                words:
+                  'You are off shift, so you are not in line for jobs. Go on shift to join the line.',
+              },
+        );
+      }
       if (path === '/orders/order-1/receipt') {
         state.status = 'receipt_submitted';
         return reply({
@@ -339,6 +366,17 @@ describe('reading a till total', () => {
     expect(penceFrom('')).toBeNull();
     expect(penceFrom('twelve')).toBeNull();
     expect(penceFrom('12.345')).toBeNull();
+  });
+});
+
+describe('a place in line, in short (ruling 64)', () => {
+  it.each([
+    [0, 'First in line'],
+    [1, 'Second in line'],
+    [9, 'Tenth in line'],
+    [10, 'Number 11 in line'],
+  ])('position %i is "%s"', (position, words) => {
+    expect(placeInLine(position)).toBe(words);
   });
 });
 
@@ -392,6 +430,64 @@ describe('a Runner page', () => {
     expect(offer).toHaveTextContent('Split job — part 1 of 2');
     expect(offer).toHaveTextContent('Split job — you earn £5.00');
     expect(offer).toHaveTextContent('Another Runner is delivering the rest of this order.');
+  });
+
+  it('shows their place in line in a tidy line, with the sentence for Ozi to say (ruling 64)', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    state.available = true;
+    state.queuePosition = 1;
+    stubRunnerApi();
+    renderHome();
+
+    const line = await screen.findByText('Second in line');
+    expect(line.parentElement).toHaveTextContent('You are second in line for the next job.');
+    // The sentence is for screen readers and Ozi; the screen keeps the short form (ruling 47).
+    expect(line.parentElement?.querySelector('.extra')).toHaveTextContent(
+      'You are second in line for the next job.',
+    );
+    await waitFor(() => {
+      expect(engine.spoken.map((s) => s.text)).toContain(
+        'You are second in line for the next job.',
+      );
+    });
+    // Said once, not every time the page asks the server.
+    expect(
+      engine.spoken.filter((s) => s.text === 'You are second in line for the next job.'),
+    ).toHaveLength(1);
+    // Never anybody else's money, and not their own either here.
+    expect(line.parentElement?.textContent).not.toMatch(/£/);
+  });
+
+  it('says nothing about a place in line while off shift', async () => {
+    stubRunnerApi();
+    renderHome();
+    await screen.findByRole('button', { name: 'Go on shift' });
+    expect(screen.queryByText(/in line/)).not.toBeInTheDocument();
+    expect(state.sent.some((r) => r.path === '/runners/me/queue-position')).toBe(false);
+  });
+
+  it('offers the next job from the door, and says no costs nothing (ruling 64)', async () => {
+    const user = userEvent.setup({ delay: null });
+    state.available = true;
+    state.status = 'delivering';
+    state.offered = true;
+    state.chained = true;
+    stubRunnerApi();
+    renderHome();
+
+    // The job in hand stays on the screen, with the chained offer beside it.
+    expect(await screen.findByRole('button', { name: 'I have delivered it' })).toBeInTheDocument();
+    const offer = await screen.findByRole('alert');
+    expect(offer).toHaveTextContent('Your next job');
+    expect(offer).toHaveTextContent(
+      'Your next job, near where you are now. Say no if you would rather not',
+    );
+    expect(offer).toHaveTextContent('0.4 miles from this door');
+
+    await user.click(screen.getByRole('button', { name: 'Not this one' }));
+    expect(state.sent.some((r) => r.path === '/jobs/offer-1/decline')).toBe(true);
+    expect(await screen.findByText('No problem. It will go to somebody else.')).toBeInTheDocument();
   });
 
   it('takes a job through to the door, with the till total before setting off', async () => {

@@ -2,7 +2,7 @@ name: Live check
 
 # Makes, from outside, the same requests the sign-in page makes, and prints what the live
 # server answers: status, content type, timing and the start of the body. Run by hand when a
-# phone says "We cannot reach Ozi Delivery" and the runtime logs do not say why
+# phone says "We cannot reach" the service and the runtime logs do not say why
 # (16 October 2026). With a phone number it also asks for a real sign-in code, which uses one
 # of that number's three codes per quarter hour.
 

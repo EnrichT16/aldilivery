@@ -645,6 +645,8 @@ model JobOffer {
   /// Where this Runner sat in the rotation when the offer was made, for auditing fairness.
   queuePosition Int
   distanceMiles Float?
+  /// Offered from the door of another job, for a pickup nearby (ruling 64), before the queue.
+  chained       Boolean         @default(false)
 
   @@index([orderId, outcome])
   @@index([runnerId])

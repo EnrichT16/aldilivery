@@ -62,6 +62,12 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
         return {
           offer,
           secondsLeft: Math.max(0, Math.round((offer.expiresAt.getTime() - at.getTime()) / 1000)),
+          // Chained from the door of the job in hand (ruling 64): said so, and that saying no
+          // costs nothing.
+          chained: offer.chained,
+          chainedWords: offer.chained
+            ? 'Your next job, near where you are now. Say no if you would rather not, and it goes to the queue.'
+            : null,
           job: order
             ? {
                 itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
@@ -86,7 +92,9 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get('/jobs/current', async (request) => {
     const session = requireSession(request, 'runner');
-    for (const status of ['accepted', 'shopping', 'receipt_submitted', 'delivering'] as const) {
+    // The job furthest along is the one in hand: a Runner who chained the next job from the door
+    // (ruling 64) finishes delivering this one before the next is shown.
+    for (const status of ['delivering', 'receipt_submitted', 'shopping', 'accepted'] as const) {
       const order = (await repository.orders.listByStatus(status)).find(
         (candidate) => candidate.runnerId === session.accountId,
       );
@@ -196,7 +204,13 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
 
     // A further Runner of a basket kept whole (ruling 61): their delivery is taken from the
     // Shopper's card now that they have collected the job, and not before.
-    await collectExtraDelivery(app.ctx, updated.splitParentId ? ((await repository.orders.findById(updated.splitParentId)) ?? updated) : updated, request.log);
+    await collectExtraDelivery(
+      app.ctx,
+      updated.splitParentId
+        ? ((await repository.orders.findById(updated.splitParentId)) ?? updated)
+        : updated,
+      request.log,
+    );
 
     // How they pay at the till: their spending card, loaded for this order now, or their own
     // card, paid back (Anthony, 9 October 2026). Never stops the job being theirs.

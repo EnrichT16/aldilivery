@@ -24,6 +24,14 @@ import { requireSession } from '../app.js';
 import { decidedBy, staffActor } from '../lib/staff.js';
 import type { Runner, RunnerDocument, RunnerDocumentKind, VehicleType } from '../domain.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
+import { queuePositionFor } from '../services/dispatch.js';
+import {
+  deliveredJobsFor,
+  earnedFrom,
+  earnedOn,
+  ukDay,
+  ukWeekStart,
+} from '../services/earnings.js';
 import { insuranceNotice, insuranceRenewalDue } from '../services/insurance.js';
 import { recordRunnerCheck } from '../services/runner-checks.js';
 
@@ -83,17 +91,6 @@ export function orderReference(orderId: string): string {
     .replace(/[^a-zA-Z0-9]/g, '')
     .slice(-6)
     .toUpperCase()}`;
-}
-
-/** The calendar day in the UK, as YYYY-MM-DD, and the Monday that starts its week. */
-function ukDay(at: Date): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(at);
-}
-function ukWeekStart(at: Date): string {
-  const day = new Date(`${ukDay(at)}T12:00:00Z`);
-  const weekday = (day.getUTCDay() + 6) % 7; // Monday is 0
-  day.setUTCDate(day.getUTCDate() - weekday);
-  return day.toISOString().slice(0, 10);
 }
 
 function publicDocument(document: RunnerDocument) {
@@ -246,6 +243,17 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
     return { runner: updated, message: `Done. You are delivering ${words[mode]}.` };
   });
 
+  /* ------------------------------------------------------------------ the queue */
+
+  /**
+   * Their place in the fair queue (ruling 64), in one spoken sentence: "You are second in line
+   * for the next job." Their own place only: nothing about anybody else, and no money at all.
+   */
+  app.get('/runners/me/queue-position', async (request) => {
+    const runner = await me(request);
+    return queuePositionFor(app.ctx, runner, now());
+  });
+
   /* ------------------------------------------------------------------ dashboard */
 
   app.get('/runners/me/dashboard', async (request) => {
@@ -256,29 +264,12 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
 
     const orders = await repository.orders.listForRunner(runner.id);
     const payouts = await repository.payouts.listForRunner(runner.id);
-    const payoutFor = new Map(payouts.map((payout) => [payout.orderId, payout]));
-
-    const jobs = orders
-      .filter((order) => ['delivered', 'completed'].includes(order.status))
-      .map((order) => {
-        const when = order.deliveredAt ?? order.completedAt ?? order.updatedAt;
-        const payout = payoutFor.get(order.id);
-        return {
-          orderId: order.id,
-          reference: orderReference(order.id),
-          deliveredAt: when,
-          area: areaOf(order.deliveryAddress),
-          earnedPence: payout?.earnedPence ?? order.runnerPaymentPence,
-          paid: payout !== undefined,
-          day: ukDay(when),
-        };
-      })
-      // Newest delivery first, whatever order the orders were created in.
-      .sort((a, b) => b.deliveredAt.getTime() - a.deliveredAt.getTime());
-    const sum = (list: typeof jobs): number => list.reduce((t, job) => t + job.earnedPence, 0);
-    const todayPence = sum(jobs.filter((job) => job.day === today));
-    const weekPence = sum(jobs.filter((job) => job.day >= weekStart));
-    const allPence = sum(jobs);
+    // Newest delivery first, whatever order the orders were created in. The same figures the
+    // fair queue compares (ruling 64), so what a Runner sees is what the queue uses.
+    const jobs = await deliveredJobsFor(app.ctx, runner.id);
+    const todayPence = earnedOn(jobs, today);
+    const weekPence = earnedFrom(jobs, weekStart);
+    const allPence = jobs.reduce((t, job) => t + job.earnedPence, 0);
     const origin = env.primaryOrigin ?? '';
     // What is owed after a decision against them, and what has been taken back so far. Never
     // hidden: every deduction, its reason and what is left.

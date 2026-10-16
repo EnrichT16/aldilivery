@@ -10,7 +10,12 @@
  */
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { formatPence, overOneRunnerWords, type OrderStatus, runnerPaymentFor } from '@aldilivery/core';
+import {
+  formatPence,
+  overOneRunnerWords,
+  type OrderStatus,
+  runnerPaymentFor,
+} from '@aldilivery/core';
 import { z } from 'zod';
 
 import { requireSession } from '../app.js';
@@ -33,7 +38,7 @@ import {
 import { applyCredit } from '../services/credit.js';
 import { recordOrder } from '../lib/analytics.js';
 import { recordOrderIncome } from '../lib/ledger.js';
-import { offerOrder } from '../services/dispatch.js';
+import { offerOrder, sweepOffers } from '../services/dispatch.js';
 import { alertPayments, bankReference, bankSettings } from '../lib/bank.js';
 import { tellShopper } from '../services/order-updates.js';
 import { settleTill, type TillOutcome } from '../services/till.js';
@@ -189,7 +194,12 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     priced: PricedBasketInParts,
     fields: Omit<
       Parameters<typeof repository.orders.create>[0],
-      'goodsEstimatePence' | 'itemChargesPence' | 'feePence' | 'totalEstimatePence' | 'items' | 'runnerPaymentPence'
+      | 'goodsEstimatePence'
+      | 'itemChargesPence'
+      | 'feePence'
+      | 'totalEstimatePence'
+      | 'items'
+      | 'runnerPaymentPence'
     >,
     extraStatus: 'pending' | 'transfer',
   ): Promise<Order[]> {
@@ -250,7 +260,11 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     const catalogueItems = await repository.catalogue.findManyByIds(
       input.lines.map((line) => line.catalogueItemId),
     );
-    const priced = pricedForOrder(input, catalogueItems, await deliveryPlanFor(app.ctx, shopper, now()));
+    const priced = pricedForOrder(
+      input,
+      catalogueItems,
+      await deliveryPlanFor(app.ctx, shopper, now()),
+    );
     if (!input.overrideBudgetCap && exceedsBudgetCap(priced.goodsPence, shopper.budgetCapPence)) {
       throw new BadRequestError(
         `This shop comes to ${formatPence(priced.goodsPence, symbol)}, which is over the limit you set of ${formatPence(shopper.budgetCapPence ?? 0, symbol)}. Say the word and we will send it anyway.`,
@@ -287,20 +301,24 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       if (!taken) break;
     }
     // One transfer, one reference, for the whole basket, extra Runners' deliveries included.
-    const group = await createOrders(priced, {
-      shopperId: shopper.id,
-      status: 'confirmed',
-      deliveryPlan: priced.plan,
-      deliveryAddress: input.deliveryAddress,
-      latitude: input.latitude ?? null,
-      longitude: input.longitude ?? null,
-      doorstepProtocolSnapshot: shopper.doorstepProtocol,
-      spokenConfirmationAt: at,
-      confirmationChannel: input.confirmation.channel,
-      confirmationStatement: input.confirmation.statement,
-      paidBy: 'bank',
-      bankReference: reference,
-    }, 'transfer');
+    const group = await createOrders(
+      priced,
+      {
+        shopperId: shopper.id,
+        status: 'confirmed',
+        deliveryPlan: priced.plan,
+        deliveryAddress: input.deliveryAddress,
+        latitude: input.latitude ?? null,
+        longitude: input.longitude ?? null,
+        doorstepProtocolSnapshot: shopper.doorstepProtocol,
+        spokenConfirmationAt: at,
+        confirmationChannel: input.confirmation.channel,
+        confirmationStatement: input.confirmation.statement,
+        paidBy: 'bank',
+        bankReference: reference,
+      },
+      'transfer',
+    );
     const order = group[0]!;
     void alertPayments(app.ctx, order, request.log, priced.totalPence);
     await alertTinyExtras(app.ctx, group);
@@ -387,7 +405,11 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
     // Rule Six is applied again here, not only at basket time, because the catalogue can
     // change between pricing a basket and sending it. Delivery follows the Shopper's plan.
-    const priced = pricedForOrder(input, catalogueItems, await deliveryPlanFor(app.ctx, shopper, now()));
+    const priced = pricedForOrder(
+      input,
+      catalogueItems,
+      await deliveryPlanFor(app.ctx, shopper, now()),
+    );
 
     if (!input.overrideBudgetCap && exceedsBudgetCap(priced.goodsPence, shopper.budgetCapPence)) {
       throw new BadRequestError(
@@ -435,23 +457,27 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       priced.totalPence > payer.approvalLimitPence;
 
     // Step one: write the order (or a basket's linked orders). Nothing has been charged.
-    const drafts = await createOrders(priced, {
-      shopperId: shopper.id,
-      status: 'draft',
-      deliveryPlan: priced.plan,
-      ...(input.payBy === 'family'
-        ? { payerShopperId: payer.id, approvalStatus: needsApproval ? 'waiting' : 'approved' }
-        : {}),
-      deliveryAddress: input.deliveryAddress,
-      latitude: input.latitude ?? null,
-      longitude: input.longitude ?? null,
-      paymentMethodId: paymentMethod.id,
-      // A demo order (ruling 60): no card is charged and no Runner is sent.
-      ...(shopper.isDemo ? { isDemo: true } : {}),
-      // The doorstep instructions as they stand right now, so a later profile edit cannot
-      // change what the Runner was told.
-      doorstepProtocolSnapshot: shopper.doorstepProtocol,
-    }, 'pending');
+    const drafts = await createOrders(
+      priced,
+      {
+        shopperId: shopper.id,
+        status: 'draft',
+        deliveryPlan: priced.plan,
+        ...(input.payBy === 'family'
+          ? { payerShopperId: payer.id, approvalStatus: needsApproval ? 'waiting' : 'approved' }
+          : {}),
+        deliveryAddress: input.deliveryAddress,
+        latitude: input.latitude ?? null,
+        longitude: input.longitude ?? null,
+        paymentMethodId: paymentMethod.id,
+        // A demo order (ruling 60): no card is charged and no Runner is sent.
+        ...(shopper.isDemo ? { isDemo: true } : {}),
+        // The doorstep instructions as they stand right now, so a later profile edit cannot
+        // change what the Runner was told.
+        doorstepProtocolSnapshot: shopper.doorstepProtocol,
+      },
+      'pending',
+    );
 
     // Step two: record the single explicit confirmation, on every linked order alike.
     const confirmedAt = now();
@@ -533,7 +559,12 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       const placed = await repository.orders.update(confirmed.id, { status: 'paid' });
       return {
         order: placed,
-        payment: { id: `demo_${placed.id}`, status: 'succeeded', clientSecret: null, requiresAction: false },
+        payment: {
+          id: `demo_${placed.id}`,
+          status: 'succeeded',
+          clientSecret: null,
+          requiresAction: false,
+        },
         demo: true,
         message: `${DEMO_BANNER}. This order was not really placed: nothing was charged and no Runner is sent.`,
       };
@@ -703,7 +734,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     // A basket kept whole (ruling 61): the payer's yes is for every linked order.
     for (const row of await basketGroup(app.ctx, approved)) {
       if (row.id !== approved.id && row.status === 'confirmed') {
-        await repository.orders.update(row.id, { approvalStatus: 'approved', paymentMethodId: card.id });
+        await repository.orders.update(row.id, {
+          approvalStatus: 'approved',
+          paymentMethodId: card.id,
+        });
       }
     }
     const outcome = await chargeAndSend(
@@ -843,6 +877,13 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     if (status === 'delivering' || status === 'delivered') {
       void tellShopper(app.ctx, updated, status, request.log);
     }
+    // On the final leg (ruling 64): a waiting job near this drop-off may be chained to this
+    // Runner now, rather than at the next sweep.
+    if (status === 'delivering' && app.ctx.autoOffer) {
+      await sweepOffers(app.ctx, (orderId, failure) => {
+        request.log.warn({ orderId, err: failure }, 'Could not offer a waiting order');
+      });
+    }
 
     // Delivered is the end of the Runner's job, so it is where their place in the rotation
     // moves on. Waiting for the payout would leave it stuck until Stripe Connect exists.
@@ -950,7 +991,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       try {
         reimbursement = await startReimbursement(app.ctx, updated, settled, request.log);
       } catch (failure) {
-        request.log.error({ err: failure, orderId: order.id }, 'The Runner pay-back did not start.');
+        request.log.error(
+          { err: failure, orderId: order.id },
+          'The Runner pay-back did not start.',
+        );
       }
     }
     const delivery = formatPence(updated.runnerPaymentPence, symbol);

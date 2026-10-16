@@ -21,15 +21,23 @@ export const ACTIVE_STATUSES: readonly Order['status'][] = [
   'delivering',
 ];
 
-/** The Runners who have a job in hand: one pair of hands and one bag. */
-export async function runnersWithJobInHand(ctx: PoolContext): Promise<Set<string>> {
-  const busy = new Set<string>();
+/** Every order in hand, by the Runner carrying it (a Runner chaining jobs may have two). */
+export async function activeOrdersByRunner(ctx: PoolContext): Promise<Map<string, Order[]>> {
+  const byRunner = new Map<string, Order[]>();
   for (const status of ACTIVE_STATUSES) {
     for (const active of await ctx.repository.orders.listByStatus(status)) {
-      if (active.runnerId) busy.add(active.runnerId);
+      if (!active.runnerId) continue;
+      const rows = byRunner.get(active.runnerId) ?? [];
+      rows.push(active);
+      byRunner.set(active.runnerId, rows);
     }
   }
-  return busy;
+  return byRunner;
+}
+
+/** The Runners who have a job in hand: one pair of hands and one bag. */
+export async function runnersWithJobInHand(ctx: PoolContext): Promise<Set<string>> {
+  return new Set((await activeOrdersByRunner(ctx)).keys());
 }
 
 /**

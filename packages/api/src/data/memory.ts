@@ -1011,11 +1011,13 @@ export function memoryRepository(): Repository {
           .map(clone);
       },
       async listParts(parentId) {
-        return [...orders.values()]
-          // A part replaced when the rest was planned again (ruling 61) is cancelled, not a part.
-          .filter((o) => o.splitParentId === parentId && o.status !== 'cancelled')
-          .sort((a, b) => (a.splitPart ?? 0) - (b.splitPart ?? 0))
-          .map(clone);
+        return (
+          [...orders.values()]
+            // A part replaced when the rest was planned again (ruling 61) is cancelled, not a part.
+            .filter((o) => o.splitParentId === parentId && o.status !== 'cancelled')
+            .sort((a, b) => (a.splitPart ?? 0) - (b.splitPart ?? 0))
+            .map(clone)
+        );
       },
       async listByStatus(status: OrderStatus) {
         return [...orders.values()].filter((o) => o.status === status).map(clone);
@@ -1063,6 +1065,7 @@ export function memoryRepository(): Repository {
           outcome: 'pending',
           queuePosition: input.queuePosition,
           distanceMiles: input.distanceMiles ?? null,
+          chained: input.chained ?? false,
         };
         offers.set(offer.id, offer);
         return clone(offer);

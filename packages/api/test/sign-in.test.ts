@@ -281,7 +281,7 @@ describe('Twilio', () => {
         accountSid: 'AC123',
         authToken: 'secret',
         from: '+447303178410',
-        fallbackFrom: senderName('Ozi Delivery'),
+        fallbackFrom: senderName('Some Shop Runs'),
       },
       fetchImpl as unknown as typeof fetch,
     );
@@ -293,7 +293,7 @@ describe('Twilio', () => {
       (fetchImpl.mock.calls[1] as unknown as [string, RequestInit])[1].body as string,
     );
     expect(second.get('From')).toBe('OziDelivery');
-    expect(senderName('Ozi Delivery')).toHaveLength(11);
+    expect(senderName('Some Shop Runs')).toBe('SomeShopRun');
   });
 
   it('does not retry under the name for a fault that is not the sender', async () => {
