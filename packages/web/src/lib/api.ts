@@ -42,7 +42,10 @@ export class ApiUnavailableError extends Error {
    * sentence however the API failed to answer, because "we cannot reach it" is the whole of
    * what a Shopper needs to know.
    */
-  constructor(readonly reason = 'no answer') {
+  constructor(
+    readonly reason = 'no answer',
+    readonly status?: number,
+  ) {
     super(`We cannot reach ${storeConfig.productName} at the moment.`);
     this.name = 'ApiUnavailableError';
   }
@@ -95,12 +98,14 @@ export async function request<T>(
         ...(init?.headers ?? {}),
       },
     });
-  } catch {
-    throw new ApiUnavailableError();
+  } catch (failure) {
+    throw new ApiUnavailableError(
+      `no answer${failure instanceof Error && failure.message ? ` (${failure.message})` : ''}`,
+    );
   }
 
   if (isNotJson(response)) {
-    throw new ApiUnavailableError('the reply was not JSON');
+    throw new ApiUnavailableError('the reply was not JSON', response.status);
   }
 
   let parsed: unknown;
@@ -108,7 +113,7 @@ export async function request<T>(
     parsed = await response.json();
   } catch {
     // A body that will not parse is not an empty body. Saying so is the whole point.
-    if (response.ok) throw new ApiUnavailableError('the reply could not be read');
+    if (response.ok) throw new ApiUnavailableError('the reply could not be read', response.status);
     parsed = {};
   }
 

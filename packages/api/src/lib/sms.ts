@@ -38,6 +38,10 @@ export function twilioSender(settings: TwilioSettings, fetchImpl: typeof fetch =
         'content-type': 'application/x-www-form-urlencoded',
       },
       body: form.toString(),
+      // Twilio answers in well under a second. One that has not answered in ten will not, and
+      // waiting longer only lets the hosting's own time limit answer the browser instead, with
+      // a page that is not ours (16 October 2026).
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!response.ok) {
