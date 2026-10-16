@@ -52,7 +52,7 @@ describe('the recipe pass', () => {
   it('unlocks nothing when the card is declined', async () => {
     harness.payments.declineNextCharge = true;
     const response = await buy();
-    expect(response.statusCode).toBe(503);
+    expect(response.statusCode).toBe(424);
     const me = await harness.app.inject({ method: 'GET', url: '/me', headers: shopper.authHeader });
     expect(me.json().shopper.recipePassUntil).toBeNull();
   });

@@ -71,7 +71,7 @@ describe('a code by phone call', () => {
   it('is refused while calls are not set up', async () => {
     harness = await buildTestApp(undefined, { callDelivery: 'off' });
     const response = await requestCode({ phone: LANDLINE, channel: 'call', purpose: 'sign-up' });
-    expect(response.statusCode).toBe(503);
+    expect(response.statusCode).toBe(424);
   });
 
   it('says the code in twos, three times, in British English', () => {
