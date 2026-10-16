@@ -19,7 +19,7 @@ import { rehearsalGateway, stripeGateway, type PaymentsGateway } from './lib/pay
 import { livekitProvider } from './lib/livekit.js';
 import { oluomaVoice } from './lib/oluoma-voice.js';
 import { webPushSender } from './lib/push.js';
-import { callScript, codeMessage, twilioCaller, twilioSender } from './lib/sms.js';
+import { callScript, codeMessage, senderName, twilioCaller, twilioSender } from './lib/sms.js';
 import { twilioDialler } from './lib/twilio-voice.js';
 import { sweepOffers } from './services/dispatch.js';
 import { sweepPayouts } from './services/pay-runner.js';
@@ -66,6 +66,7 @@ async function main(): Promise<void> {
         accountSid: env.twilioAccountSid as string,
         authToken: env.twilioAuthToken as string,
         from: env.twilioFrom as string,
+        fallbackFrom: senderName(config.productName),
       })
     : undefined;
   const webOrigin = env.primaryOrigin;
