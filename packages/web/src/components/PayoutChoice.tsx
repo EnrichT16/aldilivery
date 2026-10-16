@@ -56,7 +56,7 @@ export function PayoutChoice({ onNews }: { onNews: (news: string) => void }): JS
       <p className="m-0">{info.words}</p>
       <p className="m-0 extra">{info.controls}</p>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
@@ -89,7 +89,7 @@ export function PayoutChoice({ onNews }: { onNews: (news: string) => void }): JS
       <p className="m-0">{instant.words}</p>
       {instant.possible &&
         (askingInstant ? (
-          <div role="alert" className="space-y-3 border-2 border-highlight rounded-xl p-4">
+          <div role="alert" className="space-y-3 border-2 border-highlight rounded-2xl p-4">
             <p className="m-0">
               Send {money(instant.youGetPence)} to your debit card now? Stripe&rsquo;s fee of{' '}
               {money(instant.feePence)} is taken from the {money(instant.availablePence)}.
@@ -100,7 +100,7 @@ export function PayoutChoice({ onNews }: { onNews: (news: string) => void }): JS
               onClick={() => {
                 void run(() => takeInstantPayout(instant.youGetPence));
               }}
-              className="control w-full bg-highlight text-ink disabled:opacity-70"
+              className="control w-full bg-highlight text-on-accent disabled:opacity-70"
             >
               Yes, send {money(instant.youGetPence)} now
             </button>
@@ -116,7 +116,7 @@ export function PayoutChoice({ onNews }: { onNews: (news: string) => void }): JS
           <button
             type="button"
             onClick={() => setAskingInstant(true)}
-            className="control bg-paper text-ink"
+            className="control border-paper bg-paper/10 text-paper"
           >
             Get {money(instant.youGetPence)} now, for a {money(instant.feePence)} fee
           </button>

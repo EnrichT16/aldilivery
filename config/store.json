@@ -44,11 +44,11 @@
     "currency": "GBP",
     "runnerPaymentPence": 500,
     "delivery": {
-      "payAsYouGoSmallOrderPence": 799,
-      "payAsYouGoSmallOrderUpToPence": 1500,
-      "payAsYouGoPence": 1350,
-      "membershipPence": 799,
-      "plusPence": 599
+      "bands": [
+        { "upToPence": 3000, "payAsYouGoPence": 799, "membershipPence": 599, "plusPence": 399 },
+        { "upToPence": 6000, "payAsYouGoPence": 999, "membershipPence": 599, "plusPence": 399 },
+        { "upToPence": null, "payAsYouGoPence": 1350, "membershipPence": 999, "plusPence": 799 }
+      ]
     },
     "itemCharge": {
       "basePence": 50,
@@ -90,7 +90,12 @@
       "foot": 6000
     },
     "tinyExtraBelowPence": 500,
-    "splitRunnerPayPence": 500
+    "splitRunnerPayPence": 500,
+    "fairShareMaxLeadPence": 1500,
+    "chainRadiusMiles": 1.5,
+    "chainMinutesBeforeDone": 2,
+    "nearBandMiles": 1.5,
+    "bandSeconds": 60
   },
   "allocation": {
     "offerHoldSeconds": 60,

@@ -144,6 +144,7 @@ export function SignUp(): JSX.Element {
     },
     finish: create,
     confirmNumber,
+    callsOn: codes?.byCall ?? false,
   });
   const canTalk = ozi.presence === 'listening' || ozi.presence === 'muted';
 
@@ -261,7 +262,7 @@ export function SignUp(): JSX.Element {
           You are signed in as {shopper.displayName}. Your shopping goes to{' '}
           {shopper.deliveryAddress === '' ? 'nowhere yet' : shopper.deliveryAddress}.
         </p>
-        <Link to="/shop" className="control bg-highlight text-ink">
+        <Link to="/shop" className="control bg-highlight text-on-accent">
           Find your shopping
         </Link>
       </div>
@@ -281,7 +282,7 @@ export function SignUp(): JSX.Element {
           type="button"
           disabled={talking.active}
           onClick={talking.start}
-          className="control w-full max-w-xl bg-[var(--colour-listening)] text-ink text-lead font-bold border-4 border-ink disabled:opacity-70"
+          className="control w-full max-w-xl bg-listening text-on-accent text-lead font-bold border-4 border-on-accent disabled:opacity-70"
         >
           {talking.active
             ? `${assistant} is setting up your account with you`
@@ -290,13 +291,13 @@ export function SignUp(): JSX.Element {
       )}
 
       <Link to="/sign-in" className="control bg-paper/10 text-paper underline">
-        Already set up on another phone or computer? Sign in
+        Been here before? Sign in
       </Link>
 
       {waiting && (
         <form
           aria-labelledby="confirm-heading"
-          className="space-y-3 max-w-xl border-2 border-highlight rounded-xl p-4"
+          className="space-y-3 max-w-xl border-2 border-highlight rounded-2xl p-4"
           onSubmit={(event) => {
             event.preventDefault();
             const code = String(new FormData(event.currentTarget).get('code') ?? '').replace(
@@ -329,9 +330,9 @@ export function SignUp(): JSX.Element {
             name="code"
             inputMode="numeric"
             autoComplete="one-time-code"
-            className="w-full max-w-xs min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3 text-lead tracking-widest"
+            className="w-full max-w-xs min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3 text-lead tracking-widest"
           />
-          <button type="submit" className="control w-full bg-highlight text-ink text-lead">
+          <button type="submit" className="control w-full bg-highlight text-on-accent text-lead">
             Confirm and create my account
           </button>
           <button
@@ -353,7 +354,7 @@ export function SignUp(): JSX.Element {
           ref={summary}
           tabIndex={-1}
           role="alert"
-          className="border-2 border-paper bg-paper text-ink p-4 rounded-xl"
+          className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl"
         >
           <h2 className="text-lead font-bold m-0">
             There {errors.length === 1 ? 'is 1 problem' : `are ${errors.length} problems`} to fix
@@ -386,7 +387,7 @@ export function SignUp(): JSX.Element {
         <Field
           id="phone"
           label="Your phone number"
-          hint="This is how your Runner reaches you on the day. We never pass it to anybody else."
+          hint="We text your codes here. Your Runner can ring you through the app but never sees this number."
           type="tel"
           autoComplete="tel"
         />
@@ -407,7 +408,7 @@ export function SignUp(): JSX.Element {
         <button
           type="submit"
           disabled={saving}
-          className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+          className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
         >
           {saving ? 'Setting up your account…' : 'Create my account'}
         </button>

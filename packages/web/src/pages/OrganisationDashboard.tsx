@@ -20,7 +20,7 @@ import { everydayOr } from '../voice/phrases';
 import { listWords } from '../voice/staff-voice';
 import { DAYS } from './WeeklyShop';
 
-const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
 
 function day(when: string): string {
   return new Date(when).toLocaleDateString('en-GB', {
@@ -70,7 +70,7 @@ export function savedWords(data: Dashboard): string {
   if (saved === null) {
     return 'To work out what you save, tell me what one of your own staff going to the shops costs you, in the box on the screen called "What a staff trip to the shops costs you".';
   }
-  return `About ${money(saved)} saved this month: ${data.totals.deliveriesThisMonth} deliveries at ${money(data.deliveryFeePence)} each, instead of ${money(data.organisation.staffTripCostPence ?? 0)} for a staff trip.`;
+  return `About ${money(saved)} saved this month: ${data.totals.deliveriesThisMonth} deliveries with delivery at ${data.deliveryWords}, instead of ${money(data.organisation.staffTripCostPence ?? 0)} for a staff trip.`;
 }
 
 export function budgetWords(data: Dashboard): string {
@@ -265,7 +265,7 @@ export function OrganisationDashboard(): JSX.Element {
         </h2>
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 m-0">
           {tiles.map(([label, value]) => (
-            <div key={label} className="border-2 border-paper rounded-xl p-4">
+            <div key={label} className="border-2 border-paper rounded-2xl p-4">
               <dt className="m-0">{label}</dt>
               <dd className="m-0 text-lead font-bold">{value}</dd>
             </div>
@@ -283,11 +283,15 @@ export function OrganisationDashboard(): JSX.Element {
               .then(() => setNews('Your statement is downloading, as a PDF.'))
               .catch(() => setNews('The statement could not be made just now.'))
           }
-          className="control bg-highlight text-ink"
+          className="control bg-highlight text-on-accent"
         >
           Download a statement (PDF)
         </button>{' '}
-        <button type="button" onClick={download} className="control bg-paper text-ink">
+        <button
+          type="button"
+          onClick={download}
+          className="control border-paper bg-paper/10 text-paper"
+        >
           Download it as a spreadsheet (CSV)
         </button>
       </section>
@@ -321,7 +325,7 @@ export function OrganisationDashboard(): JSX.Element {
                     .then(() => done('The link is copied. Paste it into an email or a message.'));
                 }
               }}
-              className="control bg-paper text-ink"
+              className="control border-paper bg-paper/10 text-paper"
             >
               Share our link
             </button>
@@ -352,7 +356,7 @@ export function OrganisationDashboard(): JSX.Element {
         {data.people.length === 0 && <p className="m-0">Nobody has linked yet.</p>}
         <ul className="list-none m-0 p-0 space-y-2">
           {data.people.map((person) => (
-            <li key={person.id} className="border-2 border-paper/40 rounded-xl p-3">
+            <li key={person.id} className="border-2 border-paper/40 rounded-2xl p-3">
               <form
                 onSubmit={(event) => {
                   event.preventDefault();
@@ -369,7 +373,7 @@ export function OrganisationDashboard(): JSX.Element {
                   Office or team that looks after them
                   <input name="office" defaultValue={person.office} className={field} />
                 </label>
-                <button type="submit" className="control bg-paper text-ink">
+                <button type="submit" className="control border-paper bg-paper/10 text-paper">
                   Save<span className="visually-hidden"> {person.name}'s office</span>
                 </button>
               </form>
@@ -385,7 +389,7 @@ export function OrganisationDashboard(): JSX.Element {
         {data.orders.length === 0 && <p className="m-0">No orders yet.</p>}
         <ul className="list-none m-0 p-0 space-y-2">
           {data.orders.map((order) => (
-            <li key={order.id} className="border-2 border-paper/40 rounded-xl p-3">
+            <li key={order.id} className="border-2 border-paper/40 rounded-2xl p-3">
               {day(order.createdAt)}: for {order.person}
               {order.office ? ` (${order.office})` : ''}, {order.items} item
               {order.items === 1 ? '' : 's'}, {money(order.paidPence)}.
@@ -463,7 +467,7 @@ export function OrganisationDashboard(): JSX.Element {
           }
           className={field}
         />
-        <button type="submit" className="control bg-paper text-ink">
+        <button type="submit" className="control border-paper bg-paper/10 text-paper">
           Save
         </button>
       </form>

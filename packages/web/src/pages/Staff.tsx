@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react';
 
 import { ReceiptPhoto, TillCases } from '../components/TillCases';
 
@@ -16,6 +24,7 @@ import {
   killSwitch,
   setUpOwner,
   setViewer,
+  type NeedsYouCard,
   type OwnerMoney,
   type StaffOverview,
   type Viewer,
@@ -107,28 +116,106 @@ const NAME = 'ozidelivery.staff.name';
 
 type TabKey = StaffArea | 'mine' | 'twostep';
 type StaffMe = Awaited<ReturnType<typeof fetchStaffMe>>;
-const TABS: Array<{ key: TabKey; label: string }> = [
-  { key: 'overview', label: 'Overview' },
+
+/**
+ * The pages, in four groups (16 October 2026 review): what is happening today, the money, the
+ * people, and the settings. Twenty flat tabs were too many to hear through; each group is a tab
+ * list of its own, and nothing was taken away.
+ */
+type TabGroup = 'today' | 'money' | 'people' | 'settings';
+const GROUPS: Array<{ key: TabGroup; label: string }> = [
+  { key: 'today', label: 'Today' },
   { key: 'money', label: 'Money' },
-  { key: 'payments', label: 'Payments' },
-  { key: 'documents', label: 'Documents' },
-  { key: 'problems', label: 'Problems' },
-  { key: 'orders', label: 'Orders' },
-  { key: 'runners', label: 'Runners' },
-  { key: 'owed', label: 'Money owed' },
-  { key: 'finds', label: 'Finds It' },
-  { key: 'enquiries', label: 'Enquiries' },
-  { key: 'partners', label: 'Shops and organisations' },
-  { key: 'analytics', label: 'Analytics' },
-  { key: 'feedback', label: 'Feedback' },
-  { key: 'learning', label: 'Learning' },
-  { key: 'reports', label: 'Reports' },
-  { key: 'accounts', label: 'Shopper accounts' },
-  { key: 'audit', label: 'Audit log' },
-  { key: 'team', label: 'Team' },
-  { key: 'twostep', label: 'Two-step codes' },
-  { key: 'mine', label: 'My settings' },
+  { key: 'people', label: 'People' },
+  { key: 'settings', label: 'Settings' },
 ];
+export const TABS: Array<{ key: TabKey; label: string; group: TabGroup }> = [
+  { key: 'overview', label: 'Needs you now', group: 'today' },
+  { key: 'problems', label: 'Problems', group: 'today' },
+  { key: 'orders', label: 'Orders', group: 'today' },
+  { key: 'runners', label: 'Runners', group: 'today' },
+  { key: 'finds', label: 'Finds It', group: 'today' },
+  { key: 'learning', label: 'Learning', group: 'today' },
+  { key: 'money', label: 'Money', group: 'money' },
+  { key: 'payments', label: 'Payments', group: 'money' },
+  { key: 'owed', label: 'Money owed', group: 'money' },
+  { key: 'reports', label: 'Reports', group: 'money' },
+  { key: 'analytics', label: 'Analytics', group: 'money' },
+  { key: 'documents', label: 'Documents', group: 'people' },
+  { key: 'team', label: 'Team', group: 'people' },
+  { key: 'partners', label: 'Shops and organisations', group: 'people' },
+  { key: 'enquiries', label: 'Enquiries', group: 'people' },
+  { key: 'feedback', label: 'Feedback', group: 'people' },
+  { key: 'accounts', label: 'Shopper accounts', group: 'people' },
+  { key: 'audit', label: 'Audit log', group: 'settings' },
+  { key: 'twostep', label: 'Two-step codes', group: 'settings' },
+  { key: 'mine', label: 'My settings', group: 'settings' },
+];
+
+/**
+ * One row of tabs with the keyboard and screen reader semantics of a tab list: one tab stop,
+ * arrows to move along it (and round the ends), Home and End, and the chosen tab announced as
+ * selected. Moving to a tab selects it, so a blind person hears each page as they arrive at it.
+ */
+function TabList<K extends string>({
+  label,
+  id,
+  tabs,
+  selected,
+  onSelect,
+}: {
+  label: string;
+  id: string;
+  tabs: ReadonlyArray<{ key: K; label: string }>;
+  selected: K;
+  onSelect: (key: K) => void;
+}): JSX.Element {
+  const buttons = useRef<Array<HTMLButtonElement | null>>([]);
+  const move = (event: KeyboardEvent<HTMLButtonElement>, index: number): void => {
+    const last = tabs.length - 1;
+    const to =
+      event.key === 'ArrowRight' || event.key === 'ArrowDown'
+        ? (index + 1) % tabs.length
+        : event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+          ? (index + last) % tabs.length
+          : event.key === 'Home'
+            ? 0
+            : event.key === 'End'
+              ? last
+              : null;
+    if (to === null) return;
+    event.preventDefault();
+    const tab = tabs[to]!;
+    buttons.current[to]?.focus();
+    onSelect(tab.key);
+  };
+  return (
+    <div role="tablist" aria-label={label} className="chip-row flex gap-2">
+      {tabs.map((tab, index) => {
+        const chosen = tab.key === selected;
+        return (
+          <button
+            key={tab.key}
+            ref={(element) => {
+              buttons.current[index] = element;
+            }}
+            type="button"
+            role="tab"
+            id={`${id}-tab-${tab.key}`}
+            aria-selected={chosen}
+            aria-controls={`${id}-panel-${tab.key}`}
+            tabIndex={chosen ? 0 : -1}
+            onClick={() => onSelect(tab.key)}
+            onKeyDown={(event) => move(event, index)}
+            className={`control ${chosen ? 'border-paper bg-paper text-ink' : 'bg-paper/10 text-paper'}`}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function remembered(name: string): string {
   try {
@@ -213,6 +300,13 @@ export function Staff(): JSX.Element {
   };
   const tabs = TABS.filter((item) => allowed(item.key));
   const shown = tab && allowed(tab) ? tab : (tabs[0]?.key ?? null);
+  const groups = GROUPS.filter((group) => tabs.some((item) => item.group === group.key));
+  const group = tabs.find((item) => item.key === shown)?.group ?? groups[0]?.key ?? 'today';
+  const pages = tabs.filter((item) => item.group === group);
+  const openGroup = (key: TabGroup): void => {
+    const first = tabs.find((item) => item.group === key);
+    if (first) setTab(first.key);
+  };
 
   return (
     <div className="space-y-6">
@@ -259,23 +353,39 @@ export function Staff(): JSX.Element {
             }}
             onSignOut={signOut}
           />
-          <nav aria-label="Admin pages">
-            <ul className="flex flex-wrap gap-2 list-none m-0 p-0">
-              {tabs.map((item) => (
-                <li key={item.key}>
-                  <button
-                    type="button"
-                    aria-current={shown === item.key ? 'page' : undefined}
-                    onClick={() => setTab(item.key)}
-                    className={`control ${shown === item.key ? 'bg-highlight text-ink' : 'bg-paper/10 text-paper'}`}
-                  >
-                    {item.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
+          <nav aria-label="Admin pages" className="space-y-3">
+            <TabList
+              id="group"
+              label="Parts of the admin panel"
+              tabs={groups}
+              selected={group}
+              onSelect={openGroup}
+            />
+            <div
+              role="tabpanel"
+              id={`group-panel-${group}`}
+              aria-labelledby={`group-tab-${group}`}
+              tabIndex={-1}
+            >
+              {shown && (
+                <TabList
+                  id="page"
+                  label={`${GROUPS.find((one) => one.key === group)?.label ?? ''} pages`}
+                  tabs={pages}
+                  selected={shown}
+                  onSelect={setTab}
+                />
+              )}
+            </div>
           </nav>
-          <div key={refresh}>
+          <div
+            key={refresh}
+            role="tabpanel"
+            id={`page-panel-${shown ?? ''}`}
+            aria-labelledby={`page-tab-${shown ?? ''}`}
+            tabIndex={-1}
+            className="space-y-6"
+          >
             {shown === 'documents' && <Documents staffKey={key} by={by} onNews={setNews} />}
             {shown === 'documents' && <RemoveRunner staffKey={key} by={by} onNews={setNews} />}
             {shown === 'problems' && <ActiveSos staffKey={key} by={by} onNews={setNews} />}
@@ -289,10 +399,10 @@ export function Staff(): JSX.Element {
             {shown === 'payments' && <Payments staffKey={key} onNews={setNews} />}
             {shown === 'partners' && <Partners staffKey={key} onNews={setNews} />}
             {shown === 'analytics' && <Analytics staffKey={key} />}
-            {shown === 'overview' && <Overview staffKey={key} />}
+            {shown === 'overview' && <Overview staffKey={key} onOpen={setTab} />}
             {shown === 'money' && <Money staffKey={key} />}
             {shown === 'money' && <ReferralRewards staffKey={key} by={by} onNews={setNews} />}
-            {shown === 'orders' && <Orders staffKey={key} />}
+            {shown === 'orders' && <Orders staffKey={key} by={by} onNews={setNews} />}
             {shown === 'runners' && <RunnersNow staffKey={key} />}
             {shown === 'reports' && <Reports staffKey={key} />}
             {shown === 'accounts' && <ShopperAccounts staffKey={key} />}
@@ -337,6 +447,9 @@ export function Staff(): JSX.Element {
 
 function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => void }): JSX.Element {
   const [withKey, setWithKey] = useState(false);
+  // The founder's way in with the staff key is offered only once a staff username has been
+  // typed: a visitor who lands here sees a plain sign-in and nothing about keys.
+  const [username, setUsername] = useState('');
   const ozi = useOzi();
   const voice = useRef(ozi);
   voice.current = ozi;
@@ -397,12 +510,13 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
       });
   };
 
-  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
   return (
     <form onSubmit={submit} className="space-y-4 max-w-xl">
       <h1 className="text-display font-bold m-0">Admin sign in</h1>
       {withKey ? (
-        <>
+        // Keyed, so what was typed as a username is never carried into the name box.
+        <Fragment key="with-key">
           <label htmlFor="staff-name" className="block font-bold">
             Your name, recorded with each decision
           </label>
@@ -417,9 +531,9 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
             autoComplete="current-password"
             className={field}
           />
-        </>
+        </Fragment>
       ) : (
-        <>
+        <Fragment key="with-password">
           <label htmlFor="staff-username" className="block font-bold">
             Username
           </label>
@@ -427,6 +541,8 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
             id="staff-username"
             name="staff-username"
             autoComplete="username"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
             className={field}
           />
           <label htmlFor="staff-password" className="block font-bold">
@@ -468,26 +584,28 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
               />
             </>
           )}
-        </>
+        </Fragment>
       )}
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
-      <button type="submit" disabled={busy} className="control w-full bg-highlight text-ink">
+      <button type="submit" disabled={busy} className="control w-full bg-highlight text-on-accent">
         Sign in
       </button>
-      <button
-        type="button"
-        onClick={() => {
-          setWithKey(!withKey);
-          setProblem('');
-        }}
-        className="control bg-paper/10 text-paper underline"
-      >
-        {withKey ? 'Sign in with a username instead' : 'Founder: sign in with the staff key'}
-      </button>
+      {(withKey || username.trim() !== '') && (
+        <button
+          type="button"
+          onClick={() => {
+            setWithKey(!withKey);
+            setProblem('');
+          }}
+          className="control bg-paper/10 text-paper underline"
+        >
+          {withKey ? 'Sign in with a username instead' : 'Founder: sign in with the staff key'}
+        </button>
+      )}
     </form>
   );
 }
@@ -516,7 +634,7 @@ function ChangePassword({
         setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
       );
   };
-  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
   return (
     <form onSubmit={submit} className="space-y-4 max-w-xl" aria-labelledby="choose-heading">
       <h2 id="choose-heading" className="text-lead font-bold m-0">
@@ -556,7 +674,7 @@ function ChangePassword({
         autoComplete="new-password"
         className={field}
       />
-      <button type="submit" className="control w-full bg-highlight text-ink">
+      <button type="submit" className="control w-full bg-highlight text-on-accent">
         Save my password
       </button>
     </form>
@@ -590,7 +708,7 @@ function useList<T>(load: () => Promise<T>): {
 function Failure({ text }: { text: string }): JSX.Element | null {
   if (text === '') return null;
   return (
-    <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+    <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
       {text}
     </p>
   );
@@ -660,7 +778,7 @@ function DocumentReview({
   };
 
   return (
-    <article aria-labelledby={id} className="space-y-3 border-2 border-paper rounded-xl p-4">
+    <article aria-labelledby={id} className="space-y-3 border-2 border-paper rounded-2xl p-4">
       <h3 id={id} className="font-bold m-0">
         {heading}
       </h3>
@@ -678,7 +796,7 @@ function DocumentReview({
               .then(setPhoto)
               .catch(() => setProblem('The photo could not be opened.'));
           }}
-          className="control bg-paper text-ink"
+          className="control border-paper bg-paper/10 text-paper"
         >
           Show the photo
         </button>
@@ -693,7 +811,7 @@ function DocumentReview({
             type="date"
             value={expiresOn}
             onChange={(event) => setExpiresOn(event.target.value)}
-            className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+            className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
           />
         </>
       )}
@@ -704,21 +822,21 @@ function DocumentReview({
         id={`${id}-note`}
         value={note}
         onChange={(event) => setNote(event.target.value)}
-        className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+        className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
       />
       <Failure text={problem} />
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => decide('accept')}
-          className="control bg-highlight text-ink"
+          className="control bg-highlight text-on-accent"
         >
           Accept
         </button>
         <button
           type="button"
           onClick={() => decide('reject')}
-          className="control bg-paper text-ink"
+          className="control border-paper bg-paper/10 text-paper"
         >
           Send back
         </button>
@@ -804,7 +922,7 @@ function ProblemDecide({
   };
 
   return (
-    <article aria-labelledby={id} className="space-y-3 border-2 border-paper rounded-xl p-4">
+    <article aria-labelledby={id} className="space-y-3 border-2 border-paper rounded-2xl p-4">
       <h3 id={id} className="font-bold m-0">
         From the {report.reportedBy === 'runner' ? 'Runner' : 'Shopper'}: {report.summary}
       </h3>
@@ -814,6 +932,35 @@ function ProblemDecide({
           ? ` They asked for ${money(report.refundRequestedPence)} back.`
           : ''}
       </p>
+      {report.order && (
+        <div className="space-y-1 border-2 border-paper/40 rounded-xl p-3">
+          <p className="m-0 font-bold">
+            Order {report.order.reference}
+            {report.order.runnerName ? `, Runner ${report.order.runnerName}` : ', no Runner yet'}.
+          </p>
+          <ul className="m-0 ps-6">
+            {report.order.items.map((item, index) => (
+              <li key={`${item.name}-${index}`}>
+                {item.quantity} x {item.name}
+                {item.outcome === 'substituted'
+                  ? ' (something similar)'
+                  : item.outcome === 'omitted'
+                    ? ' (left out)'
+                    : ''}
+              </li>
+            ))}
+          </ul>
+          <p className="m-0">
+            Shopping estimated at {money(report.order.goodsEstimatePence)}
+            {report.order.receiptTotalPence !== null
+              ? `, the till said ${money(report.order.receiptTotalPence)}`
+              : ''}
+            ; delivery {money(report.order.feePence)}; charged{' '}
+            {money(report.order.finalTotalPence ?? report.order.totalEstimatePence)}
+            {report.order.paidBy === 'bank' ? ' by bank transfer' : ''}.
+          </p>
+        </div>
+      )}
       {report.evidence.length > 0 && (
         <ul className="m-0 ps-6 space-y-2">
           {report.evidence.map((item, index) => {
@@ -842,7 +989,7 @@ function ProblemDecide({
                         .then((url) => setFiles((was) => ({ ...was, [item.id]: url })))
                         .catch(() => setProblem('That could not be opened.'));
                     }}
-                    className="control bg-paper text-ink"
+                    className="control border-paper bg-paper/10 text-paper"
                   >
                     {item.kind === 'voice_note' ? 'Play' : 'Show'} {label.toLowerCase()}
                   </button>
@@ -880,7 +1027,7 @@ function ProblemDecide({
           inputMode="decimal"
           value={refund}
           onChange={(event) => setRefund(event.target.value)}
-          className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+          className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
         />
         <label htmlFor={`${id}-note`} className="block font-bold">
           The decision, in words the Runner and Shopper will read
@@ -889,10 +1036,10 @@ function ProblemDecide({
           id={`${id}-note`}
           value={note}
           onChange={(event) => setNote(event.target.value)}
-          className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+          className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
         />
         <Failure text={problem} />
-        <button type="submit" className="control w-full bg-highlight text-ink">
+        <button type="submit" className="control w-full bg-highlight text-on-accent">
           Save the decision
         </button>
       </form>
@@ -938,7 +1085,7 @@ function VoiceNote({ src, label }: { src: string; label: string }): JSX.Element 
           play();
         }
       }}
-      className="control bg-paper text-ink"
+      className="control border-paper bg-paper/10 text-paper"
     >
       {playing ? 'Stop' : 'Play'} {label.toLowerCase()}
     </button>
@@ -967,7 +1114,7 @@ function Owed({ staffKey, by, onNews }: PanelProps): JSX.Element {
       {rows?.length === 0 && <p className="m-0">No Runner owes anything.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {rows?.map((row) => (
-          <li key={row.runner.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+          <li key={row.runner.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
             <p className="m-0">
               {row.runner.name}
               {row.runner.runnerId ? ` (${row.runner.runnerId})` : ''} owes{' '}
@@ -987,7 +1134,7 @@ function Owed({ staffKey, by, onNews }: PanelProps): JSX.Element {
                       setProblem(failure instanceof Error ? failure.message : 'That failed.'),
                     );
                 }}
-                className="control bg-paper text-ink"
+                className="control border-paper bg-paper/10 text-paper"
               >
                 They have left: write off {money(row.remainingPence)}
               </button>
@@ -1013,7 +1160,7 @@ function Feedback({ staffKey }: { staffKey: string }): JSX.Element {
       {rows?.length === 0 && <p className="m-0">No feedback yet.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {rows?.map((row) => (
-          <li key={row.id} className="border-2 border-paper rounded-xl p-4 space-y-1">
+          <li key={row.id} className="border-2 border-paper rounded-2xl p-4 space-y-1">
             <p className="m-0">{row.message}</p>
             <p className="m-0">
               {row.runner
@@ -1088,7 +1235,7 @@ function Finds({
       {rows?.length === 0 && <p className="m-0">Nothing waiting.</p>}
       <ul className="m-0 p-0 list-none space-y-4">
         {rows?.map((row) => (
-          <li key={row.id} className="border-2 border-paper rounded-xl p-4 space-y-3">
+          <li key={row.id} className="border-2 border-paper rounded-2xl p-4 space-y-3">
             <h3 className="m-0 font-bold">{row.description}</h3>
             <p className="m-0">
               For {row.shopperName}
@@ -1100,14 +1247,14 @@ function Finds({
                 What was found
                 <input
                   name="name"
-                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                  className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
                 />
               </label>
               <label className="block">
                 Which shop
                 <input
                   name="shop"
-                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                  className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
                 />
               </label>
               <label className="block">
@@ -1115,17 +1262,17 @@ function Finds({
                 <input
                   name="price"
                   inputMode="decimal"
-                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                  className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
                 />
               </label>
               <label className="block">
                 Note for the Shopper (optional)
                 <input
                   name="note"
-                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                  className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
                 />
               </label>
-              <button type="submit" className="control bg-highlight text-ink">
+              <button type="submit" className="control bg-highlight text-on-accent">
                 Found it<span className="visually-hidden">: {row.description}</span>
               </button>
             </form>
@@ -1162,7 +1309,7 @@ function Enquiries({
       {rows?.length === 0 && <p className="m-0">No enquiries yet.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {rows?.map((row) => (
-          <li key={row.id} className="border-2 border-paper rounded-xl p-4 space-y-1">
+          <li key={row.id} className="border-2 border-paper rounded-2xl p-4 space-y-1">
             <h3 className="m-0 font-bold">
               {row.organisation}
               {row.handled ? ', rung back' : ''}
@@ -1183,7 +1330,7 @@ function Enquiries({
                     list.reload();
                   })
                 }
-                className="control bg-paper text-ink"
+                className="control border-paper bg-paper/10 text-paper"
               >
                 Mark as rung back<span className="visually-hidden">: {row.organisation}</span>
               </button>
@@ -1231,7 +1378,7 @@ function Payments({
       {list.data?.waiting.length === 0 && <p className="m-0">None waiting.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {list.data?.waiting.map((row) => (
-          <li key={row.orderId} className="border-2 border-paper rounded-xl p-4 space-y-2">
+          <li key={row.orderId} className="border-2 border-paper rounded-2xl p-4 space-y-2">
             <p className="m-0 font-bold">
               {money(row.amountPence)}, reference {row.reference}
             </p>
@@ -1248,14 +1395,14 @@ function Payments({
               <button
                 type="button"
                 onClick={() => mark(row, 'received')}
-                className="control bg-highlight text-ink"
+                className="control bg-highlight text-on-accent"
               >
                 It has arrived<span className="visually-hidden">: {row.reference}</span>
               </button>
               <button
                 type="button"
                 onClick={() => mark(row, 'cancel')}
-                className="control bg-paper text-ink"
+                className="control border-paper bg-paper/10 text-paper"
               >
                 Cancel this order<span className="visually-hidden">: {row.reference}</span>
               </button>
@@ -1313,7 +1460,7 @@ function TinyExtras({
       {list.data?.tinyExtras.length === 0 && <p className="m-0">None waiting.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {list.data?.tinyExtras.map((row) => (
-          <li key={row.orderId} className="border-2 border-paper rounded-xl p-4 space-y-2">
+          <li key={row.orderId} className="border-2 border-paper rounded-2xl p-4 space-y-2">
             <p className="m-0 font-bold">
               {money(row.goodsPence)} of shopping, order {row.part} of {row.of} of{' '}
               {row.firstReference ?? row.reference}
@@ -1325,7 +1472,11 @@ function TinyExtras({
                 : 'The first order has no Runner yet.'}{' '}
               Extra delivery not taken: {money(row.extraDeliveryPence)}.
             </p>
-            <button type="button" onClick={() => carry(row)} className="control bg-highlight text-ink">
+            <button
+              type="button"
+              onClick={() => carry(row)}
+              className="control bg-highlight text-on-accent"
+            >
               Carry with the first Runner<span className="visually-hidden">: {row.reference}</span>
             </button>
           </li>
@@ -1380,7 +1531,7 @@ function PayBacks({
       {list.data?.waiting.length === 0 && <p className="m-0">None waiting.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {list.data?.waiting.map((row) => (
-          <li key={row.orderId} className="border-2 border-paper rounded-xl p-4 space-y-2">
+          <li key={row.orderId} className="border-2 border-paper rounded-2xl p-4 space-y-2">
             <p className="m-0 font-bold">
               {money(row.amountPence)} to {row.runnerName}, order {row.reference}
             </p>
@@ -1398,7 +1549,7 @@ function PayBacks({
             <button
               type="button"
               onClick={() => approve(row)}
-              className="control bg-highlight text-ink"
+              className="control bg-highlight text-on-accent"
             >
               Approve and pay back<span className="visually-hidden">: order {row.reference}</span>
             </button>
@@ -1485,7 +1636,7 @@ function Learning({
       {rows?.length === 0 && <p className="m-0">Nothing waiting. Ozi understood everything.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {rows?.map((row) => (
-          <li key={row.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+          <li key={row.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
             <h3 className="m-0 font-bold">&ldquo;{row.text}&rdquo;</h3>
             <p className="m-0">
               Asked by {ACCOUNT_WORDS[row.account] ?? row.account}, {row.timesHeard}{' '}
@@ -1500,20 +1651,20 @@ function Learning({
               onChange={(event) => setAnswers({ ...answers, [row.id]: event.target.value })}
               maxLength={400}
               rows={2}
-              className="w-full rounded-xl p-3 text-ink"
+              className="w-full rounded-2xl p-3 text-ink"
             />
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => decide(row, true)}
-                className="control bg-highlight text-ink"
+                className="control bg-highlight text-on-accent"
               >
                 Approve<span className="visually-hidden">: {row.text}</span>
               </button>
               <button
                 type="button"
                 onClick={() => decide(row, false)}
-                className="control bg-paper text-ink"
+                className="control border-paper bg-paper/10 text-paper"
               >
                 Turn down<span className="visually-hidden">: {row.text}</span>
               </button>
@@ -1539,7 +1690,7 @@ function Team({
   const jobs: StaffRoleInfo[] = roles.data?.roles ?? [];
   const [problem, setProblem] = useState('');
   const [password, setPassword] = useState('');
-  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
 
   const add = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -1588,7 +1739,7 @@ function Team({
       </h2>
       <Failure text={list.problem || problem} />
       {password !== '' && (
-        <p role="status" className="border-2 border-highlight rounded-xl p-4 m-0">
+        <p role="status" className="border-2 border-highlight rounded-2xl p-4 m-0">
           {password}
         </p>
       )}
@@ -1611,7 +1762,7 @@ function Team({
       {rows?.length === 0 && <p className="m-0">Nobody added yet.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {rows?.map((member) => (
-          <li key={member.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+          <li key={member.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
             <h3 className="m-0 font-bold">
               {member.name}, {member.title}
               {member.active ? '' : ', turned off'}
@@ -1647,7 +1798,7 @@ function Team({
                       setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
                     )
                 }
-                className="control bg-paper text-ink"
+                className="control border-paper bg-paper/10 text-paper"
               >
                 New password<span className="visually-hidden"> for {member.name}</span>
               </button>
@@ -1666,7 +1817,7 @@ function Team({
                         ),
                       )
                   }
-                  className="control bg-paper text-ink"
+                  className="control border-paper bg-paper/10 text-paper"
                 >
                   Reset two-step codes
                   <span className="visually-hidden"> for {member.name}</span>
@@ -1706,7 +1857,7 @@ function Team({
             </option>
           ))}
         </select>
-        <button type="submit" className="control bg-highlight text-ink">
+        <button type="submit" className="control bg-highlight text-on-accent">
           Add to the team
         </button>
       </form>
@@ -1735,7 +1886,7 @@ function Partners({
   const [problem, setProblem] = useState('');
   const [password, setPassword] = useState('');
   const [photos, setPhotos] = useState<Record<string, string>>({});
-  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
   const fail = (failure: unknown): void =>
     setProblem(failure instanceof Error ? failure.message : 'That could not be saved.');
   const values = (event: FormEvent<HTMLFormElement>): ((name: string) => string) => {
@@ -1751,7 +1902,7 @@ function Partners({
       </h2>
       <Failure text={list.problem || pending.problem || problem} />
       {password !== '' && (
-        <p role="status" className="border-2 border-highlight rounded-xl p-4 m-0">
+        <p role="status" className="border-2 border-highlight rounded-2xl p-4 m-0">
           {password}
         </p>
       )}
@@ -1763,7 +1914,7 @@ function Partners({
         {pending.data?.products.length === 0 && <p className="m-0">Nothing waiting.</p>}
         <ul className="m-0 p-0 list-none space-y-3">
           {pending.data?.products.map((product) => (
-            <li key={product.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+            <li key={product.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
               <h4 className="m-0 font-bold">
                 {product.name}, {money(product.pricePence)}, from {product.shopName}
               </h4>
@@ -1778,7 +1929,7 @@ function Partners({
                   <img
                     src={photos[product.id]}
                     alt={product.name}
-                    className="max-h-64 rounded-lg"
+                    className="max-h-64 rounded-xl"
                   />
                 ) : (
                   <button
@@ -1807,7 +1958,7 @@ function Partners({
                       })
                       .catch(fail)
                   }
-                  className="control bg-highlight text-ink"
+                  className="control bg-highlight text-on-accent"
                 >
                   Accept<span className="visually-hidden"> {product.name}</span>
                 </button>
@@ -1842,7 +1993,7 @@ function Partners({
         </h3>
         <ul className="m-0 p-0 list-none space-y-3">
           {list.data?.shops.map((shop) => (
-            <li key={shop.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+            <li key={shop.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
               <h4 className="m-0 font-bold">{shop.name}</h4>
               <p className="m-0">
                 {shop.paid && shop.paidUntil
@@ -1876,7 +2027,7 @@ function Partners({
                         })
                         .catch(fail)
                     }
-                    className="control bg-paper text-ink"
+                    className="control border-paper bg-paper/10 text-paper"
                   >
                     Record a month paid: {label}
                     <span className="visually-hidden"> for {shop.name}</span>
@@ -1963,7 +2114,7 @@ function Partners({
             defaultValue="1"
             className={field}
           />
-          <button type="submit" className="control bg-highlight text-ink">
+          <button type="submit" className="control bg-highlight text-on-accent">
             Add the shop
           </button>
         </form>
@@ -1975,7 +2126,7 @@ function Partners({
         </h3>
         <ul className="m-0 p-0 list-none space-y-3">
           {list.data?.organisations.map((organisation) => (
-            <li key={organisation.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+            <li key={organisation.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
               <h4 className="m-0 font-bold">{organisation.name}</h4>
               <p className="m-0">
                 Code {organisation.joinCode}. {organisation.people} people linked. Sign-ins:{' '}
@@ -2060,7 +2211,7 @@ function Partners({
             Their telephone
           </label>
           <input id="org-phone" name="org-phone" type="tel" className={field} />
-          <button type="submit" className="control bg-highlight text-ink">
+          <button type="submit" className="control bg-highlight text-on-accent">
             Add the organisation
           </button>
         </form>
@@ -2179,7 +2330,7 @@ function Analytics({ staffKey }: { staffKey: string }): JSX.Element {
         id="analytics-period"
         value={period}
         onChange={(event) => setPeriod(event.target.value as StaffAnalytics['period'])}
-        className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+        className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
       >
         <option value="day">The last day</option>
         <option value="week">The last week</option>
@@ -2193,7 +2344,7 @@ function Analytics({ staffKey }: { staffKey: string }): JSX.Element {
             {data.totals.shoppers !== null ? `, ${data.totals.shoppers} Shoppers` : ''},{' '}
             {data.totals.runners} Runners, {data.totals.throughOrganisations} through organisations.
           </p>
-          <button type="button" onClick={download} className="control bg-highlight text-ink">
+          <button type="button" onClick={download} className="control bg-highlight text-on-accent">
             Download as a spreadsheet (CSV)
           </button>
           {table(
@@ -2276,9 +2427,20 @@ function Analytics({ staffKey }: { staffKey: string }): JSX.Element {
 }
 
 /** People and work at a glance, with no money in it. */
-function Overview({ staffKey }: { staffKey: string }): JSX.Element {
+/**
+ * The first screen (16 October 2026 review): what needs a person now, most urgent first, each
+ * as a card with its count and a button to the right tab; then the figures.
+ */
+function Overview({
+  staffKey,
+  onOpen,
+}: {
+  staffKey: string;
+  onOpen: (tab: TabKey) => void;
+}): JSX.Element {
   const list = useList(() => fetchStaffOverview(staffKey));
   const data: StaffOverview | null = list.data;
+  const needs: NeedsYouCard[] | null = data ? (data.needsYou ?? []) : null;
   const tiles: Array<[string, number]> = data
     ? [
         ['Shoppers', data.people.shoppers],
@@ -2289,7 +2451,7 @@ function Overview({ staffKey }: { staffKey: string }): JSX.Element {
         ['Staff', data.people.staff],
         ['Orders in the last day', data.work.ordersLastDay],
         ['Orders in the last week', data.work.ordersLastWeek],
-        ['Complaints waiting', data.work.problemsWaiting],
+        ['Problems to decide', data.work.problemsWaiting],
         ['Runner documents waiting', data.work.documentsWaiting],
         ['Shop products waiting', data.work.shopProductsWaiting],
         ['Finds It waiting', data.work.findItWaiting],
@@ -2298,12 +2460,41 @@ function Overview({ staffKey }: { staffKey: string }): JSX.Element {
   return (
     <section aria-labelledby="overview-heading" className="space-y-4 max-w-3xl">
       <h2 id="overview-heading" className="text-lead font-bold">
-        Overview
+        Needs you now
       </h2>
       <Failure text={list.problem} />
+      {needs && (
+        <p role="status" className="m-0">
+          {needs.length === 0
+            ? 'Nothing needs you right now.'
+            : `${needs.length === 1 ? 'One thing needs' : `${needs.length} things need`} you, most urgent first.`}
+        </p>
+      )}
+      {needs && needs.length > 0 && (
+        <ol className="list-none m-0 p-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {needs.map((card) => (
+            <li
+              key={card.key}
+              className={`rounded-xl p-4 space-y-2 ${card.key === 'sos' ? 'border-4 border-paper' : 'border-2 border-paper'}`}
+            >
+              <p className="m-0 text-lead font-bold">
+                <span className="text-display">{card.count}</span> {card.title}
+              </p>
+              <button
+                type="button"
+                onClick={() => onOpen(card.tab)}
+                className="control bg-highlight text-on-accent"
+              >
+                {card.action}
+              </button>
+            </li>
+          ))}
+        </ol>
+      )}
+      <h3 className="m-0 font-bold">The figures</h3>
       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 m-0">
         {tiles.map(([label, value]) => (
-          <div key={label} className="border-2 border-paper rounded-xl p-4">
+          <div key={label} className="border-2 border-paper rounded-2xl p-4">
             <dt className="m-0">{label}</dt>
             <dd className="m-0 text-lead font-bold">{value}</dd>
           </div>
@@ -2336,11 +2527,11 @@ function Money({ staffKey }: { staffKey: string }): JSX.Element {
       {data && (
         <>
           <p className="m-0">
-            Payment gateways:{' '}
+            Card payments:{' '}
             {data.gateways
               .map((row) => `${row.name}${row.connected ? '' : ' (not live)'}`)
               .join(', ')}
-            . Flutterwave, Paystack and others appear here when they are connected.
+            .
           </p>
           <table className="w-full border-collapse">
             <caption className="text-left font-bold py-2">Money in and out</caption>
@@ -2412,11 +2603,7 @@ function Money({ staffKey }: { staffKey: string }): JSX.Element {
  * The Runner spending cards (Stripe Issuing): each card's last four digits and whether it is
  * frozen, what each card order was loaded with and spent, and the latest declines with reasons.
  */
-function RunnerCards({
-  cards,
-}: {
-  cards: NonNullable<OwnerMoney['runnerCards']>;
-}): JSX.Element {
+function RunnerCards({ cards }: { cards: NonNullable<OwnerMoney['runnerCards']> }): JSX.Element {
   const cell = 'border-b border-paper/40 p-2';
   return (
     <>
@@ -2424,7 +2611,7 @@ function RunnerCards({
       <p className="m-0">
         {cards.enabled
           ? 'Runners who choose the card pay at the till with it, loaded for each order. The business pays the shop; nothing is paid back.'
-          : 'The card is switched off (STRIPE_ISSUING_ENABLED). Runners pay with their own card and are paid back.'}
+          : 'Runner spending cards are switched off, so Runners pay with their own card and we pay them back.'}
       </p>
       {cards.cards.length === 0 ? (
         <p className="m-0">No Runner has a card yet.</p>
@@ -2455,7 +2642,7 @@ function RunnerCards({
             {cards.orders.map((order) => (
               <tr key={order.orderId}>
                 <th scope="row" className={`text-left font-normal ${cell}`}>
-                  {order.orderId}
+                  {order.reference ?? order.orderId.slice(-6).toUpperCase()}
                 </th>
                 <td className={cell}>{order.runnerName}</td>
                 <td className={cell}>
@@ -2503,7 +2690,7 @@ function OwnerSetup({
   const exists = useList(() => fetchOwnerExists(staffKey));
   const [problem, setProblem] = useState('');
   if (!exists.data || exists.data.ownerExists) return null;
-  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
   return (
     <form
       onSubmit={(event) => {
@@ -2525,7 +2712,7 @@ function OwnerSetup({
             setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
           );
       }}
-      className="space-y-3 max-w-xl border-2 border-highlight rounded-xl p-4"
+      className="space-y-3 max-w-xl border-2 border-highlight rounded-2xl p-4"
       aria-labelledby="owner-setup-heading"
     >
       <h2 id="owner-setup-heading" className="text-lead font-bold m-0">
@@ -2565,7 +2752,7 @@ function OwnerSetup({
         maxLength={7}
         className={field}
       />
-      <button type="submit" className="control bg-highlight text-ink">
+      <button type="submit" className="control bg-highlight text-on-accent">
         Make my owner&rsquo;s account
       </button>
     </form>
@@ -2601,7 +2788,7 @@ function MySettings({
   const viewers = useList(() => fetchViewers(staffKey));
   const [problem, setProblem] = useState('');
   const [password, setPassword] = useState('');
-  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
   const fail = (failure: unknown): void =>
     setProblem(failure instanceof Error ? failure.message : 'That did not work.');
   const values = (event: FormEvent<HTMLFormElement>): ((name: string) => string) => {
@@ -2631,7 +2818,7 @@ function MySettings({
       </h2>
       <Failure text={problem} />
       {password !== '' && (
-        <p role="status" className="border-2 border-highlight rounded-xl p-4 m-0">
+        <p role="status" className="border-2 border-highlight rounded-2xl p-4 m-0">
           {password}
         </p>
       )}
@@ -2648,7 +2835,7 @@ function MySettings({
         {viewers.data?.viewers.length === 0 && <p className="m-0">Nobody yet.</p>}
         <ul className="list-none m-0 p-0 space-y-4">
           {viewers.data?.viewers.map((viewer) => (
-            <li key={viewer.id} className="border-2 border-paper rounded-xl p-4 space-y-3">
+            <li key={viewer.id} className="border-2 border-paper rounded-2xl p-4 space-y-3">
               <h4 className="m-0 font-bold">
                 {viewer.name}, {viewer.kind === 'family' ? 'family' : 'investor'} (signs in as{' '}
                 {viewer.username})
@@ -2657,14 +2844,14 @@ function MySettings({
                 <button
                   type="button"
                   onClick={() => change(viewer, { all: true })}
-                  className="control bg-highlight text-ink"
+                  className="control bg-highlight text-on-accent"
                 >
                   Switch all on<span className="visually-hidden"> for {viewer.name}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => change(viewer, { all: false })}
-                  className="control bg-paper text-ink"
+                  className="control border-paper bg-paper/10 text-paper"
                 >
                   Switch all off<span className="visually-hidden"> for {viewer.name}</span>
                 </button>
@@ -2736,7 +2923,7 @@ function MySettings({
             <option value="family">Family (such as my wife)</option>
             <option value="investor">Investor</option>
           </select>
-          <button type="submit" className="control bg-highlight text-ink">
+          <button type="submit" className="control bg-highlight text-on-accent">
             Add them
           </button>
         </form>
@@ -2775,7 +2962,7 @@ function MySettings({
           maxLength={7}
           className={field}
         />
-        <button type="submit" className="control bg-paper text-ink">
+        <button type="submit" className="control border-paper bg-paper/10 text-paper">
           Change my passcode
         </button>
       </form>
@@ -2798,7 +2985,7 @@ function MySettings({
             })
             .catch(fail);
         }}
-        className="space-y-2 border-2 border-paper rounded-xl p-4"
+        className="space-y-2 border-2 border-paper rounded-2xl p-4"
         aria-labelledby="kill-heading"
       >
         <h3 id="kill-heading" className="text-lead font-bold m-0">
@@ -2818,7 +3005,7 @@ function MySettings({
           maxLength={7}
           className={field}
         />
-        <button type="submit" className="control bg-highlight text-ink">
+        <button type="submit" className="control bg-highlight text-on-accent">
           Use the kill switch
         </button>
       </form>

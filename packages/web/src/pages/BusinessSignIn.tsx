@@ -11,7 +11,7 @@ import {
 import { useOzi } from '../state/ozi';
 import { nameHeardIn } from '../voice/name';
 
-const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
 
 /** Where each kind of business account lands once signed in. */
 export function businessHome(kind: BusinessMe['kind']): string {
@@ -85,7 +85,7 @@ export function BusinessSignIn(): JSX.Element {
     <div className="space-y-6 max-w-xl">
       <h1 className="text-display font-bold m-0">Shop Partners and organisations</h1>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
@@ -127,7 +127,7 @@ export function BusinessSignIn(): JSX.Element {
             autoComplete="new-password"
             className={field}
           />
-          <button type="submit" className="control w-full bg-highlight text-ink">
+          <button type="submit" className="control w-full bg-highlight text-on-accent">
             Save my password
           </button>
         </form>
@@ -152,7 +152,11 @@ export function BusinessSignIn(): JSX.Element {
             autoComplete="current-password"
             className={field}
           />
-          <button type="submit" disabled={busy} className="control w-full bg-highlight text-ink">
+          <button
+            type="submit"
+            disabled={busy}
+            className="control w-full bg-highlight text-on-accent"
+          >
             Sign in
           </button>
         </form>
@@ -165,7 +169,10 @@ export function BusinessSignIn(): JSX.Element {
           Every local shop is listed free. Shop Partners pay monthly to show their own products and
           prices, and keep them up to date themselves.
         </p>
-        <Link to="/organisations?shop=1#enquiry" className="control bg-paper text-ink">
+        <Link
+          to="/organisations?shop=1#enquiry"
+          className="control border-paper bg-paper/10 text-paper"
+        >
           Become a Shop Partner
         </Link>{' '}
         <Link to="/organisations#enquiry" className="control bg-paper/10 text-paper underline">

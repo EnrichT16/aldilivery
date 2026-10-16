@@ -6,6 +6,7 @@ import { deliveryFeePence, itemChargesForLines, overOneRunnerWords } from '@aldi
 import { storeConfig } from '../config';
 import { createOrder, listPaymentMethods, searchCatalogue, type CatalogueItem } from '../lib/api';
 import { money, sellable, shownPrice, tooDearWords } from '../lib/money';
+import { completeBankCheck } from '../lib/stripe';
 import { parseChoice, parseQuantity, parseYesNo, splitItems, wantsToStop } from '../voice/ordering';
 import type { SpeakOutcome } from '../voice';
 import { useBasket } from './basket';
@@ -35,14 +36,28 @@ type Stage =
   | { kind: 'idle' }
   | { kind: 'choosing'; name: string; options: CatalogueItem[]; quantity: number | null }
   | { kind: 'quantity'; product: CatalogueItem; retried: boolean }
-  | { kind: 'address'; totalPence: number; home: string; cardId: string; lastFour: string }
+  | {
+      kind: 'address';
+      lines: OrderLine[];
+      totalPence: number;
+      home: string;
+      cardId: string;
+      lastFour: string;
+    }
   | {
       kind: 'payment';
+      lines: OrderLine[];
       totalPence: number;
       home: string;
       cardId: string;
       statement: string;
     };
+
+/** One line of the order as it will be sent: the whole basket, not only what was just said. */
+interface OrderLine {
+  catalogueItemId: string;
+  quantity: number;
+}
 
 interface Picked {
   product: CatalogueItem;
@@ -75,6 +90,11 @@ export interface VoiceOrdering {
   expectOrder: () => void;
   /** Handle words Ozi heard. True when they were about ordering. */
   handle: (text: string) => Promise<boolean>;
+  /**
+   * "Send my order" (16 October 2026): the basket as it stands, read back whole with the total,
+   * then the same two yeses as an order spoken from scratch, the address and the payment.
+   */
+  sendBasket: () => Promise<void>;
 }
 
 export function useVoiceOrdering(
@@ -111,23 +131,39 @@ export function useVoiceOrdering(
     picked.current = [];
   }, []);
 
-  const putInBasket = useCallback(() => {
+  /**
+   * What was just said goes into the basket with whatever was already there (review of
+   * 16 October 2026): a voice order adds, it never throws away shopping chosen on the screen.
+   * Gives back the whole basket as it now stands, for the read-back and for the order.
+   */
+  const putInBasket = useCallback((): Picked[] => {
     const { basket: current } = live.current;
-    current.clear();
+    const whole: Picked[] = current.lines.map((line) => ({
+      product: line.item,
+      quantity: line.quantity,
+    }));
     for (const { product, quantity } of picked.current) {
+      const already = whole.find((line) => line.product.id === product.id);
+      if (already) {
+        already.quantity += quantity;
+      } else {
+        whole.push({ product, quantity });
+      }
       current.add(product);
-      current.setQuantity(product.id, quantity);
+      current.setQuantity(product.id, already?.quantity ?? quantity);
     }
+    return whole;
   }, []);
 
   const readBack = useCallback(
-    async (notes: string) => {
-      const items = picked.current;
-      if (items.length === 0) {
+    async (notes: string, options: { alreadyInBasket?: boolean } = {}) => {
+      if (picked.current.length === 0) {
         reset();
         await say(`${notes}I haven't added anything, so there is no order.`);
         return;
       }
+      // Sending the basket as it stands (16 October 2026): nothing is put in again.
+      const items = options.alreadyInBasket ? picked.current : putInBasket();
       const goodsPence = items.reduce(
         (sum, { product, quantity }) => sum + product.estimatedPricePence * quantity,
         0,
@@ -149,7 +185,6 @@ export function useVoiceOrdering(
             `${index > 0 && index === items.length - 1 ? 'and ' : ''}${quantity} ${product.name}`,
         )
         .join(', ');
-      putInBasket();
 
       if (goodsPence > maximumOrderGoodsPence) {
         reset();
@@ -194,6 +229,7 @@ export function useVoiceOrdering(
 
       stage.current = {
         kind: 'address',
+        lines: items.map(({ product, quantity }) => ({ catalogueItemId: product.id, quantity })),
         totalPence,
         home,
         cardId: card.id,
@@ -366,6 +402,7 @@ export function useVoiceOrdering(
           const statement = `Shall I send your order and pay now, charging about ${money(current.totalPence)} to your card ending ${current.lastFour}? You pay what the till says.`;
           stage.current = {
             kind: 'payment',
+            lines: current.lines,
             totalPence: current.totalPence,
             home: current.home,
             cardId: current.cardId,
@@ -381,10 +418,7 @@ export function useVoiceOrdering(
             await say('Please say yes to send it and pay, or no to stop.');
             return true;
           }
-          const lines = picked.current.map(({ product, quantity }) => ({
-            catalogueItemId: product.id,
-            quantity,
-          }));
+          const { lines } = current;
           if (answer === 'no') {
             reset();
             await say(
@@ -405,12 +439,26 @@ export function useVoiceOrdering(
                 addressConfirmed: true,
               },
             });
+            // The bank wants its own check (16 October 2026): the same step the confirmation
+            // screen opens, said aloud first so nobody is surprised by a screen they cannot see.
+            if (result.payment?.requiresAction && result.payment.clientSecret) {
+              await say(
+                `${result.message} Your bank's own screen is opening now. Follow what it says, or ask someone you trust to help. Nothing is taken until the bank says yes.`,
+              );
+              const check = await completeBankCheck(result.payment.clientSecret);
+              if (!check.ok) {
+                await say(`${check.message} Your shopping is still in your basket.`);
+                return true;
+              }
+              live.current.basket.clear();
+              await say(
+                'Thank you, your bank said yes. You can follow your order on the Your order page.',
+              );
+              navigate('/my-order');
+              return true;
+            }
             live.current.basket.clear();
-            await say(
-              result.payment?.requiresAction
-                ? `${result.message} Please finish on the screen.`
-                : `${result.message} You can follow it on the Your order page.`,
-            );
+            await say(`${result.message} You can follow it on the Your order page.`);
             navigate('/my-order');
           } catch (failure) {
             await say(
@@ -432,5 +480,25 @@ export function useVoiceOrdering(
 
   const busy = useCallback(() => stage.current.kind !== 'idle', []);
 
-  return { busy, expectOrder, handle };
+  const sendBasket = useCallback(async () => {
+    const { shopper: who, basket: current } = live.current;
+    if (!who) {
+      if (offerAccount) offerAccount();
+      else await say('To send an order, you need an account first. Say "create my account".');
+      return;
+    }
+    if (current.lines.length === 0) {
+      expectNow();
+      await say(
+        'Your basket is empty, so there is nothing to send yet. What would you like? You can say, for example, bananas and milk.',
+      );
+      return;
+    }
+    reset();
+    picked.current = current.lines.map((line) => ({ product: line.item, quantity: line.quantity }));
+    // What was picked is the basket itself, so the read-back must not add it again.
+    await readBack('', { alreadyInBasket: true });
+  }, [say, offerAccount, reset, readBack]);
+
+  return { busy, expectOrder, handle, sendBasket };
 }

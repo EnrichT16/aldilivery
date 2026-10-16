@@ -88,7 +88,12 @@ class NotFoundError extends Error {
   }
 }
 
-export function memoryRepository(): Repository {
+/**
+ * Everything in memory, for the tests and for a server with no database. The clock is the
+ * application's own (`options.now`), so a test that moves time forward sees orders made "then",
+ * not stamped with the wall clock while the rest of the application believes another day.
+ */
+export function memoryRepository(options: { now?: () => Date } = {}): Repository {
   const shoppers = new Map<string, Shopper>();
   const runners = new Map<string, Runner>();
   const organisations = new Map<string, Organisation>();
@@ -131,7 +136,7 @@ export function memoryRepository(): Repository {
   const auditEntries: AuditEntry[] = [];
   const cardAuthorizations = new Map<string, CardAuthorization>();
 
-  const now = (): Date => new Date();
+  const now = (): Date => options.now?.() ?? new Date();
 
   return {
     shoppers: {
@@ -953,6 +958,7 @@ export function memoryRepository(): Repository {
           completedAt: null,
           cancelledAt: null,
           cancelReason: null,
+          goodwillRefundedPence: 0,
           items,
         };
         orders.set(order.id, order);
@@ -1011,11 +1017,13 @@ export function memoryRepository(): Repository {
           .map(clone);
       },
       async listParts(parentId) {
-        return [...orders.values()]
-          // A part replaced when the rest was planned again (ruling 61) is cancelled, not a part.
-          .filter((o) => o.splitParentId === parentId && o.status !== 'cancelled')
-          .sort((a, b) => (a.splitPart ?? 0) - (b.splitPart ?? 0))
-          .map(clone);
+        return (
+          [...orders.values()]
+            // A part replaced when the rest was planned again (ruling 61) is cancelled, not a part.
+            .filter((o) => o.splitParentId === parentId && o.status !== 'cancelled')
+            .sort((a, b) => (a.splitPart ?? 0) - (b.splitPart ?? 0))
+            .map(clone)
+        );
       },
       async listByStatus(status: OrderStatus) {
         return [...orders.values()].filter((o) => o.status === status).map(clone);
@@ -1063,6 +1071,7 @@ export function memoryRepository(): Repository {
           outcome: 'pending',
           queuePosition: input.queuePosition,
           distanceMiles: input.distanceMiles ?? null,
+          chained: input.chained ?? false,
         };
         offers.set(offer.id, offer);
         return clone(offer);

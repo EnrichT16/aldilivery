@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import { applyAppearanceToDocument } from '../config';
 import {
   listenOnce,
   voiceEngine,
@@ -47,7 +48,14 @@ export interface VoiceSettings {
    * tidy; the words are always there for a screen reader either way.
    */
   showText: boolean;
+  /**
+   * The look of the screens: navy with white words (the default, and the brand), paper with
+   * navy words, or whichever the phone is set to. Kept on this phone, like "Show words".
+   */
+  appearance: Appearance;
 }
+
+export type Appearance = 'dark' | 'light' | 'system';
 
 const DEFAULTS: VoiceSettings = {
   muted: false,
@@ -56,6 +64,7 @@ const DEFAULTS: VoiceSettings = {
   introHeard: false,
   bubble: null,
   showText: false,
+  appearance: 'dark',
 };
 const STORAGE_KEY = 'ozidelivery.voice.settings';
 
@@ -74,6 +83,10 @@ function readSettings(): VoiceSettings {
           ? { x: parsed.bubble.x, y: parsed.bubble.y }
           : null,
       showText: parsed.showText === true,
+      appearance:
+        parsed.appearance === 'light' || parsed.appearance === 'system'
+          ? parsed.appearance
+          : 'dark',
     };
   } catch {
     return DEFAULTS;
@@ -133,6 +146,22 @@ export function VoiceProvider({ children }: { children: ReactNode }): JSX.Elemen
   useEffect(() => {
     document.documentElement.dataset['words'] = settings.showText ? 'shown' : 'hidden';
   }, [settings.showText]);
+
+  // The appearance: dark, light, or following the phone, which can change while the app is open.
+  useEffect(() => {
+    if (settings.appearance !== 'system') {
+      applyAppearanceToDocument(settings.appearance);
+      return undefined;
+    }
+    const query =
+      typeof window.matchMedia === 'function'
+        ? window.matchMedia('(prefers-color-scheme: light)')
+        : null;
+    const follow = (): void => applyAppearanceToDocument(query?.matches ? 'light' : 'dark');
+    follow();
+    query?.addEventListener('change', follow);
+    return () => query?.removeEventListener('change', follow);
+  }, [settings.appearance]);
 
   const update = useCallback((patch: Partial<VoiceSettings>) => {
     setSettings((previous) => {

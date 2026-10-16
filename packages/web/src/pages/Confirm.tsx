@@ -20,6 +20,7 @@ import {
   type PlacedOrder,
 } from '../lib/api';
 import { deliveryWords, money } from '../lib/money';
+import { orderReference } from '../lib/order-reference';
 import { prepareCardEntry } from '../lib/stripe';
 import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
@@ -147,18 +148,34 @@ export function Confirm(): JSX.Element {
     ? `Send my order and pay. About ${money(pricing.totalPence)} altogether, as ${parts.length} orders each with its own Runner: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}, of which ${money(extraDeliveryPence)} for further Runners is ${bankOn && payBy === 'bank' && !(Boolean(shopper?.familyOwnerId) && shopper?.activePlan === 'family') ? 'given back as credit if they are not needed' : 'taken only when each collects'}.`
     : `Send my order and pay. About ${money(pricing.totalPence)} altogether: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}.`;
 
-  async function onSend(): Promise<void> {
+  /**
+   * The button is never greyed out (review of 16 October 2026): a disabled button says nothing
+   * about why. Pressed with something missing, the page shows, and Ozi says, exactly what.
+   */
+  function whatIsMissing(): string | null {
     const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
     const byBank = bankOn && payBy === 'bank' && !byFamily;
-    if (
-      (!card && !byBank && !byFamily) ||
-      sending ||
-      address.trim() === '' ||
-      overMaximum ||
-      (overOneRunner && !keepEverything) ||
-      !addressConfirmed
-    )
+    if (overMaximum) {
+      return `Your shopping is more than one basket holds, ${money(storeConfig.fees.maximumBasketGoodsPence)}. Please go back to your basket and take some things out.`;
+    }
+    if (address.trim() === '' || !addressConfirmed) return 'Please confirm the address first';
+    if (!card && !byBank && !byFamily) return 'Please add a card or choose bank transfer';
+    if (overOneRunner && !keepEverything) {
+      return 'Please tick "Keep everything", or go back to your basket to take something out.';
+    }
+    return null;
+  }
+
+  async function onSend(): Promise<void> {
+    if (sending) return;
+    const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
+    const byBank = bankOn && payBy === 'bank' && !byFamily;
+    const missing = whatIsMissing();
+    if (missing !== null) {
+      setError(missing);
+      void ozi.say(missing);
       return;
+    }
 
     setSending(true);
     setError('');
@@ -256,8 +273,10 @@ export function Confirm(): JSX.Element {
           what they do. Nobody is given your phone number.
         </p>
         <NotifyMe />
-        <p className="m-0 text-paper/80">Your order number is {placed.order.id}.</p>
-        <Link to="/my-order" className="control bg-highlight text-ink">
+        <p className="m-0 text-paper/80">
+          Your order reference is {orderReference(placed.order.id)}. Your Runner sees the same one.
+        </p>
+        <Link to="/my-order" className="control bg-highlight text-on-accent">
           Follow your order
         </Link>
         <Link to="/" className="control bg-paper/10 text-paper underline">
@@ -280,7 +299,7 @@ export function Confirm(): JSX.Element {
       <div className="space-y-6">
         <h1 className="text-display font-bold m-0">Send your order</h1>
         <p className="m-0">There is nothing in your basket yet.</p>
-        <Link to="/shop" className="control bg-highlight text-ink">
+        <Link to="/shop" className="control bg-highlight text-on-accent">
           Find your shopping
         </Link>
       </div>
@@ -295,7 +314,7 @@ export function Confirm(): JSX.Element {
           Your basket is safe. Setting up an account takes a moment, and then we can bring this to
           your door.
         </p>
-        <Link to="/sign-up" className="control bg-highlight text-ink">
+        <Link to="/sign-up" className="control bg-highlight text-on-accent">
           Set up my account
         </Link>
         <Link to="/sign-in?next=/confirm" className="control bg-paper/10 text-paper underline">
@@ -312,12 +331,6 @@ export function Confirm(): JSX.Element {
 
   const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
   const byBank = bankOn && payBy === 'bank' && !byFamily;
-  const ready =
-    (card !== undefined || byBank || byFamily) &&
-    address.trim() !== '' &&
-    !overMaximum &&
-    (!overOneRunner || keepEverything) &&
-    addressConfirmed;
 
   return (
     <div className="space-y-8">
@@ -352,7 +365,8 @@ export function Confirm(): JSX.Element {
           change a little.
           {!overOneRunner && (
             <>
-              {' '}Your Runner gets {money(runnerPaymentFor(pricing.goodsPence, storeConfig.fees))} of
+              {' '}
+              Your Runner gets {money(runnerPaymentFor(pricing.goodsPence, storeConfig.fees))} of
               the delivery.
             </>
           )}
@@ -381,7 +395,9 @@ export function Confirm(): JSX.Element {
         )}
         {byFamily && <p className="m-0">This is paid with your family plan&rsquo;s card.</p>}
         {needsVehicle(pricing.goodsPence, storeConfig.dispatch.maxGoodsPenceByMode) && (
-          <p className="m-0">{largeOrderShopperWords(pricing.goodsPence, storeConfig.dispatch.maxGoodsPenceByMode)}</p>
+          <p className="m-0">
+            {largeOrderShopperWords(pricing.goodsPence, storeConfig.dispatch.maxGoodsPenceByMode)}
+          </p>
         )}
       </section>
 
@@ -400,14 +416,14 @@ export function Confirm(): JSX.Element {
               rows={3}
               value={address}
               onChange={(event) => setAddress(event.target.value)}
-              className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+              className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
             />
             <button
               type="button"
               onClick={() => {
                 void onSaveAddress();
               }}
-              className="control bg-paper text-ink"
+              className="control border-paper bg-paper/10 text-paper"
             >
               Save this address
             </button>
@@ -433,10 +449,10 @@ export function Confirm(): JSX.Element {
               value={typed}
               aria-describedby="otherAddress-hint"
               onChange={(event) => setTyped(event.target.value)}
-              className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+              className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
             />
             <div className="flex flex-wrap gap-3">
-              <button type="submit" className="control bg-highlight text-ink">
+              <button type="submit" className="control bg-highlight text-on-accent">
                 Next
               </button>
               <button
@@ -457,7 +473,7 @@ export function Confirm(): JSX.Element {
               <button
                 type="button"
                 onClick={() => setOther('saving')}
-                className="control bg-paper text-ink"
+                className="control border-paper bg-paper/10 text-paper"
               >
                 Save it for next time
               </button>
@@ -468,7 +484,7 @@ export function Confirm(): JSX.Element {
                   setChosen('once');
                   setOther('closed');
                 }}
-                className="control bg-paper text-ink"
+                className="control border-paper bg-paper/10 text-paper"
               >
                 Use it once, for this order only
               </button>
@@ -497,7 +513,7 @@ export function Confirm(): JSX.Element {
         ) : (
           <>
             {(book?.saved.length ?? 0) > 0 || chosen === 'once' ? (
-              <fieldset className="border-2 border-paper/40 rounded-xl p-4 m-0 space-y-2 max-w-xl">
+              <fieldset className="border-2 border-paper/40 rounded-2xl p-4 m-0 space-y-2 max-w-xl">
                 <legend className="px-2 font-bold">Choose where it goes</legend>
                 {[
                   { key: 'home', label: 'Your home address', where: home },
@@ -539,7 +555,7 @@ export function Confirm(): JSX.Element {
                 <button
                   type="button"
                   onClick={() => setConfirmedAddress(address.trim())}
-                  className="control bg-highlight text-ink"
+                  className="control bg-highlight text-on-accent"
                 >
                   Yes, this is the right address
                 </button>
@@ -548,7 +564,7 @@ export function Confirm(): JSX.Element {
               <button
                 type="button"
                 onClick={() => setEditingAddress(true)}
-                className="control bg-paper text-ink"
+                className="control border-paper bg-paper/10 text-paper"
               >
                 Add an address
               </button>
@@ -559,7 +575,7 @@ export function Confirm(): JSX.Element {
                   setTyped('');
                   setOther('typing');
                 }}
-                className="control bg-paper text-ink"
+                className="control border-paper bg-paper/10 text-paper"
               >
                 Send to a different address
               </button>
@@ -573,7 +589,7 @@ export function Confirm(): JSX.Element {
           How you are paying
         </h2>
         {bankOn && (
-          <fieldset className="border-2 border-paper/40 rounded-xl p-4 m-0 space-y-2">
+          <fieldset className="border-2 border-paper/40 rounded-2xl p-4 m-0 space-y-2">
             <legend className="px-2 font-bold">Pay by</legend>
             <div className="flex items-center gap-3 min-h-control">
               <input
@@ -617,7 +633,7 @@ export function Confirm(): JSX.Element {
         ) : (
           <>
             <p className="m-0">You have not saved a card yet, so there is nothing to pay with.</p>
-            <Link to="/card" className="control bg-paper text-ink">
+            <Link to="/card" className="control border-paper bg-paper/10 text-paper">
               Add a card
             </Link>
           </>
@@ -642,41 +658,41 @@ export function Confirm(): JSX.Element {
       </section>
 
       {error !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {error}
         </p>
       )}
       {error.startsWith('Please add your card again') && (
-        <Link to="/card" className="control bg-paper text-ink">
+        <Link to="/card" className="control border-paper bg-paper/10 text-paper">
           Add my card again
         </Link>
       )}
 
       {overMaximum && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           This comes to about {money(pricing.goodsPence)} of shopping at the shop&rsquo;s prices,
           and one basket holds up to {money(storeConfig.fees.maximumBasketGoodsPence)}, brought by
           several Runners. Go back to your basket and take some things out.
         </p>
       )}
 
-      <button
-        type="button"
-        disabled={!ready || sending}
-        onClick={() => {
-          void onSend();
-        }}
-        className="control w-full bg-highlight text-ink text-display py-8 disabled:opacity-70"
-      >
-        {sending ? 'Sending your order…' : 'Send my order and pay'}
-      </button>
-
       <p className="m-0">
         <span className="visually-hidden">You are agreeing to this: </span>
         {statement}
       </p>
 
-      <Link to="/basket" className="control bg-paper text-ink">
+      <button
+        type="button"
+        disabled={sending}
+        onClick={() => {
+          void onSend();
+        }}
+        className="control w-full bg-highlight text-on-accent text-display py-8 disabled:opacity-70"
+      >
+        {sending ? 'Sending your order…' : 'Send my order and pay'}
+      </button>
+
+      <Link to="/basket" className="control border-paper bg-paper/10 text-paper">
         Go back and change something
       </Link>
     </div>

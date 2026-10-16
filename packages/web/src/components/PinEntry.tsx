@@ -193,19 +193,19 @@ export function PinEntry({
         aria-describedby={error ? `${hintId} ${errorId}` : hintId}
         aria-invalid={error ? true : undefined}
         onChange={(event) => setValue(event.target.value.replace(/\D/g, '').slice(0, 4))}
-        className="w-40 min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3 text-lead tracking-widest"
+        className="w-40 min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3 text-lead tracking-widest"
       />
       {error !== '' && (
         <p
           id={errorId}
           role="alert"
-          className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0"
+          className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0"
         >
           {error}
         </p>
       )}
       <div className="flex flex-wrap gap-3">
-        <button type="submit" disabled={working} className="control bg-highlight text-ink">
+        <button type="submit" disabled={working} className="control bg-highlight text-on-accent">
           {working
             ? 'One moment…'
             : mode === 'enter'
@@ -219,7 +219,7 @@ export function PinEntry({
             type="button"
             onClick={sayIt}
             aria-describedby={`${id}-say-hint`}
-            className="control bg-paper text-ink"
+            className="control border-paper bg-paper/10 text-paper"
           >
             Say my PIN
           </button>
@@ -233,7 +233,7 @@ export function PinEntry({
             setTapping(true);
           }}
           aria-describedby={`${id}-tap-hint`}
-          className="control bg-paper text-ink"
+          className="control border-paper bg-paper/10 text-paper"
         >
           Tap my PIN
         </button>

@@ -27,7 +27,7 @@ export function Field({
     id,
     name: id,
     'aria-describedby': hintId,
-    className: 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3',
+    className: 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3',
   };
 
   return (

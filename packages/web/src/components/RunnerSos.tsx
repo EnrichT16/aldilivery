@@ -121,7 +121,7 @@ export function RunnerSos(): JSX.Element {
     return (
       <section
         aria-labelledby="sos-heading"
-        className="space-y-3 max-w-xl border-4 border-paper rounded-xl p-4"
+        className="space-y-3 max-w-xl border-4 border-paper rounded-2xl p-4"
       >
         <h2 id="sos-heading" className="text-lead font-bold m-0">
           SOS is on
@@ -165,7 +165,7 @@ export function RunnerSos(): JSX.Element {
         Safety
       </h2>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
@@ -184,7 +184,7 @@ export function RunnerSos(): JSX.Element {
           </p>
         </>
       ) : (
-        <div role="alert" className="space-y-3 border-2 border-paper rounded-xl p-4">
+        <div role="alert" className="space-y-3 border-2 border-paper rounded-2xl p-4">
           <p className="m-0 text-lead font-bold">Send an SOS?</p>
           <p className="m-0">
             We will be told straight away, with where you are. If you are in danger, call 999.

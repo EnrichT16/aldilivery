@@ -3,12 +3,13 @@
  * the switches for family and investors.
  */
 
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
+import { groupTabs, openPage, pageTabs } from './staff-tabs';
 
 let sent: Array<{ method: string; path: string; body: unknown }>;
 let who: 'owner' | 'family';
@@ -254,18 +255,15 @@ describe('the owner', () => {
     expect(sent.filter((r) => r.path === '/staff/sign-in').at(-1)?.body).toEqual(
       expect.objectContaining({ username: 'anthony', passcode: '123456#' }),
     );
-    const nav = await screen.findByRole('navigation', { name: 'Admin pages' });
-    expect(
-      within(nav)
-        .getAllByRole('button')
-        .map((b) => b.textContent),
-    ).toEqual(['Overview', 'Money', 'Team', 'My settings']);
-    await user.click(within(nav).getByRole('button', { name: 'Money' }));
+    await screen.findByRole('navigation', { name: 'Admin pages' });
+    expect(await groupTabs()).toEqual(['Today', 'Money', 'People', 'Settings']);
+    expect(await pageTabs(user)).toEqual(['Needs you now', 'Money', 'Team', 'My settings']);
+    await openPage(user, 'Money');
     expect(
       await screen.findByText('Only you see this. Not staff, not family, not investors.'),
     ).toBeInTheDocument();
 
-    await user.click(within(nav).getByRole('button', { name: 'My settings' }));
+    await openPage(user, 'My settings');
     const switchOn = await screen.findByRole('switch', { name: 'Complaints' });
     expect(switchOn).not.toBeChecked();
     await user.click(switchOn);
@@ -290,26 +288,30 @@ describe('paying Runners back for the shopping (ruling 55)', () => {
     const user = userEvent.setup({ delay: null });
     renderStaff();
     await signIn(user, '123456#');
-    const nav = await screen.findByRole('navigation', { name: 'Admin pages' });
-
-    await user.click(within(nav).getByRole('button', { name: 'Money' }));
+    await openPage(user, 'Money');
     expect(
       await screen.findByRole('heading', { name: 'Runners paid back for the shopping' }),
     ).toBeInTheDocument();
     expect(screen.getByText(/altogether £40.20/)).toBeInTheDocument();
     expect(screen.getByText(/Waiting for you to approve: 1 \(£12.00\)/)).toBeInTheDocument();
 
-    await user.click(within(nav).getByRole('button', { name: 'Payments' }));
+    await openPage(user, 'Payments');
     expect(await screen.findByText('£12.00 to Tomasz, order OZ-DEF456')).toBeInTheDocument();
     expect(
       screen.getByText(/Waiting because the till came to a lot more than the estimate/),
     ).toBeInTheDocument();
     // Ruling 61: a tiny extra, carried by the first Runner with one press.
-    expect(await screen.findByText(/£1\.50 of shopping, order 2 of 2 of OZ-FIRST1/)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/£1\.50 of shopping, order 2 of 2 of OZ-FIRST1/),
+    ).toBeInTheDocument();
     expect(screen.getByText(/First Runner: Tomasz/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /^Carry with the first Runner\b.*OZ-TINY12$/ }));
+    await user.click(
+      screen.getByRole('button', { name: /^Carry with the first Runner\b.*OZ-TINY12$/ }),
+    );
     await waitFor(() => {
-      expect(sent.some((r) => r.path === '/staff/tiny-extras/order-12/carry-with-first')).toBe(true);
+      expect(sent.some((r) => r.path === '/staff/tiny-extras/order-12/carry-with-first')).toBe(
+        true,
+      );
     });
     await user.click(screen.getByRole('button', { name: /^Approve and pay back\b.*OZ-DEF456$/ }));
     await waitFor(() => {
@@ -325,13 +327,11 @@ describe('family', () => {
     const user = userEvent.setup({ delay: null });
     renderStaff();
     await signIn(user);
-    const nav = await screen.findByRole('navigation', { name: 'Admin pages' });
-    expect(
-      within(nav)
-        .getAllByRole('button')
-        .map((b) => b.textContent),
-      // Their own two-step codes are theirs to set up, like every admin sign-in (Section Q).
-    ).toEqual(['Overview', 'Two-step codes']);
+    await screen.findByRole('navigation', { name: 'Admin pages' });
+    // Their own two-step codes are theirs to set up, like every admin sign-in (Section Q).
+    expect(await groupTabs()).toEqual(['Today', 'Settings']);
+    expect(await pageTabs(user)).toEqual(['Needs you now', 'Two-step codes']);
+    await openPage(user, 'Needs you now');
     expect(screen.getByText(/You can look, but not change anything\./)).toBeInTheDocument();
     expect((await screen.findByText('Shoppers')).nextSibling).toHaveTextContent('120');
     expect(screen.queryByRole('button', { name: 'Money' })).not.toBeInTheDocument();

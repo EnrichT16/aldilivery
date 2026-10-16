@@ -8,7 +8,7 @@ export function DemoBanner(): JSX.Element {
   return (
     <p
       role="note"
-      className="m-0 border-2 border-highlight bg-highlight text-ink font-bold rounded-xl p-4"
+      className="m-0 border-2 border-highlight bg-highlight text-on-accent font-bold rounded-2xl p-4"
     >
       {DEMO_BANNER_WORDS}
     </p>

@@ -100,12 +100,12 @@ export function FindIt(): JSX.Element {
         {news}
       </p>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
       {!shopper ? (
-        <Link to="/sign-up" className="control bg-highlight text-ink">
+        <Link to="/sign-up" className="control bg-highlight text-on-accent">
           Set up an account first
         </Link>
       ) : (
@@ -124,14 +124,14 @@ export function FindIt(): JSX.Element {
             aria-describedby="find-what-hint"
             value={what}
             onChange={(event) => setWhat(event.target.value)}
-            className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+            className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
           />
           {covered ? (
             <button
               type="button"
               disabled={busy}
               onClick={() => void send()}
-              className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+              className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
             >
               Ask for it to be found
             </button>
@@ -155,7 +155,7 @@ export function FindIt(): JSX.Element {
           </h2>
           <ul className="list-none m-0 p-0 space-y-3">
             {requests.map((row) => (
-              <li key={row.id} className="border-2 border-paper/40 rounded-xl p-4 space-y-2">
+              <li key={row.id} className="border-2 border-paper/40 rounded-2xl p-4 space-y-2">
                 <p className="m-0 font-bold">{row.description}</p>
                 {row.status === 'looking' && <p className="m-0">Still looking.</p>}
                 {row.status === 'not_found' && (
@@ -174,7 +174,7 @@ export function FindIt(): JSX.Element {
                     <button
                       type="button"
                       onClick={() => void addFound(row)}
-                      className="control w-full bg-highlight text-ink"
+                      className="control w-full bg-highlight text-on-accent"
                     >
                       Add it to my basket<span className="visually-hidden">: {row.foundName}</span>
                     </button>

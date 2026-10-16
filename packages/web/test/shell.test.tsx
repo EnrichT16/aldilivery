@@ -249,9 +249,9 @@ describe('the basket', () => {
     const feeRow = within(table).getByRole('rowheader', { name: 'Delivery' });
     expect(feeRow).toBeInTheDocument();
 
-    // 125 + 89 = 214p of shopping: pay as you go, £15 or less, so the smaller delivery fee;
-    // two item charges of 50p; and every price shown with its item charge in (ruling 58).
-    const expectedFee = storeConfig.fees.delivery.payAsYouGoSmallOrderPence;
+    // 125 + 89 = 214p of shopping: pay as you go, up to £30, so the smallest delivery band;
+    // two item charges of 50p; and every price shown with its item charge in (rulings 58, 63).
+    const expectedFee = storeConfig.fees.delivery.bands[0]!.payAsYouGoPence;
     expect(within(table).getByText(`£${(expectedFee / 100).toFixed(2)}`)).toBeInTheDocument();
     expect(within(table).getByRole('rowheader', { name: 'Item charges' })).toBeInTheDocument();
     expect(within(table).getByText('£1.00')).toBeInTheDocument();
@@ -352,11 +352,12 @@ describe('the confirmation screen', () => {
     const yes = screen.queryByRole('button', { name: 'Yes, this is the right address' });
     if (yes) await user.click(yes);
     const send = screen.getByRole('button', { name: 'Send my order and pay' });
-    expect(send).toBeDisabled();
+    await user.click(send);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Please tick "Keep everything"/);
+    expect(recorded.some((call) => call.method === 'POST' && call.path === '/orders')).toBe(false);
     const keep = screen.getByLabelText('Keep everything, as 2 orders each with its own Runner');
     expect(keep).not.toBeChecked();
     await user.click(keep);
-    await waitFor(() => expect(send).toBeEnabled());
     await user.click(send);
     await waitFor(() =>
       expect(recorded.some((call) => call.method === 'POST' && call.path === '/orders')).toBe(true),

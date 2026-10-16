@@ -169,7 +169,11 @@ describe('sending an order', () => {
   });
 
   it('offers a bank transfer and says plainly when the Runner is sent (ruling 61)', async () => {
-    const recorded = stubApi({ shopper: FAKE_SHOPPER, paymentMethods: [FAKE_CARD], bankTransfer: true });
+    const recorded = stubApi({
+      shopper: FAKE_SHOPPER,
+      paymentMethods: [FAKE_CARD],
+      bankTransfer: true,
+    });
     await reachTheButton(recorded);
     expect(await screen.findByLabelText('Bank transfer to us')).toBeInTheDocument();
     expect(
@@ -191,7 +195,10 @@ describe('sending an order', () => {
     });
 
     expect(screen.getByText(FAKE_SHOPPER.deliveryAddress)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Send my order and pay' })).toBeDisabled();
+    // The button stays pressable; pressed too soon, it says exactly what is missing (16 October 2026).
+    await user.click(screen.getByRole('button', { name: 'Send my order and pay' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Please confirm the address first');
+    expect(sent(recorded, 'POST', '/orders')).toBeUndefined();
 
     await user.click(screen.getByRole('button', { name: 'Yes, this is the right address' }));
     expect(screen.getByText('You said this is the right address.')).toHaveAttribute(
@@ -207,13 +214,20 @@ describe('sending an order', () => {
     });
   });
 
-  it('says the order is sent, and gives the order number', async () => {
+  it('says the order is sent, and gives the short reference a Runner sees, not the system ID', async () => {
     const recorded = stubApi({ shopper: FAKE_SHOPPER, paymentMethods: [FAKE_CARD] });
     const user = await reachTheButton(recorded);
-    await user.click(screen.getByRole('button', { name: 'Send my order and pay' }));
+    // The agreement sentence comes before the button, so it is read before the press.
+    const button = screen.getByRole('button', { name: 'Send my order and pay' });
+    const sentence = screen.getByText(/Send my order and pay\. About £/);
+    expect(
+      sentence.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    await user.click(button);
 
     expect(await screen.findByText('Your order is sent')).toBeInTheDocument();
-    expect(screen.getByText(/order-1/)).toBeInTheDocument();
+    expect(screen.getByText(/Your order reference is OZ-ORDER1\./)).toBeInTheDocument();
+    expect(screen.queryByText(/order-1/)).not.toBeInTheDocument();
   });
 
   it('shows a price that moved, and does not claim anything was sent', async () => {
@@ -234,10 +248,13 @@ describe('sending an order', () => {
 
   it('will not send without a card, and says why', async () => {
     const recorded = stubApi({ shopper: FAKE_SHOPPER, paymentMethods: [] });
-    await reachTheButton(recorded);
+    const user = await reachTheButton(recorded);
 
-    expect(screen.getByRole('button', { name: 'Send my order and pay' })).toBeDisabled();
     expect(screen.getByText(/have not saved a card yet/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Send my order and pay' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Please add a card or choose bank transfer',
+    );
     expect(sent(recorded, 'POST', '/orders')).toBeUndefined();
   });
 

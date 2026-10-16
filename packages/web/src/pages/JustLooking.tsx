@@ -1,16 +1,17 @@
 import { Link } from 'react-router-dom';
 
 import { storeConfig } from '../config';
-import { money } from '../lib/money';
+import { money, planDeliveryWords } from '../lib/money';
 
 /**
  * The third door: for someone who has not decided yet.
  *
  * Everything on this page is a plain answer to a question somebody would actually ask. The
- * prices are those of ruling 58 (9 October 2026), all from config/store.json.
+ * prices are those of ruling 58 (9 October 2026) and ruling 63 (16 October 2026), all from
+ * config/store.json.
  */
 export function JustLooking(): JSX.Element {
-  const { delivery, itemCharge, maximumOrderGoodsPence, maximumProductPence, runnerPaymentPence } =
+  const { itemCharge, maximumOrderGoodsPence, maximumProductPence, runnerPaymentPence } =
     storeConfig.fees;
   const { extras, assistantName } = storeConfig;
 
@@ -44,12 +45,11 @@ export function JustLooking(): JSX.Element {
           price. No single product can cost more than {money(maximumProductPence)}.
         </p>
         <p className="m-0 max-w-xl">
-          Delivery, if you pay as you go: {money(delivery.payAsYouGoSmallOrderPence)} for shopping
-          of {money(delivery.payAsYouGoSmallOrderUpToPence)} or less, and{' '}
-          {money(delivery.payAsYouGoPence)} above that. With {assistantName} Membership (
-          {money(extras.membershipPence)} a month) it is {money(delivery.membershipPence)} every
-          time; with {assistantName} Plus ({money(extras.plusPence)} a month) or Family and Carer (
-          {money(extras.familyPence)} a month), {money(delivery.plusPence)}. Your first month of
+          Delivery depends on your plan and the value of your shopping at the shop&rsquo;s prices.
+          If you pay as you go: {planDeliveryWords('payg')}. With {assistantName} Membership (
+          {money(extras.membershipPence)} a month): {planDeliveryWords('membership')}. With{' '}
+          {assistantName} Plus ({money(extras.plusPence)} a month) or Family and Carer (
+          {money(extras.familyPence)} a month): {planDeliveryWords('plus')}. Your first month of
           membership is free. It never goes up because it is raining, or because it is Friday.
         </p>
         <p className="m-0 max-w-xl">
@@ -84,10 +84,10 @@ export function JustLooking(): JSX.Element {
       </section>
 
       <div className="flex flex-wrap gap-4">
-        <Link to="/sign-up" className="control bg-highlight text-ink">
+        <Link to="/sign-up" className="control bg-highlight text-on-accent">
           Set up an account
         </Link>
-        <Link to="/shop" className="control bg-paper text-ink">
+        <Link to="/shop" className="control border-paper bg-paper/10 text-paper">
           Have a look at the shopping
         </Link>
       </div>

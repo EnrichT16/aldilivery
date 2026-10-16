@@ -14,6 +14,8 @@ import type { RefundsReport, StaffProblem } from '../src/lib/api';
 import { setVoiceEngine } from '../src/voice';
 import {
   cancellationsWords,
+  needsYouWords,
+  overviewWords,
   periodRange,
   readItem,
   refundsWords,
@@ -58,6 +60,63 @@ describe('what Ozi says in the admin panel', () => {
     expect(words).toBe(
       'Good morning, Chidi. You\'re signed in as Customer care officer. You have 2 complaints to decide, from Mr Table and Mrs Smith. 1 is overdue and 1 feedback message. Say, for example, "read me the complaints", or "help".',
     );
+  });
+
+  it('says what needs a person first, in the order of harm (16 October 2026 review)', () => {
+    const cards = [
+      {
+        key: 'sos' as const,
+        count: 1,
+        words: 'one SOS',
+        title: '',
+        action: '',
+        tab: 'problems' as const,
+      },
+      {
+        key: 'bank-transfers' as const,
+        count: 1,
+        words: 'one bank transfer to check',
+        title: '',
+        action: '',
+        tab: 'payments' as const,
+      },
+    ];
+    expect(needsYouWords(cards)).toBe('Two things need you: one SOS, one bank transfer to check.');
+    expect(needsYouWords([cards[0]!])).toBe('One thing needs you: one SOS.');
+    expect(needsYouWords([])).toBe('Nothing needs you right now.');
+    const words = summary(
+      'Mr Anthony',
+      'Founder',
+      ['overview', 'problems'],
+      { overview: cards, problems: [COMPLAINT] },
+      new Date('2026-10-16T09:00:00'),
+    );
+    expect(words).toBe(
+      'Good morning, Mr Anthony. You\'re signed in as Founder. Two things need you: one SOS, one bank transfer to check. You have 1 complaint to decide, from Mr Table. Say, for example, "read me the complaints", or "help".',
+    );
+    expect(
+      overviewWords({
+        needsYou: cards,
+        people: {
+          shoppers: 1,
+          runners: 2,
+          runnersOnShiftNow: 1,
+          shopPartners: 0,
+          organisations: 0,
+          staff: 1,
+        },
+        staffByJob: [],
+        work: {
+          ordersLastDay: 0,
+          ordersLastWeek: 0,
+          problemsWaiting: 1,
+          documentsWaiting: 0,
+          shopProductsWaiting: 0,
+          findItWaiting: 0,
+        },
+      }),
+    ).toMatch(/^Two things need you: one SOS, one bank transfer to check\. 1 Shoppers/);
+    expect(understand('what needs me now')).toEqual({ kind: 'open', area: 'overview' });
   });
 
   it('says plainly when nothing is waiting', () => {

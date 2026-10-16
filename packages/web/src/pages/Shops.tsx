@@ -41,7 +41,7 @@ export function Shops(): JSX.Element {
             <li key={shop.id}>
               <Link
                 to={`/shops/${shop.id}`}
-                className="block border-2 border-paper rounded-xl p-4 text-paper no-underline"
+                className="block border-2 border-paper rounded-2xl p-4 text-paper no-underline"
               >
                 <span className="block text-lead font-bold underline">{shop.name}</span>
                 <span className="block">
@@ -100,7 +100,7 @@ export function ShopPage(): JSX.Element {
     return (
       <div className="space-y-4">
         <h1 className="text-display font-bold m-0">Shop not found</h1>
-        <Link to="/shops" className="control bg-paper text-ink">
+        <Link to="/shops" className="control border-paper bg-paper/10 text-paper">
           See the local shops
         </Link>
       </div>
@@ -129,13 +129,13 @@ export function ShopPage(): JSX.Element {
             <li key={product.id}>
               <article
                 aria-labelledby={`product-${product.id}`}
-                className="border-2 border-paper rounded-xl p-4 space-y-2"
+                className="border-2 border-paper rounded-2xl p-4 space-y-2"
               >
                 {product.hasPhoto && (
                   <img
                     src={shopPhotoUrl(page.shop.id, product.id)}
                     alt={product.name}
-                    className="w-full max-h-64 object-contain rounded-lg bg-paper"
+                    className="w-full max-h-64 object-contain rounded-xl bg-paper"
                   />
                 )}
                 <h2 id={`product-${product.id}`} className="text-lead font-bold m-0">
@@ -150,7 +150,7 @@ export function ShopPage(): JSX.Element {
                 <button
                   type="button"
                   onClick={() => void add(product)}
-                  className="control w-full bg-highlight text-ink"
+                  className="control w-full bg-highlight text-on-accent"
                 >
                   Add to my basket<span className="visually-hidden">: {product.name}</span>
                 </button>

@@ -312,8 +312,8 @@
       "topic": "rules",
       "when": ["delivery fee", "how much is delivery"],
       "replies": [
-        "Pay as you go, {smallFee} up to {smallUpTo} of shopping and {fee} above. Members {memberFee}, Plus and Family {plusFee}. Item charges on every product.",
-        "{smallFee} or {fee} pay as you go; {memberFee} members; {plusFee} Plus."
+        "Pay as you go, {paygDelivery}. Members {memberDelivery}; Plus and Family {plusDelivery}. Item charges on every product.",
+        "{smallFee}, {middleFee} or {fee} pay as you go; {memberFee} or {memberLargeFee} members; {plusFee} or {plusLargeFee} Plus, by the size of the shop."
       ]
     },
     {
@@ -1759,7 +1759,7 @@
       "topic": "enquiries",
       "when": ["they want a price", "they ask about cost"],
       "replies": [
-        "Delivery is {smallFee} or {fee} on pay as you go, {memberFee} for members, {plusFee} on Plus, with item charges included in every product's price. For anything special, say the founder will come back to them.",
+        "Delivery is {paygDelivery} on pay as you go, {memberDelivery} for members, {plusDelivery} on Plus, with item charges included in every product's price. For anything special, say the founder will come back to them.",
         "From {plusFee} to {fee} for delivery. The founder handles anything special."
       ]
     },

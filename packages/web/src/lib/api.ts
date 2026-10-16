@@ -286,15 +286,18 @@ export function isUkMobileNumber(phone: string): boolean {
   return /^(\+44|0044|0)7\d{9}$/.test(digits);
 }
 
+/** Who is signing in: a Shopper, or a Runner on a new phone (16 October 2026). */
+export type SignInRole = 'shopper' | 'runner';
+
 export function requestSignInCode(
   phone: string,
-  options: { channel?: 'text' | 'call'; purpose?: 'sign-in' | 'sign-up' } = {},
+  options: { channel?: 'text' | 'call'; purpose?: 'sign-in' | 'sign-up'; role?: SignInRole } = {},
 ): Promise<{ message: string }> {
   return request<{ message: string }>('/auth/request-code', {
     method: 'POST',
     body: JSON.stringify({
       phone,
-      role: 'shopper',
+      role: options.role ?? 'shopper',
       channel: options.channel ?? 'text',
       purpose: options.purpose ?? 'sign-in',
     }),
@@ -305,10 +308,14 @@ export type SignInResult =
   | { registrationRequired: false; token: string }
   | { registrationRequired: true; phone: string; message: string; phoneProof?: string };
 
-export function verifySignInCode(phone: string, code: string): Promise<SignInResult> {
+export function verifySignInCode(
+  phone: string,
+  code: string,
+  role: SignInRole = 'shopper',
+): Promise<SignInResult> {
   return request<SignInResult>('/auth/verify-code', {
     method: 'POST',
-    body: JSON.stringify({ phone, code, role: 'shopper' }),
+    body: JSON.stringify({ phone, code, role }),
   });
 }
 
@@ -540,6 +547,9 @@ export interface SplitJob {
 export interface OfferedJob {
   offer: { id: string };
   secondsLeft: number;
+  /** Chained from the door of the job in hand (ruling 64): the next job, near where they are. */
+  chained?: boolean;
+  chainedWords?: string | null;
   job: {
     itemCount: number;
     goodsEstimatePence: number;
@@ -551,6 +561,21 @@ export interface OfferedJob {
 
 export function fetchOfferedJobs(): Promise<{ offers: OfferedJob[] }> {
   return request<{ offers: OfferedJob[] }>('/jobs/mine', undefined, 'runner');
+}
+
+/**
+ * A Runner's own place in the fair queue (ruling 64), in one spoken sentence: "You are second in
+ * line for the next job." Nothing about anybody else, and no money.
+ */
+export interface QueuePosition {
+  /** 0 is first. Null when they are not in line. */
+  position: number | null;
+  reason: 'off_shift' | 'job_in_hand' | 'checks_not_done' | 'not_allowed' | null;
+  words: string;
+}
+
+export function fetchQueuePosition(): Promise<QueuePosition> {
+  return request<QueuePosition>('/runners/me/queue-position', undefined, 'runner');
 }
 
 /** What taking a job says about paying at the till: the card loaded, or their own card. */
@@ -1375,6 +1400,19 @@ export interface StaffProblem {
     text: string | null;
     contentType: string | null;
   }>;
+  /** The order itself: its items, Runner and totals, so the decision is made on the whole. */
+  order?: {
+    reference: string;
+    status: string;
+    runnerName: string | null;
+    items: Array<{ name: string; quantity: number; outcome: string }>;
+    goodsEstimatePence: number;
+    feePence: number;
+    totalEstimatePence: number;
+    receiptTotalPence: number | null;
+    finalTotalPence: number | null;
+    paidBy: 'card' | 'bank';
+  } | null;
 }
 
 export function fetchStaffProblems(key: string): Promise<{ reports: StaffProblem[] }> {
@@ -1862,7 +1900,10 @@ export interface OrganisationDashboard {
     paidPence: number;
   }>;
   upcoming: Array<{ person: string; office: string; dayOfWeek: number; estimatePence: number }>;
+  /** The Membership delivery for an everyday shop (the smallest band). */
   deliveryFeePence: number;
+  /** Membership delivery by the value of the shop, in words: "£5.99 for shopping up to £60.00, and £9.99 over £60.00". */
+  deliveryWords: string;
   /** What the organisation pays a month: £10 a client, every 51st client £5 (ruling 58). */
   plan?: {
     clients: number;
@@ -2159,6 +2200,8 @@ export interface OwnerMoney {
     }>;
     orders: Array<{
       orderId: string;
+      /** The short reference staff say aloud; the full id is never shown on the screen. */
+      reference?: string;
       runnerName: string;
       loadedPence: number | null;
       spentPence: number | null;
@@ -2189,7 +2232,29 @@ export function fetchOwnerMoney(key: string): Promise<OwnerMoney> {
   return staffRequest(key, '/staff/money');
 }
 
+/** One thing that needs a person now (16 October 2026 review), most urgent first. */
+export interface NeedsYouCard {
+  key: 'sos' | 'waiting-orders' | 'bank-transfers' | 'pay-backs' | 'problems' | 'documents';
+  count: number;
+  /** "one SOS", "two bank transfers to check". */
+  words: string;
+  title: string;
+  /** The button's words. */
+  action: string;
+  /** The tab the button opens. */
+  tab: StaffArea;
+}
+
+export function fetchNeedsYou(
+  key: string,
+): Promise<{ cards: NeedsYouCard[]; splitAfterMinutes: number }> {
+  return staffRequest(key, '/staff/needs-you');
+}
+
 export interface StaffOverview {
+  /** What needs a person now, most urgent first. Older servers leave it out. */
+  needsYou?: NeedsYouCard[];
+  splitAfterMinutes?: number;
   people: {
     shoppers: number;
     runners: number;
@@ -2640,6 +2705,10 @@ export interface StaffOrderDetail {
     goodsEstimatePence: number;
     feePence: number;
     receiptTotalPence: number | null;
+    runnerId?: string | null;
+    /** What can still go back to the card: the order cost, less what already has. */
+    refundablePence?: number;
+    goodwillRefundedPence?: number;
     items: Array<{ name: string; quantity: number; outcome: string }>;
   };
   timeline: Array<{ at: string; what: string }>;
@@ -2647,6 +2716,56 @@ export interface StaffOrderDetail {
 
 export function fetchStaffOrder(key: string, id: string): Promise<StaffOrderDetail> {
   return staffRequest(key, `/staff/orders/${encodeURIComponent(id)}`);
+}
+
+/* The order rescue tools (16 October 2026 review): each is written in the audit log. */
+
+export function cancelStaffOrder(
+  key: string,
+  id: string,
+  input: { reason: string; by: string },
+): Promise<{ message: string; refundedPence: number; bankRefundPence: number }> {
+  return staffRequest(key, `/staff/orders/${encodeURIComponent(id)}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function goodwillStaffRefund(
+  key: string,
+  id: string,
+  input: { amountPence: number; reason: string; by: string },
+): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/orders/${encodeURIComponent(id)}/goodwill`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export interface AssignableRunner {
+  id: string;
+  name: string;
+  onShift: boolean;
+  travel: string;
+}
+
+/** Approved Runners a stuck order could be given to, those on shift first. */
+export function fetchStaffOrderRunners(
+  key: string,
+  id: string,
+): Promise<{ runners: AssignableRunner[] }> {
+  return staffRequest(key, `/staff/orders/${encodeURIComponent(id)}/runners`);
+}
+
+export function reassignStaffOrder(
+  key: string,
+  id: string,
+  input: { runnerId?: string; by: string },
+): Promise<{ message: string; released: string | null; offeredTo: string | null }> {
+  return staffRequest(key, `/staff/orders/${encodeURIComponent(id)}/reassign`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
 }
 
 export interface RunnerNowRow {

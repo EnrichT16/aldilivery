@@ -142,9 +142,11 @@ describe('signing up to run', () => {
       'Please tick to say you are 18 or over and agree to the Runner agreement.',
     );
     expect(recorded.some((r) => r.path === '/runners')).toBe(false);
-    expect(screen.getByRole('link', { name: 'Read the Runner agreement' })).toHaveAttribute(
-      'href',
-      '/runner/agreement',
-    );
+    // Opens in a new tab (16 October 2026), so what has been typed here is not lost.
+    const agreement = screen.getByRole('link', { name: /Read the Runner agreement/ });
+    expect(agreement).toHaveAttribute('href', '/runner/agreement');
+    expect(agreement).toHaveAttribute('target', '_blank');
+    expect(agreement).toHaveAccessibleName('Read the Runner agreement (opens in a new tab)');
+    expect(screen.getByLabelText('Your name')).toHaveValue('Tomasz');
   });
 });

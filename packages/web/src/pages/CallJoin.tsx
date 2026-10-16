@@ -71,7 +71,7 @@ export function CallJoin(): JSX.Element {
         {news}
       </p>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
@@ -116,7 +116,7 @@ export function CallJoin(): JSX.Element {
             onClick={() => {
               void join();
             }}
-            className="control w-full bg-[var(--colour-listening)] text-ink text-lead font-bold border-4 border-ink disabled:opacity-70"
+            className="control w-full bg-listening text-on-accent text-lead font-bold border-4 border-on-accent disabled:opacity-70"
           >
             {stage === 'connecting' ? 'Joining…' : 'Join the call'}
           </button>

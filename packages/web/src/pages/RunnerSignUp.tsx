@@ -118,7 +118,7 @@ export function RunnerSignUp(): JSX.Element {
           </p>
         </section>
         <DocumentsChecklist onNews={setNews} />
-        <Link to="/runner/home" className="control bg-highlight text-ink">
+        <Link to="/runner/home" className="control bg-highlight text-on-accent">
           Go to your Runner page
         </Link>
       </div>
@@ -140,7 +140,7 @@ export function RunnerSignUp(): JSX.Element {
           ref={summary}
           tabIndex={-1}
           role="alert"
-          className="border-2 border-paper bg-paper text-ink p-4 rounded-xl"
+          className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl"
         >
           <h2 className="text-lead font-bold m-0">
             There {errors.length === 1 ? 'is 1 problem' : `are ${errors.length} problems`} to fix
@@ -207,9 +207,15 @@ export function RunnerSignUp(): JSX.Element {
           and we pay you back straight away, and what happens if something goes wrong. Please read
           it before you agree.
         </p>
-        <Link to="/runner/agreement" className="control bg-paper/10 text-paper underline">
-          Read the Runner agreement
-        </Link>
+        {/* A new tab, so what has been typed here is still here afterwards (16 October 2026). */}
+        <a
+          href="/runner/agreement"
+          target="_blank"
+          rel="noopener"
+          className="control bg-paper/10 text-paper underline"
+        >
+          Read the Runner agreement<span className="visually-hidden"> (opens in a new tab)</span>
+        </a>
         <div className="flex items-center gap-3 min-h-control">
           <input type="checkbox" id="agreement" name="agreement" value="yes" className="h-6 w-6" />
           <label htmlFor="agreement" className="m-0">
@@ -220,7 +226,7 @@ export function RunnerSignUp(): JSX.Element {
         <button
           type="submit"
           disabled={saving}
-          className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+          className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
         >
           {saving ? 'Signing you up…' : 'Sign me up to run'}
         </button>

@@ -112,7 +112,7 @@
       "when": ["how does it work", "explain the business"],
       "replies": [
         "A Shopper orders, a checked Runner buys it at the shop, and brings it to the door. Delivery is from {plusFee} to {fee}, depending on the plan and the size of the shop.",
-        "Order, shop, deliver. On Family and Carer, delivery is {plusFee} each time."
+        "Order, shop, deliver. On Family and Carer, delivery is {plusDelivery}."
       ]
     },
     {
@@ -249,8 +249,8 @@
       "topic": "about",
       "when": ["how much is delivery"],
       "replies": [
-        "On pay as you go, {smallFee} for shopping of {smallUpTo} or less and {fee} above. Members {memberFee}, and Family and Carer {plusFee}.",
-        "{plusFee} on Family and Carer, {memberFee} for members, {smallFee} or {fee} on pay as you go."
+        "On pay as you go, {paygDelivery}. Members {memberDelivery}, and Family and Carer {plusDelivery}.",
+        "From {plusFee} on Family and Carer, from {memberFee} for members, from {smallFee} on pay as you go, by the size of the shop."
       ]
     },
     {
@@ -2481,8 +2481,8 @@
       "topic": "shopper",
       "when": ["do i pay delivery too", "does family pay delivery"],
       "replies": [
-        "Yes. On Family and Carer it's {plusFee} each time, whoever on the plan orders.",
-        "Yes, {plusFee} on Family and Carer."
+        "Yes. On Family and Carer it's {plusDelivery}, whoever on the plan orders.",
+        "Yes, {plusDelivery} on Family and Carer."
       ]
     },
     {
@@ -2550,7 +2550,7 @@
       "topic": "shopper",
       "when": ["do i get a discount", "family discount"],
       "replies": [
-        "Family and Carer brings delivery down to {plusFee} for everyone on it, for {familyPrice} a month.",
+        "Family and Carer brings delivery down to {plusDelivery} for everyone on it, for {familyPrice} a month.",
         "The fee's the same for all."
       ]
     },

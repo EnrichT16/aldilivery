@@ -11,17 +11,43 @@
  * needs somewhere to land. Focus is a thick, high contrast ring because a keyboard user who
  * cannot see where they are is lost.
  *
- * The values come from configuration through `applyBrandToDocument`, with the same numbers
- * repeated here as fallbacks so the page is still usable if a script fails.
+ * The brand's values come from configuration: written to `:root` at build time by
+ * tailwind.config.js, and again at run time by `applyBrandToDocument`. Nothing here names a
+ * colour.
  */
 
+/*
+ * Two appearances, one set of class names.
+ *
+ * `ink` is the page and `paper` the words, by default: deep navy with white on it. The light
+ * appearance (Settings, "Appearance") swaps the two over, so every `bg-ink text-paper` becomes
+ * paper with navy words without a second class anywhere. Gold and green stay as they are, and
+ * whatever sits on them (`on-accent`) stays dark, so their contrast is the same in both.
+ */
 :root {
-  --colour-ink: #0b1f3a;
-  --colour-highlight: #d4af37;
-  --colour-paper: #ffffff;
-  --colour-listening: #2fbf71;
-  --base-font-size: 20px;
-  --control-height: 48px;
+  --ink-rgb: var(--brand-ink-rgb);
+  --paper-rgb: var(--brand-paper-rgb);
+  --highlight-rgb: var(--brand-highlight-rgb);
+  --listening-rgb: var(--brand-listening-rgb);
+  --on-accent-rgb: var(--brand-ink-rgb);
+  --colour-ink: rgb(var(--ink-rgb));
+  --colour-paper: rgb(var(--paper-rgb));
+  --colour-highlight: rgb(var(--highlight-rgb));
+  --colour-listening: rgb(var(--listening-rgb));
+  /* Motion: short, settling, never bouncy. One duration and one curve for everything. */
+  --motion: 180ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* A soft, layered lift for cards and panels. Faint on navy, where edges do the work. */
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.25), 0 12px 32px -16px rgb(0 0 0 / 0.5);
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --ink-rgb: var(--brand-paper-rgb);
+  --paper-rgb: var(--brand-ink-rgb);
+  --shadow-card:
+    0 1px 2px rgb(var(--brand-ink-rgb) / 0.08), 0 12px 32px -16px rgb(var(--brand-ink-rgb) / 0.22);
+  color-scheme: light;
 }
 
 html {
@@ -34,11 +60,38 @@ body {
   margin: 0;
   background-color: var(--colour-ink);
   color: var(--colour-paper);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
   font-size: var(--base-font-size);
   line-height: 1.6;
   /* Long words break rather than force a sideways scroll at 200 percent zoom. */
   overflow-wrap: break-word;
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Headings: a clear step between the page title, the section titles and the body, and lines
+ * that balance rather than leave one word on its own at 390 pixels wide.
+ */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+h1 {
+  letter-spacing: -0.02em;
+}
+
+h2,
+h3 {
+  letter-spacing: -0.01em;
 }
 
 /* Every interactive thing on every screen carries this class. */
@@ -50,12 +103,67 @@ body {
   justify-content: center;
   gap: 0.5rem;
   padding: 0.75rem 1.25rem;
-  border-radius: 0.75rem;
+  border-radius: 1rem;
   font-size: inherit;
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
   border: 2px solid transparent;
+  text-wrap: balance;
+  transition:
+    background-color var(--motion) var(--ease),
+    color var(--motion) var(--ease),
+    border-color var(--motion) var(--ease),
+    box-shadow var(--motion) var(--ease),
+    transform var(--motion) var(--ease),
+    opacity var(--motion) var(--ease);
+}
+
+.control:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Gold is for the one primary action on a screen; it sits a touch proud of the page. */
+.control.bg-highlight {
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.2),
+    0 8px 20px -12px rgb(var(--brand-highlight-rgb) / 0.6);
+}
+
+/* On paper, the gold button gets a dark edge, so its shape is clear against the page. */
+:root[data-theme='light'] .control.bg-highlight {
+  border-color: rgb(var(--on-accent-rgb));
+}
+
+/*
+ * Cards and panels: the same soft corner as a control, a gentle lift, and a faint wash so a
+ * bordered card reads as a surface. `:where` keeps the specificity at nothing, so any class
+ * on the element itself still wins.
+ */
+:where(.rounded-2xl:not(.control, button, a, input, select, textarea, img)) {
+  box-shadow: var(--shadow-card);
+  transition: box-shadow var(--motion) var(--ease);
+}
+
+:where(.rounded-2xl.border-2:not(.control, button, a, input, select, textarea, img)) {
+  background-color: rgb(var(--paper-rgb) / 0.04);
+}
+
+/*
+ * Faint edges on paper: a quarter or two fifths of navy on white is too pale to count, so
+ * dividers and card edges are drawn at two thirds there (over 4.5 to 1 against the page and against a card).
+ */
+:root[data-theme='light'] :is(.border-paper\/25, .border-paper\/40) {
+  border-color: rgb(var(--brand-ink-rgb) / 0.66);
+}
+
+/*
+ * A highlighted panel on paper: the gold edge alone is too faint against near white, so the
+ * edge is dark and the gold becomes a wash inside it instead.
+ */
+:root[data-theme='light'] .border-highlight:not(.bg-highlight, .bg-paper, .control) {
+  border-color: rgb(var(--brand-ink-rgb));
+  background-color: rgb(var(--brand-highlight-rgb) / 0.14);
 }
 
 /*
@@ -126,6 +234,63 @@ html:not([data-words='shown']) .extra {
 }
 
 /*
+ * A page arriving: it rises a few pixels and fades in, in the time it takes to notice. The
+ * last keyframe leaves no transform behind, so nothing fixed inside a page is moved by it.
+ */
+#main > .mx-auto > * {
+  animation: page-rise 200ms var(--ease) both;
+}
+
+@keyframes page-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/*
+ * A pane that scrolls on its own, such as Ozi's words beside its button: reaching its end does
+ * not go on to scroll the page behind it.
+ */
+.scroll-pane {
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+/*
+ * A row of tabs or chips that scrolls sideways: it glides and settles on a whole chip, and
+ * reaching its end does not drag the page. Padding leaves room for the focus ring, which an
+ * overflow would otherwise cut off.
+ */
+.chip-row {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 0.25rem;
+  scrollbar-width: thin;
+  padding: 0.75rem 0.25rem;
+  margin: -0.75rem -0.25rem;
+}
+
+.chip-row > * {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+/* The switch at the bottom of every screen: its knob slides rather than jumps. */
+.switch-knob {
+  transition:
+    transform var(--motion) var(--ease),
+    background-color var(--motion) var(--ease);
+}
+
+/*
  * Ozi's button while it is listening: it glows outward, slowly, so that someone with a little
  * sight can tell at a glance that Ozi is listening. Movement is never the only sign: the button
  * also says "Listening" in words, and changes colour, shape and words when muted. With reduced
@@ -161,6 +326,14 @@ html:not([data-words='shown']) .extra {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  .control:active:not(:disabled) {
+    transform: none;
+  }
+
+  .chip-row {
+    scroll-snap-type: none;
   }
 }
 

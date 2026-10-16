@@ -10,6 +10,8 @@ import type { FastifyInstance } from 'fastify';
 
 import type { IncomeRecord, Order } from '../domain.js';
 import { staffActor } from '../lib/staff.js';
+import { needsYou } from '../services/needs-you.js';
+import { orderReference } from './admin.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -35,7 +37,7 @@ function totals(rows: IncomeRecord[]) {
 }
 
 export async function registerOwnerRoutes(app: FastifyInstance): Promise<void> {
-  const { repository, now, payments } = app.ctx;
+  const { repository, now, payments, config } = app.ctx;
 
   /**
    * What Runners have been paid back for the shopping they bought with their own cards
@@ -83,6 +85,7 @@ export async function registerOwnerRoutes(app: FastifyInstance): Promise<void> {
       })),
       orders: orders.map((order) => ({
         orderId: order.id,
+        reference: orderReference(order),
         runnerName: order.runnerId ? (names.get(order.runnerId) ?? '') : '',
         loadedPence: order.cardLimitPence,
         spentPence: order.cardSpentPence,
@@ -139,7 +142,7 @@ export async function registerOwnerRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.get('/staff/overview', async (request) => {
-    await staffActor(request, 'overview');
+    const actor = await staffActor(request, 'overview');
     const at = now();
     const runners = await repository.runners.listAll();
     const available = await repository.runners.listAvailable();
@@ -160,6 +163,9 @@ export async function registerOwnerRoutes(app: FastifyInstance): Promise<void> {
       staffByJob.set(member.role, (staffByJob.get(member.role) ?? 0) + 1);
     }
     return {
+      // What needs a person now, most urgent first (16 October 2026 review).
+      needsYou: await needsYou(app.ctx, actor),
+      splitAfterMinutes: config.dispatch.splitAfterMinutes,
       people: {
         shoppers: await repository.shoppers.count(),
         runners: runners.length,

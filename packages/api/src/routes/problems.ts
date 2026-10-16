@@ -263,10 +263,31 @@ export async function registerProblemRoutes(app: FastifyInstance): Promise<void>
             report.reportedBy === 'shopper'
               ? order && (await repository.shoppers.findById(order.shopperId))?.displayName
               : order?.runnerId && (await repository.runners.findById(order.runnerId))?.name;
+          // The order itself (16 October 2026 review): its items, Runner and totals, so a
+          // decision is made on the whole picture, not on a summary.
+          const runner = order?.runnerId ? await repository.runners.findById(order.runnerId) : null;
           return {
             ...(await withEvidence(report)),
             reporterName: from || null,
             overdue: report.decideBy.getTime() < at.getTime(),
+            order: order
+              ? {
+                  reference: order.bankReference ?? order.id.slice(-6).toUpperCase(),
+                  status: order.status,
+                  runnerName: runner?.name.trim().split(/\s+/)[0] ?? null,
+                  items: order.items.map((item) => ({
+                    name: item.name,
+                    quantity: item.quantity,
+                    outcome: item.substitutionOutcome,
+                  })),
+                  goodsEstimatePence: order.goodsEstimatePence,
+                  feePence: order.feePence,
+                  totalEstimatePence: order.totalEstimatePence,
+                  receiptTotalPence: order.receiptTotalPence,
+                  finalTotalPence: order.finalTotalPence,
+                  paidBy: order.paidBy,
+                }
+              : null,
           };
         }),
       ),

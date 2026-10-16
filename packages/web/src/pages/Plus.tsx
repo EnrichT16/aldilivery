@@ -17,7 +17,7 @@ import {
   type PlanName,
   type PlusState,
 } from '../lib/api';
-import { money } from '../lib/money';
+import { money, planDeliveryWords } from '../lib/money';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
 
@@ -29,17 +29,16 @@ function longDate(when: string): string {
   });
 }
 
-/** The plans, their prices and what each includes, all from config/store.json (ruling 58). */
+/** The plans, their prices and what each includes, all from config/store.json (rulings 58 and 63). */
 export function planDetails() {
-  const { extras, fees, assistantName } = storeConfig;
-  const delivery = fees.delivery;
+  const { extras, assistantName } = storeConfig;
   return [
     {
       plan: 'membership' as PlanName,
       name: `${assistantName} Membership`,
       pence: extras.membershipPence,
       includes: [
-        `Delivery ${money(delivery.membershipPence)} on every order, whatever its size.`,
+        `Delivery ${planDeliveryWords('membership')}.`,
         `The Recipe Pass is included free (worth ${money(extras.recipePassPence)}).`,
         `One free “${assistantName} Finds It” each month (worth ${money(extras.findItPence)}).`,
         `${assistantName} remembers your favourites and your usual order.`,
@@ -51,7 +50,7 @@ export function planDetails() {
       pence: extras.plusPence,
       includes: [
         'Everything in Membership.',
-        `Delivery ${money(delivery.plusPence)} on every order.`,
+        `Delivery ${planDeliveryWords('plus')}.`,
         'My regular Runner: the same trusted Runner whenever possible.',
         'Priority at busy times.',
         'No adverts, ever.',
@@ -91,7 +90,6 @@ export function Plus(): JSX.Element {
   const [problem, setProblem] = useState('');
   const [busy, setBusy] = useState(false);
   const { fees, extras, assistantName } = storeConfig;
-  const delivery = fees.delivery;
   const plans = planDetails();
 
   useEffect(() => {
@@ -180,12 +178,10 @@ export function Plus(): JSX.Element {
     <div className="space-y-8 max-w-xl">
       <h1 className="text-display font-bold m-0">{assistantName} plans</h1>
       <p className="m-0">
-        Your first month of membership is free, and you pay as you go:{' '}
-        {money(delivery.payAsYouGoSmallOrderPence)} delivery for shopping of{' '}
-        {money(delivery.payAsYouGoSmallOrderUpToPence)} or less, {money(delivery.payAsYouGoPence)}{' '}
-        above that. Before it ends we remind you. A plan is taken monthly only if you choose to
-        join, and you can cancel at any time with one button, or by saying “cancel my membership”.
-        Nobody has to join.
+        Your first month of membership is free, and you pay as you go: delivery{' '}
+        {planDeliveryWords('payg')} at the shop&rsquo;s prices. Before it ends we remind you. A plan
+        is taken monthly only if you choose to join, and you can cancel at any time with one button,
+        or by saying “cancel my membership”. Nobody has to join.
       </p>
       <p className="m-0">
         Every product has a small item charge, already included in the prices we show: from{' '}
@@ -210,13 +206,13 @@ export function Plus(): JSX.Element {
         {news}
       </p>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
 
       {!shopper ? (
-        <Link to="/sign-up" className="control bg-highlight text-ink">
+        <Link to="/sign-up" className="control bg-highlight text-on-accent">
           Set up an account first
         </Link>
       ) : (
@@ -241,7 +237,7 @@ export function Plus(): JSX.Element {
               type="button"
               disabled={busy}
               onClick={() => void act(cancelPlan)}
-              className="control bg-paper text-ink"
+              className="control border-paper bg-paper/10 text-paper"
             >
               Cancel my plan
             </button>
@@ -278,9 +274,13 @@ export function Plus(): JSX.Element {
                   defaultValue={
                     state.approvalLimitPence === null ? '' : String(state.approvalLimitPence / 100)
                   }
-                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                  className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
                 />
-                <button type="submit" disabled={busy} className="control bg-paper text-ink">
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="control border-paper bg-paper/10 text-paper"
+                >
                   Save the limit
                 </button>
               </form>
@@ -296,7 +296,7 @@ export function Plus(): JSX.Element {
                             type="button"
                             disabled={busy}
                             onClick={() => void decide(order, true)}
-                            className="control bg-highlight text-ink"
+                            className="control bg-highlight text-on-accent"
                           >
                             Approve {order.person}'s order
                           </button>
@@ -367,9 +367,13 @@ export function Plus(): JSX.Element {
                   id="family-code"
                   name="family-code"
                   autoComplete="off"
-                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3 uppercase"
+                  className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3 uppercase"
                 />
-                <button type="submit" disabled={busy} className="control bg-paper text-ink">
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="control border-paper bg-paper/10 text-paper"
+                >
                   Join
                 </button>
               </form>

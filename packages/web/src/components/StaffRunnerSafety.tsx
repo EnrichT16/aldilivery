@@ -58,7 +58,7 @@ function useLoad<T>(load: () => Promise<T>): {
 function Problem({ text }: { text: string }): JSX.Element | null {
   if (text === '') return null;
   return (
-    <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+    <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
       {text}
     </p>
   );
@@ -94,7 +94,7 @@ export function ActiveSos({ staffKey, by, onNews }: PanelProps): JSX.Element {
         {rows.map((row) => (
           <li
             key={row.id}
-            className={`rounded-xl p-4 ${row.on ? 'border-4 border-paper' : 'border-2 border-paper/40'}`}
+            className={`rounded-2xl p-4 ${row.on ? 'border-4 border-paper' : 'border-2 border-paper/40'}`}
           >
             <p className="m-0 font-bold">
               {row.on ? 'On now' : 'Over'}: {row.runner?.name ?? 'A Runner'} (
@@ -143,7 +143,7 @@ export function ActiveSos({ staffKey, by, onNews }: PanelProps): JSX.Element {
                       setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
                     );
                 }}
-                className="control bg-paper text-ink mt-2"
+                className="control border-paper bg-paper/10 text-paper mt-2"
               >
                 Mark as over<span className="visually-hidden">: {row.runner?.name}</span>
               </button>
@@ -199,7 +199,7 @@ export function RemoveRunner({ staffKey, by, onNews }: PanelProps): JSX.Element 
         <input
           id="remove-runner"
           name="runner"
-          className="w-full max-w-xs min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+          className="w-full max-w-xs min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
         />
         <label htmlFor="remove-reason" className="block font-bold">
           Why
@@ -208,12 +208,12 @@ export function RemoveRunner({ staffKey, by, onNews }: PanelProps): JSX.Element 
           id="remove-reason"
           name="reason"
           rows={3}
-          className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+          className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
         />
         <button
           type="submit"
           disabled={busy}
-          className="control bg-paper text-ink disabled:opacity-70"
+          className="control border-paper bg-paper/10 text-paper disabled:opacity-70"
         >
           Remove this Runner
         </button>
@@ -264,7 +264,7 @@ export function WaitingDeposits({ staffKey, by, onNews }: PanelProps): JSX.Eleme
           key={row.id}
           onSubmit={(event) => decide(event, row)}
           noValidate
-          className="space-y-2 border-2 border-paper/40 rounded-xl p-4"
+          className="space-y-2 border-2 border-paper/40 rounded-2xl p-4"
         >
           <p className="m-0 font-bold">
             {row.name} ({row.runnerId}): {money(row.heldPence)} held, {money(row.owedPence)} owed.
@@ -278,7 +278,7 @@ export function WaitingDeposits({ staffKey, by, onNews }: PanelProps): JSX.Eleme
             name="keep"
             inputMode="decimal"
             defaultValue="0"
-            className="w-full max-w-xs min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+            className="w-full max-w-xs min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
           />
           <label htmlFor={`note-${row.id}`} className="block">
             What you will tell them, in writing
@@ -287,9 +287,9 @@ export function WaitingDeposits({ staffKey, by, onNews }: PanelProps): JSX.Eleme
             id={`note-${row.id}`}
             name="note"
             rows={2}
-            className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+            className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
           />
-          <button type="submit" className="control bg-paper text-ink">
+          <button type="submit" className="control border-paper bg-paper/10 text-paper">
             Decide and pay back the rest<span className="visually-hidden">: {row.name}</span>
           </button>
         </form>
@@ -362,7 +362,7 @@ export function ReferralRewards({ staffKey, by, onNews }: PanelProps): JSX.Eleme
                             ),
                           );
                       }}
-                      className="control bg-highlight text-ink"
+                      className="control bg-highlight text-on-accent"
                     >
                       Give the reward<span className="visually-hidden"> to {row.name}</span>
                     </button>

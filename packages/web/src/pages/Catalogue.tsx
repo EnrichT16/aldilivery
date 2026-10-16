@@ -111,9 +111,9 @@ export function Catalogue(): JSX.Element {
             type="search"
             defaultValue={query}
             aria-describedby="catalogue-search-hint"
-            className="flex-1 min-w-[12rem] min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+            className="flex-1 min-w-[12rem] min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
           />
-          <button type="submit" className="control bg-highlight text-ink">
+          <button type="submit" className="control border-paper bg-paper/10 text-paper">
             Search
           </button>
         </div>
@@ -126,17 +126,17 @@ export function Catalogue(): JSX.Element {
       {state.kind === 'loading' && <p className="m-0">Getting the shopping list…</p>}
 
       {state.kind === 'unavailable' && (
-        <div role="alert" className="border-2 border-paper p-4 rounded-xl space-y-2">
+        <div role="alert" className="border-2 border-paper p-4 rounded-2xl space-y-2">
           <h2 className="text-lead font-bold m-0">We cannot reach the shopping list</h2>
           <p className="m-0">
-            The {storeConfig.productName} server is not answering. If you are running this on your
-            own computer, start the server and this page will fill itself in.
+            The {storeConfig.productName} server is not answering just now. Please try again in a
+            moment. If it keeps happening, ring us and your order is taken on the phone.
           </p>
         </div>
       )}
 
       {state.kind === 'failed' && (
-        <div role="alert" className="border-2 border-paper p-4 rounded-xl">
+        <div role="alert" className="border-2 border-paper p-4 rounded-2xl">
           <h2 className="text-lead font-bold m-0">Something went wrong</h2>
           <p className="m-0">{state.message}</p>
         </div>
@@ -149,13 +149,13 @@ export function Catalogue(): JSX.Element {
               ? 'Nothing matched that'
               : `${state.items.length} ${state.items.length === 1 ? 'thing' : 'things'} you can add`}
           </h2>
-          <p className="m-0 text-paper/90 extra">{state.attribution}</p>
+          <p className="m-0 text-paper/90">{state.attribution}</p>
 
           <ul className="list-none m-0 p-0 space-y-4">
             {state.items.map((item) => (
               <li
                 key={item.id}
-                className="flex flex-wrap items-center justify-between gap-4 border-2 border-paper/40 rounded-xl p-4"
+                className="flex flex-wrap items-center justify-between gap-4 border-2 border-paper/40 rounded-2xl p-4"
               >
                 <div>
                   <p className="m-0 text-lead font-bold">{item.name}</p>
@@ -165,7 +165,7 @@ export function Catalogue(): JSX.Element {
                 </div>
                 <button
                   type="button"
-                  className="control bg-highlight text-ink"
+                  className="control bg-highlight text-on-accent"
                   onClick={() => {
                     setLastAdded(basket.add(item) ? item.name : '');
                     setRefused(sellable(item.estimatedPricePence) ? '' : tooDearWords(item.name));
@@ -183,7 +183,7 @@ export function Catalogue(): JSX.Element {
       {advert && (
         <aside
           aria-labelledby="advert-heading"
-          className="border-2 border-highlight rounded-xl p-4 space-y-2"
+          className="border-2 border-highlight rounded-2xl p-4 space-y-2"
         >
           <h2 id="advert-heading" className="text-lead font-bold m-0">
             Advert
@@ -196,7 +196,7 @@ export function Catalogue(): JSX.Element {
           {advert.catalogueItemId && (
             <button
               type="button"
-              className="control bg-highlight text-ink"
+              className="control border-paper bg-paper/10 text-paper"
               onClick={() =>
                 void fetchCatalogueItem(advert.catalogueItemId ?? '').then(({ item }) => {
                   if (!item) return;

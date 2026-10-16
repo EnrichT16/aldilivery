@@ -67,7 +67,7 @@ export function OrderFeedback({
       </p>
       {sent === '' && (
         <form onSubmit={(event) => void submit(event)} className="space-y-4" noValidate>
-          <p className="m-0 extra">
+          <p className="m-0">
             {creditPence > 0
               ? `Tell us anything, good or bad, and ${money(creditPence)} comes off your next delivery. `
               : ''}
@@ -114,17 +114,17 @@ export function OrderFeedback({
             value={message}
             onChange={(event) => setMessage(event.target.value)}
             maxLength={2000}
-            className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+            className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
           />
           {problem !== '' && (
-            <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+            <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
               {problem}
             </p>
           )}
           <button
             type="submit"
             disabled={busy}
-            className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+            className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
           >
             Send my feedback
           </button>

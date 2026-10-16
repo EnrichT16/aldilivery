@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { isUkMobileNumber } from '../lib/api';
 import { pairsAloud } from '../lib/phone-aloud';
 import { useOzi } from './ozi';
 
@@ -100,10 +101,23 @@ export interface NumberConfirmation {
   check: (phone: string, code: string) => Promise<true | string>;
 }
 
+/** "Which part is wrong?": name, number, address or door, from whatever words were used. */
+export function partToFix(text: string): Field | null {
+  const words = text.toLowerCase();
+  if (/\b(name|called|spell)\b/.test(words)) return 'displayName';
+  if (/\b(number|phone|mobile|telephone|landline)\b/.test(words)) return 'phone';
+  if (/\b(address|street|road|postcode|post code|house|flat|town)\b/.test(words)) {
+    return 'deliveryAddress';
+  }
+  if (/\b(door|doorstep|runner|knock|instructions?)\b/.test(words)) return 'doorstepProtocol';
+  return null;
+}
+
 export function useVoiceSignUp({
   fill,
   finish,
   confirmNumber,
+  callsOn = false,
 }: {
   /** Write what was heard into the form on the screen. */
   fill: (field: Field, value: string) => void;
@@ -111,6 +125,8 @@ export function useVoiceSignUp({
   finish: (details: SpokenDetails) => Promise<void>;
   /** Present once numbers are confirmed with a code at sign-up. */
   confirmNumber?: NumberConfirmation | undefined;
+  /** Codes by phone call are switched on (the server's `signIn.byCall`), so a landline will do. */
+  callsOn?: boolean;
 }): { active: boolean; start: () => void } {
   const ozi = useOzi();
   const [active, setActive] = useState(false);
@@ -121,8 +137,8 @@ export function useVoiceSignUp({
     deliveryAddress: '',
     doorstepProtocol: '',
   });
-  const live = useRef({ ozi, fill, finish, confirmNumber });
-  live.current = { ozi, fill, finish, confirmNumber };
+  const live = useRef({ ozi, fill, finish, confirmNumber, callsOn });
+  live.current = { ozi, fill, finish, confirmNumber, callsOn };
 
   // Leaving the page stops the questions, so nothing said later is taken as an answer.
   useEffect(
@@ -162,6 +178,23 @@ export function useVoiceSignUp({
       live.current.fill(field, value);
     };
 
+    // After a "no" at the end, one question is asked again, and then the whole thing is read
+    // back once more (16 October 2026).
+    let correcting = false;
+    const proceed = (next: () => void): void => {
+      if (correcting) {
+        correcting = false;
+        askFinal();
+      } else {
+        next();
+      }
+    };
+
+    const phoneQuestion = (): string =>
+      live.current.callsOn
+        ? "What's your phone number? A mobile or a landline."
+        : "What's your mobile number?";
+
     const askName = (prompt: string): void =>
       ask(prompt, (text) => {
         const name = spokenName(text);
@@ -170,7 +203,7 @@ export function useVoiceSignUp({
           return;
         }
         set('displayName', name);
-        askPhone(`Thank you, ${name}. What's your phone number? A mobile or a landline.`);
+        proceed(() => askPhone(`Thank you, ${name}. ${phoneQuestion()}`));
       });
 
     const askPhone = (prompt: string): void =>
@@ -182,6 +215,13 @@ export function useVoiceSignUp({
           );
           return;
         }
+        // With calls off, a landline cannot be sent its code: only a mobile is asked for.
+        if (live.current.confirmNumber && !live.current.callsOn && !isUkMobileNumber(digits)) {
+          askPhone(
+            'That sounds like a landline. For now we can only send a code to a mobile, so please say a mobile number, starting zero seven.',
+          );
+          return;
+        }
         confirm(
           `I heard ${pairsAloud(digits)}. Is that right?`,
           () => {
@@ -190,8 +230,10 @@ export function useVoiceSignUp({
               void sendCode(digits);
               return;
             }
-            askAddress(
-              'Where should we bring your shopping? Please say the full address, with the door number and the postcode.',
+            proceed(() =>
+              askAddress(
+                'Where should we bring your shopping? Please say the full address, with the door number and the postcode.',
+              ),
             );
           },
           () => askPhone('All right. Please say your phone number again.'),
@@ -231,8 +273,10 @@ export function useVoiceSignUp({
         }
         void live.current.confirmNumber?.check(phone, code).then((result) => {
           if (result === true) {
-            askAddress(
-              'Thank you, your number is confirmed. Where should we bring your shopping? Please say the full address, with the door number and the postcode.',
+            proceed(() =>
+              askAddress(
+                'Thank you, your number is confirmed. Where should we bring your shopping? Please say the full address, with the door number and the postcode.',
+              ),
             );
           } else if (tries >= 2) {
             setActive(false);
@@ -252,7 +296,7 @@ export function useVoiceSignUp({
           `I heard: ${address}. Is that right?`,
           () => {
             set('deliveryAddress', address);
-            askDoor();
+            proceed(askDoor);
           },
           () => askAddress('All right. Please say the address again, with the postcode.'),
         );
@@ -267,19 +311,39 @@ export function useVoiceSignUp({
         },
       );
 
+    const askWhichPart = (prompt: string): void =>
+      ask(prompt, (text) => {
+        const part = partToFix(text);
+        if (part === null) {
+          if (/\b(nothing|none|all right|it'?s fine|fine|leave it)\b/i.test(text)) {
+            askFinal();
+            return;
+          }
+          askWhichPart('Please say name, number, address or door.');
+          return;
+        }
+        correcting = true;
+        if (part === 'displayName') askName("All right. What's your name?");
+        else if (part === 'phone') askPhone(`All right. ${phoneQuestion()}`);
+        else if (part === 'deliveryAddress') {
+          askAddress(
+            'All right. Please say the full address, with the door number and the postcode.',
+          );
+        } else askDoor();
+      });
+
     const askFinal = (): void => {
       const d = details.current;
       confirm(
-        `That's everything. You are ${d.displayName}, your mobile is ${pairsAloud(d.phone)}, and your shopping comes to ${d.deliveryAddress}. Shall I create your account now?`,
+        `That's everything. You are ${d.displayName}, your phone number is ${pairsAloud(d.phone)}, and your shopping comes to ${d.deliveryAddress}. Shall I create your account now?`,
         () => {
           setActive(false);
           cancel.current = null;
           void live.current.finish(details.current);
         },
         () => {
-          setActive(false);
-          void live.current.ozi.say(
-            "All right, I haven't created anything. What I heard is in the form on the screen, so it can be changed there, and then press Create my account.",
+          askWhichPart(
+            "All right, I haven't created anything. Which part is wrong: name, number, address or door?",
           );
         },
       );

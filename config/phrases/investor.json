@@ -93,7 +93,7 @@
       "topic": "business",
       "when": ["how much is delivery", "delivery price"],
       "replies": [
-        "Pay as you go: {smallFee} up to {smallUpTo} of shopping, {fee} above. Members {memberFee}, Plus and Family {plusFee}. Never surge priced.",
+        "Pay as you go: {paygDelivery}. Members {memberDelivery}; Plus and Family {plusDelivery}. Never surge priced.",
         "From {plusFee} to {fee}, by plan and size."
       ]
     },
@@ -1179,7 +1179,7 @@
         "is delivery free for members"
       ],
       "replies": [
-        "Yes. Members pay {memberFee} for delivery, and Plus and Family {plusFee}, against {smallFee} or {fee} on pay as you go. Item charges apply on every plan.",
+        "Yes. Members pay {memberDelivery}, and Plus and Family {plusDelivery}, against {paygDelivery} on pay as you go. Item charges apply on every plan.",
         "No, the fee never depends on who the Shopper is."
       ]
     },

@@ -35,14 +35,14 @@ export function JoinOrganisation(): JSX.Element {
         {news}
       </p>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
       {restoring ? null : !shopper ? (
         <>
           <p className="m-0">First, open your account. Then come back to this link to finish.</p>
-          <Link to="/sign-up" className="control bg-highlight text-ink">
+          <Link to="/sign-up" className="control bg-highlight text-on-accent">
             Open my account
           </Link>
         </>
@@ -67,7 +67,7 @@ export function JoinOrganisation(): JSX.Element {
                   setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
                 )
             }
-            className="control bg-highlight text-ink disabled:opacity-70"
+            className="control bg-highlight text-on-accent disabled:opacity-70"
           >
             Link my account
           </button>

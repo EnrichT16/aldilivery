@@ -26,13 +26,7 @@ export type AccountRole = 'shopper' | 'runner';
 
 /** Where an extra Runner's delivery on a linked order has got to (ruling 61). */
 export type ExtraDeliveryStatus =
-  | 'pending'
-  | 'charged'
-  | 'failed'
-  | 'transfer'
-  | 'waived'
-  | 'refunded'
-  | 'credited';
+  'pending' | 'charged' | 'failed' | 'transfer' | 'waived' | 'refunded' | 'credited';
 
 export type { OrderStatus, SplitPartMode } from '@aldilivery/core';
 
@@ -489,6 +483,11 @@ export interface Order {
   cancelledAt: Date | null;
   /** Why it was cancelled, in plain words, for the admin panel. Null when nobody said. */
   cancelReason?: string | null;
+  /**
+   * Goodwill refunds staff have given on this order (16 October 2026), added up, so that with
+   * any complaint refunds they never come to more than the order cost.
+   */
+  goodwillRefundedPence: number;
   items: OrderItem[];
 }
 
@@ -502,6 +501,11 @@ export interface JobOffer {
   outcome: JobOfferOutcome;
   queuePosition: number;
   distanceMiles: number | null;
+  /**
+   * Offered to a Runner on the final leg of another job, for a pickup near their drop-off
+   * (ruling 64), before the general queue. Declining one counts against nobody.
+   */
+  chained: boolean;
 }
 
 export interface RunnerPayout {

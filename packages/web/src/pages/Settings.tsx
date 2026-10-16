@@ -17,8 +17,15 @@ import {
 } from '../lib/api';
 import { money } from '../lib/money';
 import { useSession } from '../state/session';
-import { useVoice } from '../state/voice';
+import { useVoice, type Appearance } from '../state/voice';
 import type { OutputVoice, VoiceReadiness } from '../voice';
+
+/** The looks a screen can have. Dark is the default, and the brand. */
+const APPEARANCES: Array<{ value: Appearance; label: string }> = [
+  { value: 'dark', label: 'Dark' },
+  { value: 'light', label: 'Light' },
+  { value: 'system', label: 'Follow phone' },
+];
 
 /**
  * Settings: your addresses, and Ozi's voice.
@@ -70,6 +77,31 @@ export function Settings(): JSX.Element {
           The screen
         </h2>
         <ShowWordsSwitch />
+        <fieldset className="border-2 border-paper/40 rounded-2xl p-4 m-0 space-y-2">
+          <legend className="px-2 font-bold">Appearance</legend>
+          <p id="appearance-hint" className="m-0 extra">
+            Dark is deep blue with white words. Light is paper with dark words. Follow phone uses
+            whichever your phone is set to.
+          </p>
+          {APPEARANCES.map((option) => (
+            <div key={option.value} className="flex items-center gap-3 min-h-control">
+              <input
+                id={`appearance-${option.value}`}
+                type="radio"
+                name="appearance"
+                value={option.value}
+                checked={settings.appearance === option.value}
+                aria-describedby="appearance-hint"
+                onChange={() => {
+                  voice.update({ appearance: option.value });
+                  setNews(`${option.label} appearance.`);
+                }}
+                className="h-7 w-7 shrink-0"
+              />
+              <label htmlFor={`appearance-${option.value}`}>{option.label}</label>
+            </div>
+          ))}
+        </fieldset>
       </section>
 
       <section aria-labelledby="addresses-heading" className="space-y-3 max-w-xl">
@@ -79,7 +111,7 @@ export function Settings(): JSX.Element {
         <p className="m-0 extra">
           Your home address, and any others you send shopping to. Changing them needs your PIN.
         </p>
-        <Link to="/addresses" className="control bg-paper text-ink">
+        <Link to="/addresses" className="control border-paper bg-paper/10 text-paper">
           Your addresses
         </Link>
       </section>
@@ -117,7 +149,7 @@ export function Settings(): JSX.Element {
           </div>
         </div>
 
-        <fieldset className="border-2 border-paper/40 rounded-xl p-4 m-0 space-y-2">
+        <fieldset className="border-2 border-paper/40 rounded-2xl p-4 m-0 space-y-2">
           <legend className="px-2 font-bold">Which voice</legend>
           {voices === null ? (
             <p className="m-0">Finding the voices on this phone.</p>
@@ -163,7 +195,7 @@ export function Settings(): JSX.Element {
             voice.update({ bubble: null });
             setNews(`${assistant}’s button is back in its usual place, on the right.`);
           }}
-          className="control bg-paper text-ink"
+          className="control border-paper bg-paper/10 text-paper"
         >
           Put {assistant}&rsquo;s button back in its usual place
         </button>
@@ -185,9 +217,8 @@ export function Settings(): JSX.Element {
             Unused Runner fee credit
           </h2>
           <p className="m-0">
-            You have {money(shopper.unusedRunnerFeeCreditPence ?? 0)} of Unused Runner fee credit:
-            a delivery you paid for a further Runner who was not needed. It comes off your next
-            order.
+            You have {money(shopper.unusedRunnerFeeCreditPence ?? 0)} of Unused Runner fee credit: a
+            delivery you paid for a further Runner who was not needed. It comes off your next order.
           </p>
         </section>
       )}
@@ -208,7 +239,7 @@ export function Settings(): JSX.Element {
               signOut();
               setNews('Signed out. To sign in again, or open an account, just tell me.');
             }}
-            className="control bg-paper text-ink"
+            className="control border-paper bg-paper/10 text-paper"
           >
             Sign out
           </button>
@@ -279,7 +310,7 @@ function YourPlan(): JSX.Element {
           type="button"
           disabled={busy}
           onClick={() => void cancel()}
-          className="control bg-paper text-ink"
+          className="control border-paper bg-paper/10 text-paper"
         >
           Cancel my plan
         </button>
@@ -317,7 +348,7 @@ function OrganisationLink(): JSX.Element {
         {news}
       </p>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
@@ -332,7 +363,7 @@ function OrganisationLink(): JSX.Element {
                 setNews(result.message);
               })
             }
-            className="control bg-paper text-ink"
+            className="control border-paper bg-paper/10 text-paper"
           >
             Stop {linked.name} seeing my orders
           </button>
@@ -365,7 +396,7 @@ function OrganisationLink(): JSX.Element {
             id="organisation-code"
             name="organisation-code"
             autoComplete="off"
-            className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3 uppercase"
+            className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3 uppercase"
           />
           <label className="flex items-center gap-3 min-h-control">
             <input
@@ -379,7 +410,7 @@ function OrganisationLink(): JSX.Element {
           <button
             type="submit"
             disabled={!agreed}
-            className="control bg-paper text-ink disabled:opacity-70"
+            className="control border-paper bg-paper/10 text-paper disabled:opacity-70"
           >
             Link my account
           </button>
@@ -428,7 +459,7 @@ function AgeGroup(): JSX.Element {
             setNews(value === '' ? 'Taken away.' : 'Saved. Thank you.');
           });
         }}
-        className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+        className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
       >
         {AGE_GROUPS.map((group) => (
           <option key={group.value} value={group.value}>

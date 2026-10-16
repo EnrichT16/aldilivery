@@ -9,6 +9,7 @@ import {
   requestSignInCode,
   verifySignInCode,
 } from '../lib/api';
+import { writeRunnerToken } from '../lib/session';
 import { useSession } from '../state/session';
 
 /**
@@ -25,15 +26,20 @@ import { useSession } from '../state/session';
  *
  * Like the sign-up form, a problem is said in words at the top and takes focus, so somebody
  * who cannot see the screen is told what happened.
+ *
+ * The same two steps sign a Runner in on a new phone (16 October 2026): the server already
+ * sends Runner codes; `as="runner"` asks for one, keeps the token as the Runner's own, and
+ * goes to their Runner page.
  */
-export function SignIn(): JSX.Element {
+export function SignIn({ as: role = 'shopper' }: { as?: 'shopper' | 'runner' }): JSX.Element {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { shopper, signedIn } = useSession();
+  const asRunner = role === 'runner';
   // Where to go afterwards: back to the order if that is where they came from. Only a path on
   // this site, never an address somewhere else.
   const requested = params.get('next') ?? '';
-  const next = /^\/[a-z-]*$/.test(requested) ? requested : '/shop';
+  const next = asRunner ? '/runner/home' : /^\/[a-z-]*$/.test(requested) ? requested : '/shop';
 
   const [available, setAvailable] = useState<boolean | null>(null);
   const [byCall, setByCall] = useState(false);
@@ -45,6 +51,8 @@ export function SignIn(): JSX.Element {
   // The technical reason behind an error, folded away under "Details" so the screen stays
   // tidy and a screenshot can still say exactly what failed.
   const [errorDetail, setErrorDetail] = useState('');
+  // No account on that number: the way to set one up sits inside the message itself.
+  const [noAccount, setNoAccount] = useState(false);
   const [busy, setBusy] = useState(false);
   const problem = useRef<HTMLParagraphElement>(null);
   const codeField = useRef<HTMLInputElement>(null);
@@ -89,7 +97,7 @@ export function SignIn(): JSX.Element {
     setError('');
     setErrorDetail('');
     try {
-      const result = await requestSignInCode(phone.trim(), { channel: how });
+      const result = await requestSignInCode(phone.trim(), { channel: how, role });
       setSentMessage(result.message);
       setStep('code');
     } catch (failure) {
@@ -112,15 +120,24 @@ export function SignIn(): JSX.Element {
     setBusy(true);
     setError('');
     setErrorDetail('');
+    setNoAccount(false);
     try {
-      const result = await verifySignInCode(phone.trim(), code);
+      const result = await verifySignInCode(phone.trim(), code, role);
       if (result.registrationRequired) {
+        setNoAccount(true);
         setError(
-          'There is no account on that number yet. You can set one up instead — it takes a minute.',
+          asRunner
+            ? 'There is no Runner account on that number yet. You can sign up to run instead.'
+            : 'There is no account on that number yet. You can set one up instead — it takes a minute.',
         );
         return;
       }
-      await signedIn(result.token);
+      if (asRunner) {
+        // The Runner's own sign-in: any Shopper signed in on this phone stays signed in.
+        writeRunnerToken(result.token);
+      } else {
+        await signedIn(result.token);
+      }
       navigate(next);
     } catch (failure) {
       const problem = describeProblem(failure, 'That code did not work.');
@@ -131,12 +148,12 @@ export function SignIn(): JSX.Element {
     }
   }
 
-  if (shopper) {
+  if (shopper && !asRunner) {
     return (
       <div className="space-y-6">
         <h1 className="text-display font-bold m-0">You are signed in</h1>
         <p className="m-0 max-w-xl">You are signed in as {shopper.displayName}.</p>
-        <Link to="/shop" className="control bg-highlight text-ink">
+        <Link to="/shop" className="control bg-highlight text-on-accent">
           Find your shopping
         </Link>
       </div>
@@ -145,23 +162,27 @@ export function SignIn(): JSX.Element {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-display font-bold m-0">Sign in</h1>
+      <h1 className="text-display font-bold m-0">{asRunner ? 'Runner sign in' : 'Sign in'}</h1>
 
       {available === false ? (
         <>
-          <p role="status" className="border-2 border-paper p-4 rounded-xl m-0 max-w-xl">
+          <p role="status" className="border-2 border-paper p-4 rounded-2xl m-0 max-w-xl">
             Signing in by text message is not switched on yet. For now, an account can only be used
             on the phone or computer it was set up on.
           </p>
-          <Link to="/sign-up" className="control bg-highlight text-ink">
-            Set up an account on this device
+          <Link
+            to={asRunner ? '/runner/sign-up' : '/sign-up'}
+            className="control bg-highlight text-on-accent"
+          >
+            {asRunner ? 'Sign up to run on this device' : 'Set up an account on this device'}
           </Link>
         </>
       ) : (
         <>
           <p className="m-0 max-w-xl">
-            There is no password. We text a code to the mobile number you set up your account with,
-            and you type it in here.
+            There is no password. We text a code to the mobile number you{' '}
+            {asRunner ? 'signed up to run with' : 'set up your account with'}, and you type it in
+            here.
             {byCall &&
               ' With a landline, choose a phone call instead, and a voice will read you the code.'}
           </p>
@@ -171,9 +192,14 @@ export function SignIn(): JSX.Element {
               ref={problem}
               tabIndex={-1}
               role="alert"
-              className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0 max-w-xl"
+              className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0 max-w-xl"
             >
               <p className="m-0">{error}</p>
+              {noAccount && (
+                <Link to="/sign-up" className="control bg-highlight text-ink mt-3">
+                  Set up an account
+                </Link>
+              )}
               {errorDetail !== '' && (
                 <details className="mt-2 text-sm">
                   <summary className="cursor-pointer font-bold">Details</summary>
@@ -196,7 +222,8 @@ export function SignIn(): JSX.Element {
                   Your phone number
                 </label>
                 <p id="sign-in-phone-hint" className="m-0 text-paper/90">
-                  The one you gave when you set up your account, like 07700 900123
+                  The one you gave when you {asRunner ? 'signed up to run' : 'set up your account'},
+                  like 07700 900123
                   {byCall ? ', or your landline' : ''}.
                 </p>
                 <input
@@ -209,13 +236,13 @@ export function SignIn(): JSX.Element {
                   onChange={(event) => {
                     setPhone(event.target.value);
                   }}
-                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                  className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
                 />
               </div>
               <button
                 type="submit"
                 disabled={busy || available === null}
-                className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+                className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
               >
                 {busy ? 'Sending your code…' : 'Text me a code'}
               </button>
@@ -261,13 +288,13 @@ export function SignIn(): JSX.Element {
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   aria-describedby="sign-in-code-hint"
-                  className="w-full max-w-xs min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3 text-lead tracking-widest"
+                  className="w-full max-w-xs min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3 text-lead tracking-widest"
                 />
               </div>
               <button
                 type="submit"
                 disabled={busy}
-                className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+                className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
               >
                 {busy ? 'Checking…' : 'Sign in'}
               </button>
@@ -284,9 +311,15 @@ export function SignIn(): JSX.Element {
             </form>
           )}
 
-          <Link to="/sign-up" className="control bg-paper/10 text-paper underline">
-            New to {storeConfig.productName}? Set up an account
-          </Link>
+          {asRunner ? (
+            <Link to="/runner/sign-up" className="control bg-paper/10 text-paper underline">
+              New to running for {storeConfig.productName}? Sign up to run
+            </Link>
+          ) : (
+            <Link to="/sign-up" className="control bg-paper/10 text-paper underline">
+              New to {storeConfig.productName}? Set up an account
+            </Link>
+          )}
         </>
       )}
     </div>

@@ -151,7 +151,7 @@ export function CallControls({
     return (
       <section
         aria-labelledby="call-heading"
-        className="space-y-3 max-w-xl border-2 border-paper rounded-xl p-4"
+        className="space-y-3 max-w-xl border-2 border-paper rounded-2xl p-4"
       >
         <h2 id="call-heading" className="text-lead font-bold m-0">
           {stage.others > 0 ? `On the call with ${otherName}` : `Calling ${otherName}…`}
@@ -216,12 +216,12 @@ export function CallControls({
         Calls
       </h2>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
       {ringing ? (
-        <div role="alert" className="space-y-3 border-2 border-highlight rounded-xl p-4">
+        <div role="alert" className="space-y-3 border-2 border-highlight rounded-2xl p-4">
           <p className="m-0 text-lead font-bold">{capital(otherName)} is calling.</p>
           {as === 'shopper' && <p className="m-0">{price}</p>}
           <button
@@ -230,20 +230,20 @@ export function CallControls({
             onClick={() => {
               void join(() => answerCall(ringing.id, as));
             }}
-            className="control w-full bg-[var(--colour-listening)] text-ink text-lead font-bold border-4 border-ink"
+            className="control w-full bg-listening text-on-accent text-lead font-bold border-4 border-on-accent"
           >
             {as === 'shopper' ? 'Answer, and pay for the call' : 'Answer'}
           </button>
         </div>
       ) : stage.kind === 'confirm' ? (
-        <div className="space-y-3 border-2 border-paper rounded-xl p-4">
+        <div className="space-y-3 border-2 border-paper rounded-2xl p-4">
           <p className="m-0 text-lead">{price}</p>
           <button
             type="button"
             onClick={() => {
               void join(() => startCall(orderId, as));
             }}
-            className="control w-full bg-[var(--colour-listening)] text-ink text-lead font-bold border-4 border-ink"
+            className="control w-full bg-listening text-on-accent text-lead font-bold border-4 border-on-accent"
           >
             Yes, call {otherName}
           </button>
@@ -264,7 +264,7 @@ export function CallControls({
             else void join(() => startCall(orderId, as));
           }}
           style={{ width: 144, height: 144, borderRadius: '50%' }}
-          className="control p-0 flex flex-col items-center justify-center text-center bg-[var(--colour-listening)] text-ink font-bold border-4 border-ink disabled:opacity-70"
+          className="control p-0 flex flex-col items-center justify-center text-center bg-listening text-on-accent font-bold border-4 border-on-accent disabled:opacity-70"
         >
           <PhoneGlyph />
           <span>{stage.kind === 'connecting' ? 'Connecting…' : `Call ${otherName}`}</span>
@@ -333,17 +333,17 @@ function Merge({
         id="guest-name"
         value={name}
         onChange={(event) => setName(event.target.value)}
-        className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+        className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
       />
       <p className="m-0">
         Adding {name.trim() || 'them'} costs {pence}p a minute for them, paid from your card.
       </p>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
-      <button type="submit" className="control w-full bg-highlight text-ink">
+      <button type="submit" className="control w-full bg-highlight text-on-accent">
         Yes, add them and send the link
       </button>
       {link !== '' && <p className="m-0 break-all">Their link: {link}</p>}

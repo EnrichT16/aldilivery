@@ -49,7 +49,7 @@ export function JobNavigation({
               target="_blank"
               rel="noopener noreferrer"
               aria-describedby={`nav-${link.key}-hint`}
-              className={`control w-full ${index === 0 ? 'bg-highlight text-ink' : 'bg-paper/10 text-paper underline'}`}
+              className={`control w-full ${index === 0 ? 'bg-highlight text-on-accent' : 'bg-paper/10 text-paper underline'}`}
             >
               {link.label}
               <span className="visually-hidden"> (opens your maps app)</span>

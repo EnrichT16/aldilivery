@@ -55,7 +55,7 @@ export function DocumentsChecklist({ onNews }: { onNews?: (news: string) => void
   return (
     <div className="space-y-6 max-w-xl">
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
@@ -153,7 +153,7 @@ function DocumentRow({
   return (
     <section
       aria-labelledby={`${id}-name`}
-      className="space-y-3 border-2 border-paper/40 rounded-xl p-4"
+      className="space-y-3 border-2 border-paper/40 rounded-2xl p-4"
     >
       <h3 id={`${id}-name`} className="font-bold text-lead m-0">
         {name}
@@ -172,7 +172,7 @@ function DocumentRow({
             type="date"
             value={expiresOn}
             onChange={(event) => setExpiresOn(event.target.value)}
-            className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+            className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
           />
         </div>
       )}
@@ -180,7 +180,7 @@ function DocumentRow({
       {/* A real file input inside its label, styled as the big button, with the focus ring on the
           button when the input has focus. It opens the camera on a phone. */}
       <label
-        className={`control bg-highlight text-ink cursor-pointer focus-within:outline focus-within:outline-4 focus-within:outline-offset-2 ${sending ? 'opacity-70' : ''}`}
+        className={`control bg-highlight text-on-accent cursor-pointer focus-within:outline focus-within:outline-4 focus-within:outline-offset-2 ${sending ? 'opacity-70' : ''}`}
       >
         {sending ? 'Sending…' : kind === 'face_photo' ? 'Take a photo of my face' : 'Take a photo'}
         <input
@@ -218,9 +218,13 @@ function DocumentRow({
             autoComplete="off"
             autoCapitalize="characters"
             onChange={(event) => setShareCode(event.target.value)}
-            className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+            className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
           />
-          <button type="submit" disabled={sending} className="control bg-paper text-ink">
+          <button
+            type="submit"
+            disabled={sending}
+            className="control border-paper bg-paper/10 text-paper"
+          >
             Send the share code
           </button>
         </form>

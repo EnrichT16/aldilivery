@@ -6,6 +6,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { twilioSignature } from '../src/lib/twilio-voice.js';
 import { QUESTION_WAIT_SECONDS } from '../src/services/questions.js';
 import {
   buildTestApp,
@@ -201,5 +202,165 @@ describe('the Shopper’s own order', () => {
       headers: other.authHeader,
     });
     expect(questions.statusCode).toBe(403);
+  });
+});
+
+/**
+ * The question by text (16 October 2026): when no device of the Shopper's shows notifications,
+ * the question is texted to their mobile with the two reply words, and SIMILAR or LEAVE texted
+ * back answers it through Twilio's webhook. Nobody's number reaches the other.
+ */
+describe('a question by text', () => {
+  const ORIGIN = 'https://shop.example.test';
+  const TOKEN = 'twilio-auth-token-for-tests';
+  let texts: Array<{ to: string; body: string }>;
+  let pushes: number;
+
+  async function withTexts(options: { push?: boolean } = {}) {
+    texts = [];
+    pushes = 0;
+    const built = await buildTestApp(undefined, {
+      autoOffer: true,
+      env: { primaryOrigin: ORIGIN, twilioAuthToken: TOKEN },
+      sendText: async (to, body) => {
+        texts.push({ to, body });
+      },
+      ...(options.push
+        ? {
+            sendPush: async () => {
+              pushes += 1;
+              return 'sent' as const;
+            },
+          }
+        : {}),
+    });
+    const items = await seedCatalogue(built.repository);
+    const s = await signUpShopper(built);
+    const r = await signUpRunner(built);
+    const placed = await built.app.inject({
+      method: 'POST',
+      url: '/orders',
+      headers: s.authHeader,
+      payload: {
+        lines: [{ catalogueItemId: items.milk, quantity: 2 }],
+        deliveryAddress: '12 Example Street, Birmingham',
+        paymentMethodId: s.paymentMethodId,
+        confirmation: {
+          confirmed: true,
+          addressConfirmed: true,
+          channel: 'button',
+          statement: 'Send my order and pay.',
+          agreedTotalPence: 250 + 100 + 799,
+        },
+      },
+    });
+    const id = (placed.json() as { order: { id: string } }).order.id;
+    const line = (await built.repository.orders.findById(id))!.items[0]!.id;
+    const offer = (await built.repository.offers.listForOrder(id))[0]!;
+    await built.app.inject({
+      method: 'POST',
+      url: `/jobs/${offer.id}/accept`,
+      headers: r.authHeader,
+    });
+    await built.app.inject({
+      method: 'POST',
+      url: `/orders/${id}/status`,
+      headers: r.authHeader,
+      payload: { status: 'shopping' },
+    });
+    return {
+      built,
+      s,
+      r,
+      id,
+      ask: () =>
+        built.app.inject({
+          method: 'POST',
+          url: `/orders/${id}/questions`,
+          headers: r.authHeader,
+          payload: { orderItemId: line },
+        }),
+      text: (from: string, body: string) => {
+        const path = '/api/webhooks/twilio/sms';
+        const params = { From: from, Body: body };
+        return built.app.inject({
+          method: 'POST',
+          url: path,
+          headers: {
+            'content-type': 'application/x-www-form-urlencoded',
+            'x-twilio-signature': twilioSignature(TOKEN, `${ORIGIN}${path}`, params),
+          },
+          payload: new URLSearchParams(params).toString(),
+        });
+      },
+    };
+  }
+
+  it('texts the Shopper the question, the reply words and the five minutes, with no numbers in it', async () => {
+    const { ask, built } = await withTexts();
+    expect((await ask()).statusCode).toBe(201);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    // The order's own progress texts aside, one text: the question.
+    const asked = texts.filter((text) => text.body.includes("can't find"));
+    expect(asked).toHaveLength(1);
+    expect(asked[0]!.to).toBe('+447700900001');
+    expect(asked[0]!.body).toMatch(
+      /^Ozi Delivery: Tomasz can't find .*[Mm]ilk.*\. Reply SIMILAR for something similar, or LEAVE to leave it out\. If we don't hear from you in 5 minutes, it will be left out and you won't be charged for it\.$/,
+    );
+    expect(asked[0]!.body).not.toMatch(/\+44|07\d{3}/);
+    await built.close();
+  });
+
+  it('does not text when the Shopper has a device that shows notifications', async () => {
+    const { ask, built, s } = await withTexts({ push: true });
+    await built.app.inject({
+      method: 'POST',
+      url: '/push-subscriptions',
+      headers: s.authHeader,
+      payload: {
+        endpoint: 'https://fcm.googleapis.com/fcm/send/abc123',
+        keys: { p256dh: 'BPublicKeyOfTheBrowser', auth: 'authsecret' },
+      },
+    });
+    await ask();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(pushes).toBeGreaterThan(0);
+    expect(texts.filter((text) => text.body.includes("can't find"))).toHaveLength(0);
+    await built.close();
+  });
+
+  it('takes SIMILAR texted back as the answer, and says so to the Runner', async () => {
+    const { ask, built, text, id, r } = await withTexts();
+    await ask();
+    const replied = await text('+447700900001', 'similar');
+    expect(replied.statusCode).toBe(200);
+    expect(replied.body).toMatch(
+      /<Message>Ozi Delivery: Thank you\. Your Runner will bring something similar for the .*<\/Message>/,
+    );
+    const runnerSees = await built.app.inject({
+      method: 'GET',
+      url: `/orders/${id}/questions`,
+      headers: r.authHeader,
+    });
+    expect(runnerSees.json().questions[0]).toMatchObject({
+      answer: 'similar',
+      answeredBy: 'shopper',
+    });
+    await built.close();
+  });
+
+  it('takes LEAVE as leave it out, and says when nothing is waiting', async () => {
+    const { ask, built, text } = await withTexts();
+    expect((await text('+447700900001', 'LEAVE')).body).toMatch(/no question waiting/);
+    await ask();
+    expect((await text('+447700900001', 'Leave it out')).body).toMatch(/will leave it out for the/);
+    // A stranger's text, or any other words, are answered as before: texts are not read.
+    expect((await text('+447700900555', 'similar')).body).toMatch(
+      /texts to this number are not read/,
+    );
+    expect((await text('+447700900001', 'hello')).body).toMatch(
+      /texts to this number are not read/,
+    );
+    await built.close();
   });
 });

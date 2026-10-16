@@ -232,8 +232,8 @@
       "topic": "prices",
       "when": ["what are our prices", "price list"],
       "replies": [
-        "Delivery {smallFee} or {fee} pay as you go, {memberFee} members, {plusFee} Plus; item charges from {itemCharge}; plans {membership}, {plusPrice} and {familyPrice}; Shop Partner {partnerPlan}, Spotlight {spotlight}, Spotlight Plus {spotlightPlus}, sir.",
-        "Delivery is {smallFee} or {fee} pay as you go, {memberFee} for members, {plusFee} on Plus, sir."
+        "Delivery {smallFee}, {middleFee} or {fee} pay as you go by the size of the shop, {memberFee} or {memberLargeFee} members, {plusFee} or {plusLargeFee} Plus; item charges from {itemCharge}; plans {membership}, {plusPrice} and {familyPrice}; Shop Partner {partnerPlan}, Spotlight {spotlight}, Spotlight Plus {spotlightPlus}, sir.",
+        "Delivery is {smallFee}, {middleFee} or {fee} pay as you go, {memberFee} or {memberLargeFee} for members, {plusFee} or {plusLargeFee} on Plus, by the size of the shop, sir."
       ]
     },
     {
@@ -528,7 +528,7 @@
       "topic": "money",
       "when": ["is the fee the same for everyone", "does anyone pay more for delivery"],
       "replies": [
-        "By plan and size only, sir: {smallFee} up to {smallUpTo} and {fee} above pay as you go, {memberFee} members, {plusFee} Plus. Never by time or demand.",
+        "By plan and size only, sir: pay as you go {paygDelivery}; members {memberDelivery}; Plus {plusDelivery}. Never by time or demand.",
         "By plan and size, never surge, sir."
       ]
     },
@@ -654,8 +654,8 @@
       "topic": "money",
       "when": ["does plus change the delivery fee", "do members get cheaper delivery"],
       "replies": [
-        "Yes, sir. Members pay {memberFee} and Plus {plusFee} for delivery, by your ruling of the ninth of October. Item charges stay on every plan.",
-        "Plus brings delivery to {plusFee}, sir."
+        "Yes, sir. Members pay {memberDelivery}, and Plus {plusDelivery}, by your rulings of the ninth and sixteenth of October. Item charges stay on every plan.",
+        "Plus brings delivery to {plusFee} for shopping up to {largeUpTo}, sir."
       ]
     },
     {

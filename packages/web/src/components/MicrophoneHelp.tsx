@@ -57,7 +57,7 @@ export function MicrophoneHelp(): JSX.Element | null {
       {inApp && (
         <section
           aria-label="Open in your browser"
-          className="rounded-xl border-4 border-highlight bg-paper text-ink p-4 space-y-3"
+          className="rounded-2xl border-4 border-highlight bg-paper text-ink p-4 space-y-3"
         >
           <p className="m-0 text-lead font-bold">{openElsewhereBanner(ozi.browser, assistant)}</p>
           <div className="flex flex-wrap gap-2">
@@ -71,7 +71,7 @@ export function MicrophoneHelp(): JSX.Element | null {
               Copy the link
             </button>
             {chrome && (
-              <a href={chrome} className="control bg-highlight text-ink underline">
+              <a href={chrome} className="control bg-highlight text-on-accent underline">
                 Open in Chrome
               </a>
             )}
@@ -94,7 +94,7 @@ export function MicrophoneHelp(): JSX.Element | null {
           <button
             type="button"
             onClick={ozi.tapToTalk}
-            className="control w-full max-w-xl bg-[var(--colour-listening)] text-ink text-display font-bold border-4 border-ink py-6"
+            className="control w-full max-w-xl bg-listening text-on-accent text-display font-bold border-4 border-on-accent py-6"
           >
             {tapToTalkLabel(assistant)}
           </button>
@@ -106,7 +106,7 @@ export function MicrophoneHelp(): JSX.Element | null {
       {note && (
         <div
           role="status"
-          className="rounded-xl border-4 border-highlight bg-paper text-ink p-4 flex flex-wrap items-start gap-3"
+          className="rounded-2xl border-4 border-highlight bg-paper text-ink p-4 flex flex-wrap items-start gap-3"
         >
           <p className="m-0 flex-1 min-w-[12rem] text-lead">{note.text}</p>
           <button

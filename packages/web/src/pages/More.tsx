@@ -53,7 +53,7 @@ export function More(): JSX.Element {
           <li key={link.to}>
             <Link
               to={link.to}
-              className="block border-2 border-paper rounded-xl p-4 text-paper no-underline"
+              className="block border-2 border-paper rounded-2xl p-4 text-paper no-underline"
             >
               <span className="block text-lead font-bold underline">{link.name}</span>
               <span className="block extra">{link.about}</span>

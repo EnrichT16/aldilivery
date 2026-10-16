@@ -48,7 +48,7 @@ export function Gifts(): JSX.Element {
           <li key={gift.id}>
             <article
               aria-labelledby={`gift-${gift.id}`}
-              className="space-y-3 border-2 border-paper rounded-xl p-4"
+              className="space-y-3 border-2 border-paper rounded-2xl p-4"
             >
               <h2 id={`gift-${gift.id}`} className="text-lead font-bold m-0">
                 {gift.name}
@@ -58,7 +58,7 @@ export function Gifts(): JSX.Element {
               <button
                 type="button"
                 onClick={() => void add(gift)}
-                className="control w-full bg-highlight text-ink"
+                className="control w-full bg-highlight text-on-accent"
               >
                 Add this gift to my basket
               </button>

@@ -15,6 +15,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import { App } from '../src/App';
+import { storeConfig } from '../src/config';
 import { pairsAloud, inPairs } from '../src/lib/phone-aloud';
 import { spokenDigits, spokenName, yesOrNo } from '../src/state/voice-sign-up';
 import { setVoiceEngine, type SpeakOutcome } from '../src/voice';
@@ -67,7 +68,7 @@ describe('the switch, and turning talking off and on by voice', () => {
     stubApi();
     const user = userEvent.setup();
     renderAt('/shop');
-    const toggle = screen.getByRole('switch', { name: 'Ozi talks and listens' });
+    const toggle = screen.getByRole('switch', { name: 'Ozi talks out loud' });
     expect(toggle).toHaveAttribute('aria-checked', 'true');
     await listening(engine);
 
@@ -79,7 +80,7 @@ describe('the switch, and turning talking off and on by voice', () => {
     await user.click(toggle);
     expect(toggle).toHaveAttribute('aria-checked', 'true');
     await waitFor(() => {
-      expect(said(engine)).toContain("I'm talking out loud again. Send me, I will deliver.");
+      expect(said(engine)).toContain("I'm talking out loud again.");
     });
   });
 
@@ -102,7 +103,7 @@ describe('the switch, and turning talking off and on by voice', () => {
 
     // Still listening while silent, so it can be turned back on by voice.
     await say(engine, 'Hey Ozi, turn on');
-    expect(said(engine).at(-1)).toBe("I'm talking out loud again. Send me, I will deliver.");
+    expect(said(engine).at(-1)).toBe("I'm talking out loud again.");
     expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true');
   });
 });
@@ -206,9 +207,7 @@ describe('opening an account by talking', () => {
     expect(screen.getByRole('heading', { name: 'Set up your account' })).toBeInTheDocument();
 
     await say(engine, 'My name is margaret');
-    expect(said(engine).at(-1)).toBe(
-      "Thank you, Margaret. What's your phone number? A mobile or a landline.",
-    );
+    expect(said(engine).at(-1)).toBe("Thank you, Margaret. What's your mobile number?");
     expect(screen.getByLabelText('Your name')).toHaveValue('Margaret');
 
     await say(engine, 'oh seven seven double oh nine double oh one two three');
@@ -284,17 +283,39 @@ describe('when the browser will not let Ozi speak first', () => {
     const user = userEvent.setup();
     renderAt('/');
 
-    const notice = await screen.findByRole('button', {
-      name: 'Tap anywhere, and Ozi will talk to you',
-    });
+    const notice = await screen.findByRole('button', { name: 'Tap here to hear Ozi' });
     allowed = true;
     await user.click(notice);
     await waitFor(() => {
-      expect(said(engine)[0]).toMatch(/^Hello, I'm Ozi, your shopping assistant\./);
+      expect(said(engine)[0]).toMatch(/^Hello, I'm Ozi\. Tell me what shopping you need/);
     });
-    expect(
-      screen.queryByRole('button', { name: 'Tap anywhere, and Ozi will talk to you' }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Tap here to hear Ozi' })).not.toBeInTheDocument();
+  });
+
+  it('does not say the introduction again over somebody who has read it and chosen a door', async () => {
+    window.localStorage.removeItem(SETTINGS);
+    const engine = fakeEngine();
+    let allowed = false;
+    const speak = engine.speak.bind(engine);
+    engine.speak = (text, options): Promise<SpeakOutcome> => {
+      if (!allowed) return Promise.resolve('not-spoken');
+      return speak(text, options);
+    };
+    setVoiceEngine(engine);
+    stubApi();
+    const user = userEvent.setup();
+    renderAt('/');
+
+    // The introduction is on the screen, in the live region a screen reader reads.
+    const shown = await screen.findAllByText(/^Hello, I'm Ozi\./);
+    expect(shown.some((element) => element.getAttribute('role') === 'status')).toBe(true);
+    allowed = true;
+    // Choosing a door is getting on with it: the introduction is not said over the top.
+    await user.click(screen.getByRole('link', { name: /^Shopper/ }));
+    expect(await screen.findByRole('heading', { level: 1 })).not.toHaveTextContent(
+      storeConfig.productName,
+    );
+    expect(said(engine).some((text) => text.startsWith('Hello'))).toBe(false);
   });
 });
 
