@@ -27,6 +27,13 @@ So the sentence the server wrote was never shown, and nothing pointed at Twilio.
    `MG…` or a sender name is left alone.
 4. The sign-in page shows the plain sentence and folds the technical reason away under a small
    "Details" disclosure, so the screen stays tidy and a screenshot can still say what failed.
-5. `.github/workflows/live-check.yml`, run by hand from GitHub's Actions tab, makes the same
+5. With the fix live, the same request from outside answered 424 with
+   `{ provider: "twilio", code: 21659 }`: **the number in `TWILIO_FROM` is not one the Twilio
+   account owns** (most likely a personal mobile typed in by mistake). So when Twilio refuses the
+   sender itself (21659, 21212, 21606), the server now tries once more under the sender name
+   `OziDelivery`, which British networks deliver with no number behind it. The setting should
+   still be put right: Twilio Console, Phone Numbers, Manage, Active numbers, and that number
+   goes in `TWILIO_FROM`.
+6. `.github/workflows/live-check.yml`, run by hand from GitHub's Actions tab, makes the same
    requests as the sign-in page from outside and prints status, headers, timing and body. With a
    phone number it asks for a real code (one of that number's three per quarter hour).

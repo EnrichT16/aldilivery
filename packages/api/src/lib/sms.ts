@@ -18,18 +18,37 @@ export interface TwilioSettings {
    * `OziDelivery`, which UK phones show instead of a number.
    */
   from: string;
+  /**
+   * A sender name to try once when Twilio refuses `from` itself, as it does for a number the
+   * account does not own (21659), one typed wrongly (21212) or one that cannot text (21606).
+   * British networks show a name such as `OziDelivery` with no number behind it, so the text
+   * still arrives while the setting is put right (16 October 2026).
+   */
+  fallbackFrom?: string;
 }
 
 export type SendText = (to: string, body: string) => Promise<void>;
+
+/** The sender name for a product: its letters and digits, at most the eleven Twilio allows. */
+export function senderName(productName: string): string {
+  return productName.replace(/[^A-Za-z0-9]/g, '').slice(0, 11);
+}
+
+/** Twilio's numbers for "the sender is the problem", the one fault the fallback name mends. */
+const SENDER_FAULTS = new Set([21212, 21606, 21659]);
 
 export function twilioSender(settings: TwilioSettings, fetchImpl: typeof fetch = fetch): SendText {
   const url = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(settings.accountSid)}/Messages.json`;
   const authorisation = `Basic ${Buffer.from(`${settings.accountSid}:${settings.authToken}`).toString('base64')}`;
 
-  return async (to, body) => {
+  const attempt = async (
+    from: string,
+    to: string,
+    body: string,
+  ): Promise<{ ok: true } | { ok: false; code: number | undefined; detail: string }> => {
     const form = new URLSearchParams({ To: to, Body: body });
-    if (settings.from.startsWith('MG')) form.set('MessagingServiceSid', settings.from);
-    else form.set('From', settings.from);
+    if (from.startsWith('MG')) form.set('MessagingServiceSid', from);
+    else form.set('From', from);
 
     const response = await fetchImpl(url, {
       method: 'POST',
@@ -44,18 +63,31 @@ export function twilioSender(settings: TwilioSettings, fetchImpl: typeof fetch =
       signal: AbortSignal.timeout(10_000),
     });
 
-    if (!response.ok) {
-      // Twilio says what went wrong in `message`, with a numbered `code`. Both go to the
-      // log, never to the person asking: they are about our account, not their phone.
-      let detail = `HTTP ${response.status}`;
-      try {
-        const failure = (await response.json()) as { code?: number; message?: string };
-        detail = `Twilio ${failure.code ?? response.status}: ${failure.message ?? 'no message'}`;
-      } catch {
-        // Not JSON. The status is all there is.
-      }
-      throw new Error(detail);
+    if (response.ok) return { ok: true };
+    // Twilio says what went wrong in `message`, with a numbered `code`. Both go to the
+    // log, never to the person asking: they are about our account, not their phone.
+    let detail = `HTTP ${response.status}`;
+    let code: number | undefined;
+    try {
+      const failure = (await response.json()) as { code?: number; message?: string };
+      code = failure.code;
+      detail = `Twilio ${failure.code ?? response.status}: ${failure.message ?? 'no message'}`;
+    } catch {
+      // Not JSON. The status is all there is.
     }
+    return { ok: false, code, detail };
+  };
+
+  return async (to, body) => {
+    const first = await attempt(settings.from, to, body);
+    if (first.ok) return;
+    const fallback = settings.fallbackFrom;
+    if (fallback && fallback !== settings.from && first.code && SENDER_FAULTS.has(first.code)) {
+      const second = await attempt(fallback, to, body);
+      if (second.ok) return;
+      throw new Error(`${first.detail}; then as ${fallback}: ${second.detail}`);
+    }
+    throw new Error(first.detail);
   };
 }
 

@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CODE_LIMITS } from '../src/routes/auth.js';
 import { isUkMobile, ukPhone } from '../src/lib/phone.js';
-import { codeMessage, twilioSender } from '../src/lib/sms.js';
+import { codeMessage, senderName, twilioSender } from '../src/lib/sms.js';
 import { buildTestApp, type TestHarness } from './helpers.js';
 
 let harness: TestHarness;
@@ -263,6 +263,47 @@ describe('Twilio', () => {
     );
     expect(form.get('MessagingServiceSid')).toBe('MG456');
     expect(form.get('From')).toBeNull();
+  });
+
+  it('tries once more under the sender name when Twilio refuses the number itself', async () => {
+    // 21659 is what Twilio said on 16 October 2026: the number in TWILIO_FROM was not one
+    // the account owned. The text still goes, as OziDelivery, and the setting is fixed later.
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ code: 21659, message: "'From' is not a Twilio phone number" }),
+      })
+      .mockResolvedValueOnce({ ok: true, status: 201, json: async () => ({}) });
+    const send = twilioSender(
+      {
+        accountSid: 'AC123',
+        authToken: 'secret',
+        from: '+447303178410',
+        fallbackFrom: senderName('Ozi Delivery'),
+      },
+      fetchImpl as unknown as typeof fetch,
+    );
+
+    await send('+447700900123', 'Hello');
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    const second = new URLSearchParams(
+      (fetchImpl.mock.calls[1] as unknown as [string, RequestInit])[1].body as string,
+    );
+    expect(second.get('From')).toBe('OziDelivery');
+    expect(senderName('Ozi Delivery')).toHaveLength(11);
+  });
+
+  it('does not retry under the name for a fault that is not the sender', async () => {
+    const fetchImpl = fakeFetch(400, { code: 21608, message: 'The number is unverified' });
+    const send = twilioSender(
+      { accountSid: 'AC123', authToken: 'secret', from: '+447700900000', fallbackFrom: 'Ozi' },
+      fetchImpl as unknown as typeof fetch,
+    );
+    await expect(send('+447700900123', 'Hello')).rejects.toThrow('Twilio 21608');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("fails with Twilio's own reason, for the log", async () => {
