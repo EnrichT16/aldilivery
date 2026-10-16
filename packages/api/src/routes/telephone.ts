@@ -30,7 +30,9 @@ import {
   parseYesNo,
   productAllowed,
   splitItems,
-  wantsToStop, runnerPaymentFor } from '@aldilivery/core';
+  wantsToStop,
+  runnerPaymentFor,
+} from '@aldilivery/core';
 
 import type { CatalogueItem } from '../domain.js';
 import { isUkMobile, ukPhone } from '../lib/phone.js';
@@ -47,6 +49,7 @@ import {
 } from '../lib/twilio-voice.js';
 import { priceLinesInParts } from '../services/basket.js';
 import { CANCEL_PLAN, cancelPlanFor, deliveryPlanFor, freeMonthEnd } from '../services/plans.js';
+import { answerByText } from '../services/questions.js';
 import { skipByText } from '../services/set-runner.js';
 
 /** A conversation is allowed this long, from its last step, before it must start again. */
@@ -233,7 +236,12 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
    * The cost, read aloud: the shopping with its item charges included (prices are always said
    * with them in, ruling 58), then delivery, then the total.
    */
-  function costWords(priced: { goodsPence: number; itemChargesPence: number; feePence: number; totalPence: number }): string {
+  function costWords(priced: {
+    goodsPence: number;
+    itemChargesPence: number;
+    feePence: number;
+    totalPence: number;
+  }): string {
     return `The shopping comes to about ${money(priced.goodsPence + priced.itemChargesPence)}, with the item charges included. Delivery is ${money(priced.feePence)}. So the total is about ${money(priced.totalPence)}`;
   }
 
@@ -944,6 +952,18 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       return reply(
         response,
         `<Response><Message>${escapeXml(`${config.productName}: ${skipped}`)}</Message></Response>`,
+      );
+    }
+    // SIMILAR or LEAVE, texted back to a Runner's question (16 October 2026).
+    const answered = await answerByText(
+      app.ctx,
+      ukPhone(params['From'] ?? '') ?? '',
+      params['Body'] ?? '',
+    ).catch(() => null);
+    if (answered) {
+      return reply(
+        response,
+        `<Response><Message>${escapeXml(`${config.productName}: ${answered}`)}</Message></Response>`,
       );
     }
     const site = env.primaryOrigin ?? '';

@@ -144,6 +144,7 @@ export function SignUp(): JSX.Element {
     },
     finish: create,
     confirmNumber,
+    callsOn: codes?.byCall ?? false,
   });
   const canTalk = ozi.presence === 'listening' || ozi.presence === 'muted';
 

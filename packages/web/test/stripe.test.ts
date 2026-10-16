@@ -5,7 +5,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { createCardPaymentMethod, postcodeFrom } from '../src/lib/stripe';
+import { completeBankCheck, createCardPaymentMethod, postcodeFrom } from '../src/lib/stripe';
 
 describe('finding a postcode in an address', () => {
   it('finds one at the end of an address, and tidies it', () => {
@@ -46,5 +46,42 @@ describe('saving a card with Stripe', () => {
     await createCardPaymentMethod(stripe as never, {} as never);
 
     expect(stripe.createPaymentMethod.mock.calls[0]?.[0]).not.toHaveProperty('billing_details');
+  });
+});
+
+describe('the bank’s own check on a payment (16 October 2026)', () => {
+  it('opens it with the secret the server gave, and says yes when the bank does', async () => {
+    const stripe = { handleNextAction: vi.fn().mockResolvedValue({ paymentIntent: {} }) };
+    const result = await completeBankCheck('pi_1_secret', async () =>
+      Promise.resolve({ ready: true, stripe: stripe as never, supportedRegions: ['GB'] }),
+    );
+    expect(stripe.handleNextAction).toHaveBeenCalledWith({ clientSecret: 'pi_1_secret' });
+    expect(result).toEqual({ ok: true });
+  });
+
+  it('gives the bank’s own words when it says no, and a plain sentence when it gives none', async () => {
+    const refused = await completeBankCheck('pi_1_secret', async () =>
+      Promise.resolve({
+        ready: true,
+        stripe: { handleNextAction: async () => ({ error: { message: 'Declined.' } }) } as never,
+        supportedRegions: ['GB'],
+      }),
+    );
+    expect(refused).toEqual({ ok: false, message: 'Declined.' });
+    const silent = await completeBankCheck('pi_1_secret', async () =>
+      Promise.resolve({
+        ready: true,
+        stripe: { handleNextAction: async () => ({ error: {} }) } as never,
+        supportedRegions: ['GB'],
+      }),
+    );
+    expect(silent).toMatchObject({ ok: false, message: /Your bank did not approve the payment/ });
+  });
+
+  it('has nothing to open in a rehearsal, and lets the order carry on', async () => {
+    const result = await completeBankCheck('pi_1_secret', async () =>
+      Promise.resolve({ ready: false, reason: 'rehearsal' }),
+    );
+    expect(result).toEqual({ ok: true });
   });
 });

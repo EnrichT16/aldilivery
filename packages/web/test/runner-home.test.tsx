@@ -40,6 +40,8 @@ interface State {
   chained?: boolean;
   /** Their place in the fair queue, 0 first (ruling 64). */
   queuePosition?: number;
+  /** Agreed to an earlier version of the agreement (16 October 2026). */
+  agreedBefore?: boolean;
 }
 
 let state: State;
@@ -79,6 +81,7 @@ function stubRunnerApi(): void {
             criminalRecordCheckVerified: state.approved,
             available: state.available,
             agreementCurrent: state.agreed,
+            agreementAcceptedAt: state.agreedBefore ? '2026-10-01T10:00:00.000Z' : null,
           },
         });
       }
@@ -414,9 +417,44 @@ describe('a Runner page', () => {
     const offer = await screen.findByRole('alert');
     expect(offer).toHaveTextContent('A job for you');
     expect(offer).toHaveTextContent(
-      '3 things, about £3.39 of shopping, 0.4 miles away. You get £5.00.',
+      `From ${storeConfig.store.displayName}, 0.4 miles away. 3 things, about £3.39 of shopping. You get £5.00.`,
     );
     expect(offer).not.toHaveTextContent('Example Street');
+    // The seconds left are on the screen, but outside the alert, so a screen reader is not
+    // told the countdown again every few seconds.
+    expect(offer).not.toHaveTextContent('seconds left');
+    expect(screen.getByText(/About 42 seconds left to say yes/)).toBeInTheDocument();
+  });
+
+  it('sends a signed-out Runner to sign in on this phone', () => {
+    renderHome();
+    expect(screen.getByRole('link', { name: 'Sign in as a Runner' })).toHaveAttribute(
+      'href',
+      '/runner/sign-in',
+    );
+  });
+
+  it('shows the documents checklist on Today until the checks are done', async () => {
+    state.approved = false;
+    stubRunnerApi();
+    renderHome();
+    expect(
+      await screen.findByText(
+        /Send your documents below; a person checks them, usually within a few days\./,
+      ),
+    ).toBeInTheDocument();
+    expect(await screen.findByText(/You have sent everything we need/)).toBeInTheDocument();
+  });
+
+  it('says when the agreement has changed since they agreed, before the next job', async () => {
+    state.agreed = false;
+    state.agreedBefore = true;
+    stubRunnerApi();
+    renderHome();
+    expect(
+      await screen.findByRole('heading', { name: 'The Runner agreement has changed' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Please read it and agree before your next job/)).toBeInTheDocument();
   });
 
   it('labels a split job and what it pays before the Runner says yes (ruling 60)', async () => {

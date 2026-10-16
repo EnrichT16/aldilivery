@@ -9,6 +9,7 @@ import {
   requestSignInCode,
   verifySignInCode,
 } from '../lib/api';
+import { writeRunnerToken } from '../lib/session';
 import { useSession } from '../state/session';
 
 /**
@@ -25,15 +26,20 @@ import { useSession } from '../state/session';
  *
  * Like the sign-up form, a problem is said in words at the top and takes focus, so somebody
  * who cannot see the screen is told what happened.
+ *
+ * The same two steps sign a Runner in on a new phone (16 October 2026): the server already
+ * sends Runner codes; `as="runner"` asks for one, keeps the token as the Runner's own, and
+ * goes to their Runner page.
  */
-export function SignIn(): JSX.Element {
+export function SignIn({ as: role = 'shopper' }: { as?: 'shopper' | 'runner' }): JSX.Element {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const { shopper, signedIn } = useSession();
+  const asRunner = role === 'runner';
   // Where to go afterwards: back to the order if that is where they came from. Only a path on
   // this site, never an address somewhere else.
   const requested = params.get('next') ?? '';
-  const next = /^\/[a-z-]*$/.test(requested) ? requested : '/shop';
+  const next = asRunner ? '/runner/home' : /^\/[a-z-]*$/.test(requested) ? requested : '/shop';
 
   const [available, setAvailable] = useState<boolean | null>(null);
   const [byCall, setByCall] = useState(false);
@@ -91,7 +97,7 @@ export function SignIn(): JSX.Element {
     setError('');
     setErrorDetail('');
     try {
-      const result = await requestSignInCode(phone.trim(), { channel: how });
+      const result = await requestSignInCode(phone.trim(), { channel: how, role });
       setSentMessage(result.message);
       setStep('code');
     } catch (failure) {
@@ -116,15 +122,22 @@ export function SignIn(): JSX.Element {
     setErrorDetail('');
     setNoAccount(false);
     try {
-      const result = await verifySignInCode(phone.trim(), code);
+      const result = await verifySignInCode(phone.trim(), code, role);
       if (result.registrationRequired) {
         setNoAccount(true);
         setError(
-          'There is no account on that number yet. You can set one up instead — it takes a minute.',
+          asRunner
+            ? 'There is no Runner account on that number yet. You can sign up to run instead.'
+            : 'There is no account on that number yet. You can set one up instead — it takes a minute.',
         );
         return;
       }
-      await signedIn(result.token);
+      if (asRunner) {
+        // The Runner's own sign-in: any Shopper signed in on this phone stays signed in.
+        writeRunnerToken(result.token);
+      } else {
+        await signedIn(result.token);
+      }
       navigate(next);
     } catch (failure) {
       const problem = describeProblem(failure, 'That code did not work.');
@@ -135,7 +148,7 @@ export function SignIn(): JSX.Element {
     }
   }
 
-  if (shopper) {
+  if (shopper && !asRunner) {
     return (
       <div className="space-y-6">
         <h1 className="text-display font-bold m-0">You are signed in</h1>
@@ -149,7 +162,7 @@ export function SignIn(): JSX.Element {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-display font-bold m-0">Sign in</h1>
+      <h1 className="text-display font-bold m-0">{asRunner ? 'Runner sign in' : 'Sign in'}</h1>
 
       {available === false ? (
         <>
@@ -157,15 +170,19 @@ export function SignIn(): JSX.Element {
             Signing in by text message is not switched on yet. For now, an account can only be used
             on the phone or computer it was set up on.
           </p>
-          <Link to="/sign-up" className="control bg-highlight text-on-accent">
-            Set up an account on this device
+          <Link
+            to={asRunner ? '/runner/sign-up' : '/sign-up'}
+            className="control bg-highlight text-on-accent"
+          >
+            {asRunner ? 'Sign up to run on this device' : 'Set up an account on this device'}
           </Link>
         </>
       ) : (
         <>
           <p className="m-0 max-w-xl">
-            There is no password. We text a code to the mobile number you set up your account with,
-            and you type it in here.
+            There is no password. We text a code to the mobile number you{' '}
+            {asRunner ? 'signed up to run with' : 'set up your account with'}, and you type it in
+            here.
             {byCall &&
               ' With a landline, choose a phone call instead, and a voice will read you the code.'}
           </p>
@@ -205,7 +222,8 @@ export function SignIn(): JSX.Element {
                   Your phone number
                 </label>
                 <p id="sign-in-phone-hint" className="m-0 text-paper/90">
-                  The one you gave when you set up your account, like 07700 900123
+                  The one you gave when you {asRunner ? 'signed up to run' : 'set up your account'},
+                  like 07700 900123
                   {byCall ? ', or your landline' : ''}.
                 </p>
                 <input
@@ -293,9 +311,15 @@ export function SignIn(): JSX.Element {
             </form>
           )}
 
-          <Link to="/sign-up" className="control bg-paper/10 text-paper underline">
-            New to {storeConfig.productName}? Set up an account
-          </Link>
+          {asRunner ? (
+            <Link to="/runner/sign-up" className="control bg-paper/10 text-paper underline">
+              New to running for {storeConfig.productName}? Sign up to run
+            </Link>
+          ) : (
+            <Link to="/sign-up" className="control bg-paper/10 text-paper underline">
+              New to {storeConfig.productName}? Set up an account
+            </Link>
+          )}
         </>
       )}
     </div>

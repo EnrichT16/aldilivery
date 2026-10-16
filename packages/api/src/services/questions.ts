@@ -79,3 +79,66 @@ export async function settle(
     answeredAt: new Date(deadline),
   });
 }
+
+/** The two reply words a Shopper can text back (16 October 2026), and what each means. */
+export const TEXT_REPLIES: Array<{ pattern: RegExp; answer: ItemAnswer }> = [
+  { pattern: /^\s*similar\b/i, answer: 'similar' },
+  { pattern: /^\s*leave(\s+it)?(\s+out)?\b/i, answer: 'leave_out' },
+];
+
+const ANSWER_WORDS: Record<ItemAnswer, string> = {
+  similar: 'bring something similar',
+  leave_out: 'leave it out',
+};
+
+/**
+ * The text a Shopper gets when their Runner asks and no device of theirs shows notifications:
+ * the question, the two reply words, and what happens if nobody answers in time.
+ */
+export function questionText(runnerFirstName: string, itemName: string): string {
+  const minutes = Math.round(QUESTION_WAIT_SECONDS / 60);
+  return `${runnerFirstName} can't find ${itemName}. Reply SIMILAR for something similar, or LEAVE to leave it out. If we don't hear from you in ${minutes} minutes, it will be left out and you won't be charged for it.`;
+}
+
+/**
+ * A reply texted back from the Shopper's number: SIMILAR or LEAVE answers the oldest question
+ * still waiting on their order. Null when the text is not one of those words, or the number is
+ * not a Shopper's; otherwise the words to text back.
+ */
+export async function answerByText(
+  deps: { repository: Repository; now: () => Date },
+  phone: string,
+  text: string,
+): Promise<string | null> {
+  const match = TEXT_REPLIES.find(({ pattern }) => pattern.test(text));
+  if (!match) return null;
+  const { repository, now } = deps;
+  const shopper = await repository.shoppers.findByPhone(phone);
+  if (!shopper) return null;
+  const orders = (await repository.orders.listForShopper(shopper.id)).filter(
+    (order) => !['draft', 'confirmed', 'cancelled', 'refunded'].includes(order.status),
+  );
+  const rows = (
+    await Promise.all(
+      orders.map(async (order) =>
+        order.splitAt ? [order, ...(await repository.orders.listParts(order.id))] : [order],
+      ),
+    )
+  ).flat();
+  const waiting = (
+    await Promise.all(rows.map((row) => questionsForOrder(repository, row.id, now())))
+  )
+    .flat()
+    .filter((question) => question.answer === null)
+    .sort((a, b) => a.askedAt.getTime() - b.askedAt.getTime());
+  const question = waiting[0];
+  if (!question) {
+    return 'There is no question waiting from your Runner just now.';
+  }
+  await repository.itemQuestions.update(question.id, {
+    answer: match.answer,
+    answeredBy: 'shopper',
+    answeredAt: now(),
+  });
+  return `Thank you. Your Runner will ${ANSWER_WORDS[match.answer]} for the ${question.itemName}.`;
+}

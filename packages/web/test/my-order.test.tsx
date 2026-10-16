@@ -3,13 +3,16 @@
  * shelf — on their own screen, with no phone numbers passed between them.
  */
 
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
+import { spokenAnswer } from '../src/pages/MyOrder';
+import { setVoiceEngine } from '../src/voice';
+import { fakeEngine } from './fake-voice';
 import { FAKE_SHOPPER } from './setup';
 
 const alert = vi.hoisted(() => ({ chime: vi.fn(), buzz: vi.fn() }));
@@ -212,6 +215,73 @@ describe('a question from the Runner', () => {
       rules: { 'color-contrast': { enabled: false } },
     } as axe.RunOptions);
     expect(results.violations.map((v) => v.id)).toEqual([]);
+  });
+});
+
+describe('a question asked aloud (16 October 2026)', () => {
+  it('hears the two answers in everyday words', () => {
+    expect(spokenAnswer('similar')).toBe('similar');
+    expect(spokenAnswer('something similar please')).toBe('similar');
+    expect(spokenAnswer('leave it out')).toBe('leave_out');
+    expect(spokenAnswer('just leave it')).toBe('leave_out');
+    expect(spokenAnswer('pardon')).toBeNull();
+  });
+
+  it('Ozi says the question and listens, and the spoken answer is sent', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    state.question = { answer: null, answeredBy: null };
+    stubShopperApi();
+    renderOrder();
+    await screen.findByRole('alert');
+    await waitFor(() => {
+      expect(engine.spoken.map((s) => s.text)).toContain(
+        "Tomasz can't find White sliced bread, 800g. Say 'similar' or 'leave it out'.",
+      );
+    });
+    await waitFor(() => {
+      expect(engine.listening).not.toBeNull();
+    });
+    act(() => {
+      engine.hear('leave it out');
+    });
+    await waitFor(() => {
+      expect(state.sent.find((r) => r.path.endsWith('/answer'))?.body).toEqual({
+        answer: 'leave_out',
+      });
+    });
+    // On the screen, as the page's news and as Ozi's words, and said aloud.
+    expect(
+      (await screen.findAllByText('Thank you. Your Runner will leave it out.')).length,
+    ).toBeGreaterThan(0);
+    expect(engine.spoken.at(-1)?.text).toBe('Thank you. Your Runner will leave it out.');
+  });
+
+  it('asks once more when it did not catch the answer, then leaves the buttons', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    state.question = { answer: null, answeredBy: null };
+    stubShopperApi();
+    renderOrder();
+    await screen.findByRole('alert');
+    await waitFor(() => {
+      expect(engine.listening).not.toBeNull();
+    });
+    act(() => {
+      engine.hear('the blue one');
+    });
+    await waitFor(() => {
+      expect(engine.spoken.at(-1)?.text).toMatch(
+        /^Sorry, I didn't catch that\. Say similar, or leave it out\./,
+      );
+    });
+    act(() => {
+      engine.hear('the green one');
+    });
+    await waitFor(() => {
+      expect(engine.spoken.at(-1)?.text).toMatch(/The two buttons are on the screen/);
+    });
+    expect(state.sent.some((r) => r.path.endsWith('/answer'))).toBe(false);
   });
 });
 

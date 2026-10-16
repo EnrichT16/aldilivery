@@ -94,8 +94,8 @@ export function RunnerDoor(): JSX.Element {
       <Link to="/runner/sign-up" className="control bg-highlight text-on-accent text-lead">
         Start signing up as a Runner
       </Link>
-      <Link to="/runner/home" className="control bg-paper/10 text-paper underline">
-        Already signed up? Go to your Runner page
+      <Link to="/runner/sign-in" className="control bg-paper/10 text-paper underline">
+        Already signed up? Sign in to your Runner page
       </Link>
     </div>
   );

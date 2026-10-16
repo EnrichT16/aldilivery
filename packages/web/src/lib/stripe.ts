@@ -50,6 +50,31 @@ export function prepareCardEntry(): Promise<CardSetup> {
   return cached;
 }
 
+/**
+ * The bank's own check on a payment, when it asks for one (Confirm.tsx does the same steps with
+ * a card order). The server has left the order unpaid and handed back a client secret; Stripe
+ * opens the bank's screen and says how it went. Without Stripe here (a rehearsal, no key, or a
+ * blocked script) there is nothing to open, and the webhook settles the order as usual.
+ */
+export async function completeBankCheck(
+  clientSecret: string,
+  /** How Stripe is reached; the tests hand in a stand-in. */
+  prepare: () => Promise<CardSetup> = prepareCardEntry,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const setup = await prepare();
+  if (!setup.ready) return { ok: true };
+  const outcome = await setup.stripe.handleNextAction({ clientSecret });
+  if (outcome.error) {
+    return {
+      ok: false,
+      message:
+        outcome.error.message ??
+        'Your bank did not approve the payment. Nothing has been taken, and your order has not been sent.',
+    };
+  }
+  return { ok: true };
+}
+
 /** For tests, which must not share a memoised Stripe between cases. */
 export function forgetCardEntry(): void {
   cached = null;

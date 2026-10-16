@@ -45,6 +45,7 @@ import { PayoutChoice } from '../components/PayoutChoice';
 import { RunnerSos } from '../components/RunnerSos';
 import { DemoBanner } from '../components/DemoBanner';
 import { TillPayment } from '../components/TillPayment';
+import { buzz, chime } from '../lib/alert';
 import { money } from '../lib/money';
 import { preparePhoto, type ReadyPhoto } from '../lib/photo';
 import { clearRunnerToken, readRunnerToken } from '../lib/session';
@@ -132,6 +133,8 @@ export function RunnerHome(): JSX.Element {
   // Raised by "Cannot find it", which starts the call in the same tap (Section H).
   const [ringNow, setRingNow] = useState(0);
   const problemRef = useRef<HTMLParagraphElement>(null);
+  // Offers already chimed for, so a new one sounds once and a look every few seconds is silent.
+  const heardOffers = useRef(new Set<string>());
 
   const approved = runner
     ? runner.rightToWorkVerified && runner.criminalRecordCheckVerified
@@ -171,7 +174,15 @@ export function RunnerHome(): JSX.Element {
       // Offers come while free, and on the way to the door, when the job next door may be
       // chained to this Runner (ruling 64).
       if (me.runner.available && (!current.job || current.job.status === 'delivering')) {
-        setOffers((await fetchOfferedJobs()).offers);
+        const offered = (await fetchOfferedJobs()).offers;
+        setOffers(offered);
+        // A new offer chimes and buzzes, once (16 October 2026), for a phone in a pocket.
+        const fresh = offered.filter((entry) => !heardOffers.current.has(entry.offer.id));
+        fresh.forEach((entry) => heardOffers.current.add(entry.offer.id));
+        if (fresh.length > 0) {
+          chime();
+          buzz();
+        }
       } else {
         setOffers([]);
       }
@@ -242,10 +253,13 @@ export function RunnerHome(): JSX.Element {
       <div className="space-y-6">
         <h1 className="text-display font-bold m-0">Your Runner page</h1>
         <p className="m-0 max-w-xl">
-          You are not signed in as a Runner on this device. For now, a Runner stays signed in on the
-          phone or computer they signed up on.
+          You are not signed in as a Runner on this device. If you have signed up already, sign in
+          with your mobile number and we text you a code.
         </p>
-        <Link to="/runner/sign-up" className="control bg-highlight text-on-accent">
+        <Link to="/runner/sign-in" className="control bg-highlight text-on-accent">
+          Sign in as a Runner
+        </Link>
+        <Link to="/runner/sign-up" className="control bg-paper/10 text-paper underline">
           Sign up to run
         </Link>
       </div>
@@ -347,8 +361,8 @@ export function RunnerHome(): JSX.Element {
                 Waiting for your checks
               </h2>
               <p className="m-0">
-                You can go on shift once a person at {storeConfig.productName} has seen both of
-                these. We will contact you to arrange it.
+                Send your documents below; a person checks them, usually within a few days. You can
+                go on shift once both of these are done.
               </p>
               <ul className="m-0 ps-6 space-y-2">
                 <li>
@@ -359,6 +373,7 @@ export function RunnerHome(): JSX.Element {
                   Criminal record check: {runner.criminalRecordCheckVerified ? 'done' : 'not yet'}.
                 </li>
               </ul>
+              <DocumentsChecklist onNews={setNews} />
             </section>
           ) : job ? (
             <>
@@ -389,6 +404,7 @@ export function RunnerHome(): JSX.Element {
             <>
               {runner.agreementCurrent === false && (
                 <AgreeFirst
+                  changed={Boolean(runner.agreementAcceptedAt)}
                   busy={busy}
                   onAgree={(channel) => {
                     void act(async () => {
@@ -509,55 +525,58 @@ function JobOffer({
   onNews: (text: string) => void;
 }): JSX.Element {
   return (
-    <section
-      role="alert"
-      aria-labelledby="offer-heading"
-      className="space-y-3 max-w-xl border-2 border-highlight rounded-2xl p-4"
-    >
-      <h2 id="offer-heading" className="text-lead font-bold m-0">
-        {offer.job.split
-          ? offer.job.split.label
-          : offer.chained
-            ? 'Your next job'
-            : 'A job for you'}
-      </h2>
-      {offer.chained && offer.chainedWords && <p className="m-0">{offer.chainedWords}</p>}
-      {offer.job.split && <p className="m-0 font-bold">{offer.job.split.earnWords}</p>}
-      {offer.job.split && <p className="m-0">{offer.job.split.rest}</p>}
-      <p className="m-0">
-        {offer.job.itemCount} {offer.job.itemCount === 1 ? 'thing' : 'things'}, about{' '}
-        {money(offer.job.goodsEstimatePence)} of shopping
-        {offer.job.distanceMiles !== null
-          ? `, ${offer.job.distanceMiles.toFixed(1)} miles ${offer.chained ? 'from this door' : 'away'}`
-          : ''}
-        . You get {money(offer.job.runnerPaymentPence)}.
-      </p>
-      <p className="m-0">About {offer.secondsLeft} seconds left to say yes.</p>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => {
-          void act(async () => {
-            const taken = await acceptJob(offer.offer.id);
-            // How to pay at the till for this one: the card loaded, or their own.
-            onNews(taken.till ? `The job is yours. ${taken.till.message}` : 'The job is yours.');
-          }, '');
-        }}
-        className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
+    <>
+      <section
+        role="alert"
+        aria-labelledby="offer-heading"
+        className="space-y-3 max-w-xl border-2 border-highlight rounded-2xl p-4"
       >
-        Take this job
-      </button>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => {
-          void act(() => declineJob(offer.offer.id), 'No problem. It will go to somebody else.');
-        }}
-        className="control bg-paper/10 text-paper underline"
-      >
-        Not this one
-      </button>
-    </section>
+        <h2 id="offer-heading" className="text-lead font-bold m-0">
+          {offer.job.split
+            ? offer.job.split.label
+            : offer.chained
+              ? 'Your next job'
+              : 'A job for you'}
+        </h2>
+        {offer.chained && offer.chainedWords && <p className="m-0">{offer.chainedWords}</p>}
+        {offer.job.split && <p className="m-0 font-bold">{offer.job.split.earnWords}</p>}
+        {offer.job.split && <p className="m-0">{offer.job.split.rest}</p>}
+        <p className="m-0">
+          From {storeConfig.store.displayName}
+          {offer.job.distanceMiles !== null
+            ? `, ${offer.job.distanceMiles.toFixed(1)} miles ${offer.chained ? 'from this door' : 'away'}`
+            : ''}
+          . {offer.job.itemCount} {offer.job.itemCount === 1 ? 'thing' : 'things'}, about{' '}
+          {money(offer.job.goodsEstimatePence)} of shopping. You get{' '}
+          {money(offer.job.runnerPaymentPence)}.
+        </p>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            void act(async () => {
+              const taken = await acceptJob(offer.offer.id);
+              // How to pay at the till for this one: the card loaded, or their own.
+              onNews(taken.till ? `The job is yours. ${taken.till.message}` : 'The job is yours.');
+            }, '');
+          }}
+          className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
+        >
+          Take this job
+        </button>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            void act(() => declineJob(offer.offer.id), 'No problem. It will go to somebody else.');
+          }}
+          className="control bg-paper/10 text-paper underline"
+        >
+          Not this one
+        </button>
+      </section>
+      <p className="m-0 max-w-xl">About {offer.secondsLeft} seconds left to say yes.</p>
+    </>
   );
 }
 
@@ -1047,9 +1066,12 @@ function payBackWords(status: 'paid' | 'waiting' | 'owed', pence: number): strin
  */
 function AgreeFirst({
   busy,
+  changed = false,
   onAgree,
 }: {
   busy: boolean;
+  /** They agreed to an earlier version: the agreement has changed since (16 October 2026). */
+  changed?: boolean;
   onAgree: (channel: 'button' | 'voice') => void;
 }): JSX.Element {
   const [ticked, setTicked] = useState(false);
@@ -1057,12 +1079,12 @@ function AgreeFirst({
   return (
     <section aria-labelledby="agree-heading" className="space-y-3 max-w-xl">
       <h2 id="agree-heading" className="text-lead font-bold">
-        Before your first job
+        {changed ? 'The Runner agreement has changed' : 'Before your first job'}
       </h2>
       <p className="m-0">
-        Please read the Runner agreement and say you agree to it. It says how you are paid, that we
-        pay you back for the shopping straight away, and what happens if something goes wrong. No
-        job is offered to you until you have agreed.
+        {changed
+          ? 'The Runner agreement has changed. Please read it and agree before your next job. No job is offered to you until you have agreed.'
+          : 'Please read the Runner agreement and say you agree to it. It says how you are paid, that we pay you back for the shopping straight away, and what happens if something goes wrong. No job is offered to you until you have agreed.'}
       </p>
       <Link to="/runner/agreement" className="control bg-paper/10 text-paper underline">
         Read the Runner agreement

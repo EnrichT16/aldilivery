@@ -207,9 +207,7 @@ describe('opening an account by talking', () => {
     expect(screen.getByRole('heading', { name: 'Set up your account' })).toBeInTheDocument();
 
     await say(engine, 'My name is margaret');
-    expect(said(engine).at(-1)).toBe(
-      "Thank you, Margaret. What's your phone number? A mobile or a landline.",
-    );
+    expect(said(engine).at(-1)).toBe("Thank you, Margaret. What's your mobile number?");
     expect(screen.getByLabelText('Your name')).toHaveValue('Margaret');
 
     await say(engine, 'oh seven seven double oh nine double oh one two three');
