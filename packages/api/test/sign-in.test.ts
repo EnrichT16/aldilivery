@@ -292,7 +292,7 @@ describe('Twilio', () => {
     const second = new URLSearchParams(
       (fetchImpl.mock.calls[1] as unknown as [string, RequestInit])[1].body as string,
     );
-    expect(second.get('From')).toBe('OziDelivery');
+    expect(second.get('From')).toBe('SomeShopRun');
     expect(senderName('Some Shop Runs')).toBe('SomeShopRun');
   });
 
