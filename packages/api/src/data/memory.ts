@@ -88,7 +88,12 @@ class NotFoundError extends Error {
   }
 }
 
-export function memoryRepository(): Repository {
+/**
+ * Everything in memory, for the tests and for a server with no database. The clock is the
+ * application's own (`options.now`), so a test that moves time forward sees orders made "then",
+ * not stamped with the wall clock while the rest of the application believes another day.
+ */
+export function memoryRepository(options: { now?: () => Date } = {}): Repository {
   const shoppers = new Map<string, Shopper>();
   const runners = new Map<string, Runner>();
   const organisations = new Map<string, Organisation>();
@@ -131,7 +136,7 @@ export function memoryRepository(): Repository {
   const auditEntries: AuditEntry[] = [];
   const cardAuthorizations = new Map<string, CardAuthorization>();
 
-  const now = (): Date => new Date();
+  const now = (): Date => options.now?.() ?? new Date();
 
   return {
     shoppers: {
@@ -953,6 +958,7 @@ export function memoryRepository(): Repository {
           completedAt: null,
           cancelledAt: null,
           cancelReason: null,
+          goodwillRefundedPence: 0,
           items,
         };
         orders.set(order.id, order);

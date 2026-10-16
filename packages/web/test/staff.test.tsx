@@ -11,6 +11,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
+import { openPage } from './staff-tabs';
 
 interface Sent {
   method: string;
@@ -167,6 +168,11 @@ function renderStaff() {
 }
 
 async function signIn(user: ReturnType<typeof userEvent.setup>, key = 'right-key') {
+  // The founder's way in is offered only once a staff username has been typed.
+  expect(
+    screen.queryByRole('button', { name: 'Founder: sign in with the staff key' }),
+  ).not.toBeInTheDocument();
+  await user.type(screen.getByLabelText('Username'), 'anthony');
   await user.click(screen.getByRole('button', { name: 'Founder: sign in with the staff key' }));
   await user.type(screen.getByLabelText('Your name, recorded with each decision'), 'Anthony');
   await user.type(screen.getByLabelText('Staff key'), key);
@@ -205,6 +211,7 @@ describe('the panel', () => {
     const user = userEvent.setup();
     renderStaff();
     await signIn(user);
+    await openPage(user, 'Documents');
     const card = await screen.findByRole('article', { name: /Motor insurance, from Tomasz/ });
     await expectAccessible();
     await user.click(within(card).getByRole('button', { name: 'Show the photo' }));
@@ -224,7 +231,7 @@ describe('the panel', () => {
     const user = userEvent.setup();
     renderStaff();
     await signIn(user);
-    await user.click(await screen.findByRole('button', { name: 'Problems' }));
+    await openPage(user, 'Problems');
     const card = await screen.findByRole('article', { name: /Half the shopping was missing/ });
     expect(within(card).getByText(/They asked for £8.00 back/)).toBeInTheDocument();
     expect(within(card).getByText(/One bag only/)).toBeInTheDocument();
@@ -253,7 +260,7 @@ describe('the panel', () => {
     const user = userEvent.setup();
     renderStaff();
     await signIn(user);
-    await user.click(await screen.findByRole('button', { name: 'Money owed' }));
+    await openPage(user, 'Money owed');
     expect(await screen.findByText(/Ola \(RZZ99XY1\) owes £25.00/)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /write off £25.00/ })).not.toBeInTheDocument();
     await expectAccessible();
@@ -268,7 +275,7 @@ describe('the panel', () => {
     const user = userEvent.setup();
     renderStaff();
     await signIn(user);
-    await user.click(await screen.findByRole('button', { name: 'Feedback' }));
+    await openPage(user, 'Feedback');
     expect(await screen.findByText('A shop map would help.')).toBeInTheDocument();
     expect(screen.getByText(/From Tomasz \(RAB12CD3\)/)).toBeInTheDocument();
     expect(screen.getByText(/Sent without a name/)).toBeInTheDocument();

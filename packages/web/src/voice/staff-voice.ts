@@ -8,6 +8,7 @@
  */
 
 import type {
+  NeedsYouCard,
   OwnerMoney,
   ProblemDecision,
   StaffOverview,
@@ -43,7 +44,8 @@ export interface StaffLists {
   partners?: StaffPartnerProduct[];
   /** Numbers, not a list to work through. */
   analytics?: never[];
-  overview?: never[];
+  /** What needs a person now, most urgent first (16 October 2026 review): read before the rest. */
+  overview?: NeedsYouCard[];
   money?: never[];
   team?: TeamMember[];
   /** What Ozi could not answer, waiting for an answer (ruling 49). */
@@ -90,7 +92,7 @@ export const AREA_WORDS: Record<StaffArea, { one: string; many: string; tab: str
     tab: 'Shops and organisations',
   },
   analytics: { one: 'report', many: 'reports', tab: 'Analytics' },
-  overview: { one: 'figure', many: 'figures', tab: 'Overview' },
+  overview: { one: 'thing that needs you', many: 'things that need you', tab: 'Needs you now' },
   money: { one: 'payment', many: 'payments', tab: 'Money' },
   team: { one: 'person on the team', many: 'people on the team', tab: 'Team' },
   payments: {
@@ -147,10 +149,54 @@ export function summary(
     parts.push(part);
   }
   const opening = `${greeting(now)}, ${name}. You're signed in as ${title}.`;
+  // What needs a person now comes first, in its own order, for whoever has the first screen.
+  const urgent =
+    areas.includes('overview') && lists.overview && lists.overview.length > 0
+      ? ` ${needsYouWords(lists.overview)}`
+      : '';
   if (parts.length === 0) {
-    return `${opening} Nothing is waiting for you right now. Say "help" to hear what I can do.`;
+    return urgent
+      ? `${opening}${urgent} Say "help" to hear what I can do.`
+      : `${opening} Nothing is waiting for you right now. Say "help" to hear what I can do.`;
   }
-  return `${opening} You have ${listWords(parts)}. Say, for example, "read me the ${firstNoun(areas, lists)}", or "help".`;
+  return `${opening}${urgent} You have ${listWords(parts)}. Say, for example, "read me the ${firstNoun(areas, lists)}", or "help".`;
+}
+
+/** One, two, three, up to twelve, then figures. */
+function countWords(count: number): string {
+  const words = [
+    'no',
+    'one',
+    'two',
+    'three',
+    'four',
+    'five',
+    'six',
+    'seven',
+    'eight',
+    'nine',
+    'ten',
+    'eleven',
+    'twelve',
+  ];
+  return words[count] ?? String(count);
+}
+
+/**
+ * What needs a person now, in one breath and in the server's order (an SOS first, then orders
+ * waiting for a Runner, bank transfers, Runner pay-backs, problems, documents): "Two things need
+ * you: one SOS, one bank transfer to check."
+ */
+export function needsYouWords(cards: readonly NeedsYouCard[]): string {
+  if (cards.length === 0) return 'Nothing needs you right now.';
+  const total = cards.reduce((sum, card) => sum + card.count, 0);
+  const count = countWords(total);
+  const opening =
+    total === 1
+      ? 'One thing needs you'
+      : `${count[0]!.toUpperCase()}${count.slice(1)} things need you`;
+  // A plain list, with commas: "one SOS, one bank transfer to check", as the review wrote it.
+  return `${opening}: ${cards.map((card) => card.words).join(', ')}.`;
 }
 
 function firstNoun(areas: readonly StaffArea[], lists: StaffLists): string {
@@ -382,7 +428,10 @@ const AREA_PATTERNS: Array<[StaffArea, RegExp]> = [
     'money',
     /\b(money|income|takings|stripe|revenue|earnings|paid in|how much (came|have we taken))\b/,
   ],
-  ['overview', /\b(overview|how many (shoppers|runners|people|staff)|head ?count)\b/],
+  [
+    'overview',
+    /\b(overview|needs? (me|you|us) now|what needs me|how many (shoppers|runners|people|staff)|head ?count)\b/,
+  ],
   ['analytics', /\b(analytics|analysis|numbers|statistics|stats|insights?|trends?)\b/],
   ['problems', /\b(complaints?|problems?|issues?|disputes?|refunds?)\b/],
   ['feedback', /\bfeedback\b/],
@@ -539,15 +588,16 @@ export function analyticsWords(data: StaffAnalytics): string {
   return parts.join(' ');
 }
 
-/** The overview, read aloud: people and work, no money. */
+/** The first screen, read aloud: what needs a person now, then people and work, no money. */
 export function overviewWords(data: StaffOverview): string {
   const p = data.people;
   const w = data.work;
   return (
+    (data.needsYou ? `${needsYouWords(data.needsYou)} ` : '') +
     `${p.shoppers} Shoppers, ${p.runners} Runners, ${p.runnersOnShiftNow} on shift now, ` +
     `${p.shopPartners} Shop Partners, ${p.organisations} organisations and ${p.staff} staff. ` +
     `${w.ordersLastDay} orders in the last day, ${w.ordersLastWeek} in the last week. Waiting: ` +
-    `${w.problemsWaiting} complaints, ${w.documentsWaiting} Runner documents, ` +
+    `${w.problemsWaiting} problems to decide, ${w.documentsWaiting} Runner documents, ` +
     `${w.shopProductsWaiting} shop products and ${w.findItWaiting} Finds It requests.`
   );
 }

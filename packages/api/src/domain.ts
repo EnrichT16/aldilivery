@@ -483,6 +483,11 @@ export interface Order {
   cancelledAt: Date | null;
   /** Why it was cancelled, in plain words, for the admin panel. Null when nobody said. */
   cancelReason?: string | null;
+  /**
+   * Goodwill refunds staff have given on this order (16 October 2026), added up, so that with
+   * any complaint refunds they never come to more than the order cost.
+   */
+  goodwillRefundedPence: number;
   items: OrderItem[];
 }
 

@@ -1400,6 +1400,19 @@ export interface StaffProblem {
     text: string | null;
     contentType: string | null;
   }>;
+  /** The order itself: its items, Runner and totals, so the decision is made on the whole. */
+  order?: {
+    reference: string;
+    status: string;
+    runnerName: string | null;
+    items: Array<{ name: string; quantity: number; outcome: string }>;
+    goodsEstimatePence: number;
+    feePence: number;
+    totalEstimatePence: number;
+    receiptTotalPence: number | null;
+    finalTotalPence: number | null;
+    paidBy: 'card' | 'bank';
+  } | null;
 }
 
 export function fetchStaffProblems(key: string): Promise<{ reports: StaffProblem[] }> {
@@ -2187,6 +2200,8 @@ export interface OwnerMoney {
     }>;
     orders: Array<{
       orderId: string;
+      /** The short reference staff say aloud; the full id is never shown on the screen. */
+      reference?: string;
       runnerName: string;
       loadedPence: number | null;
       spentPence: number | null;
@@ -2217,7 +2232,29 @@ export function fetchOwnerMoney(key: string): Promise<OwnerMoney> {
   return staffRequest(key, '/staff/money');
 }
 
+/** One thing that needs a person now (16 October 2026 review), most urgent first. */
+export interface NeedsYouCard {
+  key: 'sos' | 'waiting-orders' | 'bank-transfers' | 'pay-backs' | 'problems' | 'documents';
+  count: number;
+  /** "one SOS", "two bank transfers to check". */
+  words: string;
+  title: string;
+  /** The button's words. */
+  action: string;
+  /** The tab the button opens. */
+  tab: StaffArea;
+}
+
+export function fetchNeedsYou(
+  key: string,
+): Promise<{ cards: NeedsYouCard[]; splitAfterMinutes: number }> {
+  return staffRequest(key, '/staff/needs-you');
+}
+
 export interface StaffOverview {
+  /** What needs a person now, most urgent first. Older servers leave it out. */
+  needsYou?: NeedsYouCard[];
+  splitAfterMinutes?: number;
   people: {
     shoppers: number;
     runners: number;
@@ -2668,6 +2705,10 @@ export interface StaffOrderDetail {
     goodsEstimatePence: number;
     feePence: number;
     receiptTotalPence: number | null;
+    runnerId?: string | null;
+    /** What can still go back to the card: the order cost, less what already has. */
+    refundablePence?: number;
+    goodwillRefundedPence?: number;
     items: Array<{ name: string; quantity: number; outcome: string }>;
   };
   timeline: Array<{ at: string; what: string }>;
@@ -2675,6 +2716,56 @@ export interface StaffOrderDetail {
 
 export function fetchStaffOrder(key: string, id: string): Promise<StaffOrderDetail> {
   return staffRequest(key, `/staff/orders/${encodeURIComponent(id)}`);
+}
+
+/* The order rescue tools (16 October 2026 review): each is written in the audit log. */
+
+export function cancelStaffOrder(
+  key: string,
+  id: string,
+  input: { reason: string; by: string },
+): Promise<{ message: string; refundedPence: number; bankRefundPence: number }> {
+  return staffRequest(key, `/staff/orders/${encodeURIComponent(id)}/cancel`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function goodwillStaffRefund(
+  key: string,
+  id: string,
+  input: { amountPence: number; reason: string; by: string },
+): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/orders/${encodeURIComponent(id)}/goodwill`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export interface AssignableRunner {
+  id: string;
+  name: string;
+  onShift: boolean;
+  travel: string;
+}
+
+/** Approved Runners a stuck order could be given to, those on shift first. */
+export function fetchStaffOrderRunners(
+  key: string,
+  id: string,
+): Promise<{ runners: AssignableRunner[] }> {
+  return staffRequest(key, `/staff/orders/${encodeURIComponent(id)}/runners`);
+}
+
+export function reassignStaffOrder(
+  key: string,
+  id: string,
+  input: { runnerId?: string; by: string },
+): Promise<{ message: string; released: string | null; offeredTo: string | null }> {
+  return staffRequest(key, `/staff/orders/${encodeURIComponent(id)}/reassign`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
 }
 
 export interface RunnerNowRow {

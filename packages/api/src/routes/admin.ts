@@ -23,7 +23,19 @@ import type { Order, ProblemReport, Runner, Shopper } from '../domain.js';
 import { NotFoundError } from '../errors.js';
 import { district } from '../lib/analytics.js';
 import { auditWords, recordAudit } from '../lib/audit.js';
-import { staffActor } from '../lib/staff.js';
+import { decidedBy, staffActor } from '../lib/staff.js';
+import { ForbiddenError } from '../errors.js';
+import { formatPence } from '@aldilivery/core';
+import { canCarry } from '../services/dispatch.js';
+import { needsYou } from '../services/needs-you.js';
+import {
+  alreadyRefundedPence,
+  cancelOrder,
+  goodwillRefund,
+  mayBeAssigned,
+  orderTotalPence,
+  reassignOrder,
+} from '../services/order-rescue.js';
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -100,6 +112,14 @@ const REFUND_REASONS: Record<string, { reason: string; group: string }> = {
   credit: {
     reason: 'Gift card credit used on an order went back to the card.',
     group: 'gift card credit',
+  },
+  cancel: {
+    reason: 'The order was cancelled by staff, and the payment went back in full.',
+    group: 'cancelled orders',
+  },
+  goodwill: {
+    reason: 'A goodwill refund, given by a person.',
+    group: 'goodwill',
   },
 };
 
@@ -297,6 +317,13 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         feePence: order.feePence,
         deliveryPlan: order.deliveryPlan,
         receiptTotalPence: order.receiptTotalPence,
+        runnerId: order.runnerId,
+        /** What can still go back: the order cost, less what already has. */
+        refundablePence: Math.max(
+          0,
+          orderTotalPence(order) - (await alreadyRefundedPence(app.ctx, order)),
+        ),
+        goodwillRefundedPence: order.goodwillRefundedPence,
         items: order.items.map((item) => ({
           name: item.name,
           quantity: item.quantity,
@@ -304,6 +331,111 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         })),
       },
       timeline: events,
+    };
+  });
+
+  /* ------------------------------------------------------------------ rescue tools */
+
+  const bySchema = z.string().trim().min(1, 'Please say who decided.').max(80);
+
+  async function orderOr404(request: FastifyRequest): Promise<Order> {
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const order = await repository.orders.findById(id);
+    if (!order) throw new NotFoundError('order');
+    return order;
+  }
+
+  /** Cancel a live order and give the money back (services/order-rescue.ts). */
+  app.post('/staff/orders/:id/cancel', async (request) => {
+    const actor = await staffActor(request, 'orders');
+    const order = await orderOr404(request);
+    const body = z
+      .object({
+        reason: z
+          .string()
+          .trim()
+          .min(1, 'Please say why, in words the Shopper will read.')
+          .max(500),
+        by: bySchema,
+      })
+      .parse(request.body ?? {});
+    const outcome = await cancelOrder(
+      app.ctx,
+      order,
+      { reason: body.reason, by: decidedBy(actor, body.by) },
+      request.log,
+    );
+    return {
+      message: outcome.message,
+      refundedPence: outcome.refundedPence,
+      bankRefundPence: outcome.bankRefundPence,
+    };
+  });
+
+  /** A goodwill refund of a stated amount. Above the threshold, the owner's alone (Section Q). */
+  app.post('/staff/orders/:id/goodwill', async (request) => {
+    const actor = await staffActor(request, 'orders');
+    const order = await orderOr404(request);
+    const body = z
+      .object({
+        amountPence: z.number().int().min(1, 'Please give an amount.'),
+        reason: z
+          .string()
+          .trim()
+          .min(1, 'Please say why, in words the Shopper will read.')
+          .max(500),
+        by: bySchema,
+      })
+      .parse(request.body ?? {});
+    if (body.amountPence > config.admin.ownerOnlyRefundAbovePence && !actor.isOwner) {
+      throw new ForbiddenError(
+        `A refund of more than ${formatPence(config.admin.ownerOnlyRefundAbovePence, config.store.currencySymbol)} is for the owner to give. Please pass it to him, or refund less.`,
+      );
+    }
+    const outcome = await goodwillRefund(app.ctx, order, body, request.log);
+    return { message: outcome.message, refundReference: outcome.reference };
+  });
+
+  /** Release the Runner who has a stuck order and offer it again, to a named Runner or anyone. */
+  app.post('/staff/orders/:id/reassign', async (request) => {
+    const actor = await staffActor(request, 'orders');
+    const order = await orderOr404(request);
+    const body = z
+      .object({ runnerId: z.string().min(1).optional(), by: bySchema })
+      .parse(request.body ?? {});
+    const outcome = await reassignOrder(
+      app.ctx,
+      order,
+      { runnerId: body.runnerId, by: decidedBy(actor, body.by) },
+      request.log,
+    );
+    return { message: outcome.message, released: outcome.released, offeredTo: outcome.offeredTo };
+  });
+
+  /** Approved Runners a stuck order could be given to, those on shift first. */
+  app.get('/staff/orders/:id/runners', async (request) => {
+    await staffActor(request, 'orders');
+    const order = await orderOr404(request);
+    const at = now();
+    const rows = (await repository.runners.listAll())
+      .filter((runner) => runner.id !== order.runnerId && mayBeAssigned(runner))
+      .filter((runner) => canCarry(config, runner, order, at))
+      .map((runner) => ({
+        id: runner.id,
+        name: runner.name,
+        onShift: runner.available,
+        travel: runner.vehicleType,
+      }))
+      .sort((a, b) => Number(b.onShift) - Number(a.onShift) || a.name.localeCompare(b.name));
+    return { runners: rows };
+  });
+
+  /** What needs a person now, most urgent first, for this person's job (services/needs-you.ts). */
+  app.get('/staff/needs-you', async (request) => {
+    const actor = await staffActor(request, 'overview');
+    return {
+      cards: await needsYou(app.ctx, actor),
+      splitAfterMinutes: config.dispatch.splitAfterMinutes,
     };
   });
 

@@ -197,7 +197,10 @@ export async function registerTillCaseRoutes(app: FastifyInstance): Promise<void
       throw new BadRequestError('The till came to less, so there was nothing to collect.');
     }
     const words = {
-      refunded_by_hand: `We have sent back ${money(-difference)}, the difference between our estimate and the till. Your bank may take a few days to show it.`,
+      refunded_by_hand:
+        order.status === 'cancelled'
+          ? `We have sent back ${money(-difference)} for your cancelled order. Your bank may take a few days to show it.`
+          : `We have sent back ${money(-difference)}, the difference between our estimate and the till. Your bank may take a few days to show it.`,
       collected_by_hand: `Thank you. The ${money(difference)} extra for your shopping is settled.`,
       let_go: `The shopping came to ${money(difference)} more than we estimated. You do not need to pay the difference.`,
     }[body.outcome];

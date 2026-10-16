@@ -244,6 +244,12 @@ export function StaffVoice({
         () => fetchStaffOrders(key, { view: 'live' }),
         (r) => r.orders,
       );
+      // What needs a person now (16 October 2026 review), said first when it is there.
+      add(
+        'overview',
+        () => fetchStaffOverview(key),
+        (r) => r.needsYou ?? [],
+      );
       await Promise.all(loaders);
       lists.current = next;
     }

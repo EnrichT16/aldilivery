@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 
 import {
+  cancelStaffOrder,
   confirmMyTwoStep,
   confirmTwoStep,
   fetchAuditLog,
+  fetchStaffOrderRunners,
+  goodwillStaffRefund,
+  reassignStaffOrder,
+  type AssignableRunner,
   fetchCancellations,
   fetchPriceFreshness,
   fetchRefunds,
@@ -97,7 +102,16 @@ function fail(set: (text: string) => void): (failure: unknown) => void {
 
 /* ----------------------------------------------------------------------------- orders */
 
-export function Orders({ staffKey }: { staffKey: string }): JSX.Element {
+export function Orders({
+  staffKey,
+  by = 'Staff',
+  onNews = () => undefined,
+}: {
+  staffKey: string;
+  /** Whose name goes on a rescue. */
+  by?: string;
+  onNews?: (news: string) => void;
+}): JSX.Element {
   const [filters, setFilters] = useState<{
     view: 'live' | 'past' | 'all';
     status: string;
@@ -234,6 +248,17 @@ export function Orders({ staffKey }: { staffKey: string }): JSX.Element {
               </li>
             ))}
           </ol>
+          <RescueTools
+            key={open.order.id}
+            staffKey={staffKey}
+            by={by}
+            order={open.order}
+            onDone={(news) => {
+              onNews(news);
+              setOpen(null);
+              reload();
+            }}
+          />
           <button
             type="button"
             onClick={() => setOpen(null)}
@@ -242,6 +267,182 @@ export function Orders({ staffKey }: { staffKey: string }): JSX.Element {
             Close the timeline
           </button>
         </section>
+      )}
+    </section>
+  );
+}
+
+/** Statuses an order can still be cancelled from: not delivered, not already over. */
+const CANCELLABLE = new Set([
+  'draft',
+  'confirmed',
+  'paid',
+  'offered',
+  'accepted',
+  'shopping',
+  'receipt_submitted',
+  'delivering',
+]);
+/** Statuses an order can be given to another Runner from: before the shopping is bought. */
+const REASSIGNABLE = new Set(['paid', 'offered', 'accepted', 'shopping']);
+
+/**
+ * The order rescue tools (16 October 2026 review): cancel it and send the money back, give a
+ * goodwill refund of a stated amount, or give a stuck order to another Runner. Each asks for a
+ * reason the Shopper will read, and each is written in the audit log by the server.
+ */
+function RescueTools({
+  staffKey,
+  by,
+  order,
+  onDone,
+}: {
+  staffKey: string;
+  by: string;
+  order: StaffOrderDetail['order'];
+  onDone: (news: string) => void;
+}): JSX.Element {
+  const [problem, setProblem] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [runners, setRunners] = useState<AssignableRunner[] | null>(null);
+  const id = `rescue-${order.id}`;
+  const run = (action: () => Promise<{ message: string }>): void => {
+    setProblem('');
+    setBusy(true);
+    action()
+      .then((result) => onDone(result.message))
+      .catch((failure: unknown) => {
+        setProblem(failure instanceof Error ? failure.message : 'That did not work.');
+        setBusy(false);
+      });
+  };
+  const words = (form: HTMLFormElement, name: string): string =>
+    String(new FormData(form).get(name) ?? '').trim();
+  const canCancel = CANCELLABLE.has(order.status);
+  const canReassign = REASSIGNABLE.has(order.status);
+  const canRefund = order.paidBy === 'card' && (order.refundablePence ?? 0) > 0;
+  const loadRunners = (): void => {
+    void fetchStaffOrderRunners(staffKey, order.id)
+      .then((result) => setRunners(result.runners))
+      .catch(fail(setProblem));
+  };
+
+  return (
+    <section
+      aria-labelledby={`${id}-heading`}
+      className="space-y-3 border-t-2 border-paper/40 pt-3"
+    >
+      <h4 id={`${id}-heading`} className="m-0 font-bold">
+        Put it right
+      </h4>
+      <p className="m-0 extra">
+        Each of these is written in the audit log with your name, and the Shopper is told in plain
+        words. The Runner, if there is one, is told to stop.
+      </p>
+      <Failure text={problem} />
+      {canCancel && (
+        <form
+          aria-label={`Cancel order ${order.reference}`}
+          className="space-y-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const reason = words(event.currentTarget, 'cancel-reason');
+            if (reason === '') return setProblem('Please say why, in words the Shopper will read.');
+            run(() => cancelStaffOrder(staffKey, order.id, { reason, by }));
+          }}
+        >
+          <label htmlFor={`${id}-cancel-reason`} className="block font-bold">
+            Cancel this order: why?
+          </label>
+          <p className="m-0 extra">
+            {order.paidBy === 'card'
+              ? 'The card payment goes back in full, by the payment it came from. No card number is ever seen.'
+              : 'A bank transfer that has arrived is put on the till cases, to send back by hand. One that has not arrived is simply cancelled.'}
+          </p>
+          <input id={`${id}-cancel-reason`} name="cancel-reason" className={FIELD} />
+          <button type="submit" disabled={busy} className="control bg-paper text-ink">
+            Cancel the order and send the money back
+          </button>
+        </form>
+      )}
+      {canRefund && (
+        <form
+          aria-label={`Goodwill refund on order ${order.reference}`}
+          className="space-y-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const pence = Math.round(Number(words(event.currentTarget, 'goodwill-amount')) * 100);
+            const reason = words(event.currentTarget, 'goodwill-reason');
+            if (!Number.isFinite(pence) || pence <= 0)
+              return setProblem('Please give the refund in pounds.');
+            if (reason === '') return setProblem('Please say why, in words the Shopper will read.');
+            run(() => goodwillStaffRefund(staffKey, order.id, { amountPence: pence, reason, by }));
+          }}
+        >
+          <label htmlFor={`${id}-goodwill-amount`} className="block font-bold">
+            Goodwill refund, in pounds (up to {money(order.refundablePence ?? 0)})
+          </label>
+          <input
+            id={`${id}-goodwill-amount`}
+            name="goodwill-amount"
+            inputMode="decimal"
+            className={FIELD}
+          />
+          <label htmlFor={`${id}-goodwill-reason`} className="block font-bold">
+            Why, in words the Shopper will read
+          </label>
+          <input id={`${id}-goodwill-reason`} name="goodwill-reason" className={FIELD} />
+          <button type="submit" disabled={busy} className="control bg-paper text-ink">
+            Send the goodwill refund
+          </button>
+        </form>
+      )}
+      {canReassign && (
+        <form
+          aria-label={`Give order ${order.reference} to another Runner`}
+          className="space-y-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const chosen = words(event.currentTarget, 'reassign-runner');
+            run(() =>
+              reassignStaffOrder(staffKey, order.id, {
+                ...(chosen ? { runnerId: chosen } : {}),
+                by,
+              }),
+            );
+          }}
+        >
+          <label htmlFor={`${id}-reassign-runner`} className="block font-bold">
+            Give it to another Runner
+          </label>
+          <p className="m-0 extra">
+            {order.runnerName ? `${order.runnerName} is released and told to stop. ` : ''}
+            Choose a Runner, or leave it to the dispatcher to offer it again.
+          </p>
+          <select
+            id={`${id}-reassign-runner`}
+            name="reassign-runner"
+            defaultValue=""
+            onFocus={() => {
+              if (runners === null) loadRunners();
+            }}
+            className={FIELD}
+          >
+            <option value="">Anyone the dispatcher finds</option>
+            {(runners ?? []).map((runner) => (
+              <option key={runner.id} value={runner.id}>
+                {runner.name}
+                {runner.onShift ? ', on shift' : ', off shift'}, by {runner.travel}
+              </option>
+            ))}
+          </select>
+          <button type="submit" disabled={busy} className="control bg-paper text-ink">
+            Release the Runner and offer it again
+          </button>
+        </form>
+      )}
+      {!canCancel && !canRefund && !canReassign && (
+        <p className="m-0">Nothing can be done to this order from here.</p>
       )}
     </section>
   );
