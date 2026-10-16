@@ -79,7 +79,7 @@ export function Orders(): JSX.Element {
       <div className="space-y-6">
         <h1 className="text-display font-bold m-0">Your orders</h1>
         <p className="m-0">Sign in to see your orders.</p>
-        <Link to="/sign-in?next=/orders" className="control bg-highlight text-ink">
+        <Link to="/sign-in?next=/orders" className="control bg-highlight text-on-accent">
           Sign in
         </Link>
       </div>
@@ -93,7 +93,7 @@ export function Orders(): JSX.Element {
         {news}
       </p>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
@@ -113,7 +113,7 @@ export function Orders(): JSX.Element {
               },
             );
             return (
-              <li key={order.id} className="border-2 border-paper/40 rounded-xl p-4 space-y-2">
+              <li key={order.id} className="border-2 border-paper/40 rounded-2xl p-4 space-y-2">
                 <h2 className="text-lead font-bold m-0">
                   {when}: {STATUS_WORDS[order.status] ?? order.status}
                 </h2>
@@ -129,7 +129,7 @@ export function Orders(): JSX.Element {
                   <button
                     type="button"
                     onClick={() => void orderAgain(order)}
-                    className="control w-full bg-highlight text-ink"
+                    className="control w-full bg-highlight text-on-accent"
                   >
                     Order these again<span className="visually-hidden"> from {when}</span>
                   </button>

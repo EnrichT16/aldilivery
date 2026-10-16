@@ -93,12 +93,12 @@ export function GiftCards(): JSX.Element {
         {news}
       </p>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
       {!shopper ? (
-        <Link to="/sign-up" className="control bg-highlight text-ink">
+        <Link to="/sign-up" className="control bg-highlight text-on-accent">
           Set up an account first
         </Link>
       ) : (
@@ -119,9 +119,13 @@ export function GiftCards(): JSX.Element {
               id="gift-code"
               name="gift-code"
               autoComplete="off"
-              className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3 uppercase"
+              className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3 uppercase"
             />
-            <button type="submit" disabled={busy} className="control bg-paper text-ink">
+            <button
+              type="submit"
+              disabled={busy}
+              className="control border-paper bg-paper/10 text-paper"
+            >
               Use this gift card
             </button>
           </form>
@@ -152,7 +156,7 @@ export function GiftCards(): JSX.Element {
               id="gift-for"
               value={recipient}
               onChange={(event) => setRecipient(event.target.value)}
-              className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+              className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
             />
             <label htmlFor="gift-message" className="block font-bold">
               A message (optional)
@@ -161,7 +165,7 @@ export function GiftCards(): JSX.Element {
               id="gift-message"
               value={note}
               onChange={(event) => setNote(event.target.value)}
-              className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+              className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
             />
             <PriceConfirm
               key={bought.length}
@@ -189,7 +193,10 @@ export function GiftCards(): JSX.Element {
               </h2>
               <ul className="list-none m-0 p-0 space-y-3">
                 {bought.map((card) => (
-                  <li key={card.code} className="border-2 border-paper/40 rounded-xl p-4 space-y-1">
+                  <li
+                    key={card.code}
+                    className="border-2 border-paper/40 rounded-2xl p-4 space-y-1"
+                  >
                     <p className="m-0 font-bold">
                       {money(card.amountPence)}
                       {card.recipientName ? ` for ${card.recipientName}` : ''}

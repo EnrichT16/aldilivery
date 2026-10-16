@@ -14,7 +14,7 @@ import {
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
 
-const FIELD = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+const FIELD = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
 
 /**
  * Your addresses (docs/BUILD_PROMPT.md, Section D).
@@ -81,7 +81,7 @@ export function Addresses(): JSX.Element {
       <div className="space-y-6">
         <h1 className="text-display font-bold m-0">Your addresses</h1>
         <p className="m-0">Sign in to see and change your addresses.</p>
-        <Link to="/sign-in?next=/addresses" className="control bg-highlight text-ink">
+        <Link to="/sign-in?next=/addresses" className="control bg-highlight text-on-accent">
           Sign in
         </Link>
       </div>
@@ -129,7 +129,7 @@ export function Addresses(): JSX.Element {
           <button
             type="button"
             onClick={() => setChangingHome(true)}
-            className="control bg-paper text-ink"
+            className="control border-paper bg-paper/10 text-paper"
           >
             {home === '' ? 'Add your home address' : 'Change your home address'}
           </button>
@@ -150,7 +150,7 @@ export function Addresses(): JSX.Element {
         ) : book && book.saved.length > 0 ? (
           <ul className="list-none m-0 p-0 space-y-4">
             {book.saved.map((saved) => (
-              <li key={saved.id} className="border-2 border-paper/40 rounded-xl p-4 space-y-2">
+              <li key={saved.id} className="border-2 border-paper/40 rounded-2xl p-4 space-y-2">
                 {saved.label !== '' && <p className="m-0 font-bold">{saved.label}</p>}
                 <p className="m-0">{saved.address}</p>
                 <button
@@ -203,7 +203,7 @@ export function Addresses(): JSX.Element {
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="control bg-highlight text-ink flex-col py-4 px-8"
+            className="control bg-highlight text-on-accent flex-col py-4 px-8"
           >
             <span aria-hidden="true" className="text-display leading-none font-bold">
               +
@@ -312,12 +312,12 @@ function AddForm({
         />
       </div>
       {problem !== '' && (
-        <p role="alert" className="m-0 border-2 border-paper bg-paper text-ink p-4 rounded-xl">
+        <p role="alert" className="m-0 border-2 border-paper bg-paper text-ink p-4 rounded-2xl">
           {problem}
         </p>
       )}
       <div className="flex flex-wrap gap-3">
-        <button type="submit" className="control bg-highlight text-ink">
+        <button type="submit" className="control bg-highlight text-on-accent">
           Next
         </button>
         <button
@@ -414,12 +414,12 @@ function HomeForm({
         />
       </div>
       {problem !== '' && (
-        <p role="alert" className="m-0 border-2 border-paper bg-paper text-ink p-4 rounded-xl">
+        <p role="alert" className="m-0 border-2 border-paper bg-paper text-ink p-4 rounded-2xl">
           {problem}
         </p>
       )}
       <div className="flex flex-wrap gap-3">
-        <button type="submit" className="control bg-highlight text-ink">
+        <button type="submit" className="control bg-highlight text-on-accent">
           {hasHome ? 'Next' : 'Save my home address'}
         </button>
         <button

@@ -68,7 +68,7 @@ export function CloseAccount(): JSX.Element | null {
             type="button"
             disabled={busy}
             onClick={() => void run('keep')}
-            className="control bg-highlight text-ink disabled:opacity-70"
+            className="control bg-highlight text-on-accent disabled:opacity-70"
           >
             Keep my account
           </button>
@@ -84,7 +84,7 @@ export function CloseAccount(): JSX.Element | null {
             <button
               type="button"
               onClick={() => setAsking(true)}
-              className="control bg-paper text-ink"
+              className="control border-paper bg-paper/10 text-paper"
             >
               Close my account
             </button>
@@ -99,14 +99,14 @@ export function CloseAccount(): JSX.Element | null {
                   disabled={busy}
                   aria-describedby="close-confirm-hint"
                   onClick={() => void run('close')}
-                  className="control bg-highlight text-ink disabled:opacity-70"
+                  className="control bg-highlight text-on-accent disabled:opacity-70"
                 >
                   Yes, close my account
                 </button>
                 <button
                   type="button"
                   onClick={() => setAsking(false)}
-                  className="control bg-paper text-ink"
+                  className="control border-paper bg-paper/10 text-paper"
                 >
                   No, keep it
                 </button>

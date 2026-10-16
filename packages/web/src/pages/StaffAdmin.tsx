@@ -34,7 +34,7 @@ import { money } from '../lib/money';
  * them; they show on the screen only when "Show words on the screen" is on.
  */
 
-const FIELD = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+const FIELD = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
 
 function useLoad<T>(load: () => Promise<T>): {
   data: T | null;
@@ -63,7 +63,7 @@ function useLoad<T>(load: () => Promise<T>): {
 function Failure({ text }: { text: string }): JSX.Element | null {
   if (text === '') return null;
   return (
-    <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+    <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
       {text}
     </p>
   );
@@ -177,7 +177,7 @@ export function Orders({ staffKey }: { staffKey: string }): JSX.Element {
             <input name="orders-to" type="date" className={FIELD} />
           </label>
         </div>
-        <button type="submit" className="control bg-highlight text-ink">
+        <button type="submit" className="control bg-highlight text-on-accent">
           Show orders
         </button>
       </form>
@@ -191,7 +191,7 @@ export function Orders({ staffKey }: { staffKey: string }): JSX.Element {
       )}
       <ul className="list-none m-0 p-0 space-y-3">
         {list.data?.orders.map((row) => (
-          <li key={row.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+          <li key={row.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
             <h3 className="m-0 font-bold">
               {row.reference}: {row.statusWords}
             </h3>
@@ -209,7 +209,7 @@ export function Orders({ staffKey }: { staffKey: string }): JSX.Element {
               onClick={() =>
                 void fetchStaffOrder(staffKey, row.id).then(setOpen).catch(fail(setProblem))
               }
-              className="control bg-paper text-ink"
+              className="control border-paper bg-paper/10 text-paper"
             >
               Open the timeline<span className="visually-hidden"> for order {row.reference}</span>
             </button>
@@ -219,7 +219,7 @@ export function Orders({ staffKey }: { staffKey: string }): JSX.Element {
       {open && (
         <section
           aria-labelledby="timeline-heading"
-          className="border-2 border-highlight rounded-xl p-4 space-y-3"
+          className="border-2 border-highlight rounded-2xl p-4 space-y-3"
         >
           <h3 id="timeline-heading" className="m-0 font-bold">
             Order {open.order.reference}, what happened
@@ -515,7 +515,7 @@ export function ShopperAccounts({ staffKey }: { staffKey: string }): JSX.Element
           Name, username or phone number
         </label>
         <input id="shopper-search" name="shopper-search" type="search" className={FIELD} />
-        <button type="submit" className="control bg-highlight text-ink">
+        <button type="submit" className="control bg-highlight text-on-accent">
           Find
         </button>
       </form>
@@ -534,7 +534,7 @@ export function ShopperAccounts({ staffKey }: { staffKey: string }): JSX.Element
                 setFile(null);
                 void fetchShopperAccount(staffKey, row.id).then(setOpen).catch(fail(setProblem));
               }}
-              className="control bg-paper text-ink"
+              className="control border-paper bg-paper/10 text-paper"
             >
               Open {row.displayName}
               <span className="visually-hidden">, {row.handle}</span>
@@ -545,7 +545,7 @@ export function ShopperAccounts({ staffKey }: { staffKey: string }): JSX.Element
       {open && account && (
         <section
           aria-labelledby="account-heading"
-          className="border-2 border-highlight rounded-xl p-4 space-y-3"
+          className="border-2 border-highlight rounded-2xl p-4 space-y-3"
         >
           <h3 id="account-heading" className="m-0 font-bold">
             {account.displayName}
@@ -600,7 +600,7 @@ export function ShopperAccounts({ staffKey }: { staffKey: string }): JSX.Element
                 )
                 .catch(fail(setProblem))
             }
-            className="control bg-highlight text-ink"
+            className="control bg-highlight text-on-accent"
           >
             Export everything we hold about them
           </button>
@@ -608,7 +608,11 @@ export function ShopperAccounts({ staffKey }: { staffKey: string }): JSX.Element
             For a subject access request: a spreadsheet file of everything held about this Shopper.
           </p>
           {file && (
-            <a href={file.url} download={file.name} className="control bg-paper text-ink">
+            <a
+              href={file.url}
+              download={file.name}
+              className="control border-paper bg-paper/10 text-paper"
+            >
               Save the file
             </a>
           )}
@@ -668,7 +672,7 @@ export function AuditLog({ staffKey }: { staffKey: string }): JSX.Element {
             <input name="audit-to" type="date" className={FIELD} />
           </label>
         </div>
-        <button type="submit" className="control bg-highlight text-ink">
+        <button type="submit" className="control bg-highlight text-on-accent">
           Search
         </button>
       </form>
@@ -682,7 +686,7 @@ export function AuditLog({ staffKey }: { staffKey: string }): JSX.Element {
       )}
       <ol className="list-none m-0 p-0 space-y-2">
         {entries.map((entry) => (
-          <li key={entry.id} className="border-2 border-paper rounded-xl p-3">
+          <li key={entry.id} className="border-2 border-paper rounded-2xl p-3">
             <p className="m-0">
               <time dateTime={entry.at}>{when(entry.at)}</time>: {entry.actorName}, {entry.words}
               {entry.target ? ` (${entry.target})` : ''}.
@@ -756,7 +760,7 @@ export function TwoStepCodes({
       </p>
       <Failure text={problem} />
       {codes && (
-        <div className="border-2 border-highlight rounded-xl p-4 space-y-2">
+        <div className="border-2 border-highlight rounded-2xl p-4 space-y-2">
           <Subheading className="m-0 font-bold">Your recovery codes</Subheading>
           <p className="m-0">
             Write these down and keep them somewhere safe. Each one works once, in place of a code
@@ -776,7 +780,7 @@ export function TwoStepCodes({
               if (pendingToken.current) onSession?.(pendingToken.current);
               pendingToken.current = null;
             }}
-            className="control bg-highlight text-ink"
+            className="control bg-highlight text-on-accent"
           >
             I have written them down
           </button>
@@ -793,7 +797,7 @@ export function TwoStepCodes({
               })
               .catch(fail(setProblem))
           }
-          className="control bg-highlight text-ink"
+          className="control bg-highlight text-on-accent"
         >
           Set up two-step codes
         </button>
@@ -822,7 +826,7 @@ export function TwoStepCodes({
             Add this key to your authenticator app:{' '}
             <span aria-label={setUp.secret.split('').join(' ')}>{setUp.secret}</span>
           </p>
-          <a href={setUp.otpauth} className="control bg-paper text-ink">
+          <a href={setUp.otpauth} className="control border-paper bg-paper/10 text-paper">
             Open it in my authenticator app
           </a>
           <label htmlFor="two-step-code" className="block">
@@ -836,7 +840,7 @@ export function TwoStepCodes({
             maxLength={6}
             className={FIELD}
           />
-          <button type="submit" className="control bg-highlight text-ink">
+          <button type="submit" className="control bg-highlight text-on-accent">
             Switch two-step codes on
           </button>
         </form>
@@ -867,7 +871,7 @@ export function TwoStepCodes({
             maxLength={6}
             className={FIELD}
           />
-          <button type="submit" className="control bg-paper text-ink">
+          <button type="submit" className="control border-paper bg-paper/10 text-paper">
             Make new recovery codes
           </button>
         </form>

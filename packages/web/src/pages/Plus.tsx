@@ -210,13 +210,13 @@ export function Plus(): JSX.Element {
         {news}
       </p>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
 
       {!shopper ? (
-        <Link to="/sign-up" className="control bg-highlight text-ink">
+        <Link to="/sign-up" className="control bg-highlight text-on-accent">
           Set up an account first
         </Link>
       ) : (
@@ -241,7 +241,7 @@ export function Plus(): JSX.Element {
               type="button"
               disabled={busy}
               onClick={() => void act(cancelPlan)}
-              className="control bg-paper text-ink"
+              className="control border-paper bg-paper/10 text-paper"
             >
               Cancel my plan
             </button>
@@ -278,9 +278,13 @@ export function Plus(): JSX.Element {
                   defaultValue={
                     state.approvalLimitPence === null ? '' : String(state.approvalLimitPence / 100)
                   }
-                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                  className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
                 />
-                <button type="submit" disabled={busy} className="control bg-paper text-ink">
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="control border-paper bg-paper/10 text-paper"
+                >
                   Save the limit
                 </button>
               </form>
@@ -296,7 +300,7 @@ export function Plus(): JSX.Element {
                             type="button"
                             disabled={busy}
                             onClick={() => void decide(order, true)}
-                            className="control bg-highlight text-ink"
+                            className="control bg-highlight text-on-accent"
                           >
                             Approve {order.person}'s order
                           </button>
@@ -367,9 +371,13 @@ export function Plus(): JSX.Element {
                   id="family-code"
                   name="family-code"
                   autoComplete="off"
-                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3 uppercase"
+                  className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3 uppercase"
                 />
-                <button type="submit" disabled={busy} className="control bg-paper text-ink">
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className="control border-paper bg-paper/10 text-paper"
+                >
                   Join
                 </button>
               </form>

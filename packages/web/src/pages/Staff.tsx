@@ -260,14 +260,14 @@ export function Staff(): JSX.Element {
             onSignOut={signOut}
           />
           <nav aria-label="Admin pages">
-            <ul className="flex flex-wrap gap-2 list-none m-0 p-0">
+            <ul className="chip-row list-none m-0 p-0">
               {tabs.map((item) => (
                 <li key={item.key}>
                   <button
                     type="button"
                     aria-current={shown === item.key ? 'page' : undefined}
                     onClick={() => setTab(item.key)}
-                    className={`control ${shown === item.key ? 'bg-highlight text-ink' : 'bg-paper/10 text-paper'}`}
+                    className={`control ${shown === item.key ? 'border-paper bg-paper text-ink' : 'bg-paper/10 text-paper'}`}
                   >
                     {item.label}
                   </button>
@@ -397,7 +397,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
       });
   };
 
-  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
   return (
     <form onSubmit={submit} className="space-y-4 max-w-xl">
       <h1 className="text-display font-bold m-0">Admin sign in</h1>
@@ -471,11 +471,11 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
         </>
       )}
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
-      <button type="submit" disabled={busy} className="control w-full bg-highlight text-ink">
+      <button type="submit" disabled={busy} className="control w-full bg-highlight text-on-accent">
         Sign in
       </button>
       <button
@@ -516,7 +516,7 @@ function ChangePassword({
         setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
       );
   };
-  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
   return (
     <form onSubmit={submit} className="space-y-4 max-w-xl" aria-labelledby="choose-heading">
       <h2 id="choose-heading" className="text-lead font-bold m-0">
@@ -556,7 +556,7 @@ function ChangePassword({
         autoComplete="new-password"
         className={field}
       />
-      <button type="submit" className="control w-full bg-highlight text-ink">
+      <button type="submit" className="control w-full bg-highlight text-on-accent">
         Save my password
       </button>
     </form>
@@ -590,7 +590,7 @@ function useList<T>(load: () => Promise<T>): {
 function Failure({ text }: { text: string }): JSX.Element | null {
   if (text === '') return null;
   return (
-    <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+    <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
       {text}
     </p>
   );
@@ -660,7 +660,7 @@ function DocumentReview({
   };
 
   return (
-    <article aria-labelledby={id} className="space-y-3 border-2 border-paper rounded-xl p-4">
+    <article aria-labelledby={id} className="space-y-3 border-2 border-paper rounded-2xl p-4">
       <h3 id={id} className="font-bold m-0">
         {heading}
       </h3>
@@ -678,7 +678,7 @@ function DocumentReview({
               .then(setPhoto)
               .catch(() => setProblem('The photo could not be opened.'));
           }}
-          className="control bg-paper text-ink"
+          className="control border-paper bg-paper/10 text-paper"
         >
           Show the photo
         </button>
@@ -693,7 +693,7 @@ function DocumentReview({
             type="date"
             value={expiresOn}
             onChange={(event) => setExpiresOn(event.target.value)}
-            className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+            className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
           />
         </>
       )}
@@ -704,21 +704,21 @@ function DocumentReview({
         id={`${id}-note`}
         value={note}
         onChange={(event) => setNote(event.target.value)}
-        className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+        className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
       />
       <Failure text={problem} />
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
           onClick={() => decide('accept')}
-          className="control bg-highlight text-ink"
+          className="control bg-highlight text-on-accent"
         >
           Accept
         </button>
         <button
           type="button"
           onClick={() => decide('reject')}
-          className="control bg-paper text-ink"
+          className="control border-paper bg-paper/10 text-paper"
         >
           Send back
         </button>
@@ -804,7 +804,7 @@ function ProblemDecide({
   };
 
   return (
-    <article aria-labelledby={id} className="space-y-3 border-2 border-paper rounded-xl p-4">
+    <article aria-labelledby={id} className="space-y-3 border-2 border-paper rounded-2xl p-4">
       <h3 id={id} className="font-bold m-0">
         From the {report.reportedBy === 'runner' ? 'Runner' : 'Shopper'}: {report.summary}
       </h3>
@@ -842,7 +842,7 @@ function ProblemDecide({
                         .then((url) => setFiles((was) => ({ ...was, [item.id]: url })))
                         .catch(() => setProblem('That could not be opened.'));
                     }}
-                    className="control bg-paper text-ink"
+                    className="control border-paper bg-paper/10 text-paper"
                   >
                     {item.kind === 'voice_note' ? 'Play' : 'Show'} {label.toLowerCase()}
                   </button>
@@ -880,7 +880,7 @@ function ProblemDecide({
           inputMode="decimal"
           value={refund}
           onChange={(event) => setRefund(event.target.value)}
-          className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+          className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
         />
         <label htmlFor={`${id}-note`} className="block font-bold">
           The decision, in words the Runner and Shopper will read
@@ -889,10 +889,10 @@ function ProblemDecide({
           id={`${id}-note`}
           value={note}
           onChange={(event) => setNote(event.target.value)}
-          className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+          className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
         />
         <Failure text={problem} />
-        <button type="submit" className="control w-full bg-highlight text-ink">
+        <button type="submit" className="control w-full bg-highlight text-on-accent">
           Save the decision
         </button>
       </form>
@@ -938,7 +938,7 @@ function VoiceNote({ src, label }: { src: string; label: string }): JSX.Element 
           play();
         }
       }}
-      className="control bg-paper text-ink"
+      className="control border-paper bg-paper/10 text-paper"
     >
       {playing ? 'Stop' : 'Play'} {label.toLowerCase()}
     </button>
@@ -967,7 +967,7 @@ function Owed({ staffKey, by, onNews }: PanelProps): JSX.Element {
       {rows?.length === 0 && <p className="m-0">No Runner owes anything.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {rows?.map((row) => (
-          <li key={row.runner.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+          <li key={row.runner.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
             <p className="m-0">
               {row.runner.name}
               {row.runner.runnerId ? ` (${row.runner.runnerId})` : ''} owes{' '}
@@ -987,7 +987,7 @@ function Owed({ staffKey, by, onNews }: PanelProps): JSX.Element {
                       setProblem(failure instanceof Error ? failure.message : 'That failed.'),
                     );
                 }}
-                className="control bg-paper text-ink"
+                className="control border-paper bg-paper/10 text-paper"
               >
                 They have left: write off {money(row.remainingPence)}
               </button>
@@ -1013,7 +1013,7 @@ function Feedback({ staffKey }: { staffKey: string }): JSX.Element {
       {rows?.length === 0 && <p className="m-0">No feedback yet.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {rows?.map((row) => (
-          <li key={row.id} className="border-2 border-paper rounded-xl p-4 space-y-1">
+          <li key={row.id} className="border-2 border-paper rounded-2xl p-4 space-y-1">
             <p className="m-0">{row.message}</p>
             <p className="m-0">
               {row.runner
@@ -1088,7 +1088,7 @@ function Finds({
       {rows?.length === 0 && <p className="m-0">Nothing waiting.</p>}
       <ul className="m-0 p-0 list-none space-y-4">
         {rows?.map((row) => (
-          <li key={row.id} className="border-2 border-paper rounded-xl p-4 space-y-3">
+          <li key={row.id} className="border-2 border-paper rounded-2xl p-4 space-y-3">
             <h3 className="m-0 font-bold">{row.description}</h3>
             <p className="m-0">
               For {row.shopperName}
@@ -1100,14 +1100,14 @@ function Finds({
                 What was found
                 <input
                   name="name"
-                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                  className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
                 />
               </label>
               <label className="block">
                 Which shop
                 <input
                   name="shop"
-                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                  className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
                 />
               </label>
               <label className="block">
@@ -1115,17 +1115,17 @@ function Finds({
                 <input
                   name="price"
                   inputMode="decimal"
-                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                  className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
                 />
               </label>
               <label className="block">
                 Note for the Shopper (optional)
                 <input
                   name="note"
-                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                  className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
                 />
               </label>
-              <button type="submit" className="control bg-highlight text-ink">
+              <button type="submit" className="control bg-highlight text-on-accent">
                 Found it<span className="visually-hidden">: {row.description}</span>
               </button>
             </form>
@@ -1162,7 +1162,7 @@ function Enquiries({
       {rows?.length === 0 && <p className="m-0">No enquiries yet.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {rows?.map((row) => (
-          <li key={row.id} className="border-2 border-paper rounded-xl p-4 space-y-1">
+          <li key={row.id} className="border-2 border-paper rounded-2xl p-4 space-y-1">
             <h3 className="m-0 font-bold">
               {row.organisation}
               {row.handled ? ', rung back' : ''}
@@ -1183,7 +1183,7 @@ function Enquiries({
                     list.reload();
                   })
                 }
-                className="control bg-paper text-ink"
+                className="control border-paper bg-paper/10 text-paper"
               >
                 Mark as rung back<span className="visually-hidden">: {row.organisation}</span>
               </button>
@@ -1231,7 +1231,7 @@ function Payments({
       {list.data?.waiting.length === 0 && <p className="m-0">None waiting.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {list.data?.waiting.map((row) => (
-          <li key={row.orderId} className="border-2 border-paper rounded-xl p-4 space-y-2">
+          <li key={row.orderId} className="border-2 border-paper rounded-2xl p-4 space-y-2">
             <p className="m-0 font-bold">
               {money(row.amountPence)}, reference {row.reference}
             </p>
@@ -1248,14 +1248,14 @@ function Payments({
               <button
                 type="button"
                 onClick={() => mark(row, 'received')}
-                className="control bg-highlight text-ink"
+                className="control bg-highlight text-on-accent"
               >
                 It has arrived<span className="visually-hidden">: {row.reference}</span>
               </button>
               <button
                 type="button"
                 onClick={() => mark(row, 'cancel')}
-                className="control bg-paper text-ink"
+                className="control border-paper bg-paper/10 text-paper"
               >
                 Cancel this order<span className="visually-hidden">: {row.reference}</span>
               </button>
@@ -1313,7 +1313,7 @@ function TinyExtras({
       {list.data?.tinyExtras.length === 0 && <p className="m-0">None waiting.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {list.data?.tinyExtras.map((row) => (
-          <li key={row.orderId} className="border-2 border-paper rounded-xl p-4 space-y-2">
+          <li key={row.orderId} className="border-2 border-paper rounded-2xl p-4 space-y-2">
             <p className="m-0 font-bold">
               {money(row.goodsPence)} of shopping, order {row.part} of {row.of} of{' '}
               {row.firstReference ?? row.reference}
@@ -1325,7 +1325,11 @@ function TinyExtras({
                 : 'The first order has no Runner yet.'}{' '}
               Extra delivery not taken: {money(row.extraDeliveryPence)}.
             </p>
-            <button type="button" onClick={() => carry(row)} className="control bg-highlight text-ink">
+            <button
+              type="button"
+              onClick={() => carry(row)}
+              className="control bg-highlight text-on-accent"
+            >
               Carry with the first Runner<span className="visually-hidden">: {row.reference}</span>
             </button>
           </li>
@@ -1380,7 +1384,7 @@ function PayBacks({
       {list.data?.waiting.length === 0 && <p className="m-0">None waiting.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {list.data?.waiting.map((row) => (
-          <li key={row.orderId} className="border-2 border-paper rounded-xl p-4 space-y-2">
+          <li key={row.orderId} className="border-2 border-paper rounded-2xl p-4 space-y-2">
             <p className="m-0 font-bold">
               {money(row.amountPence)} to {row.runnerName}, order {row.reference}
             </p>
@@ -1398,7 +1402,7 @@ function PayBacks({
             <button
               type="button"
               onClick={() => approve(row)}
-              className="control bg-highlight text-ink"
+              className="control bg-highlight text-on-accent"
             >
               Approve and pay back<span className="visually-hidden">: order {row.reference}</span>
             </button>
@@ -1485,7 +1489,7 @@ function Learning({
       {rows?.length === 0 && <p className="m-0">Nothing waiting. Ozi understood everything.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {rows?.map((row) => (
-          <li key={row.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+          <li key={row.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
             <h3 className="m-0 font-bold">&ldquo;{row.text}&rdquo;</h3>
             <p className="m-0">
               Asked by {ACCOUNT_WORDS[row.account] ?? row.account}, {row.timesHeard}{' '}
@@ -1500,20 +1504,20 @@ function Learning({
               onChange={(event) => setAnswers({ ...answers, [row.id]: event.target.value })}
               maxLength={400}
               rows={2}
-              className="w-full rounded-xl p-3 text-ink"
+              className="w-full rounded-2xl p-3 text-ink"
             />
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => decide(row, true)}
-                className="control bg-highlight text-ink"
+                className="control bg-highlight text-on-accent"
               >
                 Approve<span className="visually-hidden">: {row.text}</span>
               </button>
               <button
                 type="button"
                 onClick={() => decide(row, false)}
-                className="control bg-paper text-ink"
+                className="control border-paper bg-paper/10 text-paper"
               >
                 Turn down<span className="visually-hidden">: {row.text}</span>
               </button>
@@ -1539,7 +1543,7 @@ function Team({
   const jobs: StaffRoleInfo[] = roles.data?.roles ?? [];
   const [problem, setProblem] = useState('');
   const [password, setPassword] = useState('');
-  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
 
   const add = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -1588,7 +1592,7 @@ function Team({
       </h2>
       <Failure text={list.problem || problem} />
       {password !== '' && (
-        <p role="status" className="border-2 border-highlight rounded-xl p-4 m-0">
+        <p role="status" className="border-2 border-highlight rounded-2xl p-4 m-0">
           {password}
         </p>
       )}
@@ -1611,7 +1615,7 @@ function Team({
       {rows?.length === 0 && <p className="m-0">Nobody added yet.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {rows?.map((member) => (
-          <li key={member.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+          <li key={member.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
             <h3 className="m-0 font-bold">
               {member.name}, {member.title}
               {member.active ? '' : ', turned off'}
@@ -1647,7 +1651,7 @@ function Team({
                       setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
                     )
                 }
-                className="control bg-paper text-ink"
+                className="control border-paper bg-paper/10 text-paper"
               >
                 New password<span className="visually-hidden"> for {member.name}</span>
               </button>
@@ -1666,7 +1670,7 @@ function Team({
                         ),
                       )
                   }
-                  className="control bg-paper text-ink"
+                  className="control border-paper bg-paper/10 text-paper"
                 >
                   Reset two-step codes
                   <span className="visually-hidden"> for {member.name}</span>
@@ -1706,7 +1710,7 @@ function Team({
             </option>
           ))}
         </select>
-        <button type="submit" className="control bg-highlight text-ink">
+        <button type="submit" className="control bg-highlight text-on-accent">
           Add to the team
         </button>
       </form>
@@ -1735,7 +1739,7 @@ function Partners({
   const [problem, setProblem] = useState('');
   const [password, setPassword] = useState('');
   const [photos, setPhotos] = useState<Record<string, string>>({});
-  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
   const fail = (failure: unknown): void =>
     setProblem(failure instanceof Error ? failure.message : 'That could not be saved.');
   const values = (event: FormEvent<HTMLFormElement>): ((name: string) => string) => {
@@ -1751,7 +1755,7 @@ function Partners({
       </h2>
       <Failure text={list.problem || pending.problem || problem} />
       {password !== '' && (
-        <p role="status" className="border-2 border-highlight rounded-xl p-4 m-0">
+        <p role="status" className="border-2 border-highlight rounded-2xl p-4 m-0">
           {password}
         </p>
       )}
@@ -1763,7 +1767,7 @@ function Partners({
         {pending.data?.products.length === 0 && <p className="m-0">Nothing waiting.</p>}
         <ul className="m-0 p-0 list-none space-y-3">
           {pending.data?.products.map((product) => (
-            <li key={product.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+            <li key={product.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
               <h4 className="m-0 font-bold">
                 {product.name}, {money(product.pricePence)}, from {product.shopName}
               </h4>
@@ -1778,7 +1782,7 @@ function Partners({
                   <img
                     src={photos[product.id]}
                     alt={product.name}
-                    className="max-h-64 rounded-lg"
+                    className="max-h-64 rounded-xl"
                   />
                 ) : (
                   <button
@@ -1807,7 +1811,7 @@ function Partners({
                       })
                       .catch(fail)
                   }
-                  className="control bg-highlight text-ink"
+                  className="control bg-highlight text-on-accent"
                 >
                   Accept<span className="visually-hidden"> {product.name}</span>
                 </button>
@@ -1842,7 +1846,7 @@ function Partners({
         </h3>
         <ul className="m-0 p-0 list-none space-y-3">
           {list.data?.shops.map((shop) => (
-            <li key={shop.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+            <li key={shop.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
               <h4 className="m-0 font-bold">{shop.name}</h4>
               <p className="m-0">
                 {shop.paid && shop.paidUntil
@@ -1876,7 +1880,7 @@ function Partners({
                         })
                         .catch(fail)
                     }
-                    className="control bg-paper text-ink"
+                    className="control border-paper bg-paper/10 text-paper"
                   >
                     Record a month paid: {label}
                     <span className="visually-hidden"> for {shop.name}</span>
@@ -1963,7 +1967,7 @@ function Partners({
             defaultValue="1"
             className={field}
           />
-          <button type="submit" className="control bg-highlight text-ink">
+          <button type="submit" className="control bg-highlight text-on-accent">
             Add the shop
           </button>
         </form>
@@ -1975,7 +1979,7 @@ function Partners({
         </h3>
         <ul className="m-0 p-0 list-none space-y-3">
           {list.data?.organisations.map((organisation) => (
-            <li key={organisation.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+            <li key={organisation.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
               <h4 className="m-0 font-bold">{organisation.name}</h4>
               <p className="m-0">
                 Code {organisation.joinCode}. {organisation.people} people linked. Sign-ins:{' '}
@@ -2060,7 +2064,7 @@ function Partners({
             Their telephone
           </label>
           <input id="org-phone" name="org-phone" type="tel" className={field} />
-          <button type="submit" className="control bg-highlight text-ink">
+          <button type="submit" className="control bg-highlight text-on-accent">
             Add the organisation
           </button>
         </form>
@@ -2179,7 +2183,7 @@ function Analytics({ staffKey }: { staffKey: string }): JSX.Element {
         id="analytics-period"
         value={period}
         onChange={(event) => setPeriod(event.target.value as StaffAnalytics['period'])}
-        className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+        className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
       >
         <option value="day">The last day</option>
         <option value="week">The last week</option>
@@ -2193,7 +2197,7 @@ function Analytics({ staffKey }: { staffKey: string }): JSX.Element {
             {data.totals.shoppers !== null ? `, ${data.totals.shoppers} Shoppers` : ''},{' '}
             {data.totals.runners} Runners, {data.totals.throughOrganisations} through organisations.
           </p>
-          <button type="button" onClick={download} className="control bg-highlight text-ink">
+          <button type="button" onClick={download} className="control bg-highlight text-on-accent">
             Download as a spreadsheet (CSV)
           </button>
           {table(
@@ -2303,7 +2307,7 @@ function Overview({ staffKey }: { staffKey: string }): JSX.Element {
       <Failure text={list.problem} />
       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 m-0">
         {tiles.map(([label, value]) => (
-          <div key={label} className="border-2 border-paper rounded-xl p-4">
+          <div key={label} className="border-2 border-paper rounded-2xl p-4">
             <dt className="m-0">{label}</dt>
             <dd className="m-0 text-lead font-bold">{value}</dd>
           </div>
@@ -2412,11 +2416,7 @@ function Money({ staffKey }: { staffKey: string }): JSX.Element {
  * The Runner spending cards (Stripe Issuing): each card's last four digits and whether it is
  * frozen, what each card order was loaded with and spent, and the latest declines with reasons.
  */
-function RunnerCards({
-  cards,
-}: {
-  cards: NonNullable<OwnerMoney['runnerCards']>;
-}): JSX.Element {
+function RunnerCards({ cards }: { cards: NonNullable<OwnerMoney['runnerCards']> }): JSX.Element {
   const cell = 'border-b border-paper/40 p-2';
   return (
     <>
@@ -2503,7 +2503,7 @@ function OwnerSetup({
   const exists = useList(() => fetchOwnerExists(staffKey));
   const [problem, setProblem] = useState('');
   if (!exists.data || exists.data.ownerExists) return null;
-  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
   return (
     <form
       onSubmit={(event) => {
@@ -2525,7 +2525,7 @@ function OwnerSetup({
             setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
           );
       }}
-      className="space-y-3 max-w-xl border-2 border-highlight rounded-xl p-4"
+      className="space-y-3 max-w-xl border-2 border-highlight rounded-2xl p-4"
       aria-labelledby="owner-setup-heading"
     >
       <h2 id="owner-setup-heading" className="text-lead font-bold m-0">
@@ -2565,7 +2565,7 @@ function OwnerSetup({
         maxLength={7}
         className={field}
       />
-      <button type="submit" className="control bg-highlight text-ink">
+      <button type="submit" className="control bg-highlight text-on-accent">
         Make my owner&rsquo;s account
       </button>
     </form>
@@ -2601,7 +2601,7 @@ function MySettings({
   const viewers = useList(() => fetchViewers(staffKey));
   const [problem, setProblem] = useState('');
   const [password, setPassword] = useState('');
-  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
   const fail = (failure: unknown): void =>
     setProblem(failure instanceof Error ? failure.message : 'That did not work.');
   const values = (event: FormEvent<HTMLFormElement>): ((name: string) => string) => {
@@ -2631,7 +2631,7 @@ function MySettings({
       </h2>
       <Failure text={problem} />
       {password !== '' && (
-        <p role="status" className="border-2 border-highlight rounded-xl p-4 m-0">
+        <p role="status" className="border-2 border-highlight rounded-2xl p-4 m-0">
           {password}
         </p>
       )}
@@ -2648,7 +2648,7 @@ function MySettings({
         {viewers.data?.viewers.length === 0 && <p className="m-0">Nobody yet.</p>}
         <ul className="list-none m-0 p-0 space-y-4">
           {viewers.data?.viewers.map((viewer) => (
-            <li key={viewer.id} className="border-2 border-paper rounded-xl p-4 space-y-3">
+            <li key={viewer.id} className="border-2 border-paper rounded-2xl p-4 space-y-3">
               <h4 className="m-0 font-bold">
                 {viewer.name}, {viewer.kind === 'family' ? 'family' : 'investor'} (signs in as{' '}
                 {viewer.username})
@@ -2657,14 +2657,14 @@ function MySettings({
                 <button
                   type="button"
                   onClick={() => change(viewer, { all: true })}
-                  className="control bg-highlight text-ink"
+                  className="control bg-highlight text-on-accent"
                 >
                   Switch all on<span className="visually-hidden"> for {viewer.name}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => change(viewer, { all: false })}
-                  className="control bg-paper text-ink"
+                  className="control border-paper bg-paper/10 text-paper"
                 >
                   Switch all off<span className="visually-hidden"> for {viewer.name}</span>
                 </button>
@@ -2736,7 +2736,7 @@ function MySettings({
             <option value="family">Family (such as my wife)</option>
             <option value="investor">Investor</option>
           </select>
-          <button type="submit" className="control bg-highlight text-ink">
+          <button type="submit" className="control bg-highlight text-on-accent">
             Add them
           </button>
         </form>
@@ -2775,7 +2775,7 @@ function MySettings({
           maxLength={7}
           className={field}
         />
-        <button type="submit" className="control bg-paper text-ink">
+        <button type="submit" className="control border-paper bg-paper/10 text-paper">
           Change my passcode
         </button>
       </form>
@@ -2798,7 +2798,7 @@ function MySettings({
             })
             .catch(fail);
         }}
-        className="space-y-2 border-2 border-paper rounded-xl p-4"
+        className="space-y-2 border-2 border-paper rounded-2xl p-4"
         aria-labelledby="kill-heading"
       >
         <h3 id="kill-heading" className="text-lead font-bold m-0">
@@ -2818,7 +2818,7 @@ function MySettings({
           maxLength={7}
           className={field}
         />
-        <button type="submit" className="control bg-highlight text-ink">
+        <button type="submit" className="control bg-highlight text-on-accent">
           Use the kill switch
         </button>
       </form>

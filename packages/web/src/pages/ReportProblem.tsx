@@ -125,7 +125,7 @@ export function ReportProblem({ as = 'runner' }: { as?: 'runner' | 'shopper' }):
       {problem !== '' && (
         <p
           role="alert"
-          className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0 max-w-xl"
+          className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0 max-w-xl"
         >
           {problem}
         </p>
@@ -177,7 +177,7 @@ export function ReportProblem({ as = 'runner' }: { as?: 'runner' | 'shopper' }):
             value={summary}
             aria-describedby="summary-hint"
             onChange={(event) => setSummary(event.target.value)}
-            className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+            className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
           />
           {as === 'shopper' && (
             <>
@@ -194,11 +194,11 @@ export function ReportProblem({ as = 'runner' }: { as?: 'runner' | 'shopper' }):
                 value={refund}
                 aria-describedby="refund-hint"
                 onChange={(event) => setRefund(event.target.value)}
-                className="w-40 min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                className="w-40 min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
               />
             </>
           )}
-          <button type="submit" disabled={sending} className="control bg-highlight text-ink">
+          <button type="submit" disabled={sending} className="control bg-highlight text-on-accent">
             {sending ? 'Sending…' : 'Send the report'}
           </button>
         </form>
@@ -214,7 +214,7 @@ export function ReportProblem({ as = 'runner' }: { as?: 'runner' | 'shopper' }):
               <button
                 type="button"
                 onClick={stopRecording}
-                className="control bg-highlight text-ink"
+                className="control bg-highlight text-on-accent"
               >
                 Stop and send the voice note
               </button>
@@ -225,7 +225,7 @@ export function ReportProblem({ as = 'runner' }: { as?: 'runner' | 'shopper' }):
                 onClick={() => {
                   void startRecording();
                 }}
-                className="control bg-highlight text-ink"
+                className="control bg-highlight text-on-accent"
               >
                 Record a voice note
               </button>
@@ -236,7 +236,7 @@ export function ReportProblem({ as = 'runner' }: { as?: 'runner' | 'shopper' }):
             </p>
           )}
 
-          <label className="control bg-paper text-ink cursor-pointer focus-within:outline focus-within:outline-4 focus-within:outline-offset-2">
+          <label className="control border-paper bg-paper/10 text-paper cursor-pointer focus-within:outline focus-within:outline-4 focus-within:outline-offset-2">
             Take a photo
             <input
               type="file"
@@ -287,9 +287,13 @@ export function ReportProblem({ as = 'runner' }: { as?: 'runner' | 'shopper' }):
               rows={3}
               value={note}
               onChange={(event) => setNote(event.target.value)}
-              className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+              className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
             />
-            <button type="submit" disabled={sending} className="control bg-paper text-ink">
+            <button
+              type="submit"
+              disabled={sending}
+              className="control border-paper bg-paper/10 text-paper"
+            >
               Send the note
             </button>
           </form>
@@ -303,7 +307,7 @@ export function ReportProblem({ as = 'runner' }: { as?: 'runner' | 'shopper' }):
           </h2>
           <ul className="list-none m-0 p-0 space-y-4">
             {reports.map((report) => (
-              <li key={report.id} className="border-2 border-paper/40 rounded-xl p-4 space-y-2">
+              <li key={report.id} className="border-2 border-paper/40 rounded-2xl p-4 space-y-2">
                 <p className="m-0 font-bold">
                   {report.reportedBy === as
                     ? 'You reported'

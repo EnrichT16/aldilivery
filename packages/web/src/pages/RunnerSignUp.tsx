@@ -118,7 +118,7 @@ export function RunnerSignUp(): JSX.Element {
           </p>
         </section>
         <DocumentsChecklist onNews={setNews} />
-        <Link to="/runner/home" className="control bg-highlight text-ink">
+        <Link to="/runner/home" className="control bg-highlight text-on-accent">
           Go to your Runner page
         </Link>
       </div>
@@ -140,7 +140,7 @@ export function RunnerSignUp(): JSX.Element {
           ref={summary}
           tabIndex={-1}
           role="alert"
-          className="border-2 border-paper bg-paper text-ink p-4 rounded-xl"
+          className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl"
         >
           <h2 className="text-lead font-bold m-0">
             There {errors.length === 1 ? 'is 1 problem' : `are ${errors.length} problems`} to fix
@@ -220,7 +220,7 @@ export function RunnerSignUp(): JSX.Element {
         <button
           type="submit"
           disabled={saving}
-          className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+          className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
         >
           {saving ? 'Signing you up…' : 'Sign me up to run'}
         </button>

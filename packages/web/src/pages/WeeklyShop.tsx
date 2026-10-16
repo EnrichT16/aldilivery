@@ -151,12 +151,12 @@ export function WeeklyShop(): JSX.Element {
         {news}
       </p>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
       {!shopper ? (
-        <Link to="/sign-up" className="control bg-highlight text-ink">
+        <Link to="/sign-up" className="control bg-highlight text-on-accent">
           Set up an account first
         </Link>
       ) : (
@@ -178,7 +178,7 @@ export function WeeklyShop(): JSX.Element {
                 <button
                   type="button"
                   onClick={() => void skipNext()}
-                  className="control bg-highlight text-ink"
+                  className="control bg-highlight text-on-accent"
                 >
                   Skip this one
                 </button>
@@ -236,7 +236,7 @@ export function WeeklyShop(): JSX.Element {
             type="button"
             disabled={busy}
             onClick={() => void book()}
-            className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+            className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
           >
             {current ? 'Change my weekly shop' : 'Book my weekly shop'}
           </button>

@@ -22,7 +22,7 @@ import { everydayOr } from '../voice/phrases';
 import { listWords, spokenMoney } from '../voice/staff-voice';
 import { spokenDate } from '../components/StaffVoice';
 
-const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
 const YES = /\b(yes|yeah|yep|correct|that'?s right|go ahead|confirm|do it|ok|okay)\b/i;
 const STATUS_WORDS: Record<PartnerProductRow['status'], string> = {
   pending: 'waiting to be checked',
@@ -319,14 +319,14 @@ export function PartnerDashboard(): JSX.Element {
         {news}
       </p>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
 
       <section
         aria-labelledby="plan-heading"
-        className="space-y-2 border-2 border-highlight rounded-xl p-4"
+        className="space-y-2 border-2 border-highlight rounded-2xl p-4"
       >
         <h2 id="plan-heading" className="text-lead font-bold m-0">
           Your plan
@@ -356,7 +356,7 @@ export function PartnerDashboard(): JSX.Element {
 
       <section
         aria-labelledby="spotlight-heading"
-        className="space-y-2 border-2 border-paper rounded-xl p-4"
+        className="space-y-2 border-2 border-paper rounded-2xl p-4"
       >
         <h2 id="spotlight-heading" className="text-lead font-bold m-0">
           Spotlight: {storeConfig.assistantName} mentions your shop
@@ -409,7 +409,7 @@ export function PartnerDashboard(): JSX.Element {
                 setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
               )
           }
-          className="control bg-paper text-ink"
+          className="control border-paper bg-paper/10 text-paper"
         >
           Download my statement (PDF)
         </button>
@@ -437,7 +437,7 @@ export function PartnerDashboard(): JSX.Element {
         <button
           type="button"
           onClick={() => void share().then((words) => setNews(words))}
-          className="control bg-highlight text-ink"
+          className="control bg-highlight text-on-accent"
         >
           Share my shop’s link
         </button>{' '}
@@ -487,7 +487,7 @@ export function PartnerDashboard(): JSX.Element {
         <button
           type="submit"
           disabled={busy}
-          className="control w-full bg-highlight text-ink disabled:opacity-70"
+          className="control w-full bg-highlight text-on-accent disabled:opacity-70"
         >
           Send it to be checked
         </button>
@@ -500,7 +500,7 @@ export function PartnerDashboard(): JSX.Element {
         {data.products.length === 0 && <p className="m-0">None yet.</p>}
         <ul className="list-none m-0 p-0 space-y-3">
           {data.products.map((product) => (
-            <li key={product.id} className="border-2 border-paper/40 rounded-xl p-4 space-y-2">
+            <li key={product.id} className="border-2 border-paper/40 rounded-2xl p-4 space-y-2">
               <h3 className="m-0 font-bold">
                 {product.name}, {money(product.pricePence)}
               </h3>
@@ -531,7 +531,7 @@ export function PartnerDashboard(): JSX.Element {
                   New price
                   <input name="price" inputMode="decimal" className={field} />
                 </label>
-                <button type="submit" className="control bg-paper text-ink">
+                <button type="submit" className="control border-paper bg-paper/10 text-paper">
                   Change the price<span className="visually-hidden"> of {product.name}</span>
                 </button>
                 <button

@@ -84,10 +84,10 @@ export function JustLooking(): JSX.Element {
       </section>
 
       <div className="flex flex-wrap gap-4">
-        <Link to="/sign-up" className="control bg-highlight text-ink">
+        <Link to="/sign-up" className="control bg-highlight text-on-accent">
           Set up an account
         </Link>
-        <Link to="/shop" className="control bg-paper text-ink">
+        <Link to="/shop" className="control border-paper bg-paper/10 text-paper">
           Have a look at the shopping
         </Link>
       </div>

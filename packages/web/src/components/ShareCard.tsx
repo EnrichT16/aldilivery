@@ -65,7 +65,7 @@ export function ShareCard({
         onClick={() => {
           void send(share.link);
         }}
-        className="control bg-highlight text-ink"
+        className="control bg-highlight text-on-accent"
       >
         Share my link
       </button>

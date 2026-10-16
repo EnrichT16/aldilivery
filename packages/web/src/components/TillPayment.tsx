@@ -58,7 +58,7 @@ export function TillPayment({ onNews }: { onNews: (news: string) => void }): JSX
         How you pay at the till
       </h2>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
@@ -116,7 +116,7 @@ export function TillPayment({ onNews }: { onNews: (news: string) => void }): JSX
               type="button"
               disabled={busy}
               onClick={() => setSettingUp(true)}
-              className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+              className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
             >
               Set up my {name}
             </button>
@@ -163,7 +163,7 @@ function CardSetup({
   onCancel: () => void;
 }): JSX.Element {
   const [error, setError] = useState('');
-  const field = 'w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3';
+  const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
 
   function submit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -192,7 +192,7 @@ function CardSetup({
       onSubmit={submit}
       noValidate
       aria-labelledby="card-setup-heading"
-      className="space-y-3 border-2 border-highlight rounded-xl p-4"
+      className="space-y-3 border-2 border-highlight rounded-2xl p-4"
     >
       <h3 id="card-setup-heading" className="text-lead font-bold m-0">
         Set up your {name}
@@ -202,7 +202,7 @@ function CardSetup({
         the shopping on your orders. It stays frozen between jobs.
       </p>
       {error !== '' && (
-        <p role="alert" className="m-0 border-2 border-paper bg-paper text-ink p-3 rounded-xl">
+        <p role="alert" className="m-0 border-2 border-paper bg-paper text-ink p-3 rounded-2xl">
           {error}
         </p>
       )}
@@ -250,7 +250,7 @@ function CardSetup({
       <button
         type="submit"
         disabled={busy}
-        className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+        className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
       >
         {busy ? 'Making your card…' : 'Accept and make my card'}
       </button>
@@ -295,11 +295,11 @@ function ShowCard({ cardId, name }: { cardId: string; name: string }): JSX.Eleme
   return (
     <div className="space-y-2">
       {problem !== '' && (
-        <p role="alert" className="m-0 border-2 border-paper bg-paper text-ink p-3 rounded-xl">
+        <p role="alert" className="m-0 border-2 border-paper bg-paper text-ink p-3 rounded-2xl">
           {problem}
         </p>
       )}
-      <div hidden={!shown} className="space-y-2 bg-paper text-ink rounded-xl p-4">
+      <div hidden={!shown} className="space-y-2 bg-paper text-ink rounded-2xl p-4">
         <p className="m-0 font-bold">Card number</p>
         <div ref={number} aria-label={`${name} number`} role="group" />
         <p className="m-0 font-bold">Expiry date</p>

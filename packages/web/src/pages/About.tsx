@@ -39,7 +39,7 @@ export function About(): JSX.Element {
             .
           </li>
         </ol>
-        <Link to="/shop" className="control bg-highlight text-ink">
+        <Link to="/shop" className="control bg-highlight text-on-accent">
           Start shopping
         </Link>
       </section>
@@ -84,7 +84,7 @@ export function About(): JSX.Element {
           Spotlight Plus ({money(extras.spotlightPlusPence)} a month). Every mention is called an
           advert.
         </p>
-        <Link to="/business" className="control bg-paper text-ink">
+        <Link to="/business" className="control border-paper bg-paper/10 text-paper">
           Find out more
         </Link>
       </section>

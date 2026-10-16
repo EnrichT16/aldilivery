@@ -82,7 +82,7 @@ export function Recipes(): JSX.Element {
       {problem !== '' && (
         <p
           role="alert"
-          className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0 max-w-xl"
+          className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0 max-w-xl"
         >
           {problem}
         </p>
@@ -91,7 +91,7 @@ export function Recipes(): JSX.Element {
       {!unlocked && (
         <section
           aria-labelledby="pass-heading"
-          className="space-y-3 max-w-xl border-2 border-highlight rounded-xl p-4"
+          className="space-y-3 max-w-xl border-2 border-highlight rounded-2xl p-4"
         >
           <h2 id="pass-heading" className="text-lead font-bold m-0">
             Recipe Pass: {price} for {recipePassDays} days
@@ -101,7 +101,7 @@ export function Recipes(): JSX.Element {
             It does not renew by itself.
           </p>
           {!shopper ? (
-            <Link to="/sign-up" className="control bg-highlight text-ink">
+            <Link to="/sign-up" className="control bg-highlight text-on-accent">
               Set up an account first
             </Link>
           ) : confirming ? (
@@ -114,7 +114,7 @@ export function Recipes(): JSX.Element {
                 type="button"
                 disabled={busy}
                 onClick={() => void unlock()}
-                className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+                className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
               >
                 Yes, unlock Recipes for {price}
               </button>
@@ -130,7 +130,7 @@ export function Recipes(): JSX.Element {
             <button
               type="button"
               onClick={() => setConfirming(true)}
-              className="control w-full bg-highlight text-ink text-lead"
+              className="control w-full bg-highlight text-on-accent text-lead"
             >
               Unlock Recipes
             </button>
@@ -143,7 +143,7 @@ export function Recipes(): JSX.Element {
           <li key={recipe.id}>
             <article
               aria-labelledby={`recipe-${recipe.id}`}
-              className="space-y-3 border-2 border-paper rounded-xl p-4"
+              className="space-y-3 border-2 border-paper rounded-2xl p-4"
             >
               <h2 id={`recipe-${recipe.id}`} className="text-lead font-bold m-0">
                 {recipe.name}
@@ -175,7 +175,7 @@ export function Recipes(): JSX.Element {
                   <button
                     type="button"
                     onClick={() => void addAll(recipe)}
-                    className="control w-full bg-highlight text-ink"
+                    className="control w-full bg-highlight text-on-accent"
                   >
                     Add all the ingredients to my basket
                   </button>

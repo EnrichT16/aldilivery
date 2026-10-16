@@ -32,7 +32,7 @@ export function PriceConfirm({
           setAsking(true);
           onAsk?.(question);
         }}
-        className="control w-full bg-highlight text-ink text-lead"
+        className="control w-full bg-highlight text-on-accent text-lead"
       >
         {start}
       </button>
@@ -45,7 +45,7 @@ export function PriceConfirm({
         type="button"
         disabled={busy}
         onClick={onYes}
-        className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+        className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
       >
         {yes}
       </button>

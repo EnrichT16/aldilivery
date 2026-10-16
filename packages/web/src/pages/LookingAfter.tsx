@@ -41,11 +41,11 @@ export function LookingAfter(): JSX.Element {
           card pays for everyone; and you get a weekly summary. You can cancel at any time with one
           button.
         </p>
-        <Link to="/plus" className="control bg-paper text-ink">
+        <Link to="/plus" className="control border-paper bg-paper/10 text-paper">
           See the plans
         </Link>
       </section>
-      <Link to="/sign-up" className="control bg-highlight text-ink">
+      <Link to="/sign-up" className="control bg-highlight text-on-accent">
         Set up an account
       </Link>
       <Link to="/" className="control bg-paper/10 text-paper underline">

@@ -78,12 +78,12 @@ export function LeaveRunning({ onNews }: { onNews: (news: string) => void }): JS
         what you were paid, as the law asks.
       </p>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
       {asking ? (
-        <div role="alert" className="space-y-3 border-2 border-paper rounded-xl p-4">
+        <div role="alert" className="space-y-3 border-2 border-paper rounded-2xl p-4">
           <p className="m-0">Close your Runner account? You will not be offered any more jobs.</p>
           <button
             type="button"

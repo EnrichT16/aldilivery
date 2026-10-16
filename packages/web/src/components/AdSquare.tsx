@@ -38,7 +38,7 @@ export function AdSquare(): JSX.Element | null {
   return (
     <aside
       aria-label="Advert"
-      className="float-right ml-4 mb-4 w-48 border-2 border-paper/60 rounded-xl p-3 space-y-1 text-sm"
+      className="float-right ml-4 mb-4 w-48 border-2 border-paper/60 rounded-2xl p-4 space-y-1 text-sm"
     >
       <p className="m-0 font-bold uppercase tracking-wide">Advert</p>
       {inside ? (

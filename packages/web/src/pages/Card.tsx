@@ -247,7 +247,7 @@ export function Card(): JSX.Element {
           We keep your card against your account, so there needs to be an account for it to belong
           to.
         </p>
-        <Link to="/sign-up" className="control bg-highlight text-ink">
+        <Link to="/sign-up" className="control bg-highlight text-on-accent">
           Set up my account
         </Link>
       </div>
@@ -322,7 +322,7 @@ export function Card(): JSX.Element {
         <p role="status" className="m-0 max-w-xl">
           {saved} Nothing has been charged. We will ask you before we ever take a penny.
         </p>
-        <Link to="/shop" className="control bg-highlight text-ink">
+        <Link to="/shop" className="control bg-highlight text-on-accent">
           Find your shopping
         </Link>
       </div>
@@ -340,10 +340,10 @@ export function Card(): JSX.Element {
 
       {state === 'unavailable' ? (
         <>
-          <p role="alert" className="border-2 border-paper p-4 rounded-xl m-0 max-w-xl">
+          <p role="alert" className="border-2 border-paper p-4 rounded-2xl m-0 max-w-xl">
             {unavailableReason}
           </p>
-          <Link to="/shop" className="control bg-paper text-ink">
+          <Link to="/shop" className="control border-paper bg-paper/10 text-paper">
             Carry on without a card
           </Link>
         </>
@@ -434,12 +434,12 @@ export function Card(): JSX.Element {
               onChange={(event) => {
                 setPostcode(event.target.value);
               }}
-              className="w-full max-w-xs min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+              className="w-full max-w-xs min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
             />
           </div>
 
           {error !== '' && (
-            <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+            <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
               {error}
             </p>
           )}
@@ -450,7 +450,7 @@ export function Card(): JSX.Element {
             onClick={() => {
               void onSave();
             }}
-            className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+            className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
           >
             {saving ? 'Saving your card…' : 'Save my card'}
           </button>
@@ -499,7 +499,7 @@ function StripeField({
       </p>
       <div
         ref={mountRef}
-        className={`${narrow ? 'w-full max-w-xs' : 'w-full'} min-h-control rounded-xl border-2 border-paper bg-paper p-3`}
+        className={`${narrow ? 'w-full max-w-xs' : 'w-full'} min-h-control rounded-2xl border-2 border-paper bg-paper p-3`}
       />
     </div>
   );

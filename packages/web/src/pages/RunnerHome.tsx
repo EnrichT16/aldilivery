@@ -219,7 +219,7 @@ export function RunnerHome(): JSX.Element {
           You are not signed in as a Runner on this device. For now, a Runner stays signed in on the
           phone or computer they signed up on.
         </p>
-        <Link to="/runner/sign-up" className="control bg-highlight text-ink">
+        <Link to="/runner/sign-up" className="control bg-highlight text-on-accent">
           Sign up to run
         </Link>
       </div>
@@ -254,21 +254,21 @@ export function RunnerHome(): JSX.Element {
           ref={problemRef}
           tabIndex={-1}
           role="alert"
-          className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0 max-w-xl"
+          className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0 max-w-xl"
         >
           {problem}
         </p>
       )}
 
       <nav aria-label="Your Runner pages">
-        <ul className="flex flex-wrap gap-2 list-none m-0 p-0">
+        <ul className="chip-row list-none m-0 p-0">
           {TABS.map((item) => (
             <li key={item.key}>
               <button
                 type="button"
                 aria-current={tab === item.key ? 'page' : undefined}
                 onClick={() => setTab(item.key)}
-                className={`control ${tab === item.key ? 'bg-highlight text-ink' : 'bg-paper/10 text-paper'}`}
+                className={`control ${tab === item.key ? 'border-paper bg-paper text-ink' : 'bg-paper/10 text-paper'}`}
               >
                 {item.label}
               </button>
@@ -392,7 +392,7 @@ export function RunnerHome(): JSX.Element {
                       next ? 'You are on shift.' : 'You are off shift.',
                     );
                   }}
-                  className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+                  className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
                 >
                   {runner.available ? 'Go off shift' : 'Go on shift'}
                 </button>
@@ -402,14 +402,12 @@ export function RunnerHome(): JSX.Element {
                 <section
                   role="alert"
                   aria-labelledby="offer-heading"
-                  className="space-y-3 max-w-xl border-2 border-highlight rounded-xl p-4"
+                  className="space-y-3 max-w-xl border-2 border-highlight rounded-2xl p-4"
                 >
                   <h2 id="offer-heading" className="text-lead font-bold m-0">
                     {offer.job.split ? offer.job.split.label : 'A job for you'}
                   </h2>
-                  {offer.job.split && (
-                    <p className="m-0 font-bold">{offer.job.split.earnWords}</p>
-                  )}
+                  {offer.job.split && <p className="m-0 font-bold">{offer.job.split.earnWords}</p>}
                   {offer.job.split && <p className="m-0">{offer.job.split.rest}</p>}
                   <p className="m-0">
                     {offer.job.itemCount} {offer.job.itemCount === 1 ? 'thing' : 'things'}, about{' '}
@@ -428,11 +426,13 @@ export function RunnerHome(): JSX.Element {
                         const taken = await acceptJob(offer.offer.id);
                         // How to pay at the till for this one: the card loaded, or their own.
                         setNews(
-                          taken.till ? `The job is yours. ${taken.till.message}` : 'The job is yours.',
+                          taken.till
+                            ? `The job is yours. ${taken.till.message}`
+                            : 'The job is yours.',
                         );
                       }, '');
                     }}
-                    className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+                    className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
                   >
                     Take this job
                   </button>
@@ -546,14 +546,14 @@ function JobInHand({
         Your job: shopping for {job.shopperName}
       </h2>
       {job.split && (
-        <div className="space-y-1 border-2 border-highlight rounded-xl p-4">
+        <div className="space-y-1 border-2 border-highlight rounded-2xl p-4">
           <p className="m-0 font-bold">{job.split.label}</p>
           <p className="m-0">{job.split.rest}</p>
         </div>
       )}
 
       {byCard && (job.status === 'accepted' || job.status === 'shopping') && (
-        <div className="space-y-2 border-2 border-highlight rounded-xl p-4">
+        <div className="space-y-2 border-2 border-highlight rounded-2xl p-4">
           <h3 className="text-lead font-bold m-0">Paying at the till</h3>
           <p className="m-0">
             Your {storeConfig.assistantName} card is loaded with up to{' '}
@@ -641,7 +641,7 @@ function JobInHand({
             onClick={() => {
               void act(() => moveJobOn(job.orderId, 'shopping'), 'You are shopping.');
             }}
-            className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+            className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
           >
             I have started shopping
           </button>
@@ -660,7 +660,7 @@ function JobInHand({
             {tillError !== '' && (
               <p
                 role="alert"
-                className="m-0 border-2 border-paper bg-paper text-ink p-3 rounded-xl"
+                className="m-0 border-2 border-paper bg-paper text-ink p-3 rounded-2xl"
               >
                 {tillError}
               </p>
@@ -671,7 +671,7 @@ function JobInHand({
               type="text"
               inputMode="decimal"
               aria-describedby="till-hint"
-              className="w-full max-w-xs min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+              className="w-full max-w-xs min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
             />
             <label className="control bg-paper/10 text-paper underline cursor-pointer focus-within:outline focus-within:outline-4 focus-within:outline-offset-2">
               {photo ? 'Take the receipt photo again' : 'Take a photo of the receipt'}
@@ -702,7 +702,7 @@ function JobInHand({
             <button
               type="submit"
               disabled={busy}
-              className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+              className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
             >
               Put in the till total
             </button>
@@ -749,7 +749,7 @@ function JobInHand({
             onClick={() => {
               void act(() => moveJobOn(job.orderId, 'delivering'), 'You are on your way.');
             }}
-            className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+            className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
           >
             I am on my way
           </button>
@@ -771,7 +771,7 @@ function JobInHand({
                 );
               }, '');
             }}
-            className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+            className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
           >
             I have delivered it
           </button>
@@ -826,7 +826,7 @@ function HowYouGetPaid(): JSX.Element {
         How you get paid
       </h2>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
@@ -857,7 +857,7 @@ function HowYouGetPaid(): JSX.Element {
                 onClick={() => {
                   void setUp();
                 }}
-                className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+                className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
               >
                 {going
                   ? 'Opening Stripe…'
@@ -902,7 +902,7 @@ function TravelToday({
               type="button"
               disabled={busy}
               onClick={() => onChoose(mode)}
-              className="control bg-paper text-ink disabled:opacity-70"
+              className="control border-paper bg-paper/10 text-paper disabled:opacity-70"
             >
               Switch to {TRAVEL_WORDS[mode].toLowerCase()}
             </button>
@@ -936,7 +936,7 @@ function JobHistory({ dashboard }: { dashboard: RunnerDashboard | null }): JSX.E
       ) : (
         <ul className="list-none m-0 p-0 space-y-3">
           {dashboard.jobs.map((job) => (
-            <li key={job.reference} className="border-2 border-paper/40 rounded-xl p-4">
+            <li key={job.reference} className="border-2 border-paper/40 rounded-2xl p-4">
               <p className="m-0 font-bold">
                 {money(job.earnedPence)}, {day(job.deliveredAt)}
               </p>
@@ -994,7 +994,7 @@ function AgreeFirst({
         Read the Runner agreement
       </Link>
       {problem !== '' && (
-        <p role="alert" className="m-0 border-2 border-paper bg-paper text-ink p-3 rounded-xl">
+        <p role="alert" className="m-0 border-2 border-paper bg-paper text-ink p-3 rounded-2xl">
           {problem}
         </p>
       )}
@@ -1021,7 +1021,7 @@ function AgreeFirst({
           setProblem('');
           onAgree('button');
         }}
-        className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+        className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
       >
         I agree
       </button>
@@ -1191,7 +1191,7 @@ function More({
             onClick={() => {
               void share(dashboard.shareLink);
             }}
-            className="control bg-highlight text-ink"
+            className="control bg-highlight text-on-accent"
           >
             Share my link
           </button>
@@ -1240,7 +1240,7 @@ function More({
             rows={4}
             value={message}
             onChange={(event) => setMessage(event.target.value)}
-            className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+            className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
           />
           <div className="flex items-center gap-3 min-h-control">
             <input
@@ -1253,11 +1253,15 @@ function More({
             <label htmlFor="feedback-anonymous">Send it without my name</label>
           </div>
           {feedbackProblem !== '' && (
-            <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+            <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
               {feedbackProblem}
             </p>
           )}
-          <button type="submit" disabled={sending} className="control bg-paper text-ink">
+          <button
+            type="submit"
+            disabled={sending}
+            className="control border-paper bg-paper/10 text-paper"
+          >
             {sending ? 'Sending…' : 'Send'}
           </button>
         </form>

@@ -155,7 +155,12 @@ export function GetTheApp({ compact = false }: { compact?: boolean }): JSX.Eleme
         onClick={() => {
           void install();
         }}
-        className="control bg-highlight text-ink"
+        // Gold only on its own page: beside a basket or the first screen's doors it is a side offer.
+        className={
+          compact
+            ? 'control border-paper bg-paper/10 text-paper'
+            : 'control bg-highlight text-on-accent'
+        }
       >
         Put {storeConfig.productName} on my phone
       </button>

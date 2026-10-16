@@ -136,7 +136,7 @@ export function SignIn(): JSX.Element {
       <div className="space-y-6">
         <h1 className="text-display font-bold m-0">You are signed in</h1>
         <p className="m-0 max-w-xl">You are signed in as {shopper.displayName}.</p>
-        <Link to="/shop" className="control bg-highlight text-ink">
+        <Link to="/shop" className="control bg-highlight text-on-accent">
           Find your shopping
         </Link>
       </div>
@@ -149,11 +149,11 @@ export function SignIn(): JSX.Element {
 
       {available === false ? (
         <>
-          <p role="status" className="border-2 border-paper p-4 rounded-xl m-0 max-w-xl">
+          <p role="status" className="border-2 border-paper p-4 rounded-2xl m-0 max-w-xl">
             Signing in by text message is not switched on yet. For now, an account can only be used
             on the phone or computer it was set up on.
           </p>
-          <Link to="/sign-up" className="control bg-highlight text-ink">
+          <Link to="/sign-up" className="control bg-highlight text-on-accent">
             Set up an account on this device
           </Link>
         </>
@@ -171,7 +171,7 @@ export function SignIn(): JSX.Element {
               ref={problem}
               tabIndex={-1}
               role="alert"
-              className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0 max-w-xl"
+              className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0 max-w-xl"
             >
               <p className="m-0">{error}</p>
               {errorDetail !== '' && (
@@ -209,13 +209,13 @@ export function SignIn(): JSX.Element {
                   onChange={(event) => {
                     setPhone(event.target.value);
                   }}
-                  className="w-full min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3"
+                  className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
                 />
               </div>
               <button
                 type="submit"
                 disabled={busy || available === null}
-                className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+                className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
               >
                 {busy ? 'Sending your code…' : 'Text me a code'}
               </button>
@@ -261,13 +261,13 @@ export function SignIn(): JSX.Element {
                   inputMode="numeric"
                   autoComplete="one-time-code"
                   aria-describedby="sign-in-code-hint"
-                  className="w-full max-w-xs min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3 text-lead tracking-widest"
+                  className="w-full max-w-xs min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3 text-lead tracking-widest"
                 />
               </div>
               <button
                 type="submit"
                 disabled={busy}
-                className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+                className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
               >
                 {busy ? 'Checking…' : 'Sign in'}
               </button>

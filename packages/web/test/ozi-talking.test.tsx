@@ -67,7 +67,7 @@ describe('the switch, and turning talking off and on by voice', () => {
     stubApi();
     const user = userEvent.setup();
     renderAt('/shop');
-    const toggle = screen.getByRole('switch', { name: 'Ozi talks and listens' });
+    const toggle = screen.getByRole('switch', { name: 'Ozi talks out loud' });
     expect(toggle).toHaveAttribute('aria-checked', 'true');
     await listening(engine);
 

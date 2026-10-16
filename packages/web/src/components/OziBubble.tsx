@@ -164,7 +164,7 @@ export function OziBubble(): JSX.Element {
       <div
         className={
           captionShown && (captionText !== '' || ozi.heard !== '')
-            ? `absolute top-0 ${captionSide} w-56 max-w-[60vw] max-h-[45vh] overflow-y-auto rounded-xl border-2 border-ink bg-paper text-ink p-3 m-0 shadow-lg text-base`
+            ? `absolute top-0 ${captionSide} w-56 max-w-[60vw] max-h-[45vh] scroll-pane rounded-2xl border-2 border-ink bg-paper text-ink p-4 m-0 shadow-lg text-base`
             : 'visually-hidden'
         }
       >
@@ -196,7 +196,7 @@ export function OziBubble(): JSX.Element {
         style={{ width: SIZE, height: SIZE, borderRadius: '50%', touchAction: 'none' }}
         className={
           listening || ozi.talking
-            ? 'control p-0 ozi-beaming rounded-full flex flex-col items-center justify-center gap-1 font-bold text-ink border-4 border-ink bg-[var(--colour-listening)] cursor-grab'
+            ? 'control p-0 ozi-beaming rounded-full flex flex-col items-center justify-center gap-1 font-bold text-on-accent border-4 border-ink bg-listening cursor-grab'
             : 'control p-0 rounded-full flex flex-col items-center justify-center gap-1 font-bold text-ink border-4 border-dashed border-ink bg-paper cursor-grab'
         }
       >

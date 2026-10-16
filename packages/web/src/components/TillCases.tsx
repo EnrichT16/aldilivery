@@ -69,7 +69,7 @@ export function TillCases({
         choose, the Shopper is told in plain words.
       </p>
       {problem !== '' && (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
       )}
@@ -81,7 +81,7 @@ export function TillCases({
           const card = row.paidBy === 'card';
           const label = `order ${row.reference}`;
           return (
-            <li key={row.orderId} className="border-2 border-paper rounded-xl p-4 space-y-2">
+            <li key={row.orderId} className="border-2 border-paper rounded-2xl p-4 space-y-2">
               <p className="m-0 font-bold">
                 {more ? `${amount} more to take` : `${amount} to give back`}, {row.shopperName},
                 order {row.reference}
@@ -104,7 +104,7 @@ export function TillCases({
                     type="button"
                     disabled={busy}
                     onClick={() => act(row, 'charge')}
-                    className="control bg-highlight text-ink disabled:opacity-70"
+                    className="control bg-highlight text-on-accent disabled:opacity-70"
                   >
                     Take {amount} from the saved card
                     <span className="visually-hidden">: {label}</span>
@@ -115,7 +115,7 @@ export function TillCases({
                     type="button"
                     disabled={busy}
                     onClick={() => act(row, 'refund')}
-                    className="control bg-highlight text-ink disabled:opacity-70"
+                    className="control bg-highlight text-on-accent disabled:opacity-70"
                   >
                     Give {amount} back to the card
                     <span className="visually-hidden">: {label}</span>
@@ -126,7 +126,7 @@ export function TillCases({
                     type="button"
                     disabled={busy}
                     onClick={() => act(row, 'refunded_by_hand')}
-                    className="control bg-paper text-ink disabled:opacity-70"
+                    className="control border-paper bg-paper/10 text-paper disabled:opacity-70"
                   >
                     I sent it back by hand<span className="visually-hidden">: {label}</span>
                   </button>
@@ -136,7 +136,7 @@ export function TillCases({
                     type="button"
                     disabled={busy}
                     onClick={() => act(row, 'collected_by_hand')}
-                    className="control bg-paper text-ink disabled:opacity-70"
+                    className="control border-paper bg-paper/10 text-paper disabled:opacity-70"
                   >
                     It was paid by hand<span className="visually-hidden">: {label}</span>
                   </button>
@@ -146,7 +146,7 @@ export function TillCases({
                     type="button"
                     disabled={busy}
                     onClick={() => act(row, 'let_go')}
-                    className="control bg-paper text-ink disabled:opacity-70"
+                    className="control border-paper bg-paper/10 text-paper disabled:opacity-70"
                   >
                     Let the extra go<span className="visually-hidden">: {label}</span>
                   </button>
@@ -201,7 +201,7 @@ export function ReceiptPhoto({
             .then(setUrl)
             .catch(() => setProblem('That photo could not be opened.'));
         }}
-        className="control bg-paper text-ink"
+        className="control border-paper bg-paper/10 text-paper"
       >
         Show the receipt photo<span className="visually-hidden">: {label}</span>
       </button>

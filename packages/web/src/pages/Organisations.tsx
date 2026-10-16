@@ -67,7 +67,7 @@ export function Organisations(): JSX.Element {
         </p>
         <a
           href={`tel:${telephonePlaceholder.replace(/\s/g, '')}`}
-          className="control bg-highlight text-ink text-lead"
+          className="control bg-highlight text-on-accent text-lead"
         >
           {telephonePlaceholder}
         </a>
@@ -90,7 +90,7 @@ export function Organisations(): JSX.Element {
             {problem !== '' && (
               <p
                 role="alert"
-                className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0"
+                className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0"
               >
                 {problem}
               </p>
@@ -141,7 +141,7 @@ export function Organisations(): JSX.Element {
             <button
               type="submit"
               disabled={busy}
-              className="control bg-highlight text-ink text-lead disabled:opacity-70"
+              className="control bg-highlight text-on-accent text-lead disabled:opacity-70"
             >
               Send
             </button>
@@ -152,7 +152,7 @@ export function Organisations(): JSX.Element {
         <h2 id="signin-heading" className="text-lead font-bold">
           Already working with us?
         </h2>
-        <Link to="/business" className="control bg-highlight text-ink">
+        <Link to="/business" className="control bg-highlight text-on-accent">
           Sign in to your organisation’s area
         </Link>
       </section>

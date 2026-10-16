@@ -45,7 +45,7 @@ export function RunnerAgreement(): JSX.Element {
     <article className="space-y-8 max-w-2xl">
       <h1 className="text-display font-bold m-0">Runner agreement</h1>
       <p className="m-0">Version of {versionDate}.</p>
-      <p className="m-0 border-2 border-paper rounded-xl p-4">
+      <p className="m-0 border-2 border-paper rounded-2xl p-4">
         This is a draft. It says how working with us as a Runner works today, and you agree to this
         version before your first job. A solicitor has not yet looked at it, and whether you may
         send another checked Runner in your place is still being decided. If anything in it changes,
@@ -132,8 +132,8 @@ export function RunnerAgreement(): JSX.Element {
         <ul className="m-0 ps-6 space-y-2">
           <li>Before you accept, you see the pay and the distance.</li>
           <li>
-            How much shopping, at the shop&rsquo;s prices, each way of travelling carries: on foot or
-            by bicycle up to {money(maxGoodsPenceByMode.foot)}, by motorbike up to{' '}
+            How much shopping, at the shop&rsquo;s prices, each way of travelling carries: on foot
+            or by bicycle up to {money(maxGoodsPenceByMode.foot)}, by motorbike up to{' '}
             {money(maxGoodsPenceByMode.motorbike)}, by car or van up to{' '}
             {money(maxGoodsPenceByMode.car)}. You are only offered an order your way of travelling
             can carry. A motorbike, car or van needs your driving licence and in-date insurance

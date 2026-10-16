@@ -49,7 +49,7 @@ export function Offers(): JSX.Element {
             <li key={offer.id}>
               <article
                 aria-labelledby={`offer-${offer.id}`}
-                className="space-y-2 border-2 border-paper rounded-xl p-4"
+                className="space-y-2 border-2 border-paper rounded-2xl p-4"
               >
                 <h2 id={`offer-${offer.id}`} className="text-lead font-bold m-0">
                   {offer.title}
@@ -69,7 +69,7 @@ export function Offers(): JSX.Element {
                   <button
                     type="button"
                     onClick={() => void add(offer.item ?? '')}
-                    className="control w-full bg-highlight text-ink"
+                    className="control w-full bg-highlight text-on-accent"
                   >
                     Add it to my basket<span className="visually-hidden">: {offer.title}</span>
                   </button>
@@ -87,7 +87,10 @@ export function Offers(): JSX.Element {
           Work with {storeConfig.productName}: your shop&rsquo;s offers, in front of people who shop
           with us every week, and brought to their door by our Runners.
         </p>
-        <Link to="/organisations?shop=1#enquiry" className="control bg-paper text-ink">
+        <Link
+          to="/organisations?shop=1#enquiry"
+          className="control border-paper bg-paper/10 text-paper"
+        >
           Ask to work with us
         </Link>
       </section>

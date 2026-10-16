@@ -64,7 +64,7 @@ export function DetailsToFollowNotice(): JSX.Element | null {
   const missing = detailsToFollow();
   if (missing.length === 0) return null;
   return (
-    <p className="m-0 border-2 border-paper rounded-xl p-4">
+    <p className="m-0 border-2 border-paper rounded-2xl p-4">
       We are still adding {list(missing)}. Until then, where this page says &ldquo;to follow&rdquo;,
       ring us and a person will give you the details.
     </p>

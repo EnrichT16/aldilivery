@@ -151,7 +151,7 @@ export function MyOrder(): JSX.Element {
       <div className="space-y-6">
         <h1 className="text-display font-bold m-0">Your order</h1>
         <p className="m-0 max-w-xl">Sign in to see where your order has got to.</p>
-        <Link to="/sign-in?next=/my-order" className="control bg-highlight text-ink">
+        <Link to="/sign-in?next=/my-order" className="control bg-highlight text-on-accent">
           Sign in
         </Link>
       </div>
@@ -182,7 +182,7 @@ export function MyOrder(): JSX.Element {
           ref={problemRef}
           tabIndex={-1}
           role="alert"
-          className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0 max-w-xl"
+          className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0 max-w-xl"
         >
           {problem}
         </p>
@@ -191,7 +191,7 @@ export function MyOrder(): JSX.Element {
       {!order ? (
         <div className="space-y-4">
           <p className="m-0 max-w-xl">You have no order on its way at the moment.</p>
-          <Link to="/shop" className="control bg-highlight text-ink">
+          <Link to="/shop" className="control bg-highlight text-on-accent">
             Find your shopping
           </Link>
         </div>
@@ -201,7 +201,7 @@ export function MyOrder(): JSX.Element {
             <section
               key={question.id}
               aria-labelledby={`question-${question.id}`}
-              className="space-y-3 max-w-xl border-2 border-highlight rounded-xl p-4"
+              className="space-y-3 max-w-xl border-2 border-highlight rounded-2xl p-4"
             >
               <h2 id={`question-${question.id}`} className="text-lead font-bold m-0">
                 A question from your Runner
@@ -216,7 +216,7 @@ export function MyOrder(): JSX.Element {
                 onClick={() => {
                   void answer(question, 'similar');
                 }}
-                className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+                className="control w-full bg-highlight text-on-accent text-lead disabled:opacity-70"
               >
                 Bring something similar
               </button>
@@ -320,7 +320,7 @@ export function MyOrder(): JSX.Element {
                         `Your Runner is ${order.runnerName}. At your door they will say ${order.doorWord}.`,
                     );
                   }}
-                  className="control bg-paper text-ink"
+                  className="control border-paper bg-paper/10 text-paper"
                 >
                   Say the door words aloud
                 </button>

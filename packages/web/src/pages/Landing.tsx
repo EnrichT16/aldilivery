@@ -109,7 +109,7 @@ export function Landing(): JSX.Element {
         // anywhere starts Ozi; this says so, as big as anything on the page.
         <button
           type="button"
-          className="control w-full max-w-xl min-h-[6rem] bg-[var(--colour-listening)] text-ink text-lead font-bold border-4 border-ink"
+          className="control w-full max-w-xl min-h-[6rem] bg-listening text-on-accent text-lead font-bold border-4 border-on-accent"
         >
           Tap anywhere, and {storeConfig.assistantName} will talk to you
         </button>

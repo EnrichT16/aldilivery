@@ -22,7 +22,7 @@ export function Basket(): JSX.Element {
       <div className="space-y-6">
         <h1 className="text-display font-bold m-0">Your basket</h1>
         <p className="m-0">There is nothing in your basket yet.</p>
-        <Link to="/shop" className="control bg-highlight text-ink">
+        <Link to="/shop" className="control bg-highlight text-on-accent">
           Find your shopping
         </Link>
       </div>
@@ -39,7 +39,7 @@ export function Basket(): JSX.Element {
         {lines.map((line) => (
           <li
             key={line.item.id}
-            className="border-2 border-paper/40 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4"
+            className="border-2 border-paper/40 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4"
           >
             <div>
               <p className="m-0 text-lead font-bold">{line.item.name}</p>
@@ -64,11 +64,11 @@ export function Basket(): JSX.Element {
                 onChange={(event) => {
                   setQuantity(line.item.id, Number(event.target.value));
                 }}
-                className="w-24 min-h-control rounded-xl border-2 border-paper bg-paper text-ink p-3 text-center"
+                className="w-24 min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3 text-center"
               />
               <button
                 type="button"
-                className="control bg-paper text-ink"
+                className="control border-paper bg-paper/10 text-paper"
                 onClick={() => {
                   remove(line.item.id);
                 }}
@@ -138,7 +138,7 @@ export function Basket(): JSX.Element {
       {overOneRunner && <OverOneRunner parts={parts} />}
 
       {overMaximum ? (
-        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0">
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           This comes to about {money(pricing.goodsPence)} of shopping at the shop&rsquo;s prices,
           and one basket holds up to {money(storeConfig.fees.maximumBasketGoodsPence)}, brought by
           several Runners. Please take some things out.
@@ -148,12 +148,12 @@ export function Basket(): JSX.Element {
           <p className="m-0">
             To stay with one Runner, take something out or swap it above. Or keep everything:
           </p>
-          <Link to="/confirm" className="control w-full bg-highlight text-ink text-lead">
+          <Link to="/confirm" className="control w-full bg-highlight text-on-accent text-lead">
             Keep everything and check my order
           </Link>
         </div>
       ) : (
-        <Link to="/confirm" className="control w-full bg-highlight text-ink text-lead">
+        <Link to="/confirm" className="control w-full bg-highlight text-on-accent text-lead">
           Check and send my order
         </Link>
       )}

@@ -257,7 +257,7 @@ export function TapPin({
         }}
         onContextMenu={(event) => event.preventDefault()}
         style={{ touchAction: 'none', userSelect: 'none' }}
-        className="w-full min-h-[50vh] rounded-xl border-4 border-paper bg-paper/10 text-paper text-lead font-bold flex items-center justify-center"
+        className="w-full min-h-[50vh] rounded-2xl border-4 border-paper bg-paper/10 text-paper text-lead font-bold flex items-center justify-center"
       >
         {words}
       </button>
