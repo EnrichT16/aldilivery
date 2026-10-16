@@ -129,19 +129,12 @@ describe('the first launch', () => {
     expect(engine.spoken[1]!.text).toMatch(
       /^Do you need any extra help\? For example, are you blind or partially sighted\?/,
     );
-    expect(intro).toMatch(/pinch the screen open with two fingers/);
-    // Anthony's words, 4 October 2026: who Ozi is, the motto, then how to turn it off.
-    expect(intro).toMatch(
-      new RegExp(`^Hello, I'm ${assistant}, your shopping assistant\\. Send me, I will deliver\\.`),
+    // The short introduction approved on 16 October 2026: who Ozi is, what it does, repeat and
+    // stop, new or returning, and the other doors. The motto stays written on the first screen.
+    expect(intro).toBe(
+      `Hello, I'm ${assistant}. Tell me what shopping you need, and a Runner will bring it to your door. Say 'repeat' to hear me again, or 'stop talking' if you'd rather read. Are you new? Say 'new account'. Been here before? Say 'sign in'. Runners, shops and organisations: just say which.`,
     );
-    expect(intro).toMatch(
-      /turn off the switch at the bottom of the screen, or just say "turn off talking"/,
-    );
-    expect(intro).toMatch(/use the same switch, or Settings, or say "Hey Ozi, turn on"/);
-    expect(intro).toMatch(/just say "repeat"/);
-    // The stand-in cannot hear a wake word while its button has paused it, so Ozi does not
-    // promise that. "Hey Ozi, turn on" works because turning talking off keeps Ozi listening.
-    expect(intro).not.toMatch(/again, or say "Hey Ozi"/);
+    expect(intro).not.toContain(storeConfig.motto);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 
     await waitFor(() => {
@@ -196,7 +189,7 @@ describe('the first launch', () => {
 });
 
 describe('the round button', () => {
-  it('glows green while listening; pressing mutes it, and it changes in more than colour', async () => {
+  it('glows green while listening; pressing pauses it, and it changes in more than colour', async () => {
     const engine = fakeEngine();
     setVoiceEngine(engine);
     stubApi();
@@ -207,18 +200,21 @@ describe('the round button', () => {
       expect(engine.listening).not.toBeNull();
     });
     expect(bubble('Listening')).toHaveClass('ozi-beaming');
-    expect(bubble('Listening')).toHaveAccessibleDescription(/Ozi is listening\. Press to mute\./);
+    expect(bubble('Listening')).toHaveAccessibleDescription(/Ozi is listening\. Press to pause\./);
 
     await user.click(bubble('Listening'));
     await waitFor(() => {
-      expect(bubble('Muted')).toBeInTheDocument();
+      expect(bubble('Paused')).toBeInTheDocument();
     });
-    expect(bubble('Muted')).not.toHaveClass('ozi-beaming');
-    expect(bubble('Muted')).toHaveClass('border-dashed');
+    expect(bubble('Paused')).not.toHaveClass('ozi-beaming');
+    expect(bubble('Paused')).toHaveClass('border-dashed');
+    expect(bubble('Paused')).toHaveAccessibleDescription(/Ozi is paused and not listening/);
     expect(engine.listening).toBeNull();
-    expect(engine.spoken.at(-1)?.text).toMatch(/^I'm muted now, and not listening/);
+    // One word for it everywhere: the button says Paused, and so does Ozi (16 October 2026).
+    expect(engine.spoken.at(-1)?.text).toMatch(/^I'm paused now, and not listening/);
+    expect(screen.queryByText(/muted/i)).not.toBeInTheDocument();
 
-    await user.click(bubble('Muted'));
+    await user.click(bubble('Paused'));
     await waitFor(() => {
       expect(engine.spoken.at(-1)?.text).toBe("I'm listening. What would you like?");
     });
@@ -227,20 +223,23 @@ describe('the round button', () => {
     });
   });
 
-  it('mutes when told to', async () => {
-    const engine = fakeEngine();
-    setVoiceEngine(engine);
-    stubApi();
-    renderAt('/shop');
-    await waitFor(() => {
-      expect(engine.listening).not.toBeNull();
-    });
-    act(() => {
-      engine.hear('Ozi, mute yourself');
-    });
-    await waitFor(() => {
-      expect(bubble('Muted')).toBeInTheDocument();
-    });
+  it('pauses when told to, by "pause" or the older "mute"', async () => {
+    for (const words of ['Ozi, pause', 'Ozi, mute yourself']) {
+      const engine = fakeEngine();
+      setVoiceEngine(engine);
+      stubApi();
+      const view = renderAt('/shop');
+      await waitFor(() => {
+        expect(engine.listening).not.toBeNull();
+      });
+      act(() => {
+        engine.hear(words);
+      });
+      await waitFor(() => {
+        expect(bubble('Paused')).toBeInTheDocument();
+      });
+      view.unmount();
+    }
   });
 
   it('does not answer words that were not meant for it, like the television', async () => {
@@ -271,7 +270,7 @@ describe('the round button', () => {
     expect(engine.interrupted).toBe(1);
   });
 
-  it('reminds gently while muted: after two minutes, then every three', async () => {
+  it('reminds gently while paused: aloud once after two minutes, then on the screen every three', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const engine = fakeEngine();
     setVoiceEngine(engine);
@@ -282,7 +281,7 @@ describe('the round button', () => {
     });
     fireEvent.click(bubble('Listening'));
     await waitFor(() => {
-      expect(bubble('Muted')).toBeInTheDocument();
+      expect(bubble('Paused')).toBeInTheDocument();
     });
     const before = engine.spoken.length;
 
@@ -294,14 +293,20 @@ describe('the round button', () => {
       await vi.advanceTimersByTimeAsync(1000);
     });
     expect(engine.spoken.at(-1)?.text).toMatch(
-      /^Just a gentle reminder: I'm still here, but I'm muted, and I'm not listening\./,
+      /^Just a gentle reminder: I'm still here, but I'm paused, and I'm not listening\./,
     );
     await act(async () => {
       await vi.advanceTimersByTimeAsync(LATER_REMINDER_MS);
     });
-    expect(engine.spoken.at(-1)?.text).toMatch(/^I'm still here, resting and not listening\./);
-    expect(engine.spoken).toHaveLength(before + 2);
-    // Still muted: reminding is not listening.
+    // Paused means paused (16 October 2026): the later reminders are shown and announced, not
+    // said aloud, so a paused Ozi does not keep speaking up every three minutes.
+    expect(engine.spoken).toHaveLength(before + 1);
+    const shown = await screen.findAllByText(/^I'm still here, paused and not listening\./);
+    expect(shown.find((element) => element.getAttribute('role') === 'status')).toHaveAttribute(
+      'aria-live',
+      'polite',
+    );
+    // Still paused: reminding is not listening.
     expect(engine.listening).toBeNull();
   });
 
@@ -376,7 +381,7 @@ describe('speaking by default, and Settings', () => {
     expect(storedSettings()).toMatchObject({ muted: true });
 
     await user.click(await screen.findByRole('button', { name: 'Listening' }));
-    const words = await screen.findAllByText(/^I'm muted now, and not listening/);
+    const words = await screen.findAllByText(/^I'm paused now, and not listening/);
     expect(engine.spoken).toEqual([]);
     expect(words.find((element) => element.getAttribute('role') === 'status')).toHaveAttribute(
       'aria-live',

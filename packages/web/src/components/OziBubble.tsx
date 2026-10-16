@@ -9,8 +9,8 @@ import { useVoice } from '../state/voice';
  *
  * Big and round, in the middle of the right-hand edge to start with, so it can be found without
  * hunting and is out of the way of what is on the screen. While Ozi is listening it is bright
- * green and glows outward. Muted, it turns white with a dashed edge, the microphone gets a line
- * through it, and its words change from "Listening" to "Muted". So the difference never rests on
+ * green and glows outward. Paused, it turns white with a dashed edge, the microphone gets a line
+ * through it, and its words change from "Listening" to "Paused". So the difference never rests on
  * colour alone: a person who cannot tell green from red, or cannot see colour at all, still has
  * the brightness, the shape, the movement and the words. Red was considered and not used,
  * because red and green are the pair colour-blind people most often confuse.
@@ -68,14 +68,14 @@ export function OziBubble(): JSX.Element {
   // Ozi's words sit on whichever side of the button has more room.
   const captionSide = left + SIZE / 2 > screenSize.w / 2 ? 'right-full mr-3' : 'left-full ml-3';
   const listening = ozi.presence === 'listening';
-  const muted = ozi.presence === 'muted';
+  const paused = ozi.presence === 'muted';
 
   const label = ozi.talking
     ? 'Talking'
     : listening
       ? 'Listening'
-      : muted
-        ? 'Muted'
+      : paused
+        ? 'Paused'
         : ozi.presence === 'needs-tap'
           ? 'Tap to talk'
           : ozi.presence === 'cannot-listen'
@@ -86,9 +86,9 @@ export function OziBubble(): JSX.Element {
   const action = ozi.talking
     ? `${assistant} is talking. Press to stop.`
     : listening
-      ? `${assistant} is listening. Press to mute.`
-      : muted
-        ? `${assistant} is muted and not listening. Press to listen.`
+      ? `${assistant} is listening. Press to pause.`
+      : paused
+        ? `${assistant} is paused and not listening. Press to listen.`
         : ozi.presence === 'needs-tap'
           ? `${assistant} is ready. Press to talk; your phone will ask to use the microphone.`
           : ozi.presence === 'cannot-listen'

@@ -109,9 +109,10 @@ export function Landing(): JSX.Element {
         // anywhere starts Ozi; this says so, as big as anything on the page.
         <button
           type="button"
+          data-hear-ozi
           className="control w-full max-w-xl min-h-[6rem] bg-[var(--colour-listening)] text-ink text-lead font-bold border-4 border-ink"
         >
-          Tap anywhere, and {storeConfig.assistantName} will talk to you
+          Tap here to hear {storeConfig.assistantName}
         </button>
       )}
 
@@ -151,7 +152,7 @@ export function Landing(): JSX.Element {
           </a>
         </p>
         {storeConfig.contact.telephoneIsPlaceholder && (
-          <p className="m-0 text-paper/80 extra">
+          <p className="m-0 text-paper/80">
             This number is a placeholder while we get the line set up. It will not connect yet.
           </p>
         )}

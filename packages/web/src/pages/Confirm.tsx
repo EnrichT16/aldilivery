@@ -20,6 +20,7 @@ import {
   type PlacedOrder,
 } from '../lib/api';
 import { deliveryWords, money } from '../lib/money';
+import { orderReference } from '../lib/order-reference';
 import { prepareCardEntry } from '../lib/stripe';
 import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
@@ -147,18 +148,34 @@ export function Confirm(): JSX.Element {
     ? `Send my order and pay. About ${money(pricing.totalPence)} altogether, as ${parts.length} orders each with its own Runner: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}, of which ${money(extraDeliveryPence)} for further Runners is ${bankOn && payBy === 'bank' && !(Boolean(shopper?.familyOwnerId) && shopper?.activePlan === 'family') ? 'given back as credit if they are not needed' : 'taken only when each collects'}.`
     : `Send my order and pay. About ${money(pricing.totalPence)} altogether: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}.`;
 
-  async function onSend(): Promise<void> {
+  /**
+   * The button is never greyed out (review of 16 October 2026): a disabled button says nothing
+   * about why. Pressed with something missing, the page shows, and Ozi says, exactly what.
+   */
+  function whatIsMissing(): string | null {
     const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
     const byBank = bankOn && payBy === 'bank' && !byFamily;
-    if (
-      (!card && !byBank && !byFamily) ||
-      sending ||
-      address.trim() === '' ||
-      overMaximum ||
-      (overOneRunner && !keepEverything) ||
-      !addressConfirmed
-    )
+    if (overMaximum) {
+      return `Your shopping is more than one basket holds, ${money(storeConfig.fees.maximumBasketGoodsPence)}. Please go back to your basket and take some things out.`;
+    }
+    if (address.trim() === '' || !addressConfirmed) return 'Please confirm the address first';
+    if (!card && !byBank && !byFamily) return 'Please add a card or choose bank transfer';
+    if (overOneRunner && !keepEverything) {
+      return 'Please tick "Keep everything", or go back to your basket to take something out.';
+    }
+    return null;
+  }
+
+  async function onSend(): Promise<void> {
+    if (sending) return;
+    const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
+    const byBank = bankOn && payBy === 'bank' && !byFamily;
+    const missing = whatIsMissing();
+    if (missing !== null) {
+      setError(missing);
+      void ozi.say(missing);
       return;
+    }
 
     setSending(true);
     setError('');
@@ -256,7 +273,9 @@ export function Confirm(): JSX.Element {
           what they do. Nobody is given your phone number.
         </p>
         <NotifyMe />
-        <p className="m-0 text-paper/80">Your order number is {placed.order.id}.</p>
+        <p className="m-0 text-paper/80">
+          Your order reference is {orderReference(placed.order.id)}. Your Runner sees the same one.
+        </p>
         <Link to="/my-order" className="control bg-highlight text-ink">
           Follow your order
         </Link>
@@ -312,12 +331,6 @@ export function Confirm(): JSX.Element {
 
   const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
   const byBank = bankOn && payBy === 'bank' && !byFamily;
-  const ready =
-    (card !== undefined || byBank || byFamily) &&
-    address.trim() !== '' &&
-    !overMaximum &&
-    (!overOneRunner || keepEverything) &&
-    addressConfirmed;
 
   return (
     <div className="space-y-8">
@@ -660,9 +673,14 @@ export function Confirm(): JSX.Element {
         </p>
       )}
 
+      <p className="m-0">
+        <span className="visually-hidden">You are agreeing to this: </span>
+        {statement}
+      </p>
+
       <button
         type="button"
-        disabled={!ready || sending}
+        disabled={sending}
         onClick={() => {
           void onSend();
         }}
@@ -670,11 +688,6 @@ export function Confirm(): JSX.Element {
       >
         {sending ? 'Sending your order…' : 'Send my order and pay'}
       </button>
-
-      <p className="m-0">
-        <span className="visually-hidden">You are agreeing to this: </span>
-        {statement}
-      </p>
 
       <Link to="/basket" className="control bg-paper text-ink">
         Go back and change something

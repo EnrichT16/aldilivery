@@ -460,8 +460,8 @@ describe('a Runner page', () => {
       await screen.findByText(/^Your Ozi card is loaded with up to £8\.39 for this order\.$/),
     ).toBeInTheDocument();
     expect(screen.getByText('Tap your phone at the till')).toBeInTheDocument();
-    // The longer words are there for a screen reader, hidden on screen unless words are shown.
-    expect(screen.getByText(/You do not need any of your own money/)).toHaveClass('extra');
+    // Instructions are for everybody, so they are not hidden with the descriptions (16 October 2026).
+    expect(screen.getByText(/You do not need any of your own money/)).not.toHaveClass('extra');
 
     await user.click(screen.getByRole('button', { name: 'I have started shopping' }));
     const till = await screen.findByLabelText('What did the till say?');

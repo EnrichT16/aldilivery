@@ -129,8 +129,8 @@ export function Catalogue(): JSX.Element {
         <div role="alert" className="border-2 border-paper p-4 rounded-xl space-y-2">
           <h2 className="text-lead font-bold m-0">We cannot reach the shopping list</h2>
           <p className="m-0">
-            The {storeConfig.productName} server is not answering. If you are running this on your
-            own computer, start the server and this page will fill itself in.
+            The {storeConfig.productName} server is not answering just now. Please try again in a
+            moment. If it keeps happening, ring us and your order is taken on the phone.
           </p>
         </div>
       )}
@@ -149,7 +149,7 @@ export function Catalogue(): JSX.Element {
               ? 'Nothing matched that'
               : `${state.items.length} ${state.items.length === 1 ? 'thing' : 'things'} you can add`}
           </h2>
-          <p className="m-0 text-paper/90 extra">{state.attribution}</p>
+          <p className="m-0 text-paper/90">{state.attribution}</p>
 
           <ul className="list-none m-0 p-0 space-y-4">
             {state.items.map((item) => (

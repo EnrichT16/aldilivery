@@ -109,8 +109,12 @@ describe('signing in', () => {
     await user.type(await screen.findByLabelText('The code from the text'), '123456');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/no account on that number/);
-    expect(screen.getByRole('link', { name: /Set up an account/ })).toBeInTheDocument();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/no account on that number/);
+    // The way to set one up is inside the message itself, not somewhere else on the page.
+    const link = alert.querySelector('a');
+    expect(link).toHaveTextContent('Set up an account');
+    expect(link).toHaveAttribute('href', '/sign-up');
   });
 
   it('says plainly when signing in by text is not switched on yet', async () => {

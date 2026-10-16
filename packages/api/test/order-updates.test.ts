@@ -14,7 +14,7 @@ afterEach(async () => {
   await harness.close();
 });
 
-async function anOrder(shopperId: string, runnerId: string | null) {
+async function anOrder(shopperId: string, runnerId: string | null, doorWord?: string) {
   const order = await harness.repository.orders.create({
     shopperId,
     status: 'paid',
@@ -24,7 +24,9 @@ async function anOrder(shopperId: string, runnerId: string | null) {
     deliveryAddress: '1 High Street',
     items: [],
   });
-  return runnerId ? harness.repository.orders.update(order.id, { runnerId }) : order;
+  return runnerId
+    ? harness.repository.orders.update(order.id, { runnerId, ...(doorWord ? { doorWord } : {}) })
+    : order;
 }
 
 describe('order updates', () => {
@@ -46,6 +48,26 @@ describe('order updates', () => {
       },
     ]);
     expect(texts[0]!.body).not.toContain('7700900555');
+  });
+
+  it('gives the door words when a Runner takes it, and the feedback credit when it arrives', async () => {
+    const texts: string[] = [];
+    harness = await buildTestApp(new Date('2026-10-07T10:00:00.000Z'), {
+      sendText: async (_to, body) => {
+        texts.push(body);
+      },
+    });
+    const shopper = await signUpShopper(harness);
+    const runner = await signUpRunner(harness, { name: 'Sam Okoro', phone: '+447700900555' });
+    const order = await anOrder(shopper.shopperId, runner.runnerId, 'blue kettle');
+    await tellShopper(harness.app.ctx, order, 'accepted', harness.app.log);
+    await tellShopper(harness.app.ctx, order, 'delivered', harness.app.log);
+    expect(texts).toEqual([
+      `${harness.config.productName}: Sam has your order. At your door Sam will say: 'blue kettle'.`,
+      `${harness.config.productName}: Sam has delivered your shopping. Tell us how it went and get £1 off next time.`,
+    ]);
+    // The motto belongs on the first screen, not in a text about a delivery.
+    expect(texts[1]).not.toContain(harness.config.motto);
   });
 
   it('uses a notification instead, where the Shopper allowed one', async () => {

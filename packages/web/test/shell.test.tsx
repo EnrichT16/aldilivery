@@ -352,11 +352,12 @@ describe('the confirmation screen', () => {
     const yes = screen.queryByRole('button', { name: 'Yes, this is the right address' });
     if (yes) await user.click(yes);
     const send = screen.getByRole('button', { name: 'Send my order and pay' });
-    expect(send).toBeDisabled();
+    await user.click(send);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Please tick "Keep everything"/);
+    expect(recorded.some((call) => call.method === 'POST' && call.path === '/orders')).toBe(false);
     const keep = screen.getByLabelText('Keep everything, as 2 orders each with its own Runner');
     expect(keep).not.toBeChecked();
     await user.click(keep);
-    await waitFor(() => expect(send).toBeEnabled());
     await user.click(send);
     await waitFor(() =>
       expect(recorded.some((call) => call.method === 'POST' && call.path === '/orders')).toBe(true),

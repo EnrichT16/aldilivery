@@ -50,6 +50,17 @@ beforeEach(() => {
             : [{ id: `item-${name}`, name, category: 'Food', estimatedPricePence: 100 }];
         return reply({ items, attribution: '', source: 'community' });
       }
+      if (path === '/catalogue/item-renamed') {
+        return reply({
+          found: true,
+          item: {
+            id: 'item-renamed',
+            name: 'Bananas, loose, 5 pack',
+            category: 'Food',
+            estimatedPricePence: 100,
+          },
+        });
+      }
       if (path === '/extras/recipe-pass' && method === 'POST') {
         if (!passWorks) {
           return reply(
@@ -76,6 +87,17 @@ beforeEach(() => {
               items: [
                 { id: 'i1', name: 'Bananas, loose', quantity: 6 },
                 { id: 'i2', name: 'Semi skimmed milk, 2 pints', quantity: 2 },
+              ],
+            },
+            {
+              id: 'order-6',
+              status: 'completed',
+              totalEstimatePence: 1000,
+              finalTotalPence: 1000,
+              createdAt: '2026-09-26T09:00:00.000Z',
+              deliveredAt: '2026-09-26T11:00:00.000Z',
+              items: [
+                { id: 'i3', name: 'Bananas, loose', quantity: 6, catalogueItemId: 'item-renamed' },
               ],
             },
           ],
@@ -196,6 +218,22 @@ describe('ordering the same shopping again', () => {
       ),
     ).toBeInTheDocument();
     await expectInBasket(user, 'Semi skimmed milk, 2 pints');
+  });
+
+  it('finds each product by its ID, and names anything that has changed since', async () => {
+    const user = userEvent.setup({ delay: null });
+    renderAt('/orders');
+    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent('Past orders');
+    await user.click(
+      await screen.findByRole('button', { name: 'Order these again from Saturday 26 September' }),
+    );
+    expect(
+      await screen.findByText(
+        "I've put the same shopping in your basket: Bananas, loose, 5 pack. One thing has changed: Bananas, loose is now Bananas, loose, 5 pack. Shall we look at your basket?",
+      ),
+    ).toBeInTheDocument();
+    expect(sent.some((r) => r.path === '/catalogue/item-renamed')).toBe(true);
+    await expectInBasket(user, 'Bananas, loose, 5 pack');
   });
 });
 

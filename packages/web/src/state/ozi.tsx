@@ -48,18 +48,21 @@ import { useVoiceOrdering } from './voice-order';
 import { useVoice } from './voice';
 
 /**
- * Ozi, present on every screen: introducing itself, listening, muted, and reminding.
+ * Ozi, present on every screen: introducing itself, listening, paused, and reminding.
  *
  * Asked for by Anthony on 1 Oct 2026 (docs/BUILD_PROMPT.md, rulings):
  * - On the very first launch Ozi speaks, loud and clear, with no notification: it introduces
  *   itself, says how to pause it, how to bring it back, how to turn its voice off in Settings,
  *   and that its button can be moved.
- * - A big round green button glows while Ozi is listening. Pressing it, or saying "Ozi, mute",
- *   mutes Ozi; pressing it again brings Ozi back.
- * - While muted, Ozi gives a gentle reminder after two minutes, again three minutes later, and
- *   every three minutes after that, so nobody thinks Ozi is listening when it is not.
+ * - A big round green button glows while Ozi is listening. Pressing it, or saying "Ozi, pause",
+ *   pauses Ozi; pressing it again brings Ozi back. The one word for this everywhere, on the
+ *   button and in what Ozi says, is "paused" (review of 16 October 2026). "Turn off talking", by
+ *   the switch, is the other thing: Ozi silent but still listening.
+ * - While paused, Ozi gives a gentle reminder after two minutes, said aloud once, and then every
+ *   three minutes on the screen only, so nobody thinks Ozi is listening when it is not, and a
+ *   paused Ozi does not keep talking.
  *
- * Muted means not listening at all. "Hey Ozi" can only wake a muted Ozi with an engine that
+ * Paused means not listening at all. "Hey Ozi" can only wake a paused Ozi with an engine that
  * hears the wake word on the device and nothing else (`wakeWordOnDevice`). The browser
  * stand-in cannot, so with it the button brings Ozi back, and Ozi says so.
  *
@@ -90,9 +93,6 @@ function ourTelephone(): string | null {
   const { contact } = storeConfig;
   return contact.telephoneIsPlaceholder ? null : contact.telephonePlaceholder;
 }
-
-/** The motto (Anthony, 4 October 2026; changed 10 October 2026, ruling 60): "Send me, I will deliver." */
-const MOTTO = storeConfig.motto;
 
 /** "Turn off", "turn off talking", "turn the talking switch off", "stop talking". */
 const TURN_OFF =
@@ -192,7 +192,7 @@ function isYes(text: string): boolean {
   );
 }
 
-/** When the gentle reminders come while Ozi is muted. Exported for the tests. */
+/** When the gentle reminders come while Ozi is paused. Exported for the tests. */
 export const FIRST_REMINDER_MS = 2 * 60 * 1000;
 export const LATER_REMINDER_MS = 3 * 60 * 1000;
 
@@ -206,9 +206,9 @@ interface OziValue {
   announce: boolean;
   /** The last thing Ozi heard. */
   heard: string;
-  /** Say something as Ozi: shown, spoken unless muted, announced when not spoken. */
+  /** Say something as Ozi: shown, spoken unless talking is off, announced when not spoken. */
   say: (text: string) => Promise<SpeakOutcome>;
-  /** Press of the button: mute when listening, listen when muted, stop when talking. */
+  /** Press of the button: pause when listening, listen when paused, stop when talking. */
   press: () => void;
   mute: () => void;
   wake: () => void;
@@ -425,6 +425,8 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   const touched = useRef(false);
   // Something Ozi said has been heard aloud this visit, so the page can make a sound.
   const soundWorks = useRef(false);
+  // Words Ozi could not say aloud were put in the live region, so a screen reader read them.
+  const announcedRef = useRef(false);
 
   const sayRef = useRef<(text: string, inline?: boolean) => Promise<SpeakOutcome>>(
     async () => 'finished',
@@ -449,6 +451,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
         setWaitingForTouch(true);
       }
       // Not heard aloud: show the words again, announced, so a screen reader reads them.
+      announcedRef.current = true;
       setAnnounce(true);
       setSaid('');
       await new Promise((resolve) => window.setTimeout(resolve, 50));
@@ -460,7 +463,17 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     return outcome;
   };
 
-  /* ------------------------------------------------------------------ muting */
+  /** Show something as Ozi, announced to a screen reader, without saying it aloud. */
+  const showRef = useRef<(text: string) => void>(() => {});
+  showRef.current = (text: string) => {
+    lastSaid.current = text;
+    setCaptionOff(false);
+    setAnnounce(true);
+    setSaid('');
+    window.setTimeout(() => setSaid(text), 50);
+  };
+
+  /* ------------------------------------------------------------------ pausing */
 
   const clearReminders = useCallback(() => {
     if (reminderTimer.current !== null) window.clearTimeout(reminderTimer.current);
@@ -474,11 +487,17 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       if (presenceRef.current !== 'muted') return;
       remindersGiven.current += 1;
       if (document.visibilityState !== 'hidden') {
-        void sayRef.current(
-          remindersGiven.current === 1
-            ? `Just a gentle reminder: I'm still here, but I'm muted, and I'm not listening. When you want me, press my button${wakeHint}.`
-            : `I'm still here, resting and not listening. Press my button whenever you need me${wakeHint}.`,
-        );
+        if (remindersGiven.current === 1) {
+          void sayRef.current(
+            `Just a gentle reminder: I'm still here, but I'm paused, and I'm not listening. When you want me, press my button${wakeHint}.`,
+          );
+        } else {
+          // Paused is paused: the later reminders are on the screen, and read by a screen
+          // reader, but a paused Ozi does not keep speaking up every three minutes.
+          showRef.current(
+            `I'm still here, paused and not listening. Press my button whenever you need me${wakeHint}.`,
+          );
+        }
       }
       scheduleReminder();
     }, wait);
@@ -489,7 +508,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     stopListening();
     clearReminders();
     void sayRef.current(
-      `I'm muted now, and not listening. I'll stay that way until you press my button${wakeHint}.`,
+      `I'm paused now, and not listening. I'll stay that way until you press my button${wakeHint}.`,
     );
     scheduleReminder();
   }, [setPresence, stopListening, clearReminders, scheduleReminder, wakeHint]);
@@ -511,7 +530,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   // Turning back on waits for the setting to be saved, so the first words are spoken aloud.
   const wakeWhenOn = useRef(false);
 
-  const offerAccountRef = useRef<(lead?: string) => void>(() => {});
+  const offerAccountRef = useRef<(lead?: string, doors?: boolean) => void>(() => {});
   const ordering = useVoiceOrdering(
     useCallback((text: string) => sayRef.current(text), []),
     useCallback(() => offerAccountRef.current('To order, you need an account first. '), []),
@@ -771,7 +790,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       sayPhoneNumber();
       return;
     }
-    if (/\bmute\b|\bstop listening\b|\bbe quiet\b/.test(words)) {
+    if (/\bmute\b|\bpause\b|\bstop listening\b|\bbe quiet\b/.test(words)) {
       mute();
       return;
     }
@@ -984,7 +1003,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
    * 2026, ruling 47). Create goes to opening one by talking; sign in is done by voice; no
    * offers the phone. Anything else is answered as if no question had been asked.
    */
-  offerAccountRef.current = (lead = '') => {
+  offerAccountRef.current = (lead = '', doors = false) => {
     captureRef.current = (answer) => {
       const said = answer.toLowerCase();
       if (SIGN_IN.test(said) || /\b(existing|already)\b/.test(said)) {
@@ -1004,7 +1023,9 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       }
     };
     void sayRef.current(
-      `${lead}Would you like to create an account, or sign in? Just say create account, or sign in.`,
+      `${lead}Would you like to create an account, or sign in? Just say create account, or sign in.` +
+        // The first visit (review of 16 October 2026): the other doors are named here too.
+        (doors ? ` If you're a Runner, a shop, or an organisation, just say which.` : ''),
     );
   };
 
@@ -1188,7 +1209,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     wakeWhenOn.current = false;
     clearReminders();
     if (presenceRef.current === 'muted') setPresence('listening');
-    void sayRef.current(`I'm talking out loud again. ${MOTTO}`);
+    void sayRef.current("I'm talking out loud again.");
   }, [settings.muted, clearReminders, setPresence]);
 
   /**
@@ -1199,7 +1220,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   const askAboutHelpRef = useRef<() => void>(() => {});
   askAboutHelpRef.current = () => {
     const next = (): void => {
-      if (!accountRef.current.shopper) offerAccountRef.current();
+      if (!accountRef.current.shopper) offerAccountRef.current('', true);
     };
     captureRef.current = (answer) => {
       if (isYes(answer)) {
@@ -1239,18 +1260,15 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   });
 
   useEffect(() => {
-    const { assistant, engine, settings, setPresence, wakeHint, browser } = firstLaunch.current;
+    const { assistant, engine, settings, setPresence, browser } = firstLaunch.current;
     let cancelled = false;
-    // Anthony's words, 4 October 2026: who Ozi is, the motto, how to turn talking off and back
-    // on, by the switch or by voice, and that it will say anything again.
+    // Short, as approved on 16 October 2026: who Ozi is, what it does, how to hear it again or
+    // stop it, and the doors. The motto stays on the first screen, where it is written.
     const intro =
-      `Hello, I'm ${assistant}, your shopping assistant. ${MOTTO} ` +
-      `Tell me what shopping you need, and a Runner will bring it to your door. ` +
-      `If you'd rather I didn't talk out loud, turn off the switch at the bottom of the screen, or just say "turn off talking". ` +
-      `To turn me back on, use the same switch, or Settings, or say "Hey ${assistant}, turn on". ` +
-      `If you miss anything I say, just say "repeat". ` +
-      `To make anything bigger, pinch the screen open with two fingers. ` +
-      `While my round green button glows, I'm listening. Press it to pause me, and again${wakeHint} to bring me back.`;
+      `Hello, I'm ${assistant}. Tell me what shopping you need, and a Runner will bring it to your door. ` +
+      `Say 'repeat' to hear me again, or 'stop talking' if you'd rather read. ` +
+      `Are you new? Say 'new account'. Been here before? Say 'sign in'. ` +
+      `Runners, shops and organisations: just say which.`;
 
     void (async () => {
       const ready = await engine.readiness(settings.language);
@@ -1308,6 +1326,18 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       // do what it says, rather than replaying words over it.
       const target = event.target as Element | null;
       if (!pending || target?.closest?.('[data-ozi]')) return;
+      // The introduction was already on the screen, announced, so a screen reader has read it.
+      // Somebody who then presses a key, or chooses a door, a link or a field, has heard it and
+      // is getting on: it is not said again over what they are doing. It is said aloud for a
+      // tap on "Tap here to hear Ozi", or on the open page (review of 16 October 2026).
+      if (pending.startsWith('Hello') && announcedRef.current) {
+        const asked = target?.closest?.('[data-hear-ozi]') !== null && target !== null;
+        const busy =
+          event.type === 'keydown' ||
+          (target?.closest?.('button, a, input, select, textarea, [role="button"]') !== null &&
+            target !== null);
+        if (!asked && busy) return;
+      }
       void sayRef.current(pending).then((outcome) => {
         if (outcome !== 'not-spoken' && pending.startsWith('Hello')) {
           askAboutHelpRef.current();

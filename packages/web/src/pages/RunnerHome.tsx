@@ -560,12 +560,12 @@ function JobInHand({
             {money(job.cardLimitPence ?? 0)} for this order.
           </p>
           <p className="m-0 text-display font-bold">Tap your phone at the till</p>
-          <p className="m-0 extra">
+          <p className="m-0">
             Hold your phone near the card reader and choose your {storeConfig.assistantName} card,
             not your own. It works in grocery shops only, for this order only. You do not need any
             of your own money.
           </p>
-          <p className="m-0 extra">
+          <p className="m-0">
             If the card is declined, pay with your own card instead and put in the till total as
             usual: we pay you back straight away.
           </p>
@@ -692,7 +692,7 @@ function JobInHand({
                 className="visually-hidden"
               />
             </label>
-            <p id="receipt-photo-hint" className="m-0 extra">
+            <p id="receipt-photo-hint" className="m-0">
               Optional, but it helps: with a photo, we pay you back larger amounts straight away,
               without waiting for a person to check.
             </p>

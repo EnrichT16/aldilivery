@@ -35,14 +35,28 @@ type Stage =
   | { kind: 'idle' }
   | { kind: 'choosing'; name: string; options: CatalogueItem[]; quantity: number | null }
   | { kind: 'quantity'; product: CatalogueItem; retried: boolean }
-  | { kind: 'address'; totalPence: number; home: string; cardId: string; lastFour: string }
+  | {
+      kind: 'address';
+      lines: OrderLine[];
+      totalPence: number;
+      home: string;
+      cardId: string;
+      lastFour: string;
+    }
   | {
       kind: 'payment';
+      lines: OrderLine[];
       totalPence: number;
       home: string;
       cardId: string;
       statement: string;
     };
+
+/** One line of the order as it will be sent: the whole basket, not only what was just said. */
+interface OrderLine {
+  catalogueItemId: string;
+  quantity: number;
+}
 
 interface Picked {
   product: CatalogueItem;
@@ -111,23 +125,38 @@ export function useVoiceOrdering(
     picked.current = [];
   }, []);
 
-  const putInBasket = useCallback(() => {
+  /**
+   * What was just said goes into the basket with whatever was already there (review of
+   * 16 October 2026): a voice order adds, it never throws away shopping chosen on the screen.
+   * Gives back the whole basket as it now stands, for the read-back and for the order.
+   */
+  const putInBasket = useCallback((): Picked[] => {
     const { basket: current } = live.current;
-    current.clear();
+    const whole: Picked[] = current.lines.map((line) => ({
+      product: line.item,
+      quantity: line.quantity,
+    }));
     for (const { product, quantity } of picked.current) {
+      const already = whole.find((line) => line.product.id === product.id);
+      if (already) {
+        already.quantity += quantity;
+      } else {
+        whole.push({ product, quantity });
+      }
       current.add(product);
-      current.setQuantity(product.id, quantity);
+      current.setQuantity(product.id, already?.quantity ?? quantity);
     }
+    return whole;
   }, []);
 
   const readBack = useCallback(
     async (notes: string) => {
-      const items = picked.current;
-      if (items.length === 0) {
+      if (picked.current.length === 0) {
         reset();
         await say(`${notes}I haven't added anything, so there is no order.`);
         return;
       }
+      const items = putInBasket();
       const goodsPence = items.reduce(
         (sum, { product, quantity }) => sum + product.estimatedPricePence * quantity,
         0,
@@ -149,7 +178,6 @@ export function useVoiceOrdering(
             `${index > 0 && index === items.length - 1 ? 'and ' : ''}${quantity} ${product.name}`,
         )
         .join(', ');
-      putInBasket();
 
       if (goodsPence > maximumOrderGoodsPence) {
         reset();
@@ -194,6 +222,7 @@ export function useVoiceOrdering(
 
       stage.current = {
         kind: 'address',
+        lines: items.map(({ product, quantity }) => ({ catalogueItemId: product.id, quantity })),
         totalPence,
         home,
         cardId: card.id,
@@ -366,6 +395,7 @@ export function useVoiceOrdering(
           const statement = `Shall I send your order and pay now, charging about ${money(current.totalPence)} to your card ending ${current.lastFour}? You pay what the till says.`;
           stage.current = {
             kind: 'payment',
+            lines: current.lines,
             totalPence: current.totalPence,
             home: current.home,
             cardId: current.cardId,
@@ -381,10 +411,7 @@ export function useVoiceOrdering(
             await say('Please say yes to send it and pay, or no to stop.');
             return true;
           }
-          const lines = picked.current.map(({ product, quantity }) => ({
-            catalogueItemId: product.id,
-            quantity,
-          }));
+          const { lines } = current;
           if (answer === 'no') {
             reset();
             await say(

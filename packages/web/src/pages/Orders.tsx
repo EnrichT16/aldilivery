@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { fetchMyOrders, type PastOrder } from '../lib/api';
-import { addNamedItems, listInWords } from '../lib/extras';
+import { addPastItems, listInWords } from '../lib/extras';
 import { money } from '../lib/money';
 import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
@@ -23,7 +23,7 @@ const STATUS_WORDS: Record<string, string> = {
 };
 
 /**
- * Your orders: every order, newest first, each with what was in it, what it cost, and a way to
+ * Past orders (named as it is in the menu): every order, newest first, each with what was in it, what it cost, and a way to
  * report a problem with it (rulings of 2 October 2026).
  */
 export function Orders(): JSX.Element {
@@ -38,14 +38,14 @@ export function Orders(): JSX.Element {
   // The weekly shop, again (Anthony, 6 October 2026): one press puts the same things back in
   // the basket, where they can be changed before anything is ordered.
   async function orderAgain(order: PastOrder): Promise<void> {
-    const { added, missing } = await addNamedItems(
-      order.items.map((item) => ({ item: item.name, quantity: item.quantity })),
-      basket,
-    );
+    const { added, missing, changed } = await addPastItems(order.items, basket);
     const words =
       (added.length > 0
         ? `I've put the same shopping in your basket: ${listInWords(added)}.`
         : "I couldn't find those things in the shop today.") +
+      (changed.length > 0 && added.length > 0
+        ? ` ${changed.length > 1 ? 'Some things have changed' : 'One thing has changed'}: ${listInWords(changed)}.`
+        : '') +
       (missing.length > 0 && added.length > 0 ? ` I couldn't find ${listInWords(missing)}.` : '') +
       (added.length > 0 ? ' Shall we look at your basket?' : '');
     setNews(words);
@@ -77,7 +77,7 @@ export function Orders(): JSX.Element {
   if (!shopper) {
     return (
       <div className="space-y-6">
-        <h1 className="text-display font-bold m-0">Your orders</h1>
+        <h1 className="text-display font-bold m-0">Past orders</h1>
         <p className="m-0">Sign in to see your orders.</p>
         <Link to="/sign-in?next=/orders" className="control bg-highlight text-ink">
           Sign in
@@ -88,7 +88,7 @@ export function Orders(): JSX.Element {
 
   return (
     <div className="space-y-8 max-w-xl">
-      <h1 className="text-display font-bold m-0">Your orders</h1>
+      <h1 className="text-display font-bold m-0">Past orders</h1>
       <p role="status" className="m-0">
         {news}
       </p>
