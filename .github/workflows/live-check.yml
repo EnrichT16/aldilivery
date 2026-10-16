@@ -1,0 +1,64 @@
+name: Live check
+
+# Makes, from outside, the same requests the sign-in page makes, and prints what the live
+# server answers: status, content type, timing and the start of the body. Run by hand when a
+# phone says "We cannot reach Ozi Delivery" and the runtime logs do not say why
+# (16 October 2026). With a phone number it also asks for a real sign-in code, which uses one
+# of that number's three codes per quarter hour.
+
+on:
+  workflow_dispatch:
+    inputs:
+      phone:
+        description: 'UK mobile to text a sign-in code to (leave empty to skip)'
+        required: false
+        default: ''
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Addresses
+        run: |
+          for host in www.ozidelivery.co.uk ozidelivery.co.uk lobster-app-3ilv6.ondigitalocean.app; do
+            echo "== dig $host"; dig +short "$host" CNAME; dig +short "$host" A
+          done
+
+      - name: GET health and config, both hosts
+        run: |
+          for host in www.ozidelivery.co.uk lobster-app-3ilv6.ondigitalocean.app; do
+            for path in /api/health /api/config; do
+              echo "== GET https://$host$path"
+              curl -sS -m 40 -o body.txt -D headers.txt -w 'status=%{http_code} time=%{time_total}s\n' "https://$host$path" || echo "curl failed: $?"
+              grep -i '^content-type' headers.txt || true
+              head -c 300 body.txt; echo
+            done
+          done
+
+      - name: Preflight, as a browser on www would send it
+        run: |
+          curl -sS -m 40 -o /dev/null -D - -X OPTIONS \
+            -H 'Origin: https://www.ozidelivery.co.uk' \
+            -H 'Access-Control-Request-Method: POST' \
+            -H 'Access-Control-Request-Headers: content-type' \
+            -w 'status=%{http_code}\n' \
+            https://www.ozidelivery.co.uk/api/auth/request-code | grep -i 'status=\|access-control\|^HTTP'
+
+      - name: POST request-code, both hosts
+        env:
+          PHONE: ${{ inputs.phone }}
+        run: |
+          if [ -z "$PHONE" ]; then echo "No phone given: skipping."; exit 0; fi
+          for host in www.ozidelivery.co.uk lobster-app-3ilv6.ondigitalocean.app; do
+            echo "== POST https://$host/api/auth/request-code"
+            curl -sS -m 90 -o body.txt -D headers.txt \
+              -H 'content-type: application/json' \
+              -H "Origin: https://$host" \
+              -H 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' \
+              --data "{\"phone\":\"$PHONE\",\"role\":\"shopper\",\"channel\":\"text\",\"purpose\":\"sign-in\"}" \
+              -w 'status=%{http_code} time=%{time_total}s\n' \
+              "https://$host/api/auth/request-code" || echo "curl failed: $?"
+            cat headers.txt
+            head -c 600 body.txt; echo
+          done
