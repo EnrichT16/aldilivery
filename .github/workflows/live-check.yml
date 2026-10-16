@@ -13,6 +13,10 @@ on:
         description: 'UK mobile to text a sign-in code to (leave empty to skip)'
         required: false
         default: ''
+      expect_commit:
+        description: 'Fail unless /api/health reports this commit (start of the hash), to watch a deployment'
+        required: false
+        default: ''
 
 jobs:
   check:
@@ -35,6 +39,15 @@ jobs:
               head -c 300 body.txt; echo
             done
           done
+
+      - name: Is the expected commit live yet?
+        env:
+          EXPECT: ${{ inputs.expect_commit }}
+        run: |
+          if [ -z "$EXPECT" ]; then echo "No commit expected: skipping."; exit 0; fi
+          live=$(curl -sS -m 40 https://www.ozidelivery.co.uk/api/health | grep -o '"commit":"[0-9a-f]*' | cut -c11-)
+          echo "live commit: $live"
+          case "$live" in "$EXPECT"*) echo "deployed";; *) echo "not yet"; exit 1;; esac
 
       - name: Preflight, as a browser on www would send it
         run: |
