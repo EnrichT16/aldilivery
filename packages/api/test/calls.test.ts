@@ -193,7 +193,7 @@ describe('starting a call', () => {
       headers: someone.authHeader,
       payload: { priceAccepted: true },
     });
-    expect(refused.statusCode).toBe(503);
+    expect(refused.statusCode).toBe(424);
     expect(refused.json().error.message).toMatch(/not switched on yet/);
   });
 });
@@ -433,7 +433,7 @@ describe('ringing the Shopper’s own phone (ruling 46)', () => {
   it('is only for the Runner, and says so when it is not switched on', async () => {
     const started = await call(runner, 'POST', `/orders/${orderId}/calls`);
     const callId = (started.json() as { call: { id: string } }).call.id;
-    expect((await call(runner, 'POST', `/calls/${callId}/phone`)).statusCode).toBe(503);
+    expect((await call(runner, 'POST', `/calls/${callId}/phone`)).statusCode).toBe(424);
     livekit.dialPhone = async () => undefined;
     expect((await call(shopper, 'POST', `/calls/${callId}/phone`)).statusCode).toBe(401);
   });

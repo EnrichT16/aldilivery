@@ -59,10 +59,17 @@ export class TooManyRequestsError extends ApiError {
   }
 }
 
-/** Something this server depends on is not set up or not answering. Not the person's fault. */
+/**
+ * Something this server depends on is not set up or not answering. Not the person's fault.
+ *
+ * It answers 424, not 503: DigitalOcean's edge treats a 503 from the app as the app being
+ * down and replaces the whole reply with its own HTML page (a 504, `x-do-orig-status: 503`),
+ * so the browser never saw the sentence and said "we cannot reach" instead. Found on
+ * 16 October 2026, after two weeks of a sign-in text that "could not reach" the server.
+ */
 export class UnavailableError extends ApiError {
-  constructor(message: string) {
-    super(503, 'unavailable', message);
+  constructor(message: string, details?: Record<string, unknown>) {
+    super(424, 'unavailable', message, details);
   }
 }
 

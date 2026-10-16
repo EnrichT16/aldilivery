@@ -193,7 +193,7 @@ describe('when texts cannot be sent', () => {
     harness = await buildTestApp(undefined, { codeDelivery: 'off' });
 
     const response = await requestCode('07700 900123');
-    expect(response.statusCode).toBe(503);
+    expect(response.statusCode).toBe(424);
     expect(response.json().error.message).toMatch(/not switched on yet/);
     expect(harness.deliveredCodes).toHaveLength(0);
 
@@ -216,10 +216,13 @@ describe('when texts cannot be sent', () => {
     });
 
     const response = await requestCode('07700 900123');
-    expect(response.statusCode).toBe(503);
+    expect(response.statusCode).toBe(424);
     expect(response.json().error.message).toBe(
       'We could not send a text just now. Please try again in a minute.',
     );
+    // Twilio's error number comes along, and nothing else of what Twilio said.
+    expect(response.json().error.details).toEqual({ provider: 'twilio', code: 21608 });
+    expect(JSON.stringify(response.json())).not.toContain('unverified');
   });
 });
 

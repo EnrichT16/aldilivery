@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { buildApp } from '../src/app.js';
 import { memoryRepository } from '../src/data/memory.js';
-import { DEFAULT_PORT, findDotenvFile, readEnv } from '../src/env.js';
+import { DEFAULT_PORT, findDotenvFile, readEnv, senderValue } from '../src/env.js';
 import { resolveGitCommit } from '../src/lib/version.js';
 import { rehearsalGateway, stripeGateway } from '../src/lib/payments.js';
 import { loadStoreConfig } from '@aldilivery/core/node';
@@ -106,6 +106,21 @@ describe('the environment reader', () => {
     expect(env.host).toBe('0.0.0.0');
     expect(env.port).toBe(DEFAULT_PORT);
     expect(env.port).toBe(8080);
+  });
+
+  it('tidies a Twilio sender typed the British way into the +44 form Twilio accepts', () => {
+    expect(senderValue('07700 900123')).toBe('+447700900123');
+    expect(senderValue(' +44 7700 900123 ')).toBe('+447700900123');
+    expect(senderValue('0044 7700-900123')).toBe('+447700900123');
+    expect(senderValue('447700900123')).toBe('+447700900123');
+    expect(senderValue('MG0123456789abcdef0123456789abcdef')).toBe(
+      'MG0123456789abcdef0123456789abcdef',
+    );
+    expect(senderValue('OziDelivery')).toBe('OziDelivery');
+    expect(senderValue('')).toBeUndefined();
+    expect(readEnv({ TWILIO_FROM: '07700 900123' } as NodeJS.ProcessEnv).twilioFrom).toBe(
+      '+447700900123',
+    );
   });
 
   it('prefers the platform PORT over anything else', () => {
@@ -366,7 +381,11 @@ describe('paymentsMode tells the truth about the gateway in use', () => {
       config: loadStoreConfig(),
       repository: memoryRepository(),
       payments: rehearsalGateway(),
-      env: { ...testEnv, stripeSecretKey: 'sk_test_not_a_real_key', stripeWebhookSecret: undefined },
+      env: {
+        ...testEnv,
+        stripeSecretKey: 'sk_test_not_a_real_key',
+        stripeWebhookSecret: undefined,
+      },
       gitCommit: null,
     });
     await app.ready();

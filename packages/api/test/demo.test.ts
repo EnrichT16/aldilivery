@@ -260,7 +260,7 @@ describe('the demo sign-in while texts are not switched on (live fix, 10 October
     expect(signedIn.json()).toMatchObject({ demo: true });
 
     const real = await post('/auth/request-code', { phone: '07700 900123', role: 'shopper' });
-    expect(real.statusCode).toBe(503);
+    expect(real.statusCode).toBe(424);
     expect(real.json().error.message).toBe(
       'Signing in by text message is not switched on yet; please use the phone or computer you set up on.',
     );
@@ -272,6 +272,6 @@ describe('the demo sign-in while texts are not switched on (live fix, 10 October
     const config = await harness.app.inject({ method: 'GET', url: '/config' });
     expect(config.json().signIn.byText).toBe(false);
     const real = await post('/auth/request-code', { phone: '07700 900123', role: 'shopper' });
-    expect(real.statusCode).toBe(503);
+    expect(real.statusCode).toBe(424);
   });
 });

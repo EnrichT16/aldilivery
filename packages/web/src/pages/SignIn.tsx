@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { storeConfig } from '../config';
 import {
+  ApiError,
   ApiUnavailableError,
   fetchSignInOptions,
   requestSignInCode,
@@ -41,6 +42,9 @@ export function SignIn(): JSX.Element {
   const [phone, setPhone] = useState('');
   const [sentMessage, setSentMessage] = useState('');
   const [error, setError] = useState('');
+  // The technical reason behind an error, folded away under "Details" so the screen stays
+  // tidy and a screenshot can still say exactly what failed.
+  const [errorDetail, setErrorDetail] = useState('');
   const [busy, setBusy] = useState(false);
   const problem = useRef<HTMLParagraphElement>(null);
   const codeField = useRef<HTMLInputElement>(null);
@@ -83,12 +87,15 @@ export function SignIn(): JSX.Element {
     setChannel(how);
     setBusy(true);
     setError('');
+    setErrorDetail('');
     try {
       const result = await requestSignInCode(phone.trim(), { channel: how });
       setSentMessage(result.message);
       setStep('code');
     } catch (failure) {
-      setError(problemWords(failure, 'We could not send a code.'));
+      const problem = describeProblem(failure, 'We could not send a code.');
+      setError(problem.words);
+      setErrorDetail(problem.detail);
     } finally {
       setBusy(false);
     }
@@ -104,6 +111,7 @@ export function SignIn(): JSX.Element {
     }
     setBusy(true);
     setError('');
+    setErrorDetail('');
     try {
       const result = await verifySignInCode(phone.trim(), code);
       if (result.registrationRequired) {
@@ -115,7 +123,9 @@ export function SignIn(): JSX.Element {
       await signedIn(result.token);
       navigate(next);
     } catch (failure) {
-      setError(problemWords(failure, 'That code did not work.'));
+      const problem = describeProblem(failure, 'That code did not work.');
+      setError(problem.words);
+      setErrorDetail(problem.detail);
     } finally {
       setBusy(false);
     }
@@ -157,14 +167,20 @@ export function SignIn(): JSX.Element {
           </p>
 
           {error !== '' && (
-            <p
+            <div
               ref={problem}
               tabIndex={-1}
               role="alert"
               className="border-2 border-paper bg-paper text-ink p-4 rounded-xl m-0 max-w-xl"
             >
-              {error}
-            </p>
+              <p className="m-0">{error}</p>
+              {errorDetail !== '' && (
+                <details className="mt-2 text-sm">
+                  <summary className="cursor-pointer font-bold">Details</summary>
+                  <p className="m-0 mt-1 break-words">{errorDetail}</p>
+                </details>
+              )}
+            </div>
           )}
 
           {step === 'phone' ? (
@@ -278,14 +294,18 @@ export function SignIn(): JSX.Element {
 }
 
 /**
- * What went wrong, in words. When the server could not be reached at all, the reason goes on
- * the end, so a screenshot of a failed sign-in says which part failed (16 October 2026: a
- * sign-in that never reached the server looked the same as one the server could not answer).
+ * What went wrong, in words, and the technical reason apart from them. The reason is shown
+ * folded away, so a screenshot of a failed sign-in can say which part failed without the words
+ * on the screen getting any longer (16 October 2026: a sign-in that never reached the server
+ * looked the same as one the server could not answer).
  */
-function problemWords(failure: unknown, fallback: string): string {
+function describeProblem(failure: unknown, fallback: string): { words: string; detail: string } {
   if (failure instanceof ApiUnavailableError) {
     const status = failure.status === undefined ? '' : `, status ${failure.status}`;
-    return `${failure.message} (Details for the ${storeConfig.productName} team: ${failure.reason}${status}.)`;
+    return { words: failure.message, detail: `${failure.reason}${status}` };
   }
-  return failure instanceof Error ? failure.message : fallback;
+  if (failure instanceof ApiError && failure.details?.['provider'] === 'twilio') {
+    return { words: failure.message, detail: `Twilio error ${String(failure.details['code'])}` };
+  }
+  return { words: failure instanceof Error ? failure.message : fallback, detail: '' };
 }

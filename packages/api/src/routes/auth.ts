@@ -197,10 +197,15 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       }
     } catch (failure) {
       request.log.error({ err: failure }, 'A sign-in code could not be sent');
+      // Twilio's error number, and only the number, rides along in `details`: it names which
+      // of our settings is wrong (21212 the sender, 20003 the token, 21608 an unverified
+      // trial), says nothing about the person, and saves a hunt through the server log.
+      const code = /^Twilio (\d+)/.exec(failure instanceof Error ? failure.message : '')?.[1];
       throw new UnavailableError(
         byCall
           ? 'We could not phone you just now. Please try again in a minute.'
           : 'We could not send a text just now. Please try again in a minute.',
+        code ? { provider: 'twilio', code: Number(code) } : undefined,
       );
     }
 

@@ -170,6 +170,24 @@ function realValue(value: string | undefined): string | undefined {
   return looksLikePlaceholder(value) ? undefined : value;
 }
 
+/**
+ * A Twilio sender, tidied. A number typed the British way, `07700 900123` or `+44 7700 900123`,
+ * becomes `+447700900123`, which is the only form Twilio accepts; without this a space or a
+ * leading 0 in the dashboard made every text fail with Twilio 21212 (16 October 2026). A
+ * Messaging Service `MG…` and a sender name such as `OziDelivery` are left as they are.
+ */
+export function senderValue(value: string | undefined): string | undefined {
+  const sender = realValue(value)?.trim();
+  if (!sender) return undefined;
+  if (/^MG[0-9a-f]{32}$/i.test(sender)) return sender;
+  const digits = sender.replace(/[\s().-]/g, '');
+  if (!/^\+?\d{10,15}$/.test(digits)) return sender;
+  if (digits.startsWith('+')) return digits;
+  if (digits.startsWith('00')) return `+${digits.slice(2)}`;
+  if (digits.startsWith('0')) return `+44${digits.slice(1)}`;
+  return `+${digits}`;
+}
+
 function integer(value: string | undefined, fallback: number): number {
   if (!value) return fallback;
   const parsed = Number.parseInt(value, 10);
@@ -254,8 +272,8 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     staffKey: realValue(source['STAFF_API_KEY']),
     twilioAccountSid: realValue(source['TWILIO_ACCOUNT_SID']),
     twilioAuthToken: realValue(source['TWILIO_AUTH_TOKEN']),
-    twilioFrom: realValue(source['TWILIO_FROM']),
-    twilioVoiceFrom: realValue(source['TWILIO_VOICE_FROM']),
+    twilioFrom: senderValue(source['TWILIO_FROM']),
+    twilioVoiceFrom: senderValue(source['TWILIO_VOICE_FROM']),
     vapidPublicKey: realValue(source['VAPID_PUBLIC_KEY']),
     vapidPrivateKey: realValue(source['VAPID_PRIVATE_KEY']),
     vapidSubject: realValue(source['VAPID_SUBJECT']),
