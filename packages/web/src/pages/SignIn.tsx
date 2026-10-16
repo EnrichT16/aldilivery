@@ -2,7 +2,12 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { storeConfig } from '../config';
-import { fetchSignInOptions, requestSignInCode, verifySignInCode } from '../lib/api';
+import {
+  ApiUnavailableError,
+  fetchSignInOptions,
+  requestSignInCode,
+  verifySignInCode,
+} from '../lib/api';
 import { useSession } from '../state/session';
 
 /**
@@ -83,7 +88,7 @@ export function SignIn(): JSX.Element {
       setSentMessage(result.message);
       setStep('code');
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'We could not send a code.');
+      setError(problemWords(failure, 'We could not send a code.'));
     } finally {
       setBusy(false);
     }
@@ -110,7 +115,7 @@ export function SignIn(): JSX.Element {
       await signedIn(result.token);
       navigate(next);
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'That code did not work.');
+      setError(problemWords(failure, 'That code did not work.'));
     } finally {
       setBusy(false);
     }
@@ -270,4 +275,17 @@ export function SignIn(): JSX.Element {
       )}
     </div>
   );
+}
+
+/**
+ * What went wrong, in words. When the server could not be reached at all, the reason goes on
+ * the end, so a screenshot of a failed sign-in says which part failed (16 October 2026: a
+ * sign-in that never reached the server looked the same as one the server could not answer).
+ */
+function problemWords(failure: unknown, fallback: string): string {
+  if (failure instanceof ApiUnavailableError) {
+    const status = failure.status === undefined ? '' : `, status ${failure.status}`;
+    return `${failure.message} (Details for the ${storeConfig.productName} team: ${failure.reason}${status}.)`;
+  }
+  return failure instanceof Error ? failure.message : fallback;
 }
