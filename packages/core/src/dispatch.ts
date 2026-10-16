@@ -38,7 +38,11 @@ export function maxGoodsFor(vehicleType: string, limits: MaxGoodsByMode): number
 }
 
 /** Whether a Runner travelling this way could carry this much (insurance is checked apart). */
-export function modeCarries(vehicleType: string, goodsPence: number, limits: MaxGoodsByMode): boolean {
+export function modeCarries(
+  vehicleType: string,
+  goodsPence: number,
+  limits: MaxGoodsByMode,
+): boolean {
   return goodsPence <= maxGoodsFor(vehicleType, limits);
 }
 
@@ -103,7 +107,9 @@ export function planSplit(
 ): PlannedPart[] {
   for (const mode of SPLIT_PART_MODES) {
     if (!Number.isInteger(partMax[mode]) || partMax[mode] <= 0) {
-      throw new RangeError('The size of a split part must be a whole number of pence above nothing.');
+      throw new RangeError(
+        'The size of a split part must be a whole number of pence above nothing.',
+      );
     }
   }
   const riders = Math.max(0, Math.floor(motorbikeRiders));
@@ -151,11 +157,20 @@ export function packFirstFit<T>(
   }
 
   return bins.map((bin) => {
-    const byKey = new Map<string, { key: string; quantity: number; unitPricePence: number; order: number }>();
+    const byKey = new Map<
+      string,
+      { key: string; quantity: number; unitPricePence: number; order: number }
+    >();
     for (const unit of bin.units) {
       const entry = byKey.get(unit.key);
       if (entry) entry.quantity += 1;
-      else byKey.set(unit.key, { key: unit.key, quantity: 1, unitPricePence: unit.price, order: unit.order });
+      else
+        byKey.set(unit.key, {
+          key: unit.key,
+          quantity: 1,
+          unitPricePence: unit.price,
+          order: unit.order,
+        });
     }
     return {
       tag: bin.tag,
@@ -171,12 +186,16 @@ export function packFirstFit<T>(
 export function modeTakesPart(vehicleType: string, part: SplitPartMode): boolean {
   const mode = travelModeOf(vehicleType);
   if (mode === null) return false;
-  return part === 'motorbike' ? MOTOR_TRAVEL_MODES.includes(mode) : mode === 'foot' || mode === 'bicycle';
+  return part === 'motorbike'
+    ? MOTOR_TRAVEL_MODES.includes(mode)
+    : mode === 'foot' || mode === 'bicycle';
 }
 
 /** "a motorbike, car or van" or "on foot or by bicycle": who a split part goes to. */
 export function splitPartWho(part: SplitPartMode): string {
-  return part === 'motorbike' ? 'a Runner with a motorbike, car or van' : 'a Runner on foot or by bicycle';
+  return part === 'motorbike'
+    ? 'a Runner with a motorbike, car or van'
+    : 'a Runner on foot or by bicycle';
 }
 
 const VEHICLE_WORDS: Record<TravelMode, string> = {
@@ -204,4 +223,224 @@ export function vehiclesWords(goodsPence: number, limits: MaxGoodsByMode): strin
  */
 export function largeOrderShopperWords(goodsPence: number, limits: MaxGoodsByMode): string {
   return `Large orders go to a Runner with ${vehiclesWords(goodsPence, limits)}. If none is free, it may come in parts, for the same price.`;
+}
+
+// ---------------------------------------------------------------------------
+// The fair queue sharpened (ruling 64, Anthony, 16 October 2026)
+// ---------------------------------------------------------------------------
+
+/**
+ * Four sharpenings of who is offered a job first, all configured under `dispatch` in
+ * config/store.json. The functions here are pure: plain data and a time in, an order out, so
+ * every rule is proved by tests that need no database and no clock.
+ *
+ * 1. Earned-today balance: among the Runners who may take a job, the one who has earned least
+ *    today goes first, then the one who has waited longest since their last job. Nobody jumps the
+ *    fair order (the Shopper's regular Runner, a Runner chaining from the door) while they are
+ *    more than `fairShareMaxLeadPence` (£15) ahead of the lowest earner who is on shift and
+ *    eligible.
+ * 2. Chaining: a Runner on the final leg of a job may be offered the next job whose pickup is
+ *    within `chainRadiusMiles` (1.5) of their drop-off, up to `chainMinutesBeforeDone` (2)
+ *    before they are done, ahead of the general queue, and may decline without penalty.
+ * 3. Distance band first: Runners within `nearBandMiles` (1.5) of the pickup are the first band,
+ *    ordered by fairness inside it; everybody else is the second band. If nobody in the first
+ *    band accepts within `bandSeconds` (60), the offer widens.
+ * 4. Queue position: a Runner can be told their place in the fair queue in one spoken sentence,
+ *    "You are second in line for the next job." They see their own place and never anybody
+ *    else's earnings.
+ */
+
+/** The ruling 64 figures, as `dispatch` in config/store.json names them. */
+export interface FairShareSettings {
+  readonly fairShareMaxLeadPence: number;
+  readonly chainRadiusMiles: number;
+  readonly chainMinutesBeforeDone: number;
+  readonly nearBandMiles: number;
+  readonly bandSeconds: number;
+}
+
+/** Anthony's defaults for ruling 64, used when config/store.json does not say. */
+export const FAIR_SHARE_DEFAULTS: FairShareSettings = {
+  fairShareMaxLeadPence: 1500,
+  chainRadiusMiles: 1.5,
+  chainMinutesBeforeDone: 2,
+  nearBandMiles: 1.5,
+  bandSeconds: 60,
+};
+
+/** Everything the fair queue needs to know about one eligible Runner. */
+export interface FairRunner {
+  readonly id: string;
+  /** What they have earned today, in pence. Only ever compared, never shown to another Runner. */
+  readonly earnedTodayPence: number;
+  /** Null for a Runner who has never completed a job: they have waited longest of all. */
+  readonly lastJobCompletedAt: Date | null;
+  /** How far they are from the pickup, in miles; null when nobody knows where they are. */
+  readonly distanceMiles: number | null;
+}
+
+/** Near the pickup (the first band) or not (the second). */
+export type DistanceBand = 'near' | 'far';
+
+/** One place in the fair queue. */
+export interface FairPlace {
+  readonly runnerId: string;
+  readonly band: DistanceBand;
+  readonly distanceMiles: number | null;
+  readonly earnedTodayPence: number;
+  /** Milliseconds since their last job, Infinity for never. */
+  readonly waitedMs: number;
+  /** 0 is first. */
+  readonly position: number;
+}
+
+/** The least anybody in the queue has earned today; nothing when the queue is empty. */
+export function lowestEarnedToday(
+  runners: ReadonlyArray<Pick<FairRunner, 'earnedTodayPence'>>,
+): number {
+  if (runners.length === 0) return 0;
+  return runners.reduce((lowest, runner) => Math.min(lowest, runner.earnedTodayPence), Infinity);
+}
+
+/**
+ * Whether a Runner is too far ahead to jump the fair order: more than `maxLeadPence` above the
+ * lowest earner who is on shift and eligible. Exactly the lead is not too far.
+ */
+export function tooFarAhead(
+  earnedTodayPence: number,
+  lowestPence: number,
+  maxLeadPence: number,
+): boolean {
+  return earnedTodayPence - lowestPence > maxLeadPence;
+}
+
+/** Which band a Runner this far from the pickup is in. Nobody knows where: the second band. */
+export function bandOf(distanceMiles: number | null, nearBandMiles: number): DistanceBand {
+  return distanceMiles !== null && distanceMiles <= nearBandMiles ? 'near' : 'far';
+}
+
+/** Milliseconds since a Runner's last job, Infinity for a Runner who has never had one. */
+export function waitedMsSince(lastJobCompletedAt: Date | null, now: Date): number {
+  return lastJobCompletedAt === null
+    ? Number.POSITIVE_INFINITY
+    : now.getTime() - lastJobCompletedAt.getTime();
+}
+
+/**
+ * Fairness between two Runners: the one who has earned less today first, then the one who has
+ * waited longer since their last job (never had one counts as longest), then a stable tie break.
+ */
+export function compareFairShare(a: FairRunner, b: FairRunner, now: Date): number {
+  if (a.earnedTodayPence !== b.earnedTodayPence) return a.earnedTodayPence - b.earnedTodayPence;
+  const waitedA = waitedMsSince(a.lastJobCompletedAt, now);
+  const waitedB = waitedMsSince(b.lastJobCompletedAt, now);
+  if (waitedA !== waitedB) return waitedB - waitedA;
+  return a.id.localeCompare(b.id);
+}
+
+/**
+ * The fair queue for one job (rules 1 and 3): the near band first, then the far band, each in
+ * fairness order. The Shopper's regular Runner (`regularRunnerId`), when they are in the queue
+ * and not more than `fairShareMaxLeadPence` ahead of the lowest earner, is moved to the front;
+ * when they are too far ahead they keep their fair place like everybody else.
+ */
+export function fairQueue(
+  runners: readonly FairRunner[],
+  now: Date,
+  settings: Pick<FairShareSettings, 'fairShareMaxLeadPence' | 'nearBandMiles'>,
+  regularRunnerId: string | null = null,
+): FairPlace[] {
+  const lowest = lowestEarnedToday(runners);
+  const ordered = [...runners].sort((a, b) => {
+    const bandA = bandOf(a.distanceMiles, settings.nearBandMiles) === 'near' ? 0 : 1;
+    const bandB = bandOf(b.distanceMiles, settings.nearBandMiles) === 'near' ? 0 : 1;
+    if (bandA !== bandB) return bandA - bandB;
+    return compareFairShare(a, b, now);
+  });
+  const regular = ordered.find(
+    (runner) =>
+      runner.id === regularRunnerId &&
+      !tooFarAhead(runner.earnedTodayPence, lowest, settings.fairShareMaxLeadPence),
+  );
+  const placed = regular ? [regular, ...ordered.filter((runner) => runner !== regular)] : ordered;
+  return placed.map((runner, position) => ({
+    runnerId: runner.id,
+    band: bandOf(runner.distanceMiles, settings.nearBandMiles),
+    distanceMiles: runner.distanceMiles,
+    earnedTodayPence: runner.earnedTodayPence,
+    waitedMs: waitedMsSince(runner.lastJobCompletedAt, now),
+    position,
+  }));
+}
+
+/**
+ * Whether the offer is still the first band's alone (rule 3): the band was first asked at
+ * `firstAskedAt`, and `bandSeconds` have not yet passed. After that the offer widens to everybody.
+ */
+export function firstBandOnly(firstAskedAt: Date, now: Date, bandSeconds: number): boolean {
+  return now.getTime() - firstAskedAt.getTime() < bandSeconds * 1000;
+}
+
+/**
+ * Whether a Runner on the final leg of a job may be offered this one before the general queue
+ * (rule 2): its pickup is within `chainRadiusMiles` of their drop-off (unknown is not within),
+ * and they are not more than `fairShareMaxLeadPence` ahead of the lowest earner in the queue.
+ */
+export function mayChain(
+  runner: Pick<FairRunner, 'earnedTodayPence'>,
+  dropOffToPickupMiles: number | null,
+  lowestEarnedPence: number,
+  settings: Pick<FairShareSettings, 'chainRadiusMiles' | 'fairShareMaxLeadPence'>,
+): boolean {
+  if (dropOffToPickupMiles === null || dropOffToPickupMiles > settings.chainRadiusMiles)
+    return false;
+  return !tooFarAhead(runner.earnedTodayPence, lowestEarnedPence, settings.fairShareMaxLeadPence);
+}
+
+/** How long a chained offer is held: the minutes before they are done, in seconds. */
+export function chainHoldSeconds(
+  settings: Pick<FairShareSettings, 'chainMinutesBeforeDone'>,
+): number {
+  return settings.chainMinutesBeforeDone * 60;
+}
+
+const ORDINALS = [
+  'first',
+  'second',
+  'third',
+  'fourth',
+  'fifth',
+  'sixth',
+  'seventh',
+  'eighth',
+  'ninth',
+  'tenth',
+];
+
+/** Why a Runner has no place in the queue right now. */
+export type NotInLine = 'off_shift' | 'job_in_hand' | 'checks_not_done' | 'not_allowed';
+
+/**
+ * One short spoken sentence about a Runner's place in the fair queue (rule 4), for Ozi and the
+ * screen: "You are second in line for the next job." Position 0 is first. Says nothing about
+ * anybody else, and nothing about money.
+ */
+export function queuePositionWords(
+  position: number | null,
+  reason: NotInLine | null = null,
+): string {
+  if (position !== null) {
+    const place = ORDINALS[position] ?? `number ${position + 1}`;
+    return `You are ${place} in line for the next job.`;
+  }
+  switch (reason) {
+    case 'job_in_hand':
+      return 'You have a job in hand. You are back in line as soon as it is delivered.';
+    case 'checks_not_done':
+      return 'Your checks are not finished yet, so you are not in line for jobs.';
+    case 'not_allowed':
+      return 'You are not in line for jobs just now. Your Runner page says what is needed first.';
+    default:
+      return 'You are off shift, so you are not in line for jobs. Go on shift to join the line.';
+  }
 }

@@ -540,6 +540,9 @@ export interface SplitJob {
 export interface OfferedJob {
   offer: { id: string };
   secondsLeft: number;
+  /** Chained from the door of the job in hand (ruling 64): the next job, near where they are. */
+  chained?: boolean;
+  chainedWords?: string | null;
   job: {
     itemCount: number;
     goodsEstimatePence: number;
@@ -551,6 +554,21 @@ export interface OfferedJob {
 
 export function fetchOfferedJobs(): Promise<{ offers: OfferedJob[] }> {
   return request<{ offers: OfferedJob[] }>('/jobs/mine', undefined, 'runner');
+}
+
+/**
+ * A Runner's own place in the fair queue (ruling 64), in one spoken sentence: "You are second in
+ * line for the next job." Nothing about anybody else, and no money.
+ */
+export interface QueuePosition {
+  /** 0 is first. Null when they are not in line. */
+  position: number | null;
+  reason: 'off_shift' | 'job_in_hand' | 'checks_not_done' | 'not_allowed' | null;
+  words: string;
+}
+
+export function fetchQueuePosition(): Promise<QueuePosition> {
+  return request<QueuePosition>('/runners/me/queue-position', undefined, 'runner');
 }
 
 /** What taking a job says about paying at the till: the card loaded, or their own card. */

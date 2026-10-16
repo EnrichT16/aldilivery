@@ -17,7 +17,14 @@ import {
   RUNNER_PAYMENT_PENCE,
   SET_NOTICE_MINUTES_BEFORE,
 } from './rules.js';
-import { SPLIT_PART_MODES, TRAVEL_MODES, type MaxGoodsByMode, type SplitPartMaxByMode } from './dispatch.js';
+import {
+  FAIR_SHARE_DEFAULTS,
+  SPLIT_PART_MODES,
+  TRAVEL_MODES,
+  type FairShareSettings,
+  type MaxGoodsByMode,
+  type SplitPartMaxByMode,
+} from './dispatch.js';
 import type {
   DeliveryPrices,
   ItemChargeRule,
@@ -264,8 +271,15 @@ export interface StoreConfig {
    * `splitPartMaxPenceByMode.foot`, £60), each paying its Runner `splitRunnerPayPence` (£5,
    * Anthony's figure). The owner is texted when it is split, and once after `waitingAlertMinutes`
    * (15) if a large order or a part is still waiting.
+   *
+   * The fair queue sharpened (ruling 64, 16 October 2026): the lowest earner today goes first,
+   * then the longest wait; nobody jumps the fair order while more than `fairShareMaxLeadPence`
+   * (£15) ahead of the lowest earner on shift; a Runner on the final leg may be offered a job
+   * whose pickup is within `chainRadiusMiles` (1.5) of their drop-off, held `chainMinutesBeforeDone`
+   * (2) minutes; Runners within `nearBandMiles` (1.5) of the pickup are asked first, widening after
+   * `bandSeconds` (60).
    */
-  readonly dispatch: {
+  readonly dispatch: FairShareSettings & {
     readonly maxGoodsPenceByMode: MaxGoodsByMode;
     readonly waitingAlertMinutes: number;
     readonly splitAfterMinutes: number;
@@ -363,8 +377,7 @@ function parseMaxGoodsByMode(
     car: maximumOrderGoodsPence,
     van: maximumOrderGoodsPence,
   };
-  const given =
-    value === undefined ? {} : object(value, 'dispatch.maxGoodsPenceByMode');
+  const given = value === undefined ? {} : object(value, 'dispatch.maxGoodsPenceByMode');
   for (const key of Object.keys(given)) {
     if (!(TRAVEL_MODES as readonly string[]).includes(key)) {
       throw new StoreConfigError(
@@ -433,7 +446,9 @@ const HEX_COLOUR = /^#[0-9A-Fa-f]{6}$/;
 function hexColour(value: unknown, path: string): string {
   const colour = str(value, path);
   if (!HEX_COLOUR.test(colour)) {
-    throw new StoreConfigError(`${path} must be a six digit hex colour such as #0B1F3A, received "${colour}".`);
+    throw new StoreConfigError(
+      `${path} must be a six digit hex colour such as #0B1F3A, received "${colour}".`,
+    );
   }
   return colour.toUpperCase();
 }
@@ -448,7 +463,11 @@ function equals(actual: number, expected: number, path: string, rule: string): n
   return actual;
 }
 
-function parseCatalogueMode(value: unknown, path: string, allowed: readonly string[]): CatalogueSourceMode {
+function parseCatalogueMode(
+  value: unknown,
+  path: string,
+  allowed: readonly string[],
+): CatalogueSourceMode {
   const mode = str(value, path);
   if (!allowed.includes(mode)) {
     throw new StoreConfigError(`${path} must be one of ${allowed.join(', ')}, received "${mode}".`);
@@ -535,9 +554,10 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     );
   }
 
-  const allowedModes = array(catalogueSource['allowedModes'], 'store.catalogueSource.allowedModes').map(
-    (entry, index) => str(entry, `store.catalogueSource.allowedModes[${index}]`),
-  );
+  const allowedModes = array(
+    catalogueSource['allowedModes'],
+    'store.catalogueSource.allowedModes',
+  ).map((entry, index) => str(entry, `store.catalogueSource.allowedModes[${index}]`));
   for (const mode of allowedModes) {
     if (mode !== 'partner_feed' && mode !== 'community') {
       throw new StoreConfigError(
@@ -567,8 +587,16 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       'fees.delivery.payAsYouGoSmallOrderUpToPence',
       0,
     ),
-    payAsYouGoPence: wholeNumber(deliveryRaw['payAsYouGoPence'], 'fees.delivery.payAsYouGoPence', 1),
-    membershipPence: wholeNumber(deliveryRaw['membershipPence'], 'fees.delivery.membershipPence', 1),
+    payAsYouGoPence: wholeNumber(
+      deliveryRaw['payAsYouGoPence'],
+      'fees.delivery.payAsYouGoPence',
+      1,
+    ),
+    membershipPence: wholeNumber(
+      deliveryRaw['membershipPence'],
+      'fees.delivery.membershipPence',
+      1,
+    ),
     plusPence: wholeNumber(deliveryRaw['plusPence'], 'fees.delivery.plusPence', 1),
   };
   // Rule Two: every delivery price, on every plan, must cover the Runner's five pounds.
@@ -668,7 +696,11 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     );
   }
 
-  const baseFontSizePx = wholeNumber(accessibility['baseFontSizePx'], 'accessibility.baseFontSizePx', 1);
+  const baseFontSizePx = wholeNumber(
+    accessibility['baseFontSizePx'],
+    'accessibility.baseFontSizePx',
+    1,
+  );
   if (baseFontSizePx < 16) {
     throw new StoreConfigError(
       `accessibility.baseFontSizePx is ${baseFontSizePx} which is too small for the people this product is built for. Rule Seven.`,
@@ -712,27 +744,46 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     motto: str(root['motto'], 'motto'),
     contact: {
       telephonePlaceholder: str(contact['telephonePlaceholder'], 'contact.telephonePlaceholder'),
-      telephoneIsPlaceholder: bool(contact['telephoneIsPlaceholder'], 'contact.telephoneIsPlaceholder'),
+      telephoneIsPlaceholder: bool(
+        contact['telephoneIsPlaceholder'],
+        'contact.telephoneIsPlaceholder',
+      ),
       email: emailAddress(contact['email'], 'contact.email'),
       emailIsPlaceholder: bool(contact['emailIsPlaceholder'], 'contact.emailIsPlaceholder'),
     },
     store: {
       displayName: str(store['displayName'], 'store.displayName'),
       legalEntityName: str(store['legalEntityName'], 'store.legalEntityName'),
-      legalEntityIsPlaceholder: bool(store['legalEntityIsPlaceholder'], 'store.legalEntityIsPlaceholder'),
+      legalEntityIsPlaceholder: bool(
+        store['legalEntityIsPlaceholder'],
+        'store.legalEntityIsPlaceholder',
+      ),
       companyNumber: str(store['companyNumber'], 'store.companyNumber'),
-      companyNumberIsPlaceholder: bool(store['companyNumberIsPlaceholder'], 'store.companyNumberIsPlaceholder'),
+      companyNumberIsPlaceholder: bool(
+        store['companyNumberIsPlaceholder'],
+        'store.companyNumberIsPlaceholder',
+      ),
       registeredIn: str(store['registeredIn'], 'store.registeredIn'),
       registeredOffice: str(store['registeredOffice'], 'store.registeredOffice'),
-      registeredOfficeIsPlaceholder: bool(store['registeredOfficeIsPlaceholder'], 'store.registeredOfficeIsPlaceholder'),
+      registeredOfficeIsPlaceholder: bool(
+        store['registeredOfficeIsPlaceholder'],
+        'store.registeredOfficeIsPlaceholder',
+      ),
       icoRegistrationNumber: str(store['icoRegistrationNumber'], 'store.icoRegistrationNumber'),
-      icoRegistrationIsPlaceholder: bool(store['icoRegistrationIsPlaceholder'], 'store.icoRegistrationIsPlaceholder'),
+      icoRegistrationIsPlaceholder: bool(
+        store['icoRegistrationIsPlaceholder'],
+        'store.icoRegistrationIsPlaceholder',
+      ),
       dunsNumber,
       country: str(store['country'], 'store.country'),
       currency: str(store['currency'], 'store.currency'),
       currencySymbol: str(store['currencySymbol'], 'store.currencySymbol'),
       catalogueSource: {
-        mode: parseCatalogueMode(catalogueSource['mode'], 'store.catalogueSource.mode', allowedModes),
+        mode: parseCatalogueMode(
+          catalogueSource['mode'],
+          'store.catalogueSource.mode',
+          allowedModes,
+        ),
         allowedModes: allowedModes as readonly CatalogueSourceMode[],
         attribution: str(catalogueSource['attribution'], 'store.catalogueSource.attribution'),
       },
@@ -772,15 +823,26 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       supportedCardRegions,
     },
     allocation: {
-      offerHoldSeconds: wholeNumber(allocation['offerHoldSeconds'], 'allocation.offerHoldSeconds', 1),
-      poolingRadiusMiles: positiveNumber(allocation['poolingRadiusMiles'], 'allocation.poolingRadiusMiles'),
+      offerHoldSeconds: wholeNumber(
+        allocation['offerHoldSeconds'],
+        'allocation.offerHoldSeconds',
+        1,
+      ),
+      poolingRadiusMiles: positiveNumber(
+        allocation['poolingRadiusMiles'],
+        'allocation.poolingRadiusMiles',
+      ),
     },
     recurringOrders: {
       noticeMinutesBefore: SET_NOTICE_MINUTES_BEFORE,
       skipWord: skipWord.trim().toLowerCase(),
     },
     accountDeletion: {
-      recycleBinDays: wholeNumber(accountDeletion['recycleBinDays'], 'accountDeletion.recycleBinDays', 1),
+      recycleBinDays: wholeNumber(
+        accountDeletion['recycleBinDays'],
+        'accountDeletion.recycleBinDays',
+        1,
+      ),
     },
     accessibility: {
       targetStandard: str(accessibility['targetStandard'], 'accessibility.targetStandard'),
@@ -788,10 +850,22 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       minimumControlHeightPx,
     },
     problems: {
-      instantRefundUpToPence: wholeNumber(problems['instantRefundUpToPence'], 'problems.instantRefundUpToPence', 0),
-      decideWithinWorkingDays: wholeNumber(problems['decideWithinWorkingDays'], 'problems.decideWithinWorkingDays', 1),
+      instantRefundUpToPence: wholeNumber(
+        problems['instantRefundUpToPence'],
+        'problems.instantRefundUpToPence',
+        0,
+      ),
+      decideWithinWorkingDays: wholeNumber(
+        problems['decideWithinWorkingDays'],
+        'problems.decideWithinWorkingDays',
+        1,
+      ),
       recoveryPercentOfPay,
-      writeOffUpToPence: wholeNumber(problems['writeOffUpToPence'], 'problems.writeOffUpToPence', 0),
+      writeOffUpToPence: wholeNumber(
+        problems['writeOffUpToPence'],
+        'problems.writeOffUpToPence',
+        0,
+      ),
     },
     extras: {
       recipePassPence: wholeNumber(extras['recipePassPence'] ?? 199, 'extras.recipePassPence', 1),
@@ -820,18 +894,38 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       findItPence: wholeNumber(extras['findItPence'] ?? 200, 'extras.findItPence', 1),
       findItShops: wholeNumber(extras['findItShops'] ?? 3, 'extras.findItShops', 1),
       giftCardPence: giftCardAmounts(extras['giftCardPence'] ?? [1000, 2000, 3000, 5000]),
-      partnerMonthlyPence: wholeNumber(extras['partnerMonthlyPence'] ?? 2999, 'extras.partnerMonthlyPence', 1),
+      partnerMonthlyPence: wholeNumber(
+        extras['partnerMonthlyPence'] ?? 2999,
+        'extras.partnerMonthlyPence',
+        1,
+      ),
       spotlightPence: wholeNumber(extras['spotlightPence'] ?? 1999, 'extras.spotlightPence', 1),
-      spotlightPlusPence: wholeNumber(extras['spotlightPlusPence'] ?? 3999, 'extras.spotlightPlusPence', 1),
+      spotlightPlusPence: wholeNumber(
+        extras['spotlightPlusPence'] ?? 3999,
+        'extras.spotlightPlusPence',
+        1,
+      ),
       spotlightPerWeek: wholeNumber(extras['spotlightPerWeek'] ?? 1, 'extras.spotlightPerWeek', 1),
-      spotlightPlusPerWeek: wholeNumber(extras['spotlightPlusPerWeek'] ?? 3, 'extras.spotlightPlusPerWeek', 1),
+      spotlightPlusPerWeek: wholeNumber(
+        extras['spotlightPlusPerWeek'] ?? 3,
+        'extras.spotlightPlusPerWeek',
+        1,
+      ),
     },
     calls: {
       pencePerMinute: wholeNumber(calls['pencePerMinute'], 'calls.pencePerMinute', 0),
-      maxOutstandingPence: wholeNumber(calls['maxOutstandingPence'], 'calls.maxOutstandingPence', 0),
+      maxOutstandingPence: wholeNumber(
+        calls['maxOutstandingPence'],
+        'calls.maxOutstandingPence',
+        0,
+      ),
     },
     voice: {
-      paymentCeilingPence: wholeNumber(voice['paymentCeilingPence'], 'voice.paymentCeilingPence', 1),
+      paymentCeilingPence: wholeNumber(
+        voice['paymentCeilingPence'],
+        'voice.paymentCeilingPence',
+        1,
+      ),
     },
     runners: {
       sosLinkHours: wholeNumber(runners['sosLinkHours'] ?? 12, 'runners.sosLinkHours', 1),
@@ -846,8 +940,16 @@ export function parseStoreConfig(input: unknown): StoreConfig {
         0,
       ),
       insuranceReminderDays: [...new Set(reminderDays)].sort((a, b) => b - a),
-      referralRewardPence: wholeNumber(runners['referralRewardPence'] ?? 15000, 'runners.referralRewardPence', 1),
-      referralsForReward: wholeNumber(runners['referralsForReward'] ?? 100, 'runners.referralsForReward', 1),
+      referralRewardPence: wholeNumber(
+        runners['referralRewardPence'] ?? 15000,
+        'runners.referralRewardPence',
+        1,
+      ),
+      referralsForReward: wholeNumber(
+        runners['referralsForReward'] ?? 100,
+        'runners.referralsForReward',
+        1,
+      ),
     },
     versionOneRestrictions: {
       ageRestrictedGoodsAllowed,
@@ -863,16 +965,70 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       ),
     },
     dispatch: {
-      maxGoodsPenceByMode: parseMaxGoodsByMode(dispatch['maxGoodsPenceByMode'], maximumProductPence, maximumOrderGoodsPence),
-      waitingAlertMinutes: wholeNumber(dispatch['waitingAlertMinutes'] ?? 15, 'dispatch.waitingAlertMinutes', 1),
-      splitAfterMinutes: wholeNumber(dispatch['splitAfterMinutes'] ?? 10, 'dispatch.splitAfterMinutes', 1),
-      splitPartMaxPenceByMode: parseSplitPartMax(dispatch['splitPartMaxPenceByMode'], maximumProductPence),
-      tinyExtraBelowPence: wholeNumber(dispatch['tinyExtraBelowPence'] ?? 500, 'dispatch.tinyExtraBelowPence', 0),
-      splitRunnerPayPence: wholeNumber(dispatch['splitRunnerPayPence'] ?? 500, 'dispatch.splitRunnerPayPence', 1),
+      maxGoodsPenceByMode: parseMaxGoodsByMode(
+        dispatch['maxGoodsPenceByMode'],
+        maximumProductPence,
+        maximumOrderGoodsPence,
+      ),
+      waitingAlertMinutes: wholeNumber(
+        dispatch['waitingAlertMinutes'] ?? 15,
+        'dispatch.waitingAlertMinutes',
+        1,
+      ),
+      splitAfterMinutes: wholeNumber(
+        dispatch['splitAfterMinutes'] ?? 10,
+        'dispatch.splitAfterMinutes',
+        1,
+      ),
+      splitPartMaxPenceByMode: parseSplitPartMax(
+        dispatch['splitPartMaxPenceByMode'],
+        maximumProductPence,
+      ),
+      tinyExtraBelowPence: wholeNumber(
+        dispatch['tinyExtraBelowPence'] ?? 500,
+        'dispatch.tinyExtraBelowPence',
+        0,
+      ),
+      splitRunnerPayPence: wholeNumber(
+        dispatch['splitRunnerPayPence'] ?? 500,
+        'dispatch.splitRunnerPayPence',
+        1,
+      ),
+      fairShareMaxLeadPence: wholeNumber(
+        dispatch['fairShareMaxLeadPence'] ?? FAIR_SHARE_DEFAULTS.fairShareMaxLeadPence,
+        'dispatch.fairShareMaxLeadPence',
+        0,
+      ),
+      chainRadiusMiles: positiveNumber(
+        dispatch['chainRadiusMiles'] ?? FAIR_SHARE_DEFAULTS.chainRadiusMiles,
+        'dispatch.chainRadiusMiles',
+      ),
+      chainMinutesBeforeDone: wholeNumber(
+        dispatch['chainMinutesBeforeDone'] ?? FAIR_SHARE_DEFAULTS.chainMinutesBeforeDone,
+        'dispatch.chainMinutesBeforeDone',
+        1,
+      ),
+      nearBandMiles: positiveNumber(
+        dispatch['nearBandMiles'] ?? FAIR_SHARE_DEFAULTS.nearBandMiles,
+        'dispatch.nearBandMiles',
+      ),
+      bandSeconds: wholeNumber(
+        dispatch['bandSeconds'] ?? FAIR_SHARE_DEFAULTS.bandSeconds,
+        'dispatch.bandSeconds',
+        1,
+      ),
     },
     admin: {
-      ownerOnlyRefundAbovePence: wholeNumber(admin['ownerOnlyRefundAbovePence'] ?? 2500, 'admin.ownerOnlyRefundAbovePence', 0),
-      staffTwoStepGraceDays: wholeNumber(admin['staffTwoStepGraceDays'] ?? 14, 'admin.staffTwoStepGraceDays', 0),
+      ownerOnlyRefundAbovePence: wholeNumber(
+        admin['ownerOnlyRefundAbovePence'] ?? 2500,
+        'admin.ownerOnlyRefundAbovePence',
+        0,
+      ),
+      staffTwoStepGraceDays: wholeNumber(
+        admin['staffTwoStepGraceDays'] ?? 14,
+        'admin.staffTwoStepGraceDays',
+        0,
+      ),
       staffTwoStepFrom,
     },
   };

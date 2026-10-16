@@ -358,6 +358,7 @@ person) is replaced by Ozi Family and Carer (ruling 58).
 | Agreeing to the Runner agreement before the first job: a tick at sign-up or on the Runner page (a spoken yes is accepted by the server), kept with the date, version and how | BUILT | Ruling 55. No job is offered or accepted until the current version is agreed. |
 | Paid back for the shopping straight away when the till total goes in | BUILT | Ruling 55. A person approves the ones the till needs a person for. No receipt photo is taken yet. |
 | Fair job offers with pay and distance, 60-second hold | BUILT | |
+| The fair queue sharpened (ruling 64): the lowest earner today first, then the longest wait; nobody jumps the queue while more than £15 ahead of the lowest earner on shift (the regular Runner included); a Runner on the final leg chains to a job within 1.5 miles of the drop-off, held 2 minutes, declined without penalty; Runners within 1.5 miles of the pickup asked first, widening after 60 seconds; "You are second in line for the next job" on the Runner page, said by Ozi | BUILT | Ruling 64. `dispatch.fairShareMaxLeadPence`, `chainRadiusMiles`, `chainMinutesBeforeDone`, `nearBandMiles`, `bandSeconds`; `GET /runners/me/queue-position`; `packages/core/src/dispatch.ts`, `packages/api/src/services/dispatch.ts`. |
 | Carrying limits by way of travelling: on foot and bicycle up to £60 of shopping, motorbike up to £70, car and van up to £150; a motorbike, car or van needs an accepted, in-date licence and insurance; owner texted once after 15 minutes | BUILT | Rulings 59 and 60. `dispatch.maxGoodsPenceByMode`, `dispatch.waitingAlertMinutes`. |
 | Split jobs: a large order nobody who can carry it takes within 10 minutes (ruling 61) is split by item for the fewest Runners, motorbike parts of up to £75 first, then foot or bicycle parts of up to £60 (each only to its kind of Runner), each its own job ("Split job — part 1 of 2", £5 a part), with its own till total, card load or pay-back, receipt photo and delivery; the Shopper sees every part's arrival time and is settled once on the sum; owner told again once if a part is not taken | BUILT | Ruling 60. `dispatch.splitAfterMinutes`, `dispatch.splitRunnerPayPence`; `packages/api/src/services/split.ts`. |
 | £7 to the Runner for an order of £120 or more delivered whole | BUILT | Ruling 60. Rule Two amended. |
@@ -884,3 +885,20 @@ The first round of missing features is built: the owner's till screen, receipt p
 - **Inside Instagram, Facebook and other apps**: a banner to open the page in Safari or Chrome,
   with Copy the link and, on Android, Open in Chrome.
 - See docs/changes/microphone.md.
+
+## Ruling 64 in brief (16 October 2026)
+
+- **Earned-today balance**: BUILT. The queue is ordered by money earned today (least first),
+  then by the longest wait since the last job. Nobody jumps the fair order while more than £15
+  (`dispatch.fairShareMaxLeadPence`) ahead of the lowest earner on shift: the Shopper's regular
+  Runner keeps their preference only within that lead. Runners see their own earnings only.
+- **Chaining**: BUILT. A Runner on their way to the door (`delivering`, the final leg) is offered
+  a waiting job within 1.5 miles (`dispatch.chainRadiusMiles`) of the drop-off before anybody
+  else, held 2 minutes (`dispatch.chainMinutesBeforeDone`); no costs them nothing. The offer is
+  marked `chained` (migration `20261024090000_fair_queue_chaining`).
+- **Distance band first**: BUILT. Runners within 1.5 miles (`dispatch.nearBandMiles`) of the
+  pickup are asked first, by fairness; the offer widens after 60 seconds (`dispatch.bandSeconds`),
+  or at once when everybody near has said no.
+- **Queue position**: BUILT. `GET /runners/me/queue-position` gives one sentence, "You are second
+  in line for the next job.", shown short on the Runner page ("Second in line"), the sentence
+  behind "Show words on the screen", and said by Ozi when it changes. No money in it.

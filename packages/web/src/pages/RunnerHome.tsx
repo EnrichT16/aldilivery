@@ -20,6 +20,7 @@ import {
   fetchJobQuestions,
   fetchOfferedJobs,
   fetchMyPay,
+  fetchQueuePosition,
   fetchRunnerMe,
   moveJobOn,
   sendReceiptPhoto,
@@ -30,9 +31,11 @@ import {
   type ItemAnswer,
   type ItemQuestion,
   type OfferedJob,
+  type QueuePosition,
   type RunnerAccount,
   type RunnerPay,
 } from '../lib/api';
+import { useOzi } from '../state/ozi';
 import { AgreeByVoice } from '../components/AgreeByVoice';
 import { CallControls } from '../components/CallControls';
 import { DocumentsChecklist } from '../components/DocumentsChecklist';
@@ -121,6 +124,11 @@ export function RunnerHome(): JSX.Element {
   const [news, setNews] = useState('');
   const [tab, setTab] = useState<TabKey>('today');
   const [dashboard, setDashboard] = useState<RunnerDashboard | null>(null);
+  // Their place in the fair queue (ruling 64): one sentence, theirs alone, said by Ozi when it
+  // changes and shown in a tidy line.
+  const [queue, setQueue] = useState<QueuePosition | null>(null);
+  const ozi = useOzi();
+  const lastQueueWords = useRef<string | null>(null);
   // Raised by "Cannot find it", which starts the call in the same tap (Section H).
   const [ringNow, setRingNow] = useState(0);
   const problemRef = useRef<HTMLParagraphElement>(null);
@@ -160,10 +168,20 @@ export function RunnerHome(): JSX.Element {
       } else {
         setQuestions([]);
       }
-      if (!current.job && me.runner.available) {
+      // Offers come while free, and on the way to the door, when the job next door may be
+      // chained to this Runner (ruling 64).
+      if (me.runner.available && (!current.job || current.job.status === 'delivering')) {
         setOffers((await fetchOfferedJobs()).offers);
       } else {
         setOffers([]);
+      }
+      // Their place in line, while on shift and waiting. Never allowed to stop the page working.
+      if (me.runner.available && !current.job) {
+        fetchQueuePosition()
+          .then(setQueue)
+          .catch(() => undefined);
+      } else {
+        setQueue(null);
       }
     } catch (failure) {
       if (failure instanceof ApiUnavailableError) {
@@ -195,6 +213,14 @@ export function RunnerHome(): JSX.Element {
   useEffect(() => {
     if (problem !== '') problemRef.current?.focus();
   }, [problem]);
+
+  // Ozi says their place in line when it changes (ruling 64): once per change, never every poll.
+  useEffect(() => {
+    const words = queue?.position === null || queue === null ? null : queue.words;
+    if (words === lastQueueWords.current) return;
+    lastQueueWords.current = words;
+    if (words !== null) void ozi.say(words);
+  }, [queue, ozi]);
 
   async function act(action: () => Promise<unknown>, done: string): Promise<void> {
     if (busy) return;
@@ -234,7 +260,9 @@ export function RunnerHome(): JSX.Element {
     );
   }
 
-  const offer = offers[0];
+  // The first offer with a job behind it; one at a time is all a Runner is ever shown.
+  const first = offers[0];
+  const offer = first?.job ? { ...first, job: first.job } : null;
 
   return (
     <div className="space-y-8">
@@ -382,6 +410,12 @@ export function RunnerHome(): JSX.Element {
                     ? 'Jobs near you will appear here. You do not need to keep refreshing.'
                     : 'Go on shift when you are ready to take jobs.'}
                 </p>
+                {runner.available && queue && queue.position !== null && (
+                  <p className="m-0">
+                    <strong>{placeInLine(queue.position)}</strong>
+                    <span className="extra"> {queue.words}</span>
+                  </p>
+                )}
                 <button
                   type="button"
                   disabled={busy}
@@ -398,60 +432,14 @@ export function RunnerHome(): JSX.Element {
                 </button>
               </section>
 
-              {runner.available && offer?.job && (
-                <section
-                  role="alert"
-                  aria-labelledby="offer-heading"
-                  className="space-y-3 max-w-xl border-2 border-highlight rounded-xl p-4"
-                >
-                  <h2 id="offer-heading" className="text-lead font-bold m-0">
-                    {offer.job.split ? offer.job.split.label : 'A job for you'}
-                  </h2>
-                  {offer.job.split && (
-                    <p className="m-0 font-bold">{offer.job.split.earnWords}</p>
-                  )}
-                  {offer.job.split && <p className="m-0">{offer.job.split.rest}</p>}
-                  <p className="m-0">
-                    {offer.job.itemCount} {offer.job.itemCount === 1 ? 'thing' : 'things'}, about{' '}
-                    {money(offer.job.goodsEstimatePence)} of shopping
-                    {offer.job.distanceMiles !== null
-                      ? `, ${offer.job.distanceMiles.toFixed(1)} miles away`
-                      : ''}
-                    . You get {money(offer.job.runnerPaymentPence)}.
-                  </p>
-                  <p className="m-0">About {offer.secondsLeft} seconds left to say yes.</p>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      void act(async () => {
-                        const taken = await acceptJob(offer.offer.id);
-                        // How to pay at the till for this one: the card loaded, or their own.
-                        setNews(
-                          taken.till ? `The job is yours. ${taken.till.message}` : 'The job is yours.',
-                        );
-                      }, '');
-                    }}
-                    className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
-                  >
-                    Take this job
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => {
-                      void act(
-                        () => declineJob(offer.offer.id),
-                        'No problem. It will go to somebody else.',
-                      );
-                    }}
-                    className="control bg-paper/10 text-paper underline"
-                  >
-                    Not this one
-                  </button>
-                </section>
+              {runner.available && offer && (
+                <JobOffer offer={offer} busy={busy} act={act} onNews={setNews} />
               )}
             </>
+          )}
+          {/* On the way to the door, the job next door may be offered now (ruling 64). */}
+          {job && job.status === 'delivering' && runner.available && offer && (
+            <JobOffer offer={offer} busy={busy} act={act} onNews={setNews} />
           )}
           {approved && !job && <TillPayment onNews={setNews} />}
           {approved && <HowYouGetPaid />}
@@ -484,6 +472,92 @@ export function RunnerHome(): JSX.Element {
         </>
       )}
     </div>
+  );
+}
+
+/** "First in line", "Second in line": the short form for the screen. Position 0 is first. */
+export function placeInLine(position: number): string {
+  const ordinal = [
+    'First',
+    'Second',
+    'Third',
+    'Fourth',
+    'Fifth',
+    'Sixth',
+    'Seventh',
+    'Eighth',
+    'Ninth',
+    'Tenth',
+  ][position];
+  return ordinal ? `${ordinal} in line` : `Number ${position + 1} in line`;
+}
+
+/**
+ * A job being offered: a summary, the seconds left, yes or no. Arrives as an alert, so a screen
+ * reader says it the moment it appears. A chained offer (ruling 64) says it is the next job, near
+ * where the Runner is now, and that no costs nothing.
+ */
+function JobOffer({
+  offer,
+  busy,
+  act,
+  onNews,
+}: {
+  offer: OfferedJob & { job: NonNullable<OfferedJob['job']> };
+  busy: boolean;
+  act: (action: () => Promise<unknown>, done: string) => Promise<void>;
+  onNews: (text: string) => void;
+}): JSX.Element {
+  return (
+    <section
+      role="alert"
+      aria-labelledby="offer-heading"
+      className="space-y-3 max-w-xl border-2 border-highlight rounded-xl p-4"
+    >
+      <h2 id="offer-heading" className="text-lead font-bold m-0">
+        {offer.job.split
+          ? offer.job.split.label
+          : offer.chained
+            ? 'Your next job'
+            : 'A job for you'}
+      </h2>
+      {offer.chained && offer.chainedWords && <p className="m-0">{offer.chainedWords}</p>}
+      {offer.job.split && <p className="m-0 font-bold">{offer.job.split.earnWords}</p>}
+      {offer.job.split && <p className="m-0">{offer.job.split.rest}</p>}
+      <p className="m-0">
+        {offer.job.itemCount} {offer.job.itemCount === 1 ? 'thing' : 'things'}, about{' '}
+        {money(offer.job.goodsEstimatePence)} of shopping
+        {offer.job.distanceMiles !== null
+          ? `, ${offer.job.distanceMiles.toFixed(1)} miles ${offer.chained ? 'from this door' : 'away'}`
+          : ''}
+        . You get {money(offer.job.runnerPaymentPence)}.
+      </p>
+      <p className="m-0">About {offer.secondsLeft} seconds left to say yes.</p>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => {
+          void act(async () => {
+            const taken = await acceptJob(offer.offer.id);
+            // How to pay at the till for this one: the card loaded, or their own.
+            onNews(taken.till ? `The job is yours. ${taken.till.message}` : 'The job is yours.');
+          }, '');
+        }}
+        className="control w-full bg-highlight text-ink text-lead disabled:opacity-70"
+      >
+        Take this job
+      </button>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => {
+          void act(() => declineJob(offer.offer.id), 'No problem. It will go to somebody else.');
+        }}
+        className="control bg-paper/10 text-paper underline"
+      >
+        Not this one
+      </button>
+    </section>
   );
 }
 

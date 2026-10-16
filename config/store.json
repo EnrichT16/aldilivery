@@ -90,7 +90,12 @@
       "foot": 6000
     },
     "tinyExtraBelowPence": 500,
-    "splitRunnerPayPence": 500
+    "splitRunnerPayPence": 500,
+    "fairShareMaxLeadPence": 1500,
+    "chainRadiusMiles": 1.5,
+    "chainMinutesBeforeDone": 2,
+    "nearBandMiles": 1.5,
+    "bandSeconds": 60
   },
   "allocation": {
     "offerHoldSeconds": 60,

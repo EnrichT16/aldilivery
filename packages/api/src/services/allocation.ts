@@ -54,6 +54,12 @@ export interface RankedRunner {
   queuePosition: number;
 }
 
+/**
+ * Runners further away than this are not offered the job at all. Not a fairness rule, a
+ * practicality: a Runner twenty miles away cannot deliver chilled food.
+ */
+export const SERVICE_RADIUS_MILES = 10;
+
 const EARTH_RADIUS_MILES = 3958.8;
 
 const toRadians = (degrees: number): number => (degrees * Math.PI) / 180;
@@ -91,7 +97,7 @@ export function buildOfferQueue(
   options: QueueOptions = {},
 ): RankedRunner[] {
   const bucketMiles = options.distanceBucketMiles ?? 0.5;
-  const radiusMiles = options.serviceRadiusMiles ?? 10;
+  const radiusMiles = options.serviceRadiusMiles ?? SERVICE_RADIUS_MILES;
 
   const scored = runners
     .filter(isEligible)
@@ -129,10 +135,10 @@ export function buildOfferQueue(
 }
 
 /** Who is next, given who has already been offered this job and declined or timed out. */
-export function nextRunnerToOffer(
-  queue: readonly RankedRunner[],
+export function nextRunnerToOffer<T extends { runnerId: string }>(
+  queue: readonly T[],
   alreadyOfferedRunnerIds: readonly string[],
-): RankedRunner | null {
+): T | null {
   const seen = new Set(alreadyOfferedRunnerIds);
   return queue.find((entry) => !seen.has(entry.runnerId)) ?? null;
 }

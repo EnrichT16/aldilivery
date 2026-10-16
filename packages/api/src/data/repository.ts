@@ -178,7 +178,7 @@ export type CreateJobOffer = Pick<
   JobOffer,
   'orderId' | 'runnerId' | 'expiresAt' | 'queuePosition'
 > &
-  Partial<Pick<JobOffer, 'distanceMiles'>>;
+  Partial<Pick<JobOffer, 'distanceMiles' | 'chained'>>;
 
 export type CreateRunnerPayout = Pick<
   RunnerPayout,
