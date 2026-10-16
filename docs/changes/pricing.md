@@ -5,6 +5,10 @@ What was built for Anthony's new pricing, in plain English, matching the approve
 `config/store.json`; nothing is written into the code. One database migration:
 `20261020090000_pricing_plans`.
 
+> **Re-banded on 16 October 2026 (ruling 63, Anthony's "option A")**: delivery is now priced by
+> the value of the shopping on every plan, from `fees.delivery.bands`. Section 2, the plans and
+> the worked examples below show the new figures; everything else in this document stands.
+
 ## 1. The item charge on every product
 
 - Every unit has a charge added to its shop price: **50p, and 50p more for every whole £6** of
@@ -44,12 +48,20 @@ What was built for Anthony's new pricing, in plain English, matching the approve
 
 ## 2. Delivery
 
-| Who | Delivery | Runner | Business keeps from delivery |
-| --- | --- | --- | --- |
-| Pay as you go, £15.00 or less | £7.99 | £5 | £2.99 |
-| Pay as you go, over £15.00 | £13.50 | £5 | £8.50 |
-| Ozi Membership, and people an organisation looks after | £7.99 | £5 | £2.99 |
-| Ozi Plus and Ozi Family and Carer | £5.99 | £5 | £0.99 |
+| Who | Shopping (at shop prices) | Delivery | Runner | Business keeps from delivery |
+| --- | --- | --- | --- | --- |
+| Pay as you go | up to £30.00 | £7.99 | £5 | £2.99 |
+| Pay as you go | over £30.00, up to £60.00 | £9.99 | £5 | £4.99 |
+| Pay as you go | over £60.00 | £13.50 | £5 | £8.50 |
+| Ozi Membership, and people an organisation looks after | up to £60.00 | £5.99 | £5 | £0.99 |
+| Ozi Membership, and people an organisation looks after | over £60.00 | £9.99 | £5 | £4.99 |
+| Ozi Plus and Ozi Family and Carer | up to £60.00 | £3.99 | £5 | −£1.01 (made up by the plan's monthly price and the item charges) |
+| Ozi Plus and Ozi Family and Carer | over £60.00 | £7.99 | £5 | £2.99 |
+
+- The bands are `fees.delivery.bands` in `config/store.json`: a list of
+  `{upToPence, payAsYouGoPence, membershipPence, plusPence}`, rising, the last with `upToPence`
+  null. The parser refuses bands that do not rise, a last band with a limit, a band dearer for a
+  smaller shop, and a pay-as-you-go price that does not cover the Runner's £5.
 
 - `deliveryFeePence(goods, plan, fees)` in `packages/core/src/fees.ts`. Its only inputs are the
   shop total, the plan and the configured prices: no time, place or demand (Rule Four). A
@@ -80,9 +92,9 @@ What was built for Anthony's new pricing, in plain English, matching the approve
 Restructured from ruling 37's Ozi Plus code, not duplicated (`/plans`, kept also at
 `/extras/plus`; `services/plans.ts`).
 
-- **Ozi Membership, £10 a month**: delivery £7.99; the Recipe Pass included; one free Ozi Finds
+- **Ozi Membership, £10 a month**: delivery £5.99 up to £60 of shopping, £9.99 over; the Recipe Pass included; one free Ozi Finds
   It a month (`extras.freeFindItsPerMonth`); favourites and the usual order remembered.
-- **Ozi Plus, £15 a month**: everything in Membership; delivery £5.99; **my regular Runner**:
+- **Ozi Plus, £15 a month**: everything in Membership; delivery £3.99 up to £60 of shopping, £7.99 over; **my regular Runner**:
   the Runner who last delivered to them with no problem reported is offered the job first when
   on shift and free (`regularRunnerFor` in `services/dispatch.ts`), everybody else keeping their
   place in the fair rotation; **priority at busy times**: waiting orders of Plus and Family
@@ -118,7 +130,7 @@ Restructured from ruling 37's Ozi Plus code, not duplicated (`/plans`, kept also
   `extras.organisations`). 120 clients: 118 × £10 + 2 × £5 = **£1,190 a month**.
 - Shown on the organisation dashboard ("Your monthly plan"), said by Ozi with the spending, and
   added to the PDF statement and the spreadsheet.
-- The people an organisation looks after have Membership delivery (£7.99) and the item charges.
+- The people an organisation looks after have Membership delivery (£5.99 up to £60, £9.99 over) and the item charges.
 - Invoicing or charging the organisation for it is not built (ruling 41 still needs Anthony on
   paying by invoice).
 
@@ -135,9 +147,12 @@ Restructured from ruling 37's Ozi Plus code, not duplicated (`/plans`, kept also
 ## Worked examples (computed by the code)
 
 - **John, first month, £58.36 of shopping** (1.40, 1.25, 0.95, 2.49, 2.79, 4.99, 6.50, 7.00,
-  12.49, 18.50): item charges **£8.50**; pay-as-you-go delivery **£13.50**; total **£80.36**.
-- **John as a Member**: £58.36 + £8.50 + £7.99 = **£74.85** (plus £10 for the month).
+  12.49, 18.50): item charges **£8.50**; pay-as-you-go delivery **£9.99** (over £30, up to £60);
+  total **£76.85**.
+- **John as a Member**: £58.36 + £8.50 + £5.99 = **£72.85** (plus £10 for the month).
+- **John on Plus**: £58.36 + £8.50 + £3.99 = **£70.85** (plus £15 for the month).
 - **Mary, milk, bread and eggs, £4.69**: item charges **£1.50**, delivery **£7.99**: **£14.18**.
+- **A £75 shop**: delivery £13.50 paying as you go, £9.99 as a Member, £7.99 on Plus.
 - **An organisation with 120 clients**: **£1,190 a month**.
 
 Proved in `packages/core/test/fees.test.ts`, `packages/api/test/plans.test.ts`,

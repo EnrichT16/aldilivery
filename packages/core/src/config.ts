@@ -26,6 +26,7 @@ import {
   type SplitPartMaxByMode,
 } from './dispatch.js';
 import type {
+  DeliveryBand,
   DeliveryPrices,
   ItemChargeRule,
   OrganisationPricing,
@@ -98,7 +99,11 @@ export interface StoreConfig {
   readonly fees: {
     readonly currency: string;
     readonly runnerPaymentPence: number;
-    /** Delivery by plan (ruling 58, 9 October 2026). Every one covers the Runner's five pounds. */
+    /**
+     * Delivery by plan and by the value of the shopping, in bands (ruling 58, 9 October 2026;
+     * re-banded by ruling 63, 16 October 2026). Pay as you go covers the Runner's five pounds in
+     * every band; a plan's price may be below it, its monthly price making up the difference.
+     */
     readonly delivery: DeliveryPrices;
     /** The charge on every unit, from its shop price (ruling 58). Never removed by a plan. */
     readonly itemCharge: ItemChargeRule;
@@ -441,6 +446,68 @@ function array(value: unknown, path: string): unknown[] {
   return value;
 }
 
+/**
+ * Delivery by plan and by the value of the shopping (ruling 63, 16 October 2026):
+ * `fees.delivery.bands`, each band saying what pay as you go, Membership and Plus (with Family
+ * and Carer) pay for shopping up to its `upToPence`, the last band with `upToPence` null for
+ * everything above the one before it. The bands must rise, so each goods total falls in exactly
+ * one; and within each plan a dearer band may not be cheaper than the one below it, so a
+ * smaller shop is never dearer to deliver (Rule Four).
+ *
+ * Rule Two: pay as you go, which has no monthly plan behind it, must cover the Runner's five
+ * pounds in every band. A plan's delivery price may be below it (Plus pays £3.99 up to £60);
+ * the Runner still gets five pounds, the difference coming from the plan's monthly price and
+ * the item charges.
+ */
+function parseDeliveryBands(value: unknown): DeliveryBand[] {
+  const path = 'fees.delivery.bands';
+  const bands = array(value, path).map((raw, index): DeliveryBand => {
+    const band = object(raw, `${path}[${index}]`);
+    const upTo = band['upToPence'];
+    return {
+      upToPence: upTo === null ? null : wholeNumber(upTo, `${path}[${index}].upToPence`, 1),
+      payAsYouGoPence: wholeNumber(band['payAsYouGoPence'], `${path}[${index}].payAsYouGoPence`, 1),
+      membershipPence: wholeNumber(band['membershipPence'], `${path}[${index}].membershipPence`, 1),
+      plusPence: wholeNumber(band['plusPence'], `${path}[${index}].plusPence`, 1),
+    };
+  });
+  bands.forEach((band, index) => {
+    const last = index === bands.length - 1;
+    if (last && band.upToPence !== null) {
+      throw new StoreConfigError(
+        `${path}: the last band must have upToPence null, so every goods total is covered.`,
+      );
+    }
+    if (!last && band.upToPence === null) {
+      throw new StoreConfigError(`${path}[${index}].upToPence may only be null on the last band.`);
+    }
+    const previous = bands[index - 1];
+    if (
+      previous &&
+      band.upToPence !== null &&
+      previous.upToPence !== null &&
+      band.upToPence <= previous.upToPence
+    ) {
+      throw new StoreConfigError(
+        `${path}[${index}].upToPence must be above the band before it (${previous.upToPence}p).`,
+      );
+    }
+    if (band.payAsYouGoPence <= RUNNER_PAYMENT_PENCE) {
+      throw new StoreConfigError(
+        `${path}[${index}].payAsYouGoPence is ${band.payAsYouGoPence}p, which does not cover the Runner's ${RUNNER_PAYMENT_PENCE}p. Rule Two: the Runner's five pounds is untouched.`,
+      );
+    }
+    for (const key of ['payAsYouGoPence', 'membershipPence', 'plusPence'] as const) {
+      if (previous && band[key] < previous[key]) {
+        throw new StoreConfigError(
+          `${path}[${index}].${key} is ${band[key]}p, cheaper than the smaller band's ${previous[key]}p. Rule Four: a smaller shop is never dearer to deliver.`,
+        );
+      }
+    }
+  });
+  return bands;
+}
+
 const HEX_COLOUR = /^#[0-9A-Fa-f]{6}$/;
 
 function hexColour(value: unknown, path: string): string {
@@ -576,42 +643,7 @@ export function parseStoreConfig(input: unknown): StoreConfig {
 
   const deliveryRaw = object(fees['delivery'], 'fees.delivery');
   const itemChargeRaw = object(fees['itemCharge'], 'fees.itemCharge');
-  const delivery: DeliveryPrices = {
-    payAsYouGoSmallOrderPence: wholeNumber(
-      deliveryRaw['payAsYouGoSmallOrderPence'],
-      'fees.delivery.payAsYouGoSmallOrderPence',
-      1,
-    ),
-    payAsYouGoSmallOrderUpToPence: wholeNumber(
-      deliveryRaw['payAsYouGoSmallOrderUpToPence'],
-      'fees.delivery.payAsYouGoSmallOrderUpToPence',
-      0,
-    ),
-    payAsYouGoPence: wholeNumber(
-      deliveryRaw['payAsYouGoPence'],
-      'fees.delivery.payAsYouGoPence',
-      1,
-    ),
-    membershipPence: wholeNumber(
-      deliveryRaw['membershipPence'],
-      'fees.delivery.membershipPence',
-      1,
-    ),
-    plusPence: wholeNumber(deliveryRaw['plusPence'], 'fees.delivery.plusPence', 1),
-  };
-  // Rule Two: every delivery price, on every plan, must cover the Runner's five pounds.
-  for (const key of [
-    'payAsYouGoSmallOrderPence',
-    'payAsYouGoPence',
-    'membershipPence',
-    'plusPence',
-  ] as const) {
-    if (delivery[key] <= RUNNER_PAYMENT_PENCE) {
-      throw new StoreConfigError(
-        `fees.delivery.${key} is ${delivery[key]}p, which does not cover the Runner's ${RUNNER_PAYMENT_PENCE}p. Rule Two: the Runner's five pounds is untouched.`,
-      );
-    }
-  }
+  const delivery: DeliveryPrices = { bands: parseDeliveryBands(deliveryRaw['bands']) };
   const itemCharge: ItemChargeRule = {
     basePence: wholeNumber(itemChargeRaw['basePence'], 'fees.itemCharge.basePence', 0),
     stepPence: wholeNumber(itemChargeRaw['stepPence'], 'fees.itemCharge.stepPence', 0),

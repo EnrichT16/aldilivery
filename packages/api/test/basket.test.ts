@@ -104,12 +104,12 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
       totalPence: number;
     };
     expect(body.goodsEstimatePence).toBe(1);
-    expect(body.feePence).toBe(harness.config.fees.delivery.payAsYouGoSmallOrderPence);
+    expect(body.feePence).toBe(harness.config.fees.delivery.bands[0]!.payAsYouGoPence);
     // One item charge of 50p, the smaller pay-as-you-go delivery, and no small order fee.
     expect(body.totalPence).toBe(1 + 50 + body.feePence);
   });
 
-  it('charges the smaller pay-as-you-go delivery up to £15 of shopping, and the larger above', async () => {
+  it('charges pay-as-you-go delivery by the value of the shopping: £7.99 up to £30, £9.99 up to £60, £13.50 over', async () => {
     const small = await harness.app.inject({
       method: 'POST',
       url: '/basket/price',
@@ -123,19 +123,31 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
 
     const smallFee = (small.json() as { feePence: number }).feePence;
     const largerFee = (larger.json() as { feePence: number }).feePence;
-    // Ten pints at £1.25 is £12.50: still the smaller fee. Thirteen is £16.25: the larger.
+    // Ten pints at £1.25 is £12.50: still the smallest fee. Twenty-five is £31.25: the middle.
     expect(smallFee).toBe(799);
     expect(largerFee).toBe(799);
+    const middle = await harness.app.inject({
+      method: 'POST',
+      url: '/basket/price',
+      payload: { lines: [{ catalogueItemId: items.milk, quantity: 25 }] },
+    });
+    expect(middle.json()).toMatchObject({
+      goodsEstimatePence: 3125,
+      itemChargesPence: 1250,
+      feePence: 999,
+      totalPence: 3125 + 1250 + 999,
+    });
+    // Forty-nine pints is £61.25: over £60, car-and-two-bags territory.
     const over = await harness.app.inject({
       method: 'POST',
       url: '/basket/price',
-      payload: { lines: [{ catalogueItemId: items.milk, quantity: 13 }] },
+      payload: { lines: [{ catalogueItemId: items.milk, quantity: 49 }] },
     });
     expect(over.json()).toMatchObject({
-      goodsEstimatePence: 1625,
-      itemChargesPence: 650,
+      goodsEstimatePence: 6125,
+      itemChargesPence: 2450,
       feePence: 1350,
-      totalPence: 1625 + 650 + 1350,
+      totalPence: 6125 + 2450 + 1350,
     });
   });
 
@@ -154,7 +166,7 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
     expect(body.inWords.total).toBe('£11.49');
     // The shopping is said with its item charges in it, and the parts are named.
     expect(body.explanation.join(' ')).toContain(
-      'The shopping is about £3.50, with the item charges included: £2.50 at the shop\'s prices and £1.00 of item charges.',
+      "The shopping is about £3.50, with the item charges included: £2.50 at the shop's prices and £1.00 of item charges.",
     );
   });
 
@@ -258,7 +270,8 @@ describe('the most one order carries, and the most one product may cost', () => 
       payload: { lines: [{ catalogueItemId: await product(6000), quantity: 1 }] },
     });
     expect(sixty.statusCode).toBe(200);
-    expect(sixty.json()).toMatchObject({ itemChargesPence: 550, totalPence: 6000 + 550 + 1350 });
+    // £60 of shopping is still within the middle band: £9.99 on pay as you go.
+    expect(sixty.json()).toMatchObject({ itemChargesPence: 550, totalPence: 6000 + 550 + 999 });
     const over = await harness.app.inject({
       method: 'POST',
       url: '/basket/price',

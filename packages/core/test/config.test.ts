@@ -337,18 +337,52 @@ describe('the configuration parser refuses to contradict a rule', () => {
     expect(() => parseStoreConfig(withFees({ runnerPaymentPence: 450 }))).toThrow(StoreConfigError);
   });
 
-  it('rejects any delivery price, on any plan, that would not cover the Runner (Rule Two)', () => {
-    const delivery = (goodConfig()['fees'] as Record<string, Record<string, unknown>>)['delivery'];
-    for (const key of [
-      'payAsYouGoSmallOrderPence',
-      'payAsYouGoPence',
-      'membershipPence',
-      'plusPence',
-    ]) {
-      expect(() => parseStoreConfig(withFees({ delivery: { ...delivery, [key]: 500 } }))).toThrow(
+  /** The live delivery bands, with one band's figures changed. */
+  function withBand(index: number, changes: Record<string, unknown>): Record<string, unknown> {
+    const delivery = (goodConfig()['fees'] as Record<string, Record<string, unknown>>)['delivery']!;
+    const bands = [...(delivery['bands'] as Record<string, unknown>[])];
+    bands[index] = { ...bands[index], ...changes };
+    return withFees({ delivery: { bands } });
+  }
+
+  it('rejects a pay-as-you-go delivery price, in any band, that would not cover the Runner (Rule Two)', () => {
+    for (const index of [0, 1, 2]) {
+      expect(() => parseStoreConfig(withBand(index, { payAsYouGoPence: 500 }))).toThrow(
         /does not cover the Runner/,
       );
     }
+  });
+
+  it('allows a plan’s delivery price below the Runner’s five pounds: the plan’s monthly price makes it up (ruling 63)', () => {
+    expect(
+      parseStoreConfig(withBand(0, { plusPence: 399, membershipPence: 450 })).fees.delivery
+        .bands[0],
+    ).toMatchObject({
+      plusPence: 399,
+      membershipPence: 450,
+    });
+  });
+
+  it('requires the bands to rise, the last one open-ended, and no dearer band cheaper (Rule Four)', () => {
+    expect(() => parseStoreConfig(withBand(2, { upToPence: 9000 }))).toThrow(
+      /last band must have upToPence null/,
+    );
+    expect(() => parseStoreConfig(withBand(0, { upToPence: null }))).toThrow(
+      /only be null on the last band/,
+    );
+    expect(() => parseStoreConfig(withBand(1, { upToPence: 3000 }))).toThrow(
+      /must be above the band before it/,
+    );
+    expect(() => parseStoreConfig(withBand(1, { payAsYouGoPence: 798 }))).toThrow(
+      /never dearer to deliver/,
+    );
+    expect(() => parseStoreConfig(withBand(2, { plusPence: 398 }))).toThrow(
+      /never dearer to deliver/,
+    );
+    expect(() => parseStoreConfig(withFees({ delivery: { bands: [] } }))).toThrow(StoreConfigError);
+    expect(() => parseStoreConfig(withBand(0, { membershipPence: undefined }))).toThrow(
+      /membershipPence/,
+    );
   });
 
   it('requires the delivery prices, the item charge and the most one product may cost', () => {
@@ -430,6 +464,8 @@ describe('the configuration parser refuses to contradict a rule', () => {
  */
 describe('Rule Nine: nothing about the store is hard coded', () => {
   const SKIP_DIRECTORIES = new Set([
+    // Builders' worktrees hold whole copies of the repository; scanning them double-counts.
+    '.claude',
     'node_modules',
     'dist',
     '.git',

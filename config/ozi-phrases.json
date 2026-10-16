@@ -1,5 +1,5 @@
 {
-  "about": "What Ozi says to everyday words (ruling 34). Added to every day (50 a day, ruling 44) by a scheduled task, checked by the tests before it goes live. Each entry: an id, a topic, the words people say ('when'), and replies, one chosen in turn. In replies, {assistant} becomes Ozi's name, {product} the product's name, {motto} the motto, and {fee}, {smallFee}, {smallUpTo}, {memberFee}, {plusFee}, {itemCharge}, {membership}, {plusPrice}, {familyPrice}, {orgClient}, {maximum}, {maximumProduct}, {runnerPay}, {callPrice} and {instantRefund} the figures from config/store.json, so a price is never written here. Ozi only uses these when nothing about an order or the basket was meant, and only when the whole sentence is one of the 'when' phrases or Ozi was called by name.",
+  "about": "What Ozi says to everyday words (ruling 34). Added to every day (50 a day, ruling 44) by a scheduled task, checked by the tests before it goes live. Each entry: an id, a topic, the words people say ('when'), and replies, one chosen in turn. In replies, {assistant} becomes Ozi's name, {product} the product's name, {motto} the motto, and {fee}, {smallFee}, {smallUpTo}, {middleFee}, {largeUpTo}, {memberFee}, {memberLargeFee}, {plusFee}, {plusLargeFee}, {paygDelivery}, {memberDelivery}, {plusDelivery}, {itemCharge}, {membership}, {plusPrice}, {familyPrice}, {orgClient}, {maximum}, {maximumProduct}, {runnerPay}, {callPrice} and {instantRefund} the figures from config/store.json, so a price is never written here. Ozi only uses these when nothing about an order or the basket was meant, and only when the whole sentence is one of the 'when' phrases or Ozi was called by name.",
   "phrases": [
     {
       "id": "thanks",
@@ -91,8 +91,8 @@
         "is delivery free"
       ],
       "replies": [
-        "Delivery is {smallFee} for shopping of {smallUpTo} or less, and {fee} above that, if you pay as you go. Members pay {memberFee} every time, and Plus {plusFee}. You pay what the till says for the shopping itself.",
-        "It's {smallFee} up to {smallUpTo} of shopping and {fee} above, on pay as you go; {memberFee} for members; {plusFee} on Plus. {runnerPay} of it always goes to your Runner."
+        "If you pay as you go, delivery is {paygDelivery}. Members pay {memberDelivery}; Plus and Family {plusDelivery}. You pay what the till says for the shopping itself.",
+        "It's {smallFee} up to {smallUpTo} of shopping, {middleFee} up to {largeUpTo} and {fee} above, on pay as you go; from {memberFee} for members; from {plusFee} on Plus. {runnerPay} always goes to your Runner."
       ]
     },
     {
@@ -370,7 +370,7 @@
       "topic": "plus",
       "when": ["what is ozi plus", "tell me about plus", "membership"],
       "replies": [
-        "{assistant} Plus is {plusPrice} a month: delivery at {plusFee}, your regular Runner where possible, priority at busy times, no adverts, and everything in Membership. You choose to join, and can cancel at any time.",
+        "{assistant} Plus is {plusPrice} a month: delivery at {plusDelivery}, your regular Runner where possible, priority at busy times, no adverts, and everything in Membership. You choose to join, and can cancel at any time.",
         "A membership with Recipes and Finds It included."
       ]
     },
@@ -1847,7 +1847,7 @@
       "when": ["is it expensive", "is it worth it", "it's too dear", "that's a lot"],
       "replies": [
         "You pay the shop's own prices, with a small item charge on each product, from {itemCharge}, already in the prices I tell you, and delivery from {plusFee} to {fee}, depending on your plan and the size of the shop.",
-        "The shopping costs what the till says, plus the item charges shown in every price. Delivery is {smallFee} or {fee} on pay as you go, and {runnerPay} of it goes to your Runner."
+        "The shopping costs what the till says, plus the item charges shown in every price. Delivery is {smallFee}, {middleFee} or {fee} on pay as you go, by the size of the shop, and {runnerPay} of it goes to your Runner."
       ]
     },
     {
@@ -1864,7 +1864,7 @@
       "topic": "prices",
       "when": ["is delivery cheaper with plus", "do members pay less", "discount on delivery"],
       "replies": [
-        "Yes. Members pay {memberFee} for delivery every time, and Plus and Family {plusFee}. On pay as you go it's {smallFee} up to {smallUpTo} of shopping and {fee} above.",
+        "Yes. Members pay {memberDelivery}, and Plus and Family {plusDelivery}. On pay as you go it's {paygDelivery}.",
         "No, delivery is the same for everybody. That's only fair."
       ]
     },
@@ -2681,7 +2681,7 @@
         "benefits of plus"
       ],
       "replies": [
-        "If you order most weeks, Membership at {membership} a month brings delivery down to {memberFee}, with Recipes and a free Finds It each month. Plus at {plusPrice} brings it to {plusFee}.",
+        "If you order most weeks, Membership at {membership} a month brings delivery down to {memberFee} for shopping up to {largeUpTo}, with Recipes and a free Finds It each month. Plus at {plusPrice} brings it to {plusFee}.",
         "It depends how often you order. I'll always tell you the price before you choose, and you can cancel any time."
       ]
     },

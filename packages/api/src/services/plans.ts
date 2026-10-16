@@ -22,7 +22,7 @@
 
 import type { FastifyBaseLogger } from 'fastify';
 
-import { formatPence, type DeliveryPlan } from '@aldilivery/core';
+import { deliveryStepsWords, formatPence, type DeliveryPlan } from '@aldilivery/core';
 
 import type { AppContext } from '../app.js';
 import type { Order, Shopper, ShopperPlan } from '../domain.js';
@@ -119,10 +119,13 @@ export async function planView(ctx: PlanContext, shopper: Shopper) {
   const at = now();
   const plan = activePlan(shopper, at);
   const payer =
-    shopper.familyOwnerId !== null ? await repository.shoppers.findById(shopper.familyOwnerId) : null;
-  const members = shopper.plan === 'family' && shopper.familyOwnerId === null
-    ? await repository.shoppers.listFamily(shopper.id)
-    : [];
+    shopper.familyOwnerId !== null
+      ? await repository.shoppers.findById(shopper.familyOwnerId)
+      : null;
+  const members =
+    shopper.plan === 'family' && shopper.familyOwnerId === null
+      ? await repository.shoppers.listFamily(shopper.id)
+      : [];
   return {
     plan,
     planName: plan ? planName(plan, config.assistantName) : null,
@@ -242,7 +245,7 @@ export async function remindFreeMonthEnding(
     await tellShopperById(
       ctx as AppContext,
       shopper.id,
-      `Your free month of ${name} ends on ${longDate(shopper.freeMonthUntil)}. Nothing will be taken. If you'd like to carry on, you can choose to join for ${money(config.extras.membershipPence)} a month, with delivery at ${money(config.fees.delivery.membershipPence)}. If you don't, you simply pay as you go, as now.`,
+      `Your free month of ${name} ends on ${longDate(shopper.freeMonthUntil)}. Nothing will be taken. If you'd like to carry on, you can choose to join for ${money(config.extras.membershipPence)} a month, with delivery at ${deliveryStepsWords('membership', config.fees, money)}. If you don't, you simply pay as you go, as now.`,
       { url: '/plus', tag: 'free-month' },
       log,
     );

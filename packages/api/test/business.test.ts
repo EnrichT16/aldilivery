@@ -192,7 +192,8 @@ describe('organisations', () => {
     return { created, headers: await signIn('medwaycare', user.password) };
   }
 
-  async function placeOrder(shopper: SignedInShopper, milk: string) {
+  /** Two pints of milk: £2.50 of shopping, £1.00 of item charges, and this delivery. */
+  async function placeOrder(shopper: SignedInShopper, milk: string, deliveryPence: number) {
     const response = await harness.app.inject({
       method: 'POST',
       url: '/orders',
@@ -206,7 +207,7 @@ describe('organisations', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay.',
-          agreedTotalPence: 250 + 100 + 799,
+          agreedTotalPence: 250 + 100 + deliveryPence,
         },
       },
     });
@@ -235,8 +236,9 @@ describe('organisations', () => {
     });
     expect(joined.json().message).toMatch(/now linked to Medway Care Home/);
 
-    await placeOrder(linked, items.milk);
-    await placeOrder(other, items.milk);
+    // The linked person has Membership delivery (£5.99 up to £60); the stranger pays as they go.
+    await placeOrder(linked, items.milk, 599);
+    await placeOrder(other, items.milk, 799);
 
     const people = (
       await harness.app.inject({ method: 'GET', url: '/organisation/dashboard', headers })
@@ -261,18 +263,18 @@ describe('organisations', () => {
       expect.objectContaining({ name: 'Mr Table', office: 'Ward B' }),
     ]);
     expect(dashboard.orders).toEqual([
-      expect.objectContaining({ person: 'Mr Table', office: 'Ward B', paidPence: 1149 }),
+      expect.objectContaining({ person: 'Mr Table', office: 'Ward B', paidPence: 949 }),
     ]);
     expect(dashboard.totals).toEqual(
       expect.objectContaining({
-        spentThisMonthPence: 1149,
+        spentThisMonthPence: 949,
         deliveriesThisMonth: 1,
-        budgetLeftPence: 50000 - 1149,
-        // Membership delivery for the people an organisation looks after (ruling 58).
-        savedThisMonthPence: 2500 - 799,
+        budgetLeftPence: 50000 - 949,
+        // Membership delivery for the people an organisation looks after (rulings 58 and 63).
+        savedThisMonthPence: 2500 - 599,
       }),
     );
-    expect(dashboard.byOffice).toEqual([{ office: 'Ward B', pence: 1149 }]);
+    expect(dashboard.byOffice).toEqual([{ office: 'Ward B', pence: 949 }]);
     // £10 a client a month, every 51st client £5.
     expect(dashboard.plan).toMatchObject({ clients: 1, monthlyPence: 1000 });
     expect(JSON.stringify(dashboard)).not.toContain('Stranger');

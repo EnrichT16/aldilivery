@@ -214,7 +214,7 @@ describe('repricing to the receipt', () => {
     expect(body.order.receiptTotalPence).toBe(231);
     // Delivery and the item charges stay as agreed, whatever the till says: only the shopping
     // moves (ruling 58).
-    expect(body.order.receiptFeePence).toBe(harness.config.fees.delivery.payAsYouGoSmallOrderPence);
+    expect(body.order.receiptFeePence).toBe(harness.config.fees.delivery.bands[0]!.payAsYouGoPence);
     expect(body.order.finalTotalPence).toBe(231 + 100 + body.order.receiptFeePence);
   });
 });

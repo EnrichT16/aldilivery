@@ -114,11 +114,11 @@ them there; tests pin the core ones so a change is made on purpose.
 | What | Price | Set by |
 | --- | --- | --- |
 | Item charge on every unit | **50p**, plus **50p for every whole £6** of the shop price (under £6 50p; £6-£11.99 £1; £12-£17.99 £1.50; £18-£23.99 £2; £24 £2.50; and so on), times the quantity; every plan; always included in the price shown or spoken | Ruling 58, Rule Three (amended) |
-| Delivery, pay as you go (no plan, and the free month) | **£7.99** for shopping of £15.00 or less at shop prices; **£13.50** above | Ruling 58, Rule Three (amended) |
-| Delivery, Ozi Membership, and people an organisation looks after | **£7.99**, whatever the size | Ruling 58 |
-| Delivery, Ozi Plus and Ozi Family and Carer | **£5.99**, whatever the size | Ruling 58 |
+| Delivery, pay as you go (no plan, and the free month) | **£7.99** for shopping up to £30.00 at shop prices; **£9.99** over £30 up to £60; **£13.50** over £60 | Ruling 63 (`fees.delivery.bands`), Rule Three (amended) |
+| Delivery, Ozi Membership, and people an organisation looks after | **£5.99** up to £60 of shopping; **£9.99** over £60 | Ruling 63 |
+| Delivery, Ozi Plus and Ozi Family and Carer | **£3.99** up to £60 of shopping; **£7.99** over £60 (below the Runner's £5 on an everyday shop: the plan's monthly price and the item charges make it up) | Ruling 63 |
 | Runner's share of every delivery | **£5.00**, untouched, whatever the basket and plan; the business keeps the rest and the item charges | Section B, Rule Two |
-| Runner's pay for a big order delivered whole | **£7.00** for £120.00 or more of shopping at shop prices; on Plus and Family and Carer (£5.99 delivery) the delivery fee then makes a small loss, covered by the item charges | Ruling 60 (`fees.largeOrderRunnerPaymentPence`, `fees.largeOrderFromPence`) |
+| Runner's pay for a big order delivered whole | **£7.00** for £120.00 or more of shopping at shop prices; on Plus and Family and Carer (£7.99 delivery over £60) the delivery fee then makes a small loss, covered by the item charges | Ruling 60 (`fees.largeOrderRunnerPaymentPence`, `fees.largeOrderFromPence`) |
 | Runner's pay for each part of a split job | **£5.00** a part; the Shopper's delivery does not change (a three-way split pays £15 against £13.50 delivery, covered by item charges) | Ruling 60 (`dispatch.splitRunnerPayPence`) |
 | Split parts, after **10 minutes** (`dispatch.splitAfterMinutes`) | fewest Runners, **motorbike parts up to £75** first, then **foot or bicycle parts up to £60**; each part only to its kind of Runner | Ruling 61 (`dispatch.splitPartMaxPenceByMode`) |
 | A basket over £150, kept whole | linked orders of up to £150 each, up to **£450** in all; the first at the plan's delivery, **each further order £13.50 whatever the plan**, taken only when its Runner collects it; never charged for a Runner not used (refund, or Unused Runner fee credit) | Ruling 61 (`fees.maximumBasketGoodsPence`, `fees.extraRunnerDeliveryPence`) |
@@ -131,8 +131,8 @@ them there; tests pin the core ones so a change is made on purpose.
 | In-app calls | **5p a minute**, paid by the Shopper; a Runner never pays | Section B, rulings 2 Oct 1 and 16 |
 | Outstanding call balance before more people can be added to a call | **£10.00** | Ruling 16 |
 | Ozi Recipes, the Recipe Pass | **£1.99 for 30 days**, never renews by itself | Ruling 36 |
-| Ozi Membership | **£10 a month**, only when the Shopper chooses to join; delivery £7.99, Recipes, one free Finds It a month, favourites | Ruling 58 (replaces ruling 37's Plus) |
-| Ozi Plus | **£15 a month**; all of Membership, delivery £5.99, my regular Runner, priority at busy times, no adverts, a check-in after 14 days without an order | Ruling 58 |
+| Ozi Membership | **£10 a month**, only when the Shopper chooses to join; delivery £5.99 up to £60 and £9.99 over, Recipes, one free Finds It a month, favourites | Ruling 58 (replaces ruling 37's Plus), ruling 63 |
+| Ozi Plus | **£15 a month**; all of Membership, delivery £3.99 up to £60 and £7.99 over, my regular Runner, priority at busy times, no adverts, a check-in after 14 days without an order | Ruling 58 |
 | Ozi Family and Carer | **£20 a month**, up to 4 people in different homes; all of Plus; the payer sees every order with stage alerts, approves orders above a limit they set, one card pays, weekly summary | Ruling 58 |
 | Organisations | **£10 a client a month, every 51st client £5** (120 clients: £1,190) | Ruling 58 |
 | Ozi Finds It | **£2.00**, up to 3 shops looked in, given back if nothing is found; one free a month on any plan and in the free month | Rulings 37, 58 |
@@ -155,8 +155,9 @@ bin for 7 days; problems are decided within 2 working days.
 Plans are taken from the saved card on joining and then on the same date each month, only for
 a Shopper who agreed to that; cancelling is one button in Settings, or "cancel my membership" to
 Ozi or on the telephone, and the plan runs to the end of the month paid for. Worked examples
-(ruling 58, computed by the code): John's £58.36 shop has £8.50 of item charges, £80.36 paying as
-he goes (£13.50 delivery) or £74.85 as a member (£7.99); Mary's £4.69 is £1.50 + £7.99 = £14.18.
+(rulings 58 and 63, computed by the code): John's £58.36 shop has £8.50 of item charges, £76.85
+paying as he goes (£9.99 delivery, over £30 up to £60), £72.85 as a member (£5.99) or £70.85 on
+Plus (£3.99); Mary's £4.69 is £1.50 + £7.99 = £14.18.
 
 **Prices in the blueprint that are not in the code yet** (the services are not built): extra
 shop within one mile £2.50 (£1.50 Runner, £1 platform); beyond one mile £4.00 (£2.50 Runner,
@@ -477,8 +478,9 @@ RULES.md names the file and test that enforces each.
 
 **Money**
 - An item charge on every unit (50p, plus 50p for every whole £6 of shop price), always in the
-  price shown; delivery by plan and shop size (pay as you go £7.99 up to £15, £13.50 above;
-  Membership £7.99; Plus and Family £5.99); no product over £60; one order up to £150 of
+  price shown; delivery by plan and the value of the shop, in bands (pay as you go £7.99 up to
+  £30, £9.99 up to £60, £13.50 over; Membership £5.99 up to £60, £9.99 over; Plus and Family
+  £3.99 up to £60, £7.99 over; ruling 63); no product over £60; one order up to £150 of
   shopping (confirmed, ruling 59); £5 to the Runner; no surge, no small order fee, no minimum
   (ruling 58, Rules Two to Four, Rule Three amended 9 October 2026).
 - No card, no order; paid before a Runner is sent (ruling 29). Pay-by-link for telephone callers
@@ -562,7 +564,7 @@ RULES.md names the file and test that enforces each.
 
 | Old | New | Ruling |
 | --- | --- | --- |
-| Delivery fee in bands (£8 to £12, £7.80, £8) and a £2 net floor (old Rule Three) | £13.50 flat, £60 maximum shopping; then, from 9 October 2026, item charges, delivery by plan and size, £60 per product, £150 per order (pending) | Section B, Anthony's answer 1 (30 Sept), ruling 58, RULES.md |
+| Delivery fee in bands (£8 to £12, £7.80, £8) and a £2 net floor (old Rule Three) | £13.50 flat, £60 maximum shopping; then, from 9 October 2026, item charges, delivery by plan and size, £60 per product, £150 per order; from 16 October 2026, delivery in three bands by the value of the shopping on every plan | Section B, Anthony's answer 1 (30 Sept), rulings 58 and 63, RULES.md |
 | Alcohol allowed where the recipient can prove their age | No alcohol in version one, no identity checks | 1 October ruling 1 |
 | Ozi never listens while muted (as the only "off") | Two states: talking switch (silent, still listening) and mute button (not listening) | Ruling 21 alongside 1 October ruling 3 |
 | PIN for voice orders "irrelevant"; PIN needed for some orders | No PIN to place any order; PIN only to save or change addresses | Ruling 26 |
@@ -839,8 +841,10 @@ The first round of missing features is built: the owner's till screen, receipt p
   (`itemChargePence` in `packages/core/src/fees.ts`), in every price shown or spoken; the
   receipt shows the shop total, item charges and delivery as lines. Till, pay-backs and the Ozi
   card use shop prices only. No product over £60; one order up to £150 (confirmed, ruling 59).
-- **Delivery** (`deliveryFeePence`): pay as you go £7.99 up to £15.00 of shopping, £13.50 above;
-  Membership and organisation clients £7.99; Plus and Family and Carer £5.99. Runner £5 always.
+- **Delivery** (`deliveryFeePence`, from `fees.delivery.bands`, ruling 63): pay as you go £7.99 up
+  to £30.00 of shopping, £9.99 up to £60.00, £13.50 over; Membership and organisation clients
+  £5.99 up to £60, £9.99 over; Plus and Family and Carer £3.99 up to £60, £7.99 over. Runner £5
+  always (pay as you go must cover it; a plan's price may not, the plan's monthly price does).
 - **First month free** for every new Shopper, with pay-as-you-go delivery; a reminder about three
   days before it ends; nothing taken without choosing to join.
 - **Plans** (`packages/api/src/services/plans.ts`): Membership £10, Plus £15, Family and Carer

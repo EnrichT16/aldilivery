@@ -5,15 +5,17 @@
  * codebase: floats lose halfpennies, and a lost halfpenny in the wrong direction is a broken
  * promise to a Runner.
  *
- * Pricing as ruled on 9 October 2026 (docs/BUILD_PROMPT.md, ruling 58), every figure from
- * config/store.json:
+ * Pricing as ruled on 9 October 2026 (docs/BUILD_PROMPT.md, ruling 58) and re-banded on
+ * 16 October 2026 (ruling 63), every figure from config/store.json:
  *
  * - An item charge on every unit: 50p, and 50p more for every whole £6 of the product's shop
  *   price (under £6 is 50p, £6 to £11.99 is £1, £12 to £17.99 is £1.50, and so on). The same on
  *   every plan, never removed. Prices shown to a Shopper always include it.
- * - Delivery by plan: pay as you go is £7.99 for shopping of £15 or less and £13.50 above it;
- *   Ozi Membership (and an organisation's clients) £7.99 always; Ozi Plus and Ozi Family and
- *   Carer £5.99. The Runner's five pounds comes out of every one of them (Rule Two).
+ * - Delivery by plan and by the value of the shopping, in bands (`fees.delivery.bands`): pay as
+ *   you go £7.99 up to £30, £9.99 over £30 up to £60, £13.50 over £60; Ozi Membership (and an
+ *   organisation's clients) £5.99 up to £60 and £9.99 over; Ozi Plus and Ozi Family and Carer
+ *   £3.99 up to £60 and £7.99 over. The Runner's five pounds comes out of every one of them
+ *   (Rule Two). The bands are read here, never written.
  * - No single product over £60, and one order carries at most the whole-order goods cap.
  *
  * The Runner's five pounds is a constant in rules.ts, because it is untouched.
@@ -32,18 +34,32 @@ export type DeliveryPlan = 'payg' | 'membership' | 'plus';
 
 export const DELIVERY_PLANS: readonly DeliveryPlan[] = ['payg', 'membership', 'plus'];
 
-/** Delivery, by plan, as configured. */
-export interface DeliveryPrices {
-  /** Pay as you go, shopping of `payAsYouGoSmallOrderUpToPence` or less. */
-  readonly payAsYouGoSmallOrderPence: number;
-  /** The largest shop total that still has the smaller pay-as-you-go price. */
-  readonly payAsYouGoSmallOrderUpToPence: number;
-  /** Pay as you go, shopping over that. */
+/**
+ * One band of delivery prices (ruling 63): what each plan pays when the shopping at shop
+ * prices is over the band before it and up to `upToPence`. The last band has `upToPence` null
+ * and covers everything above the band before it.
+ */
+export interface DeliveryBand {
+  /** The largest shop total this band covers, or null for the last band. */
+  readonly upToPence: number | null;
+  /** Pay as you go (no plan, and the free first month). */
   readonly payAsYouGoPence: number;
-  /** Ozi Membership, and an organisation's clients: the same whatever the size. */
+  /** Ozi Membership, and an organisation's clients. */
   readonly membershipPence: number;
   /** Ozi Plus and Ozi Family and Carer. */
   readonly plusPence: number;
+}
+
+/** Delivery, by plan and by the value of the shopping, as configured. */
+export interface DeliveryPrices {
+  /** In rising order of `upToPence`, the last one null. Never empty. */
+  readonly bands: readonly DeliveryBand[];
+}
+
+/** One step of a plan's delivery prices: this much for shopping up to `upToPence` (null: above). */
+export interface DeliveryStep {
+  readonly upToPence: number | null;
+  readonly pence: number;
 }
 
 /** The charge added to every unit: base, plus a step for every whole `everyPence` of price. */
@@ -131,7 +147,9 @@ export class ProductOverMaximumError extends Error {
 
 function assertWholePence(value: number, label: string): void {
   if (!Number.isInteger(value) || value < 0) {
-    throw new TypeError(`${label} must be a whole, non-negative number of pence, received ${value}.`);
+    throw new TypeError(
+      `${label} must be a whole, non-negative number of pence, received ${value}.`,
+    );
   }
 }
 
@@ -139,7 +157,10 @@ function assertWholePence(value: number, label: string): void {
  * The item charge on one unit of a product, from its shop price: 50p, and 50p more for every
  * whole £6 (with the configured figures). Never removed by any plan.
  */
-export function itemChargePence(shopPricePence: number, fees: Pick<DeliveryFees, 'itemCharge'>): number {
+export function itemChargePence(
+  shopPricePence: number,
+  fees: Pick<DeliveryFees, 'itemCharge'>,
+): number {
   assertWholePence(shopPricePence, 'Shop price');
   const { basePence, stepPence, everyPence } = fees.itemCharge;
   return basePence + stepPence * Math.floor(shopPricePence / everyPence);
@@ -149,7 +170,10 @@ export function itemChargePence(shopPricePence: number, fees: Pick<DeliveryFees,
  * The price a Shopper is shown or told for one unit: the shop price with its item charge
  * already in it. UK pricing law does not allow a compulsory charge to be added later.
  */
-export function displayPricePence(shopPricePence: number, fees: Pick<DeliveryFees, 'itemCharge'>): number {
+export function displayPricePence(
+  shopPricePence: number,
+  fees: Pick<DeliveryFees, 'itemCharge'>,
+): number {
   return shopPricePence + itemChargePence(shopPricePence, fees);
 }
 
@@ -192,26 +216,110 @@ export function itemChargesForLines(
  * shop is cheaper to deliver on pay as you go, never dearer: there is no small order fee and
  * no minimum. A basket of one penny is priced and accepted.
  */
-export function deliveryFeePence(goodsPence: number, plan: DeliveryPlan, fees: DeliveryFees): number {
+export function deliveryFeePence(
+  goodsPence: number,
+  plan: DeliveryPlan,
+  fees: DeliveryFees,
+): number {
   assertWholePence(goodsPence, 'Goods total');
   if (goodsPence > fees.maximumOrderGoodsPence) {
     throw new BasketOverMaximumError(goodsPence, fees.maximumOrderGoodsPence);
   }
-  const prices = fees.delivery;
+  return bandPrice(deliveryBandFor(goodsPence, fees), plan);
+}
+
+/** The band this much shopping (at shop prices) falls in: the first whose `upToPence` it is within. */
+export function deliveryBandFor(
+  goodsPence: number,
+  fees: Pick<DeliveryFees, 'delivery'>,
+): DeliveryBand {
+  assertWholePence(goodsPence, 'Goods total');
+  const band = fees.delivery.bands.find(
+    (candidate) => candidate.upToPence === null || goodsPence <= candidate.upToPence,
+  );
+  if (!band) {
+    // The configuration parser requires a last band with no upper limit, so a parsed
+    // configuration never gets here; a hand-made one is told plainly.
+    throw new TypeError(`No delivery band covers a goods total of ${goodsPence}p.`);
+  }
+  return band;
+}
+
+/** What one plan pays in one band. */
+export function bandPrice(band: DeliveryBand, plan: DeliveryPlan): number {
   switch (plan) {
     case 'plus':
-      return prices.plusPence;
+      return band.plusPence;
     case 'membership':
-      return prices.membershipPence;
+      return band.membershipPence;
     case 'payg':
-      return goodsPence <= prices.payAsYouGoSmallOrderUpToPence
-        ? prices.payAsYouGoSmallOrderPence
-        : prices.payAsYouGoPence;
+      return band.payAsYouGoPence;
     default: {
       const unknown: never = plan;
       throw new TypeError(`Unknown delivery plan: ${String(unknown)}.`);
     }
   }
+}
+
+/**
+ * A plan's delivery prices as steps, with neighbouring bands that cost the same joined: on
+ * Membership, £5.99 up to £30 and £5.99 up to £60 become one step, £5.99 up to £60, then £9.99
+ * above. This is what the screens, Ozi and the documents say; the bands stay as configured.
+ */
+export function deliverySteps(
+  plan: DeliveryPlan,
+  fees: Pick<DeliveryFees, 'delivery'>,
+): DeliveryStep[] {
+  const steps: DeliveryStep[] = [];
+  for (const band of fees.delivery.bands) {
+    const pence = bandPrice(band, plan);
+    const last = steps[steps.length - 1];
+    if (last && last.pence === pence) {
+      steps[steps.length - 1] = { upToPence: band.upToPence, pence };
+    } else {
+      steps.push({ upToPence: band.upToPence, pence });
+    }
+  }
+  return steps;
+}
+
+/** The cheapest and dearest delivery on any plan, for "from £3.99 to £13.50". */
+export function deliveryPriceRange(fees: Pick<DeliveryFees, 'delivery'>): {
+  lowestPence: number;
+  highestPence: number;
+} {
+  const all = fees.delivery.bands.flatMap((band) =>
+    DELIVERY_PLANS.map((plan) => bandPrice(band, plan)),
+  );
+  return { lowestPence: Math.min(...all), highestPence: Math.max(...all) };
+}
+
+/**
+ * A plan's delivery prices in one plain phrase, from its steps: "£7.99 for shopping up to
+ * £30.00, £9.99 up to £60.00, and £13.50 over £60.00"; on Membership "£5.99 for shopping up to
+ * £60.00, and £9.99 over £60.00"; a plan with one price reads "£5.99, whatever the size of the
+ * shop". `formatMoney` is the caller's, so the currency symbol stays in configuration.
+ */
+export function deliveryStepsWords(
+  plan: DeliveryPlan,
+  fees: Pick<DeliveryFees, 'delivery'>,
+  formatMoney: (pence: number) => string,
+): string {
+  const steps = deliverySteps(plan, fees);
+  const first = steps[0];
+  if (!first) throw new TypeError('There are no delivery bands.');
+  if (steps.length === 1) return `${formatMoney(first.pence)}, whatever the size of the shop`;
+  return steps
+    .map((step, index) => {
+      if (step.upToPence === null) {
+        const previous = steps[index - 1]?.upToPence ?? 0;
+        return `and ${formatMoney(step.pence)} over ${formatMoney(previous)}`;
+      }
+      return index === 0
+        ? `${formatMoney(step.pence)} for shopping up to ${formatMoney(step.upToPence)}`
+        : `${formatMoney(step.pence)} up to ${formatMoney(step.upToPence)}`;
+    })
+    .join(', ');
 }
 
 /**
@@ -241,9 +349,14 @@ export function priceBasket(
  * charge, plus a fixed amount. Rounded up, so any report of what the platform keeps errs on
  * the low side.
  */
-export function processorCostPence(totalTransactionPence: number, processor: ProcessorModel): number {
+export function processorCostPence(
+  totalTransactionPence: number,
+  processor: ProcessorModel,
+): number {
   assertWholePence(totalTransactionPence, 'Transaction total');
-  const percentagePart = Math.ceil((totalTransactionPence * processor.percentageBasisPoints) / 10_000);
+  const percentagePart = Math.ceil(
+    (totalTransactionPence * processor.percentageBasisPoints) / 10_000,
+  );
   return percentagePart + processor.fixedPence;
 }
 
@@ -256,7 +369,9 @@ export function runnerPaymentFor(
   goodsPence: number,
   fees: { readonly largeOrderRunnerPaymentPence: number; readonly largeOrderFromPence: number },
 ): number {
-  return goodsPence >= fees.largeOrderFromPence ? fees.largeOrderRunnerPaymentPence : RUNNER_PAYMENT_PENCE;
+  return goodsPence >= fees.largeOrderFromPence
+    ? fees.largeOrderRunnerPaymentPence
+    : RUNNER_PAYMENT_PENCE;
 }
 
 /** What pricing a basket over one order reads (ruling 61). */
@@ -308,7 +423,16 @@ export function priceBasketInParts(
   }
   const packed =
     goods <= fees.maximumOrderGoodsPence
-      ? [{ lines: lines.map(({ key, quantity, unitPricePence }) => ({ key, quantity, unitPricePence })), goodsPence: goods }]
+      ? [
+          {
+            lines: lines.map(({ key, quantity, unitPricePence }) => ({
+              key,
+              quantity,
+              unitPricePence,
+            })),
+            goodsPence: goods,
+          },
+        ]
       : packFirstFit(lines, fees.maximumOrderGoodsPence, () => ({
           tag: null,
           capacityPence: fees.maximumOrderGoodsPence,
@@ -319,7 +443,9 @@ export function priceBasketInParts(
       fees,
     );
     const extra = index > 0;
-    const feePence = extra ? fees.extraRunnerDeliveryPence : deliveryFeePence(bin.goodsPence, plan, fees);
+    const feePence = extra
+      ? fees.extraRunnerDeliveryPence
+      : deliveryFeePence(bin.goodsPence, plan, fees);
     return {
       part: index + 1,
       lines: bin.lines,
@@ -331,7 +457,8 @@ export function priceBasketInParts(
       plan,
     };
   });
-  const sum = (pick: (part: BasketPartPricing) => number) => parts.reduce((total, part) => total + pick(part), 0);
+  const sum = (pick: (part: BasketPartPricing) => number) =>
+    parts.reduce((total, part) => total + pick(part), 0);
   return {
     parts,
     goodsPence: goods,

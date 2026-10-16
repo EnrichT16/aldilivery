@@ -110,12 +110,13 @@ than run without a database or without its Stripe keys.
 
 ## The fee
 
-From 9 October 2026 (docs/BUILD_PROMPT.md, ruling 58; RULES.md, Rule Three as amended): every
-product carries an item charge of 50p, plus 50p for every whole £6 of its shop price, always
-included in the price shown; delivery is £7.99 for shopping of £15 or less and £13.50 above on
-pay as you go, £7.99 on Ozi Membership (£10 a month) and £5.99 on Ozi Plus (£15) or Ozi Family
-and Carer (£20); no product over £60; one order carries up to £150 of shopping (pending
-Anthony). The first month of membership is free. No surge pricing, no small order fee, no
+From 9 October 2026 (docs/BUILD_PROMPT.md, ruling 58; RULES.md, Rule Three as amended), with the
+delivery bands of 16 October 2026 (ruling 63): every product carries an item charge of 50p, plus
+50p for every whole £6 of its shop price, always included in the price shown; delivery is priced
+by the value of the shopping, in bands from `fees.delivery.bands`: pay as you go £7.99 up to £30,
+£9.99 up to £60 and £13.50 over; Ozi Membership (£10 a month) £5.99 up to £60 and £9.99 over; Ozi
+Plus (£15) or Ozi Family and Carer (£20) £3.99 up to £60 and £7.99 over; no product over £60; one
+order carries up to £150 of shopping. The first month of membership is free. No surge pricing, no small order fee, no
 minimum spend. The Runner gets £5 of every delivery, untouched. Every figure is in
 config/store.json, proved one penny at a time in `packages/core/test/fees.test.ts`. The other services' prices in
 Section B are still to be built.

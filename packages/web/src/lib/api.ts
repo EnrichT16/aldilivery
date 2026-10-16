@@ -1880,7 +1880,10 @@ export interface OrganisationDashboard {
     paidPence: number;
   }>;
   upcoming: Array<{ person: string; office: string; dayOfWeek: number; estimatePence: number }>;
+  /** The Membership delivery for an everyday shop (the smallest band). */
   deliveryFeePence: number;
+  /** Membership delivery by the value of the shop, in words: "£5.99 for shopping up to £60.00, and £9.99 over £60.00". */
+  deliveryWords: string;
   /** What the organisation pays a month: £10 a client, every 51st client £5 (ruling 58). */
   plan?: {
     clients: number;
