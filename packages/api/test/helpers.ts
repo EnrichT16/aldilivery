@@ -126,13 +126,14 @@ export async function buildTestApp(
     options.voicePaymentCeilingPence === undefined
       ? loaded
       : { ...loaded, voice: { paymentCeilingPence: options.voicePaymentCeilingPence } };
-  const repository = memoryRepository();
   const payments = (options.payments ?? rehearsalGateway()) as RehearsalGateway;
   const deliveredCodes: Array<{ phone: string; code: string }> = [];
   const calledCodes: Array<{ phone: string; code: string }> = [];
 
   let currentTime = startAt;
   const now = (): Date => currentTime;
+  // The repository keeps the application's time, so a test that moves the clock is believed.
+  const repository = memoryRepository({ now });
 
   const app = await buildApp({
     config,

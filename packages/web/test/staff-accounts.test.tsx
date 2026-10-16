@@ -3,12 +3,13 @@
  * username and sees only their job's tabs; the founder manages the team.
  */
 
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
+import { openPage, pageTabs } from './staff-tabs';
 
 let sent: Array<{ method: string; path: string; body: unknown; headers: Record<string, string> }>;
 let mustChange: boolean;
@@ -158,12 +159,14 @@ describe('a staff member signing in', () => {
     await user.type(screen.getByLabelText('Your new password again'), 'chidis own password');
     await user.click(screen.getByRole('button', { name: 'Save my password' }));
 
-    const nav = await screen.findByRole('navigation', { name: 'Admin pages' });
-    expect(
-      within(nav)
-        .getAllByRole('button')
-        .map((b) => b.textContent),
-    ).toEqual(['Problems', 'Orders', 'Feedback', 'Learning', 'Two-step codes']);
+    await screen.findByRole('navigation', { name: 'Admin pages' });
+    expect(await pageTabs(user)).toEqual([
+      'Problems',
+      'Orders',
+      'Learning',
+      'Feedback',
+      'Two-step codes',
+    ]);
     expect(screen.getByText(/Signed in as Chidi, Customer care officer/)).toBeInTheDocument();
     const asked = sent.find((r) => r.path === '/staff/problems')?.headers ?? {};
     expect(asked['x-staff-token']).toBe('st1.chidi.sig');
@@ -186,17 +189,16 @@ describe('the founder', () => {
   it('sees every tab, and adds someone to the team with a job', async () => {
     const user = userEvent.setup({ delay: null });
     renderAt('/staff');
-    await user.click(
-      await screen.findByRole('button', { name: 'Founder: sign in with the staff key' }),
-    );
+    await user.type(await screen.findByLabelText('Username'), 'anthony');
+    await user.click(screen.getByRole('button', { name: 'Founder: sign in with the staff key' }));
     await user.type(screen.getByLabelText('Your name, recorded with each decision'), 'Anthony');
     await user.type(screen.getByLabelText('Staff key'), 'right-key');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
-    const nav = await screen.findByRole('navigation', { name: 'Admin pages' });
+    await screen.findByRole('navigation', { name: 'Admin pages' });
     // The staff key has no account, so no two-step codes of its own.
-    expect(within(nav).getAllByRole('button')).toHaveLength(10);
-    await user.click(within(nav).getByRole('button', { name: 'Team' }));
+    expect(await pageTabs(user)).toHaveLength(10);
+    await openPage(user, 'Team');
     expect(
       await screen.findByText('Finance officer: Money owed, Payments, Runners, Reports.'),
     ).toBeInTheDocument();

@@ -159,6 +159,9 @@ export const AUDIT_WORDS: Record<string, string> = {
   'POST /staff/payments/:orderId/received': 'Marked a bank transfer as received',
   'POST /staff/payments/:orderId/cancel': 'Cancelled a bank transfer order',
   'POST /staff/reimbursements/:orderId/approve': 'Approved paying a Runner back',
+  'POST /staff/orders/:id/cancel': 'Cancelled an order and sent the money back',
+  'POST /staff/orders/:id/goodwill': 'Gave a goodwill refund',
+  'POST /staff/orders/:id/reassign': 'Gave an order to another Runner',
 };
 
 export function auditWords(action: string): string {

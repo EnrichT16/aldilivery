@@ -5,12 +5,13 @@
  */
 
 import axe from 'axe-core';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
+import { groupTabs, openPage, pageTabs } from './staff-tabs';
 
 let sent: Array<{ method: string; path: string; body: unknown; headers: Record<string, string> }>;
 let who: 'owner' | 'chidi';
@@ -336,27 +337,24 @@ async function noViolations(): Promise<void> {
 describe('the owner’s admin panel, the newer tabs', () => {
   it('has the tabs at the top, and each one passes axe', async () => {
     await signIn();
-    const nav = await screen.findByRole('navigation', { name: 'Admin pages' });
-    const labels = within(nav)
-      .getAllByRole('button')
-      .map((button) => button.textContent);
-    expect(labels).toEqual(
+    const user = userEvent.setup({ delay: null });
+    expect(await groupTabs()).toEqual(['Today', 'Money', 'People', 'Settings']);
+    expect(await pageTabs(user)).toEqual(
       expect.arrayContaining(['Orders', 'Runners', 'Reports', 'Shopper accounts', 'Audit log']),
     );
-    const user = userEvent.setup({ delay: null });
 
-    await user.click(within(nav).getByRole('button', { name: 'Orders' }));
+    await openPage(user, 'Orders');
     expect(await screen.findByRole('heading', { name: 'ABC123: A Runner has it' })).toBeVisible();
     await user.click(screen.getByRole('button', { name: /Open the timeline/ }));
     expect(await screen.findByText(/Offered to Bola\./)).toBeInTheDocument();
     await noViolations();
 
-    await user.click(within(nav).getByRole('button', { name: 'Runners' }));
+    await openPage(user, 'Runners');
     expect(await screen.findByText('1 active now: 1 on shift, 0 on a job.')).toBeInTheDocument();
     expect(screen.getByRole('rowheader', { name: 'Bola Adeyemi' })).toBeInTheDocument();
     await noViolations();
 
-    await user.click(within(nav).getByRole('button', { name: 'Reports' }));
+    await openPage(user, 'Reports');
     expect(await screen.findByRole('rowheader', { name: 'October 2026' })).toBeInTheDocument();
     expect(await screen.findByText('1 went out, £2.50 altogether.')).toBeInTheDocument();
     expect(screen.getByText('1: The Shopper cancelled before paying.')).toBeInTheDocument();
@@ -365,7 +363,7 @@ describe('the owner’s admin panel, the newer tabs', () => {
     ).toBeInTheDocument();
     await noViolations();
 
-    await user.click(within(nav).getByRole('button', { name: 'Audit log' }));
+    await openPage(user, 'Audit log');
     expect(await screen.findByText(/Kemi, Decided a complaint \(id=p1\)\./)).toBeInTheDocument();
     await user.type(screen.getByLabelText(/^Search: a name/), 'kemi');
     await user.click(screen.getByRole('button', { name: 'Search' }));
@@ -377,9 +375,8 @@ describe('the owner’s admin panel, the newer tabs', () => {
 
   it('opens a Shopper’s account and exports their data', async () => {
     await signIn();
-    const nav = await screen.findByRole('navigation', { name: 'Admin pages' });
     const user = userEvent.setup({ delay: null });
-    await user.click(within(nav).getByRole('button', { name: 'Shopper accounts' }));
+    await openPage(user, 'Shopper accounts');
     await user.type(screen.getByLabelText('Name, username or phone number'), 'okafor');
     await user.click(screen.getByRole('button', { name: 'Find' }));
     await user.click(await screen.findByRole('button', { name: /Open Margaret Okafor/ }));
@@ -412,8 +409,8 @@ describe('two-step codes for staff', () => {
     expect(await screen.findByText('abcd-efgh')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'I have written them down' }));
     // The fresh session opens their job.
-    const nav = await screen.findByRole('navigation', { name: 'Admin pages' });
-    expect(within(nav).getByRole('button', { name: 'Orders' })).toBeInTheDocument();
+    await screen.findByRole('navigation', { name: 'Admin pages' });
+    expect(await openPage(user, 'Orders')).toBeInTheDocument();
     expect(
       sent.some(
         (row) => row.path === '/staff/me' && row.headers['x-staff-token'] === 'st1.fresh.sig',
@@ -424,9 +421,8 @@ describe('two-step codes for staff', () => {
   it('a staff member has a Two-step codes tab of their own', async () => {
     who = 'chidi';
     await signIn();
-    const nav = await screen.findByRole('navigation', { name: 'Admin pages' });
     const user = userEvent.setup({ delay: null });
-    await user.click(within(nav).getByRole('button', { name: 'Two-step codes' }));
+    await openPage(user, 'Two-step codes');
     expect(
       await screen.findByText(/Off\. They are a must from 31 October 2026\./),
     ).toBeInTheDocument();
