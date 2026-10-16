@@ -290,7 +290,7 @@ export function SignUp(): JSX.Element {
       )}
 
       <Link to="/sign-in" className="control bg-paper/10 text-paper underline">
-        Already set up on another phone or computer? Sign in
+        Been here before? Sign in
       </Link>
 
       {waiting && (
@@ -386,7 +386,7 @@ export function SignUp(): JSX.Element {
         <Field
           id="phone"
           label="Your phone number"
-          hint="This is how your Runner reaches you on the day. We never pass it to anybody else."
+          hint="We text your codes here. Your Runner can ring you through the app but never sees this number."
           type="tel"
           autoComplete="tel"
         />

@@ -67,7 +67,7 @@ export function OrderFeedback({
       </p>
       {sent === '' && (
         <form onSubmit={(event) => void submit(event)} className="space-y-4" noValidate>
-          <p className="m-0 extra">
+          <p className="m-0">
             {creditPence > 0
               ? `Tell us anything, good or bad, and ${money(creditPence)} comes off your next delivery. `
               : ''}

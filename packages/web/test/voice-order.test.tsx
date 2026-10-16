@@ -5,6 +5,7 @@
  */
 
 import { act, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -50,7 +51,9 @@ interface Sent {
   body: unknown;
 }
 
-function stubShop(options: { cards?: Array<typeof FAKE_CARD>; signedIn?: boolean } = {}): Sent[] {
+function stubShop(
+  options: { cards?: Array<typeof FAKE_CARD>; signedIn?: boolean; shelf?: boolean } = {},
+): Sent[] {
   const sent: Sent[] = [];
   if (options.signedIn !== false) {
     window.localStorage.setItem('ozidelivery.session.token', 'test-token');
@@ -78,7 +81,13 @@ function stubShop(options: { cards?: Array<typeof FAKE_CARD>; signedIn?: boolean
       }
       if (path.startsWith('/catalogue/search')) {
         const q = new URLSearchParams(path.split('?')[1]).get('q')?.toLowerCase() ?? '';
-        const items = q.includes('banana') ? [BANANAS] : q.includes('milk') ? MILK : [];
+        const items = q.includes('banana')
+          ? [BANANAS]
+          : q.includes('milk')
+            ? MILK
+            : options.shelf && q === ''
+              ? [MILK[0]!]
+              : [];
         return reply({ items, source: { mode: 'community', attribution: 'x' } });
       }
       if (path === '/payment-methods') {
@@ -215,6 +224,30 @@ describe('ordering by voice alone', () => {
     expect(await screen.findByRole('heading', { name: 'Your order' })).toBeInTheDocument();
   });
 
+  it('adds to what is already in the basket, reads the whole basket back, and sends all of it', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const sent = stubShop({ shelf: true });
+    renderApp();
+    const user = userEvent.setup({ delay: null });
+    await user.click(await screen.findByRole('button', { name: /Add Semi skimmed milk/ }));
+
+    // The milk chosen on the screen stays (16 October 2026): a voice order adds, never replaces.
+    const readBack = await say(engine, 'Ozi, three bananas please');
+    expect(readBack).toMatch(
+      /^Here is your order: 1 Semi skimmed milk, 2 pints, and 3 Bananas, loose\. Your shopping comes to about £3\.85/,
+    );
+    await say(engine, 'yes');
+    expect(await say(engine, 'yes please')).toMatch(/^Thank you\. Your order is on its way/);
+    const order = sent.find((r) => r.method === 'POST' && r.path === '/orders');
+    expect(order?.body).toMatchObject({
+      lines: [
+        { catalogueItemId: 'item-milk', quantity: 1 },
+        { catalogueItemId: 'item-bananas', quantity: 3 },
+      ],
+    });
+  });
+
   it('takes a number said with the item, and says when something cannot be found', async () => {
     const engine = fakeEngine();
     setVoiceEngine(engine);
@@ -232,8 +265,13 @@ describe('ordering by voice alone', () => {
     const sent = stubShop();
     renderApp();
     await say(engine, 'I want three bananas');
-    expect(await say(engine, "no, that's not right")).toMatch(
-      /^An order by voice can only go to your home address, to keep your account safe\./,
+    await say(engine, "no, that's not right");
+    // The confirmation screen then puts the address to them too, so Ozi's words about the
+    // home address are among what was said, not always the very last thing.
+    expect(engine.spoken.map((s) => s.text)).toContainEqual(
+      expect.stringMatching(
+        /^An order by voice can only go to your home address, to keep your account safe\./,
+      ),
     );
     expect(await screen.findByRole('heading', { name: 'Send your order' })).toBeInTheDocument();
     expect(sent.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(false);

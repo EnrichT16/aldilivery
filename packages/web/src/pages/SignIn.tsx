@@ -45,6 +45,8 @@ export function SignIn(): JSX.Element {
   // The technical reason behind an error, folded away under "Details" so the screen stays
   // tidy and a screenshot can still say exactly what failed.
   const [errorDetail, setErrorDetail] = useState('');
+  // No account on that number: the way to set one up sits inside the message itself.
+  const [noAccount, setNoAccount] = useState(false);
   const [busy, setBusy] = useState(false);
   const problem = useRef<HTMLParagraphElement>(null);
   const codeField = useRef<HTMLInputElement>(null);
@@ -112,9 +114,11 @@ export function SignIn(): JSX.Element {
     setBusy(true);
     setError('');
     setErrorDetail('');
+    setNoAccount(false);
     try {
       const result = await verifySignInCode(phone.trim(), code);
       if (result.registrationRequired) {
+        setNoAccount(true);
         setError(
           'There is no account on that number yet. You can set one up instead — it takes a minute.',
         );
@@ -174,6 +178,11 @@ export function SignIn(): JSX.Element {
               className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0 max-w-xl"
             >
               <p className="m-0">{error}</p>
+              {noAccount && (
+                <Link to="/sign-up" className="control bg-highlight text-ink mt-3">
+                  Set up an account
+                </Link>
+              )}
               {errorDetail !== '' && (
                 <details className="mt-2 text-sm">
                   <summary className="cursor-pointer font-bold">Details</summary>

@@ -2,7 +2,7 @@ import rawGifts from '@gifts';
 import rawOffers from '@offers';
 import rawRecipes from '@recipes';
 
-import { searchCatalogue, type CatalogueItem } from './api';
+import { fetchCatalogueItem, searchCatalogue, type CatalogueItem } from './api';
 
 /**
  * Ozi Recipes and Little Gifts (6 October 2026), read from config/recipes.json and
@@ -89,6 +89,53 @@ export async function addNamedItems(
     }
   }
   return { added, missing };
+}
+
+/**
+ * Puts a past order back in the basket (review of 16 October 2026): by product ID where the
+ * order kept one, so the same product comes back even if it has been renamed, and by name only
+ * where it did not. Anything that comes back different from what was ordered is named, so
+ * nobody finds a surprise in the basket.
+ */
+export async function addPastItems(
+  entries: Array<{ name: string; quantity: number; catalogueItemId?: string | null }>,
+  basket: {
+    add: (item: CatalogueItem) => void;
+    setQuantity: (id: string, quantity: number) => void;
+    lines: Array<{ item: CatalogueItem; quantity: number }>;
+  },
+): Promise<{ added: string[]; missing: string[]; changed: string[] }> {
+  const added: string[] = [];
+  const missing: string[] = [];
+  const changed: string[] = [];
+  for (const entry of entries) {
+    try {
+      let found: CatalogueItem | null = null;
+      if (entry.catalogueItemId) {
+        try {
+          found = (await fetchCatalogueItem(entry.catalogueItemId)).item;
+        } catch {
+          found = null;
+        }
+      }
+      if (!found) {
+        const { items } = await searchCatalogue(entry.name);
+        found = items.find((item) => item.name === entry.name) ?? items[0] ?? null;
+      }
+      if (!found) {
+        missing.push(entry.name);
+        continue;
+      }
+      if (found.name !== entry.name) changed.push(`${entry.name} is now ${found.name}`);
+      const already = basket.lines.find((line) => line.item.id === found.id)?.quantity ?? 0;
+      basket.add(found);
+      basket.setQuantity(found.id, already + Math.max(1, entry.quantity));
+      added.push(found.name);
+    } catch {
+      missing.push(entry.name);
+    }
+  }
+  return { added, missing, changed };
 }
 
 /** "milk, bread and eggs". */

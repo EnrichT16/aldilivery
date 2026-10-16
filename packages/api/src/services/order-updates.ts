@@ -10,6 +10,8 @@
 
 import type { FastifyBaseLogger } from 'fastify';
 
+import { formatPence } from '@aldilivery/core';
+
 import type { AppContext } from '../app.js';
 import type { Order } from '../domain.js';
 import { isUkMobile } from '../lib/phone.js';
@@ -85,11 +87,21 @@ export async function tellShopper(
     if (!shopper) return;
     const runner = order.runnerId ? await repository.runners.findById(order.runnerId) : null;
     const who = runner ? firstName(runner.name) : 'Your Runner';
+    // The door words (T6) go with the Runner's name, so the Shopper knows who to open to.
+    const atTheDoor = order.doorWord ? ` At your door ${who} will say: '${order.doorWord}'.` : '';
+    // The feedback credit, from config, said as "£1" rather than "£1.00".
+    const credit = formatPence(config.feedback.creditPence, config.store.currencySymbol).replace(
+      /\.00$/,
+      '',
+    );
     const whole = {
       paid: 'We have your order and are finding a Runner now.',
-      accepted: `${who} has your order and will do your shopping.`,
+      accepted: `${who} has your order.${atTheDoor}`,
       delivering: `${who} has your shopping and is on the way to you.`,
-      delivered: `${who} has delivered your shopping. ${config.motto}`,
+      delivered:
+        config.feedback.creditPence > 0
+          ? `${who} has delivered your shopping. Tell us how it went and get ${credit} off next time.`
+          : `${who} has delivered your shopping. Tell us how it went.`,
     }[stage];
     // A part of a split order (ruling 60) says which part, so two Runners make sense.
     const body =
@@ -97,7 +109,7 @@ export async function tellShopper(
         ? `Part ${order.splitPart} of ${order.splitOf} of your order: ${
             {
               paid: 'we are finding a Runner for it now.',
-              accepted: `${who} has it and will do that part of your shopping.`,
+              accepted: `${who} has it and will do that part of your shopping.${atTheDoor}`,
               delivering: `${who} has it and is on the way to you.`,
               delivered: `${who} has delivered it.`,
             }[stage]
