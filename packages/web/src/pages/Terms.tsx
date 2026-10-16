@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 import { CompanyDetails, DetailsToFollowNotice, companyFacts } from '../components/CompanyDetails';
 import { storeConfig } from '../config';
-import { money } from '../lib/money';
+import { money, planDeliveryWords } from '../lib/money';
 
 /**
  * The terms for Shoppers, in plain words.
@@ -17,7 +17,7 @@ import { money } from '../lib/money';
 export function Terms(): JSX.Element {
   const name = storeConfig.productName;
   const assistant = storeConfig.assistantName;
-  const { delivery, itemCharge, maximumOrderGoodsPence, maximumProductPence, runnerPaymentPence } =
+  const { itemCharge, maximumOrderGoodsPence, maximumProductPence, runnerPaymentPence } =
     storeConfig.fees;
   const { instantRefundUpToPence, decideWithinWorkingDays } = storeConfig.problems;
   const { extras, calls, voice } = storeConfig;
@@ -73,13 +73,12 @@ export function Terms(): JSX.Element {
             {money(maximumProductPence)}.
           </li>
           <li>
-            Delivery, if you pay as you go, is {money(delivery.payAsYouGoSmallOrderPence)} for
-            shopping of {money(delivery.payAsYouGoSmallOrderUpToPence)} or less at the shop&rsquo;s
-            prices, and {money(delivery.payAsYouGoPence)} above that. On {assistant} Membership it
-            is {money(delivery.membershipPence)}, and on {assistant} Plus or Family and Carer{' '}
-            {money(delivery.plusPence)}, whatever the size of the shop. People an organisation looks
-            after pay the Membership delivery. There is no minimum spend and no extra charge at busy
-            times. {money(runnerPaymentPence)} of every delivery goes to your Runner, or{' '}
+            Delivery depends only on your plan and the value of your shopping at the shop&rsquo;s
+            prices. If you pay as you go, it is {planDeliveryWords('payg')}. On {assistant}{' '}
+            Membership it is {planDeliveryWords('membership')}; on {assistant} Plus or Family and
+            Carer, {planDeliveryWords('plus')}. People an organisation looks after pay the
+            Membership delivery. There is no minimum spend and no extra charge at busy times.{' '}
+            {money(runnerPaymentPence)} of every delivery goes to your Runner, or{' '}
             {money(storeConfig.fees.largeOrderRunnerPaymentPence)} for an order of{' '}
             {money(storeConfig.fees.largeOrderFromPence)} or more of shopping.
           </li>

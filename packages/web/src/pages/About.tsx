@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { GetTheApp } from '../components/GetTheApp';
 import { SocialLinks, socialLinks } from '../components/SocialLinks';
 import { storeConfig } from '../config';
-import { money } from '../lib/money';
+import { deliveryRangeWords, money } from '../lib/money';
 
 /**
  * About us: the website's own page (ruling 50), for somebody finding us on the web. What we
@@ -11,7 +11,7 @@ import { money } from '../lib/money';
  * the app are the same: everything can be done here too.
  */
 export function About(): JSX.Element {
-  const { productName, assistantName, motto, fees, extras } = storeConfig;
+  const { productName, assistantName, motto, extras } = storeConfig;
   return (
     <div className="space-y-8 max-w-2xl">
       <h1 className="text-display font-bold m-0">About {productName}</h1>
@@ -30,9 +30,9 @@ export function About(): JSX.Element {
           <li>Say or tap what you need. {assistantName} reads it back to you.</li>
           <li>You say yes. A Runner buys it, and you pay what the till says.</li>
           <li>
-            It comes to your door. Delivery is from {money(fees.delivery.plusPence)} to{' '}
-            {money(fees.delivery.payAsYouGoPence)}, depending on your plan and the size of the shop,
-            and every price you see already includes its small item charge.{' '}
+            It comes to your door. Delivery is from {deliveryRangeWords()}, depending on your plan
+            and the value of the shop, and every price you see already includes its small item
+            charge.{' '}
             <Link to="/plus" className="underline">
               See the prices and plans
             </Link>

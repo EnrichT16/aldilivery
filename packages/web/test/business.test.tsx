@@ -47,7 +47,8 @@ const ORG: OrganisationDashboard = {
     },
   ],
   upcoming: [{ person: 'Mr Table', office: 'Ward B', dayOfWeek: 2, estimatePence: 1600 }],
-  deliveryFeePence: 1350,
+  deliveryFeePence: 599,
+  deliveryWords: '£5.99 for shopping up to £60.00, and £9.99 over £60.00',
   sharePath: '/join/organisation/K7M3QX',
   referrals: 1,
 };
@@ -374,6 +375,15 @@ describe('what each dashboard understands', () => {
     ]);
     expect(savedWords({ ...ORG, totals: { ...ORG.totals, savedThisMonthPence: null } })).toMatch(
       /tell me what one of your own staff/,
+    );
+    expect(
+      savedWords({
+        ...ORG,
+        organisation: { ...ORG.organisation, staffTripCostPence: 2500 },
+        totals: { ...ORG.totals, savedThisMonthPence: 1901, deliveriesThisMonth: 1 },
+      }),
+    ).toBe(
+      'About £19.01 saved this month: 1 deliveries with delivery at £5.99 for shopping up to £60.00, and £9.99 over £60.00, instead of £25.00 for a staff trip.',
     );
   });
 });

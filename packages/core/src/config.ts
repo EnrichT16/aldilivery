@@ -17,8 +17,14 @@ import {
   RUNNER_PAYMENT_PENCE,
   SET_NOTICE_MINUTES_BEFORE,
 } from './rules.js';
-import { SPLIT_PART_MODES, TRAVEL_MODES, type MaxGoodsByMode, type SplitPartMaxByMode } from './dispatch.js';
+import {
+  SPLIT_PART_MODES,
+  TRAVEL_MODES,
+  type MaxGoodsByMode,
+  type SplitPartMaxByMode,
+} from './dispatch.js';
 import type {
+  DeliveryBand,
   DeliveryPrices,
   ItemChargeRule,
   OrganisationPricing,
@@ -91,7 +97,11 @@ export interface StoreConfig {
   readonly fees: {
     readonly currency: string;
     readonly runnerPaymentPence: number;
-    /** Delivery by plan (ruling 58, 9 October 2026). Every one covers the Runner's five pounds. */
+    /**
+     * Delivery by plan and by the value of the shopping, in bands (ruling 58, 9 October 2026;
+     * re-banded by ruling 63, 16 October 2026). Pay as you go covers the Runner's five pounds in
+     * every band; a plan's price may be below it, its monthly price making up the difference.
+     */
     readonly delivery: DeliveryPrices;
     /** The charge on every unit, from its shop price (ruling 58). Never removed by a plan. */
     readonly itemCharge: ItemChargeRule;
@@ -363,8 +373,7 @@ function parseMaxGoodsByMode(
     car: maximumOrderGoodsPence,
     van: maximumOrderGoodsPence,
   };
-  const given =
-    value === undefined ? {} : object(value, 'dispatch.maxGoodsPenceByMode');
+  const given = value === undefined ? {} : object(value, 'dispatch.maxGoodsPenceByMode');
   for (const key of Object.keys(given)) {
     if (!(TRAVEL_MODES as readonly string[]).includes(key)) {
       throw new StoreConfigError(
@@ -428,12 +437,76 @@ function array(value: unknown, path: string): unknown[] {
   return value;
 }
 
+/**
+ * Delivery by plan and by the value of the shopping (ruling 63, 16 October 2026):
+ * `fees.delivery.bands`, each band saying what pay as you go, Membership and Plus (with Family
+ * and Carer) pay for shopping up to its `upToPence`, the last band with `upToPence` null for
+ * everything above the one before it. The bands must rise, so each goods total falls in exactly
+ * one; and within each plan a dearer band may not be cheaper than the one below it, so a
+ * smaller shop is never dearer to deliver (Rule Four).
+ *
+ * Rule Two: pay as you go, which has no monthly plan behind it, must cover the Runner's five
+ * pounds in every band. A plan's delivery price may be below it (Plus pays £3.99 up to £60);
+ * the Runner still gets five pounds, the difference coming from the plan's monthly price and
+ * the item charges.
+ */
+function parseDeliveryBands(value: unknown): DeliveryBand[] {
+  const path = 'fees.delivery.bands';
+  const bands = array(value, path).map((raw, index): DeliveryBand => {
+    const band = object(raw, `${path}[${index}]`);
+    const upTo = band['upToPence'];
+    return {
+      upToPence: upTo === null ? null : wholeNumber(upTo, `${path}[${index}].upToPence`, 1),
+      payAsYouGoPence: wholeNumber(band['payAsYouGoPence'], `${path}[${index}].payAsYouGoPence`, 1),
+      membershipPence: wholeNumber(band['membershipPence'], `${path}[${index}].membershipPence`, 1),
+      plusPence: wholeNumber(band['plusPence'], `${path}[${index}].plusPence`, 1),
+    };
+  });
+  bands.forEach((band, index) => {
+    const last = index === bands.length - 1;
+    if (last && band.upToPence !== null) {
+      throw new StoreConfigError(
+        `${path}: the last band must have upToPence null, so every goods total is covered.`,
+      );
+    }
+    if (!last && band.upToPence === null) {
+      throw new StoreConfigError(`${path}[${index}].upToPence may only be null on the last band.`);
+    }
+    const previous = bands[index - 1];
+    if (
+      previous &&
+      band.upToPence !== null &&
+      previous.upToPence !== null &&
+      band.upToPence <= previous.upToPence
+    ) {
+      throw new StoreConfigError(
+        `${path}[${index}].upToPence must be above the band before it (${previous.upToPence}p).`,
+      );
+    }
+    if (band.payAsYouGoPence <= RUNNER_PAYMENT_PENCE) {
+      throw new StoreConfigError(
+        `${path}[${index}].payAsYouGoPence is ${band.payAsYouGoPence}p, which does not cover the Runner's ${RUNNER_PAYMENT_PENCE}p. Rule Two: the Runner's five pounds is untouched.`,
+      );
+    }
+    for (const key of ['payAsYouGoPence', 'membershipPence', 'plusPence'] as const) {
+      if (previous && band[key] < previous[key]) {
+        throw new StoreConfigError(
+          `${path}[${index}].${key} is ${band[key]}p, cheaper than the smaller band's ${previous[key]}p. Rule Four: a smaller shop is never dearer to deliver.`,
+        );
+      }
+    }
+  });
+  return bands;
+}
+
 const HEX_COLOUR = /^#[0-9A-Fa-f]{6}$/;
 
 function hexColour(value: unknown, path: string): string {
   const colour = str(value, path);
   if (!HEX_COLOUR.test(colour)) {
-    throw new StoreConfigError(`${path} must be a six digit hex colour such as #0B1F3A, received "${colour}".`);
+    throw new StoreConfigError(
+      `${path} must be a six digit hex colour such as #0B1F3A, received "${colour}".`,
+    );
   }
   return colour.toUpperCase();
 }
@@ -448,7 +521,11 @@ function equals(actual: number, expected: number, path: string, rule: string): n
   return actual;
 }
 
-function parseCatalogueMode(value: unknown, path: string, allowed: readonly string[]): CatalogueSourceMode {
+function parseCatalogueMode(
+  value: unknown,
+  path: string,
+  allowed: readonly string[],
+): CatalogueSourceMode {
   const mode = str(value, path);
   if (!allowed.includes(mode)) {
     throw new StoreConfigError(`${path} must be one of ${allowed.join(', ')}, received "${mode}".`);
@@ -535,9 +612,10 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     );
   }
 
-  const allowedModes = array(catalogueSource['allowedModes'], 'store.catalogueSource.allowedModes').map(
-    (entry, index) => str(entry, `store.catalogueSource.allowedModes[${index}]`),
-  );
+  const allowedModes = array(
+    catalogueSource['allowedModes'],
+    'store.catalogueSource.allowedModes',
+  ).map((entry, index) => str(entry, `store.catalogueSource.allowedModes[${index}]`));
   for (const mode of allowedModes) {
     if (mode !== 'partner_feed' && mode !== 'community') {
       throw new StoreConfigError(
@@ -556,34 +634,7 @@ export function parseStoreConfig(input: unknown): StoreConfig {
 
   const deliveryRaw = object(fees['delivery'], 'fees.delivery');
   const itemChargeRaw = object(fees['itemCharge'], 'fees.itemCharge');
-  const delivery: DeliveryPrices = {
-    payAsYouGoSmallOrderPence: wholeNumber(
-      deliveryRaw['payAsYouGoSmallOrderPence'],
-      'fees.delivery.payAsYouGoSmallOrderPence',
-      1,
-    ),
-    payAsYouGoSmallOrderUpToPence: wholeNumber(
-      deliveryRaw['payAsYouGoSmallOrderUpToPence'],
-      'fees.delivery.payAsYouGoSmallOrderUpToPence',
-      0,
-    ),
-    payAsYouGoPence: wholeNumber(deliveryRaw['payAsYouGoPence'], 'fees.delivery.payAsYouGoPence', 1),
-    membershipPence: wholeNumber(deliveryRaw['membershipPence'], 'fees.delivery.membershipPence', 1),
-    plusPence: wholeNumber(deliveryRaw['plusPence'], 'fees.delivery.plusPence', 1),
-  };
-  // Rule Two: every delivery price, on every plan, must cover the Runner's five pounds.
-  for (const key of [
-    'payAsYouGoSmallOrderPence',
-    'payAsYouGoPence',
-    'membershipPence',
-    'plusPence',
-  ] as const) {
-    if (delivery[key] <= RUNNER_PAYMENT_PENCE) {
-      throw new StoreConfigError(
-        `fees.delivery.${key} is ${delivery[key]}p, which does not cover the Runner's ${RUNNER_PAYMENT_PENCE}p. Rule Two: the Runner's five pounds is untouched.`,
-      );
-    }
-  }
+  const delivery: DeliveryPrices = { bands: parseDeliveryBands(deliveryRaw['bands']) };
   const itemCharge: ItemChargeRule = {
     basePence: wholeNumber(itemChargeRaw['basePence'], 'fees.itemCharge.basePence', 0),
     stepPence: wholeNumber(itemChargeRaw['stepPence'], 'fees.itemCharge.stepPence', 0),
@@ -668,7 +719,11 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     );
   }
 
-  const baseFontSizePx = wholeNumber(accessibility['baseFontSizePx'], 'accessibility.baseFontSizePx', 1);
+  const baseFontSizePx = wholeNumber(
+    accessibility['baseFontSizePx'],
+    'accessibility.baseFontSizePx',
+    1,
+  );
   if (baseFontSizePx < 16) {
     throw new StoreConfigError(
       `accessibility.baseFontSizePx is ${baseFontSizePx} which is too small for the people this product is built for. Rule Seven.`,
@@ -712,27 +767,46 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     motto: str(root['motto'], 'motto'),
     contact: {
       telephonePlaceholder: str(contact['telephonePlaceholder'], 'contact.telephonePlaceholder'),
-      telephoneIsPlaceholder: bool(contact['telephoneIsPlaceholder'], 'contact.telephoneIsPlaceholder'),
+      telephoneIsPlaceholder: bool(
+        contact['telephoneIsPlaceholder'],
+        'contact.telephoneIsPlaceholder',
+      ),
       email: emailAddress(contact['email'], 'contact.email'),
       emailIsPlaceholder: bool(contact['emailIsPlaceholder'], 'contact.emailIsPlaceholder'),
     },
     store: {
       displayName: str(store['displayName'], 'store.displayName'),
       legalEntityName: str(store['legalEntityName'], 'store.legalEntityName'),
-      legalEntityIsPlaceholder: bool(store['legalEntityIsPlaceholder'], 'store.legalEntityIsPlaceholder'),
+      legalEntityIsPlaceholder: bool(
+        store['legalEntityIsPlaceholder'],
+        'store.legalEntityIsPlaceholder',
+      ),
       companyNumber: str(store['companyNumber'], 'store.companyNumber'),
-      companyNumberIsPlaceholder: bool(store['companyNumberIsPlaceholder'], 'store.companyNumberIsPlaceholder'),
+      companyNumberIsPlaceholder: bool(
+        store['companyNumberIsPlaceholder'],
+        'store.companyNumberIsPlaceholder',
+      ),
       registeredIn: str(store['registeredIn'], 'store.registeredIn'),
       registeredOffice: str(store['registeredOffice'], 'store.registeredOffice'),
-      registeredOfficeIsPlaceholder: bool(store['registeredOfficeIsPlaceholder'], 'store.registeredOfficeIsPlaceholder'),
+      registeredOfficeIsPlaceholder: bool(
+        store['registeredOfficeIsPlaceholder'],
+        'store.registeredOfficeIsPlaceholder',
+      ),
       icoRegistrationNumber: str(store['icoRegistrationNumber'], 'store.icoRegistrationNumber'),
-      icoRegistrationIsPlaceholder: bool(store['icoRegistrationIsPlaceholder'], 'store.icoRegistrationIsPlaceholder'),
+      icoRegistrationIsPlaceholder: bool(
+        store['icoRegistrationIsPlaceholder'],
+        'store.icoRegistrationIsPlaceholder',
+      ),
       dunsNumber,
       country: str(store['country'], 'store.country'),
       currency: str(store['currency'], 'store.currency'),
       currencySymbol: str(store['currencySymbol'], 'store.currencySymbol'),
       catalogueSource: {
-        mode: parseCatalogueMode(catalogueSource['mode'], 'store.catalogueSource.mode', allowedModes),
+        mode: parseCatalogueMode(
+          catalogueSource['mode'],
+          'store.catalogueSource.mode',
+          allowedModes,
+        ),
         allowedModes: allowedModes as readonly CatalogueSourceMode[],
         attribution: str(catalogueSource['attribution'], 'store.catalogueSource.attribution'),
       },
@@ -772,15 +846,26 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       supportedCardRegions,
     },
     allocation: {
-      offerHoldSeconds: wholeNumber(allocation['offerHoldSeconds'], 'allocation.offerHoldSeconds', 1),
-      poolingRadiusMiles: positiveNumber(allocation['poolingRadiusMiles'], 'allocation.poolingRadiusMiles'),
+      offerHoldSeconds: wholeNumber(
+        allocation['offerHoldSeconds'],
+        'allocation.offerHoldSeconds',
+        1,
+      ),
+      poolingRadiusMiles: positiveNumber(
+        allocation['poolingRadiusMiles'],
+        'allocation.poolingRadiusMiles',
+      ),
     },
     recurringOrders: {
       noticeMinutesBefore: SET_NOTICE_MINUTES_BEFORE,
       skipWord: skipWord.trim().toLowerCase(),
     },
     accountDeletion: {
-      recycleBinDays: wholeNumber(accountDeletion['recycleBinDays'], 'accountDeletion.recycleBinDays', 1),
+      recycleBinDays: wholeNumber(
+        accountDeletion['recycleBinDays'],
+        'accountDeletion.recycleBinDays',
+        1,
+      ),
     },
     accessibility: {
       targetStandard: str(accessibility['targetStandard'], 'accessibility.targetStandard'),
@@ -788,10 +873,22 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       minimumControlHeightPx,
     },
     problems: {
-      instantRefundUpToPence: wholeNumber(problems['instantRefundUpToPence'], 'problems.instantRefundUpToPence', 0),
-      decideWithinWorkingDays: wholeNumber(problems['decideWithinWorkingDays'], 'problems.decideWithinWorkingDays', 1),
+      instantRefundUpToPence: wholeNumber(
+        problems['instantRefundUpToPence'],
+        'problems.instantRefundUpToPence',
+        0,
+      ),
+      decideWithinWorkingDays: wholeNumber(
+        problems['decideWithinWorkingDays'],
+        'problems.decideWithinWorkingDays',
+        1,
+      ),
       recoveryPercentOfPay,
-      writeOffUpToPence: wholeNumber(problems['writeOffUpToPence'], 'problems.writeOffUpToPence', 0),
+      writeOffUpToPence: wholeNumber(
+        problems['writeOffUpToPence'],
+        'problems.writeOffUpToPence',
+        0,
+      ),
     },
     extras: {
       recipePassPence: wholeNumber(extras['recipePassPence'] ?? 199, 'extras.recipePassPence', 1),
@@ -820,18 +917,38 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       findItPence: wholeNumber(extras['findItPence'] ?? 200, 'extras.findItPence', 1),
       findItShops: wholeNumber(extras['findItShops'] ?? 3, 'extras.findItShops', 1),
       giftCardPence: giftCardAmounts(extras['giftCardPence'] ?? [1000, 2000, 3000, 5000]),
-      partnerMonthlyPence: wholeNumber(extras['partnerMonthlyPence'] ?? 2999, 'extras.partnerMonthlyPence', 1),
+      partnerMonthlyPence: wholeNumber(
+        extras['partnerMonthlyPence'] ?? 2999,
+        'extras.partnerMonthlyPence',
+        1,
+      ),
       spotlightPence: wholeNumber(extras['spotlightPence'] ?? 1999, 'extras.spotlightPence', 1),
-      spotlightPlusPence: wholeNumber(extras['spotlightPlusPence'] ?? 3999, 'extras.spotlightPlusPence', 1),
+      spotlightPlusPence: wholeNumber(
+        extras['spotlightPlusPence'] ?? 3999,
+        'extras.spotlightPlusPence',
+        1,
+      ),
       spotlightPerWeek: wholeNumber(extras['spotlightPerWeek'] ?? 1, 'extras.spotlightPerWeek', 1),
-      spotlightPlusPerWeek: wholeNumber(extras['spotlightPlusPerWeek'] ?? 3, 'extras.spotlightPlusPerWeek', 1),
+      spotlightPlusPerWeek: wholeNumber(
+        extras['spotlightPlusPerWeek'] ?? 3,
+        'extras.spotlightPlusPerWeek',
+        1,
+      ),
     },
     calls: {
       pencePerMinute: wholeNumber(calls['pencePerMinute'], 'calls.pencePerMinute', 0),
-      maxOutstandingPence: wholeNumber(calls['maxOutstandingPence'], 'calls.maxOutstandingPence', 0),
+      maxOutstandingPence: wholeNumber(
+        calls['maxOutstandingPence'],
+        'calls.maxOutstandingPence',
+        0,
+      ),
     },
     voice: {
-      paymentCeilingPence: wholeNumber(voice['paymentCeilingPence'], 'voice.paymentCeilingPence', 1),
+      paymentCeilingPence: wholeNumber(
+        voice['paymentCeilingPence'],
+        'voice.paymentCeilingPence',
+        1,
+      ),
     },
     runners: {
       sosLinkHours: wholeNumber(runners['sosLinkHours'] ?? 12, 'runners.sosLinkHours', 1),
@@ -846,8 +963,16 @@ export function parseStoreConfig(input: unknown): StoreConfig {
         0,
       ),
       insuranceReminderDays: [...new Set(reminderDays)].sort((a, b) => b - a),
-      referralRewardPence: wholeNumber(runners['referralRewardPence'] ?? 15000, 'runners.referralRewardPence', 1),
-      referralsForReward: wholeNumber(runners['referralsForReward'] ?? 100, 'runners.referralsForReward', 1),
+      referralRewardPence: wholeNumber(
+        runners['referralRewardPence'] ?? 15000,
+        'runners.referralRewardPence',
+        1,
+      ),
+      referralsForReward: wholeNumber(
+        runners['referralsForReward'] ?? 100,
+        'runners.referralsForReward',
+        1,
+      ),
     },
     versionOneRestrictions: {
       ageRestrictedGoodsAllowed,
@@ -863,16 +988,47 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       ),
     },
     dispatch: {
-      maxGoodsPenceByMode: parseMaxGoodsByMode(dispatch['maxGoodsPenceByMode'], maximumProductPence, maximumOrderGoodsPence),
-      waitingAlertMinutes: wholeNumber(dispatch['waitingAlertMinutes'] ?? 15, 'dispatch.waitingAlertMinutes', 1),
-      splitAfterMinutes: wholeNumber(dispatch['splitAfterMinutes'] ?? 10, 'dispatch.splitAfterMinutes', 1),
-      splitPartMaxPenceByMode: parseSplitPartMax(dispatch['splitPartMaxPenceByMode'], maximumProductPence),
-      tinyExtraBelowPence: wholeNumber(dispatch['tinyExtraBelowPence'] ?? 500, 'dispatch.tinyExtraBelowPence', 0),
-      splitRunnerPayPence: wholeNumber(dispatch['splitRunnerPayPence'] ?? 500, 'dispatch.splitRunnerPayPence', 1),
+      maxGoodsPenceByMode: parseMaxGoodsByMode(
+        dispatch['maxGoodsPenceByMode'],
+        maximumProductPence,
+        maximumOrderGoodsPence,
+      ),
+      waitingAlertMinutes: wholeNumber(
+        dispatch['waitingAlertMinutes'] ?? 15,
+        'dispatch.waitingAlertMinutes',
+        1,
+      ),
+      splitAfterMinutes: wholeNumber(
+        dispatch['splitAfterMinutes'] ?? 10,
+        'dispatch.splitAfterMinutes',
+        1,
+      ),
+      splitPartMaxPenceByMode: parseSplitPartMax(
+        dispatch['splitPartMaxPenceByMode'],
+        maximumProductPence,
+      ),
+      tinyExtraBelowPence: wholeNumber(
+        dispatch['tinyExtraBelowPence'] ?? 500,
+        'dispatch.tinyExtraBelowPence',
+        0,
+      ),
+      splitRunnerPayPence: wholeNumber(
+        dispatch['splitRunnerPayPence'] ?? 500,
+        'dispatch.splitRunnerPayPence',
+        1,
+      ),
     },
     admin: {
-      ownerOnlyRefundAbovePence: wholeNumber(admin['ownerOnlyRefundAbovePence'] ?? 2500, 'admin.ownerOnlyRefundAbovePence', 0),
-      staffTwoStepGraceDays: wholeNumber(admin['staffTwoStepGraceDays'] ?? 14, 'admin.staffTwoStepGraceDays', 0),
+      ownerOnlyRefundAbovePence: wholeNumber(
+        admin['ownerOnlyRefundAbovePence'] ?? 2500,
+        'admin.ownerOnlyRefundAbovePence',
+        0,
+      ),
+      staffTwoStepGraceDays: wholeNumber(
+        admin['staffTwoStepGraceDays'] ?? 14,
+        'admin.staffTwoStepGraceDays',
+        0,
+      ),
       staffTwoStepFrom,
     },
   };

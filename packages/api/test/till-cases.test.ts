@@ -69,7 +69,7 @@ async function orderBeingShopped(packs = 2): Promise<string> {
         addressConfirmed: true,
         channel: 'button',
         statement: 'Send my order and pay.',
-        agreedTotalPence: goods + 50 * packs + (goods <= 1500 ? 799 : 1350),
+        agreedTotalPence: goods + 50 * packs + (goods <= 3000 ? 799 : goods <= 6000 ? 999 : 1350),
       },
     },
     shopper.authHeader,

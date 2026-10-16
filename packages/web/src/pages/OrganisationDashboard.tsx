@@ -70,7 +70,7 @@ export function savedWords(data: Dashboard): string {
   if (saved === null) {
     return 'To work out what you save, tell me what one of your own staff going to the shops costs you, in the box on the screen called "What a staff trip to the shops costs you".';
   }
-  return `About ${money(saved)} saved this month: ${data.totals.deliveriesThisMonth} deliveries at ${money(data.deliveryFeePence)} each, instead of ${money(data.organisation.staffTripCostPence ?? 0)} for a staff trip.`;
+  return `About ${money(saved)} saved this month: ${data.totals.deliveriesThisMonth} deliveries with delivery at ${data.deliveryWords}, instead of ${money(data.organisation.staffTripCostPence ?? 0)} for a staff trip.`;
 }
 
 export function budgetWords(data: Dashboard): string {

@@ -150,8 +150,8 @@
       "topic": "savings",
       "when": ["how do you work out savings", "is the saving real"],
       "replies": [
-        "Each of your clients' deliveries costs {memberFee}. If a staff trip costs you more, the difference is the saving, using your own figure.",
-        "It's your staff trip cost, minus the {memberFee} delivery, for each delivery."
+        "Each of your clients' deliveries costs {memberDelivery}. If a staff trip costs you more, the difference is the saving, using your own figure.",
+        "It's your staff trip cost, minus each delivery's price, from {memberFee}."
       ]
     },
     {
@@ -186,8 +186,8 @@
       "topic": "delivery",
       "when": ["how much is delivery", "delivery fee"],
       "replies": [
-        "{memberFee} for each delivery for the people you support, whatever the size, plus the item charges on each product.",
-        "{memberFee}, whatever the basket."
+        "{memberDelivery} for each delivery for the people you support, plus the item charges on each product.",
+        "{memberFee} up to {largeUpTo} of shopping, {memberLargeFee} over."
       ]
     },
     {
@@ -1262,8 +1262,8 @@
       "topic": "orders",
       "when": ["are the prices the same as the shop", "shelf prices", "do you mark up prices"],
       "replies": [
-        "The Runner pays the shelf price, and the person is charged what the receipt says, plus the item charges and the {memberFee} delivery.",
-        "Shelf price, item charges, and {memberFee} for delivery."
+        "The Runner pays the shelf price, and the person is charged what the receipt says, plus the item charges and delivery at {memberDelivery}.",
+        "Shelf price, item charges, and from {memberFee} for delivery."
       ]
     },
     {
@@ -1474,8 +1474,8 @@
         "do we get a discount"
       ],
       "replies": [
-        "Everyone you support pays the Membership delivery of {memberFee}, every time. It never depends on the time or how busy it is.",
-        "The same {memberFee} for everyone you support."
+        "Everyone you support pays the Membership delivery: {memberDelivery}. It never depends on the time or how busy it is.",
+        "The same Membership delivery for everyone you support, from {memberFee}."
       ]
     },
     {
@@ -1663,8 +1663,8 @@
       "topic": "savings",
       "when": ["why are savings zero", "we saved nothing"],
       "replies": [
-        "Either there are no deliveries yet this month, or your staff trip figure is not more than the {memberFee} delivery.",
-        "No deliveries yet, or the trip cost is no more than {memberFee}."
+        "Either there are no deliveries yet this month, or your staff trip figure is not more than the delivery, from {memberFee}.",
+        "No deliveries yet, or the trip cost is no more than the delivery, from {memberFee}."
       ]
     },
     {
@@ -1690,8 +1690,8 @@
       "topic": "savings",
       "when": ["saving per delivery", "how much per delivery do we save"],
       "replies": [
-        "Your staff trip cost minus the {memberFee} delivery, for each delivery.",
-        "Trip cost minus {memberFee}."
+        "Your staff trip cost minus each delivery's price, from {memberFee}.",
+        "Trip cost minus each delivery, from {memberFee}."
       ]
     },
     {
@@ -2833,8 +2833,8 @@
       "topic": "money",
       "when": ["will delivery go up", "is delivery going up"],
       "replies": [
-        "Delivery is {memberFee} for the people you support. Any change would be shown before anyone pays.",
-        "It is {memberFee} now, for everyone you support."
+        "Delivery is {memberDelivery} for the people you support. Any change would be shown before anyone pays.",
+        "It is {memberDelivery} now, for everyone you support."
       ]
     },
     {
@@ -2926,8 +2926,8 @@
       "topic": "savings",
       "when": ["what does the saving include", "how is the saving worked out exactly"],
       "replies": [
-        "This month's deliveries, each multiplied by your staff trip cost less the {memberFee} delivery.",
-        "Deliveries times your trip cost, less {memberFee} each."
+        "This month's deliveries, each counted as your staff trip cost less its delivery, from {memberFee}.",
+        "Deliveries times your trip cost, less each delivery, from {memberFee}."
       ]
     },
     {

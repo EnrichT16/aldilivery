@@ -140,8 +140,13 @@ describe('the live configuration file', () => {
     expect(runnerPaymentFor(12000, config.fees)).toBe(700);
     expect(runnerPaymentFor(15000, config.fees)).toBe(700);
     const raw = goodConfig();
-    raw['fees'] = { ...(raw['fees'] as Record<string, unknown>), largeOrderRunnerPaymentPence: 400 };
-    expect(() => parseStoreConfig(raw)).toThrow(/largeOrderRunnerPaymentPence must be a whole number of at least 500/);
+    raw['fees'] = {
+      ...(raw['fees'] as Record<string, unknown>),
+      largeOrderRunnerPaymentPence: 400,
+    };
+    expect(() => parseStoreConfig(raw)).toThrow(
+      /largeOrderRunnerPaymentPence must be a whole number of at least 500/,
+    );
   });
 
   it('refuses a walking or cycling limit below the dearest product, and an unknown way of travelling', () => {
@@ -187,7 +192,9 @@ describe('the live configuration file', () => {
         ['foot', 5500],
       ]);
       // Thirteen £10 items fill the motorbike part as far as whole items go: £70 and £60.
-      expect(shape(planSplit([{ key: 'ten', unitPricePence: 1000, quantity: 13 }], 1, MAX))).toEqual([
+      expect(
+        shape(planSplit([{ key: 'ten', unitPricePence: 1000, quantity: 13 }], 1, MAX)),
+      ).toEqual([
         ['motorbike', 7000],
         ['foot', 6000],
       ]);
@@ -210,29 +217,53 @@ describe('the live configuration file', () => {
       expect(parts[0]!.mode).toBe('motorbike');
       expect(parts.every((part) => part.goodsPence <= MAX[part.mode])).toBe(true);
       const units = (key: string) =>
-        parts.flatMap((part) => part.lines).filter((line) => line.key === key).reduce((n, line) => n + line.quantity, 0);
+        parts
+          .flatMap((part) => part.lines)
+          .filter((line) => line.key === key)
+          .reduce((n, line) => n + line.quantity, 0);
       expect([units('a'), units('b'), units('c')]).toEqual([2, 3, 4]);
-      expect(parts.reduce((sum, part) => sum + part.goodsPence, 0)).toBe(4000 * 2 + 1000 * 3 + 450 * 4);
+      expect(parts.reduce((sum, part) => sum + part.goodsPence, 0)).toBe(
+        4000 * 2 + 1000 * 3 + 450 * 4,
+      );
       // Three £50 items with no riders: one per footer, never cut.
       expect(shape(planSplit([{ key: 'x', unitPricePence: 5000, quantity: 3 }], 0, MAX))).toEqual([
         ['foot', 5000],
         ['foot', 5000],
         ['foot', 5000],
       ]);
-      expect(() => planSplit([{ key: 'z', unitPricePence: 6001, quantity: 1 }], 1, MAX)).toThrow(RangeError);
+      expect(() => planSplit([{ key: 'z', unitPricePence: 6001, quantity: 1 }], 1, MAX)).toThrow(
+        RangeError,
+      );
     });
 
     it('offers a motorbike part to motorbike, car and van, and a foot part to foot and bicycle', () => {
-      expect(['motorbike', 'car', 'van'].map((mode) => modeTakesPart(mode, 'motorbike'))).toEqual([true, true, true]);
-      expect(['on_foot', 'bicycle'].map((mode) => modeTakesPart(mode, 'motorbike'))).toEqual([false, false]);
-      expect(['on_foot', 'bicycle'].map((mode) => modeTakesPart(mode, 'foot'))).toEqual([true, true]);
-      expect(['motorbike', 'car', 'van'].map((mode) => modeTakesPart(mode, 'foot'))).toEqual([false, false, false]);
+      expect(['motorbike', 'car', 'van'].map((mode) => modeTakesPart(mode, 'motorbike'))).toEqual([
+        true,
+        true,
+        true,
+      ]);
+      expect(['on_foot', 'bicycle'].map((mode) => modeTakesPart(mode, 'motorbike'))).toEqual([
+        false,
+        false,
+      ]);
+      expect(['on_foot', 'bicycle'].map((mode) => modeTakesPart(mode, 'foot'))).toEqual([
+        true,
+        true,
+      ]);
+      expect(['motorbike', 'car', 'van'].map((mode) => modeTakesPart(mode, 'foot'))).toEqual([
+        false,
+        false,
+        false,
+      ]);
     });
 
     it('takes its part sizes from configuration, each at least the dearest product', () => {
       const raw = goodConfig();
       raw['dispatch'] = { splitPartMaxPenceByMode: { motorbike: 8000 } };
-      expect(parseStoreConfig(raw).dispatch.splitPartMaxPenceByMode).toEqual({ motorbike: 8000, foot: 6000 });
+      expect(parseStoreConfig(raw).dispatch.splitPartMaxPenceByMode).toEqual({
+        motorbike: 8000,
+        foot: 6000,
+      });
       raw['dispatch'] = { splitPartMaxPenceByMode: { foot: 1000 } };
       expect(() => parseStoreConfig(raw)).toThrow(/must each be at least fees.maximumProductPence/);
       raw['dispatch'] = { splitPartMaxPenceByMode: { car: 9000 } };
@@ -280,18 +311,52 @@ describe('the configuration parser refuses to contradict a rule', () => {
     expect(() => parseStoreConfig(withFees({ runnerPaymentPence: 450 }))).toThrow(StoreConfigError);
   });
 
-  it('rejects any delivery price, on any plan, that would not cover the Runner (Rule Two)', () => {
+  /** The live delivery bands, with one band's figures changed. */
+  function withBand(index: number, changes: Record<string, unknown>): Record<string, unknown> {
     const delivery = (goodConfig()['fees'] as Record<string, Record<string, unknown>>)['delivery'];
-    for (const key of [
-      'payAsYouGoSmallOrderPence',
-      'payAsYouGoPence',
-      'membershipPence',
-      'plusPence',
-    ]) {
-      expect(() => parseStoreConfig(withFees({ delivery: { ...delivery, [key]: 500 } }))).toThrow(
+    const bands = [...(delivery['bands'] as Record<string, unknown>[])];
+    bands[index] = { ...bands[index], ...changes };
+    return withFees({ delivery: { bands } });
+  }
+
+  it('rejects a pay-as-you-go delivery price, in any band, that would not cover the Runner (Rule Two)', () => {
+    for (const index of [0, 1, 2]) {
+      expect(() => parseStoreConfig(withBand(index, { payAsYouGoPence: 500 }))).toThrow(
         /does not cover the Runner/,
       );
     }
+  });
+
+  it('allows a plan’s delivery price below the Runner’s five pounds: the plan’s monthly price makes it up (ruling 63)', () => {
+    expect(
+      parseStoreConfig(withBand(0, { plusPence: 399, membershipPence: 450 })).fees.delivery
+        .bands[0],
+    ).toMatchObject({
+      plusPence: 399,
+      membershipPence: 450,
+    });
+  });
+
+  it('requires the bands to rise, the last one open-ended, and no dearer band cheaper (Rule Four)', () => {
+    expect(() => parseStoreConfig(withBand(2, { upToPence: 9000 }))).toThrow(
+      /last band must have upToPence null/,
+    );
+    expect(() => parseStoreConfig(withBand(0, { upToPence: null }))).toThrow(
+      /only be null on the last band/,
+    );
+    expect(() => parseStoreConfig(withBand(1, { upToPence: 3000 }))).toThrow(
+      /must be above the band before it/,
+    );
+    expect(() => parseStoreConfig(withBand(1, { payAsYouGoPence: 798 }))).toThrow(
+      /never dearer to deliver/,
+    );
+    expect(() => parseStoreConfig(withBand(2, { plusPence: 398 }))).toThrow(
+      /never dearer to deliver/,
+    );
+    expect(() => parseStoreConfig(withFees({ delivery: { bands: [] } }))).toThrow(StoreConfigError);
+    expect(() => parseStoreConfig(withBand(0, { membershipPence: undefined }))).toThrow(
+      /membershipPence/,
+    );
   });
 
   it('requires the delivery prices, the item charge and the most one product may cost', () => {
@@ -303,7 +368,9 @@ describe('the configuration parser refuses to contradict a rule', () => {
   });
 
   it('defaults the whole-order goods cap to £150, and refuses one below the dearest product', () => {
-    expect(parseStoreConfig(withFees({ maximumOrderGoodsPence: undefined })).fees.maximumOrderGoodsPence).toBe(15000);
+    expect(
+      parseStoreConfig(withFees({ maximumOrderGoodsPence: undefined })).fees.maximumOrderGoodsPence,
+    ).toBe(15000);
     expect(() => parseStoreConfig(withFees({ maximumOrderGoodsPence: 5000 }))).toThrow(
       /at least fees.maximumProductPence/,
     );
@@ -379,7 +446,16 @@ describe('Rule Nine: nothing about the store is hard coded', () => {
     'dev-dist',
     '.pnpm-store',
   ]);
-  const SKIP_EXTENSIONS = new Set(['.md', '.png', '.jpg', '.jpeg', '.svg', '.ico', '.webp', '.lock']);
+  const SKIP_EXTENSIONS = new Set([
+    '.md',
+    '.png',
+    '.jpg',
+    '.jpeg',
+    '.svg',
+    '.ico',
+    '.webp',
+    '.lock',
+  ]);
   const SKIP_FILES = new Set([
     join('config', 'store.json'),
     'pnpm-lock.yaml',
@@ -397,7 +473,8 @@ describe('Rule Nine: nothing about the store is hard coded', () => {
       }
       if (SKIP_EXTENSIONS.has(extname(entry))) continue;
       const relativePath = relative(workspaceRoot, absolute);
-      if (SKIP_FILES.has(relativePath) || SKIP_FILES.has(relativePath.split('/').join(sep))) continue;
+      if (SKIP_FILES.has(relativePath) || SKIP_FILES.has(relativePath.split('/').join(sep)))
+        continue;
       found.push(absolute);
     }
     return found;
@@ -422,7 +499,10 @@ describe('Rule Nine: nothing about the store is hard coded', () => {
   });
 
   it('does not mention the legal entity name outside configuration and documentation', () => {
-    const entity = new RegExp(config.store.legalEntityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const entity = new RegExp(
+      config.store.legalEntityName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+      'i',
+    );
     const offenders: string[] = [];
 
     for (const file of sourceFiles(workspaceRoot)) {
@@ -440,7 +520,9 @@ describe('Rule Nine: nothing about the store is hard coded', () => {
    */
   it('never names the separate company as the operator in any source file', () => {
     const other = /Tofadachi AI and IT Solutions/i;
-    const offenders = sourceFiles(workspaceRoot).filter((file) => other.test(readFileSync(file, 'utf8')));
+    const offenders = sourceFiles(workspaceRoot).filter((file) =>
+      other.test(readFileSync(file, 'utf8')),
+    );
     expect(offenders.map((file) => relative(workspaceRoot, file))).toEqual([]);
   });
 
@@ -452,7 +534,10 @@ describe('Rule Nine: nothing about the store is hard coded', () => {
    * Delivery found them. This keeps the new name from going the same way.
    */
   it('does not write the product name into any source file', () => {
-    const productName = new RegExp(`\\b${config.productName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+    const productName = new RegExp(
+      `\\b${config.productName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`,
+      'i',
+    );
     const offenders = sourceFiles(workspaceRoot).filter((file) =>
       productName.test(readFileSync(file, 'utf8')),
     );

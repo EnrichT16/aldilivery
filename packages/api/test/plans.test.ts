@@ -16,12 +16,7 @@ import {
   sendCheckIns,
   sendWeeklySummaries,
 } from '../src/services/plans.js';
-import {
-  buildTestApp,
-  signUpShopper,
-  type SignedInShopper,
-  type TestHarness,
-} from './helpers.js';
+import { buildTestApp, signUpShopper, type SignedInShopper, type TestHarness } from './helpers.js';
 
 const START = new Date('2026-10-09T10:00:00.000Z');
 const DAY = 24 * 3600 * 1000;
@@ -30,7 +25,11 @@ let harness: TestHarness;
 let shopper: SignedInShopper;
 let texts: Array<{ to: string; body: string }>;
 
-const log = { warn: () => undefined, info: () => undefined, error: () => undefined } as unknown as FastifyBaseLogger;
+const log = {
+  warn: () => undefined,
+  info: () => undefined,
+  error: () => undefined,
+} as unknown as FastifyBaseLogger;
 
 beforeEach(async () => {
   texts = [];
@@ -87,26 +86,55 @@ async function price(lines: object[], who: SignedInShopper = shopper) {
 }
 
 describe('the worked examples, priced by the server', () => {
-  it('John, first month, pays as he goes: £58.36 + £8.50 + £13.50 = £80.36', async () => {
+  it('John, first month, pays as he goes: £58.36 + £8.50 + £9.99 = £76.85 (over £30, up to £60)', async () => {
     const priced = await price(await johnsBasket());
     expect(priced).toMatchObject({
       goodsEstimatePence: 5836,
       itemChargesPence: 850,
-      feePence: 1350,
-      totalPence: 8036,
+      feePence: 999,
+      totalPence: 7685,
       deliveryPlan: 'payg',
     });
     // Every price shown includes its item charge: the £1.40 product is shown as £1.90.
     expect(priced.lines[0]).toMatchObject({ unitPricePence: 140, unitDisplayPence: 190 });
   });
 
-  it('John, as a Member: £58.36 + £8.50 + £7.99 = £74.85', async () => {
+  it('John, as a Member: £58.36 + £8.50 + £5.99 = £72.85', async () => {
     const lines = await johnsBasket();
     await harness.repository.shoppers.update(shopper.shopperId, {
       plan: 'membership',
       planUntil: addMonths(START, 1),
     });
-    expect(await price(lines)).toMatchObject({ totalPence: 7485, deliveryPlan: 'membership' });
+    expect(await price(lines)).toMatchObject({ totalPence: 7285, deliveryPlan: 'membership' });
+  });
+
+  it('prices a £75 shop, over £60, at £13.50, £9.99 and £7.99 by plan (ruling 63)', async () => {
+    const big = [{ catalogueItemId: await product('Hamper', 2500), quantity: 3 }];
+    expect(await price(big)).toMatchObject({
+      goodsEstimatePence: 7500,
+      feePence: 1350,
+      deliveryPlan: 'payg',
+    });
+    await harness.repository.shoppers.update(shopper.shopperId, {
+      plan: 'membership',
+      planUntil: addMonths(START, 1),
+    });
+    expect(await price(big)).toMatchObject({ feePence: 999, deliveryPlan: 'membership' });
+    await harness.repository.shoppers.update(shopper.shopperId, {
+      plan: 'plus',
+      planUntil: addMonths(START, 1),
+    });
+    expect(await price(big)).toMatchObject({ feePence: 799, deliveryPlan: 'plus' });
+    // The band edges, one penny apart: £60.00 is up to £60, £60.01 is over it.
+    const edge = await product('Edge', 1);
+    const sixty = await product('Sixty', 6000);
+    expect(await price([{ catalogueItemId: sixty, quantity: 1 }])).toMatchObject({ feePence: 399 });
+    expect(
+      await price([
+        { catalogueItemId: sixty, quantity: 1 },
+        { catalogueItemId: edge, quantity: 1 },
+      ]),
+    ).toMatchObject({ feePence: 799 });
   });
 
   it('Mary, milk, bread and eggs, pays as she goes: £4.69 + £1.50 + £7.99 = £14.18', async () => {
@@ -133,15 +161,15 @@ describe('the worked examples, priced by the server', () => {
         confirmed: true,
         addressConfirmed: true,
         statement: 'Send my order and pay.',
-        agreedTotalPence: 8036,
+        agreedTotalPence: 7685,
       },
     });
     expect(placed.statusCode, placed.body).toBe(201);
     expect(placed.json().order).toMatchObject({
       goodsEstimatePence: 5836,
       itemChargesPence: 850,
-      feePence: 1350,
-      totalEstimatePence: 8036,
+      feePence: 999,
+      totalEstimatePence: 7685,
       deliveryPlan: 'payg',
     });
   });
@@ -207,7 +235,9 @@ describe('joining a plan', () => {
       renews: true,
       monthlyPence: 1000,
     });
-    expect(joined.json().message).toMatch(/Your free month carries on: the first £10\.00 is taken on/);
+    expect(joined.json().message).toMatch(
+      /Your free month carries on: the first £10\.00 is taken on/,
+    );
 
     // At the end of the free month, the first £10 is taken, and the same date next month.
     harness.setNow(new Date(addMonths(START, 1).getTime() + 60_000));
@@ -220,7 +250,7 @@ describe('joining a plan', () => {
     expect(texts.at(-1)?.body).toMatch(/£10\.00 was taken for another month of Ozi Membership/);
   });
 
-  it('Plus takes £15 now, brings delivery to £5.99, and shows no adverts', async () => {
+  it('Plus takes £15 now, brings delivery to £3.99 up to £60 of shopping, and shows no adverts', async () => {
     await harness.repository.shoppers.update(shopper.shopperId, { freeMonthUntil: null });
     const joined = await post('/plans/join', {
       plan: 'plus',
@@ -230,7 +260,7 @@ describe('joining a plan', () => {
     expect(joined.statusCode, joined.body).toBe(200);
     expect(charges()[0]?.input).toEqual(expect.objectContaining({ amountPence: 1500 }));
     const priced = await price(await johnsBasket());
-    expect(priced).toMatchObject({ feePence: 599, totalPence: 5836 + 850 + 599 });
+    expect(priced).toMatchObject({ feePence: 399, totalPence: 5836 + 850 + 399 });
     const advert = await harness.app.inject({
       method: 'GET',
       url: '/spotlight?q=milk',
@@ -253,7 +283,9 @@ describe('joining a plan', () => {
     expect(await renewPlans(harness.app.ctx, log)).toBe(0);
     expect(charges()).toHaveLength(1);
     expect(
-      (await harness.app.inject({ method: 'GET', url: '/plans', headers: shopper.authHeader })).json(),
+      (
+        await harness.app.inject({ method: 'GET', url: '/plans', headers: shopper.authHeader })
+      ).json(),
     ).toMatchObject({ plan: null, deliveryPlan: 'payg' });
   });
 
@@ -309,10 +341,13 @@ describe('Ozi Family and Carer', () => {
     );
   }
 
-  it('is for up to four people in different homes, all on £5.99 delivery', async () => {
+  it('is for up to four people in different homes, all on £3.99 delivery up to £60 of shopping', async () => {
     const { code, dad } = await familyOf(null);
     for (const [index, name] of ['Aunt', 'Gran'].entries()) {
-      const other = await signUpShopper(harness, { displayName: name, phone: `+44770090040${index}` });
+      const other = await signUpShopper(harness, {
+        displayName: name,
+        phone: `+44770090040${index}`,
+      });
       expect((await post('/extras/family/join', { code }, other)).statusCode).toBe(200);
     }
     const fifth = await signUpShopper(harness, { displayName: 'Cousin', phone: '+447700900499' });
@@ -321,7 +356,7 @@ describe('Ozi Family and Carer', () => {
     expect(full.json().error.message).toMatch(/up to 4 people/);
     const milk = await product('Milk', 125);
     expect(await price([{ catalogueItemId: milk, quantity: 2 }], dad)).toMatchObject({
-      feePence: 599,
+      feePence: 399,
       deliveryPlan: 'plus',
     });
   });
@@ -329,7 +364,11 @@ describe('Ozi Family and Carer', () => {
   it('one card pays, and the payer is told at each stage', async () => {
     const { dad } = await familyOf(null);
     const milk = await product('Milk', 125);
-    const placed = await familyOrder(dad, [{ catalogueItemId: milk, quantity: 2 }], 250 + 100 + 599);
+    const placed = await familyOrder(
+      dad,
+      [{ catalogueItemId: milk, quantity: 2 }],
+      250 + 100 + 399,
+    );
     expect(placed.statusCode, placed.body).toBe(201);
     const order = placed.json().order;
     expect(order.status).toBe('paid');
@@ -350,7 +389,7 @@ describe('Ozi Family and Carer', () => {
     const { dad } = await familyOf(1000);
     const milk = await product('Milk', 125);
     const lines = [{ catalogueItemId: milk, quantity: 8 }];
-    const total = 1000 + 400 + 599;
+    const total = 1000 + 400 + 399;
     const placed = await familyOrder(dad, lines, total);
     expect(placed.statusCode, placed.body).toBe(201);
     expect(placed.json()).toMatchObject({ waitingForApproval: true });
@@ -374,7 +413,10 @@ describe('Ozi Family and Carer', () => {
     // Saying no closes the order; nothing is taken.
     const second = await familyOrder(dad, lines, total);
     const declined = await post(`/plans/family/orders/${second.json().order.id}/decline`, {});
-    expect(declined.json().order).toMatchObject({ status: 'cancelled', approvalStatus: 'declined' });
+    expect(declined.json().order).toMatchObject({
+      status: 'cancelled',
+      approvalStatus: 'declined',
+    });
     expect(harness.payments.calls.filter((c) => c.kind === 'payment_intent')).toHaveLength(1);
   });
 
@@ -429,7 +471,7 @@ describe('Ozi Plus extras', () => {
 });
 
 describe('organisations', () => {
-  it('give the people they look after Membership delivery, whatever the size of the shop', async () => {
+  it('give the people they look after Membership delivery, by the value of the shop', async () => {
     const organisation = await harness.repository.organisations.create({
       name: 'Medway Care',
       contactName: 'Sam',
@@ -439,9 +481,9 @@ describe('organisations', () => {
       organisationId: organisation.id,
     });
     expect(await price(await johnsBasket())).toMatchObject({
-      feePence: 799,
+      feePence: 599,
       itemChargesPence: 850,
-      totalPence: 7485,
+      totalPence: 7285,
       deliveryPlan: 'membership',
     });
   });

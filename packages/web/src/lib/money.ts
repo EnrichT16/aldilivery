@@ -1,4 +1,6 @@
 import {
+  deliveryPriceRange,
+  deliveryStepsWords,
   displayPricePence,
   formatPence,
   productAllowed,
@@ -31,15 +33,28 @@ export function tooDearWords(name: string): string {
   return `We can't bring ${name}: no single product can cost more than ${money(storeConfig.fees.maximumProductPence)}.`;
 }
 
-/** How delivery is priced for this Shopper, in one plain sentence (ruling 58). */
+/**
+ * A plan's delivery prices, by the value of the shopping, in one plain phrase (ruling 63):
+ * "£7.99 for shopping up to £30.00, £9.99 up to £60.00, and £13.50 over £60.00".
+ */
+export function planDeliveryWords(plan: DeliveryPlan): string {
+  return deliveryStepsWords(plan, storeConfig.fees, money);
+}
+
+/** The cheapest and dearest delivery on any plan: "£3.99 to £13.50". */
+export function deliveryRangeWords(): string {
+  const { lowestPence, highestPence } = deliveryPriceRange(storeConfig.fees);
+  return `${money(lowestPence)} to ${money(highestPence)}`;
+}
+
+/** How delivery is priced for this Shopper, in one plain sentence (rulings 58 and 63). */
 export function deliveryWords(plan: DeliveryPlan): string {
-  const delivery = storeConfig.fees.delivery;
   switch (plan) {
     case 'plus':
-      return `Delivery is ${money(delivery.plusPence)} on your plan, whatever the size of the shop.`;
+      return `Delivery is ${planDeliveryWords('plus')} on your plan.`;
     case 'membership':
-      return `Delivery is ${money(delivery.membershipPence)} with membership, whatever the size of the shop.`;
+      return `Delivery is ${planDeliveryWords('membership')} with membership.`;
     default:
-      return `Paying as you go, delivery is ${money(delivery.payAsYouGoSmallOrderPence)} for shopping of ${money(delivery.payAsYouGoSmallOrderUpToPence)} or less, and ${money(delivery.payAsYouGoPence)} above that.`;
+      return `Paying as you go, delivery is ${planDeliveryWords('payg')}.`;
   }
 }

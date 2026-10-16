@@ -16,6 +16,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import {
+  deliverySteps,
+  deliveryStepsWords,
   formatPence,
   normalisePhrase,
   phraseFingerprint,
@@ -60,8 +62,15 @@ export const BLANKS = [
   'fee',
   'smallFee',
   'smallUpTo',
+  'middleFee',
+  'largeUpTo',
   'memberFee',
+  'memberLargeFee',
   'plusFee',
+  'plusLargeFee',
+  'paygDelivery',
+  'memberDelivery',
+  'plusDelivery',
   'itemCharge',
   'membership',
   'plusPrice',
@@ -177,17 +186,32 @@ export function phraseBook(explicitConfigPath?: string): PhraseBook {
 /** The figures and names a reply may mention, always from the store's own settings. */
 export function fillIn(reply: string, config: StoreConfig, ownerAddress: string): string {
   const money = (pence: number): string => formatPence(pence, config.store.currencySymbol);
+  const paygSteps = deliverySteps('payg', config.fees);
+  const memberSteps = deliverySteps('membership', config.fees);
+  const plusSteps = deliverySteps('plus', config.fees);
   const values: Record<(typeof BLANKS)[number], string> = {
     assistant: config.assistantName,
     product: config.productName,
     motto: config.motto,
-    // Delivery by plan and shop size (ruling 58): {fee} is pay as you go above the smaller-shop
-    // limit, {smallFee} at or below it.
-    fee: money(config.fees.delivery.payAsYouGoPence),
-    smallFee: money(config.fees.delivery.payAsYouGoSmallOrderPence),
-    smallUpTo: money(config.fees.delivery.payAsYouGoSmallOrderUpToPence),
-    memberFee: money(config.fees.delivery.membershipPence),
-    plusFee: money(config.fees.delivery.plusPence),
+    // Delivery by plan and by the value of the shopping, in bands (rulings 58 and 63). On pay as
+    // you go, {smallFee} is the smallest shop's price (up to {smallUpTo}), {middleFee} the step
+    // below the dearest (up to {largeUpTo}) and {fee} the dearest, over {largeUpTo}. Members pay
+    // {memberFee} up to {largeUpTo} and {memberLargeFee} over; Plus and Family and Carer {plusFee}
+    // and {plusLargeFee}. {paygDelivery}, {memberDelivery} and {plusDelivery} say a whole plan's
+    // prices in one phrase: "£7.99 for shopping up to £30.00, £9.99 up to £60.00, and £13.50 over
+    // £60.00".
+    fee: money(paygSteps[paygSteps.length - 1]!.pence),
+    smallFee: money(paygSteps[0]!.pence),
+    smallUpTo: money(paygSteps[0]!.upToPence ?? 0),
+    middleFee: money(paygSteps[Math.max(0, paygSteps.length - 2)]!.pence),
+    largeUpTo: money(paygSteps[Math.max(0, paygSteps.length - 2)]!.upToPence ?? 0),
+    memberFee: money(memberSteps[0]!.pence),
+    memberLargeFee: money(memberSteps[memberSteps.length - 1]!.pence),
+    plusFee: money(plusSteps[0]!.pence),
+    plusLargeFee: money(plusSteps[plusSteps.length - 1]!.pence),
+    paygDelivery: deliveryStepsWords('payg', config.fees, money),
+    memberDelivery: deliveryStepsWords('membership', config.fees, money),
+    plusDelivery: deliveryStepsWords('plus', config.fees, money),
     // The smallest item charge, said as pence when it is under a pound.
     itemCharge:
       config.fees.itemCharge.basePence < 100
