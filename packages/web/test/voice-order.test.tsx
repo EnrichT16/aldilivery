@@ -66,7 +66,7 @@ function stubShop(
     shelf?: boolean;
     /** What the server's phrase book answers to a sentence looked within (ruling 49). */
     oziReply?: (text: string) => string | null;
-    /** What Claude hears in a sentence the phrase book had nothing for (ruling 69). */
+    /** What the language model hears in a sentence the phrase book had nothing for (ruling 69). */
     oziHears?: (text: string) => { kind: string; items: unknown[]; reply: string | null } | null;
   } = {},
 ): Sent[] {
@@ -203,7 +203,7 @@ describe('understanding a spoken order', () => {
 });
 
 describe('ordering by voice alone', () => {
-  it('shops for what Claude heard when the parser would have chopped the sentence (ruling 69)', async () => {
+  it('shops for what the language model heard when the parser would have chopped the sentence (ruling 69)', async () => {
     const engine = fakeEngine();
     setVoiceEngine(engine);
     const sent = stubShop({

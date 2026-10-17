@@ -1701,7 +1701,7 @@ const BRAIN_WORDS: Record<string, string> = {
   shops: 'the shop list',
   shopping: 'the shopping parser',
   flow: 'the conversation steps',
-  claude: 'the language model',
+  model: 'the language model',
   none: 'nothing: unanswered',
 };
 const OUTCOME_WORDS: Record<string, string> = {

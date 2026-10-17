@@ -147,10 +147,10 @@ export function Privacy(): JSX.Element {
         </p>
         <p className="m-0">
           When {assistant}&rsquo;s own phrase book cannot make sense of a sentence, the words of
-          that one sentence, and the names of the things in your basket, are sent to our language
-          model provider, Anthropic, to be understood. Nothing else about you goes with them, and
-          Anthropic does not use what we send to train its models. Reason: a contract, and our
-          legitimate interest in understanding what you ask for.
+          that one sentence, and the names of the things in your basket, are sent to a language
+          model run for us by a specialist provider, to be understood. Nothing else about you goes
+          with them, and the provider does not use what we send to train its models. Reason: a
+          contract, and our legitimate interest in understanding what you ask for.
         </p>
       </section>
 

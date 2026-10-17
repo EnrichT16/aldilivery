@@ -1,17 +1,18 @@
 /**
- * A language model behind Ozi (Anthony, 17 October 2026, ruling 69): Claude, Anthropic's
- * smallest current model unless another is named, used only where the hand-built parts give
- * up. The phrase book and the shopping parser stay first: they are free and instant. Claude is
+ * A language model behind Ozi (Anthony, 17 October 2026, ruling 69): a small, current hosted
+ * model, used only where the hand-built parts give up. Its maker's name appears nowhere a
+ * person can see it (Anthony, 17 October 2026): not on a screen, in a message or a document.
+ * The phrase book and the shopping parser stay first: they are free and instant. The model is
  * asked when a sentence is not a known phrase and the parser finds nothing in it, to turn the
  * words into shopping ("get me two kilos of flour, I've run out", "grab me a couple of crates
  * of eggs, the Lion's Gate ones") or into one short spoken answer within Ozi's purpose.
  *
- * Claude never touches an order. It gives back a plain list of things and how many, or a
+ * The model never touches an order. It gives back a plain list of things and how many, or a
  * sentence; the catalogue search, the prices, the read-back and the one yes (Rule One) are the
- * same code as before. Every exchange goes into Ozi's memory marked as answered by Claude
+ * same code as before. Every exchange goes into Ozi's memory marked as answered by the model
  * (ruling 68), so a person can judge it and the company's own model can learn from it later.
  *
- * Nothing waits on Claude for long: after `WAIT_MS` the server goes on without it, and a
+ * Nothing waits on the model for long: after `WAIT_MS` the server goes on without it, and a
  * missing key simply switches it off (`brain` is null and the health check says so).
  */
 
@@ -20,9 +21,9 @@ import { z } from 'zod';
 
 import type { StoreConfig } from '@aldilivery/core';
 
-/** The model used unless ANTHROPIC_MODEL names another: the cheapest current Claude. */
+/** The model used unless LANGUAGE_MODEL names another: the cheapest current one. */
 export const DEFAULT_MODEL = 'claude-haiku-5-5';
-/** How long to wait for Claude before carrying on with the hand-built parts alone. */
+/** How long to wait for the model before carrying on with the hand-built parts alone. */
 export const WAIT_MS = 4000;
 
 const understanding = z.object({
@@ -77,13 +78,13 @@ export interface UnderstandInput {
 }
 
 export interface OziBrain {
-  readonly name: 'claude';
+  readonly name: 'model';
   readonly model: string;
-  /** What the words mean. Null when Claude did not answer in time, or declined. */
+  /** What the words mean. Null when the model did not answer in time, or declined. */
   understand(input: UnderstandInput): Promise<Understanding | null>;
 }
 
-/** The part of the Anthropic client this module uses, so tests can hand in a stand-in. */
+/** The part of the provider's client this module uses, so tests can hand in a stand-in. */
 export type BrainClient = Pick<Anthropic, 'messages'>;
 
 /** The standing instructions, built from configuration so no name lives in code (Rule Nine). */
@@ -99,14 +100,14 @@ export function instructions(config: StoreConfig): string {
   ].join('\n');
 }
 
-export function claudeBrain(
+export function languageModel(
   settings: { apiKey: string; model?: string; config: StoreConfig },
   client: BrainClient = new Anthropic({ apiKey: settings.apiKey, timeout: WAIT_MS, maxRetries: 0 }),
 ): OziBrain {
   const model = settings.model ?? DEFAULT_MODEL;
   const system = instructions(settings.config);
   return {
-    name: 'claude',
+    name: 'model',
     model,
     async understand(input) {
       try {

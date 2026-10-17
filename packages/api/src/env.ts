@@ -140,11 +140,12 @@ export interface Env {
   oluomaVoiceUrl: string | undefined;
   oluomaVoiceKey: string | undefined;
   /**
-   * Claude behind Ozi (ruling 69): Anthropic's API key, and which model. Without the key,
-   * Claude is off and the phrase book and parser work alone. The key stays on this server.
+   * The language model behind Ozi (ruling 69): the provider's API key, and which model.
+   * Without the key the model is off and the phrase book and parser work alone. The key stays
+   * on this server.
    */
-  anthropicApiKey: string | undefined;
-  anthropicModel: string | undefined;
+  languageModelKey: string | undefined;
+  languageModelName: string | undefined;
   /**
    * The demo sign-in for app store reviewers (ruling 60): one telephone number that accepts one
    * fixed code without a text. Both, or it is off. The code is a secret: environment only, never
@@ -291,8 +292,8 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     humanLinePhone: realValue(source['HUMAN_LINE_PHONE']),
     oluomaVoiceUrl: realValue(source['OLUOMA_VOICE_URL']),
     oluomaVoiceKey: realValue(source['OLUOMA_VOICE_KEY']),
-    anthropicApiKey: realValue(source['ANTHROPIC_API_KEY']),
-    anthropicModel: realValue(source['ANTHROPIC_MODEL']?.trim() || undefined),
+    languageModelKey: realValue(source['LANGUAGE_MODEL_KEY']),
+    languageModelName: realValue(source['LANGUAGE_MODEL']?.trim() || undefined),
     demoSignInPhone: realValue(source['DEMO_SIGNIN_PHONE']?.trim() || undefined),
     demoSignInCode: realValue(source['DEMO_SIGNIN_CODE']?.trim() || undefined),
     seedOnStart: source['SEED_ON_START'] !== 'false',
