@@ -3538,6 +3538,152 @@
         "A till sound plays when money is taken, and falling coins when it comes back.",
         "That is the till sound for money."
       ]
+    },
+    {
+      "id": "o66-account-how-do-we-add-someone",
+      "topic": "account",
+      "when": ["how do we add someone", "add a person", "add a client"],
+      "replies": [
+        "Give them your organisation code. They link from their Settings after being told what you will see."
+      ]
+    },
+    {
+      "id": "o66-account-whats-our-code",
+      "topic": "account",
+      "when": ["what's our code", "organisation code", "where is the code", "where's the code"],
+      "replies": ["Say our code and I read it. It is also at the top of your dashboard."]
+    },
+    {
+      "id": "o66-account-what-do-we-see",
+      "topic": "account",
+      "when": ["what do we see", "what can we see about people", "what is shown", "what's shown"],
+      "replies": [
+        "Every order with who it was for and their office, spending, budget left, savings, and weekly shops booked. Never cards or phone numbers."
+      ]
+    },
+    {
+      "id": "o66-account-can-someone-unlink",
+      "topic": "account",
+      "when": ["can someone unlink", "what if a resident leaves", "remove a person"],
+      "replies": [
+        "They can unlink from Settings at any time, or you can remove them. Their past orders stay on your statement."
+      ]
+    },
+    {
+      "id": "o66-account-how-much-do-we-pay",
+      "topic": "account",
+      "when": ["how much do we pay", "our monthly charge", "price per person"],
+      "replies": [
+        "{orgClient} a month for each person you look after, with a discount as the number grows. It is shown on your dashboard."
+      ]
+    },
+    {
+      "id": "o66-account-can-we-pay-by-invoice",
+      "topic": "account",
+      "when": ["can we pay by invoice", "invoice us", "send an invoice"],
+      "replies": [
+        "The monthly charge is shown on your dashboard and statements. Invoicing is planned; our team will tell you when."
+      ]
+    },
+    {
+      "id": "o66-account-how-do-we-download-a-statement",
+      "topic": "account",
+      "when": ["how do we download a statement"],
+      "replies": ["Say statement, and choose PDF or spreadsheet."]
+    },
+    {
+      "id": "o66-account-how-do-we-set-a-budget",
+      "topic": "account",
+      "when": ["how do we set a budget"],
+      "replies": [
+        "Say set our budget and the amount. The dashboard then shows what is left each month."
+      ]
+    },
+    {
+      "id": "o66-account-whats-an-office",
+      "topic": "account",
+      "when": ["what's an office", "add an office", "group by team"],
+      "replies": [
+        "Offices group the people you support, so spending shows by office. Say add an office to make one."
+      ]
+    },
+    {
+      "id": "o66-account-who-in-our-organisation-can-sign-in",
+      "topic": "account",
+      "when": ["who in our organisation can sign in", "more staff sign ins"],
+      "replies": ["Our team adds sign-ins for your colleagues, each with their office."]
+    },
+    {
+      "id": "o66-account-how-are-savings-worked-out",
+      "topic": "account",
+      "when": ["how are savings worked out", "what does savings mean"],
+      "replies": [
+        "From your own figure for a staff trip to the shops, times the trips saved. Say set trip cost to change it."
+      ]
+    },
+    {
+      "id": "o66-account-can-we-see-weekly-shops",
+      "topic": "account",
+      "when": ["can we see weekly shops", "weekly shops booked", "recurring orders"],
+      "replies": ["Yes. The dashboard lists every weekly shop booked by the people you support."]
+    },
+    {
+      "id": "o66-account-do-people-get-cheaper-delivery",
+      "topic": "account",
+      "when": [
+        "do people get cheaper delivery",
+        "delivery price for our residents",
+        "what do they pay"
+      ],
+      "replies": [
+        "People you look after pay member delivery prices: {memberDelivery}. Their own card pays for the shopping."
+      ]
+    },
+    {
+      "id": "o66-account-place-an-order-on-their-behalf",
+      "topic": "account",
+      "when": ["place an order on their behalf"],
+      "replies": [
+        "Orders come from the person's own account. A staff member they trust can help them place it."
+      ]
+    },
+    {
+      "id": "o66-account-can-we-see-their-address",
+      "topic": "account",
+      "when": ["can we see their address", "where they live", "personal details"],
+      "replies": [
+        "No. You see their name, office and orders. Addresses are seen only by the Runner delivering."
+      ]
+    },
+    {
+      "id": "o66-account-what-is-the-share-link",
+      "topic": "account",
+      "when": [
+        "what is the share link",
+        "what's the share link",
+        "our share link",
+        "how many joined through us"
+      ],
+      "replies": ["A link to give out. Your dashboard counts how many people joined through it."]
+    },
+    {
+      "id": "o66-account-who-do-we-contact",
+      "topic": "account",
+      "when": ["who do we contact"],
+      "replies": ["Say speak to a person and I connect you to our team."]
+    },
+    {
+      "id": "o66-account-can-we-have-a-report-for-commissioners",
+      "topic": "account",
+      "when": [
+        "can we have a report for commissioners",
+        "can we've a report for commissioners",
+        "commissioner report",
+        "council report"
+      ],
+      "replies": [
+        "Statements cover spending by office and month. Fuller commissioner reports are planned."
+      ]
     }
   ]
 }

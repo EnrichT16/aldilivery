@@ -287,8 +287,9 @@ person) is replaced by Ozi Family and Carer (ruling 58).
 | Ozi mentions its own features from time to time (Section E) | NOT BUILT | |
 | Welsh, then Igbo, Hausa, Yoruba, Swahili (Section E) | NOT BUILT | The voice interface takes a language; the screens are English only. |
 | "Hey Ozi" wake word while muted | NOT BUILT | Needs Oluoma Voice and the phone apps; the browser cannot. |
-| Phrases for every account, kept on the server | BUILT | At least 400 each (ruling 49): Shoppers in config/ozi-phrases.json; Runners, Shop Partners, organisations, staff, family, investors and the owner in config/phrases/. The owner's Ozi has everybody's. The app asks POST /ozi/reply; which collection answers depends on who is signed in. |
-| Phrase found inside a longer sentence, or by meaning words | BUILT | Ruling 49. |
+| Phrases for every account, kept on the server | BUILT | At least 400 each (ruling 49), and 1,931 for Shoppers since 17 October 2026 (ruling 66): Shoppers in config/ozi-phrases.json; Runners, Shop Partners, organisations, staff, family, investors and the owner in config/phrases/. The owner's Ozi has everybody's. The app asks POST /ozi/reply; which collection answers depends on who is signed in. |
+| Phrase found inside a longer sentence, or by meaning words | BUILT | Ruling 49. Indexed by keyword buckets since ruling 66, so a lookup stays under a tenth of a millisecond as the books grow. |
+| Small talk and general statements are not shopping: a config-driven small-talk list (config/small-talk.json), a sentence-shape heuristic with the catalogue checked first, one gentle line then twenty seconds of quiet, anything unclear kept for the Learning list | BUILT | Ruling 66. `packages/web/src/voice/small-talk.ts`, wired into `state/voice-order.ts`. |
 | One-way fingerprints in the app; 2.5-second limit | BUILT | Ruling 49. |
 | Learning list (what Ozi could not answer, most asked first, approved by a person) | BUILT | Learning tab for founder, operations manager and customer care. |
 | Banned words (config/banned-words.json), found however disguised; nothing personal kept | BUILT | Ruling 49. |
@@ -751,7 +752,7 @@ only when nothing but those phrase files changed and every test passes; anything
 Anthony's "merge". Nothing is copied to Google Drive or anywhere else. Recommended ceiling about
 5,000 per account (about 40,000 in the owner's), reviewed at 2,000 per account, when the daily
 additions switch to answering what people really asked that Ozi could not answer (the Learning
-list). Today each collection has a little over 400 phrases. The routine itself lives in Claude's
+list). Today the Shopper collection has 1,931 phrases (ruling 66, 17 October 2026) and the others a little over 400 each; docs/STILL_TO_DO.md has the plan to 10,000 and the later connection to Okugard Brain. The routine itself lives in Claude's
 scheduled tasks, not in this repository.
 
 ---

@@ -1,0 +1,516 @@
+{
+  "about": "Small talk Ozi answers in the app itself while it is taking shopping (ruling 66, Anthony, 17 October 2026): 'how are you', 'I'm tired', a hello, a goodbye. These are not the private phrase book (that stays on the server); they are the handful of everyday remarks that must never be mistaken for a product, answered warmly and briefly even when the server is slow. Each entry: an id, the words people say ('when'), and short replies taken in turn. {assistant} becomes the assistant's name; no other name is ever written here. 'nudge' is what Ozi says once to a sentence that is clearly not shopping, and 'quietSeconds' how long it then stays quiet for more chatter.",
+  "nudge": "I'm here when you're ready to order. Say an item, like milk or bread.",
+  "quietSeconds": 20,
+  "phrases": [
+    {
+      "id": "how-are-you",
+      "when": [
+        "how are you",
+        "how are you doing",
+        "how are you today",
+        "how are you doing today",
+        "how's it going",
+        "hows it going",
+        "how are things",
+        "how's things",
+        "hows things",
+        "you alright",
+        "you all right",
+        "are you alright",
+        "are you all right",
+        "are you ok",
+        "are you okay",
+        "how do you do",
+        "how have you been",
+        "are you well",
+        "you good",
+        "how's your day",
+        "hows your day",
+        "how was your day",
+        "how's your day going",
+        "hows your day going"
+      ],
+      "replies": [
+        "I'm very well, thank you. How are you?",
+        "All good here, thanks for asking. How are you today?"
+      ]
+    },
+    {
+      "id": "where-are-you",
+      "when": ["where are you", "where are you now", "where have you been", "where did you go"],
+      "replies": [
+        "I'm right here, in your phone, listening whenever you need me.",
+        "Right here with you. Just say an item when you're ready."
+      ]
+    },
+    {
+      "id": "what-are-you-doing",
+      "when": [
+        "what are you doing",
+        "what are you up to",
+        "what you doing",
+        "what are you doing now",
+        "what are you doing today"
+      ],
+      "replies": [
+        "Waiting to help with your shopping. Say an item when you're ready.",
+        "Nothing much, just listening out for you. What can I get you?"
+      ]
+    },
+    {
+      "id": "tired",
+      "when": [
+        "i'm tired",
+        "im tired",
+        "i am tired",
+        "i'm so tired",
+        "im so tired",
+        "i'm really tired",
+        "im really tired",
+        "i'm exhausted",
+        "im exhausted",
+        "i'm knackered",
+        "im knackered",
+        "i'm shattered",
+        "im shattered",
+        "i'm worn out",
+        "im worn out"
+      ],
+      "replies": [
+        "Sorry to hear that. Let me take the shopping off your hands. Say an item when you're ready.",
+        "Put your feet up. I'll do the running around. Just say what you need."
+      ]
+    },
+    {
+      "id": "unwell",
+      "when": [
+        "i'm ill",
+        "im ill",
+        "i'm not well",
+        "im not well",
+        "i feel ill",
+        "i'm poorly",
+        "im poorly",
+        "i'm sick",
+        "im sick",
+        "i'm not feeling well",
+        "im not feeling well",
+        "i feel rough"
+      ],
+      "replies": [
+        "I'm sorry you're unwell. Rest up, and I'll get your shopping brought to you. Say what you need.",
+        "Poor you. Stay where you are and tell me what you need, and a Runner will bring it."
+      ]
+    },
+    {
+      "id": "thanks",
+      "when": [
+        "thank you",
+        "thanks",
+        "cheers",
+        "thank you very much",
+        "thanks a lot",
+        "thanks very much",
+        "thank you so much",
+        "ta",
+        "nice one",
+        "cheers mate",
+        "thanks mate"
+      ],
+      "replies": ["You're welcome.", "My pleasure.", "Any time."]
+    },
+    {
+      "id": "hello",
+      "when": [
+        "hello",
+        "hi",
+        "hiya",
+        "hey",
+        "hello there",
+        "hi there",
+        "good morning",
+        "good afternoon",
+        "good evening",
+        "morning",
+        "afternoon",
+        "evening",
+        "hello again",
+        "hey there"
+      ],
+      "replies": [
+        "Hello. What can I get for you today?",
+        "Hi there. Say an item when you're ready."
+      ]
+    },
+    {
+      "id": "weather",
+      "when": [
+        "what's the weather",
+        "whats the weather",
+        "what's the weather like",
+        "whats the weather like",
+        "what is the weather",
+        "what is the weather like",
+        "what's the weather today",
+        "whats the weather today",
+        "what's the weather like today",
+        "whats the weather like today",
+        "what's the weather doing",
+        "whats the weather doing",
+        "is it raining",
+        "is it going to rain",
+        "is it cold out",
+        "is it cold outside",
+        "is it sunny",
+        "is it nice out",
+        "will it rain today"
+      ],
+      "replies": [
+        "I can't see the weather from here, I'm afraid. Whatever it's doing, a Runner can bring your shopping.",
+        "I don't know the weather, sorry. Your phone's weather app will say. Rain or shine, a Runner can shop for you."
+      ]
+    },
+    {
+      "id": "weather-remark",
+      "when": [
+        "it's cold",
+        "its cold",
+        "it's freezing",
+        "its freezing",
+        "it's hot",
+        "its hot",
+        "it's boiling",
+        "its boiling",
+        "it's raining",
+        "its raining",
+        "it's pouring",
+        "its pouring",
+        "it's snowing",
+        "its snowing",
+        "i'm cold",
+        "im cold",
+        "i'm hot",
+        "im hot",
+        "i'm freezing",
+        "im freezing"
+      ],
+      "replies": [
+        "Stay comfy indoors. A Runner can brave it for you. Say what you need.",
+        "No need to go out in that. Tell me what you need and a Runner will bring it."
+      ]
+    },
+    {
+      "id": "goodbye",
+      "when": [
+        "goodbye",
+        "bye",
+        "bye bye",
+        "see you",
+        "see you later",
+        "good night",
+        "goodnight",
+        "night night",
+        "cheerio",
+        "talk to you later",
+        "speak later",
+        "catch you later",
+        "see you tomorrow",
+        "ta ta"
+      ],
+      "replies": ["Goodbye for now. I'm here whenever you need me.", "Bye for now. Take care."]
+    },
+    {
+      "id": "who-are-you",
+      "when": [
+        "who are you",
+        "what's your name",
+        "whats your name",
+        "what is your name",
+        "who am i talking to",
+        "who is this"
+      ],
+      "replies": [
+        "I'm {assistant}, your shopping helper. Say an item, and a Runner brings it to your door.",
+        "My name is {assistant}. I take your shopping order by voice, and a Runner delivers it."
+      ]
+    },
+    {
+      "id": "are-you-real",
+      "when": [
+        "are you a robot",
+        "are you human",
+        "are you real",
+        "are you a person",
+        "are you a real person",
+        "what are you",
+        "are you a computer",
+        "are you ai"
+      ],
+      "replies": [
+        "I'm a voice helper, not a person. I'm here to take your shopping order. If you'd rather speak to a person, you can ring us.",
+        "I'm a computer helper that talks. A real person, your Runner, does the shopping."
+      ]
+    },
+    {
+      "id": "kind-words",
+      "when": [
+        "i love you",
+        "you're brilliant",
+        "youre brilliant",
+        "you're great",
+        "youre great",
+        "well done",
+        "good job",
+        "you're the best",
+        "youre the best",
+        "you're lovely",
+        "youre lovely",
+        "you're a star",
+        "youre a star",
+        "you're amazing",
+        "youre amazing",
+        "good girl",
+        "good boy",
+        "clever"
+      ],
+      "replies": ["That's kind of you. Thank you.", "Aw, thank you. You've made my day."]
+    },
+    {
+      "id": "flattery",
+      "when": ["do you love me", "will you marry me", "do you like me", "are you single"],
+      "replies": ["I'm flattered, but I'm just here for the shopping. What can I get you?"]
+    },
+    {
+      "id": "sorry",
+      "when": ["sorry", "i'm sorry", "im sorry", "my apologies", "oops", "my mistake", "my bad"],
+      "replies": ["No need to say sorry. Take your time.", "Not at all. Whenever you're ready."]
+    },
+    {
+      "id": "nothing-now",
+      "when": [
+        "nothing",
+        "nothing thanks",
+        "nothing thank you",
+        "no thanks",
+        "no thank you",
+        "not now",
+        "not yet",
+        "nothing for now",
+        "nothing today",
+        "i'm fine",
+        "im fine",
+        "i'm ok",
+        "im ok",
+        "i'm okay",
+        "im okay",
+        "i'm alright",
+        "im alright",
+        "i'm all right",
+        "im all right",
+        "i'm good",
+        "im good",
+        "i'm fine thanks",
+        "im fine thanks",
+        "i'm good thanks",
+        "im good thanks"
+      ],
+      "replies": ["All right. I'm here when you need me.", "No problem. Just say when."]
+    },
+    {
+      "id": "time",
+      "when": [
+        "what time is it",
+        "what's the time",
+        "whats the time",
+        "what day is it",
+        "what's the date",
+        "whats the date",
+        "what's the date today",
+        "whats the date today",
+        "what day is it today"
+      ],
+      "replies": [
+        "I don't keep a clock, I'm afraid. Your phone shows the time and date at the top of the screen."
+      ]
+    },
+    {
+      "id": "joke",
+      "when": ["tell me a joke", "say something funny", "make me laugh", "do you know any jokes"],
+      "replies": [
+        "I'm better at shopping than jokes, but here's one. I'd tell you a joke about bread, but it's a bit crumby."
+      ]
+    },
+    {
+      "id": "sing",
+      "when": ["sing me a song", "can you sing", "sing something", "sing for me"],
+      "replies": ["I'll leave the singing to you. I'm much better at shopping."]
+    },
+    {
+      "id": "wait",
+      "when": [
+        "hang on",
+        "wait",
+        "wait a minute",
+        "wait a moment",
+        "wait a second",
+        "one moment",
+        "one second",
+        "one sec",
+        "give me a minute",
+        "give me a second",
+        "give me a moment",
+        "hold on",
+        "hold on a minute",
+        "just a second",
+        "just a moment",
+        "just a minute",
+        "just a sec",
+        "bear with me",
+        "two secs",
+        "i'm busy",
+        "im busy"
+      ],
+      "replies": ["Take your time. I'll wait.", "No rush at all. I'm here when you're ready."]
+    },
+    {
+      "id": "thinking",
+      "when": [
+        "i'm not sure",
+        "im not sure",
+        "i don't know",
+        "i dont know",
+        "let me think",
+        "let me have a think",
+        "i'm thinking",
+        "im thinking",
+        "hmm",
+        "um",
+        "erm",
+        "er",
+        "let me see",
+        "let's see",
+        "lets see"
+      ],
+      "replies": [
+        "No rush. Think it over, and say an item when you're ready.",
+        "Take your time. When you know, just say it."
+      ]
+    },
+    {
+      "id": "are-you-there",
+      "when": [
+        "are you there",
+        "are you listening",
+        "can you hear me",
+        "hello are you there",
+        "are you still there",
+        "you there",
+        "did you hear me",
+        "are you awake"
+      ],
+      "replies": ["Yes, I'm here and listening. Go ahead.", "I'm here. What would you like?"]
+    },
+    {
+      "id": "fine-words",
+      "when": [
+        "good",
+        "great",
+        "lovely",
+        "fine",
+        "brilliant",
+        "perfect",
+        "excellent",
+        "ok",
+        "okay",
+        "alright",
+        "all right",
+        "cool",
+        "fair enough",
+        "right",
+        "right then",
+        "right o",
+        "righto",
+        "fab",
+        "fabulous",
+        "wonderful",
+        "super",
+        "grand"
+      ],
+      "replies": ["Lovely. Say an item when you're ready.", "Good. What would you like?"]
+    },
+    {
+      "id": "whats-up",
+      "when": [
+        "what's new",
+        "whats new",
+        "what's up",
+        "whats up",
+        "sup",
+        "what's happening",
+        "whats happening"
+      ],
+      "replies": ["Not much, just here to help. Need any shopping?"]
+    },
+    {
+      "id": "back",
+      "when": ["i'm back", "im back", "i'm home", "im home", "i've come back", "ive come back"],
+      "replies": ["Welcome back. Say an item when you're ready."]
+    },
+    {
+      "id": "bored",
+      "when": ["i'm bored", "im bored", "i am bored", "so bored"],
+      "replies": ["Sorry to hear it. Fancy planning something nice to eat? Say what you'd like."]
+    },
+    {
+      "id": "hungry",
+      "when": [
+        "i'm hungry",
+        "im hungry",
+        "i am hungry",
+        "i'm starving",
+        "im starving",
+        "i'm peckish",
+        "im peckish"
+      ],
+      "replies": [
+        "Then let's sort that out. What would you like to eat? Say an item, like bread or soup."
+      ]
+    },
+    {
+      "id": "thirsty",
+      "when": ["i'm thirsty", "im thirsty", "i am thirsty", "i need a drink"],
+      "replies": ["Let's get you a drink. Say what you'd like, like juice or water."]
+    },
+    {
+      "id": "occasion",
+      "when": [
+        "it's my birthday",
+        "its my birthday",
+        "it's my birthday today",
+        "its my birthday today",
+        "merry christmas",
+        "happy christmas",
+        "happy new year",
+        "happy easter",
+        "happy birthday"
+      ],
+      "replies": ["How lovely. And the very best to you. Shall we get something nice in?"]
+    },
+    {
+      "id": "talking-to-someone-else",
+      "when": [
+        "i'm talking to someone else",
+        "im talking to someone else",
+        "not you",
+        "i wasn't talking to you",
+        "i wasnt talking to you",
+        "i'm on the phone",
+        "im on the phone",
+        "ignore that",
+        "ignore me"
+      ],
+      "replies": ["No problem. I'll keep quiet until you need me."]
+    }
+  ]
+}

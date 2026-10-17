@@ -12,6 +12,14 @@ import type { SpeakOutcome } from '../voice';
 import { useBasket } from './basket';
 import { useSession } from './session';
 import { NAME_PATTERN, nameHeardIn } from '../voice/name';
+import { phraseReply } from '../voice/phrases';
+import {
+  findSmallTalk,
+  looksLikeChatter,
+  quietSpell,
+  smallTalk,
+  smallTalkReply,
+} from '../voice/small-talk';
 
 /**
  * Ordering by voice alone (docs/BUILD_PROMPT.md, Section E), as a conversation:
@@ -124,6 +132,53 @@ export function useVoiceOrdering(
   // Read through refs so the conversation always sees the current account and basket.
   const live = useRef({ shopper, basket });
   live.current = { shopper, basket };
+  // Small talk and chatter while shopping (ruling 66): replies taken in turn, and the quiet
+  // spell after Ozi's one gentle line.
+  const chatterTurn = useRef(0);
+  const quiet = useRef(quietSpell());
+
+  /** Whether anything asked for is in the shop: a product Ozi has never heard of is still shopping. */
+  const anyInCatalogue = useCallback(async (items: string[]): Promise<boolean> => {
+    for (const term of items.slice(0, 3)) {
+      try {
+        const { items: found } = await searchCatalogue(leadingQuantity(term).name);
+        if (found.some((option) => sellable(option.estimatedPricePence))) return true;
+      } catch {
+        // The shop list cannot be reached: nothing to match, so the words are taken as said.
+      }
+    }
+    return false;
+  }, []);
+
+  /**
+   * Words that are not shopping (ruling 66). Small talk gets its warm reply. Anything else
+   * shaped like a sentence to a person is sent to the server once, which answers it if it is
+   * an everyday phrase and otherwise keeps it for the Learning list; Ozi then says one gentle
+   * line and stays quiet for more chatter in the next twenty seconds. True when handled.
+   */
+  const chatter = useCallback(
+    async (text: string, items: string[]): Promise<boolean> => {
+      const small = findSmallTalk(text);
+      if (small) {
+        await say(smallTalkReply(small, chatterTurn.current));
+        chatterTurn.current += 1;
+        return true;
+      }
+      if (!looksLikeChatter(text) || (await anyInCatalogue(items))) return false;
+      const known = await phraseReply(text, chatterTurn.current, 'within', { kind: 'shopper' });
+      chatterTurn.current += 1;
+      if (known) {
+        await say(known);
+        return true;
+      }
+      if (quiet.current.quiet()) return true;
+      quiet.current.start();
+      expectNow();
+      await say(smallTalk.nudge);
+      return true;
+    },
+    [say, anyInCatalogue],
+  );
 
   const reset = useCallback(() => {
     stage.current = { kind: 'idle' };
@@ -311,7 +366,12 @@ export function useVoiceOrdering(
         case 'idle': {
           const addressed = nameHeardIn(text);
           if (!isExpecting() && !addressed && !ORDER_INTENT.test(text)) return false;
+          // Small talk and general statements are not shopping (ruling 66): "how are you
+          // doing" is answered warmly, never with "I haven't added how are you doing".
+          const { items, shopAskedFor } = splitItems(text, NAME_PATTERN);
+          if (await chatter(text, items)) return true;
           expectingUntil.current = null;
+          quiet.current.clear();
           if (!live.current.shopper) {
             if (offerAccount) {
               offerAccount();
@@ -322,7 +382,6 @@ export function useVoiceOrdering(
             );
             return true;
           }
-          const { items, shopAskedFor } = splitItems(text, NAME_PATTERN);
           if (items.length === 0) {
             expectNow();
             await say('What would you like? You can say, for example, bananas and milk.');
@@ -471,7 +530,7 @@ export function useVoiceOrdering(
         }
       }
     },
-    [say, offerAccount, reset, next, navigate, ceiling, shop],
+    [say, offerAccount, reset, next, navigate, ceiling, shop, chatter],
   );
 
   const expectOrder = useCallback(() => {

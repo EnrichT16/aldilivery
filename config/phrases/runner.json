@@ -3920,6 +3920,443 @@
         "Your job shows where to shop. Follow it exactly.",
         "Check your job. It tells you the shop to use."
       ]
+    },
+    {
+      "id": "r66-joining-how-do-i-join",
+      "topic": "joining",
+      "when": [
+        "how do i join",
+        "how do i get started",
+        "what do i do first",
+        "how do i start running"
+      ],
+      "replies": [
+        "Finish your details, photograph your documents, and go on shift once a person has accepted them. I tell you when."
+      ]
+    },
+    {
+      "id": "r66-joining-what-documents-do-you-need",
+      "topic": "joining",
+      "when": ["what documents do you need", "which documents", "what do i upload"],
+      "replies": [
+        "Proof of right to work, a basic criminal record check, a face photo, and a licence and insurance if you drive or ride."
+      ]
+    },
+    {
+      "id": "r66-joining-are-my-documents-accepted-yet",
+      "topic": "joining",
+      "when": ["are my documents accepted yet"],
+      "replies": [
+        "Usually within a day or two. I tell you the moment they are accepted, and jobs start being offered."
+      ]
+    },
+    {
+      "id": "r66-joining-what-is-a-dbs-check",
+      "topic": "joining",
+      "when": ["what is a dbs check", "what's a dbs check", "criminal record check"],
+      "replies": ["A basic criminal record check, yes. It is required before any job is offered."]
+    },
+    {
+      "id": "r66-joining-insurance-for-runners",
+      "topic": "joining",
+      "when": ["insurance for runners"],
+      "replies": [
+        "Only if you drive or ride. A car, van, motorbike or scooter needs business use or courier insurance that a person accepts."
+      ]
+    },
+    {
+      "id": "r66-joining-can-i-run-on-foot",
+      "topic": "joining",
+      "when": ["can i run on foot", "can i run with a bike", "do i need a car"],
+      "replies": [
+        "Yes. On foot and by bicycle you need no insurance. You carry orders up to a set size."
+      ]
+    },
+    {
+      "id": "r66-joining-can-i-switch-to-a-car",
+      "topic": "joining",
+      "when": [
+        "can i switch to a car",
+        "change how i deliver",
+        "i have a car now",
+        "i've a car now"
+      ],
+      "replies": [
+        "Yes. Add your licence and insurance in the app, and once accepted you are offered larger orders too."
+      ]
+    },
+    {
+      "id": "r66-joining-when-does-my-insurance-run-out",
+      "topic": "joining",
+      "when": ["when does my insurance run out", "insurance expiry", "renew my insurance"],
+      "replies": [
+        "Your insurance date is on your Runner page. I remind you a month, a week and a day before it ends."
+      ]
+    },
+    {
+      "id": "r66-joining-what-is-the-runner-agreement",
+      "topic": "joining",
+      "when": [
+        "what is the runner agreement",
+        "what's the runner agreement",
+        "do i have to agree",
+        "do i've to agree",
+        "agree to the agreement"
+      ],
+      "replies": [
+        "The plain words agreement about how you work with us. You agree once in the app before your first job."
+      ]
+    },
+    {
+      "id": "r66-joining-do-ive-to-do-training",
+      "topic": "joining",
+      "when": ["do i've to do training"],
+      "replies": [
+        "Short modules on your Training tab: the door, handling food, substitutions and safety. Do them before your first job."
+      ]
+    },
+    {
+      "id": "r66-pay-what-is-the-pay",
+      "topic": "pay",
+      "when": ["what is the pay", "what's the pay", "pay per delivery"],
+      "replies": [
+        "{runnerPay} for each delivery, more for big orders. Shopping money is paid back at once."
+      ]
+    },
+    {
+      "id": "r66-pay-payout-day",
+      "topic": "pay",
+      "when": ["payout day", "when's payday"],
+      "replies": [
+        "Weekly by default, straight to your bank account. You can choose daily or instant, for a small fee, in Settings."
+      ]
+    },
+    {
+      "id": "r66-pay-how-do-i-get-paid-back-for-the-shopping",
+      "topic": "pay",
+      "when": [
+        "how do i get paid back for the shopping",
+        "reimbursement",
+        "who pays for the shopping"
+      ],
+      "replies": [
+        "You pay with the card on your phone, loaded for the order. If you ever pay yourself, the till total is paid back at once."
+      ]
+    },
+    {
+      "id": "r66-pay-what-is-the-card-on-my-phone",
+      "topic": "pay",
+      "when": [
+        "what is the card on my phone",
+        "what's the card on my phone",
+        "the runner card",
+        "spending card"
+      ],
+      "replies": [
+        "A card loaded for each job with the shopping estimate and a margin, for food shops only, frozen when the job ends."
+      ]
+    },
+    {
+      "id": "r66-pay-what-if-the-card-is-declined",
+      "topic": "pay",
+      "when": [
+        "what if the card is declined",
+        "card would not work",
+        "card wouldn't work",
+        "till would not take the card",
+        "till wouldn't take the card"
+      ],
+      "replies": [
+        "Check the total is within the loaded amount. If it still fails, pay yourself if you can; you are paid back at once."
+      ]
+    },
+    {
+      "id": "r66-pay-what-is-the-cool-bag-deposit",
+      "topic": "pay",
+      "when": [
+        "what is the cool bag deposit",
+        "what's the cool bag deposit",
+        "why is a pound held back",
+        "why's a pound held back",
+        "deposit"
+      ],
+      "replies": [
+        "A pound from each of your first payouts builds a deposit for the cool bag. It is returned after your twentieth delivery."
+      ]
+    },
+    {
+      "id": "r66-pay-large-order-pay",
+      "topic": "pay",
+      "when": ["large order pay", "extra for big jobs"],
+      "replies": [
+        "Yes. A large order pays more than the usual {runnerPay}, and a very large one delivered whole pays more still."
+      ]
+    },
+    {
+      "id": "r66-pay-how-do-i-see-what-i-earned",
+      "topic": "pay",
+      "when": ["how do i see what i earned", "how much have i made"],
+      "replies": [
+        "Your Runner page shows earned today in bold, this week, and what is owed and paid out."
+      ]
+    },
+    {
+      "id": "r66-pay-what-is-owing",
+      "topic": "pay",
+      "when": [
+        "what is owing",
+        "what's owing",
+        "money owed",
+        "why is money owed",
+        "why's money owed"
+      ],
+      "replies": [
+        "Owing is pay for delivered jobs not yet paid out. It goes out on your payout day."
+      ]
+    },
+    {
+      "id": "r66-pay-instant-payout-fee",
+      "topic": "pay",
+      "when": ["instant payout fee", "how much is instant", "daily payout"],
+      "replies": [
+        "Instant payout carries a small fee shown before you choose it. Daily and weekly are free."
+      ]
+    },
+    {
+      "id": "r66-pay-tax-on-my-pay",
+      "topic": "pay",
+      "when": ["tax on my pay", "self assessment"],
+      "replies": [
+        "You work for yourself, so your tax is your own. Your earnings history is there to download."
+      ]
+    },
+    {
+      "id": "r66-pay-can-i-be-paid-in-cash",
+      "topic": "pay",
+      "when": ["can i be paid in cash", "cash pay", "pay me cash"],
+      "replies": [
+        "No. Everything is paid to your bank account, and you never handle cash on a job."
+      ]
+    },
+    {
+      "id": "r66-queue-where-am-i-in-the-queue",
+      "topic": "queue",
+      "when": [
+        "where am i in the queue",
+        "am i next",
+        "when is my next job",
+        "when's my next job",
+        "my place in line"
+      ],
+      "replies": [
+        "Say where am i in line and I tell you, for instance, you are second in line for the next job."
+      ]
+    },
+    {
+      "id": "r66-queue-how-does-the-queue-work",
+      "topic": "queue",
+      "when": ["how does the queue work", "who gets jobs first", "is the queue fair"],
+      "replies": [
+        "Runners on shift who have earned least today are offered the order first, those near the shop before others."
+      ]
+    },
+    {
+      "id": "r66-queue-why-did-someone-else-get-the-job",
+      "topic": "queue",
+      "when": ["why did someone else get the job", "i was passed over", "not offered a job"],
+      "replies": [
+        "The queue goes by money earned today, then nearest. Your turn comes round as others earn."
+      ]
+    },
+    {
+      "id": "r66-queue-can-i-refuse-a-job",
+      "topic": "queue",
+      "when": ["can i refuse a job", "say no to an offer", "decline a job"],
+      "replies": ["Yes, without penalty. It goes to the next in line and you keep your place."]
+    },
+    {
+      "id": "r66-queue-how-long-do-ive-to-accept",
+      "topic": "queue",
+      "when": ["how long do i've to accept", "offer time"],
+      "replies": ["About a minute. Take it or let it pass; either way nothing counts against you."]
+    },
+    {
+      "id": "r66-queue-what-is-your-next-job",
+      "topic": "queue",
+      "when": [
+        "what is your next job",
+        "what's your next job",
+        "chained job",
+        "why was i offered a job before finishing"
+      ],
+      "replies": [
+        "Near the end of a delivery you may be offered the next order nearby. Say no if you would rather not."
+      ]
+    },
+    {
+      "id": "r66-queue-why-are-there-no-jobs",
+      "topic": "queue",
+      "when": ["why are there no jobs", "it is quiet", "it's quiet", "nothing coming through"],
+      "replies": [
+        "Orders come as Shoppers place them. Stay on shift and you keep your place in line."
+      ]
+    },
+    {
+      "id": "r66-queue-can-i-see-how-many-runners-are-on-shift",
+      "topic": "queue",
+      "when": ["can i see how many runners are on shift", "how many runners", "competition"],
+      "replies": ["I do not show numbers, but the queue is fair: least earned today goes first."]
+    },
+    {
+      "id": "r66-safety-what-are-the-door-words",
+      "topic": "safety",
+      "when": ["what are the door words", "door words", "what do i say at the door"],
+      "replies": [
+        "Each job has two everyday words. Say them before anything else at the door, so the Shopper knows it is you."
+      ]
+    },
+    {
+      "id": "r66-safety-what-is-the-sos-button",
+      "topic": "safety",
+      "when": ["what is the sos button", "what's the sos button"],
+      "replies": [
+        "The SOS button shares your location with us at once. Use it whenever you feel unsafe."
+      ]
+    },
+    {
+      "id": "r66-safety-can-i-see-the-shoppers-number",
+      "topic": "safety",
+      "when": ["can i see the shopper's number", "phone number"],
+      "replies": ["Call them through the app. Neither of you sees the other's number."]
+    },
+    {
+      "id": "r66-safety-can-i-take-cash",
+      "topic": "safety",
+      "when": ["can i take cash", "the shopper offered cash", "tips in cash"],
+      "replies": ["No cash, ever. Everything is paid in the app, and that protects you too."]
+    },
+    {
+      "id": "r66-safety-can-i-buy-alcohol-for-a-shopper",
+      "topic": "safety",
+      "when": [
+        "can i buy alcohol for a shopper",
+        "they asked for cigarettes",
+        "medicines for a shopper"
+      ],
+      "replies": [
+        "No. Never alcohol, tobacco, medicines, cash or anything age restricted. Say no kindly and carry on."
+      ]
+    },
+    {
+      "id": "r66-safety-the-shopper-is-not-answering",
+      "topic": "safety",
+      "when": ["the shopper is not answering", "the shopper isn't answering", "nobody is home"],
+      "replies": [
+        "Ring through the app and wait a fair while. If there is still no answer, tell me and a person decides."
+      ]
+    },
+    {
+      "id": "r66-safety-what-if-i-feel-unsafe",
+      "topic": "safety",
+      "when": [
+        "what if i feel unsafe",
+        "i do not want to go in",
+        "i don't want to go in",
+        "uncomfortable at the door"
+      ],
+      "replies": [
+        "Never go inside unless the Shopper asked for help with bags. If anything feels wrong, leave and press SOS."
+      ]
+    },
+    {
+      "id": "r66-safety-what-if-i-am-asked-inside",
+      "topic": "safety",
+      "when": [
+        "what if i am asked inside",
+        "what if i'm asked inside",
+        "carry bags in",
+        "help indoors"
+      ],
+      "replies": [
+        "Only if the Shopper's door notes ask for it. Carry the bags to where they say and no further."
+      ]
+    },
+    {
+      "id": "r66-safety-what-if-the-shop-has-run-out",
+      "topic": "safety",
+      "when": [
+        "what if the shop has run out",
+        "item not in stock",
+        "cannot find it",
+        "can't find it"
+      ],
+      "replies": [
+        "Tap cannot find it. The Shopper is asked whether to swap it or leave it out, and I tell you their answer."
+      ]
+    },
+    {
+      "id": "r66-safety-what-if-i-drop-something",
+      "topic": "safety",
+      "when": ["what if i drop something", "eggs broke", "i damaged the shopping"],
+      "replies": [
+        "Tell me straight away so the Shopper can be put right. Honesty is never punished more than silence."
+      ]
+    },
+    {
+      "id": "r66-safety-what-is-the-receipt-photo",
+      "topic": "safety",
+      "when": [
+        "what is the receipt photo",
+        "what's the receipt photo",
+        "why photograph the receipt"
+      ],
+      "replies": [
+        "The receipt photo proves the till total. Take it before you leave the shop, especially on bigger orders."
+      ]
+    },
+    {
+      "id": "r66-account-i-am-ready",
+      "topic": "account",
+      "when": ["i am ready", "i'm ready"],
+      "replies": ["Say go on shift, or tap On shift on your Runner page. Offers start arriving."]
+    },
+    {
+      "id": "r66-account-i-am-finished-for-today",
+      "topic": "account",
+      "when": ["i am finished for today", "i'm finished for today"],
+      "replies": ["Say go off shift, or tap Off shift. Finish any job in hand first."]
+    },
+    {
+      "id": "r66-account-how-do-i-close-my-runner-account",
+      "topic": "account",
+      "when": ["how do i close my runner account", "leave", "stop being a runner"],
+      "replies": ["Say close my runner account. Anything owed is still paid to you."]
+    },
+    {
+      "id": "r66-account-what-is-my-runner-id",
+      "topic": "account",
+      "when": ["what is my runner id", "what's my runner id", "my id", "runner number"],
+      "replies": ["Your Runner ID is on your Runner page, with your share link."]
+    },
+    {
+      "id": "r66-account-how-does-the-share-link-work",
+      "topic": "account",
+      "when": ["how does the share link work", "refer someone", "invite a friend to run"],
+      "replies": ["Share your link. Anyone who joins through it is counted on your page."]
+    },
+    {
+      "id": "r66-account-can-i-shop-as-well",
+      "topic": "account",
+      "when": ["can i shop as well", "be a shopper too", "order my own shopping"],
+      "replies": ["Yes. Sign in as a Shopper on the first screen. It is a separate sign-in."]
+    },
+    {
+      "id": "r66-account-how-do-i-change-my-bank-details",
+      "topic": "account",
+      "when": ["how do i change my bank details", "new bank account", "payout account"],
+      "replies": [
+        "Say change my bank details and I open the secure page. We never see your full details."
+      ]
     }
   ]
 }

@@ -3661,6 +3661,221 @@
         "It depends on the Runner and the order. Everyday essentials are brought the same day.",
         "Usually soon after a Runner takes the job."
       ]
+    },
+    {
+      "id": "p66-plan-what-is-partner-plus",
+      "topic": "plan",
+      "when": ["what is partner plus", "what's partner plus", "partner plus", "what do i get"],
+      "replies": [
+        "Your own sign-in, products with photos, prices changed at once, your own page, statements and a share link."
+      ]
+    },
+    {
+      "id": "p66-plan-partner-plan-price",
+      "topic": "plan",
+      "when": ["partner plan price", "what do i pay"],
+      "replies": [
+        "The Shop Partner plan is {partnerPlan} a month. Spotlight is {spotlight} extra, Spotlight Plus {spotlightPlus}."
+      ]
+    },
+    {
+      "id": "p66-plan-whats-spotlight",
+      "topic": "plan",
+      "when": ["what's spotlight", "how does spotlight work", "spotlight mentions"],
+      "replies": [
+        "I mention your shop once a week to a Shopper looking for something you sell, after the genuine results, labelled as an advert."
+      ]
+    },
+    {
+      "id": "p66-plan-whats-spotlight-plus",
+      "topic": "plan",
+      "when": ["what's spotlight plus"],
+      "replies": [
+        "Up to three mentions a week plus the weekly local pick, for {spotlightPlus} a month."
+      ]
+    },
+    {
+      "id": "p66-plan-stop-paying",
+      "topic": "plan",
+      "when": ["stop paying"],
+      "replies": [
+        "Say cancel my plan. Your page stays while the month is paid, then your shop goes back to a free listing."
+      ]
+    },
+    {
+      "id": "p66-plan-when-am-i-charged",
+      "topic": "plan",
+      "when": ["when am i charged", "payment date", "when do you take the money"],
+      "replies": [
+        "On the same day each month. Every payment is listed in your area with a statement to download."
+      ]
+    },
+    {
+      "id": "p66-plan-can-i-see-my-statement",
+      "topic": "plan",
+      "when": ["can i see my statement", "download statement", "my payments"],
+      "replies": ["Yes. Say statement and I open your payments with a PDF to download."]
+    },
+    {
+      "id": "p66-plan-what-is-the-free-listing",
+      "topic": "plan",
+      "when": [
+        "what is the free listing",
+        "what's the free listing",
+        "why pay if listing is free",
+        "free versus partner"
+      ],
+      "replies": [
+        "Every shop is listed free by us. The plan adds your own sign-in, photos, instant price changes and your own page."
+      ]
+    },
+    {
+      "id": "p66-products-add-an-item",
+      "topic": "products",
+      "when": ["add an item", "new product"],
+      "replies": [
+        "Say add a product, then its name, price and a photo. A person checks it before Shoppers see it."
+      ]
+    },
+    {
+      "id": "p66-products-update-a-price",
+      "topic": "products",
+      "when": ["update a price"],
+      "replies": ["Say change the price of, and the product. It changes at once."]
+    },
+    {
+      "id": "p66-products-take-a-product-off",
+      "topic": "products",
+      "when": ["take a product off", "out of stock"],
+      "replies": ["Say take off, and the product. It disappears from your page straight away."]
+    },
+    {
+      "id": "p66-products-why-is-my-product-not-showing",
+      "topic": "products",
+      "when": [
+        "why is my product not showing",
+        "why's my product not showing",
+        "product waiting",
+        "pending product"
+      ],
+      "replies": [
+        "A person checks each new product first, usually within a day. Nothing restricted is ever listed."
+      ]
+    },
+    {
+      "id": "p66-products-can-i-list-alcohol",
+      "topic": "products",
+      "when": ["can i list alcohol", "age restricted products"],
+      "replies": ["No. Nothing age restricted, no medicines and no cash services are ever listed."]
+    },
+    {
+      "id": "p66-products-can-i-add-offers",
+      "topic": "products",
+      "when": ["can i add offers", "put on an offer"],
+      "replies": ["Yes. Say add an offer and it appears on the Offers page once checked."]
+    },
+    {
+      "id": "p66-products-can-i-add-photos",
+      "topic": "products",
+      "when": ["can i add photos", "picture of my product"],
+      "replies": ["Yes. Every product can have a photo, taken with your phone or uploaded."]
+    },
+    {
+      "id": "p66-products-how-many-products-can-i-list",
+      "topic": "products",
+      "when": ["how many products can i list", "product limit", "is there a maximum"],
+      "replies": ["No limit. List everything a Runner could buy from you."]
+    },
+    {
+      "id": "p66-customers-how-do-customers-find-me",
+      "topic": "customers",
+      "when": ["how do customers find me", "will shoppers see my shop"],
+      "replies": [
+        "Shoppers see your page and products in the app. Spotlight adds paid mentions when they ask for something you sell."
+      ]
+    },
+    {
+      "id": "p66-customers-can-i-see-who-ordered",
+      "topic": "customers",
+      "when": ["can i see who ordered", "customer details", "who are my customers"],
+      "replies": [
+        "No names, numbers or addresses, ever. You see orders as orders, and counts of how many joined through your link."
+      ]
+    },
+    {
+      "id": "p66-customers-what-is-my-share-link",
+      "topic": "customers",
+      "when": ["what is my share link", "what's my share link", "share link", "how many joined"],
+      "replies": [
+        "A link to put on your counter or socials. Your page counts how many Shoppers joined through it."
+      ]
+    },
+    {
+      "id": "p66-customers-how-do-i-get-paid-for-orders",
+      "topic": "customers",
+      "when": ["how do i get paid for orders", "payment for sales", "who pays me"],
+      "replies": ["The Runner pays at your till like any customer, so you are paid there and then."]
+    },
+    {
+      "id": "p66-customers-what-is-shop-of-the-month",
+      "topic": "customers",
+      "when": [
+        "what is shop of the month",
+        "what's shop of the month",
+        "can i win shop of the month",
+        "shop of the month"
+      ],
+      "replies": [
+        "The shop Shoppers rate highest each month. It is shown in the app, and costs nothing."
+      ]
+    },
+    {
+      "id": "p66-customers-can-i-see-my-reviews",
+      "topic": "customers",
+      "when": ["can i see my reviews", "shop reviews", "what do shoppers say"],
+      "replies": ["You see patterns from feedback, never names. Say feedback and I read them."]
+    },
+    {
+      "id": "p66-customers-can-takeaways-join",
+      "topic": "customers",
+      "when": ["can takeaways join", "i run a takeaway", "commission"],
+      "replies": [
+        "Yes. Takeaways pay a share of each order instead of a monthly plan. The partnerships team sets it up."
+      ]
+    },
+    {
+      "id": "p66-customers-i-run-a-service-not-a-shop",
+      "topic": "customers",
+      "when": ["i run a service not a shop", "dry cleaner", "can services join"],
+      "replies": [
+        "Yes. Local services can be listed too. Say list my service and the team will call."
+      ]
+    },
+    {
+      "id": "p66-account-partner-sign-in",
+      "topic": "account",
+      "when": ["partner sign in", "where is my sign in", "where's my sign in"],
+      "replies": [
+        "Through the shop door on the first screen, with the details our partnerships staff gave you."
+      ]
+    },
+    {
+      "id": "p66-account-another-person-for-my-shop",
+      "topic": "account",
+      "when": ["another person for my shop", "add a colleague"],
+      "replies": ["Ask the partnerships team to add a sign-in for a colleague."]
+    },
+    {
+      "id": "p66-account-who-do-i-contact",
+      "topic": "account",
+      "when": ["who do i contact", "partnerships team"],
+      "replies": ["Say speak to a person and I connect you to the partnerships team."]
+    },
+    {
+      "id": "p66-account-can-i-have-more-than-one-branch",
+      "topic": "account",
+      "when": ["can i have more than one branch", "can i've more than one branch", "add a branch"],
+      "replies": ["Yes. Each branch gets its own page under your account. Ask the team to add it."]
     }
   ]
 }
