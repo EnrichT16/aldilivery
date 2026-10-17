@@ -47,6 +47,7 @@ import {
   signedByTwilio,
   type CallState,
 } from '../lib/twilio-voice.js';
+import { itemWords } from '../lib/claude-brain.js';
 import { remember, spokenIn, type Brain, type Outcome } from '../lib/ozi-memory.js';
 import { phraseReply } from '../lib/phrases.js';
 import { priceLinesInParts } from '../services/basket.js';
@@ -292,6 +293,58 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       `${opening} Anything else? When you have everything, say: that's everything.`,
       next({ ...state, step: 'items', quiet: 0 }, sid),
     );
+  }
+
+  /**
+   * Each thing asked for, looked up in the catalogue and put on the lines: what was added
+   * (with its price, item charge included), what could not be found, and what costs too much.
+   */
+  async function addAsked(
+    asked: string[],
+    before: Array<[string, number]>,
+  ): Promise<{
+    added: string[];
+    missing: string[];
+    tooDear: string[];
+    lines: Array<[string, number]>;
+  }> {
+    const added: string[] = [];
+    const missing: string[] = [];
+    const tooDear: string[] = [];
+    const lines = [...before];
+    for (const phrase of asked) {
+      const wanted = thingAskedFor(phrase);
+      if (wanted === '') continue;
+      const quantity = parseQuantity(phrase) ?? 1;
+      let found = await repository.catalogue.search(wanted, {
+        includeAgeRestricted: false,
+        limit: 20,
+      });
+      if (found.length === 0 && wanted.endsWith('s')) {
+        found = await repository.catalogue.search(wanted.slice(0, -1), {
+          includeAgeRestricted: false,
+          limit: 20,
+        });
+      }
+      const item = bestMatch(found, wanted);
+      if (!item) {
+        missing.push(wanted);
+        continue;
+      }
+      // No single product over the most one product may cost (ruling 58).
+      if (!productAllowed(item.estimatedPricePence, config.fees)) {
+        tooDear.push(item.name);
+        continue;
+      }
+      const existing = lines.findIndex(([id]) => id === item.id);
+      if (existing >= 0) lines[existing] = [item.id, Math.min(99, lines[existing]![1] + quantity)];
+      else lines.push([item.id, quantity]);
+      // The price said includes the item charge, as every price shown or said does.
+      added.push(
+        `${quantity} ${item.name}, about ${money(displayPricePence(item.estimatedPricePence, config.fees) * quantity)}`,
+      );
+    }
+    return { added, missing, tooDear, lines };
   }
 
   /* -------------------------------------------------------------- the call arrives */
@@ -617,42 +670,53 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
         }
 
         const { items: asked } = splitItems(heard, config.assistantName);
-        const added: string[] = [];
-        const missing: string[] = [];
-        const tooDear: string[] = [];
-        const lines = [...state.lines];
-        for (const phrase of asked) {
-          const wanted = thingAskedFor(phrase);
-          if (wanted === '') continue;
-          const quantity = parseQuantity(phrase) ?? 1;
-          let found = await repository.catalogue.search(wanted, {
-            includeAgeRestricted: false,
-            limit: 20,
-          });
-          if (found.length === 0 && wanted.endsWith('s')) {
-            found = await repository.catalogue.search(wanted.slice(0, -1), {
-              includeAgeRestricted: false,
-              limit: 20,
-            });
-          }
-          const item = bestMatch(found, wanted);
-          if (!item) {
-            missing.push(wanted);
-            continue;
-          }
-          // No single product over the most one product may cost (ruling 58).
-          if (!productAllowed(item.estimatedPricePence, config.fees)) {
-            tooDear.push(item.name);
-            continue;
-          }
-          const existing = lines.findIndex(([id]) => id === item.id);
-          if (existing >= 0)
-            lines[existing] = [item.id, Math.min(99, lines[existing]![1] + quantity)];
-          else lines.push([item.id, quantity]);
-          // The price said includes the item charge, as every price shown or said does.
-          added.push(
-            `${quantity} ${item.name}, about ${money(displayPricePence(item.estimatedPricePence, config.fees) * quantity)}`,
+        let { added, missing, tooDear, lines } = await addAsked(asked, state.lines);
+        let brain: Brain = 'shopping';
+        if (added.length === 0 && tooDear.length === 0) {
+          // Not shopping at all, perhaps: "how are you", "what do you deliver", "thank you".
+          // The telephone answers from the same phrase book as the app (ruling 68), learned
+          // answers included, before it says it could not find anything.
+          const known = phraseReply(
+            heard,
+            state.lines.length,
+            'within',
+            'shopper',
+            config,
+            liveBook(app),
           );
+          if (known) {
+            request.oziNote = { brain: 'phrases', outcome: 'answered' };
+            return reply(response, more({ ...state, lines }, sid, known));
+          }
+          // Then Claude (ruling 69): "grab me a couple of crates of eggs, I've run out" is
+          // shopping the parser cannot see; a question gets one short answer.
+          const basketItems = await repository.catalogue.findManyByIds(
+            state.lines.map(([id]) => id),
+          );
+          const understood = await app.ctx.brain?.understand({
+            text: heard,
+            account: 'shopper',
+            channel: 'phone',
+            basket: basketItems.map((item) => item.name),
+          });
+          if (understood) {
+            brain = 'claude';
+            if (understood.kind === 'items' && understood.items.length > 0) {
+              ({ added, missing, tooDear, lines } = await addAsked(
+                understood.items.map(itemWords),
+                state.lines,
+              ));
+            } else if (understood.kind === 'done' && state.lines.length > 0) {
+              return reply(response, await confirmTwiml(state, sid));
+            } else if (understood.kind === 'stop') {
+              finish(sid);
+              request.oziNote = { brain, outcome: 'stopped' };
+              return reply(response, goodbye('All right, nothing has been ordered. Goodbye.'));
+            } else if (understood.reply) {
+              request.oziNote = { brain, outcome: 'answered' };
+              return reply(response, more({ ...state, lines }, sid, understood.reply));
+            }
+          }
         }
         const notFound =
           (missing.length > 0 ? ` I couldn't find ${listWords(missing)}.` : '') +
@@ -660,24 +724,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
             ? ` I can't bring ${listWords(tooDear)}: no single product can cost more than ${money(config.fees.maximumProductPence)}.`
             : '');
         if (added.length === 0) {
-          // Not shopping at all, perhaps: "how are you", "what do you deliver", "thank you".
-          // The telephone answers from the same phrase book as the app (ruling 68), learned
-          // answers included, before it says it could not find anything.
-          if (tooDear.length === 0) {
-            const known = phraseReply(
-              heard,
-              state.lines.length,
-              'within',
-              'shopper',
-              config,
-              liveBook(app),
-            );
-            if (known) {
-              request.oziNote = { brain: 'phrases', outcome: 'answered' };
-              return reply(response, more({ ...state, lines }, sid, known));
-            }
-          }
-          request.oziNote = { brain: 'shopping', outcome: 'not-found' };
+          request.oziNote = { brain, outcome: 'not-found' };
           return reply(
             response,
             ask(
@@ -686,7 +733,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
             ),
           );
         }
-        request.oziNote = { brain: 'shopping', outcome: 'added' };
+        request.oziNote = { brain, outcome: 'added' };
         return reply(
           response,
           more({ ...state, lines }, sid, `I've added ${listWords(added)}.${notFound}`),

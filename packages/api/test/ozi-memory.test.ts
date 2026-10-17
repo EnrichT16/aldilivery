@@ -6,6 +6,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { OziBrain } from '../src/lib/claude-brain.js';
 import { scrub, spokenIn, trainingLine } from '../src/lib/ozi-memory.js';
 import { twilioSignature } from '../src/lib/twilio-voice.js';
 import { sweepRetention } from '../src/services/retention.js';
@@ -364,5 +365,107 @@ describe('how long it is kept', () => {
     harness.setNow(later(3 * 365 + 1));
     expect((await sweepRetention(harness.app.ctx)).exchangesRemoved).toBe(1);
     expect(await remembered()).toHaveLength(0);
+  });
+});
+
+describe('Claude behind Ozi (ruling 69)', () => {
+  const heardByClaude: string[] = [];
+  const fakeBrain: OziBrain = {
+    name: 'claude',
+    model: 'stand-in',
+    async understand({ text }) {
+      heardByClaude.push(text);
+      if (/run out of flour/i.test(text)) {
+        return {
+          kind: 'items',
+          items: [{ name: 'milk', quantity: 2, brand: null, detail: null }],
+          reply: null,
+        };
+      }
+      if (/moon/i.test(text)) {
+        return { kind: 'question', items: [], reply: 'Not yet. We stay on this planet.' };
+      }
+      if (/finished now/i.test(text)) return { kind: 'done', items: [], reply: null };
+      return null;
+    },
+  };
+
+  async function withBrain() {
+    await harness.close();
+    heardByClaude.length = 0;
+    harness = await buildTestApp(START, {
+      env: { primaryOrigin: ORIGIN, twilioAuthToken: TOKEN },
+      sendText: async () => undefined,
+      brain: fakeBrain,
+    });
+    await seedCatalogue(harness.repository);
+  }
+
+  it('is asked only after the phrase book, answers a question, and keeps it for learning', async () => {
+    await withBrain();
+    expect((await ask('how are you')).json().reply).toMatch(/very well/);
+    expect(heardByClaude).toEqual([]);
+    const moon = await ask('do you deliver to the moon');
+    expect(moon.json()).toMatchObject({
+      reply: 'Not yet. We stay on this planet.',
+      understood: { kind: 'question' },
+    });
+    const rows = await remembered();
+    expect(rows[0]).toMatchObject({
+      brain: 'claude',
+      outcome: 'answered',
+      heard: 'do you deliver to the moon',
+    });
+    expect(await harness.repository.learned.list('waiting')).toHaveLength(1);
+  });
+
+  it('hears shopping the parser cannot, and hands it back for the app to shop', async () => {
+    await withBrain();
+    const flour = await ask("I've run out of flour");
+    expect(flour.json()).toEqual({
+      reply: null,
+      understood: {
+        kind: 'items',
+        items: [{ name: 'milk', quantity: 2, brand: null, detail: null }],
+        reply: null,
+      },
+    });
+    const rows = await remembered();
+    expect(rows[0]).toMatchObject({ brain: 'claude', said: '[items: 2 milk]' });
+    // Shopping is not a question for the Learning list.
+    expect(await harness.repository.learned.list('waiting')).toHaveLength(0);
+  });
+
+  it('on the telephone, shops for what Claude heard and ends on a "done" it heard', async () => {
+    await withBrain();
+    const shopper = await signUpShopper(harness, { displayName: 'Margaret Ade' });
+    await harness.repository.shoppers.update(shopper.shopperId, {
+      deliveryAddress: '1 High Street, London',
+    });
+    const twilio = (path: string, params: Record<string, string>) =>
+      harness.app.inject({
+        method: 'POST',
+        url: path,
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+          'x-twilio-signature': twilioSignature(TOKEN, `${ORIGIN}${path}`, params),
+        },
+        payload: new URLSearchParams(params).toString(),
+      });
+    const nextStep = (twiml: string): string =>
+      (/action="([^"]+)"/.exec(twiml)?.[1] ?? '').replace(/&amp;/g, '&').replace(ORIGIN, '');
+    const spoken = (twiml: string): string =>
+      [...twiml.matchAll(/<Say[^>]*>([^<]*)<\/Say>/g)].map((m) => m[1]).join(' ');
+    const call = { CallSid: 'CA69', From: '+447700900001', Direction: 'inbound' };
+    const hello = await twilio('/api/webhooks/twilio/voice', call);
+    const added = await twilio(nextStep(hello.body), {
+      ...call,
+      SpeechResult: "I've run out of flour again",
+    });
+    expect(spoken(added.body)).toMatch(/I've added 2 Semi skimmed milk/);
+    const done = await twilio(nextStep(added.body), { ...call, SpeechResult: "I'm finished now" });
+    expect(spoken(done.body)).toMatch(/Here is your order/);
+    const rows = await harness.repository.memory.list({ channel: 'phone', limit: 10 });
+    expect(rows.map((row) => row.brain)).toContain('claude');
   });
 });

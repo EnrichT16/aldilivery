@@ -5,6 +5,7 @@ import { deliveryFeePence, itemChargesForLines, overOneRunnerWords } from '@aldi
 
 import { storeConfig } from '../config';
 import {
+  askOzi,
   createOrder,
   listPaymentMethods,
   recordExchange,
@@ -12,6 +13,7 @@ import {
   type CatalogueItem,
   type ExchangeBrain,
   type ExchangeOutcome,
+  type OziUnderstanding,
 } from '../lib/api';
 import { money, sellable, shownPrice, tooDearWords } from '../lib/money';
 import { completeBankCheck } from '../lib/stripe';
@@ -20,7 +22,6 @@ import type { SpeakOutcome } from '../voice';
 import { useBasket } from './basket';
 import { useSession } from './session';
 import { NAME_PATTERN, nameHeardIn } from '../voice/name';
-import { phraseReply } from '../voice/phrases';
 import {
   findSmallTalk,
   looksLikeChatter,
@@ -83,7 +84,21 @@ interface Picked {
 /** How long the words after "What would you like?" count as an order, whatever they are. */
 export const EXPECT_ORDER_MS = 30_000;
 
-const ORDER_INTENT = /\b(order|want|like|need|get|buy|have|bring|send|shopping|basket)\b/i;
+const ORDER_INTENT =
+  /\b(order|want|like|need|get|buy|have|bring|send|shopping|basket|grab|pick up|purchase|fetch|add|run out|ran out)\b/i;
+/** How long the app waits for the server's phrase book and Claude before going on alone. */
+const ASK_WAIT_MS = 4500;
+/**
+ * A sentence the parser would chop badly, so Claude hears it whole (ruling 69): a reason
+ * given ("I've run out of"), a request wrapped in politeness, or a long sentence.
+ */
+function needsEars(text: string): boolean {
+  return (
+    /\b(run out|ran out|because|i've|i have|could you|would you|can you|for me|please)\b/i.test(
+      text,
+    ) || text.trim().split(/\s+/).length > 9
+  );
+}
 
 /** "two bananas" asks for two; "bananas" asks for some. */
 function leadingQuantity(term: string): { quantity: number | null; name: string } {
@@ -182,6 +197,27 @@ export function useVoiceOrdering(
     return false;
   }, []);
 
+  // What Claude heard in the last sentence, when the parser saw nothing (ruling 69).
+  const heardItems = useRef<OziUnderstanding | null>(null);
+
+  /** The server's phrase book, then Claude, for a sentence looked within (rulings 49, 69). */
+  const askWithin = useCallback(
+    async (
+      text: string,
+    ): Promise<{ reply: string | null; understood?: OziUnderstanding } | null> => {
+      const basket = live.current.basket.lines.map((line) => line.item.name);
+      try {
+        return await Promise.race([
+          askOzi(text, 'within', chatterTurn.current, { kind: 'shopper' }, basket),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), ASK_WAIT_MS)),
+        ]);
+      } catch {
+        return null;
+      }
+    },
+    [],
+  );
+
   /**
    * Words that are not shopping (ruling 66). Small talk gets its warm reply. Anything else
    * shaped like a sentence to a person is sent to the server once, which answers it if it is
@@ -198,11 +234,16 @@ export function useVoiceOrdering(
         return true;
       }
       if (!looksLikeChatter(text) || (await anyInCatalogue(items))) return false;
-      const known = await phraseReply(text, chatterTurn.current, 'within', { kind: 'shopper' });
+      const answer = await askWithin(text);
       chatterTurn.current += 1;
-      if (known) {
+      if (answer?.reply) {
         // The server keeps this one itself, with the words it answered.
-        return (await say(known), true);
+        return (await say(answer.reply), true);
+      }
+      // Claude heard shopping in it (ruling 69): "I've run out of flour" is an order.
+      if (answer?.understood && answer.understood.items.length > 0) {
+        heardItems.current = answer.understood;
+        return false;
       }
       if (quiet.current.quiet()) return true;
       quiet.current.start();
@@ -406,10 +447,29 @@ export function useVoiceOrdering(
           if (!isExpecting() && !addressed && !ORDER_INTENT.test(text)) return false;
           // Small talk and general statements are not shopping (ruling 66): "how are you
           // doing" is answered warmly, never with "I haven't added how are you doing".
-          const { items, shopAskedFor } = splitItems(text, NAME_PATTERN);
-          if (await chatter(text, items)) return true;
+          const parsed = splitItems(text, NAME_PATTERN);
+          heardItems.current = null;
+          if (await chatter(text, parsed.items)) return true;
           expectingUntil.current = null;
           quiet.current.clear();
+          // Claude's hearing of the sentence, when the parser's would miss (ruling 69).
+          let { items } = parsed;
+          const { shopAskedFor } = parsed;
+          if (heardItems.current === null && (items.length === 0 || needsEars(text))) {
+            const answer = await askWithin(text);
+            if (answer?.understood && answer.understood.items.length > 0) {
+              heardItems.current = answer.understood;
+            } else if (answer?.reply) {
+              note.current = { brain: 'claude', outcome: 'answered' };
+              await say(answer.reply);
+              return true;
+            }
+          }
+          if (heardItems.current) {
+            note.current = { brain: 'claude', outcome: 'asked' };
+            items = heardItems.current.items.map((item) => `${item.quantity} ${item.name}`);
+            heardItems.current = null;
+          }
           if (!live.current.shopper) {
             if (offerAccount) {
               offerAccount();

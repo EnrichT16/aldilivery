@@ -271,6 +271,18 @@ services:
         type: SECRET
         value: replace_with_the_oluoma_voice_key
 
+      # Claude behind Ozi (ruling 69): asked only when the phrase book and the shopping parser
+      # give up. Make the key at console.anthropic.com with a monthly spend limit; without it
+      # Claude is off and everything else works as before.
+      - key: ANTHROPIC_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: replace_with_the_anthropic_api_key
+
+      - key: ANTHROPIC_MODEL
+        scope: RUN_TIME
+        value: claude-haiku-5-5
+
 # ---------------------------------------------------------------------------
 # The web app
 # ---------------------------------------------------------------------------

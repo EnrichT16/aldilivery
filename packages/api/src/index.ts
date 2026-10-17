@@ -19,6 +19,7 @@ import { rehearsalGateway, stripeGateway, type PaymentsGateway } from './lib/pay
 import { livekitProvider } from './lib/livekit.js';
 import { loadShopsSeed } from './lib/shops-seed.js';
 import { oluomaVoice } from './lib/oluoma-voice.js';
+import { claudeBrain } from './lib/claude-brain.js';
 import { webPushSender } from './lib/push.js';
 import { callScript, codeMessage, senderName, twilioCaller, twilioSender } from './lib/sms.js';
 import { twilioDialler } from './lib/twilio-voice.js';
@@ -133,10 +134,16 @@ async function main(): Promise<void> {
       ? oluomaVoice({ url: env.oluomaVoiceUrl, key: env.oluomaVoiceKey })
       : null;
 
+  // Claude behind Ozi (ruling 69), when the key is real. The key never leaves this server.
+  const brain = env.anthropicApiKey
+    ? claudeBrain({ apiKey: env.anthropicApiKey, model: env.anthropicModel, config })
+    : null;
+
   const app = await buildApp({
     config,
     calls,
     voice,
+    brain,
     repository,
     payments,
     env,
@@ -182,6 +189,14 @@ async function main(): Promise<void> {
     app.log.info(
       'In-app calls are off: LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET are not all set.',
     );
+  }
+
+  if (!brain) {
+    app.log.info(
+      'Claude is off: ANTHROPIC_API_KEY is not set. The phrase book and the shopping parser work alone.',
+    );
+  } else {
+    app.log.info(`Claude is on behind ${config.assistantName}: ${brain.model}.`);
   }
 
   if (!voice) {

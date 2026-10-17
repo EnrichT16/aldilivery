@@ -25,6 +25,7 @@
   },
   "dependencies": {
     "@aldilivery/core": "workspace:*",
+    "@anthropic-ai/sdk": "^0.135.0",
     "@fastify/cors": "^10.0.1",
     "@prisma/client": "^6.1.0",
     "dotenv": "^16.4.7",

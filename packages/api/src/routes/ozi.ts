@@ -16,6 +16,7 @@ import type { LearnedPhrase, PartnerShop } from '../domain.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../errors.js';
 import { businessActor } from '../lib/business.js';
 import { bannedList, containsBanned, fitToKeep } from '../lib/banned.js';
+import { itemWords } from '../lib/claude-brain.js';
 import {
   BRAINS,
   CHANNELS,
@@ -46,6 +47,8 @@ const body = z.object({
   turn: z.number().int().min(0).max(1_000_000).default(0),
   /** The app's own id for this visit, so a conversation's turns read together (ruling 68). */
   conversation: z.string().trim().min(1).max(80).optional(),
+  /** What is in the basket, in words, so Claude understands "take off the milk" (ruling 69). */
+  basket: z.array(z.string().trim().max(80)).max(40).optional(),
 });
 
 /** What the app said back on its own, for Ozi's memory (ruling 68). */
@@ -225,7 +228,8 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
   }
 
   app.post('/ozi/reply', async (request) => {
-    const { text, mode, turn, conversation } = body.parse(request.body ?? {});
+    const input = body.parse(request.body ?? {});
+    const { text, mode, turn, conversation } = input;
     const account = await accountOf(request);
     // Which shops are on here, and whether there is a barber (ruling 65): answered from what is
     // listed right now, in the words of the phrases file, never with a shop's name in code.
@@ -263,19 +267,50 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
     if (containsBanned(text, banned)) {
       return { reply: "I'm here to help with your shopping. Let's keep it kind." };
     }
-    keep(request, account, conversation, turn, text, null, 'none', 'unanswered');
     const said = withoutName(text, {
       product: config.productName,
       assistant: config.assistantName,
       heardAs: config.assistantHeardAs,
     });
-    if (fitToKeep(said, banned)) {
+    const keepForLearning = (): void => {
+      if (!fitToKeep(said, banned)) return;
       void repository.learned
         .heard({ account, text: said, at: now() })
         .catch((failure: unknown) => {
           request.log.warn({ err: failure }, 'Could not keep an unanswered question.');
         });
+    };
+    // Claude behind Ozi (ruling 69): asked only now, when the phrase book has nothing. It
+    // either hears shopping in the words, which the app shops for as it would any list, or
+    // gives one short answer within Ozi's purpose. Its answers still go to the Learning list,
+    // so a person approves them before they become phrases. Too slow, and it is as if absent.
+    const understood = await app.ctx.brain?.understand({
+      text,
+      account,
+      channel: 'app',
+      ...(input.basket ? { basket: input.basket } : {}),
+    });
+    if (understood && (understood.kind === 'items' || understood.kind === 'remove')) {
+      if (understood.items.length > 0) {
+        keep(
+          request,
+          account,
+          conversation,
+          turn,
+          text,
+          `[${understood.kind}: ${understood.items.map(itemWords).join(', ')}]`,
+          'claude',
+          'answered',
+        );
+        return { reply: null, understood };
+      }
+    } else if (understood?.reply && !containsBanned(understood.reply, banned)) {
+      keep(request, account, conversation, turn, text, understood.reply, 'claude', 'answered');
+      keepForLearning();
+      return { reply: understood.reply, understood };
     }
+    keep(request, account, conversation, turn, text, null, 'none', 'unanswered');
+    keepForLearning();
     return { reply: null };
   });
 
