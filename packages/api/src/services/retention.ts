@@ -39,6 +39,9 @@ export const KEEP_DAYS = {
   analytics: 3 * 365,
   orders: 7 * 365 + 2,
   runnerChecksAfterLeaving: 2 * 365,
+  /** Ozi's memory (ruling 68): exchanges nobody judged go after six months, judged ones after three years. */
+  exchangesUnrated: 180,
+  exchangesRated: 3 * 365,
 } as const;
 
 /** An order still on its way: its account is not removed until it is finished. */
@@ -61,6 +64,7 @@ export interface RetentionReport {
   problemEvidenceRemoved: number;
   signInCodesRemoved: number;
   analyticsRemoved: number;
+  exchangesRemoved: number;
   ordersAnonymised: number;
   receiptPhotosRemoved: number;
 }
@@ -127,7 +131,10 @@ export async function eraseLeftRunners(
       await ctx.repository.retention.eraseRunner(runner.id, at);
       removed += 1;
     } catch (failure) {
-      log?.error({ err: failure, runnerId: runner.id }, 'A closed Runner account could not be removed.');
+      log?.error(
+        { err: failure, runnerId: runner.id },
+        'A closed Runner account could not be removed.',
+      );
     }
   }
   return { removed, waiting };
@@ -184,6 +191,17 @@ export async function sweepRetention(
     analyticsRemoved: await step('analytics', () =>
       retention.deleteAnalyticsBefore(before(at, KEEP_DAYS.analytics)),
     ),
+    exchangesRemoved: await step("Ozi's memory", async () => {
+      const unrated = await retention.deleteExchangesBefore(
+        before(at, KEEP_DAYS.exchangesUnrated),
+        'unrated',
+      );
+      const rated = await retention.deleteExchangesBefore(
+        before(at, KEEP_DAYS.exchangesRated),
+        'all',
+      );
+      return unrated + rated;
+    }),
     receiptPhotosRemoved: await step('receipt photos', () =>
       retention.deleteReceiptPhotosBefore(ordersBefore),
     ),

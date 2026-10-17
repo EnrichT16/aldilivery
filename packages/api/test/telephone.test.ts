@@ -173,7 +173,10 @@ describe('the telephone line', () => {
     const call = { CallSid: 'CA4', From: '+447700900001' };
     const hello = await twilio('/api/webhooks/twilio/voice', call);
     const asked = await twilio(nextStep(hello.body), { ...call, SpeechResult: 'red wine' });
-    expect(spoken(asked.body)).toMatch(/I couldn't find red wine/);
+    // Nothing is added; since ruling 68 the line answers from the phrase book, so the caller
+    // hears why rather than "I couldn't find red wine".
+    expect(spoken(asked.body)).toMatch(/I do not carry alcohol/);
+    expect(spoken(asked.body)).not.toMatch(/I've added/);
   });
 
   it('asks a stranger to keep their number, then their name, and texts the sign-up link', async () => {

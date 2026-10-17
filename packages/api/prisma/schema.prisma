@@ -1234,6 +1234,30 @@ model LearnedPhrase {
   @@index([status, timesHeard])
 }
 
+/// Ozi's memory (17 October 2026, ruling 68): every exchange on every channel, what was heard and
+/// what was said, with the verdicts people give it. Numbers, emails, postcodes and codes are
+/// blanked before a row is written; the conversation is a one-way code, never a number.
+model OziExchange {
+  id              String    @id @default(cuid())
+  at              DateTime  @default(now())
+  channel         String
+  account         String
+  conversationKey String
+  turn            Int       @default(0)
+  heard           String
+  said            String
+  brain           String
+  outcome         String
+  verdict         String    @default("unrated")
+  betterReply     String?
+  ratedBy         String?
+  ratedAt         DateTime?
+
+  @@index([at])
+  @@index([verdict, at])
+  @@index([channel, at])
+}
+
 /// A Runner pressing SOS (Section M): where they are, kept up to date while it is on, and a
 /// private link for the owner that stops working. Never anything about the Shopper's phone.
 model RunnerSos {

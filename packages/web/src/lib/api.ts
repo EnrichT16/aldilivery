@@ -2594,10 +2594,126 @@ export function askOzi(
   turn: number,
   as: OziAsker,
 ): Promise<{ reply: string | null }> {
-  const init: RequestInit = { method: 'POST', body: JSON.stringify({ text, mode, turn }) };
+  const init: RequestInit = {
+    method: 'POST',
+    body: JSON.stringify({ text, mode, turn, conversation: conversationId() }),
+  };
   if (as.kind === 'staff') return staffRequest(as.key, '/ozi/reply', init);
   if (as.kind === 'business') return businessRequest('/ozi/reply', init);
   return request('/ozi/reply', init, as.kind);
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * Ozi's memory (ruling 68): what the app heard and what it said back, kept on the server so
+ * a person can judge each answer and a language model can learn from it later.
+ * ------------------------------------------------------------------------------------- */
+
+export type ExchangeBrain =
+  'phrases' | 'learned' | 'small-talk' | 'shops' | 'shopping' | 'flow' | 'none';
+export type ExchangeOutcome =
+  | 'answered'
+  | 'unanswered'
+  | 'added'
+  | 'not-found'
+  | 'asked'
+  | 'sent'
+  | 'stopped'
+  | 'refused'
+  | 'ended';
+
+let conversation: string | null = null;
+/** One id for this visit, made in the app and never kept beyond it; the server one-way codes it. */
+export function conversationId(): string {
+  if (conversation === null) {
+    const random =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    conversation = `visit:${random}`;
+  }
+  return conversation;
+}
+
+/**
+ * Tells the server what the app said on its own. Fire and forget: a conversation is never
+ * slowed down or stopped by its memory, so nothing here waits and nothing here throws.
+ */
+export function recordExchange(
+  input: {
+    heard: string;
+    said: string;
+    brain: ExchangeBrain;
+    outcome: ExchangeOutcome;
+    turn: number;
+  },
+  as: OziAsker = { kind: 'shopper' },
+): void {
+  try {
+    const init: RequestInit = {
+      method: 'POST',
+      body: JSON.stringify({ ...input, conversation: conversationId() }),
+      keepalive: true,
+    };
+    const sent =
+      as.kind === 'staff'
+        ? staffRequest<{ ok: boolean }>(as.key, '/ozi/heard', init)
+        : as.kind === 'business'
+          ? businessRequest<{ ok: boolean }>('/ozi/heard', init)
+          : request<{ ok: boolean }>('/ozi/heard', init, as.kind);
+    void sent.catch(() => undefined);
+  } catch {
+    // Nothing: memory never gets in the way of talking.
+  }
+}
+
+export interface ExchangeRow {
+  id: string;
+  at: string;
+  channel: 'app' | 'phone' | 'text';
+  account: string;
+  conversation: string;
+  turn: number;
+  heard: string;
+  said: string;
+  brain: ExchangeBrain | string;
+  outcome: ExchangeOutcome | string;
+  verdict: 'unrated' | 'right' | 'wrong';
+  betterReply: string | null;
+  ratedBy: string | null;
+}
+
+export interface MemoryCounts {
+  total: number;
+  unrated: number;
+  right: number;
+  wrong: number;
+}
+
+export function fetchMemory(
+  key: string,
+  where: { verdict?: 'unrated' | 'right' | 'wrong'; channel?: 'app' | 'phone' | 'text' } = {},
+): Promise<{ counts: MemoryCounts; exchanges: ExchangeRow[] }> {
+  const query = new URLSearchParams();
+  if (where.verdict) query.set('verdict', where.verdict);
+  if (where.channel) query.set('channel', where.channel);
+  const tail = query.toString();
+  return staffRequest(key, `/staff/memory${tail ? `?${tail}` : ''}`);
+}
+
+export function judgeExchange(
+  key: string,
+  id: string,
+  verdict: { verdict: 'right' | 'wrong'; betterReply?: string },
+): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/memory/${encodeURIComponent(id)}`, {
+    method: 'POST',
+    body: JSON.stringify(verdict),
+  });
+}
+
+/** The owner's training export: one JSON line per exchange. */
+export function fetchMemoryExport(key: string): Promise<{ count: number; lines: string[] }> {
+  return staffRequest(key, '/staff/memory/export');
 }
 
 /* ------------------------------------------------------------------------------------- *

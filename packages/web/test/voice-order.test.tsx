@@ -197,6 +197,28 @@ describe('understanding a spoken order', () => {
 });
 
 describe('ordering by voice alone', () => {
+  it("tells the server what it heard and what it said, for Ozi's memory (ruling 68)", async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const sent = stubShop();
+    renderApp();
+
+    expect(await say(engine, "I'd like bananas")).toBe('How many Bananas, loose would you like?');
+    await waitFor(() => {
+      const kept = sent.filter((r) => r.method === 'POST' && r.path === '/ozi/heard');
+      expect(kept.length).toBeGreaterThan(0);
+      expect(kept[kept.length - 1]!.body).toMatchObject({
+        heard: "I'd like bananas",
+        said: 'How many Bananas, loose would you like?',
+        brain: 'shopping',
+        outcome: 'asked',
+      });
+      expect((kept[kept.length - 1]!.body as { conversation: string }).conversation).toMatch(
+        /^visit:/,
+      );
+    });
+  });
+
   it('asks which and how many, reads it back with the address, and sends it on a second yes', async () => {
     const engine = fakeEngine();
     setVoiceEngine(engine);

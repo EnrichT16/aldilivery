@@ -4,7 +4,15 @@ import { useNavigate } from 'react-router-dom';
 import { deliveryFeePence, itemChargesForLines, overOneRunnerWords } from '@aldilivery/core';
 
 import { storeConfig } from '../config';
-import { createOrder, listPaymentMethods, searchCatalogue, type CatalogueItem } from '../lib/api';
+import {
+  createOrder,
+  listPaymentMethods,
+  recordExchange,
+  searchCatalogue,
+  type CatalogueItem,
+  type ExchangeBrain,
+  type ExchangeOutcome,
+} from '../lib/api';
 import { money, sellable, shownPrice, tooDearWords } from '../lib/money';
 import { completeBankCheck } from '../lib/stripe';
 import { parseChoice, parseQuantity, parseYesNo, splitItems, wantsToStop } from '../voice/ordering';
@@ -106,11 +114,35 @@ export interface VoiceOrdering {
 }
 
 export function useVoiceOrdering(
-  say: (text: string) => Promise<SpeakOutcome>,
+  speak: (text: string) => Promise<SpeakOutcome>,
   /** No account yet: Ozi asks whether to open one now, by talking. */
   offerAccount?: () => void,
 ): VoiceOrdering {
   const { shopper } = useSession();
+  // Ozi's memory (ruling 68): everything said here is kept with the words it answered, which
+  // part of Ozi decided, and how it went. Recording never waits and never fails the talking.
+  const lastHeard = useRef('');
+  const turn = useRef(0);
+  const note = useRef<{ brain: ExchangeBrain; outcome: ExchangeOutcome }>({
+    brain: 'flow',
+    outcome: 'asked',
+  });
+  const say = useCallback(
+    async (text: string): Promise<SpeakOutcome> => {
+      const outcome = await speak(text);
+      recordExchange({
+        heard: lastHeard.current,
+        said: text,
+        brain: note.current.brain,
+        outcome: note.current.outcome,
+        turn: turn.current,
+      });
+      turn.current += 1;
+      note.current = { brain: 'flow', outcome: 'asked' };
+      return outcome;
+    },
+    [speak],
+  );
   const basket = useBasket();
   const navigate = useNavigate();
   const shop = storeConfig.store.displayName;
@@ -160,6 +192,7 @@ export function useVoiceOrdering(
     async (text: string, items: string[]): Promise<boolean> => {
       const small = findSmallTalk(text);
       if (small) {
+        note.current = { brain: 'small-talk', outcome: 'answered' };
         await say(smallTalkReply(small, chatterTurn.current));
         chatterTurn.current += 1;
         return true;
@@ -168,12 +201,13 @@ export function useVoiceOrdering(
       const known = await phraseReply(text, chatterTurn.current, 'within', { kind: 'shopper' });
       chatterTurn.current += 1;
       if (known) {
-        await say(known);
-        return true;
+        // The server keeps this one itself, with the words it answered.
+        return (await say(known), true);
       }
       if (quiet.current.quiet()) return true;
       quiet.current.start();
       expectNow();
+      note.current = { brain: 'none', outcome: 'unanswered' };
       await say(smallTalk.nudge);
       return true;
     },
@@ -214,6 +248,7 @@ export function useVoiceOrdering(
     async (notes: string, options: { alreadyInBasket?: boolean } = {}) => {
       if (picked.current.length === 0) {
         reset();
+        note.current = { brain: 'shopping', outcome: 'not-found' };
         await say(`${notes}I haven't added anything, so there is no order.`);
         return;
       }
@@ -355,9 +390,12 @@ export function useVoiceOrdering(
   const handle = useCallback(
     async (text: string): Promise<boolean> => {
       const current = stage.current;
+      lastHeard.current = text;
+      note.current = { brain: current.kind === 'idle' ? 'shopping' : 'flow', outcome: 'asked' };
 
       if (current.kind !== 'idle' && wantsToStop(text)) {
         reset();
+        note.current = { brain: 'flow', outcome: 'stopped' };
         await say("All right, I've stopped. Nothing has been sent, and nothing has been charged.");
         return true;
       }
@@ -517,6 +555,7 @@ export function useVoiceOrdering(
               return true;
             }
             live.current.basket.clear();
+            note.current = { brain: 'flow', outcome: 'sent' };
             await say(`${result.message} You can follow it on the Your order page.`);
             navigate('/my-order');
           } catch (failure) {
@@ -541,6 +580,8 @@ export function useVoiceOrdering(
 
   const sendBasket = useCallback(async () => {
     const { shopper: who, basket: current } = live.current;
+    lastHeard.current = '';
+    note.current = { brain: 'flow', outcome: 'asked' };
     if (!who) {
       if (offerAccount) offerAccount();
       else await say('To send an order, you need an account first. Say "create my account".');

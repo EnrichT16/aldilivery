@@ -59,6 +59,7 @@ import type {
   ReferralReward,
   SetItem,
   Shopper,
+  OziExchange,
 } from '../domain.js';
 import type { OrderStatus } from '@aldilivery/core';
 
@@ -628,10 +629,33 @@ export interface Repository {
     heard(input: { account: string; text: string; at: Date }): Promise<void>;
     list(status: LearnedPhrase['status']): Promise<LearnedPhrase[]>;
     findById(id: string): Promise<LearnedPhrase | null>;
+    findByText(account: string, text: string): Promise<LearnedPhrase | null>;
     decide(
       id: string,
       patch: Pick<LearnedPhrase, 'status' | 'reply' | 'decidedBy' | 'decidedAt'>,
     ): Promise<LearnedPhrase>;
+  };
+
+  /**
+   * Ozi's memory (ruling 68): every exchange, for people to judge in the admin panel and for a
+   * language model to learn from later. Written once; only the verdict is ever changed.
+   */
+  memory: {
+    remember(input: Omit<OziExchange, 'id'>): Promise<OziExchange>;
+    /** Newest first. */
+    list(where: {
+      verdict?: OziExchange['verdict'];
+      channel?: OziExchange['channel'];
+      limit: number;
+    }): Promise<OziExchange[]>;
+    findById(id: string): Promise<OziExchange | null>;
+    judge(
+      id: string,
+      patch: Pick<OziExchange, 'verdict' | 'betterReply' | 'ratedBy' | 'ratedAt'>,
+    ): Promise<OziExchange>;
+    /** Oldest first, from a moment: the training export. */
+    listSince(since: Date, limit: number): Promise<OziExchange[]>;
+    counts(): Promise<{ total: number; unrated: number; right: number; wrong: number }>;
   };
 
   income: {
@@ -680,6 +704,8 @@ export interface Repository {
     deleteProblemEvidenceDecidedBefore(before: Date): Promise<number>;
     /** Business analysis records from before a moment. */
     deleteAnalyticsBefore(before: Date): Promise<number>;
+    /** Ozi's memory from before a moment: only the rows nobody judged, or every row. */
+    deleteExchangesBefore(before: Date, only: 'unrated' | 'all'): Promise<number>;
     /** Sign-in codes made before a moment: the security record of signing in. */
     deleteSignInCodesBefore(before: Date): Promise<number>;
     /** Orders placed before a moment: the address and doorstep words taken off, money kept. */

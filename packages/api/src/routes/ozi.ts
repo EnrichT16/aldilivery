@@ -13,9 +13,18 @@ import { PARTNER_KIND_WORDS } from '@aldilivery/core';
 import { z } from 'zod';
 
 import type { LearnedPhrase, PartnerShop } from '../domain.js';
-import { BadRequestError, NotFoundError } from '../errors.js';
+import { BadRequestError, ForbiddenError, NotFoundError } from '../errors.js';
 import { businessActor } from '../lib/business.js';
 import { bannedList, containsBanned, fitToKeep } from '../lib/banned.js';
+import {
+  BRAINS,
+  CHANNELS,
+  OUTCOMES,
+  remember,
+  trainingLine,
+  type Brain,
+  type Outcome,
+} from '../lib/ozi-memory.js';
 import {
   fillIn,
   normalise,
@@ -35,7 +44,28 @@ const body = z.object({
   text: z.string().trim().min(1).max(300),
   mode: z.enum(['exact', 'within']),
   turn: z.number().int().min(0).max(1_000_000).default(0),
+  /** The app's own id for this visit, so a conversation's turns read together (ruling 68). */
+  conversation: z.string().trim().min(1).max(80).optional(),
 });
+
+/** What the app said back on its own, for Ozi's memory (ruling 68). */
+const heardBody = z.object({
+  heard: z.string().trim().max(300).default(''),
+  said: z.string().trim().min(1).max(600),
+  brain: z.enum(BRAINS),
+  outcome: z.enum(OUTCOMES),
+  conversation: z.string().trim().min(1).max(80),
+  turn: z.number().int().min(0).max(1_000_000).default(0),
+});
+
+/**
+ * The live phrase book of each server, so the telephone line answers from the same book as the
+ * app, learned answers included.
+ */
+const BOOKS = new WeakMap<FastifyInstance, PhraseBook>();
+export function liveBook(app: FastifyInstance): PhraseBook {
+  return BOOKS.get(app) ?? phraseBook(app.ctx.env.storeConfigPath);
+}
 
 function has(request: FastifyRequest, name: string): boolean {
   const value = request.headers[name];
@@ -87,8 +117,37 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
     ) as PhraseBook['collections'],
   };
   const banned = bannedList(env.storeConfigPath);
+  BOOKS.set(app, book);
   // Answers people approved before this server started (ruling 49).
   for (const learned of await repository.learned.list('approved')) teach(book, learned);
+
+  /** One line in Ozi's memory (ruling 68), never in the way of the answer. */
+  function keep(
+    request: FastifyRequest,
+    account: PhraseAccount,
+    conversation: string | undefined,
+    turn: number,
+    heard: string,
+    said: string | null,
+    brain: Brain,
+    outcome: Outcome,
+  ): void {
+    void remember(
+      app.ctx,
+      {
+        channel: 'app',
+        account,
+        conversation: conversation ?? `app:${account}`,
+        turn,
+        heard,
+        said: said ?? '',
+        brain,
+        outcome,
+      },
+      request.log,
+      banned,
+    );
+  }
 
   const names = {
     product: config.productName,
@@ -166,7 +225,7 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
   }
 
   app.post('/ozi/reply', async (request) => {
-    const { text, mode, turn } = body.parse(request.body ?? {});
+    const { text, mode, turn, conversation } = body.parse(request.body ?? {});
     const account = await accountOf(request);
     // Which shops are on here, and whether there is a barber (ruling 65): answered from what is
     // listed right now, in the words of the phrases file, never with a shop's name in code.
@@ -186,16 +245,25 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
             shopsForKind: found.length > 0 ? namesWords(found) : 'the Local shops page',
           },
         );
-        if (reply) return { reply };
+        if (reply) {
+          keep(request, account, conversation, turn, text, reply, 'shops', 'answered');
+          return { reply };
+        }
       }
     }
     const reply = phraseReply(text, turn, mode, account, config, book, live);
-    if (reply || mode !== 'within') return { reply };
+    if (reply) {
+      keep(request, account, conversation, turn, text, reply, 'phrases', 'answered');
+      return { reply };
+    }
+    // An exact look-up that found nothing is the app checking before it shops: not a turn.
+    if (mode !== 'within') return { reply };
     // Said to Ozi, and not understood. Swearing is answered kindly and forgotten at once;
     // anything else fit to keep goes to the list for a person to approve an answer.
     if (containsBanned(text, banned)) {
       return { reply: "I'm here to help with your shopping. Let's keep it kind." };
     }
+    keep(request, account, conversation, turn, text, null, 'none', 'unanswered');
     const said = withoutName(text, {
       product: config.productName,
       assistant: config.assistantName,
@@ -209,6 +277,32 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         });
     }
     return { reply: null };
+  });
+
+  /**
+   * What the app said on its own (ruling 68): small talk answered in the app, shopping added,
+   * a question asked, an order sent. The app is trusted only for the words; whose Ozi it was
+   * comes from the credentials.
+   */
+  app.post('/ozi/heard', async (request) => {
+    const input = heardBody.parse(request.body ?? {});
+    const account = await accountOf(request);
+    await remember(
+      app.ctx,
+      {
+        channel: 'app',
+        account,
+        conversation: input.conversation,
+        turn: input.turn,
+        heard: input.heard,
+        said: input.said,
+        brain: input.brain,
+        outcome: input.outcome,
+      },
+      request.log,
+      banned,
+    );
+    return { ok: true };
   });
 
   /** Fingerprints of the whole phrases this account's Ozi knows, so the app can skip a wait. */
@@ -268,5 +362,114 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         ? `Approved. Ozi now answers "${decided.text}".`
         : 'Turned down. Ozi will not learn that one.',
     };
+  });
+
+  /* ------------------------------------------------------------- Ozi's memory (ruling 68) */
+
+  const memoryQuery = z.object({
+    verdict: z.enum(['unrated', 'right', 'wrong']).optional(),
+    channel: z.enum(CHANNELS).optional(),
+  });
+
+  /** The latest exchanges, newest first, for a person to judge; the same people as Learning. */
+  app.get('/staff/memory', async (request) => {
+    await staffActor(request, 'learning');
+    const where = memoryQuery.parse(request.query ?? {});
+    const [rows, counts] = await Promise.all([
+      repository.memory.list({ ...where, limit: 200 }),
+      repository.memory.counts(),
+    ]);
+    return {
+      counts,
+      exchanges: rows.map((row) => ({
+        id: row.id,
+        at: row.at,
+        channel: row.channel,
+        account: row.account,
+        conversation: row.conversationKey,
+        turn: row.turn,
+        heard: row.heard,
+        said: row.said,
+        brain: row.brain,
+        outcome: row.outcome,
+        verdict: row.verdict,
+        betterReply: row.betterReply,
+        ratedBy: row.ratedBy,
+      })),
+    };
+  });
+
+  /**
+   * A verdict on one exchange. "Wrong" with a better answer also teaches Ozi: the better answer
+   * goes straight into this account's book (and the owner's), as an approved learned phrase,
+   * so the next person who says the same thing hears it.
+   */
+  app.post('/staff/memory/:id', async (request) => {
+    const actor = await staffActor(request, 'learning');
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const input = z
+      .object({
+        verdict: z.enum(['right', 'wrong']),
+        betterReply: z
+          .string()
+          .trim()
+          .min(2, 'Please write what Ozi should have said.')
+          .max(400, 'Please keep the answer under 400 characters.')
+          .optional(),
+      })
+      .parse(request.body ?? {});
+    const row = await repository.memory.findById(id);
+    if (!row) throw new NotFoundError('exchange');
+    if (input.betterReply && containsBanned(input.betterReply, banned)) {
+      throw new BadRequestError('That answer has a word Ozi will not say.');
+    }
+    const better = input.verdict === 'wrong' ? (input.betterReply ?? null) : null;
+    await repository.memory.judge(id, {
+      verdict: input.verdict,
+      betterReply: better,
+      ratedBy: actor.name,
+      ratedAt: now(),
+    });
+    let taught = false;
+    const account = row.account as PhraseAccount;
+    const said = normalise(withoutName(row.heard, names));
+    if (better && PHRASE_ACCOUNTS.includes(account) && fitToKeep(said, banned)) {
+      await repository.learned.heard({ account, text: said, at: now() });
+      const waiting = await repository.learned.findByText(account, said);
+      if (waiting) {
+        const decided = await repository.learned.decide(waiting.id, {
+          status: 'approved',
+          reply: better,
+          decidedBy: actor.name,
+          decidedAt: now(),
+        });
+        teach(book, decided);
+        taught = true;
+      }
+    }
+    return {
+      message:
+        input.verdict === 'right'
+          ? 'Marked right. Thank you.'
+          : taught
+            ? `Marked wrong. ${config.assistantName} now answers "${said}" with your words.`
+            : better
+              ? 'Marked wrong, and your answer is kept for training. That sentence cannot be taught as a phrase.'
+              : 'Marked wrong.',
+    };
+  });
+
+  /**
+   * The training export, the owner's alone: one line per exchange in the shape language models
+   * are taught from, oldest first, for Okugard Brain or any model plugged in later.
+   */
+  app.get('/staff/memory/export', async (request) => {
+    const actor = await staffActor(request, 'learning');
+    if (!actor.isOwner) throw new ForbiddenError("Only the owner can export Ozi's memory.");
+    const { since } = z
+      .object({ since: z.string().datetime().optional() })
+      .parse(request.query ?? {});
+    const rows = await repository.memory.listSince(since ? new Date(since) : new Date(0), 20_000);
+    return { count: rows.length, lines: rows.map(trainingLine) };
   });
 }

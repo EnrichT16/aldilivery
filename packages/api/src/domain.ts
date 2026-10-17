@@ -1025,3 +1025,33 @@ export interface AuditEntry {
   detail: string;
   ip: string;
 }
+
+/**
+ * One exchange with Ozi (17 October 2026, ruling 68): what was heard, what Ozi said back, which
+ * part of Ozi answered, how it went, and a person's verdict. Ozi's memory, on every channel, is
+ * what people judge in the admin panel and what a language model learns from later.
+ */
+export interface OziExchange {
+  id: string;
+  at: Date;
+  /** The app or website, the telephone line, or a text message. */
+  channel: 'app' | 'phone' | 'text';
+  /** Whose Ozi: shopper, runner, partner, organisation, staff, family, investor, owner. */
+  account: string;
+  /** A one-way code for the conversation (one call, one visit), never a number or a name. */
+  conversationKey: string;
+  turn: number;
+  /** What the person said, with numbers, emails, postcodes and codes blanked. Empty when Ozi spoke first. */
+  heard: string;
+  /** What Ozi said back. */
+  said: string;
+  /** Which part answered: phrases, learned, small-talk, shops, shopping, flow, or none. */
+  brain: string;
+  /** How it went: answered, unanswered, added, not-found, asked, sent, stopped, refused, ended. */
+  outcome: string;
+  verdict: 'unrated' | 'right' | 'wrong';
+  /** What Ozi should have said, written by a person. */
+  betterReply: string | null;
+  ratedBy: string | null;
+  ratedAt: Date | null;
+}

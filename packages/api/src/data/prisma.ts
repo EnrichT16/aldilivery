@@ -950,6 +950,44 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    memory: {
+      async remember(input) {
+        return (await prisma.oziExchange.create({ data: input })) as any;
+      },
+      async list(where) {
+        return (await prisma.oziExchange.findMany({
+          where: {
+            ...(where.verdict ? { verdict: where.verdict } : {}),
+            ...(where.channel ? { channel: where.channel } : {}),
+          },
+          orderBy: { at: 'desc' },
+          take: where.limit,
+        })) as any;
+      },
+      async findById(id) {
+        return (await prisma.oziExchange.findUnique({ where: { id } })) as any;
+      },
+      async judge(id, patch) {
+        return (await prisma.oziExchange.update({ where: { id }, data: patch })) as any;
+      },
+      async listSince(since, limit) {
+        return (await prisma.oziExchange.findMany({
+          where: { at: { gte: since } },
+          orderBy: { at: 'asc' },
+          take: limit,
+        })) as any;
+      },
+      async counts() {
+        const [total, unrated, right, wrong] = await Promise.all([
+          prisma.oziExchange.count(),
+          prisma.oziExchange.count({ where: { verdict: 'unrated' } }),
+          prisma.oziExchange.count({ where: { verdict: 'right' } }),
+          prisma.oziExchange.count({ where: { verdict: 'wrong' } }),
+        ]);
+        return { total, unrated, right, wrong };
+      },
+    },
+
     learned: {
       async heard({ account, text, at }) {
         await prisma.learnedPhrase.upsert({
@@ -967,6 +1005,11 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
       async findById(id) {
         return (await prisma.learnedPhrase.findUnique({ where: { id } })) as any;
+      },
+      async findByText(account, text) {
+        return (await prisma.learnedPhrase.findUnique({
+          where: { account_text: { account, text } },
+        })) as any;
       },
       async decide(id, patch) {
         return (await prisma.learnedPhrase.update({ where: { id }, data: patch })) as any;
@@ -1147,6 +1190,13 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
       async deleteAnalyticsBefore(before) {
         return (await prisma.analyticsEvent.deleteMany({ where: { at: { lt: before } } })).count;
+      },
+      async deleteExchangesBefore(before, only) {
+        return (
+          await prisma.oziExchange.deleteMany({
+            where: { at: { lt: before }, ...(only === 'unrated' ? { verdict: 'unrated' } : {}) },
+          })
+        ).count;
       },
       async deleteSignInCodesBefore(before) {
         return (await prisma.oneTimeCode.deleteMany({ where: { createdAt: { lt: before } } }))
