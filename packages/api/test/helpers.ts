@@ -20,12 +20,15 @@ import {
   type RehearsalGateway,
 } from '../src/lib/payments.js';
 import type { CallProvider } from '../src/lib/livekit.js';
+import type { OziBrain } from '../src/lib/claude-brain.js';
 import type { VoiceEngineLink } from '../src/lib/oluoma-voice.js';
 import type { SendPush } from '../src/lib/push.js';
 
 export const TEST_SECRET = 'test-secret-that-is-long-enough-for-hmac';
 
 export const testEnv: Env = {
+  anthropicApiKey: undefined,
+  anthropicModel: undefined,
   nodeEnv: 'test',
   isProduction: false,
   host: '127.0.0.1',
@@ -111,6 +114,8 @@ export interface TestAppOptions {
   calls?: CallProvider;
   /** Oluoma Voice. Off unless a test hands in a stand-in. */
   voice?: VoiceEngineLink;
+  /** Claude behind Ozi (ruling 69). Off unless a test hands in a stand-in. */
+  brain?: OziBrain;
   /** Settings that differ from `testEnv`, such as a Twilio Auth Token. */
   env?: Partial<Env>;
   /** Ringing someone from our Twilio number. Off unless a test hands in a stand-in. */
@@ -155,6 +160,7 @@ export async function buildTestApp(
     ...(options.sendText ? { sendText: options.sendText } : {}),
     ...(options.calls ? { calls: options.calls } : {}),
     ...(options.voice ? { voice: options.voice } : {}),
+    ...(options.brain ? { brain: options.brain } : {}),
     ...(options.placeCall ? { placeCall: options.placeCall } : {}),
     deliverCode:
       options.deliverCode ??

@@ -24,6 +24,7 @@ import { auditChange } from './lib/audit.js';
 import { addSecurityHeaders, limiter } from './lib/guard.js';
 import type { CallProvider } from './lib/livekit.js';
 import type { VoiceEngineLink } from './lib/oluoma-voice.js';
+import type { OziBrain } from './lib/claude-brain.js';
 import type { PaymentsGateway } from './lib/payments.js';
 import type { SendPush } from './lib/push.js';
 import type { SendText } from './lib/sms.js';
@@ -120,6 +121,11 @@ export interface AppContext {
    * are given; the app then uses the phone's own speech.
    */
   voice: VoiceEngineLink | null;
+  /**
+   * A language model behind Ozi (ruling 69), asked only when the phrase book and the parser
+   * give up. Null without ANTHROPIC_API_KEY; the hand-built parts then work alone.
+   */
+  brain: OziBrain | null;
 }
 
 export interface Session {
@@ -153,6 +159,7 @@ export interface BuildAppOptions extends Partial<
     | 'placeCall'
     | 'calls'
     | 'voice'
+    | 'brain'
   >
 > {
   config: StoreConfig;
@@ -215,6 +222,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     placeCall: options.placeCall ?? null,
     calls: options.calls ?? null,
     voice: options.voice ?? null,
+    brain: options.brain ?? null,
   };
 
   app.decorate('ctx', ctx);
@@ -383,6 +391,8 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
     // Whether Oluoma Voice's two settings are in place (ruling 53). Not whether it answers:
     // asking it from here would make this check depend on another server.
     voiceEnabled: ctx.voice !== null,
+    // Whether a language model stands behind Ozi (ruling 69), and which.
+    brain: ctx.brain ? ctx.brain.model : null,
   }));
 
   /** The public facing configuration the web app is allowed to know about. */

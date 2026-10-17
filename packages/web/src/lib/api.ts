@@ -2588,15 +2588,29 @@ export function fetchKnownPhrases(as: OziAsker): Promise<{ fingerprints: string[
   return request('/ozi/known', undefined, as.kind);
 }
 
+/** What Claude heard in the words when the phrase book had nothing (ruling 69). */
+export interface OziUnderstanding {
+  kind: 'items' | 'question' | 'done' | 'stop' | 'remove' | 'repeat' | 'chatter' | 'unclear';
+  items: Array<{ name: string; quantity: number; brand: string | null; detail: string | null }>;
+  reply: string | null;
+}
+
 export function askOzi(
   text: string,
   mode: 'exact' | 'within',
   turn: number,
   as: OziAsker,
-): Promise<{ reply: string | null }> {
+  basket?: string[],
+): Promise<{ reply: string | null; understood?: OziUnderstanding }> {
   const init: RequestInit = {
     method: 'POST',
-    body: JSON.stringify({ text, mode, turn, conversation: conversationId() }),
+    body: JSON.stringify({
+      text,
+      mode,
+      turn,
+      conversation: conversationId(),
+      ...(basket && basket.length > 0 ? { basket } : {}),
+    }),
   };
   if (as.kind === 'staff') return staffRequest(as.key, '/ozi/reply', init);
   if (as.kind === 'business') return businessRequest('/ozi/reply', init);
@@ -2609,7 +2623,7 @@ export function askOzi(
  * ------------------------------------------------------------------------------------- */
 
 export type ExchangeBrain =
-  'phrases' | 'learned' | 'small-talk' | 'shops' | 'shopping' | 'flow' | 'none';
+  'phrases' | 'learned' | 'small-talk' | 'shops' | 'shopping' | 'flow' | 'claude' | 'none';
 export type ExchangeOutcome =
   | 'answered'
   | 'unanswered'

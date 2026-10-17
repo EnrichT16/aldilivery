@@ -66,6 +66,8 @@ function stubShop(
     shelf?: boolean;
     /** What the server's phrase book answers to a sentence looked within (ruling 49). */
     oziReply?: (text: string) => string | null;
+    /** What Claude hears in a sentence the phrase book had nothing for (ruling 69). */
+    oziHears?: (text: string) => { kind: string; items: unknown[]; reply: string | null } | null;
   } = {},
 ): Sent[] {
   const sent: Sent[] = [];
@@ -132,7 +134,11 @@ function stubShop(
       if (path === '/ozi/known') return reply({ fingerprints: [] });
       if (path === '/ozi/reply') {
         const { text, mode } = body as { text: string; mode: 'exact' | 'within' };
-        return reply({ reply: mode === 'within' ? (options.oziReply?.(text) ?? null) : null });
+        if (mode !== 'within') return reply({ reply: null });
+        const known = options.oziReply?.(text) ?? null;
+        if (known) return reply({ reply: known });
+        const understood = options.oziHears?.(text) ?? null;
+        return reply(understood ? { reply: understood.reply, understood } : { reply: null });
       }
       return reply({ error: { message: `Nothing stubbed for ${method} ${path}` } }, 404);
     }),
@@ -197,6 +203,35 @@ describe('understanding a spoken order', () => {
 });
 
 describe('ordering by voice alone', () => {
+  it('shops for what Claude heard when the parser would have chopped the sentence (ruling 69)', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const sent = stubShop({
+      oziHears: (text) =>
+        /run out of/i.test(text)
+          ? {
+              kind: 'items',
+              items: [{ name: 'bananas', quantity: 6, brand: null, detail: null }],
+              reply: null,
+            }
+          : /moon/i.test(text)
+            ? { kind: 'question', items: [], reply: 'Not yet. We stay on this planet.' }
+            : null,
+    });
+    renderApp();
+    expect(await say(engine, 'Ozi, do you deliver to the moon')).toBe(
+      'Not yet. We stay on this planet.',
+    );
+    expect(await say(engine, "Ozi, I've run out of bananas, could you get me some please")).toMatch(
+      /^Here is your order: 6 Bananas, loose\./,
+    );
+    const asked = sent.filter(
+      (r) => r.path === '/ozi/reply' && (r.body as { mode: string }).mode === 'within',
+    );
+    expect(asked.length).toBeGreaterThan(0);
+    expect((asked[0]!.body as { basket?: string[] }).basket).toBeUndefined();
+  });
+
   it("tells the server what it heard and what it said, for Ozi's memory (ruling 68)", async () => {
     const engine = fakeEngine();
     setVoiceEngine(engine);

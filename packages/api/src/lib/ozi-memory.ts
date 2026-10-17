@@ -28,6 +28,8 @@ export const BRAINS = [
   'shops',
   'shopping',
   'flow',
+  /** A language model (ruling 69). */
+  'claude',
   'none',
 ] as const;
 export type Brain = (typeof BRAINS)[number];
