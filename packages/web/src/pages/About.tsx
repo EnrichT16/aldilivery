@@ -79,10 +79,14 @@ export function About(): JSX.Element {
           Advertise with us
         </h2>
         <p className="m-0">
-          Local shops can join as Shop Partners for {money(extras.partnerMonthlyPence)} a month, and
-          be mentioned by {assistantName} with Spotlight ({money(extras.spotlightPence)} a month) or
-          Spotlight Plus ({money(extras.spotlightPlusPence)} a month). Every mention is called an
-          advert.
+          Local shops join free: the first {extras.partners.freeListingCount} are listed free for
+          ever, with up to {extras.partners.freeProductLimit} products. Partner Plus,{' '}
+          {money(extras.partners.plusMonthlyPence)} a month, adds the full catalogue with photos,
+          and a Partner Plus shop can be mentioned by {assistantName} with Spotlight (
+          {money(extras.spotlightPence)} a month) or Spotlight Plus (
+          {money(extras.spotlightPlusPence)} a month). Every mention is called an advert. Cafés and
+          takeaways pay no monthly fee, only a share of orders placed through us; services are
+          listed free.
         </p>
         <Link to="/business" className="control border-paper bg-paper/10 text-paper">
           Find out more

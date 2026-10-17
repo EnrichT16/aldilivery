@@ -33,6 +33,8 @@ import {
   fetchStaffPartners,
   fetchStaffAnalytics,
   recordStaffPartnerPayment,
+  seedStaffShops,
+  setStaffPartnerState,
   type StaffAnalytics,
   changeStaffPassword,
   checkStaffKey,
@@ -98,6 +100,7 @@ import {
   TwoStepCodes,
   TwoStepRequired,
 } from './StaffAdmin';
+import { storeConfig } from '../config';
 import { money } from '../lib/money';
 import { useOzi } from '../state/ozi';
 import { nameHeardIn } from '../voice/name';
@@ -1989,16 +1992,58 @@ function Partners({
 
       <section aria-labelledby="shops-heading" className="space-y-3">
         <h3 id="shops-heading" className="font-bold m-0">
-          Shop Partners ({money(list.data?.partnerMonthlyPence ?? 0)} a month)
+          Shops, cafés, takeaways and services
         </h3>
+        {list.data && (
+          <p className="m-0">
+            Partner Plus {money(list.data.plusMonthlyPence)} a month; the first{' '}
+            {list.data.freeListingCount} shops listed free for ever ({list.data.freeListed} given),
+            up to {list.data.freeProductLimit} products each; cafés and takeaways{' '}
+            {list.data.foodCommissionWords} of orders through us; services free.
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={() =>
+            void seedStaffShops(staffKey)
+              .then((result) => {
+                onNews(result.message);
+                list.reload();
+              })
+              .catch(fail)
+          }
+          className="control border-paper bg-paper/10 text-paper"
+        >
+          Add the seed shops{list.data ? ` (${list.data.seedShops} in the list)` : ''}
+        </button>
         <ul className="m-0 p-0 list-none space-y-3">
           {list.data?.shops.map((shop) => (
             <li key={shop.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
-              <h4 className="m-0 font-bold">{shop.name}</h4>
+              <h4 className="m-0 font-bold">
+                {shop.name}
+                {shop.status === 'pending' ? ' (waiting to be approved)' : ''}
+                {shop.status === 'removed' ? ' (removed)' : !shop.active ? ' (paused)' : ''}
+              </h4>
               <p className="m-0">
-                {shop.paid && shop.paidUntil
-                  ? `Paid until ${new Date(shop.paidUntil).toLocaleDateString('en-GB')}.`
-                  : 'Not paid: their products are hidden.'}{' '}
+                {shop.kindWords}
+                {shop.area ? `, ${shop.area}` : ''}.{' '}
+                {shop.source === 'staff'
+                  ? 'Added by staff from a paper form. '
+                  : shop.source === 'ozi'
+                    ? `Listed by ${storeConfig.assistantName}, not yet a partner. `
+                    : shop.source === 'claimed'
+                      ? 'Claimed by its owner. '
+                      : 'Joined through the app. '}
+                {shop.contactName ? `Contact ${shop.contactName}. ` : ''}
+                {shop.kind === 'shop'
+                  ? shop.plan === 'plus'
+                    ? shop.paid && shop.paidUntil
+                      ? `Partner Plus, paid until ${new Date(shop.paidUntil).toLocaleDateString('en-GB')}. `
+                      : 'Partner Plus not paid: their products are hidden. '
+                    : `Free listing${shop.freeForever ? ', for ever' : ''}. `
+                  : shop.kind === 'food'
+                    ? 'Commission on orders, no monthly fee. '
+                    : 'Free listing, enquiries only. '}
                 {shop.spotlightActive ? 'On Spotlight. ' : ''}
                 {shop.live} live, {shop.waiting} waiting. Sign-ins:{' '}
                 {shop.users.length
@@ -2007,32 +2052,85 @@ function Partners({
                 .
               </p>
               <div className="flex flex-wrap gap-2">
-                {(
-                  [
-                    ['plan', `Plan, ${money(list.data?.partnerMonthlyPence ?? 0)}`],
-                    ['spotlight', `Spotlight, ${money(list.data?.spotlightPence ?? 0)}`],
-                    ['plus', `Spotlight Plus, ${money(list.data?.spotlightPlusPence ?? 0)}`],
-                  ] as const
-                ).map(([kind, label]) => (
+                {shop.status === 'pending' && (
                   <button
-                    key={kind}
                     type="button"
                     onClick={() =>
-                      void recordStaffPartnerPayment(staffKey, shop.id, kind)
+                      void setStaffPartnerState(staffKey, shop.id, { status: 'approved' })
                         .then(() => {
-                          onNews(
-                            `${shop.name}: a month of ${label.split(',')[0]} recorded as paid.`,
-                          );
+                          onNews(`${shop.name} is approved. Its page is public.`);
+                          list.reload();
+                        })
+                        .catch(fail)
+                    }
+                    className="control bg-highlight text-on-accent"
+                  >
+                    Approve<span className="visually-hidden"> {shop.name}</span>
+                  </button>
+                )}
+                {shop.status !== 'removed' && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void setStaffPartnerState(staffKey, shop.id, { active: !shop.active })
+                        .then(() => {
+                          onNews(`${shop.name} is ${shop.active ? 'paused' : 'back on'}.`);
                           list.reload();
                         })
                         .catch(fail)
                     }
                     className="control border-paper bg-paper/10 text-paper"
                   >
-                    Record a month paid: {label}
-                    <span className="visually-hidden"> for {shop.name}</span>
+                    {shop.active ? 'Pause' : 'Resume'}
+                    <span className="visually-hidden"> {shop.name}</span>
                   </button>
-                ))}
+                )}
+                {shop.status !== 'removed' && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void setStaffPartnerState(staffKey, shop.id, { status: 'removed' })
+                        .then(() => {
+                          onNews(`${shop.name} is removed.`);
+                          list.reload();
+                        })
+                        .catch(fail)
+                    }
+                    className="control bg-paper/10 text-paper underline"
+                  >
+                    Remove<span className="visually-hidden"> {shop.name}</span>
+                  </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ['plan', `Partner Plus, ${money(list.data?.plusMonthlyPence ?? 0)}`],
+                    ['spotlight', `Spotlight, ${money(list.data?.spotlightPence ?? 0)}`],
+                    ['plus', `Spotlight Plus, ${money(list.data?.spotlightPlusPence ?? 0)}`],
+                  ] as const
+                )
+                  .filter(() => shop.kind === 'shop')
+                  .map(([kind, label]) => (
+                    <button
+                      key={kind}
+                      type="button"
+                      onClick={() =>
+                        void recordStaffPartnerPayment(staffKey, shop.id, kind)
+                          .then(() => {
+                            onNews(
+                              `${shop.name}: a month of ${label.split(',')[0]} recorded as paid.`,
+                            );
+                            list.reload();
+                          })
+                          .catch(fail)
+                      }
+                      className="control border-paper bg-paper/10 text-paper"
+                    >
+                      Record a month paid: {label}
+                      <span className="visually-hidden"> for {shop.name}</span>
+                    </button>
+                  ))}
               </div>
               <form
                 onSubmit={(event) => {
@@ -2070,13 +2168,19 @@ function Partners({
             const form = event.currentTarget;
             addStaffPartner(staffKey, {
               name: value('shop-name'),
+              kind: value('shop-kind') as 'shop' | 'food' | 'service',
               address: value('shop-address'),
+              postcode: value('shop-postcode'),
+              hours: value('shop-hours'),
+              contactName: value('shop-contact'),
+              mobile: value('shop-mobile'),
+              email: value('shop-email'),
               telephone: value('shop-telephone'),
               about: value('shop-about'),
-              paidMonths: Number(value('shop-months') || '1'),
+              paidMonths: Number(value('shop-months') || '0'),
             })
               .then(() => {
-                onNews(`${value('shop-name')} added as a Shop Partner.`);
+                onNews(`${value('shop-name')} added, from a paper form, and approved.`);
                 form.reset();
                 list.reload();
               })
@@ -2086,18 +2190,50 @@ function Partners({
           aria-labelledby="add-shop-heading"
         >
           <h4 id="add-shop-heading" className="font-bold m-0">
-            Add a Shop Partner
+            Add a shop
           </h4>
+          <p className="m-0">
+            For a shop that filled in a paper form. It is marked as added by staff from a paper
+            form, and approved at once, because the agreement is on paper.
+          </p>
           <label htmlFor="shop-name" className="block">
-            Shop name
+            Business name
           </label>
           <input id="shop-name" name="shop-name" className={field} />
+          <label htmlFor="shop-kind" className="block">
+            Kind
+          </label>
+          <select id="shop-kind" name="shop-kind" className={field} defaultValue="shop">
+            <option value="shop">Shop</option>
+            <option value="food">Café or takeaway</option>
+            <option value="service">Service</option>
+          </select>
           <label htmlFor="shop-address" className="block">
             Address
           </label>
           <input id="shop-address" name="shop-address" className={field} />
+          <label htmlFor="shop-postcode" className="block">
+            Postcode
+          </label>
+          <input id="shop-postcode" name="shop-postcode" className={field} />
+          <label htmlFor="shop-hours" className="block">
+            Opening hours
+          </label>
+          <input id="shop-hours" name="shop-hours" className={field} />
+          <label htmlFor="shop-contact" className="block">
+            Contact name
+          </label>
+          <input id="shop-contact" name="shop-contact" className={field} />
+          <label htmlFor="shop-mobile" className="block">
+            Mobile (private, never shown)
+          </label>
+          <input id="shop-mobile" name="shop-mobile" type="tel" className={field} />
+          <label htmlFor="shop-email" className="block">
+            Email
+          </label>
+          <input id="shop-email" name="shop-email" type="email" className={field} />
           <label htmlFor="shop-telephone" className="block">
-            Telephone
+            Shop telephone (optional)
           </label>
           <input id="shop-telephone" name="shop-telephone" type="tel" className={field} />
           <label htmlFor="shop-about" className="block">
@@ -2105,13 +2241,13 @@ function Partners({
           </label>
           <input id="shop-about" name="shop-about" className={field} />
           <label htmlFor="shop-months" className="block">
-            Months already paid
+            Months of Partner Plus already paid (0 for a free listing)
           </label>
           <input
             id="shop-months"
             name="shop-months"
             inputMode="numeric"
-            defaultValue="1"
+            defaultValue="0"
             className={field}
           />
           <button type="submit" className="control bg-highlight text-on-accent">

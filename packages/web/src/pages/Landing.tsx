@@ -29,7 +29,7 @@ const DOORS = [
     to: '/business',
     title: 'Shop Partner',
     description:
-      'You have a shop, and want to show your products and prices here. Sign in, or join.',
+      'You have a shop, café, takeaway or service, and want to show your products and prices here. Sign in, or join free.',
   },
   {
     to: '/organisations',

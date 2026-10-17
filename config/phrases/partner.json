@@ -30,8 +30,8 @@
       "topic": "plan",
       "when": ["how much is the plan", "what does the plan cost", "monthly fee"],
       "replies": [
-        "The Shop Partner plan is {partnerPlan} a month.",
-        "{partnerPlan} a month, for your own area, products and page."
+        "A basic listing is free: your name, address, hours and up to {freeProducts} products. Partner Plus is {partnerPlus} a month, for the full catalogue with photos, offers and Shop of the Month, with the first month free.",
+        "Free for a basic listing. Partner Plus, {partnerPlus} a month, gives you the full catalogue with photos."
       ]
     },
     {
@@ -3660,6 +3660,62 @@
       "replies": [
         "It depends on the Runner and the order. Everyday essentials are brought the same day.",
         "Usually soon after a Runner takes the job."
+      ]
+    },
+    {
+      "id": "partner-free-listing",
+      "topic": "plan",
+      "when": [
+        "is the listing free",
+        "what is the free listing",
+        "what do i get free",
+        "is it free"
+      ],
+      "replies": [
+        "The first {freeShops} shops to join are listed free for ever: name, address, hours and up to {freeProducts} products. Cafés, takeaways and services never pay a monthly fee.",
+        "Yes, a basic listing is free. Partner Plus, {partnerPlus} a month, adds photos, offers and Shop of the Month."
+      ]
+    },
+    {
+      "id": "partner-commission",
+      "topic": "plan",
+      "when": [
+        "what is the commission",
+        "how much commission",
+        "what does a cafe pay",
+        "what does a takeaway pay"
+      ],
+      "replies": [
+        "A café or takeaway pays no monthly fee. {foodCommission} of each order placed through {product} is owed as commission; it is shown on your dashboard and your statement.",
+        "{foodCommission} on orders through {product}, and nothing a month. The figure is on your dashboard."
+      ]
+    },
+    {
+      "id": "partner-when-is-my-page-public",
+      "topic": "plan",
+      "when": [
+        "when is my page public",
+        "when will my page go live",
+        "is my page live",
+        "why is my page not showing"
+      ],
+      "replies": [
+        "Your page goes public once a person has checked your listing, usually within one working day. You can add products meanwhile.",
+        "Once we have checked it, usually within a working day. Your products are checked the same way."
+      ]
+    },
+    {
+      "id": "partner-enquiries",
+      "topic": "services",
+      "when": [
+        "what is an enquiry",
+        "how do enquiries work",
+        "someone asked for a quote",
+        "what do i do with a call back"
+      ],
+      "replies": [
+        "A Shopper asked you for a quote or a call back. Their request and how to reach them are on your dashboard under Enquiries. Get back to them yourself, then press Mark as answered; no payment goes through {product} for services yet.",
+        "Ring or message them with the contact they gave, agree it between you, and mark it answered on your dashboard."
       ]
     }
   ]

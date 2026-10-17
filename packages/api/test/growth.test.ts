@@ -126,8 +126,8 @@ describe('what a Shop Partner has paid', () => {
       ]),
     ).toEqual(
       expect.arrayContaining([
-        ['Shop Partner plan', 2999],
-        ['Shop Partner plan', 2999],
+        ['Partner Plus', 1499],
+        ['Partner Plus', 1499],
         ['Spotlight', 1999],
       ]),
     );
@@ -136,7 +136,7 @@ describe('what a Shop Partner has paid', () => {
     const pdf = await harness.app.inject({ method: 'GET', url: '/partner/statement.pdf', headers });
     expect(pdf.headers['content-type']).toBe('application/pdf');
     expect(pdf.rawPayload.subarray(0, 8).toString()).toBe('%PDF-1.4');
-    expect(pdf.rawPayload.toString('latin1')).toContain('Total paid: £79.97');
+    expect(pdf.rawPayload.toString('latin1')).toContain('Total paid: £49.97');
   });
 });
 

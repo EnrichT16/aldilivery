@@ -125,3 +125,18 @@ export {
   isFeedbackTheme,
   type FeedbackTheme,
 } from './feedback.js';
+
+export {
+  PARTNER_KINDS,
+  PARTNER_KIND_WORDS,
+  basisPointsWords,
+  commissionPence,
+  excludedServiceKind,
+  excludedServiceWords,
+  freeListingAvailable,
+  postcodeArea,
+  productLimit,
+  type PartnerKind,
+  type PartnerPlan,
+  type PartnerPricing,
+} from './partners.js';
