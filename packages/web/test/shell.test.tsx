@@ -9,6 +9,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { App } from '../src/App';
+import { inPairs } from '../src/lib/phone-aloud';
 import { storeConfig } from '../src/config';
 import { FAKE_CARD, FAKE_SHOPPER, stubApi, stubCatalogueFetch } from './setup';
 
@@ -165,13 +166,16 @@ describe('the landing page', () => {
     expect(screen.getByRole('heading', { name: 'Who are you?' })).toBeInTheDocument();
   });
 
-  it('shows the telephone number, and says it is a placeholder', () => {
+  it('shows the telephone number, and says so when it is still a placeholder', () => {
     renderAt('/');
+    const { telephonePlaceholder: number, telephoneIsPlaceholder } = storeConfig.contact;
     expect(
       // In twos, the way Ozi reads it out.
-      screen.getByRole('link', { name: '08 00 00 00 00 0' }),
-    ).toHaveAttribute('href', `tel:${storeConfig.contact.telephonePlaceholder.replace(/\s/g, '')}`);
-    expect(screen.getByText(/placeholder while we get the line set up/i)).toBeInTheDocument();
+      screen.getByRole('link', { name: inPairs(number) }),
+    ).toHaveAttribute('href', `tel:${number.replace(/\s/g, '')}`);
+    const warning = screen.queryByText(/placeholder while we get the line set up/i);
+    if (telephoneIsPlaceholder) expect(warning).toBeInTheDocument();
+    else expect(warning).not.toBeInTheDocument();
   });
 
   it('has exactly one first level heading', () => {
