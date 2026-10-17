@@ -6,8 +6,8 @@
   "tagline": "Say it, Ozi shops it, a Runner brings it",
   "motto": "Send me, I will deliver.",
   "contact": {
-    "telephonePlaceholder": "0800 000 0000",
-    "telephoneIsPlaceholder": true,
+    "telephonePlaceholder": "01634 980059",
+    "telephoneIsPlaceholder": false,
     "email": "hello@ozidelivery.co.uk",
     "emailIsPlaceholder": true
   },

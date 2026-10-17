@@ -305,7 +305,9 @@ describe('a question by text', () => {
     expect(asked).toHaveLength(1);
     expect(asked[0]!.to).toBe('+447700900001');
     expect(asked[0]!.body).toMatch(
-      /^Ozi Delivery: Tomasz can't find .*[Mm]ilk.*\. Reply SIMILAR for something similar, or LEAVE to leave it out\. If we don't hear from you in 5 minutes, it will be left out and you won't be charged for it\.$/,
+      new RegExp(
+        `^${harness.config.productName}: Tomasz can't find .*[Mm]ilk.*\\. Reply SIMILAR for something similar, or LEAVE to leave it out\\. If we don't hear from you in 5 minutes, it will be left out and you won't be charged for it\\.$`,
+      ),
     );
     expect(asked[0]!.body).not.toMatch(/\+44|07\d{3}/);
     await built.close();
@@ -335,7 +337,9 @@ describe('a question by text', () => {
     const replied = await text('+447700900001', 'similar');
     expect(replied.statusCode).toBe(200);
     expect(replied.body).toMatch(
-      /<Message>Ozi Delivery: Thank you\. Your Runner will bring something similar for the .*<\/Message>/,
+      new RegExp(
+        `<Message>${harness.config.productName}: Thank you\\. Your Runner will bring something similar for the .*</Message>`,
+      ),
     );
     const runnerSees = await built.app.inject({
       method: 'GET',

@@ -17,6 +17,10 @@ on:
         description: 'Fail unless /api/health reports this commit (start of the hash), to watch a deployment'
         required: false
         default: ''
+      get_path:
+        description: 'An extra path to GET on www and print, such as /api/catalogue/search?q=banana'
+        required: false
+        default: ''
 
 jobs:
   check:
@@ -39,6 +43,16 @@ jobs:
               head -c 300 body.txt; echo
             done
           done
+
+      - name: Extra GET
+        env:
+          GET_PATH: ${{ inputs.get_path }}
+        run: |
+          if [ -z "$GET_PATH" ]; then echo "No extra path: skipping."; exit 0; fi
+          echo "== GET https://www.ozidelivery.co.uk$GET_PATH"
+          curl -sS -m 40 -o body.txt -D headers.txt -w 'status=%{http_code} time=%{time_total}s\n' "https://www.ozidelivery.co.uk$GET_PATH" || echo "curl failed: $?"
+          grep -i '^content-type' headers.txt || true
+          head -c 2500 body.txt; echo
 
       - name: Is the expected commit live yet?
         env:
