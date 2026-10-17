@@ -59,7 +59,7 @@ brand, names and colours are configuration in config/store.json, never code (Rul
 **Where.** ozidelivery.co.uk. Medway first (Gillingham, ME7, for the soft launch). The service is
 online only, anywhere in the UK; nobody visits an office (ruling 10).
 
-**Who runs it.** OZIDELIVERY LTD, registered in England and Wales, registered office 107 King Street, Gillingham, ME7 1ER (ruling 59); D-U-N-S number 235209172; company number 17497650 (ruling 60). The ICO number is still a placeholder, shown as "to follow" (see Part 7). Anthony's separate company is not named on the site.
+**Who runs it.** OZIDELIVERY LTD, registered in England and Wales, registered office 107 King Street, Gillingham, ME7 1ER (ruling 59); D-U-N-S number 235209172; company number 17497650 (ruling 60). ICO registration ZC271245, registered 10 October 2026, expires 9 October 2027 (ruling 67). Anthony's separate company is not named on the site.
 Owner and founder: Anthony Tochukwu Ibe.
 
 ---
@@ -771,7 +771,7 @@ people Anthony knows (TESTING_WITH_PEOPLE.md).
 | 1. Company name, number and registered office on the site | Anthony, then Claude | Built (ruling 54): shown in every page's footer and the legal pages from config/store.json. The company name (OZIDELIVERY LTD) and registered office (107 King Street, Gillingham, ME7 1ER) are in (ruling 59), and the company number 17497650 (ruling 60); the ICO number and email show "to follow" until Anthony fills them in and clears each placeholder flag (docs/LEGAL_REVIEW.md). |
 | 2. A telephone number for Shoppers | Anthony, then Claude | Waiting: 0800 000 0000 placeholder. |
 | 3. Solicitor reads the privacy policy, terms and Runner agreement (including the 10% recovery and cancellation wording) | Anthony | AI review done instead, for now (ruling 54, docs/LEGAL_REVIEW.md): privacy and terms rewritten and no longer marked draft; cookies page added; Runner agreement written and still marked draft until employment status, paying at the till and substitution are decided. A solicitor is still advised on the risks listed there. |
-| 4. ICO registration | Anthony | Waiting: pay the data protection fee, then put the number in `store.icoRegistrationNumber` and set its flag to false; also the appropriate policy document for DBS and health data (docs/LEGAL_REVIEW.md). |
+| 4. ICO registration | Anthony | Done (17 October 2026, ruling 67): ZC271245, shown in the footer. Still to write: the appropriate policy document for DBS and health data (docs/LEGAL_REVIEW.md); renew by 9 October 2027. |
 | 5. Managed PostgreSQL with backups | Anthony, in DigitalOcean | Waiting: development database today. |
 | 6. STAFF_API_KEY, then the owner's account and staff accounts | Anthony | Waiting. |
 | 7. Stripe live keys, Connect live, live webhook, Apple Pay domain | Anthony | Waiting: test mode. |
@@ -867,7 +867,7 @@ The first round of missing features is built: the owner's till screen, receipt p
   for large orders only. Migration `20261021090000_large_orders_by_car`.
 - **The whole-order goods cap is £150**, confirmed by Anthony.
 - **The company is OZIDELIVERY LTD**, 107 King Street, Gillingham, ME7 1ER, registered in England
-  and Wales; D-U-N-S 235209172 (`store.dunsNumber`); company number 17497650 (`store.companyNumber`, ruling 60). ICO number to follow.
+  and Wales; D-U-N-S 235209172 (`store.dunsNumber`); company number 17497650 (`store.companyNumber`, ruling 60); ICO registration ZC271245 (`store.icoRegistrationNumber`, ruling 67).
   Apple and Google accounts are enrolled as OZIDELIVERY LTD exactly as on the D-U-N-S record.
 
 ## Ruling 61 in brief (10 October 2026)

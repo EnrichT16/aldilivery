@@ -78,11 +78,12 @@ describe('the live configuration file', () => {
     expect(config.store.registeredOfficeIsPlaceholder).toBe(false);
     expect(config.store.registeredIn).toBe('England and Wales');
     expect(config.store.dunsNumber).toBe('235209172');
-    // The company number is in (Companies House, 10 October 2026, ruling 60); the ICO number is
-    // still to follow.
+    // The company number is in (Companies House, 10 October 2026, ruling 60), and the ICO
+    // registration arrived on 17 October 2026 (registered 10 October 2026, ruling 67).
     expect(config.store.companyNumber).toBe('17497650');
     expect(config.store.companyNumberIsPlaceholder).toBe(false);
-    expect(config.store.icoRegistrationIsPlaceholder).toBe(true);
+    expect(config.store.icoRegistrationNumber).toBe('ZC271245');
+    expect(config.store.icoRegistrationIsPlaceholder).toBe(false);
   });
 
   it('refuses a D-U-N-S number that is not nine digits, and allows none', () => {
