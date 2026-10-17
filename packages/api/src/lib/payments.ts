@@ -82,7 +82,13 @@ export interface TransferResult {
 
 /** A Stripe page to pay on, sent by text after a telephone order (ruling 48). */
 export interface CreatePaymentLinkInput {
+  /** The order, or for a partner's plan the reference the dashboard records it under. */
   orderId: string;
+  /**
+   * An order (the default): the card is kept and a delivery address is asked for. A partner's
+   * plan (ruling 65): a plain payment, nothing kept and no address, the metadata naming the shop.
+   */
+  purpose?: 'order' | 'partner';
   amountPence: number;
   currency: string;
   description: string;
@@ -409,16 +415,22 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
             quantity: 1,
           },
         ],
-        ...(input.customerId ? { customer: input.customerId } : { customer_creation: 'always' }),
-        // Kept for next time, and for the till's real total (Rule Three). The intent carries
-        // `orderLink`, not `orderId`, so the payment_intent webhook leaves this order to the
-        // checkout webhook, which also has the address.
-        payment_intent_data: {
-          setup_future_usage: 'off_session',
-          metadata: { orderLink: input.orderId },
-        },
-        shipping_address_collection: { allowed_countries: ['GB'] },
-        metadata: { orderId: input.orderId },
+        ...(input.purpose === 'partner'
+          ? { metadata: { partnerCheckout: input.orderId } }
+          : {
+              ...(input.customerId
+                ? { customer: input.customerId }
+                : { customer_creation: 'always' }),
+              // Kept for next time, and for the till's real total (Rule Three). The intent carries
+              // `orderLink`, not `orderId`, so the payment_intent webhook leaves this order to the
+              // checkout webhook, which also has the address.
+              payment_intent_data: {
+                setup_future_usage: 'off_session',
+                metadata: { orderLink: input.orderId },
+              },
+              shipping_address_collection: { allowed_countries: ['GB'] },
+              metadata: { orderId: input.orderId },
+            }),
         success_url: input.successUrl,
         cancel_url: input.cancelUrl,
         expires_at: input.expiresAt,

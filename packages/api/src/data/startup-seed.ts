@@ -28,6 +28,7 @@
 
 import type { StoreConfig } from '@aldilivery/core';
 
+import { seedShops, type SeedShop } from '../lib/shops-seed.js';
 import type { Repository } from './repository.js';
 import { seedRepository } from './seed-data.js';
 
@@ -65,4 +66,20 @@ export async function seedOnStartup(
   }
 
   return { seeded: true, catalogueItems: result.catalogueItems };
+}
+
+/**
+ * The shops Ozi lists itself (ruling 65): added from config/shops-seed.json only when there are
+ * no shops at all, so a list staff have curated is never added to behind their backs. The admin
+ * panel's "Add the seed shops" button adds whatever is missing at any later time.
+ */
+export async function seedShopsOnStartup(
+  repository: Repository,
+  shops: SeedShop[],
+  now: () => Date = () => new Date(),
+): Promise<{ seeded: boolean; shops: number }> {
+  if (shops.length === 0) return { seeded: false, shops: 0 };
+  if ((await repository.partnerShops.list()).length > 0) return { seeded: false, shops: 0 };
+  const { added } = await seedShops(repository, shops, now);
+  return { seeded: added > 0, shops: added };
 }

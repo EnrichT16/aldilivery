@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-import { fetchMyOrders, type PastOrder } from '../lib/api';
+import {
+  fetchMyEnquiries,
+  fetchMyOrders,
+  type PastOrder,
+  type ServiceEnquiryRow,
+} from '../lib/api';
 import { addPastItems, listInWords } from '../lib/extras';
 import { money } from '../lib/money';
+import { storeConfig } from '../config';
 import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
@@ -29,6 +35,7 @@ const STATUS_WORDS: Record<string, string> = {
 export function Orders(): JSX.Element {
   const { shopper, restoring } = useSession();
   const [orders, setOrders] = useState<PastOrder[] | null>(null);
+  const [enquiries, setEnquiries] = useState<ServiceEnquiryRow[]>([]);
   const [problem, setProblem] = useState('');
   const [news, setNews] = useState('');
   const basket = useBasket();
@@ -65,6 +72,10 @@ export function Orders(): JSX.Element {
       .catch((failure: unknown) => {
         setProblem(failure instanceof Error ? failure.message : 'We could not load your orders.');
       });
+    // Quotes and call backs asked of services (ruling 65): nothing paid, so not orders, but here.
+    fetchMyEnquiries()
+      .then((result) => setEnquiries(result.enquiries))
+      .catch(() => setEnquiries([]));
   }, [shopper]);
 
   if (restoring) {
@@ -144,6 +155,35 @@ export function Orders(): JSX.Element {
             );
           })}
         </ul>
+      )}
+      {enquiries.length > 0 && (
+        <section aria-labelledby="enquiries-heading" className="space-y-3">
+          <h2 id="enquiries-heading" className="text-lead font-bold m-0">
+            Your quotes and call backs
+          </h2>
+          <p className="m-0">
+            Requests you made to services. Nothing is paid through {storeConfig.productName} for
+            these; the service gets back to you itself.
+          </p>
+          <ul className="list-none m-0 p-0 space-y-3">
+            {enquiries.map((row) => (
+              <li key={row.id} className="border-2 border-paper/40 rounded-2xl p-4 space-y-1">
+                <h3 className="m-0 font-bold">
+                  {row.shopName}: {row.what}
+                </h3>
+                <p className="m-0">
+                  {new Date(row.createdAt).toLocaleDateString('en-GB', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                  })}
+                  . {row.status === 'answered' ? 'Answered.' : 'Waiting for their reply.'}
+                  {row.reply ? ` They said: ${row.reply}` : ''}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   );

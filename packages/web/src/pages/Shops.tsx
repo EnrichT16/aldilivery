@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { storeConfig } from '../config';
@@ -7,8 +7,10 @@ import {
   fetchShop,
   fetchShops,
   rememberJoinedVia,
+  sendServiceEnquiry,
   shopPhotoUrl,
   type PublicShop,
+  type PublicShopPage,
   type PublicShopProduct,
 } from '../lib/api';
 import { money, shownPrice, tooDearWords } from '../lib/money';
@@ -16,7 +18,29 @@ import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
 
-/** Shop Partners: local shops showing their own products and prices (7 October 2026). */
+/** "a quote" or "a call back" heard in what a Shopper said on a service's page, or null. */
+export function heardEnquiry(said: string): 'quote' | 'call_back' | null {
+  const text = said.toLowerCase();
+  if (/\b(quote|quotation|estimate|how much (would|will) it cost)\b/.test(text)) return 'quote';
+  if (/\b(call ?back|ring me|call me|phone me)\b/.test(text)) return 'call_back';
+  return null;
+}
+
+/** "30 minutes" or "1 hour 30 minutes". */
+export function durationWords(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  const parts = [
+    hours > 0 ? `${hours} hour${hours === 1 ? '' : 's'}` : '',
+    rest > 0 ? `${rest} minutes` : '',
+  ].filter(Boolean);
+  return parts.join(' ');
+}
+
+/**
+ * Local shops, cafés, takeaways and services with their own page (7 October 2026; ruling 65),
+ * each with its kind and area, so somebody can see at a glance what is near them.
+ */
 export function Shops(): JSX.Element {
   const [shops, setShops] = useState<PublicShop[] | null>(null);
   useEffect(() => {
@@ -28,8 +52,9 @@ export function Shops(): JSX.Element {
     <div className="space-y-8 max-w-xl">
       <h1 className="text-display font-bold m-0">Local shops</h1>
       <p className="m-0">
-        Local shops that show their own products and prices on {storeConfig.productName}. A Runner
-        buys it there and brings it to you.
+        Shops, cafés, takeaways and services on {storeConfig.productName}, with the area each is in.
+        From a shop, a Runner buys it there and brings it to you. From a service, you ask for a
+        quote or a call back.
       </p>
       {shops === null ? (
         <p className="m-0">Finding the shops.</p>
@@ -45,13 +70,24 @@ export function Shops(): JSX.Element {
               >
                 <span className="block text-lead font-bold underline">{shop.name}</span>
                 <span className="block">
-                  {shop.about} {shop.products} product{shop.products === 1 ? '' : 's'}.
+                  {shop.kindWords}
+                  {shop.area ? `, ${shop.area}` : ''}. {shop.about}{' '}
+                  {shop.kind === 'service'
+                    ? `${shop.products} service${shop.products === 1 ? '' : 's'}.`
+                    : shop.products > 0
+                      ? `${shop.products} product${shop.products === 1 ? '' : 's'}.`
+                      : shop.listedByOzi
+                        ? `Listed by ${storeConfig.assistantName}.`
+                        : ''}
                 </span>
               </Link>
             </li>
           ))}
         </ul>
       )}
+      <Link to="/business/join" className="control border-paper bg-paper/10 text-paper">
+        Own a shop? Join free
+      </Link>
     </div>
   );
 }
@@ -62,9 +98,16 @@ export function ShopPage(): JSX.Element {
   const basket = useBasket();
   const ozi = useOzi();
   const navigate = useNavigate();
-  const [page, setPage] = useState<Awaited<ReturnType<typeof fetchShop>> | null>(null);
+  const [page, setPage] = useState<PublicShopPage | null>(null);
   const [missing, setMissing] = useState(false);
   const [news, setNews] = useState('');
+  const [asking, setAsking] = useState<{
+    kind: 'quote' | 'call_back';
+    product: PublicShopProduct | null;
+  } | null>(null);
+  const [sent, setSent] = useState('');
+  const latest = useRef({ ozi, page, navigate });
+  latest.current = { ozi, page, navigate };
 
   const { shopper, restoring } = useSession();
   // Someone arriving by the shop's share link is counted for the shop if they open an account.
@@ -77,6 +120,43 @@ export function ShopPage(): JSX.Element {
       .then(setPage)
       .catch(() => setMissing(true));
   }, [id]);
+
+  // On a service's page, "ask for a quote" or "book a call back" by voice opens the same form.
+  useEffect(() => {
+    if (!page || page.shop.kind !== 'service') return undefined;
+    const handle = (text: string): boolean => {
+      const kind = heardEnquiry(text);
+      if (!kind) return false;
+      setAsking({ kind, product: null });
+      void latest.current.ozi.say(
+        shopper
+          ? `All right. Tell them what you need and how to reach you on the screen, then press Send. Nothing is paid through ${storeConfig.productName} for this.`
+          : 'To ask a service for a quote or a call back, please sign in first.',
+      );
+      return true;
+    };
+    latest.current.ozi.setPageCommands(handle);
+    return () => latest.current.ozi.setPageCommands(null);
+  }, [page, shopper]);
+
+  async function ask(event: FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!asking || !page) return;
+    const data = new FormData(event.currentTarget);
+    try {
+      const result = await sendServiceEnquiry(page.shop.id, {
+        kind: asking.kind,
+        ...(asking.product ? { productId: asking.product.id } : {}),
+        message: String(data.get('enquiry-message') ?? '').trim(),
+        contact: String(data.get('enquiry-contact') ?? '').trim(),
+      });
+      setSent(result.message);
+      setAsking(null);
+      void ozi.say(result.message);
+    } catch (failure) {
+      setNews(failure instanceof Error ? failure.message : 'That could not be sent.');
+    }
+  }
 
   async function add(product: PublicShopProduct): Promise<void> {
     if (!product.catalogueItemId) return;
@@ -113,16 +193,109 @@ export function ShopPage(): JSX.Element {
       </p>
     );
   }
+  const service = page.shop.kind === 'service';
+  const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
   return (
     <div className="space-y-8 max-w-xl">
       <h1 className="text-display font-bold m-0">{page.shop.name}</h1>
-      {page.shop.about && <p className="m-0">{page.shop.about}</p>}
-      {page.shop.address && <p className="m-0">{page.shop.address}</p>}
-      <p role="status" className="m-0 min-h-control">
-        {news}
+      <p className="m-0">
+        {page.shop.kindWords}
+        {page.shop.area ? `, ${page.shop.area}` : ''}.{page.shop.about ? ` ${page.shop.about}` : ''}
       </p>
+      {page.shop.address && <p className="m-0">{page.shop.address}</p>}
+      {page.shop.hours && <p className="m-0">Open: {page.shop.hours}</p>}
+      {page.shop.listedByOzi && (
+        <p className="m-0 border-2 border-paper/40 rounded-2xl p-4">
+          Listed by {storeConfig.assistantName} from public details.
+          {page.shop.claimable && (
+            <>
+              {' '}
+              Are you the owner?{' '}
+              <Link
+                to={`/business/join?claim=${encodeURIComponent(page.shop.id)}`}
+                className="underline"
+              >
+                Claim this shop
+              </Link>
+              .
+            </>
+          )}
+        </p>
+      )}
+      <p role="status" className="m-0 min-h-control">
+        {news || sent}
+      </p>
+      {service && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setAsking({ kind: 'quote', product: null })}
+            className="control bg-highlight text-on-accent"
+          >
+            Ask for a quote
+          </button>
+          <button
+            type="button"
+            onClick={() => setAsking({ kind: 'call_back', product: null })}
+            className="control border-paper bg-paper/10 text-paper"
+          >
+            Book a call back
+          </button>
+        </div>
+      )}
+      {asking &&
+        (shopper ? (
+          <form
+            onSubmit={(event) => void ask(event)}
+            aria-labelledby="enquiry-heading"
+            className="space-y-3 border-2 border-highlight rounded-2xl p-4"
+          >
+            <h2 id="enquiry-heading" className="text-lead font-bold m-0">
+              {asking.kind === 'quote' ? 'Ask for a quote' : 'Book a call back'}
+              {asking.product ? `: ${asking.product.name}` : ''}
+            </h2>
+            <p className="m-0">
+              {page.shop.name} gets back to you itself. Nothing is paid through{' '}
+              {storeConfig.productName} for this.
+            </p>
+            <label htmlFor="enquiry-message" className="block font-bold">
+              What do you need?
+            </label>
+            <textarea id="enquiry-message" name="enquiry-message" rows={3} className={field} />
+            <label htmlFor="enquiry-contact" className="block font-bold">
+              How should they reach you? A phone number or an email.
+            </label>
+            <input id="enquiry-contact" name="enquiry-contact" className={field} />
+            <button type="submit" className="control w-full bg-highlight text-on-accent">
+              Send
+            </button>
+            <button
+              type="button"
+              onClick={() => setAsking(null)}
+              className="control bg-paper/10 text-paper underline"
+            >
+              Never mind
+            </button>
+          </form>
+        ) : (
+          <p className="m-0">
+            <Link
+              to={`/sign-in?next=/shops/${encodeURIComponent(page.shop.id)}`}
+              className="underline"
+            >
+              Sign in
+            </Link>{' '}
+            to ask {page.shop.name} for {asking.kind === 'quote' ? 'a quote' : 'a call back'}.
+          </p>
+        ))}
       {page.products.length === 0 ? (
-        <p className="m-0">No products yet.</p>
+        <p className="m-0">
+          {service
+            ? 'No services listed yet.'
+            : page.shop.listedByOzi
+              ? `No products of its own yet: say what you want and ${storeConfig.assistantName} finds it in the catalogue.`
+              : 'No products yet.'}
+        </p>
       ) : (
         <ul className="list-none m-0 p-0 space-y-4">
           {page.products.map((product) => (
@@ -141,19 +314,39 @@ export function ShopPage(): JSX.Element {
                 <h2 id={`product-${product.id}`} className="text-lead font-bold m-0">
                   {product.name}
                 </h2>
-                <p className="m-0">
-                  About {money(shownPrice(product.pricePence))}.
-                  {product.expiresOn
-                    ? ` Best before ${new Date(product.expiresOn).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}.`
-                    : ''}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => void add(product)}
-                  className="control w-full bg-highlight text-on-accent"
-                >
-                  Add to my basket<span className="visually-hidden">: {product.name}</span>
-                </button>
+                {service ? (
+                  <p className="m-0">
+                    From {money(product.pricePence)}
+                    {product.durationMinutes
+                      ? `, about ${durationWords(product.durationMinutes)}`
+                      : ''}
+                    .
+                  </p>
+                ) : (
+                  <p className="m-0">
+                    About {money(shownPrice(product.pricePence))}.
+                    {product.expiresOn
+                      ? ` Best before ${new Date(product.expiresOn).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}.`
+                      : ''}
+                  </p>
+                )}
+                {service ? (
+                  <button
+                    type="button"
+                    onClick={() => setAsking({ kind: 'quote', product })}
+                    className="control w-full border-paper bg-paper/10 text-paper"
+                  >
+                    Ask for a quote<span className="visually-hidden">: {product.name}</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void add(product)}
+                    className="control w-full bg-highlight text-on-accent"
+                  >
+                    Add to my basket<span className="visually-hidden">: {product.name}</span>
+                  </button>
+                )}
               </article>
             </li>
           ))}

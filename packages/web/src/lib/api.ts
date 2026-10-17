@@ -286,8 +286,11 @@ export function isUkMobileNumber(phone: string): boolean {
   return /^(\+44|0044|0)7\d{9}$/.test(digits);
 }
 
-/** Who is signing in: a Shopper, or a Runner on a new phone (16 October 2026). */
-export type SignInRole = 'shopper' | 'runner';
+/**
+ * Who is signing in: a Shopper, or a Runner on a new phone (16 October 2026); or a shop joining
+ * as a partner, confirming its mobile with the same code (ruling 65), which never gets a session.
+ */
+export type SignInRole = 'shopper' | 'runner' | 'partner';
 
 export function requestSignInCode(
   phone: string,
@@ -1799,14 +1802,161 @@ export interface PartnerProductRow {
   note: string | null;
   catalogueItemId: string | null;
   createdAt: string;
+  /** A service: how long it takes, in minutes. Its price is "from". */
+  durationMinutes: number | null;
+}
+
+/** What kind of business a partner is (ruling 65). */
+export type PartnerKind = 'shop' | 'food' | 'service';
+
+/** A Shopper's request to a service for a quote or a call back (ruling 65). */
+export interface ServiceEnquiryRow {
+  id: string;
+  kind: 'quote' | 'call_back';
+  what: string;
+  message: string;
+  status: 'open' | 'answered' | 'closed';
+  reply: string | null;
+  createdAt: string;
+  answeredAt: string | null;
+  shopName?: string;
+  shopperName?: string;
+  contact?: string;
+}
+
+export interface PartnerCommission {
+  basisPoints: number;
+  words: string;
+  ordersThisMonth: number;
+  goodsThisMonthPence: number;
+  owedThisMonthPence: number;
 }
 
 export interface PartnerDashboard extends PartnerExtras {
-  shop: { id: string; name: string; address: string; telephone: string; about: string };
-  plan: { monthlyPence: number; paidUntil: string | null; paid: boolean };
+  shop: {
+    id: string;
+    name: string;
+    address: string;
+    telephone: string;
+    about: string;
+    kind: PartnerKind;
+    kindWords: string;
+    postcode: string;
+    hours: string;
+    status: 'pending' | 'approved' | 'removed';
+    active: boolean;
+    listed: boolean;
+  };
+  plan: {
+    tier: 'free' | 'plus';
+    monthlyPence: number;
+    plusMonthlyPence: number;
+    paidUntil: string | null;
+    paid: boolean;
+    freeForever: boolean;
+    firstMonthFree: boolean;
+    productLimit: number | null;
+    productsListed: number;
+    canAddProduct: boolean;
+    words: string;
+  };
+  commission: PartnerCommission | null;
+  enquiries: ServiceEnquiryRow[];
   counts: { live: number; waiting: number; notAccepted: number };
   products: PartnerProductRow[];
   sharePath: string;
+}
+
+/** What a joining business is told about the tiers, every figure from config/store.json. */
+export interface PartnerJoinOptions {
+  kinds: Array<{ kind: PartnerKind; words: string }>;
+  freeListingsLeft: number;
+  freeProductLimit: number;
+  plusMonthlyPence: number;
+  plusFirstMonthFree: boolean;
+  foodCommissionWords: string;
+  spotlightPence: number;
+  spotlightPlusPence: number;
+  excludedServiceKinds: string[];
+  /** Whether the mobile must be confirmed with a code before joining. */
+  mobileConfirmed: boolean;
+}
+
+export function fetchPartnerJoinOptions(): Promise<PartnerJoinOptions> {
+  return request('/partner/join/options');
+}
+
+export interface PartnerJoinInput {
+  name: string;
+  kind: PartnerKind;
+  address: string;
+  postcode: string;
+  hours: string;
+  contactName: string;
+  mobile: string;
+  phoneProof?: string;
+  email: string;
+  about: string;
+  username: string;
+  password: string;
+  claimShopId?: string;
+  plan?: 'free' | 'plus';
+}
+
+/** A shop, café, takeaway or service joins by itself (ruling 65) and is signed in at once. */
+export function joinAsPartner(input: PartnerJoinInput): Promise<
+  BusinessMe & {
+    token: string;
+    shop: { id: string; status: string; plan: string; freeForever: boolean };
+    message: string;
+  }
+> {
+  return request('/partner/join', { method: 'POST', body: JSON.stringify(input) });
+}
+
+/**
+ * Paying for Partner Plus, Spotlight or Spotlight Plus from the dashboard: a Stripe Checkout
+ * page to go to (`url`), with the signed receipt the dashboard sends back once paid; or, for
+ * the free first month, no page at all and the plan simply on.
+ */
+export function startPartnerCheckout(input: {
+  kind?: 'plan' | 'spotlight' | 'plus';
+  months?: number;
+  returnTo?: string;
+}): Promise<{ url: string | null; receipt?: string; message: string }> {
+  return businessRequest('/partner/plan/checkout', { method: 'POST', body: JSON.stringify(input) });
+}
+
+export function confirmPartnerCheckout(
+  receipt: string,
+  sessionId: string,
+): Promise<{ recorded: boolean; message: string }> {
+  return businessRequest('/partner/plan/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ receipt, sessionId }),
+  });
+}
+
+export function answerPartnerEnquiry(id: string, reply: string): Promise<{ message: string }> {
+  return businessRequest(`/partner/enquiries/${encodeURIComponent(id)}/answer`, {
+    method: 'POST',
+    body: JSON.stringify({ reply }),
+  });
+}
+
+/** The Shopper asks a service for a quote or a call back. No payment goes through us. */
+export function sendServiceEnquiry(
+  shopId: string,
+  input: { kind: 'quote' | 'call_back'; productId?: string; message: string; contact: string },
+): Promise<{ enquiry: ServiceEnquiryRow; message: string }> {
+  return request(`/shops/${encodeURIComponent(shopId)}/enquiry`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchMyEnquiries(): Promise<{ enquiries: ServiceEnquiryRow[] }> {
+  return request('/me/enquiries');
 }
 
 export function fetchPartnerDashboard(): Promise<PartnerDashboard> {
@@ -1820,6 +1970,7 @@ export function addPartnerProduct(input: {
   expiresOn?: string;
   photo?: string;
   photoType?: string;
+  durationMinutes?: number;
 }): Promise<{ product: PartnerProductRow; message: string }> {
   return businessRequest('/partner/products', { method: 'POST', body: JSON.stringify(input) });
 }
@@ -1842,6 +1993,12 @@ export interface PublicShop {
   id: string;
   name: string;
   about: string;
+  kind: PartnerKind;
+  kindWords: string;
+  /** The first part of the postcode, such as ME7. */
+  area: string;
+  hours: string;
+  listedByOzi: boolean;
   products: number;
 }
 
@@ -1857,12 +2014,15 @@ export interface PublicShopProduct {
   expiresOn: string | null;
   hasPhoto: boolean;
   catalogueItemId: string | null;
+  durationMinutes?: number | null;
 }
 
-export function fetchShop(id: string): Promise<{
-  shop: { id: string; name: string; about: string; address: string };
+export interface PublicShopPage {
+  shop: Omit<PublicShop, 'products'> & { address: string; claimable: boolean };
   products: PublicShopProduct[];
-}> {
+}
+
+export function fetchShop(id: string): Promise<PublicShopPage> {
   return request(`/shops/${encodeURIComponent(id)}`);
 }
 
@@ -1959,6 +2119,18 @@ export interface StaffPartners {
   shops: Array<{
     id: string;
     name: string;
+    kind: PartnerKind;
+    kindWords: string;
+    status: 'pending' | 'approved' | 'removed';
+    plan: 'free' | 'plus';
+    freeForever: boolean;
+    source: 'self' | 'staff' | 'ozi' | 'claimed';
+    area: string;
+    address: string;
+    hours: string;
+    contactName: string;
+    email: string;
+    listed: boolean;
     monthlyPence: number;
     paidUntil: string | null;
     paid: boolean;
@@ -1975,20 +2147,59 @@ export interface StaffPartners {
     people: number;
     users: Array<{ id: string; name: string; username: string; office: string }>;
   }>;
-  partnerMonthlyPence: number;
+  plusMonthlyPence: number;
+  freeListingCount: number;
+  freeListed: number;
+  freeProductLimit: number;
+  foodCommissionWords: string;
   spotlightPence: number;
   spotlightPlusPence: number;
+  /** How many shops config/shops-seed.json names. */
+  seedShops: number;
 }
 
 export function fetchStaffPartners(key: string): Promise<StaffPartners> {
   return staffRequest(key, '/staff/partners');
 }
 
+/** Staff add a shop from a paper form (ruling 65): approved at once, the agreement being on paper. */
 export function addStaffPartner(
   key: string,
-  input: { name: string; address: string; telephone: string; about: string; paidMonths: number },
+  input: {
+    name: string;
+    kind?: PartnerKind;
+    address: string;
+    postcode?: string;
+    hours?: string;
+    contactName?: string;
+    mobile?: string;
+    email?: string;
+    telephone: string;
+    about: string;
+    plan?: 'free' | 'plus';
+    paidMonths: number;
+  },
 ): Promise<unknown> {
   return staffRequest(key, '/staff/partners', { method: 'POST', body: JSON.stringify(input) });
+}
+
+/** Approve a pending listing, pause or resume it, or remove it. */
+export function setStaffPartnerState(
+  key: string,
+  id: string,
+  change: { status?: 'approved' | 'pending' | 'removed'; active?: boolean },
+): Promise<unknown> {
+  return staffRequest(key, `/staff/partners/${encodeURIComponent(id)}`, {
+    method: 'POST',
+    body: JSON.stringify(change),
+  });
+}
+
+/** The shops Ozi lists itself, from config: adds only the ones not there yet. */
+export function seedStaffShops(
+  key: string,
+): Promise<{ added: number; skipped: number; message: string }> {
+  return staffRequest(key, '/staff/partners/seed', { method: 'POST', body: JSON.stringify({}) });
 }
 
 export function renewStaffPartner(key: string, id: string, paidMonths: number): Promise<unknown> {

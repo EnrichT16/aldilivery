@@ -486,6 +486,8 @@ describe('Rule Nine: nothing about the store is hard coded', () => {
   ]);
   const SKIP_FILES = new Set([
     join('config', 'store.json'),
+    // The shops Ozi lists itself (ruling 65): real shops' names and addresses, configuration too.
+    join('config', 'shops-seed.json'),
     'pnpm-lock.yaml',
     join('packages', 'core', 'test', 'config.test.ts'),
   ]);

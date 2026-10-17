@@ -1,0 +1,131 @@
+{
+  "about": "Shops Ozi lists itself (ruling 65, 17 October 2026): well-known Medway high-street shops with their public addresses and typical hours. Read once by the start-up seed when there are no shops yet, and by the admin panel's 'Add the seed shops' button, which adds only the ones not there. Each is listed by Ozi, is not a partner, has no products of its own (the community catalogue applies), and shows 'Are you the owner? Claim this shop'. Names and addresses live here, never in code. Check the hours before launch: they are typical, not promised.",
+  "shops": [
+    {
+      "key": "aldi-gillingham",
+      "name": "Aldi Gillingham",
+      "kind": "shop",
+      "address": "High Street, Gillingham",
+      "postcode": "ME7 1BB",
+      "hours": "Monday to Saturday 8am to 10pm, Sunday 10am to 4pm",
+      "about": "Supermarket on the High Street."
+    },
+    {
+      "key": "tesco-extra-gillingham",
+      "name": "Tesco Extra Gillingham",
+      "kind": "shop",
+      "address": "Courteney Road, Gillingham",
+      "postcode": "ME8 0GX",
+      "hours": "Monday to Saturday 6am to midnight, Sunday 10am to 4pm",
+      "about": "Large supermarket on Courteney Road."
+    },
+    {
+      "key": "asda-gillingham-pier",
+      "name": "Asda Gillingham Pier",
+      "kind": "shop",
+      "address": "Pier Approach Road, Gillingham",
+      "postcode": "ME7 1RZ",
+      "hours": "Monday to Saturday 7am to 10pm, Sunday 10am to 4pm",
+      "about": "Supermarket by Gillingham Pier."
+    },
+    {
+      "key": "sainsburys-hempstead-valley",
+      "name": "Sainsbury's Hempstead Valley",
+      "kind": "shop",
+      "address": "Hempstead Valley Shopping Centre, Hempstead, Gillingham",
+      "postcode": "ME7 3PD",
+      "hours": "Monday to Saturday 7am to 10pm, Sunday 10am to 4pm",
+      "about": "Supermarket at Hempstead Valley."
+    },
+    {
+      "key": "lidl-gillingham",
+      "name": "Lidl Gillingham",
+      "kind": "shop",
+      "address": "Gillingham Business Park, Gillingham",
+      "postcode": "ME8 0PZ",
+      "hours": "Monday to Saturday 8am to 10pm, Sunday 10am to 4pm",
+      "about": "Supermarket in Gillingham."
+    },
+    {
+      "key": "iceland-gillingham",
+      "name": "Iceland Gillingham High Street",
+      "kind": "shop",
+      "address": "High Street, Gillingham",
+      "postcode": "ME7 1AX",
+      "hours": "Monday to Saturday 8am to 7pm, Sunday 10am to 4pm",
+      "about": "Frozen and fresh food on the High Street."
+    },
+    {
+      "key": "morrisons-strood",
+      "name": "Morrisons Strood",
+      "kind": "shop",
+      "address": "Commercial Road, Strood",
+      "postcode": "ME2 2AD",
+      "hours": "Monday to Saturday 7am to 10pm, Sunday 10am to 4pm",
+      "about": "Supermarket in Strood."
+    },
+    {
+      "key": "bm-gillingham",
+      "name": "B&M Gillingham",
+      "kind": "shop",
+      "address": "Gillingham Retail Park, Gillingham",
+      "postcode": "ME8 0PU",
+      "hours": "Monday to Saturday 8am to 8pm, Sunday 10am to 4pm",
+      "about": "Household goods, food cupboard and garden."
+    },
+    {
+      "key": "coop-rainham",
+      "name": "Co-op Rainham",
+      "kind": "shop",
+      "address": "High Street, Rainham",
+      "postcode": "ME8 7JE",
+      "hours": "Every day 7am to 10pm",
+      "about": "Convenience store on Rainham High Street."
+    },
+    {
+      "key": "farmfoods-chatham",
+      "name": "Farmfoods Chatham",
+      "kind": "shop",
+      "address": "High Street, Chatham",
+      "postcode": "ME4 4EH",
+      "hours": "Monday to Saturday 8am to 7pm, Sunday 10am to 4pm",
+      "about": "Frozen food and groceries in Chatham."
+    },
+    {
+      "key": "poundland-chatham",
+      "name": "Poundland Chatham",
+      "kind": "shop",
+      "address": "High Street, Chatham",
+      "postcode": "ME4 4EE",
+      "hours": "Monday to Saturday 8am to 6pm, Sunday 10am to 4pm",
+      "about": "Everyday essentials in Chatham."
+    },
+    {
+      "key": "the-range-chatham",
+      "name": "The Range Chatham",
+      "kind": "shop",
+      "address": "Horsted Retail Park, Maidstone Road, Chatham",
+      "postcode": "ME5 9SQ",
+      "hours": "Monday to Saturday 9am to 8pm, Sunday 10am to 4pm",
+      "about": "Home, garden and household goods. The Range took over former Wilko lines in Medway."
+    },
+    {
+      "key": "boots-gillingham",
+      "name": "Boots Gillingham",
+      "kind": "shop",
+      "address": "High Street, Gillingham",
+      "postcode": "ME7 1AY",
+      "hours": "Monday to Saturday 9am to 5.30pm, Sunday closed",
+      "about": "Toiletries, baby and household items only. A Runner never buys medicines."
+    },
+    {
+      "key": "gillingham-market",
+      "name": "Gillingham Market",
+      "kind": "shop",
+      "address": "High Street, Gillingham",
+      "postcode": "ME7 1BG",
+      "hours": "Saturdays 9am to 3pm",
+      "about": "Saturday market on the High Street: fruit, vegetables and everyday goods."
+    }
+  ]
+}

@@ -74,7 +74,7 @@ another. All of this is checked by the server on every request.
 | --- | --- | --- |
 | **Shopper** | Mobile or landline number and a one-time code (text to a mobile, an automatic phone call to a landline). Can be done entirely by voice (rulings 24, 27, 47). No password. | Shop, basket, orders, live order page, saved cards (last four digits only) and addresses, Settings (voice, words on screen, organisation link, age group, share link, sign out). Their own orders only. |
 | **Runner** | Phone number and code; registers entirely in the app (ruling 2 Oct 2). | Their Runner page: today, shift on and off, job offers (pay and distance first), the current job (list and drop-off), money (earned, owed, paid out), Training tab, their Runner ID and share link, documents, feedback. Sees an order reference and the area only, never the Shopper's name or number. |
-| **Shop Partner** | Username and password given by our partnerships staff (business sign-in at /business). | Its own products (add with a photo, change price, take off), what it pays and its payment history, PDF statements, its share link and meter, its own purchase figures. Never who bought. |
+| **Shop Partner** (a shop, café, takeaway or service) | Joins itself at /business/join with a username and password it chooses, its mobile confirmed by code; pending until staff approve its page (ruling 65). Staff can also add one from a paper form. | Its own products or services (add, with a photo on Partner Plus; change price; take off), its plan and paying for it through Stripe Checkout, its payment history, a café's commission, a service's enquiries, PDF statements, its share link and meter, its own purchase figures. Never who bought. |
 | **Organisation** (councils, care homes, hospitals, charities, businesses) | Username and password per person, each with their office (/business). | Only the people who chose to link to it with its code: their orders, spending this month, last month and in total, by office, budget left, savings against its own staff-trip cost, weekly shops booked, statements as PDF and spreadsheet, share link and meter. |
 | **"I look after someone"** (family and carer plan, T1) | A door on the first screen. | NOT BUILT: the page says "coming soon". |
 | **Call guest** | A one-off link sent by the Shopper during a call (MERGE). | Joins that one call only. |
@@ -137,8 +137,11 @@ them there; tests pin the core ones so a change is made on purpose.
 | Organisations | **£10 a client a month, every 51st client £5** (120 clients: £1,190) | Ruling 58 |
 | Ozi Finds It | **£2.00**, up to 3 shops looked in, given back if nothing is found; one free a month on any plan and in the free month | Rulings 37, 58 |
 | Gift cards | **£10, £20, £30 or £50** | Ruling 37 |
-| Shop Partner plan | **£29.99 a month** | Rulings 41, 42 |
-| Spotlight (extra for paid-up Shop Partners) | **£19.99 a month**, mentioned at most once a week to the same Shopper | Ruling 42 |
+| Basic listing (a shop) | **Free for ever** for the first 100 shops to join: name, address, hours, up to 10 products (`extras.partners`) | Ruling 65 |
+| Partner Plus (a shop) | **£14.99 a month**, first month free: the full catalogue with photos, offers, Shop of the Month; paid from the dashboard through Stripe Checkout | Ruling 65 (replaces the £29.99 plan of rulings 41, 42) |
+| Cafés and takeaways | **No monthly fee; 10% commission** on orders placed through the app, shown on the dashboard and statement | Ruling 65 |
+| Services | **Free**: services with a price-from and a duration; quotes and call backs, no payment through us | Ruling 65 |
+| Spotlight (extra for shops on paid Partner Plus) | **£19.99 a month**, mentioned at most once a week to the same Shopper | Ruling 42 |
 | Spotlight Plus | **£39.99 a month**, up to three times a week | Ruling 42 |
 | Cool bag deposit (Runner) | **£10.00**, built up at £1 from each of the first ten payouts, released after the 20th delivery | Section M |
 | Refunded straight away, no investigation | **£5.00 or less**, never counted against a Runner | Ruling 16 |
@@ -340,7 +343,7 @@ person) is replaced by Ozi Family and Carer (ruling 58).
 | Offers (only agreed in writing, config/offers.json, empty today) | BUILT | |
 | Everyday essentials the same day | BUILT | A search link to essentials in the shop. |
 | Enquiry form for shops and organisations, landing in the admin panel | BUILT | |
-| Shop Partners: own sign-in, products with photos, checked by a person, statements, payment history | BUILT | Ruling 41. Plan and Spotlight payments are recorded by staff when a shop is set up or renewed (months paid); they are not collected through Stripe automatically. |
+| Shop Partners: join themselves, approved by staff, free listings and Partner Plus paid online, cafés on commission, services with enquiries, the public shops list, shops Ozi lists itself | BUILT | Rulings 41 and 65. Partner Plus and Spotlight are paid from the dashboard through Stripe Checkout (recorded once by the signed receipt); staff can still record a month paid by hand. A café's commission is shown, not yet collected automatically. Nothing is paid through us for services. |
 | Spotlight and Spotlight Plus | BUILT | After the genuine results, called an advert, checkable facts only, weekly limits (Section O, ruling 42). |
 | Organisation dashboards, statements as PDF and spreadsheet | BUILT | Ruling 41. Paying by invoice is not built and needs Anthony's ruling. |
 | Advert square | BUILT, switched off | Small, in a corner, never on paying or card screens, never read aloud, never shown on Ozi Plus or Family and Carer (ruling 58); on when config/adverts.json says enabled (ruling 43). |
@@ -578,7 +581,7 @@ RULES.md names the file and test that enforces each.
 | At least 50 phrases per account | At least 400 per account (owner about 3,200) | Ruling 49 (changes 44) |
 | "No shop-facing system" | Shop Partners with their own sign-in (listing still free) | Ruling 41 (changes Section N) |
 | No product photographs | Shop Partner products have photos | Ruling 41 |
-| Adverts charged about £1 per resulting delivery | Spotlight £19.99 and Spotlight Plus £39.99 a month, on top of the £29.99 partner plan | Rulings 41, 42 (change Section O) |
+| Adverts charged about £1 per resulting delivery | Spotlight £19.99 and Spotlight Plus £39.99 a month, on top of Partner Plus (£14.99; was the £29.99 partner plan) | Rulings 41, 42, 65 (change Section O) |
 | A single £19.99 introductory Spotlight price for three months (proposal) | The fixed prices above | Ruling 42 |
 | Business analyst staff job | Withdrawn; analysis is the founder's and whoever he switches it on for | Ruling 43 (changes 42) |
 | Ozi Plus "about £7.99"; Finds It "about £2" | £7.99 and £11.99 family; £2; then Membership £10, Plus £15, Family and Carer £20 a month | Ruling 37 (firms up 36), ruling 58 |
@@ -685,10 +688,11 @@ recipes.json, gifts.json, banned-words.json, ozi-phrases.json and phrases/ for e
 | GiftCard | A gift card and its code. |
 | OrganisationEnquiry | A shop or organisation asking to work with us. |
 | StaffMember | A staff, owner, family or investor sign-in, with role, password hash, passcode, two-step and switches. |
-| PartnerShop | A Shop Partner: plan paid until, Spotlight level. |
-| PartnerProduct | A Shop Partner's product and its approval. |
+| PartnerShop | A shop, café, takeaway or service: kind, status (pending, approved, removed), plan (free or Partner Plus) and paid until, free-for-ever flag, source (joined, staff paper form, listed by Ozi, claimed), seed key, postcode, hours, contact, private mobile, Spotlight level. |
+| PartnerProduct | A Shop Partner's product, or a service's service with its duration, and its approval. |
 | BusinessUser | A person signing in for a Shop Partner or organisation, with their office. |
-| PartnerPayment | A payment a Shop Partner made for its plan or Spotlight. |
+| PartnerPayment | A payment a Shop Partner made for Partner Plus or Spotlight, with the Checkout session that paid it. |
+| ServiceEnquiry | A Shopper asking a service for a quote or a call back, and the service's answer. |
 | SpotlightMention | Each time Ozi mentioned a Spotlight shop, for limits and reports. |
 | AnalyticsEvent | Business analysis records, with one-way codes and postcode districts only. |
 | IncomeRecord | The owner's ledger of money in and refunds out, by gateway. |

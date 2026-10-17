@@ -16,6 +16,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import {
+  basisPointsWords,
   deliverySteps,
   deliveryStepsWords,
   formatPence,
@@ -82,10 +83,22 @@ export const BLANKS = [
   'callPrice',
   'instantRefund',
   'partnerPlan',
+  'partnerPlus',
+  'freeShops',
+  'freeProducts',
+  'foodCommission',
   'spotlight',
   'spotlightPlus',
   'owner',
+  // Filled from what is listed right now, by the route that answers (ruling 65): the shops on
+  // the service, the kind of shop somebody asked for, and the shops of that kind.
+  'shopsOnOzi',
+  'shopKind',
+  'shopsForKind',
 ] as const;
+
+/** The blanks a reply fills from the moment, not from the settings. */
+export type LiveBlanks = Partial<Record<'shopsOnOzi' | 'shopKind' | 'shopsForKind', string>>;
 
 const OWNER_OPENINGS = ['Yes, sir.', 'Okay, sir.', 'All right, sir.'];
 
@@ -184,7 +197,12 @@ export function phraseBook(explicitConfigPath?: string): PhraseBook {
 }
 
 /** The figures and names a reply may mention, always from the store's own settings. */
-export function fillIn(reply: string, config: StoreConfig, ownerAddress: string): string {
+export function fillIn(
+  reply: string,
+  config: StoreConfig,
+  ownerAddress: string,
+  live: LiveBlanks = {},
+): string {
   const money = (pence: number): string => formatPence(pence, config.store.currencySymbol);
   const paygSteps = deliverySteps('payg', config.fees);
   const memberSteps = deliverySteps('membership', config.fees);
@@ -226,10 +244,18 @@ export function fillIn(reply: string, config: StoreConfig, ownerAddress: string)
     runnerPay: money(config.fees.runnerPaymentPence),
     callPrice: `${config.calls.pencePerMinute}p`,
     instantRefund: money(config.problems.instantRefundUpToPence),
-    partnerPlan: money(config.extras.partnerMonthlyPence),
+    // Ruling 65: the plan is Partner Plus; the first shops are listed free for ever.
+    partnerPlan: money(config.extras.partners.plusMonthlyPence),
+    partnerPlus: money(config.extras.partners.plusMonthlyPence),
+    freeShops: String(config.extras.partners.freeListingCount),
+    freeProducts: String(config.extras.partners.freeProductLimit),
+    foodCommission: basisPointsWords(config.extras.partners.foodCommissionBasisPoints),
     spotlight: money(config.extras.spotlightPence),
     spotlightPlus: money(config.extras.spotlightPlusPence),
     owner: ownerAddress,
+    shopsOnOzi: live.shopsOnOzi ?? 'The Local shops page lists every shop on here.',
+    shopKind: live.shopKind ?? 'shop',
+    shopsForKind: live.shopsForKind ?? 'the Local shops page',
   };
   return reply.replace(
     /\{(\w+)\}/g,
@@ -338,6 +364,7 @@ export function phraseReply(
   account: PhraseAccount,
   config: StoreConfig,
   book: PhraseBook = phraseBook(),
+  live: LiveBlanks = {},
 ): string | null {
   const said = withoutName(text, {
     product: config.productName,
@@ -355,7 +382,12 @@ export function phraseReply(
     found ??= byKeywords(said, index);
   }
   if (!found) return null;
-  const reply = fillIn(found.replies[turn % found.replies.length]!, config, book.ownerAddress);
+  const reply = fillIn(
+    found.replies[turn % found.replies.length]!,
+    config,
+    book.ownerAddress,
+    live,
+  );
   if (account === 'owner' && found.borrowed) {
     return `${OWNER_OPENINGS[turn % OWNER_OPENINGS.length]} ${reply}`;
   }

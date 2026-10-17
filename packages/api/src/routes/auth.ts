@@ -35,7 +35,11 @@ const phoneSchema = z
   .max(20)
   .regex(/^[+0-9 ()-]+$/, 'A phone number can only have digits, spaces, brackets and a plus.');
 
-const roleSchema = z.enum(['shopper', 'runner']).default('shopper');
+/**
+ * A Shopper, a Runner, or a shop joining as a partner (ruling 65), who confirms their mobile
+ * with the same code and never gets a session from here: the proof opens their account instead.
+ */
+const roleSchema = z.enum(['shopper', 'runner', 'partner']).default('shopper');
 
 const requestCodeSchema = z.object({
   phone: phoneSchema,
@@ -92,6 +96,8 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
   /** The number as stored now, or as it was typed, for accounts made before 26 Sep 2026. */
   async function findAccount(phone: string, typed: string, role: AccountRole) {
+    // A partner never signs in with a code: it only proves the mobile is theirs.
+    if (role === 'partner') return null;
     const find =
       role === 'runner'
         ? (p: string) => repository.runners.findByPhone(p)
@@ -227,7 +233,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
     // The demo sign-in (ruling 60): the demo number and the fixed code open the demo account,
     // a Shopper or a Runner as chosen. The code is never logged.
-    if (isDemoPhone(env, phone)) {
+    if (isDemoPhone(env, phone) && role !== 'partner') {
       demoMisses = withinWindow(demoMisses, DEMO_TRIES.minutes);
       if (demoMisses.length >= DEMO_TRIES.count) {
         throw new TooManyRequestsError(TOO_MANY);
@@ -264,7 +270,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
 
     const account = await findAccount(phone, input.phone, role);
 
-    if (!account) {
+    if (!account || role === 'partner') {
       return {
         registrationRequired: true,
         role,
@@ -281,7 +287,9 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
         message:
           role === 'runner'
             ? 'We do not know you yet. Let us set you up as a Runner.'
-            : 'We do not know you yet. Let us set you up.',
+            : role === 'partner'
+              ? 'Thank you, that is your number. Let us finish setting your business up.'
+              : 'We do not know you yet. Let us set you up.',
       };
     }
 

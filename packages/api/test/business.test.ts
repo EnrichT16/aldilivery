@@ -39,11 +39,12 @@ async function signIn(username: string, password: string): Promise<{ 'x-business
   return { 'x-business-token': response.json().token as string };
 }
 
-async function partnerShop(paidMonths = 1) {
+async function partnerShop(paidMonths = 1, plan: 'free' | 'plus' = 'plus') {
   const shop = (
     await staff('POST', '/staff/partners', {
       name: 'Corner Bakery',
       about: 'Fresh bread every morning.',
+      plan,
       paidMonths,
     })
   ).json().shop as { id: string };
@@ -65,7 +66,7 @@ describe('partner shops', () => {
       headers,
     });
     expect(dashboard.json().plan).toEqual(
-      expect.objectContaining({ monthlyPence: 2999, paid: true }),
+      expect.objectContaining({ tier: 'plus', monthlyPence: 1499, paid: true }),
     );
     expect(dashboard.json().sharePath).toBe(`/shops/${shop.id}`);
 
@@ -143,8 +144,8 @@ describe('partner shops', () => {
     expect(price.statusCode).toBe(404);
   });
 
-  it('cannot add products when the plan is not paid, and never lists restricted goods', async () => {
-    const unpaid = await partnerShop(0);
+  it('cannot add products when Partner Plus is not paid, and never lists restricted goods', async () => {
+    const unpaid = await partnerShop(0, 'plus');
     const refused = await harness.app.inject({
       method: 'POST',
       url: '/partner/products',
@@ -152,8 +153,11 @@ describe('partner shops', () => {
       payload: { name: 'Bread', pricePence: 100 },
     });
     expect(refused.statusCode).toBe(409);
-    expect(refused.json().error.message).toMatch(/£29\.99 a month/);
-    expect((await harness.app.inject({ method: 'GET', url: '/shops' })).json().shops).toEqual([]);
+    expect(refused.json().error.message).toMatch(/£14\.99 a month/);
+    // Added by staff from a paper form, so the page is listed; with Plus unpaid it shows no products.
+    expect((await harness.app.inject({ method: 'GET', url: '/shops' })).json().shops).toEqual([
+      expect.objectContaining({ name: 'Corner Bakery', kind: 'shop', products: 0 }),
+    ]);
 
     await staff('POST', `/staff/partners/${unpaid.shop.id}`, { paidMonths: 1 });
     const wine = await harness.app.inject({

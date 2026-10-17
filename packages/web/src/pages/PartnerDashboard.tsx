@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { storeConfig } from '../config';
 import {
   addPartnerProduct,
+  answerPartnerEnquiry,
+  confirmPartnerCheckout,
   downloadBusinessStatement,
   fetchPartnerDashboard,
   rememberBusinessToken,
   removePartnerProduct,
   setPartnerPrice,
+  startPartnerCheckout,
   type PartnerDashboard as Dashboard,
   type PartnerProductRow,
 } from '../lib/api';
@@ -39,17 +42,23 @@ function longDate(when: string): string {
   });
 }
 
+/** The receipt for a Checkout page, kept until Stripe sends the shop back (ruling 65). */
+const RECEIPT = 'ozidelivery.partner.receipt';
+
 /**
- * A Shop Partner's own area (7 October 2026): what they pay, their products and prices, adding
- * a product with a photo (checked by us before Shoppers see it), and a link to share. Ozi helps
- * here too, with this dashboard's own commands only.
+ * A Shop Partner's own area (7 October 2026; ruling 65): what they pay and paying it here, their
+ * products or services and prices, adding one with a photo (checked by us before Shoppers see it),
+ * a café's commission, a service's enquiries, and a link to share. Ozi helps here too, with this
+ * dashboard's own commands only.
  */
 export function PartnerDashboard(): JSX.Element {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [params, setParams] = useSearchParams();
   const ozi = useOzi();
   const [data, setData] = useState<Dashboard | null>(null);
   const [problem, setProblem] = useState('');
-  const [news, setNews] = useState('');
+  const [news, setNews] = useState((location.state as { welcome?: string } | null)?.welcome ?? '');
   const [busy, setBusy] = useState(false);
   const latest = useRef({ ozi, data, navigate });
   const phraseTurn = useRef(0);
@@ -70,6 +79,62 @@ export function PartnerDashboard(): JSX.Element {
   );
 
   const shareUrl = data ? `${window.location.origin}${data.sharePath}` : '';
+
+  /** Paying for Partner Plus or Spotlight: the free first month at once, or off to Stripe's page. */
+  const pay = useCallback(
+    async (kind: 'plan' | 'spotlight' | 'plus'): Promise<void> => {
+      setBusy(true);
+      setProblem('');
+      try {
+        const result = await startPartnerCheckout({ kind, months: 1, returnTo: '/partner' });
+        if (result.url && result.receipt) {
+          try {
+            window.sessionStorage.setItem(RECEIPT, result.receipt);
+          } catch {
+            // Private browsing: the payment is still recorded by hand if the receipt is lost.
+          }
+          setNews(result.message);
+          window.location.assign(result.url);
+          return;
+        }
+        setNews(result.message);
+        void latest.current.ozi.say(result.message);
+        await load();
+      } catch (failure) {
+        setProblem(failure instanceof Error ? failure.message : 'That did not work.');
+      } finally {
+        setBusy(false);
+      }
+    },
+    [load],
+  );
+
+  // Back from Stripe with ?paid=<session>: record it, once, with the receipt kept before leaving.
+  useEffect(() => {
+    const sessionId = params.get('paid');
+    if (!sessionId) return;
+    let receipt = '';
+    try {
+      receipt = window.sessionStorage.getItem(RECEIPT) ?? '';
+      window.sessionStorage.removeItem(RECEIPT);
+    } catch {
+      receipt = '';
+    }
+    setParams({}, { replace: true });
+    if (!receipt) {
+      setProblem('Thank you for paying. If your plan does not show as paid shortly, ring us.');
+      return;
+    }
+    confirmPartnerCheckout(receipt, sessionId)
+      .then((result) => {
+        setNews(result.message);
+        void latest.current.ozi.say(result.message);
+        void load();
+      })
+      .catch((failure: unknown) =>
+        setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
+      );
+  }, [params, setParams, load]);
 
   const share = useCallback(async (): Promise<string> => {
     const current = latest.current.data;
@@ -123,9 +188,7 @@ export function PartnerDashboard(): JSX.Element {
         case 'plan':
           if (current) {
             say(
-              current.plan.paid && current.plan.paidUntil
-                ? `Your plan is ${money(current.plan.monthlyPence)} a month, paid until ${longDate(current.plan.paidUntil)}.`
-                : `Your plan of ${money(current.plan.monthlyPence)} a month is not paid at the moment, so new products cannot be added. Please speak to us to renew it.`,
+              `${current.plan.words}${current.shop.kind === 'shop' ? ' To pay or renew, use the button under Your plan on the screen, or ring us.' : ''}`,
             );
           }
           return true;
@@ -209,7 +272,48 @@ export function PartnerDashboard(): JSX.Element {
           });
           return true;
         }
-        case 'add':
+        case 'add': {
+          if (current?.shop.kind === 'service') {
+            // A service: a name, a price from, and how long it takes (ruling 65).
+            ask(
+              'What is the service? Say its name as Shoppers should see it, such as haircut.',
+              (name) => {
+                ask(`And the price of ${name}, from?`, (priceWords) => {
+                  const pence = spokenMoney(priceWords);
+                  if (pence === null) return say("I didn't catch a price, so nothing was added.");
+                  ask('How long does it take? Say the minutes, such as thirty.', (minutesWords) => {
+                    const minutes = Number(
+                      /\d+/.exec(minutesWords)?.[0] ?? (spokenMoney(minutesWords) ?? 0) / 100,
+                    );
+                    if (!Number.isFinite(minutes) || minutes < 5) {
+                      return say("I didn't catch how long it takes, so nothing was added.");
+                    }
+                    ask(
+                      `Send ${name}, from ${money(pence)}, about ${minutes} minutes, to be checked? Say yes to confirm.`,
+                      (answer) => {
+                        if (!YES.test(answer)) return say('All right, nothing was added.');
+                        void addPartnerProduct({
+                          name: name.trim(),
+                          pricePence: pence,
+                          tags: '',
+                          durationMinutes: minutes,
+                        })
+                          .then((result) => {
+                            click();
+                            say(result.message);
+                            void load();
+                          })
+                          .catch((failure: unknown) =>
+                            say(failure instanceof Error ? failure.message : 'That did not work.'),
+                          );
+                      },
+                    );
+                  });
+                });
+              },
+            );
+            return true;
+          }
           ask(
             'What is the product? Say its name as Shoppers should see it, such as sourdough loaf, 800 grams.',
             (name) => {
@@ -248,6 +352,7 @@ export function PartnerDashboard(): JSX.Element {
             },
           );
           return true;
+        }
       }
     };
 
@@ -255,11 +360,17 @@ export function PartnerDashboard(): JSX.Element {
     void load().then((result) => {
       if (!result) return;
       const { live, waiting } = result.counts;
+      const things = result.shop.kind === 'service' ? 'service' : 'product';
       say(
         `Welcome to your ${storeConfig.productName} Shop Partner area for ${result.shop.name}. ` +
-          `You have ${live} product${live === 1 ? '' : 's'} live and ${waiting} waiting to be checked. ` +
-          (result.plan.paid ? '' : 'Your monthly plan is not paid at the moment. ') +
-          'Say "add a product", or "help".',
+          `You have ${live} ${things}${live === 1 ? '' : 's'} live and ${waiting} waiting to be checked. ` +
+          (result.shop.status === 'pending'
+            ? 'Your page goes public once we have checked your listing. '
+            : '') +
+          (result.shop.kind === 'shop' && result.plan.tier === 'plus' && !result.plan.paid
+            ? 'Partner Plus is not paid at the moment. '
+            : '') +
+          `Say "add a ${things}", or "help".`,
       );
     });
     return () => latest.current.ozi.setPageCommands(null);
@@ -275,6 +386,11 @@ export function PartnerDashboard(): JSX.Element {
       setProblem('Please give the product’s name and its price in pounds, like 3.50.');
       return;
     }
+    const minutes = Number(value('product-minutes'));
+    if (data?.shop.kind === 'service' && (!Number.isFinite(minutes) || minutes < 5)) {
+      setProblem('Please say how long the service takes, in minutes.');
+      return;
+    }
     setBusy(true);
     setProblem('');
     try {
@@ -286,6 +402,7 @@ export function PartnerDashboard(): JSX.Element {
         tags: value('product-tags'),
         ...(value('product-expires') ? { expiresOn: value('product-expires') } : {}),
         ...(photo ? { photo: photo.base64, photoType: photo.contentType } : {}),
+        ...(data?.shop.kind === 'service' ? { durationMinutes: minutes } : {}),
       });
       click();
       setNews(result.message);
@@ -307,6 +424,7 @@ export function PartnerDashboard(): JSX.Element {
     );
   }
 
+  const service = data.shop.kind === 'service';
   return (
     <div className="space-y-8 max-w-2xl">
       <h1 className="text-display font-bold m-0">{data.shop.name}</h1>
@@ -314,7 +432,21 @@ export function PartnerDashboard(): JSX.Element {
         <summary className="control px-0 text-paper underline">The screen</summary>
         <ShowWordsSwitch />
       </details>
-      <p className="m-0">Your Shop Partner area.</p>
+      <p className="m-0">
+        Your Shop Partner area. {data.shop.kindWords}
+        {data.shop.postcode ? `, ${data.shop.postcode}` : ''}.
+      </p>
+      {data.shop.status === 'pending' && (
+        <p role="status" className="m-0 border-2 border-paper rounded-2xl p-4">
+          Your page is not public yet: we check every new listing, usually within one working day.
+          You can add your {service ? 'services' : 'products'} now, and they go live with it.
+        </p>
+      )}
+      {!data.shop.active && data.shop.status !== 'pending' && (
+        <p role="status" className="m-0 border-2 border-paper rounded-2xl p-4">
+          Your listing is paused. Please ring us.
+        </p>
+      )}
       <p role="status" className="m-0 min-h-control">
         {news}
       </p>
@@ -331,17 +463,103 @@ export function PartnerDashboard(): JSX.Element {
         <h2 id="plan-heading" className="text-lead font-bold m-0">
           Your plan
         </h2>
-        <p className="m-0">
-          {money(data.plan.monthlyPence)} a month.{' '}
-          {data.plan.paid && data.plan.paidUntil
-            ? `Paid until ${longDate(data.plan.paidUntil)}.`
-            : 'Not paid at the moment: please speak to us to renew it. Until then, new products cannot be added.'}
-        </p>
+        <p className="m-0">{data.plan.words}</p>
         <p className="m-0">
           {data.counts.live} live, {data.counts.waiting} waiting to be checked
-          {data.counts.notAccepted ? `, ${data.counts.notAccepted} not accepted` : ''}.
+          {data.counts.notAccepted ? `, ${data.counts.notAccepted} not accepted` : ''}
+          {data.plan.productLimit !== null
+            ? `; ${data.plan.productsListed} of ${data.plan.productLimit} places used`
+            : ''}
+          .
         </p>
+        {data.shop.kind === 'shop' && (
+          <div className="flex flex-wrap gap-2 items-center">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void pay('plan')}
+              className="control bg-highlight text-on-accent disabled:opacity-70"
+            >
+              {data.plan.tier === 'plus' && data.plan.paid
+                ? `Renew Partner Plus, ${money(data.plan.plusMonthlyPence)} for a month`
+                : data.plan.firstMonthFree
+                  ? 'Start Partner Plus, first month free'
+                  : `Pay for Partner Plus, ${money(data.plan.plusMonthlyPence)} a month`}
+            </button>
+            <span>
+              Or ring us on {storeConfig.contact.telephonePlaceholder} and a person will take it.
+            </span>
+          </div>
+        )}
       </section>
+
+      {data.commission && (
+        <section
+          aria-labelledby="commission-heading"
+          className="space-y-2 border-2 border-paper rounded-2xl p-4"
+        >
+          <h2 id="commission-heading" className="text-lead font-bold m-0">
+            Commission this month
+          </h2>
+          <p className="m-0">
+            {data.commission.ordersThisMonth} order
+            {data.commission.ordersThisMonth === 1 ? '' : 's'} through {storeConfig.productName},{' '}
+            {money(data.commission.goodsThisMonthPence)} of food and drink. {data.commission.words}{' '}
+            owed: <strong>{money(data.commission.owedThisMonthPence)}</strong>. It is on your
+            statement too.
+          </p>
+        </section>
+      )}
+
+      {service && (
+        <section aria-labelledby="enquiries-heading" className="space-y-3">
+          <h2 id="enquiries-heading" className="text-lead font-bold m-0">
+            Enquiries
+          </h2>
+          <p className="m-0">
+            Shoppers asking you for a quote or a call back. Get back to them yourself; nothing is
+            paid through {storeConfig.productName} for services yet.
+          </p>
+          {data.enquiries.length === 0 && <p className="m-0">None yet.</p>}
+          <ul className="list-none m-0 p-0 space-y-3">
+            {data.enquiries.map((row) => (
+              <li key={row.id} className="border-2 border-paper/40 rounded-2xl p-4 space-y-2">
+                <h3 className="m-0 font-bold">
+                  {row.shopperName} asked for {row.what}
+                </h3>
+                <p className="m-0">
+                  {longDate(row.createdAt)}. {row.message || 'No message.'} Reach them on:{' '}
+                  {row.contact}.{row.status === 'answered' ? ' Answered.' : ''}
+                </p>
+                {row.status === 'open' && (
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const note = String(
+                        new FormData(event.currentTarget).get('reply') ?? '',
+                      ).trim();
+                      void answerPartnerEnquiry(row.id, note).then((result) => {
+                        setNews(result.message);
+                        void load();
+                      });
+                    }}
+                    className="flex flex-wrap gap-2 items-end"
+                  >
+                    <label className="block">
+                      A note for them (optional)
+                      <input name="reply" className={field} />
+                    </label>
+                    <button type="submit" className="control border-paper bg-paper/10 text-paper">
+                      Mark as answered
+                      <span className="visually-hidden"> for {row.shopperName}</span>
+                    </button>
+                  </form>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <section aria-labelledby="numbers-heading" className="space-y-2">
         <h2 id="numbers-heading" className="text-lead font-bold m-0">
@@ -452,19 +670,33 @@ export function PartnerDashboard(): JSX.Element {
         aria-labelledby="add-heading"
       >
         <h2 id="add-heading" className="text-lead font-bold m-0">
-          Add a product
+          {service ? 'Add a service' : 'Add a product'}
         </h2>
         <p className="m-0">
-          We check each new product, usually within one working day, then Shoppers see it.
+          We check each new {service ? 'service' : 'product'}, usually within one working day, then
+          Shoppers see it.
         </p>
         <label htmlFor="product-name" className="block font-bold">
           What it is
         </label>
         <input id="product-name" name="product-name" className={field} />
         <label htmlFor="product-price" className="block font-bold">
-          Price in pounds
+          {service ? 'Price from, in pounds' : 'Price in pounds'}
         </label>
         <input id="product-price" name="product-price" inputMode="decimal" className={field} />
+        {service && (
+          <>
+            <label htmlFor="product-minutes" className="block font-bold">
+              How long it takes, in minutes
+            </label>
+            <input
+              id="product-minutes"
+              name="product-minutes"
+              inputMode="numeric"
+              className={field}
+            />
+          </>
+        )}
         <label htmlFor="product-tags" className="block font-bold">
           Labels, to help people find it (optional)
         </label>
@@ -473,17 +705,23 @@ export function PartnerDashboard(): JSX.Element {
           Best before or use by (optional)
         </label>
         <input id="product-expires" name="product-expires" type="date" className={field} />
-        <label htmlFor="product-photo" className="block font-bold">
-          A photo (optional)
-        </label>
-        <input
-          id="product-photo"
-          name="product-photo"
-          type="file"
-          accept="image/*"
-          capture="environment"
-          className={field}
-        />
+        {data.plan.productLimit === null ? (
+          <>
+            <label htmlFor="product-photo" className="block font-bold">
+              A photo (optional)
+            </label>
+            <input
+              id="product-photo"
+              name="product-photo"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className={field}
+            />
+          </>
+        ) : (
+          <p className="m-0 text-paper/80">Photos come with Partner Plus.</p>
+        )}
         <button
           type="submit"
           disabled={busy}

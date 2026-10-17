@@ -13,10 +13,11 @@ import { memoryRepository } from './data/memory.js';
 import { createPrismaClient, prismaRepository } from './data/prisma.js';
 import type { Repository } from './data/repository.js';
 import { seedRepository } from './data/seed-data.js';
-import { seedOnStartup, type StartupSeedOutcome } from './data/startup-seed.js';
+import { seedOnStartup, seedShopsOnStartup, type StartupSeedOutcome } from './data/startup-seed.js';
 import { readEnv } from './env.js';
 import { rehearsalGateway, stripeGateway, type PaymentsGateway } from './lib/payments.js';
 import { livekitProvider } from './lib/livekit.js';
+import { loadShopsSeed } from './lib/shops-seed.js';
 import { oluomaVoice } from './lib/oluoma-voice.js';
 import { webPushSender } from './lib/push.js';
 import { callScript, codeMessage, senderName, twilioCaller, twilioSender } from './lib/sms.js';
@@ -49,6 +50,8 @@ async function main(): Promise<void> {
     // broken shop, so fill it once. The catalogue only: never people. See startup-seed.ts.
     startupSeed = await seedOnStartup(repository, config, { enabled: env.seedOnStart });
   }
+  // The shops Ozi lists itself (ruling 65), only when there are none at all.
+  const shopsSeed = await seedShopsOnStartup(repository, loadShopsSeed(env.storeConfigPath));
 
   let payments: PaymentsGateway;
   if (env.stripeSecretKey && env.stripeWebhookSecret) {
@@ -199,6 +202,11 @@ async function main(): Promise<void> {
     );
   }
 
+  if (shopsSeed.seeded) {
+    app.log.info(
+      `There were no shops, so ${shopsSeed.shops} well-known local shops from config/shops-seed.json were listed by ${config.assistantName}, each with no products of its own and an invitation to its owner to claim it.`,
+    );
+  }
   if (startupSeed?.seeded) {
     app.log.info(
       `The catalogue was empty, so it was filled with ${startupSeed.catalogueItems} everyday grocery items. No Shopper and no Runner was created: those are real people, and the right to work and criminal record checks behind them are done by a person, never by a seed.`,
