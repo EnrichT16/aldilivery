@@ -76,6 +76,8 @@ import {
   fetchMemoryExport,
   judgeExchange,
   type ExchangeRow,
+  fetchStaffShopOfTheMonth,
+  type ShopStandings,
   fetchBankPayments,
   fetchTinyExtras,
   carryWithFirstRunner,
@@ -408,6 +410,7 @@ export function Staff(): JSX.Element {
             )}
             {shown === 'payments' && <Payments staffKey={key} onNews={setNews} />}
             {shown === 'partners' && <Partners staffKey={key} onNews={setNews} />}
+            {shown === 'partners' && <ShopOfTheMonth staffKey={key} />}
             {shown === 'analytics' && <Analytics staffKey={key} />}
             {shown === 'overview' && <Overview staffKey={key} onOpen={setTab} />}
             {shown === 'money' && <Money staffKey={key} />}
@@ -2091,6 +2094,82 @@ interface PanelProps {
   staffKey: string;
   by: string;
   onNews: (news: string) => void;
+}
+
+/**
+ * Shop of the Month (ruling 70): who holds the awards, and the standings for the month, the
+ * quarter and the half year among Partner Plus shops, each with how many reviews it has and
+ * whether it has enough to win. Counts and averages only, never who said what.
+ */
+function ShopOfTheMonth({ staffKey }: { staffKey: string }): JSX.Element {
+  const list = useList(() => fetchStaffShopOfTheMonth(staffKey));
+  const [which, setWhich] = useState<'month' | 'quarter' | 'half'>('month');
+  const chip = (on: boolean): string =>
+    `control ${on ? 'bg-paper text-ink' : 'border-paper bg-paper/10 text-paper'}`;
+  const standings: ShopStandings | undefined = list.data?.standings[which];
+  return (
+    <section aria-labelledby="shop-of-the-month-heading" className="space-y-4 max-w-2xl">
+      <h2 id="shop-of-the-month-heading" className="text-lead font-bold">
+        Shop of the Month
+      </h2>
+      <p className="m-0 extra">
+        Shoppers rate a shop after a delivery, one to five stars. Shops on Partner Plus with enough
+        ratings in the period are ranked by a balanced score, so a few perfect ratings do not beat
+        many good ones. The winner wears the badge on the public shops pages.
+      </p>
+      <Failure text={list.problem} />
+      {list.data && (
+        <p className="m-0">
+          {list.data.awards.length === 0
+            ? 'Nobody holds an award yet.'
+            : list.data.awards
+                .map(
+                  (award) =>
+                    `${award.title}: ${award.shop.name} (${award.reviews} ratings, ${award.average} stars)`,
+                )
+                .join('. ') + '.'}
+        </p>
+      )}
+      <div role="group" aria-label="Which period" className="flex flex-wrap gap-2">
+        {(['month', 'quarter', 'half'] as const).map((one) => (
+          <button
+            key={one}
+            type="button"
+            aria-pressed={which === one}
+            onClick={() => setWhich(one)}
+            className={chip(which === one)}
+          >
+            {one === 'month' ? 'This month' : one === 'quarter' ? 'This quarter' : 'This half year'}
+          </button>
+        ))}
+      </div>
+      {standings && (
+        <>
+          <h3 className="m-0 font-bold">{standings.period.title}</h3>
+          <p className="m-0">
+            At least {standings.minimumReviews} ratings in the period to win.
+            {standings.winner
+              ? ` Leading: ${standings.winner.shop.name}.`
+              : ' Nobody has enough ratings yet.'}
+          </p>
+          {standings.rows.length === 0 ? (
+            <p className="m-0">No ratings of Partner Plus shops in this period yet.</p>
+          ) : (
+            <ol className="m-0 pl-6 space-y-2">
+              {standings.rows.map((row) => (
+                <li key={row.shop.id}>
+                  <span className="font-bold">{row.shop.name}</span>: {row.reviews}{' '}
+                  {row.reviews === 1 ? 'rating' : 'ratings'}, {row.average} stars on average, score{' '}
+                  {row.score}.{' '}
+                  {row.qualifies ? 'Enough ratings to win.' : 'Not enough ratings yet.'}
+                </li>
+              ))}
+            </ol>
+          )}
+        </>
+      )}
+    </section>
+  );
 }
 
 /**

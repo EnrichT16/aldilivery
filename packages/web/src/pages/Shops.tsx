@@ -69,6 +69,14 @@ export function Shops(): JSX.Element {
                 className="block border-2 border-paper rounded-2xl p-4 text-paper no-underline"
               >
                 <span className="block text-lead font-bold underline">{shop.name}</span>
+                {(shop.awards ?? []).map((award) => (
+                  <span
+                    key={award}
+                    className="inline-block border-2 border-highlight rounded-2xl px-3 py-1 my-1 mr-2 font-bold"
+                  >
+                    {award}
+                  </span>
+                ))}
                 <span className="block">
                   {shop.kindWords}
                   {shop.area ? `, ${shop.area}` : ''}. {shop.about}{' '}
@@ -198,6 +206,18 @@ export function ShopPage(): JSX.Element {
   return (
     <div className="space-y-8 max-w-xl">
       <h1 className="text-display font-bold m-0">{page.shop.name}</h1>
+      {(page.shop.awards ?? []).length > 0 && (
+        <p className="m-0" aria-label="Awards">
+          {(page.shop.awards ?? []).map((award) => (
+            <span
+              key={award}
+              className="inline-block border-2 border-highlight rounded-2xl px-3 py-1 mr-2 mb-2 font-bold"
+            >
+              {award}
+            </span>
+          ))}
+        </p>
+      )}
       <p className="m-0">
         {page.shop.kindWords}
         {page.shop.area ? `, ${page.shop.area}` : ''}.{page.shop.about ? ` ${page.shop.about}` : ''}

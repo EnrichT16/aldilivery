@@ -28,6 +28,7 @@ import { sweepPayouts } from './services/pay-runner.js';
 import { sweepReimbursements } from './services/reimburse.js';
 import { sweepCards } from './services/runner-card.js';
 import { sweepRetention } from './services/retention.js';
+import { settleShopReviews } from './services/shop-of-the-month.js';
 import { sweepSets } from './services/set-runner.js';
 import { sweepInsuranceReminders } from './services/insurance.js';
 import { sweepDeposits } from './services/runner-leaving.js';
@@ -316,6 +317,14 @@ async function main(): Promise<void> {
       })
       .catch((failure: unknown) => {
         app.log.error({ err: failure }, 'The retention sweep failed');
+      });
+    // Review points (ruling 70): earned once their days are up, void if the order was refunded.
+    settleShopReviews(app.ctx, app.log)
+      .then((report) => {
+        app.log.info(report, 'Shop review sweep');
+      })
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, 'The shop review sweep failed');
       });
   }, 3_600_000);
   retentionSweep.unref();

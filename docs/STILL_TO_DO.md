@@ -76,6 +76,7 @@ Needs Anthony before launch
 - A solicitor for the privacy policy, terms and Runner agreement, including the 10% recovery rate and paying Runners back for the shopping (step 3, rulings 15, 55).
 - A ruling on the cool bag deposit and Rule Ten: while the £10 is held back it is Runner money held by the service (docs/LEGAL_REVIEW.md). Ruling 55 left the deposit as it is.
 - Whether a Runner may send a checked substitute, and employment status: the two things keeping the Runner agreement marked as a draft.
+- Shop of the Month and review points (ruling 70): whether the £1 delivery-feedback credit should become points too, and a certificate for the winning shop (nothing is made yet).
 - A data protection impact assessment (step 4, ruling 16). ICO registration done: ZC271245 (ruling 67).
 - The backed-up database, with point-in-time recovery switched on (step 5).
 - STAFF_API_KEY, then the owner's account (step 6).

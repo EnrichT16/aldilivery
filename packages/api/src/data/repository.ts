@@ -60,6 +60,8 @@ import type {
   SetItem,
   Shopper,
   OziExchange,
+  ReviewPointsSpend,
+  ShopReview,
 } from '../domain.js';
 import type { OrderStatus } from '@aldilivery/core';
 
@@ -679,6 +681,29 @@ export interface Repository {
     findByOrderId(orderId: string): Promise<ShopperFeedback | null>;
     /** Oldest first, since a moment. */
     listSince(since: Date): Promise<ShopperFeedback[]>;
+  };
+
+  /**
+   * Shop reviews and review points (ruling 70): one review per order per shop, with the points
+   * it earns, pending until the sweep earns or voids them; and each conversion of points into
+   * delivery credit. The balance is derived: points earned less points spent.
+   */
+  shopReviews: {
+    create(input: Omit<ShopReview, 'id'>): Promise<ShopReview>;
+    findByOrderAndShop(orderId: string, partnerShopId: string): Promise<ShopReview | null>;
+    /** Newest first. */
+    listForShopper(shopperId: string): Promise<ShopReview[]>;
+    /** Every review of a status, oldest first. */
+    listByStatus(status: ShopReview['status']): Promise<ShopReview[]>;
+    /** Reviews made in a period, from `since` up to but not including `until`, oldest first. */
+    listBetween(since: Date, until: Date): Promise<ShopReview[]>;
+    update(
+      id: string,
+      patch: Partial<Pick<ShopReview, 'status' | 'earnedAt'>>,
+    ): Promise<ShopReview>;
+    spend(input: Omit<ReviewPointsSpend, 'id'>): Promise<ReviewPointsSpend>;
+    /** How many points this Shopper has turned into credit so far. */
+    spentPoints(shopperId: string): Promise<number>;
   };
 
   /**

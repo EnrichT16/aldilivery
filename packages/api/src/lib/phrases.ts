@@ -89,6 +89,11 @@ export const BLANKS = [
   'foodCommission',
   'spotlight',
   'spotlightPlus',
+  // Review points and Shop of the Month (ruling 70), from feedback.reviews in the settings.
+  'reviewPoints',
+  'pointsForPound',
+  'pointsPendingDays',
+  'reviewMinimum',
   'owner',
   // Filled from what is listed right now, by the route that answers (ruling 65): the shops on
   // the service, the kind of shop somebody asked for, and the shops of that kind.
@@ -252,6 +257,10 @@ export function fillIn(
     foodCommission: basisPointsWords(config.extras.partners.foodCommissionBasisPoints),
     spotlight: money(config.extras.spotlightPence),
     spotlightPlus: money(config.extras.spotlightPlusPence),
+    reviewPoints: String(config.feedback.reviews.pointsPerReview),
+    pointsForPound: String(Math.round(100 / config.feedback.reviews.pencePerPoint)),
+    pointsPendingDays: `${config.feedback.reviews.pendingDays} days`,
+    reviewMinimum: String(config.feedback.reviews.shopOfTheMonthMinimumReviews),
     owner: ownerAddress,
     shopsOnOzi: live.shopsOnOzi ?? 'The Local shops page lists every shop on here.',
     shopKind: live.shopKind ?? 'shop',

@@ -54,6 +54,7 @@ import { registerVoiceRoutes } from './routes/voice.js';
 import { registerPaymentRoutes } from './routes/payments.js';
 import { registerReimbursementRoutes } from './routes/reimbursements.js';
 import { registerOrderExtraRoutes } from './routes/order-extras.js';
+import { registerReviewRoutes } from './routes/reviews.js';
 import { registerReceiptPhotoRoutes } from './routes/receipt-photos.js';
 import { registerTillCaseRoutes } from './routes/till-cases.js';
 import { registerStaffRoutes } from './routes/staff.js';
@@ -481,6 +482,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerReceiptPhotoRoutes(app);
   await registerTillCaseRoutes(app);
   await registerOrderExtraRoutes(app);
+  await registerReviewRoutes(app);
   await registerRunnerSafetyRoutes(app);
   await registerRunnerMoneyRoutes(app);
   await registerRunnerCardRoutes(app);

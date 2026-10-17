@@ -61,6 +61,8 @@ import type {
   Shopper,
   ShopperFeedback,
   OziExchange,
+  ReviewPointsSpend,
+  ShopReview,
 } from '../domain.js';
 import type {
   CatalogueSearchOptions,
@@ -135,6 +137,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const exchanges: OziExchange[] = [];
   const receiptPhotos = new Map<string, ReceiptPhoto>();
   const shopperFeedback = new Map<string, ShopperFeedback>();
+  const shopReviews: ShopReview[] = [];
+  const reviewPointsSpends: ReviewPointsSpend[] = [];
   const sosAlerts = new Map<string, RunnerSos>();
   const referralRewards: ReferralReward[] = [];
   const auditEntries: AuditEntry[] = [];
@@ -1736,6 +1740,67 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           .filter((row) => row.createdAt.getTime() >= since.getTime())
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
           .map(clone);
+      },
+    },
+
+    shopReviews: {
+      async create(input) {
+        if (
+          shopReviews.some(
+            (row) => row.orderId === input.orderId && row.partnerShopId === input.partnerShopId,
+          )
+        ) {
+          throw new Error(
+            `A review of shop ${input.partnerShopId} for order ${input.orderId} is already in.`,
+          );
+        }
+        const row: ShopReview = { ...input, id: id() };
+        shopReviews.push(row);
+        return clone(row);
+      },
+      async findByOrderAndShop(orderId, partnerShopId) {
+        const found = shopReviews.find(
+          (row) => row.orderId === orderId && row.partnerShopId === partnerShopId,
+        );
+        return found ? clone(found) : null;
+      },
+      async listForShopper(shopperId) {
+        return shopReviews
+          .filter((row) => row.shopperId === shopperId)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map(clone);
+      },
+      async listByStatus(status) {
+        return shopReviews
+          .filter((row) => row.status === status)
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async listBetween(since, until) {
+        return shopReviews
+          .filter(
+            (row) =>
+              row.createdAt.getTime() >= since.getTime() &&
+              row.createdAt.getTime() < until.getTime(),
+          )
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async update(reviewId, patch) {
+        const row = shopReviews.find((one) => one.id === reviewId);
+        if (!row) throw new NotFoundError('shop review', reviewId);
+        Object.assign(row, patch);
+        return clone(row);
+      },
+      async spend(input) {
+        const row: ReviewPointsSpend = { ...input, id: id() };
+        reviewPointsSpends.push(row);
+        return clone(row);
+      },
+      async spentPoints(shopperId) {
+        return reviewPointsSpends
+          .filter((row) => row.shopperId === shopperId)
+          .reduce((sum, row) => sum + row.points, 0);
       },
     },
     audit: {

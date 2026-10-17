@@ -10,6 +10,7 @@ import {
 import { addPastItems, listInWords } from '../lib/extras';
 import { money } from '../lib/money';
 import { storeConfig } from '../config';
+import { ShopReviews } from '../components/ShopReviews';
 import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
@@ -156,6 +157,8 @@ export function Orders(): JSX.Element {
           })}
         </ul>
       )}
+      {/* Rate the shop and review points (ruling 70): only shown once there is something to say. */}
+      <ShopReviews currencySymbol={storeConfig.store.currencySymbol} />
       {enquiries.length > 0 && (
         <section aria-labelledby="enquiries-heading" className="space-y-3">
           <h2 id="enquiries-heading" className="text-lead font-bold m-0">
