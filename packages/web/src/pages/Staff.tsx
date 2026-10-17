@@ -72,6 +72,10 @@ import {
   decideLearning,
   fetchLearning,
   type LearningRow,
+  fetchMemory,
+  fetchMemoryExport,
+  judgeExchange,
+  type ExchangeRow,
   fetchBankPayments,
   fetchTinyExtras,
   carryWithFirstRunner,
@@ -399,6 +403,9 @@ export function Staff(): JSX.Element {
             {shown === 'enquiries' && <Enquiries staffKey={key} onNews={setNews} />}
             {shown === 'feedback' && <Feedback staffKey={key} />}
             {shown === 'learning' && <Learning staffKey={key} onNews={setNews} />}
+            {shown === 'learning' && (
+              <Memory staffKey={key} owner={me.isOwner === true} onNews={setNews} />
+            )}
             {shown === 'payments' && <Payments staffKey={key} onNews={setNews} />}
             {shown === 'partners' && <Partners staffKey={key} onNews={setNews} />}
             {shown === 'analytics' && <Analytics staffKey={key} />}
@@ -1675,6 +1682,218 @@ function Learning({
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+const CHANNEL_WORDS: Record<string, string> = {
+  app: 'in the app',
+  phone: 'on the telephone',
+  text: 'by text',
+};
+const BRAIN_WORDS: Record<string, string> = {
+  phrases: 'the phrase book',
+  learned: 'a learned answer',
+  'small-talk': 'small talk',
+  shops: 'the shop list',
+  shopping: 'the shopping parser',
+  flow: 'the conversation steps',
+  none: 'nothing: unanswered',
+};
+const OUTCOME_WORDS: Record<string, string> = {
+  answered: 'answered',
+  unanswered: 'not answered',
+  added: 'added to the basket',
+  'not-found': 'not found',
+  asked: 'asked a question',
+  sent: 'order sent',
+  stopped: 'stopped',
+  refused: 'refused',
+  ended: 'call ended',
+};
+
+/**
+ * Ozi's memory (ruling 68): every exchange on every channel, for a person to mark right or
+ * wrong and teach a better answer; the owner can export it all for training a model.
+ */
+function Memory({
+  staffKey,
+  owner,
+  onNews,
+}: {
+  staffKey: string;
+  owner: boolean;
+  onNews: (text: string) => void;
+}): JSX.Element {
+  const [verdict, setVerdict] = useState<'unrated' | 'wrong' | 'right' | 'all'>('unrated');
+  const [channel, setChannel] = useState<'all' | 'app' | 'phone' | 'text'>('all');
+  const list = useList(() =>
+    fetchMemory(staffKey, {
+      ...(verdict === 'all' ? {} : { verdict }),
+      ...(channel === 'all' ? {} : { channel }),
+    }),
+  );
+  const { reload } = list;
+  useEffect(() => {
+    reload();
+  }, [verdict, channel, reload]);
+  const rows: ExchangeRow[] | undefined = list.data?.exchanges;
+  const counts = list.data?.counts;
+  const [better, setBetter] = useState<Record<string, string>>({});
+  const judge = (row: ExchangeRow, right: boolean): void => {
+    const words = (better[row.id] ?? '').trim();
+    void judgeExchange(
+      staffKey,
+      row.id,
+      right
+        ? { verdict: 'right' }
+        : words
+          ? { verdict: 'wrong', betterReply: words }
+          : { verdict: 'wrong' },
+    )
+      .then((result) => {
+        onNews(result.message);
+        list.reload();
+      })
+      .catch((failure: unknown) =>
+        onNews(failure instanceof Error ? failure.message : 'That did not work.'),
+      );
+  };
+  const exportAll = (): void => {
+    void fetchMemoryExport(staffKey)
+      .then((result) => {
+        const file = new Blob([result.lines.join('\n') + '\n'], { type: 'application/jsonl' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(file);
+        link.download = `ozi-memory-${new Date().toISOString().slice(0, 10)}.jsonl`;
+        link.click();
+        URL.revokeObjectURL(link.href);
+        onNews(`Exported ${result.count} ${result.count === 1 ? 'exchange' : 'exchanges'}.`);
+      })
+      .catch((failure: unknown) =>
+        onNews(failure instanceof Error ? failure.message : 'That did not work.'),
+      );
+  };
+  const chip = (on: boolean): string =>
+    `control ${on ? 'bg-paper text-ink' : 'border-paper bg-paper/10 text-paper'}`;
+  return (
+    <section aria-labelledby="memory-heading" className="space-y-4 max-w-2xl">
+      <h2 id="memory-heading" className="text-lead font-bold">
+        Ozi&rsquo;s memory
+      </h2>
+      <p className="m-0 extra">
+        Everything Ozi heard and what it said back, on the app, the telephone and by text, with
+        names, numbers and addresses taken out. Mark each answer right or wrong. A better answer
+        teaches Ozi at once.
+      </p>
+      {counts && (
+        <p className="m-0">
+          {counts.total} kept: {counts.unrated} not yet judged, {counts.right} right, {counts.wrong}{' '}
+          wrong.
+        </p>
+      )}
+      <div role="group" aria-label="Which exchanges" className="flex flex-wrap gap-2">
+        {(['unrated', 'wrong', 'right', 'all'] as const).map((one) => (
+          <button
+            key={one}
+            type="button"
+            aria-pressed={verdict === one}
+            onClick={() => setVerdict(one)}
+            className={chip(verdict === one)}
+          >
+            {one === 'unrated'
+              ? 'Not judged'
+              : one === 'all'
+                ? 'All'
+                : one === 'right'
+                  ? 'Right'
+                  : 'Wrong'}
+          </button>
+        ))}
+      </div>
+      <div role="group" aria-label="Which channel" className="flex flex-wrap gap-2">
+        {(['all', 'app', 'phone', 'text'] as const).map((one) => (
+          <button
+            key={one}
+            type="button"
+            aria-pressed={channel === one}
+            onClick={() => setChannel(one)}
+            className={chip(channel === one)}
+          >
+            {one === 'all'
+              ? 'Every channel'
+              : one === 'app'
+                ? 'App'
+                : one === 'phone'
+                  ? 'Telephone'
+                  : 'Text'}
+          </button>
+        ))}
+      </div>
+      <Failure text={list.problem} />
+      {rows?.length === 0 && <p className="m-0">Nothing here yet.</p>}
+      <ul className="m-0 p-0 list-none space-y-3">
+        {rows?.map((row) => (
+          <li key={row.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
+            <p className="m-0 extra">
+              {new Date(row.at).toLocaleString('en-GB')},{' '}
+              {ACCOUNT_WORDS[row.account] ?? row.account}{' '}
+              {CHANNEL_WORDS[row.channel] ?? row.channel}, turn {row.turn + 1}. Answered by{' '}
+              {BRAIN_WORDS[row.brain] ?? row.brain}; {OUTCOME_WORDS[row.outcome] ?? row.outcome}.
+            </p>
+            <h3 className="m-0 font-bold">
+              Heard: &ldquo;{row.heard === '' ? 'nothing, Ozi spoke first' : row.heard}&rdquo;
+            </h3>
+            <p className="m-0">Ozi said: &ldquo;{row.said === '' ? 'nothing' : row.said}&rdquo;</p>
+            {row.verdict !== 'unrated' && (
+              <p className="m-0">
+                Marked {row.verdict} by {row.ratedBy ?? 'staff'}
+                {row.betterReply ? `. Better answer: “${row.betterReply}”` : ''}.
+              </p>
+            )}
+            <label htmlFor={`better-${row.id}`} className="block font-bold">
+              What Ozi should have said
+            </label>
+            <textarea
+              id={`better-${row.id}`}
+              value={better[row.id] ?? ''}
+              onChange={(event) => setBetter({ ...better, [row.id]: event.target.value })}
+              maxLength={400}
+              rows={2}
+              className="w-full rounded-2xl p-3 text-ink"
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => judge(row, true)}
+                className="control bg-highlight text-on-accent"
+              >
+                Right<span className="visually-hidden">: {row.heard}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => judge(row, false)}
+                className="control border-paper bg-paper/10 text-paper"
+              >
+                Wrong<span className="visually-hidden">: {row.heard}</span>
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {owner && (
+        <div className="space-y-2">
+          <h3 className="m-0 font-bold">Training export</h3>
+          <p className="m-0 extra">
+            Every exchange as one line of JSON, the shape a language model is taught from, with your
+            better answers in place of the wrong ones. For Okugard Brain, or any model you connect
+            later.
+          </p>
+          <button type="button" onClick={exportAll} className="control bg-paper text-ink">
+            Export Ozi&rsquo;s memory
+          </button>
+        </div>
+      )}
     </section>
   );
 }

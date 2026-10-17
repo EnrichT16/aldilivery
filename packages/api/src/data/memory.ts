@@ -60,6 +60,7 @@ import type {
   SetItem,
   Shopper,
   ShopperFeedback,
+  OziExchange,
 } from '../domain.js';
 import type {
   CatalogueSearchOptions,
@@ -131,6 +132,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const analyticsEvents: AnalyticsEvent[] = [];
   const incomeRecords: IncomeRecord[] = [];
   const learned: LearnedPhrase[] = [];
+  const exchanges: OziExchange[] = [];
   const receiptPhotos = new Map<string, ReceiptPhoto>();
   const shopperFeedback = new Map<string, ShopperFeedback>();
   const sosAlerts = new Map<string, RunnerSos>();
@@ -1592,6 +1594,54 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
     },
 
+    memory: {
+      async remember(input) {
+        const row: OziExchange = { ...input, id: id() };
+        exchanges.push(row);
+        return clone(row);
+      },
+      async list(where) {
+        // Newest first; among rows written in the same instant, the last written first.
+        return [...exchanges]
+          .reverse()
+          .filter(
+            (row) =>
+              (where.verdict === undefined || row.verdict === where.verdict) &&
+              (where.channel === undefined || row.channel === where.channel),
+          )
+          .sort((a, b) => b.at.getTime() - a.at.getTime())
+          .slice(0, where.limit)
+          .map(clone);
+      },
+      async findById(exchangeId) {
+        const row = exchanges.find((one) => one.id === exchangeId);
+        return row ? clone(row) : null;
+      },
+      async judge(exchangeId, patch) {
+        const row = exchanges.find((one) => one.id === exchangeId);
+        if (!row) throw new NotFoundError('exchange', exchangeId);
+        Object.assign(row, patch);
+        return clone(row);
+      },
+      async listSince(since, limit) {
+        return exchanges
+          .filter((row) => row.at >= since)
+          .sort((a, b) => a.at.getTime() - b.at.getTime())
+          .slice(0, limit)
+          .map(clone);
+      },
+      async counts() {
+        const count = (verdict: OziExchange['verdict']): number =>
+          exchanges.filter((row) => row.verdict === verdict).length;
+        return {
+          total: exchanges.length,
+          unrated: count('unrated'),
+          right: count('right'),
+          wrong: count('wrong'),
+        };
+      },
+    },
+
     learned: {
       async heard({ account, text, at }) {
         const known = learned.find((row) => row.account === account && row.text === text);
@@ -1624,6 +1674,10 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
       async findById(key) {
         const row = learned.find((candidate) => candidate.id === key);
+        return row ? clone(row) : null;
+      },
+      async findByText(account, text) {
+        const row = learned.find((one) => one.account === account && one.text === text);
         return row ? clone(row) : null;
       },
       async decide(key, patch) {
@@ -1790,6 +1844,14 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         const keep = analyticsEvents.filter((row) => row.at >= before);
         const removed = analyticsEvents.length - keep.length;
         analyticsEvents.splice(0, analyticsEvents.length, ...keep);
+        return removed;
+      },
+      async deleteExchangesBefore(before, only) {
+        const keep = exchanges.filter(
+          (row) => row.at >= before || (only === 'unrated' && row.verdict !== 'unrated'),
+        );
+        const removed = exchanges.length - keep.length;
+        exchanges.splice(0, exchanges.length, ...keep);
         return removed;
       },
       async deleteSignInCodesBefore(before) {

@@ -433,7 +433,9 @@ describe('everyday phrases, answered by the server (ruling 44)', () => {
       expect(said(engine).at(-1)).toBe("You're welcome. Send me, I will deliver.");
     });
     const asked = recorded.find((r) => r.path === '/ozi/reply');
-    expect(asked?.body).toEqual({ text: 'Ozi, thank you', mode: 'exact', turn: 0 });
+    // The visit id rides along for Ozi's memory (ruling 68); it is the app's own, never a name.
+    expect(asked?.body).toMatchObject({ text: 'Ozi, thank you', mode: 'exact', turn: 0 });
+    expect((asked?.body as { conversation: string }).conversation).toMatch(/^visit:/);
     expect(recorded.some((r) => r.path.startsWith('/basket'))).toBe(false);
   });
 });

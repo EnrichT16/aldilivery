@@ -59,7 +59,7 @@ brand, names and colours are configuration in config/store.json, never code (Rul
 **Where.** ozidelivery.co.uk. Medway first (Gillingham, ME7, for the soft launch). The service is
 online only, anywhere in the UK; nobody visits an office (ruling 10).
 
-**Who runs it.** OZIDELIVERY LTD, registered in England and Wales, registered office 107 King Street, Gillingham, ME7 1ER (ruling 59); D-U-N-S number 235209172; company number 17497650 (ruling 60). ICO registration ZC271245, registered 10 October 2026, expires 9 October 2027 (ruling 67). Anthony's separate company is not named on the site.
+**Who runs it.** OZIDELIVERY LTD, registered in England and Wales, registered office 107 King Street, Gillingham, ME7 1ER (ruling 59); D-U-N-S number 235209172; company number 17497650 (ruling 60). ICO registration ZC271245, registered 10 October 2026, expires 9 October 2027 (ruling 67). Ozi's memory (ruling 68) keeps every exchange, scrubbed, for staff to judge and for training the company's own model later. Anthony's separate company is not named on the site.
 Owner and founder: Anthony Tochukwu Ibe.
 
 ---

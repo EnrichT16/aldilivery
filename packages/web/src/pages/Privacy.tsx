@@ -135,6 +135,16 @@ export function Privacy(): JSX.Element {
           so a person can teach {assistant} a better answer. Reason: a contract, and our legitimate
           interest in making {assistant} understand people better.
         </p>
+        <p className="m-0">
+          We also keep what you said to {assistant} and what {assistant} said back, in the app, on
+          the telephone and by text, so that our team can check {assistant}&rsquo;s answers and
+          correct the wrong ones, and so that {assistant} can be taught from real conversations.
+          Before anything is kept, telephone numbers, card numbers, codes, email addresses and
+          postcodes are blanked out, and the conversation is marked only with a code that cannot be
+          turned back into you. Exchanges nobody has checked are deleted after six months; checked
+          ones after three years. Reason: our legitimate interest in making {assistant}
+          understand people better.
+        </p>
       </section>
 
       <section aria-labelledby="runners" className="space-y-3">
@@ -289,9 +299,9 @@ export function Privacy(): JSX.Element {
           </li>
           <li>Runner document photos: until a person has checked them.</li>
           <li>
-            A Runner account: until you close it on your Runner page or by asking {assistant}. It
-            is removed {days} days later, apart from the records of what you were paid, which are
-            kept for seven years as money records.
+            A Runner account: until you close it on your Runner page or by asking {assistant}. It is
+            removed {days} days later, apart from the records of what you were paid, which are kept
+            for seven years as money records.
           </li>
           <li>
             Records of a Runner&rsquo;s checks: while they are a Runner, and two years after they

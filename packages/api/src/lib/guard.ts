@@ -34,6 +34,8 @@ export const LIMITED: Record<string, number> = {
   '/business/sign-in': 30,
   '/auth/verify-code': 60,
   '/ozi/reply': 600,
+  // What the app said back, for Ozi's memory (ruling 68): one line per thing Ozi says.
+  '/ozi/heard': 600,
   // A voice pass (ruling 53) lasts five minutes and the app keeps it, so sixty in ten minutes
   // is far more than a household needs. Each one costs a call to the voice engine.
   '/voice/session': 60,

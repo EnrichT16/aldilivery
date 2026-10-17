@@ -47,7 +47,10 @@ import {
   signedByTwilio,
   type CallState,
 } from '../lib/twilio-voice.js';
+import { remember, spokenIn, type Brain, type Outcome } from '../lib/ozi-memory.js';
+import { phraseReply } from '../lib/phrases.js';
 import { priceLinesInParts } from '../services/basket.js';
+import { liveBook } from './ozi.js';
 import { CANCEL_PLAN, cancelPlanFor, deliveryPlanFor, freeMonthEnd } from '../services/plans.js';
 import { answerByText } from '../services/questions.js';
 import { skipByText } from '../services/set-runner.js';
@@ -71,6 +74,15 @@ interface Remembered {
   finished: boolean;
   calledBack: boolean;
   at: number;
+  /** How many turns of the conversation have been kept in Ozi's memory (ruling 68). */
+  turns?: number;
+}
+
+declare module 'fastify' {
+  interface FastifyRequest {
+    /** Which part of Ozi answered this turn of a call, and how it went, for Ozi's memory. */
+    oziNote?: { brain: Brain; outcome: Outcome };
+  }
 }
 
 function firstName(name: string): string {
@@ -164,7 +176,36 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     return signedByTwilio(token, urls, params, given) ? params : null;
   }
 
+  /**
+   * Every answer on the line is also a line in Ozi's memory (ruling 68): what the caller said
+   * (or pressed), what Ozi said back, and which part of Ozi decided. The call's id, not the
+   * number, names the conversation, and the recorder blanks anything that looks like one.
+   */
   function reply(response: FastifyReply, twiml: string): FastifyReply {
+    const request = response.request;
+    const params = (request.body ?? {}) as Record<string, unknown>;
+    const sid = typeof params['CallSid'] === 'string' ? params['CallSid'] : '';
+    if (sid !== '') {
+      const remembered = calls.get(sid);
+      const turn = remembered ? (remembered.turns = (remembered.turns ?? 0) + 1) - 1 : 0;
+      const speech = typeof params['SpeechResult'] === 'string' ? params['SpeechResult'] : '';
+      const digits = typeof params['Digits'] === 'string' ? params['Digits'] : '';
+      const note = request.oziNote;
+      void remember(
+        app.ctx,
+        {
+          channel: 'phone',
+          account: 'shopper',
+          conversation: sid,
+          turn,
+          heard: speech !== '' ? speech : digits !== '' ? `pressed ${digits}` : '',
+          said: spokenIn(twiml),
+          brain: note?.brain ?? 'flow',
+          outcome: note?.outcome ?? (twiml.includes('<Hangup/>') ? 'ended' : 'asked'),
+        },
+        request.log,
+      );
+    }
     return response.type('text/xml; charset=utf-8').send(twiml);
   }
 
@@ -421,6 +462,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
 
     if (wantsToStop(heard) && state.step !== 'items') {
       finish(sid);
+      request.oziNote = { brain: 'flow', outcome: 'stopped' };
       return reply(response, goodbye('All right, nothing has been ordered. Goodbye.'));
     }
 
@@ -525,6 +567,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
 
         if (wantsToStop(heard)) {
           finish(sid);
+          request.oziNote = { brain: 'flow', outcome: 'stopped' };
           return reply(response, goodbye('All right, nothing has been ordered. Goodbye.'));
         }
         if (REPEAT.test(heard)) {
@@ -617,6 +660,24 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
             ? ` I can't bring ${listWords(tooDear)}: no single product can cost more than ${money(config.fees.maximumProductPence)}.`
             : '');
         if (added.length === 0) {
+          // Not shopping at all, perhaps: "how are you", "what do you deliver", "thank you".
+          // The telephone answers from the same phrase book as the app (ruling 68), learned
+          // answers included, before it says it could not find anything.
+          if (tooDear.length === 0) {
+            const known = phraseReply(
+              heard,
+              state.lines.length,
+              'within',
+              'shopper',
+              config,
+              liveBook(app),
+            );
+            if (known) {
+              request.oziNote = { brain: 'phrases', outcome: 'answered' };
+              return reply(response, more({ ...state, lines }, sid, known));
+            }
+          }
+          request.oziNote = { brain: 'shopping', outcome: 'not-found' };
           return reply(
             response,
             ask(
@@ -625,6 +686,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
             ),
           );
         }
+        request.oziNote = { brain: 'shopping', outcome: 'added' };
         return reply(
           response,
           more({ ...state, lines }, sid, `I've added ${listWords(added)}.${notFound}`),
@@ -647,6 +709,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
           return reply(response, await confirmTwiml(state, sid, 'Sorry, was that a yes or a no?'));
         }
         finish(sid);
+        request.oziNote = { brain: 'flow', outcome: 'sent' };
         if (state.link) {
           const phone = remembered?.phone ?? ukPhone(params['From'] ?? '') ?? '';
           return reply(response, await sendLink(state, phone));
@@ -942,36 +1005,44 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
   app.post('/webhooks/twilio/sms', async (request, response) => {
     const params = verified(request);
     if (!params) return refused(response);
+    /** A text and its answer, in Ozi's memory (ruling 68); the number is never written. */
+    const texted = (message: string, outcome: Outcome): FastifyReply => {
+      void remember(
+        app.ctx,
+        {
+          channel: 'text',
+          account: 'shopper',
+          conversation: `sms:${params['From'] ?? ''}`,
+          turn: 0,
+          heard: params['Body'] ?? '',
+          said: message,
+          brain: 'flow',
+          outcome,
+        },
+        request.log,
+      );
+      return response
+        .type('text/xml; charset=utf-8')
+        .send(`<Response><Message>${escapeXml(message)}</Message></Response>`);
+    };
     // The one word that stops a regular order, texted back to its notice (Rule Five).
     const skipped = await skipByText(
       app.ctx,
       ukPhone(params['From'] ?? '') ?? '',
       params['Body'] ?? '',
     ).catch(() => null);
-    if (skipped) {
-      return reply(
-        response,
-        `<Response><Message>${escapeXml(`${config.productName}: ${skipped}`)}</Message></Response>`,
-      );
-    }
+    if (skipped) return texted(`${config.productName}: ${skipped}`, 'answered');
     // SIMILAR or LEAVE, texted back to a Runner's question (16 October 2026).
     const answered = await answerByText(
       app.ctx,
       ukPhone(params['From'] ?? '') ?? '',
       params['Body'] ?? '',
     ).catch(() => null);
-    if (answered) {
-      return reply(
-        response,
-        `<Response><Message>${escapeXml(`${config.productName}: ${answered}`)}</Message></Response>`,
-      );
-    }
+    if (answered) return texted(`${config.productName}: ${answered}`, 'answered');
     const site = env.primaryOrigin ?? '';
-    return reply(
-      response,
-      `<Response><Message>${escapeXml(
-        `${config.productName}: texts to this number are not read. Ring it to order with ${config.assistantName}, or use ${site} . We will never ask for your card or a code by text.`,
-      )}</Message></Response>`,
+    return texted(
+      `${config.productName}: texts to this number are not read. Ring it to order with ${config.assistantName}, or use ${site} . We will never ask for your card or a code by text.`,
+      'refused',
     );
   });
 }
