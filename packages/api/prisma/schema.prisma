@@ -1344,3 +1344,41 @@ model CardAuthorization {
   @@index([orderId])
   @@index([runnerId, at])
 }
+
+/// A Shopper's review of a Shop Partner after a delivered order that had its things in it
+/// (ruling 70). One per order per shop; one rewarded review per shop per month per Shopper.
+/// The points wait seven days (`pending`), then are `earned`, or `void` if the order was
+/// refunded. Never shown with a name: shops and the public see counts and averages only.
+model ShopReview {
+  id            String    @id @default(cuid())
+  orderId       String
+  shopperId     String
+  partnerShopId String
+  /// 1 to 5.
+  stars         Int
+  message       String    @default("")
+  /// The points this review earns, the same for one star as for five.
+  points        Int       @default(0)
+  /// pending, earned or void.
+  status        String    @default("pending")
+  earnedAt      DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@unique([orderId, partnerShopId])
+  @@index([shopperId, createdAt])
+  @@index([partnerShopId, createdAt])
+  @@index([status, createdAt])
+}
+
+/// Review points turned into delivery credit (ruling 70): once a Shopper has enough, whole
+/// hundreds become pence on their account, and this is the record of each conversion. The
+/// balance is what was earned less what is here.
+model ReviewPointsSpend {
+  id        String   @id @default(cuid())
+  shopperId String
+  points    Int
+  pence     Int
+  createdAt DateTime @default(now())
+
+  @@index([shopperId])
+}

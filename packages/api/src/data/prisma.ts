@@ -1064,6 +1064,47 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         })) as any;
       },
     },
+    shopReviews: {
+      async create(input) {
+        return (await prisma.shopReview.create({ data: input })) as any;
+      },
+      async findByOrderAndShop(orderId, partnerShopId) {
+        return (await prisma.shopReview.findUnique({
+          where: { orderId_partnerShopId: { orderId, partnerShopId } },
+        })) as any;
+      },
+      async listForShopper(shopperId) {
+        return (await prisma.shopReview.findMany({
+          where: { shopperId },
+          orderBy: { createdAt: 'desc' },
+        })) as any;
+      },
+      async listByStatus(status) {
+        return (await prisma.shopReview.findMany({
+          where: { status },
+          orderBy: { createdAt: 'asc' },
+        })) as any;
+      },
+      async listBetween(since, until) {
+        return (await prisma.shopReview.findMany({
+          where: { createdAt: { gte: since, lt: until } },
+          orderBy: { createdAt: 'asc' },
+        })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.shopReview.update({ where: { id }, data: patch })) as any;
+      },
+      async spend(input) {
+        return (await prisma.reviewPointsSpend.create({ data: input })) as any;
+      },
+      async spentPoints(shopperId) {
+        const total = await prisma.reviewPointsSpend.aggregate({
+          where: { shopperId },
+          _sum: { points: true },
+        });
+        return total._sum.points ?? 0;
+      },
+    },
     audit: {
       // Only create and read: nothing here changes or removes an entry, and the database
       // refuses to as well (migration 20261017090000_admin_audit_and_two_step).

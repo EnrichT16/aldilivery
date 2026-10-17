@@ -180,7 +180,16 @@
     "writeOffUpToPence": 2000
   },
   "feedback": {
-    "creditPence": 100
+    "creditPence": 100,
+    "reviews": {
+      "pointsPerReview": 10,
+      "pencePerPoint": 1,
+      "spendFromPoints": 100,
+      "pendingDays": 7,
+      "askWithinDays": 14,
+      "shopOfTheMonthMinimumReviews": 10,
+      "shopOfTheMonthPriorWeight": 10
+    }
   },
   "receipts": {
     "photoNeededAbovePence": 3000

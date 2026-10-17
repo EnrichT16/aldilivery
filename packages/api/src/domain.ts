@@ -1055,3 +1055,32 @@ export interface OziExchange {
   ratedBy: string | null;
   ratedAt: Date | null;
 }
+
+/**
+ * A Shopper's review of a Shop Partner after a delivered order (ruling 70). One per order per
+ * shop. The points wait seven days, then are earned, or are void if the order was refunded.
+ * Shops and the public only ever see counts and averages, never who said what.
+ */
+export interface ShopReview {
+  id: string;
+  orderId: string;
+  shopperId: string;
+  partnerShopId: string;
+  /** 1 to 5. */
+  stars: number;
+  message: string;
+  /** The same for one star as for five. */
+  points: number;
+  status: 'pending' | 'earned' | 'void';
+  earnedAt: Date | null;
+  createdAt: Date;
+}
+
+/** Review points turned into delivery credit, whole hundreds at a time (ruling 70). */
+export interface ReviewPointsSpend {
+  id: string;
+  shopperId: string;
+  points: number;
+  pence: number;
+  createdAt: Date;
+}

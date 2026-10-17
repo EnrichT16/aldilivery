@@ -57,6 +57,7 @@ import { isUkMobile, ukPhone } from '../lib/phone.js';
 import { NEVER_FOUND } from '../lib/restricted.js';
 import { loadShopsSeed, seedShops } from '../lib/shops-seed.js';
 import { chooseAdvert, spotlightActive } from '../lib/spotlight.js';
+import { awardTitlesByShop } from '../services/shop-of-the-month.js';
 import { hashPassword, passwordMatches, staffActor, temporaryPassword } from '../lib/staff.js';
 import { verifyPhoneProof } from '../lib/tokens.js';
 
@@ -665,6 +666,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
   /** Every approved shop, café, takeaway and service, with its kind and area (ruling 65). */
   app.get('/shops', async () => {
     const shops = (await repository.partnerShops.list()).filter(listed);
+    // Shop of the Month, of the Quarter and of the Half Year (ruling 70): a badge with words.
+    const awards = await awardTitlesByShop(app.ctx);
     const rows = [];
     for (const shop of shops) {
       const live = catalogueShown(shop)
@@ -672,7 +675,11 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
             (product) => product.status === 'approved',
           )
         : [];
-      rows.push({ ...publicShopRow(shop), products: live.length });
+      rows.push({
+        ...publicShopRow(shop),
+        products: live.length,
+        awards: awards.get(shop.id) ?? [],
+      });
     }
     return { shops: rows };
   });
@@ -691,6 +698,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         ...publicShopRow(shop),
         address: shop.address,
         claimable: await claimable(shop),
+        awards: (await awardTitlesByShop(app.ctx)).get(shop.id) ?? [],
       },
       products: live.map((product) => ({
         id: product.id,

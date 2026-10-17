@@ -6340,7 +6340,7 @@
       "topic": "about",
       "when": ["how do i leave a review", "review", "rate my delivery"],
       "replies": [
-        "After delivery, your order page asks how it went. Your review earns points towards money off."
+        "After a delivery, your past orders page asks you to rate the shop, one to five stars. Each honest rating earns {reviewPoints} points."
       ]
     },
     {
@@ -6353,7 +6353,7 @@
         "best shop"
       ],
       "replies": [
-        "Each month the shop Shoppers rate highest becomes Shop of the Month, shown in the app."
+        "Each month the Partner Plus shop Shoppers rate highest, with at least {reviewMinimum} ratings, is Shop of the Month, shown on its page."
       ]
     },
     {
@@ -6361,7 +6361,7 @@
       "topic": "about",
       "when": ["what are review points", "review points", "points"],
       "replies": [
-        "Points you earn by reviewing a delivery. They go towards money off a later delivery."
+        "Points you earn by rating a shop after a delivery: {reviewPoints} a rating. Every {pointsForPound} points come off a later order as a pound."
       ]
     },
     {
@@ -6374,7 +6374,7 @@
         "points card"
       ],
       "replies": [
-        "Review points: leave a review after each delivery and earn points towards money off."
+        "Review points: rate a shop after each delivery and earn {reviewPoints} points. Every {pointsForPound} points are worth a pound off."
       ]
     },
     {
@@ -8623,7 +8623,9 @@
       "id": "s66-shops-can-i-review-a-shop",
       "topic": "shops",
       "when": ["can i review a shop", "rate the shop", "shop review"],
-      "replies": ["Yes, after a delivery. Shop reviews count towards Shop of the Month."]
+      "replies": [
+        "Yes, after a delivery, one rating per shop a month. Shop ratings decide Shop of the Month."
+      ]
     },
     {
       "id": "s66-shops-how-is-shop-of-the-month-chosen",
@@ -8635,7 +8637,7 @@
         "shop of the month rules"
       ],
       "replies": [
-        "The shop Shoppers rate highest over the month. Reviews from real deliveries only."
+        "Ratings from real deliveries over the month, balanced for how many there were. Partner Plus shops with at least {reviewMinimum} ratings qualify."
       ]
     },
     {
@@ -8647,7 +8649,7 @@
         "reward for shops"
       ],
       "replies": [
-        "It is shown in the app for the month, which brings customers. Nothing is paid for it."
+        "A badge on its page and on the local shops list for the month, which brings customers. Nothing is paid for it."
       ]
     },
     {
@@ -13662,7 +13664,7 @@
       "topic": "reviews",
       "when": ["leave a review", "write a review", "review my delivery"],
       "replies": [
-        "After delivery your order page asks how it went. Say leave a review and talk; I write it down."
+        "Open past orders and choose the stars for the shop, or say the number of stars. I write it down."
       ]
     },
     {
@@ -13670,7 +13672,7 @@
       "topic": "reviews",
       "when": ["how do points work", "points for reviews"],
       "replies": [
-        "Each review after a delivery earns points. They add up to money off a later delivery."
+        "Each rating of a shop after a delivery earns {reviewPoints} points. Every {pointsForPound} points become a pound off a later order."
       ]
     },
     {
@@ -13678,7 +13680,7 @@
       "topic": "reviews",
       "when": ["how many points do i get", "points per review", "how many points for a review"],
       "replies": [
-        "Every review earns the same points, however long or short. Say my points to hear your total."
+        "{reviewPoints} points for every rating, one star or five, the same. Say my points to hear your total."
       ]
     },
     {
@@ -13691,19 +13693,25 @@
         "check my points",
         "points balance"
       ],
-      "replies": ["Say my points and I read your total, and how close you are to money off."]
+      "replies": [
+        "Say my points and I read your total, and what it is worth. Your past orders page shows it too."
+      ]
     },
     {
       "id": "s66-reviews-what-can-i-spend-points-on",
       "topic": "reviews",
       "when": ["what can i spend points on", "use my points", "redeem points"],
-      "replies": ["Points come off a later delivery charge, automatically, when you have enough."]
+      "replies": [
+        "From {pointsForPound} points they come off your next order as credit, automatically. They have no cash value."
+      ]
     },
     {
       "id": "s66-reviews-do-points-expire",
       "topic": "reviews",
       "when": ["do points expire", "points run out", "how long do points last"],
-      "replies": ["Points stay on your account while it is open."]
+      "replies": [
+        "Points stay on your account while it is open. New points wait {pointsPendingDays} before they are yours."
+      ]
     },
     {
       "id": "s66-reviews-can-i-give-points-to-someone",
@@ -13715,14 +13723,16 @@
       "id": "s66-reviews-do-i-get-points-for-complaints",
       "topic": "reviews",
       "when": ["do i get points for complaints", "points for feedback", "points for a bad review"],
-      "replies": ["Yes. Honest feedback of any kind earns the same credit, good or bad."]
+      "replies": [
+        "Yes. One star earns the same {reviewPoints} points as five. Only honest ratings are asked for."
+      ]
     },
     {
       "id": "s66-reviews-can-i-review-the-shop",
       "topic": "reviews",
       "when": ["can i review the shop", "shop rating"],
       "replies": [
-        "Yes. After a delivery you can rate the shop as well as the delivery. Shop ratings count towards Shop of the Month."
+        "Yes. After a delivery you rate the shop, one to five stars, once per shop a month. Ratings decide Shop of the Month."
       ]
     },
     {
@@ -13745,20 +13755,24 @@
       "id": "s66-reviews-can-i-change-my-review",
       "topic": "reviews",
       "when": ["can i change my review", "edit my review", "i was wrong in my review"],
-      "replies": ["Yes. Open the order page and say change my review."]
+      "replies": [
+        "Not once it is sent. You can rate the shop again after your next delivery from it, next month."
+      ]
     },
     {
       "id": "s66-reviews-can-i-delete-my-review",
       "topic": "reviews",
       "when": ["can i delete my review", "remove my review", "take back my review"],
-      "replies": ["Yes. Say remove my review on the order page."]
+      "replies": [
+        "Not once it is sent. If something is wrong with it, ask us and a person will look."
+      ]
     },
     {
       "id": "s66-reviews-who-is-shop-of-the-month",
       "topic": "reviews",
       "when": ["who is shop of the month", "who's shop of the month"],
       "replies": [
-        "The shop Shoppers rated highest last month. Say who is shop of the month and I tell you."
+        "The Partner Plus shop rated highest last month. The local shops page shows the badge, and the shop's own page."
       ]
     },
     {
@@ -13770,7 +13784,7 @@
         "how do shops win"
       ],
       "replies": [
-        "Ratings from real deliveries over the month, averaged, with enough reviews to be fair."
+        "Ratings from real deliveries over the month, balanced for how many there were, with at least {reviewMinimum} ratings to qualify."
       ]
     },
     {
@@ -13778,7 +13792,7 @@
       "topic": "reviews",
       "when": ["does shop of the month get a prize", "what does the shop win", "prize"],
       "replies": [
-        "A place of honour in the app for the month, and the customers that brings. Nothing is paid for it."
+        "A badge with the words on its page and the local shops list, and the customers that brings. Nothing is paid for it."
       ]
     },
     {
@@ -13806,7 +13820,9 @@
         "announcement",
         "start of the month"
       ],
-      "replies": ["At the start of each month, for the month before."]
+      "replies": [
+        "At the start of each month, for the month before. There are quarterly and half-yearly winners too."
+      ]
     },
     {
       "id": "s66-reviews-is-there-a-runner-of-the-month",
@@ -13879,7 +13895,9 @@
       "id": "s66-reviews-how-do-i-earn-more-points",
       "topic": "reviews",
       "when": ["how do i earn more points", "more points", "bonus points"],
-      "replies": ["Review every delivery. Each one earns the same points."]
+      "replies": [
+        "Rate the shop after every delivery, {reviewPoints} points each time. One rating per shop a month counts."
+      ]
     },
     {
       "id": "s66-reviews-do-points-work-with-my-plan",
@@ -13896,7 +13914,7 @@
         "money off for feedback"
       ],
       "replies": [
-        "A small credit off a later delivery for any feedback after a delivery. Points add to it."
+        "A small credit off a later delivery for any feedback on how it went. Shop ratings earn points as well."
       ]
     },
     {
@@ -18122,7 +18140,7 @@
       "topic": "reviews",
       "when": ["do points add up fast", "how quickly do points build", "points speed"],
       "replies": [
-        "Review every delivery and they build steadily. Say my points to see where you are."
+        "Each rating earns {reviewPoints} points and every {pointsForPound} points are a pound off. Say my points to see where you are."
       ]
     },
     {
@@ -18790,7 +18808,9 @@
       "id": "s66-using-how-do-i-see-my-points",
       "topic": "using",
       "when": ["how do i see my points", "review points balance", "points total"],
-      "replies": ["Say my points and I read your total and what it is worth."]
+      "replies": [
+        "Your past orders page shows your points and what they are worth. Or say my points."
+      ]
     },
     {
       "id": "s66-using-how-do-i-unlink-my-organisation",

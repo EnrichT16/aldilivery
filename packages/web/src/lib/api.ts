@@ -2000,6 +2000,8 @@ export interface PublicShop {
   hours: string;
   listedByOzi: boolean;
   products: number;
+  /** Shop of the Month, of the Quarter or of the Half Year, with words (ruling 70). */
+  awards?: string[];
 }
 
 export function fetchShops(): Promise<{ shops: PublicShop[] }> {
@@ -2018,7 +2020,7 @@ export interface PublicShopProduct {
 }
 
 export interface PublicShopPage {
-  shop: Omit<PublicShop, 'products'> & { address: string; claimable: boolean };
+  shop: Omit<PublicShop, 'products'> & { address: string; claimable: boolean; awards?: string[] };
   products: PublicShopProduct[];
 }
 
@@ -2875,6 +2877,89 @@ export function skipWeeklyShop(id: string): Promise<{ message: string }> {
 /* ------------------------------------------------------------------------------------- *
  * After a delivery, and closing an account
  * ------------------------------------------------------------------------------------- */
+
+/* ------------------------------------------------------------------------------------- *
+ * Shop reviews, review points and Shop of the Month (ruling 70)
+ * ------------------------------------------------------------------------------------- */
+
+export interface PendingShopReview {
+  orderId: string;
+  deliveredAt: string;
+  shop: { id: string; name: string };
+}
+
+export interface ReviewPointsBalance {
+  points: number;
+  pendingPoints: number;
+  worthPence: number;
+  pointsToSpend: number;
+  reviews: number;
+  /** "You have 40 points, worth 40p." */
+  words: string;
+}
+
+export interface ReviewRules {
+  pointsPerReview: number;
+  pencePerPoint: number;
+  spendFromPoints: number;
+  pendingDays: number;
+}
+
+/** The shops the Shopper is asked to rate, and where their points stand. */
+export function fetchPendingShopReviews(): Promise<{
+  pending: PendingShopReview[];
+  balance: ReviewPointsBalance;
+  rules: ReviewRules;
+}> {
+  return request('/me/reviews/pending');
+}
+
+/** Rating a shop whose things were in a delivered order: the same points, one star or five. */
+export function sendShopReview(
+  orderId: string,
+  input: { shop: string; stars: number; message?: string },
+): Promise<{ points: number; pendingDays: number; balance: ReviewPointsBalance; message: string }> {
+  return request(`/orders/${encodeURIComponent(orderId)}/shop-review`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export interface ShopAward {
+  kind: 'month' | 'quarter' | 'half';
+  title: string;
+  shop: { id: string; name: string };
+  reviews: number;
+  average: number;
+}
+
+export interface ShopStanding {
+  shop: { id: string; name: string };
+  reviews: number;
+  average: number;
+  score: number;
+  qualifies: boolean;
+}
+
+export interface ShopStandings {
+  period: { kind: 'month' | 'quarter' | 'half'; words: string; title: string };
+  minimumReviews: number;
+  rows: ShopStanding[];
+  winner?: ShopStanding | null;
+}
+
+/** Public: who holds the awards, and this month's top five. */
+export function fetchShopOfTheMonth(): Promise<{ awards: ShopAward[]; standings: ShopStandings }> {
+  return request('/shops/of-the-month');
+}
+
+/** Staff: the full standings for the month, the quarter and the half year. */
+export function fetchStaffShopOfTheMonth(key: string): Promise<{
+  awards: ShopAward[];
+  standings: { month: ShopStandings; quarter: ShopStandings; half: ShopStandings };
+}> {
+  return staffRequest(key, '/staff/shop-of-the-month');
+}
 
 /** Feedback after a delivery (Section O). Anything at all earns the delivery credit, once. */
 export function sendOrderFeedback(

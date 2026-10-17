@@ -260,6 +260,23 @@ export interface StoreConfig {
    */
   readonly feedback: {
     readonly creditPence: number;
+    /**
+     * Shop reviews and review points (ruling 70, 16 and 17 October 2026). Every honest review of
+     * a Shop Partner earns the same points, one star or five; the points wait `pendingDays` and
+     * are lost if the order is refunded; from `spendFromPoints` they become delivery credit at
+     * `pencePerPoint`. One rewarded review per shop per month per Shopper.
+     */
+    readonly reviews: {
+      readonly pointsPerReview: number;
+      readonly pencePerPoint: number;
+      readonly spendFromPoints: number;
+      readonly pendingDays: number;
+      /** How long after a delivery the Shopper is asked to rate the shop. */
+      readonly askWithinDays: number;
+      /** Shop of the Month: the fewest reviews in a period, and the weight of the prior. */
+      readonly shopOfTheMonthMinimumReviews: number;
+      readonly shopOfTheMonthPriorWeight: number;
+    };
   };
   /**
    * The photo of the till receipt (STILL_TO_DO item 2). Optional for the Runner, but without
@@ -640,6 +657,8 @@ export function parseStoreConfig(input: unknown): StoreConfig {
   const extras = root['extras'] === undefined ? {} : object(root['extras'], 'extras');
   const problems = object(root['problems'], 'problems');
   const feedback = root['feedback'] === undefined ? {} : object(root['feedback'], 'feedback');
+  const reviews =
+    feedback['reviews'] === undefined ? {} : object(feedback['reviews'], 'feedback.reviews');
   const receipts = root['receipts'] === undefined ? {} : object(root['receipts'], 'receipts');
   const runners = root['runners'] === undefined ? {} : object(root['runners'], 'runners');
   const reminderDays = (
@@ -1036,6 +1055,39 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     },
     feedback: {
       creditPence: wholeNumber(feedback['creditPence'] ?? 100, 'feedback.creditPence', 0),
+      reviews: {
+        pointsPerReview: wholeNumber(
+          reviews['pointsPerReview'] ?? 10,
+          'feedback.reviews.pointsPerReview',
+          1,
+        ),
+        pencePerPoint: wholeNumber(
+          reviews['pencePerPoint'] ?? 1,
+          'feedback.reviews.pencePerPoint',
+          1,
+        ),
+        spendFromPoints: wholeNumber(
+          reviews['spendFromPoints'] ?? 100,
+          'feedback.reviews.spendFromPoints',
+          1,
+        ),
+        pendingDays: wholeNumber(reviews['pendingDays'] ?? 7, 'feedback.reviews.pendingDays', 0),
+        askWithinDays: wholeNumber(
+          reviews['askWithinDays'] ?? 14,
+          'feedback.reviews.askWithinDays',
+          1,
+        ),
+        shopOfTheMonthMinimumReviews: wholeNumber(
+          reviews['shopOfTheMonthMinimumReviews'] ?? 10,
+          'feedback.reviews.shopOfTheMonthMinimumReviews',
+          1,
+        ),
+        shopOfTheMonthPriorWeight: wholeNumber(
+          reviews['shopOfTheMonthPriorWeight'] ?? 10,
+          'feedback.reviews.shopOfTheMonthPriorWeight',
+          0,
+        ),
+      },
     },
     receipts: {
       photoNeededAbovePence: wholeNumber(
