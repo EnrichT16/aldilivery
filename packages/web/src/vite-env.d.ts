@@ -33,6 +33,11 @@ declare module '@offers' {
   const value: unknown;
   export default value;
 }
+/** Small talk answered in the app while shopping (ruling 66), checked by `voice/small-talk.ts`. */
+declare module '@small-talk' {
+  const value: unknown;
+  export default value;
+}
 
 /**
  * The build time values this app reads. `VITE_API_URL` is the only one: where the API is,

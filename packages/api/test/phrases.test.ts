@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { loadStoreConfig, storeConfigPath } from '@aldilivery/core/node';
 
+import { bannedList, containsBanned } from '../src/lib/banned.js';
 import {
   PHRASE_ACCOUNTS,
   fillIn,
@@ -53,6 +54,36 @@ describe('the phrase files', () => {
         for (const reply of phrase.replies) {
           expect(fillIn(reply, config, book.ownerAddress), `${phrase.id}: ${reply}`).not.toMatch(
             /\{\w+\}/,
+          );
+        }
+      }
+    }
+  });
+
+  it('passes the banned-words check and Rule Nine, every phrase and the small talk list too (ruling 66)', () => {
+    const banned = bannedList();
+    const files = [
+      'ozi-phrases.json',
+      ...PHRASE_ACCOUNTS.slice(1).map((a) => `phrases/${a}.json`),
+      'small-talk.json',
+    ];
+    const assistant = new RegExp(`\\b${config.assistantName}\\b`);
+    for (const file of files) {
+      const raw = JSON.parse(readFileSync(join(folder, file), 'utf8')) as {
+        phrases: Array<{ id: string; when: string[]; replies: string[] }>;
+      };
+      expect(raw.phrases.length, file).toBeGreaterThan(0);
+      for (const phrase of raw.phrases) {
+        for (const text of [...phrase.when, ...phrase.replies]) {
+          expect(containsBanned(text, banned), `${file} ${phrase.id}: ${text}`).toBe(false);
+          // Names only through blanks (Rule Nine): {assistant}, {product}.
+          expect(text, `${file} ${phrase.id}: ${text}`).not.toMatch(assistant);
+        }
+        for (const reply of phrase.replies) {
+          // Spoken, so no bullet points, and short enough to be said in a few seconds.
+          expect(reply, `${file} ${phrase.id}: ${reply}`).not.toMatch(/[•\n]|(^|\s)[-*]\s/);
+          expect(reply.split(/\s+/).length, `${file} ${phrase.id}: ${reply}`).toBeLessThanOrEqual(
+            45,
           );
         }
       }

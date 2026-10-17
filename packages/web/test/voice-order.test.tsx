@@ -51,8 +51,22 @@ interface Sent {
   body: unknown;
 }
 
+const PAWPAW = {
+  id: 'item-pawpaw',
+  name: 'Pawpaw, each',
+  category: 'Fruit',
+  estimatedPricePence: 150,
+  ageRestricted: false,
+};
+
 function stubShop(
-  options: { cards?: Array<typeof FAKE_CARD>; signedIn?: boolean; shelf?: boolean } = {},
+  options: {
+    cards?: Array<typeof FAKE_CARD>;
+    signedIn?: boolean;
+    shelf?: boolean;
+    /** What the server's phrase book answers to a sentence looked within (ruling 49). */
+    oziReply?: (text: string) => string | null;
+  } = {},
 ): Sent[] {
   const sent: Sent[] = [];
   if (options.signedIn !== false) {
@@ -85,9 +99,11 @@ function stubShop(
           ? [BANANAS]
           : q.includes('milk')
             ? MILK
-            : options.shelf && q === ''
-              ? [MILK[0]!]
-              : [];
+            : q.includes('pawpaw')
+              ? [PAWPAW]
+              : options.shelf && q === ''
+                ? [MILK[0]!]
+                : [];
         return reply({ items, source: { mode: 'community', attribution: 'x' } });
       }
       if (path === '/payment-methods') {
@@ -111,6 +127,13 @@ function stubShop(
         });
       }
       if (path === '/orders/current') return reply({ order: null });
+      // The server's phrase book (ruling 49): nothing is a whole phrase, and a sentence looked
+      // within is answered only when the test says so; otherwise the server keeps it to learn.
+      if (path === '/ozi/known') return reply({ fingerprints: [] });
+      if (path === '/ozi/reply') {
+        const { text, mode } = body as { text: string; mode: 'exact' | 'within' };
+        return reply({ reply: mode === 'within' ? (options.oziReply?.(text) ?? null) : null });
+      }
       return reply({ error: { message: `Nothing stubbed for ${method} ${path}` } }, 404);
     }),
   );
@@ -352,5 +375,121 @@ describe('waiting for an order, but not for ever', () => {
     expect(await say(engine, 'Ozi')).toMatch(/What would you like\?/);
     expect(await say(engine, 'bananas')).toBe('How many Bananas, loose would you like?');
     clock.mockRestore();
+  });
+});
+
+describe('small talk and general statements are not shopping (ruling 66)', () => {
+  /** Say something and give Ozi a moment, without expecting it to answer. */
+  async function sayQuietly(engine: FakeEngine, text: string): Promise<void> {
+    await waitFor(() => {
+      expect(engine.listening).not.toBeNull();
+    });
+    act(() => {
+      engine.hear(text);
+    });
+    await new Promise((resolve) => setTimeout(resolve, 80));
+  }
+
+  it('answers small talk warmly while waiting for an order, instead of "I haven\'t added"', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const sent = stubShop();
+    renderApp();
+    expect(await say(engine, 'Ozi')).toBe("I'm here. How can I help?");
+    expect(await say(engine, 'how are you doing today?')).toBe(
+      "I'm very well, thank you. How are you?",
+    );
+    expect(await say(engine, 'where are you')).toBe(
+      "Right here with you. Just say an item when you're ready.",
+    );
+    expect(await say(engine, "I'm tired")).toMatch(/^Sorry to hear that\./);
+    expect(engine.spoken.some((s) => /haven't added|couldn't find/.test(s.text))).toBe(false);
+    // None of it was looked up as a product (the shop page loads its own shelf).
+    expect(
+      sent.some((r) => r.path.startsWith('/catalogue/search') && /how|where|tired/.test(r.path)),
+    ).toBe(false);
+    // The thirty seconds still stand: an item said next is an order.
+    expect(await say(engine, 'bananas')).toBe('How many Bananas, loose would you like?');
+  });
+
+  it('says one gentle line to a sentence that is not shopping, keeps it to learn, then stays quiet', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const sent = stubShop();
+    renderApp();
+    const start = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(start);
+    expect(await say(engine, 'Ozi')).toBe("I'm here. How can I help?");
+
+    expect(await say(engine, 'I was just saying to Margaret the bus was late again')).toBe(
+      "I'm here when you're ready to order. Say an item, like milk or bread.",
+    );
+    // The catalogue was checked first, and the sentence went to the server to learn from.
+    expect(sent.some((r) => r.path.startsWith('/catalogue/search'))).toBe(true);
+    const learned = sent.filter((r) => r.path === '/ozi/reply');
+    expect(learned).toHaveLength(1);
+    expect(learned[0]!.body).toMatchObject({
+      mode: 'within',
+      text: 'I was just saying to Margaret the bus was late again',
+    });
+
+    // More chatter in the next twenty seconds: nothing said, but still sent to learn from.
+    clock.mockReturnValue(start + 10_000);
+    const before = engine.spoken.length;
+    await sayQuietly(engine, 'did you see the match last night');
+    expect(engine.spoken.length).toBe(before);
+    expect(sent.filter((r) => r.path === '/ozi/reply')).toHaveLength(2);
+    expect(engine.spoken.some((s) => /haven't added|couldn't find/.test(s.text))).toBe(false);
+
+    // After the twenty seconds, the gentle line again; and an item is still an order.
+    clock.mockReturnValue(start + 21_000);
+    expect(await say(engine, 'what are we doing tomorrow then')).toBe(
+      "I'm here when you're ready to order. Say an item, like milk or bread.",
+    );
+    expect(await say(engine, 'bananas')).toBe('How many Bananas, loose would you like?');
+    clock.mockRestore();
+  });
+
+  it('lets the server answer a sentence it knows, from its phrase book', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubShop({
+      oziReply: (text) => (/refund/.test(text) ? 'Refunds go back to your card.' : null),
+    });
+    renderApp();
+    expect(await say(engine, 'Ozi')).toBe("I'm here. How can I help?");
+    expect(await say(engine, 'could you tell me how refunds actually work')).toBe(
+      'Refunds go back to your card.',
+    );
+  });
+
+  it('still orders when a product is in the sentence, or in the shop, however it is asked', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubShop();
+    renderApp();
+    expect(await say(engine, 'Ozi')).toBe("I'm here. How can I help?");
+    // A question with a grocery word in it is shopping.
+    expect(await say(engine, 'have you got any bananas')).toBe(
+      'How many Bananas, loose would you like?',
+    );
+    expect(await say(engine, 'two')).toMatch(/^Here is your order: 2 Bananas, loose\./);
+    expect(await say(engine, 'cancel')).toMatch(/^All right, I've stopped\./);
+    // A sentence shaped like chatter, naming something the shop has: the catalogue wins.
+    expect(await say(engine, 'Ozi')).toMatch(/I'm here|What would you like/);
+    expect(await say(engine, 'could you see whether they have any pawpaw')).toBe(
+      'How many Pawpaw, each would you like?',
+    );
+  });
+
+  it('keeps saying what it could not find for a word that may be a product', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubShop();
+    renderApp();
+    expect(await say(engine, 'Ozi')).toBe("I'm here. How can I help?");
+    expect(await say(engine, 'quinoa')).toBe(
+      "I couldn't find quinoa, so I'll leave it out. I haven't added anything, so there is no order.",
+    );
   });
 });

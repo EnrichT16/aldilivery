@@ -381,7 +381,7 @@
       "topic": "business",
       "when": ["what is spotlight"],
       "replies": [
-        "Paid mentions by Ozi for Shop Partners, always labelled as adverts, at {spotlight} or {spotlightPlus} a month.",
+        "Paid mentions by {assistant} for Shop Partners, always labelled as adverts, at {spotlight} or {spotlightPlus} a month.",
         "Labelled adverts for shops."
       ]
     },
@@ -1260,7 +1260,7 @@
       "topic": "business",
       "when": ["what is the weekly shop", "repeat orders", "same as last time"],
       "replies": [
-        "On a chosen day, Ozi offers to put the usual shopping in the basket. Nothing is sent or paid until the Shopper says so.",
+        "On a chosen day, {assistant} offers to put the usual shopping in the basket. Nothing is sent or paid until the Shopper says so.",
         "A weekly reminder of the usual shopping, sent only after a yes."
       ]
     },
@@ -1456,7 +1456,7 @@
       "topic": "business",
       "when": ["who sets the prices", "can prices change", "how are fees set"],
       "replies": [
-        "The founder sets them, in the store's settings. Ozi always reads them from there.",
+        "The founder sets them, in the store's settings. {assistant} always reads them from there.",
         "The founder decides prices."
       ]
     },
@@ -1503,7 +1503,7 @@
       ],
       "replies": [
         "The Shopper says what they need, agrees the price, a checked Runner shops at the shelf price and delivers, and the card is charged the receipt.",
-        "Say it, Ozi shops it, a Runner brings it."
+        "Say it, {assistant} shops it, a Runner brings it."
       ]
     },
     {
@@ -1560,8 +1560,8 @@
       "topic": "business",
       "when": ["telephone ordering", "can people order by phone", "phone line"],
       "replies": [
-        "Yes. Ozi answers the telephone and takes the order, reading it back before anything is sent. A card is never given on a call.",
-        "Ozi answers the phone and takes the order."
+        "Yes. {assistant} answers the telephone and takes the order, reading it back before anything is sent. A card is never given on a call.",
+        "{assistant} answers the phone and takes the order."
       ]
     },
     {
@@ -1573,7 +1573,7 @@
         "texted payment link"
       ],
       "replies": [
-        "A caller from a mobile can order there and then: after a yes, Ozi texts a secure Stripe link to pay and give the address.",
+        "A caller from a mobile can order there and then: after a yes, {assistant} texts a secure Stripe link to pay and give the address.",
         "A secure payment link by text, never a card on the call."
       ]
     },
@@ -1866,7 +1866,7 @@
       "topic": "mission",
       "when": ["braille support", "what about braille", "deafblind users"],
       "replies": [
-        "Today a Braille display connected to a phone works with the app. A deafblind mode, a Braille connector and Ozi's own Braille pad are on the roadmap.",
+        "Today a Braille display connected to a phone works with the app. A deafblind mode, a Braille connector and {assistant}'s own Braille pad are on the roadmap.",
         "Braille displays work now; more is planned."
       ]
     },
@@ -1884,7 +1884,7 @@
       "topic": "mission",
       "when": ["can staff be blind", "accessible jobs", "inclusive employment"],
       "replies": [
-        "Yes. Ozi speaks throughout the admin panel, so a blind person can do any job, the IT role included.",
+        "Yes. {assistant} speaks throughout the admin panel, so a blind person can do any job, the IT role included.",
         "Every job can be done by voice."
       ]
     },
@@ -1897,7 +1897,7 @@
         "people who aren't good with technology"
       ],
       "replies": [
-        "Ozi talks people through everything, and they can also order by telephone.",
+        "{assistant} talks people through everything, and they can also order by telephone.",
         "By voice, or simply by phone."
       ]
     },
@@ -1915,7 +1915,7 @@
       "topic": "mission",
       "when": ["how is it different for blind people", "what problem does it solve", "pain point"],
       "replies": [
-        "Most delivery apps assume you can see the screen. Here, a checked Runner shops for you, you talk privately through the app, and Ozi reads everything aloud.",
+        "Most delivery apps assume you can see the screen. Here, a checked Runner shops for you, you talk privately through the app, and {assistant} reads everything aloud.",
         "It doesn't assume sight."
       ]
     },
@@ -3015,8 +3015,8 @@
       "topic": "about",
       "when": ["what is the tagline", "the slogan", "brand promise"],
       "replies": [
-        "Say it, Ozi shops it, a Runner brings it.",
-        "Say it, Ozi shops it, a Runner brings it."
+        "Say it, {assistant} shops it, a Runner brings it.",
+        "Say it, {assistant} shops it, a Runner brings it."
       ]
     },
     {
@@ -3030,7 +3030,7 @@
       "topic": "about",
       "when": ["what are the brand colours", "brand colours", "what does it look like"],
       "replies": [
-        "Navy and gold, with white, and green when Ozi is listening.",
+        "Navy and gold, with white, and green when {assistant} is listening.",
         "Navy, gold and white."
       ]
     },

@@ -70,9 +70,9 @@ describe('banned words', () => {
 describe('the learning list', () => {
   it('keeps what Ozi could not answer, once with a count, and never a swear word', async () => {
     expect(
-      (await ask('Ozi, do you deliver birthday candles to hospitals')).json().reply,
+      (await ask('Ozi, what colour are the birthday candles in the shop')).json().reply,
     ).toBeNull();
-    await ask('Ozi, do you deliver birthday candles to hospitals');
+    await ask('Ozi, what colour are the birthday candles in the shop');
     const sworn = await ask('Ozi, what the f u c k is this');
     expect(sworn.json().reply).toBe("I'm here to help with your shopping. Let's keep it kind.");
     // An order-shaped exact check is never kept: only things said to Ozi and not understood.
@@ -92,7 +92,7 @@ describe('the learning list', () => {
     }>;
     expect(waiting).toEqual([
       expect.objectContaining({
-        text: 'do you deliver birthday candles to hospitals',
+        text: 'what colour are the birthday candles in the shop',
         timesHeard: 2,
         account: 'shopper',
       }),
@@ -100,7 +100,7 @@ describe('the learning list', () => {
   });
 
   it('goes live as soon as staff approve an answer, for that Ozi and the owner’s', async () => {
-    await ask('Ozi, do you deliver birthday candles to hospitals');
+    await ask('Ozi, what colour are the birthday candles in the shop');
     await new Promise((resolve) => setTimeout(resolve, 10));
     const [row] = (
       await harness.app.inject({ method: 'GET', url: '/staff/learning', headers: STAFF })
@@ -121,9 +121,9 @@ describe('the learning list', () => {
       payload: { approve: true, reply: 'Yes. Your Runner can take them to a hospital ward.' },
     });
     expect(approved.statusCode, approved.body).toBe(200);
-    expect((await ask('do you deliver birthday candles to hospitals', 'exact')).json().reply).toBe(
-      'Yes. Your Runner can take them to a hospital ward.',
-    );
+    expect(
+      (await ask('what colour are the birthday candles in the shop', 'exact')).json().reply,
+    ).toBe('Yes. Your Runner can take them to a hospital ward.');
     const list = await harness.app.inject({
       method: 'GET',
       url: '/staff/learning',

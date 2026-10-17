@@ -286,12 +286,28 @@ export function keywords(text: string): string[] {
     );
 }
 
+/** One "when" phrase with at least one keyword, and its place in the collection. */
+interface Keyed {
+  phrase: Phrase;
+  when: string;
+  words: Set<string>;
+  /** The phrase's position in the collection, so the first phrase listed still wins a tie. */
+  order: number;
+}
+
 interface PhraseIndex {
   size: number;
   /** Every whole "when" phrase, for an instant exact answer. */
   exact: Map<string, Phrase>;
-  /** Each "when" phrase's keywords, and how many phrases each keyword appears in. */
-  keyed: Array<{ phrase: Phrase; words: Set<string> }>;
+  /**
+   * Keyword buckets (ruling 66): each keyword, and the "when" phrases that use it. Looking a
+   * sentence up touches only the buckets of its own keywords, so the time taken no longer
+   * grows with the size of the whole collection, which passed 1,900 phrases on 17 October 2026.
+   */
+  buckets: Map<string, Keyed[]>;
+  /** The "when" phrases made only of little words ("thank you"), which no bucket can hold. */
+  unkeyed: Array<{ phrase: Phrase; when: string; order: number }>;
+  /** How many phrases each keyword appears in: a rare word says more than a common one. */
   spread: Map<string, number>;
 }
 
@@ -302,21 +318,61 @@ function indexOf(collection: Phrase[]): PhraseIndex {
   const known = indexes.get(collection);
   if (known && known.size === collection.length) return known;
   const exact = new Map<string, Phrase>();
-  const keyed: PhraseIndex['keyed'] = [];
+  const buckets = new Map<string, Keyed[]>();
+  const unkeyed: PhraseIndex['unkeyed'] = [];
   const spread = new Map<string, number>();
-  for (const phrase of collection) {
+  collection.forEach((phrase, order) => {
     const seen = new Set<string>();
     for (const when of phrase.when) {
       if (!exact.has(when)) exact.set(when, phrase);
       const words = new Set(keywords(when));
-      if (words.size > 0) keyed.push({ phrase, words });
-      for (const word of words) seen.add(word);
+      if (words.size === 0) {
+        unkeyed.push({ phrase, when, order });
+        continue;
+      }
+      const keyed: Keyed = { phrase, when, words, order };
+      for (const word of words) {
+        seen.add(word);
+        const bucket = buckets.get(word);
+        if (bucket) bucket.push(keyed);
+        else buckets.set(word, [keyed]);
+      }
     }
     for (const word of seen) spread.set(word, (spread.get(word) ?? 0) + 1);
-  }
-  const built = { size: collection.length, exact, keyed, spread };
+  });
+  const built = { size: collection.length, exact, buckets, unkeyed, spread };
   indexes.set(collection, built);
   return built;
+}
+
+/**
+ * The "when" phrases that share at least one keyword with what was said, each once, in the
+ * order the collection lists them. A phrase inside a sentence shares every keyword with it,
+ * so this is also every phrase that could be found within the sentence.
+ */
+function candidates(heard: Set<string>, index: PhraseIndex): Keyed[] {
+  const found = new Set<Keyed>();
+  for (const word of heard) {
+    const bucket = index.buckets.get(word);
+    if (bucket) for (const keyed of bucket) found.add(keyed);
+  }
+  return [...found].sort((a, b) => a.order - b.order);
+}
+
+/**
+ * The first phrase, in the collection's order, that is somewhere inside the sentence, whole:
+ * "ozzy, thank you so much" holds "thank you".
+ */
+function within(said: string, heard: Set<string>, index: PhraseIndex): Phrase | null {
+  const padded = ` ${said} `;
+  let best: { phrase: Phrase; order: number } | null = null;
+  const consider = (phrase: Phrase, when: string, order: number): void => {
+    if ((best && order >= best.order) || !padded.includes(` ${when} `)) return;
+    best = { phrase, order };
+  };
+  for (const entry of index.unkeyed) consider(entry.phrase, entry.when, entry.order);
+  for (const entry of candidates(heard, index)) consider(entry.phrase, entry.when, entry.order);
+  return best ? (best as { phrase: Phrase }).phrase : null;
 }
 
 /**
@@ -324,11 +380,10 @@ function indexOf(collection: Phrase[]): PhraseIndex {
  * keyword"). Two or more of a phrase's keywords, covering at least half of them; or, in a
  * short sentence, one word that only a few phrases use. Null when nothing is close enough.
  */
-function byKeywords(said: string, index: PhraseIndex): Phrase | null {
-  const heard = new Set(keywords(said));
+function byKeywords(heard: Set<string>, index: PhraseIndex): Phrase | null {
   if (heard.size === 0) return null;
   let best: { phrase: Phrase; score: number } | null = null;
-  for (const { phrase, words } of index.keyed) {
+  for (const { phrase, words } of candidates(heard, index)) {
     let shared = 0;
     let weight = 0;
     for (const word of words) {
@@ -336,7 +391,6 @@ function byKeywords(said: string, index: PhraseIndex): Phrase | null {
       shared += 1;
       weight += 1 / (index.spread.get(word) ?? 1);
     }
-    if (shared === 0) continue;
     const cover = shared / words.size;
     const enough =
       (shared >= 2 && cover >= 0.5) ||
@@ -376,10 +430,8 @@ export function phraseReply(
   const index = indexOf(collection);
   let found: Phrase | null = index.exact.get(said) ?? null;
   if (!found && mode === 'within') {
-    const padded = ` ${said} `;
-    found =
-      collection.find((phrase) => phrase.when.some((when) => padded.includes(` ${when} `))) ?? null;
-    found ??= byKeywords(said, index);
+    const heard = new Set(keywords(said));
+    found = within(said, heard, index) ?? byKeywords(heard, index);
   }
   if (!found) return null;
   const reply = fillIn(

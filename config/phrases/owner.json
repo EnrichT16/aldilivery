@@ -1599,7 +1599,7 @@
       "topic": "telephone",
       "when": ["can people order by phone", "telephone ordering"],
       "replies": [
-        "Yes, sir. Ozi answers the Twilio number, finds the account by the caller's number, takes the order and reads it back before sending.",
+        "Yes, sir. {assistant} answers the Twilio number, finds the account by the caller's number, takes the order and reads it back before sending.",
         "Yes, sir. Built and waiting for the number."
       ]
     },
@@ -1635,7 +1635,7 @@
       "topic": "telephone",
       "when": ["can they read their card out", "card over the phone"],
       "replies": [
-        "Never, sir. A card is never given to Ozi or anyone on a call. Keypad card entry needs Twilio Pay, not yet built.",
+        "Never, sir. A card is never given to {assistant} or anyone on a call. Keypad card entry needs Twilio Pay, not yet built.",
         "Never by voice, sir."
       ]
     },
@@ -1644,8 +1644,8 @@
       "topic": "telephone",
       "when": ["what if the call drops", "call cut off"],
       "replies": [
-        "If they agreed, sir, Ozi rings back once and carries on where they were.",
-        "Ozi rings back once, sir."
+        "If they agreed, sir, {assistant} rings back once and carries on where they were.",
+        "{assistant} rings back once, sir."
       ]
     },
     {
@@ -1689,7 +1689,7 @@
       "topic": "telephone",
       "when": ["i changed the twilio token", "ozi stopped answering"],
       "replies": [
-        "Change it in DigitalOcean too, sir, or Ozi stops answering the phone.",
+        "Change it in DigitalOcean too, sir, or {assistant} stops answering the phone.",
         "Both places, sir."
       ]
     },
@@ -2130,7 +2130,7 @@
       "topic": "partners",
       "when": ["how does spotlight work", "explain spotlight"],
       "replies": [
-        "On Spotlight, Ozi mentions the shop at most once a week to a Shopper looking for something it sells, sir. Plus allows up to three.",
+        "On Spotlight, {assistant} mentions the shop at most once a week to a Shopper looking for something it sells, sir. Plus allows up to three.",
         "Once a week, or three for Plus, sir."
       ]
     },
@@ -2256,7 +2256,7 @@
       "topic": "braille",
       "when": ["braille roadmap", "braille plans"],
       "replies": [
-        "Five steps, sir: displays today, a deafblind mode, a Braille connector, Ozi's own Braille pad on screen, then a device of our own.",
+        "Five steps, sir: displays today, a deafblind mode, a Braille connector, {assistant}'s own Braille pad on screen, then a device of our own.",
         "Five steps, sir. Nothing holds up launch."
       ]
     },
@@ -2274,7 +2274,7 @@
       "topic": "braille",
       "when": ["deafblind mode", "for people who can't see or hear"],
       "replies": [
-        "Next on the roadmap, sir: everything Ozi says sent as text to the display, with vibration patterns for the door.",
+        "Next on the roadmap, sir: everything {assistant} says sent as text to the display, with vibration patterns for the door.",
         "Step two, sir."
       ]
     },
@@ -2349,7 +2349,7 @@
       "topic": "accessibility",
       "when": ["extra support at first launch", "blind shoppers first launch"],
       "replies": [
-        "After the introduction, Ozi asks whether the person needs extra help, sir, and explains pinch to zoom.",
+        "After the introduction, {assistant} asks whether the person needs extra help, sir, and explains pinch to zoom.",
         "Asked at first launch, sir."
       ]
     },
@@ -2385,7 +2385,7 @@
       "topic": "building",
       "when": ["what should we build now", "what's the priority to build"],
       "replies": [
-        "Ozi saying each stage of an order aloud on the page, sir, then an arrival time, then Shopper feedback after delivery.",
+        "{assistant} saying each stage of an order aloud on the page, sir, then an arrival time, then Shopper feedback after delivery.",
         "Order stages aloud, sir."
       ]
     },
@@ -2412,7 +2412,7 @@
       "topic": "building",
       "when": ["read the receipt aloud", "receipt reading"],
       "replies": [
-        "Ozi reading the receipt aloud, what was bought and left out, is still to do, sir.",
+        "{assistant} reading the receipt aloud, what was bought and left out, is still to do, sir.",
         "Still to do, sir."
       ]
     },
@@ -2559,7 +2559,7 @@
       "topic": "building",
       "when": ["booked weekly delivery", "same day every week"],
       "replies": [
-        "On the chosen day, Ozi offers to put the usual shopping in the basket, sir. Nothing is sent or paid until the Shopper says so.",
+        "On the chosen day, {assistant} offers to put the usual shopping in the basket, sir. Nothing is sent or paid until the Shopper says so.",
         "Offered, never sent alone, sir."
       ]
     },
@@ -2583,7 +2583,7 @@
       "topic": "building",
       "when": ["can people sign in by voice", "voice sign in"],
       "replies": [
-        "Yes, sir. Ozi asks for the number, reads it back in twos and takes the code said aloud.",
+        "Yes, sir. {assistant} asks for the number, reads it back in twos and takes the code said aloud.",
         "Yes, sir."
       ]
     },
@@ -3090,8 +3090,8 @@
       "topic": "about",
       "when": ["what is the tagline", "our slogan"],
       "replies": [
-        "Say it, Ozi shops it, a Runner brings it, sir.",
-        "That's our tagline, sir: say it, Ozi shops it, a Runner brings it."
+        "Say it, {assistant} shops it, a Runner brings it, sir.",
+        "That's our tagline, sir: say it, {assistant} shops it, a Runner brings it."
       ]
     },
     {
@@ -3099,7 +3099,7 @@
       "topic": "about",
       "when": ["what is {product}", "explain the business"],
       "replies": [
-        "{product} lets anyone shop by voice, sir: Ozi takes the order and a Runner brings it.",
+        "{product} lets anyone shop by voice, sir: {assistant} takes the order and a Runner brings it.",
         "Shopping by voice, sir, brought by a Runner."
       ]
     },
@@ -3144,7 +3144,7 @@
       "topic": "about",
       "when": ["our colours", "brand colours"],
       "replies": [
-        "Navy, gold and white, sir, with green when Ozi is listening.",
+        "Navy, gold and white, sir, with green when {assistant} is listening.",
         "Navy and gold, sir."
       ]
     },
