@@ -24,7 +24,7 @@ import { auditChange } from './lib/audit.js';
 import { addSecurityHeaders, limiter } from './lib/guard.js';
 import type { CallProvider } from './lib/livekit.js';
 import type { VoiceEngineLink } from './lib/oluoma-voice.js';
-import type { OziBrain } from './lib/claude-brain.js';
+import type { OziBrain } from './lib/language-model.js';
 import type { PaymentsGateway } from './lib/payments.js';
 import type { SendPush } from './lib/push.js';
 import type { SendText } from './lib/sms.js';
@@ -124,7 +124,7 @@ export interface AppContext {
   voice: VoiceEngineLink | null;
   /**
    * A language model behind Ozi (ruling 69), asked only when the phrase book and the parser
-   * give up. Null without ANTHROPIC_API_KEY; the hand-built parts then work alone.
+   * give up. Null without LANGUAGE_MODEL_KEY; the hand-built parts then work alone.
    */
   brain: OziBrain | null;
 }
@@ -392,8 +392,8 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
     // Whether Oluoma Voice's two settings are in place (ruling 53). Not whether it answers:
     // asking it from here would make this check depend on another server.
     voiceEnabled: ctx.voice !== null,
-    // Whether a language model stands behind Ozi (ruling 69), and which.
-    brain: ctx.brain ? ctx.brain.model : null,
+    // Whether a language model stands behind Ozi (ruling 69). Never which: its name is private.
+    brainEnabled: ctx.brain !== null,
   }));
 
   /** The public facing configuration the web app is allowed to know about. */

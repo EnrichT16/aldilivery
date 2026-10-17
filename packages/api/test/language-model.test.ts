@@ -1,5 +1,5 @@
 /**
- * Claude behind Ozi (ruling 69): the instructions name nothing from code, a stand-in client's
+ * The language model behind Ozi (ruling 69): the instructions name nothing from code, a stand-in client's
  * answer is understood, and a slow, broken or refusing model is treated as absent.
  */
 
@@ -7,7 +7,12 @@ import { describe, expect, it } from 'vitest';
 
 import { loadStoreConfig } from '@aldilivery/core/node';
 
-import { claudeBrain, instructions, itemWords, type BrainClient } from '../src/lib/claude-brain.js';
+import {
+  instructions,
+  itemWords,
+  languageModel,
+  type BrainClient,
+} from '../src/lib/language-model.js';
 
 const config = loadStoreConfig();
 
@@ -36,7 +41,7 @@ describe('the instructions', () => {
 
 describe('understanding', () => {
   it('hears shopping and tidies it', async () => {
-    const brain = claudeBrain(
+    const brain = languageModel(
       { apiKey: 'test', config },
       stubClient(async () =>
         message({
@@ -67,19 +72,19 @@ describe('understanding', () => {
   });
 
   it('is absent when the model is slow, broken, refuses or answers nonsense', async () => {
-    const slow = claudeBrain(
+    const slow = languageModel(
       { apiKey: 'test', config },
       stubClient(() => Promise.reject(new Error('timed out'))),
     );
     expect(await slow.understand({ text: 'hello', account: 'shopper', channel: 'app' })).toBeNull();
-    const refused = claudeBrain(
+    const refused = languageModel(
       { apiKey: 'test', config },
       stubClient(async () => message({ kind: 'items', items: [], reply: null }, 'refusal')),
     );
     expect(
       await refused.understand({ text: 'hello', account: 'shopper', channel: 'app' }),
     ).toBeNull();
-    const nonsense = claudeBrain(
+    const nonsense = languageModel(
       { apiKey: 'test', config },
       stubClient(async () => ({
         stop_reason: 'end_turn',
@@ -89,7 +94,7 @@ describe('understanding', () => {
     expect(
       await nonsense.understand({ text: 'hello', account: 'shopper', channel: 'app' }),
     ).toBeNull();
-    const wrongShape = claudeBrain(
+    const wrongShape = languageModel(
       { apiKey: 'test', config },
       stubClient(async () => message({ kind: 'maybe', items: [], reply: null })),
     );

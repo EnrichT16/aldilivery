@@ -16,7 +16,7 @@ import type { LearnedPhrase, PartnerShop } from '../domain.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../errors.js';
 import { businessActor } from '../lib/business.js';
 import { bannedList, containsBanned, fitToKeep } from '../lib/banned.js';
-import { itemWords } from '../lib/claude-brain.js';
+import { itemWords } from '../lib/language-model.js';
 import {
   BRAINS,
   CHANNELS,
@@ -47,7 +47,7 @@ const body = z.object({
   turn: z.number().int().min(0).max(1_000_000).default(0),
   /** The app's own id for this visit, so a conversation's turns read together (ruling 68). */
   conversation: z.string().trim().min(1).max(80).optional(),
-  /** What is in the basket, in words, so Claude understands "take off the milk" (ruling 69). */
+  /** What is in the basket, in words, so the model understands "take off the milk" (ruling 69). */
   basket: z.array(z.string().trim().max(80)).max(40).optional(),
 });
 
@@ -280,7 +280,7 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
           request.log.warn({ err: failure }, 'Could not keep an unanswered question.');
         });
     };
-    // Claude behind Ozi (ruling 69): asked only now, when the phrase book has nothing. It
+    // The language model behind Ozi (ruling 69): asked only now, when the phrase book has nothing. It
     // either hears shopping in the words, which the app shops for as it would any list, or
     // gives one short answer within Ozi's purpose. Its answers still go to the Learning list,
     // so a person approves them before they become phrases. Too slow, and it is as if absent.
@@ -299,13 +299,13 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
           turn,
           text,
           `[${understood.kind}: ${understood.items.map(itemWords).join(', ')}]`,
-          'claude',
+          'model',
           'answered',
         );
         return { reply: null, understood };
       }
     } else if (understood?.reply && !containsBanned(understood.reply, banned)) {
-      keep(request, account, conversation, turn, text, understood.reply, 'claude', 'answered');
+      keep(request, account, conversation, turn, text, understood.reply, 'model', 'answered');
       keepForLearning();
       return { reply: understood.reply, understood };
     }

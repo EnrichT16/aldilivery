@@ -6,7 +6,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { OziBrain } from '../src/lib/claude-brain.js';
+import type { OziBrain } from '../src/lib/language-model.js';
 import { scrub, spokenIn, trainingLine } from '../src/lib/ozi-memory.js';
 import { twilioSignature } from '../src/lib/twilio-voice.js';
 import { sweepRetention } from '../src/services/retention.js';
@@ -368,13 +368,13 @@ describe('how long it is kept', () => {
   });
 });
 
-describe('Claude behind Ozi (ruling 69)', () => {
-  const heardByClaude: string[] = [];
+describe('the language model behind Ozi (ruling 69)', () => {
+  const heardByModel: string[] = [];
   const fakeBrain: OziBrain = {
-    name: 'claude',
+    name: 'model',
     model: 'stand-in',
     async understand({ text }) {
-      heardByClaude.push(text);
+      heardByModel.push(text);
       if (/run out of flour/i.test(text)) {
         return {
           kind: 'items',
@@ -392,7 +392,7 @@ describe('Claude behind Ozi (ruling 69)', () => {
 
   async function withBrain() {
     await harness.close();
-    heardByClaude.length = 0;
+    heardByModel.length = 0;
     harness = await buildTestApp(START, {
       env: { primaryOrigin: ORIGIN, twilioAuthToken: TOKEN },
       sendText: async () => undefined,
@@ -404,7 +404,7 @@ describe('Claude behind Ozi (ruling 69)', () => {
   it('is asked only after the phrase book, answers a question, and keeps it for learning', async () => {
     await withBrain();
     expect((await ask('how are you')).json().reply).toMatch(/very well/);
-    expect(heardByClaude).toEqual([]);
+    expect(heardByModel).toEqual([]);
     const moon = await ask('do you deliver to the moon');
     expect(moon.json()).toMatchObject({
       reply: 'Not yet. We stay on this planet.',
@@ -412,7 +412,7 @@ describe('Claude behind Ozi (ruling 69)', () => {
     });
     const rows = await remembered();
     expect(rows[0]).toMatchObject({
-      brain: 'claude',
+      brain: 'model',
       outcome: 'answered',
       heard: 'do you deliver to the moon',
     });
@@ -431,12 +431,12 @@ describe('Claude behind Ozi (ruling 69)', () => {
       },
     });
     const rows = await remembered();
-    expect(rows[0]).toMatchObject({ brain: 'claude', said: '[items: 2 milk]' });
+    expect(rows[0]).toMatchObject({ brain: 'model', said: '[items: 2 milk]' });
     // Shopping is not a question for the Learning list.
     expect(await harness.repository.learned.list('waiting')).toHaveLength(0);
   });
 
-  it('on the telephone, shops for what Claude heard and ends on a "done" it heard', async () => {
+  it('on the telephone, shops for what the model heard and ends on a "done" it heard', async () => {
     await withBrain();
     const shopper = await signUpShopper(harness, { displayName: 'Margaret Ade' });
     await harness.repository.shoppers.update(shopper.shopperId, {
@@ -466,6 +466,6 @@ describe('Claude behind Ozi (ruling 69)', () => {
     const done = await twilio(nextStep(added.body), { ...call, SpeechResult: "I'm finished now" });
     expect(spoken(done.body)).toMatch(/Here is your order/);
     const rows = await harness.repository.memory.list({ channel: 'phone', limit: 10 });
-    expect(rows.map((row) => row.brain)).toContain('claude');
+    expect(rows.map((row) => row.brain)).toContain('model');
   });
 });

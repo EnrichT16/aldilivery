@@ -47,7 +47,7 @@ import {
   signedByTwilio,
   type CallState,
 } from '../lib/twilio-voice.js';
-import { itemWords } from '../lib/claude-brain.js';
+import { itemWords } from '../lib/language-model.js';
 import { remember, spokenIn, type Brain, type Outcome } from '../lib/ozi-memory.js';
 import { phraseReply } from '../lib/phrases.js';
 import { priceLinesInParts } from '../services/basket.js';
@@ -688,7 +688,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
             request.oziNote = { brain: 'phrases', outcome: 'answered' };
             return reply(response, more({ ...state, lines }, sid, known));
           }
-          // Then Claude (ruling 69): "grab me a couple of crates of eggs, I've run out" is
+          // Then the language model (ruling 69): "grab me a couple of crates of eggs, I've run out" is
           // shopping the parser cannot see; a question gets one short answer.
           const basketItems = await repository.catalogue.findManyByIds(
             state.lines.map(([id]) => id),
@@ -700,7 +700,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
             basket: basketItems.map((item) => item.name),
           });
           if (understood) {
-            brain = 'claude';
+            brain = 'model';
             if (understood.kind === 'items' && understood.items.length > 0) {
               ({ added, missing, tooDear, lines } = await addAsked(
                 understood.items.map(itemWords),

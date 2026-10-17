@@ -748,7 +748,7 @@ before it goes live.
 
 ### The daily phrases routine (rulings 34, 44, 49)
 
-A scheduled Claude task, on Anthony's monthly plan, runs every day. It adds 50 new phrases with
+A scheduled the model task, on Anthony's monthly plan, runs every day. It adds 50 new phrases with
 answers to each account's collection (config/ozi-phrases.json and config/phrases/<account>.json),
 about the app, shopping, delivery, Runners, healthy eating and everyday life around shopping,
 never articles or anything outside Ozi's purpose. It runs the full checks and merges by itself
@@ -768,8 +768,8 @@ people Anthony knows (TESTING_WITH_PEOPLE.md).
 
 | Step | Who | Status |
 | --- | --- | --- |
-| 1. Company name, number and registered office on the site | Anthony, then Claude | Built (ruling 54): shown in every page's footer and the legal pages from config/store.json. The company name (OZIDELIVERY LTD) and registered office (107 King Street, Gillingham, ME7 1ER) are in (ruling 59), and the company number 17497650 (ruling 60); the ICO number and email show "to follow" until Anthony fills them in and clears each placeholder flag (docs/LEGAL_REVIEW.md). |
-| 2. A telephone number for Shoppers | Anthony, then Claude | Waiting: 0800 000 0000 placeholder. |
+| 1. Company name, number and registered office on the site | Anthony, then the model | Built (ruling 54): shown in every page's footer and the legal pages from config/store.json. The company name (OZIDELIVERY LTD) and registered office (107 King Street, Gillingham, ME7 1ER) are in (ruling 59), and the company number 17497650 (ruling 60); the ICO number and email show "to follow" until Anthony fills them in and clears each placeholder flag (docs/LEGAL_REVIEW.md). |
+| 2. A telephone number for Shoppers | Anthony, then the model | Waiting: 0800 000 0000 placeholder. |
 | 3. Solicitor reads the privacy policy, terms and Runner agreement (including the 10% recovery and cancellation wording) | Anthony | AI review done instead, for now (ruling 54, docs/LEGAL_REVIEW.md): privacy and terms rewritten and no longer marked draft; cookies page added; Runner agreement written and still marked draft until employment status, paying at the till and substitution are decided. A solicitor is still advised on the risks listed there. |
 | 4. ICO registration | Anthony | Done (17 October 2026, ruling 67): ZC271245, shown in the footer. Still to write: the appropriate policy document for DBS and health data (docs/LEGAL_REVIEW.md); renew by 9 October 2027. |
 | 5. Managed PostgreSQL with backups | Anthony, in DigitalOcean | Waiting: development database today. |

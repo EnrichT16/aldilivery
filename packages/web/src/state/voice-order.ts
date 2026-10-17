@@ -86,10 +86,10 @@ export const EXPECT_ORDER_MS = 30_000;
 
 const ORDER_INTENT =
   /\b(order|want|like|need|get|buy|have|bring|send|shopping|basket|grab|pick up|purchase|fetch|add|run out|ran out)\b/i;
-/** How long the app waits for the server's phrase book and Claude before going on alone. */
+/** How long the app waits for the server's phrase book and the language model before going on alone. */
 const ASK_WAIT_MS = 4500;
 /**
- * A sentence the parser would chop badly, so Claude hears it whole (ruling 69): a reason
+ * A sentence the parser would chop badly, so the language model hears it whole (ruling 69): a reason
  * given ("I've run out of"), a request wrapped in politeness, or a long sentence.
  */
 function needsEars(text: string): boolean {
@@ -197,10 +197,10 @@ export function useVoiceOrdering(
     return false;
   }, []);
 
-  // What Claude heard in the last sentence, when the parser saw nothing (ruling 69).
+  // What the language model heard in the last sentence, when the parser saw nothing (ruling 69).
   const heardItems = useRef<OziUnderstanding | null>(null);
 
-  /** The server's phrase book, then Claude, for a sentence looked within (rulings 49, 69). */
+  /** The server's phrase book, then the language model, for a sentence looked within (rulings 49, 69). */
   const askWithin = useCallback(
     async (
       text: string,
@@ -240,7 +240,7 @@ export function useVoiceOrdering(
         // The server keeps this one itself, with the words it answered.
         return (await say(answer.reply), true);
       }
-      // Claude heard shopping in it (ruling 69): "I've run out of flour" is an order.
+      // The language model heard shopping in it (ruling 69): "I've run out of flour" is an order.
       if (answer?.understood && answer.understood.items.length > 0) {
         heardItems.current = answer.understood;
         return false;
@@ -452,7 +452,7 @@ export function useVoiceOrdering(
           if (await chatter(text, parsed.items)) return true;
           expectingUntil.current = null;
           quiet.current.clear();
-          // Claude's hearing of the sentence, when the parser's would miss (ruling 69).
+          // The language model's hearing of the sentence, when the parser's would miss (ruling 69).
           let { items } = parsed;
           const { shopAskedFor } = parsed;
           if (heardItems.current === null && (items.length === 0 || needsEars(text))) {
@@ -460,13 +460,13 @@ export function useVoiceOrdering(
             if (answer?.understood && answer.understood.items.length > 0) {
               heardItems.current = answer.understood;
             } else if (answer?.reply) {
-              note.current = { brain: 'claude', outcome: 'answered' };
+              note.current = { brain: 'model', outcome: 'answered' };
               await say(answer.reply);
               return true;
             }
           }
           if (heardItems.current) {
-            note.current = { brain: 'claude', outcome: 'asked' };
+            note.current = { brain: 'model', outcome: 'asked' };
             items = heardItems.current.items.map((item) => `${item.quantity} ${item.name}`);
             heardItems.current = null;
           }
