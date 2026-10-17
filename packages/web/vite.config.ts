@@ -72,6 +72,8 @@ export default defineConfig({
       '@adverts': fileURLToPath(new URL('../../config/adverts.json', import.meta.url)),
       // The business's social media pages (ruling 50).
       '@social': fileURLToPath(new URL('../../config/social.json', import.meta.url)),
+      // Small talk answered in the app while shopping (ruling 66).
+      '@small-talk': fileURLToPath(new URL('../../config/small-talk.json', import.meta.url)),
     },
   },
   // Everything the browser needs is in `dist` and nothing else: a static site, served from

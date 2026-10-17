@@ -2156,7 +2156,7 @@
       "id": "family-what-does-the-name-mean",
       "topic": "about",
       "when": ["what does the name mean", "why that name"],
-      "replies": ["Ozi is Igbo for message.", "It's Igbo for message."]
+      "replies": ["{assistant} is Igbo for message.", "It's Igbo for message."]
     },
     {
       "id": "family-what-is-a-runner",

@@ -100,7 +100,15 @@ export function containsBanned(text: string, list: BannedList = bannedList()): b
     if (spelt && [...list.words].some((banned) => banned.length >= 4 && word.includes(banned))) {
       return true;
     }
-    if (list.roots.some((root) => word.startsWith(root) || squeezed.startsWith(squeeze(root)))) {
+    // A stretched word ("fuuuck") is compared squeezed against the squeezed root. Only a word
+    // that was stretched: squeezing a root with a doubled letter would otherwise shorten it
+    // until everyday words began with it ("good night", ruling 66).
+    if (
+      list.roots.some(
+        (root) =>
+          word.startsWith(root) || (squeezed !== word && squeezed.startsWith(squeeze(root))),
+      )
+    ) {
       return true;
     }
   }
