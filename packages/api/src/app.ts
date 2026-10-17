@@ -16,7 +16,7 @@ import { ZodError } from 'zod';
 import type { StoreConfig } from '@aldilivery/core';
 
 import type { Repository } from './data/repository.js';
-import type { AccountRole } from './domain.js';
+import type { SessionRole } from './domain.js';
 import { ApiError, ForbiddenError, TooManyRequestsError, UnauthorisedError } from './errors.js';
 import type { Env } from './env.js';
 import { bankSettings } from './lib/bank.js';
@@ -124,7 +124,7 @@ export interface AppContext {
 
 export interface Session {
   accountId: string;
-  role: AccountRole;
+  role: SessionRole;
 }
 
 declare module 'fastify' {
@@ -510,7 +510,7 @@ export function requireStaff(request: FastifyRequest, staffKey: string | undefin
 }
 
 /** Require a signed-in account, optionally of a particular kind. */
-export function requireSession(request: FastifyRequest, role?: AccountRole): Session {
+export function requireSession(request: FastifyRequest, role?: SessionRole): Session {
   if (!request.session) throw new UnauthorisedError();
   if (role && request.session.role !== role) {
     throw new UnauthorisedError(

@@ -25,6 +25,7 @@ import type {
   BusinessUser,
   PartnerProduct,
   PartnerShop,
+  ServiceEnquiry,
   StaffMember,
   FindRequest,
   GiftCard,
@@ -125,6 +126,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const partnerProducts = new Map<string, PartnerProduct>();
   const businessUsers = new Map<string, BusinessUser>();
   const partnerPayments: PartnerPayment[] = [];
+  const serviceEnquiries = new Map<string, ServiceEnquiry>();
   const spotlightMentions: SpotlightMention[] = [];
   const analyticsEvents: AnalyticsEvent[] = [];
   const incomeRecords: IncomeRecord[] = [];
@@ -1369,6 +1371,19 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
     partnerShops: {
       async create(input) {
         const row: PartnerShop = {
+          kind: 'shop',
+          status: 'approved',
+          plan: 'plus',
+          freeForever: false,
+          plusTrialUsed: false,
+          source: 'staff',
+          seedKey: null,
+          postcode: '',
+          hours: '',
+          contactName: '',
+          mobile: '',
+          email: '',
+          approvedAt: null,
           ...input,
           id: id(),
           paidUntil: null,
@@ -1382,6 +1397,10 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
       async findById(key) {
         const found = partnerShops.get(key);
+        return found ? clone(found) : null;
+      },
+      async findBySeedKey(seedKey) {
+        const found = [...partnerShops.values()].find((row) => row.seedKey === seedKey);
         return found ? clone(found) : null;
       },
       async list() {
@@ -1401,6 +1420,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
     partnerProducts: {
       async create(input) {
         const row: PartnerProduct = {
+          durationMinutes: null,
           ...input,
           id: id(),
           status: 'pending',
@@ -1483,7 +1503,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
 
     partnerPayments: {
       async create(input) {
-        const row: PartnerPayment = { ...input, id: id() };
+        const row: PartnerPayment = { reference: null, ...input, id: id() };
         partnerPayments.push(row);
         return clone(row);
       },
@@ -1491,6 +1511,48 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         return partnerPayments
           .filter((row) => row.partnerShopId === partnerShopId)
           .sort((a, b) => b.paidAt.getTime() - a.paidAt.getTime())
+          .map(clone);
+      },
+      async findByReference(reference) {
+        const found = partnerPayments.find((row) => row.reference === reference);
+        return found ? clone(found) : null;
+      },
+    },
+
+    serviceEnquiries: {
+      async create(input) {
+        const row: ServiceEnquiry = {
+          ...input,
+          id: id(),
+          status: 'open',
+          reply: null,
+          createdAt: now(),
+          answeredAt: null,
+        };
+        serviceEnquiries.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = serviceEnquiries.get(key);
+        return found ? clone(found) : null;
+      },
+      async update(key, patch) {
+        const existing = serviceEnquiries.get(key);
+        if (!existing) throw new NotFoundError('Enquiry', key);
+        const updated = { ...existing, ...patch, id: existing.id };
+        serviceEnquiries.set(key, updated);
+        return clone(updated);
+      },
+      async listForShop(partnerShopId) {
+        return [...serviceEnquiries.values()]
+          .filter((row) => row.partnerShopId === partnerShopId)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map(clone);
+      },
+      async listForShopper(shopperId) {
+        return [...serviceEnquiries.values()]
+          .filter((row) => row.shopperId === shopperId)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
           .map(clone);
       },
     },

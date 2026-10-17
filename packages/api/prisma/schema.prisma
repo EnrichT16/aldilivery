@@ -111,6 +111,7 @@ enum SetFrequency {
 enum AccountRole {
   shopper
   runner
+  partner
 }
 
 // ---------------------------------------------------------------------------
@@ -1067,6 +1068,46 @@ model PartnerShop {
   spotlight      String    @default("none")
   spotlightUntil DateTime?
   createdAt      DateTime  @default(now())
+  /// Ruling 65: shop, food (a café or takeaway) or service.
+  kind           String    @default("shop")
+  /// pending until a person approves the page, approved, or removed. Paused is `active` false.
+  status         String    @default("approved")
+  /// free (a basic listing) or plus (Partner Plus, while paidUntil is ahead).
+  plan           String    @default("plus")
+  /// One of the first free-for-ever listings.
+  freeForever    Boolean   @default(false)
+  /// The free first month of Partner Plus has been taken.
+  plusTrialUsed  Boolean   @default(false)
+  /// self (joined through the app), staff (added from a paper form), ozi (listed by Ozi) or claimed.
+  source         String    @default("staff")
+  /// The seed entry this shop came from, so the seed never adds it twice.
+  seedKey        String?   @unique
+  postcode       String    @default("")
+  hours          String    @default("")
+  contactName    String    @default("")
+  /// Private: for sign-in codes and for us to ring. Never shown.
+  mobile         String    @default("")
+  email          String    @default("")
+  approvedAt     DateTime?
+}
+
+/// A Shopper asking a service for a quote or a call back (ruling 65). No money moves.
+model ServiceEnquiry {
+  id            String    @id @default(cuid())
+  partnerShopId String
+  shopperId     String
+  productId     String?
+  kind          String
+  message       String    @default("")
+  /// How the Shopper chose to be reached, in their own words. Shown to the service only.
+  contact       String    @default("")
+  status        String    @default("open")
+  reply         String?
+  createdAt     DateTime  @default(now())
+  answeredAt    DateTime?
+
+  @@index([partnerShopId])
+  @@index([shopperId])
 }
 
 /// A product a partner shop sent in. Shoppers see it once a person has approved it.
@@ -1084,6 +1125,8 @@ model PartnerProduct {
   catalogueItemId String?
   createdAt       DateTime  @default(now())
   decidedAt       DateTime?
+  /// A service: how long it takes, in minutes. Its price is "from".
+  durationMinutes Int?
 
   @@index([partnerShopId])
   @@index([status])
@@ -1117,6 +1160,8 @@ model PartnerPayment {
   coversUntil   DateTime
   recordedBy    String
   paidAt        DateTime @default(now())
+  /// The Stripe Checkout session that paid it, so a payment is recorded once only.
+  reference     String?  @unique
 
   @@index([partnerShopId])
 }

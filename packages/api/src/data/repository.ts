@@ -22,6 +22,7 @@ import type {
   BusinessUser,
   PartnerProduct,
   PartnerShop,
+  ServiceEnquiry,
   StaffMember,
   FindRequest,
   GiftCard,
@@ -516,12 +517,46 @@ export interface Repository {
 
   partnerShops: {
     create(
-      input: Pick<PartnerShop, 'name' | 'address' | 'telephone' | 'about' | 'monthlyPence'>,
+      input: Pick<PartnerShop, 'name' | 'address' | 'telephone' | 'about' | 'monthlyPence'> &
+        Partial<
+          Pick<
+            PartnerShop,
+            | 'kind'
+            | 'status'
+            | 'plan'
+            | 'freeForever'
+            | 'source'
+            | 'seedKey'
+            | 'postcode'
+            | 'hours'
+            | 'contactName'
+            | 'mobile'
+            | 'email'
+            | 'approvedAt'
+          >
+        >,
     ): Promise<PartnerShop>;
     findById(id: string): Promise<PartnerShop | null>;
+    findBySeedKey(seedKey: string): Promise<PartnerShop | null>;
     /** Oldest first. */
     list(): Promise<PartnerShop[]>;
     update(id: string, patch: Partial<Omit<PartnerShop, 'id'>>): Promise<PartnerShop>;
+  };
+
+  /** A Shopper asking a service for a quote or a call back (ruling 65). */
+  serviceEnquiries: {
+    create(
+      input: Pick<
+        ServiceEnquiry,
+        'partnerShopId' | 'shopperId' | 'productId' | 'kind' | 'message' | 'contact'
+      >,
+    ): Promise<ServiceEnquiry>;
+    findById(id: string): Promise<ServiceEnquiry | null>;
+    update(id: string, patch: Partial<Omit<ServiceEnquiry, 'id'>>): Promise<ServiceEnquiry>;
+    /** Newest first. */
+    listForShop(partnerShopId: string): Promise<ServiceEnquiry[]>;
+    /** Newest first. */
+    listForShopper(shopperId: string): Promise<ServiceEnquiry[]>;
   };
 
   partnerProducts: {
@@ -529,7 +564,8 @@ export interface Repository {
       input: Pick<
         PartnerProduct,
         'partnerShopId' | 'name' | 'pricePence' | 'tags' | 'expiresOn' | 'photo' | 'photoType'
-      >,
+      > &
+        Partial<Pick<PartnerProduct, 'durationMinutes'>>,
     ): Promise<PartnerProduct>;
     findById(id: string): Promise<PartnerProduct | null>;
     update(id: string, patch: Partial<Omit<PartnerProduct, 'id'>>): Promise<PartnerProduct>;
@@ -559,9 +595,12 @@ export interface Repository {
   };
 
   partnerPayments: {
-    create(input: Omit<PartnerPayment, 'id'>): Promise<PartnerPayment>;
+    create(
+      input: Omit<PartnerPayment, 'id' | 'reference'> & Partial<Pick<PartnerPayment, 'reference'>>,
+    ): Promise<PartnerPayment>;
     /** Newest first. */
     listForShop(partnerShopId: string): Promise<PartnerPayment[]>;
+    findByReference(reference: string): Promise<PartnerPayment | null>;
   };
 
   spotlightMentions: {

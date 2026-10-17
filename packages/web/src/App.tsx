@@ -25,6 +25,7 @@ import { Orders } from './pages/Orders';
 import { OrganisationDashboard } from './pages/OrganisationDashboard';
 import { Organisations } from './pages/Organisations';
 import { PartnerDashboard } from './pages/PartnerDashboard';
+import { PartnerJoin } from './pages/PartnerJoin';
 import { ReportProblem } from './pages/ReportProblem';
 import { Plus } from './pages/Plus';
 import { Cookies } from './pages/Cookies';
@@ -152,6 +153,7 @@ export function App(): JSX.Element {
                 <Route path="/offers" element={<Offers />} />
                 <Route path="/weekly-shop" element={<WeeklyShop />} />
                 <Route path="/business" element={<BusinessSignIn />} />
+                <Route path="/business/join" element={<PartnerJoin />} />
                 <Route path="/partner" element={<PartnerDashboard />} />
                 <Route path="/organisation" element={<OrganisationDashboard />} />
                 <Route path="/shops" element={<Shops />} />

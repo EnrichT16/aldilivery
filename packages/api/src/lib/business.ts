@@ -42,6 +42,54 @@ export function verifyBusinessToken(token: string, secret: string, now: Date): s
   }
 }
 
+/**
+ * What a partner is paying for through Stripe Checkout (ruling 65): Partner Plus, Spotlight or
+ * Spotlight Plus, for so many months. Signed into the address Stripe sends them back to, so the
+ * dashboard can record exactly what was paid without keeping anything on the server meanwhile,
+ * and the Checkout session's id keeps it from ever being recorded twice.
+ */
+export interface PartnerCheckout {
+  sessionId: string;
+  partnerShopId: string;
+  kind: 'plan' | 'spotlight' | 'plus';
+  months: number;
+  amountPence: number;
+}
+
+const CHECKOUT_LABEL = 'partner-checkout:';
+
+export function signPartnerCheckout(checkout: PartnerCheckout, secret: string): string {
+  const body = Buffer.from(JSON.stringify(checkout)).toString('base64url');
+  const mac = createHmac('sha256', `${CHECKOUT_LABEL}${secret}`).update(body).digest('base64url');
+  return `pc1.${body}.${mac}`;
+}
+
+export function verifyPartnerCheckout(token: string, secret: string): PartnerCheckout | null {
+  const [version, body, mac] = token.split('.');
+  if (version !== 'pc1' || !body || !mac) return null;
+  const expected = createHmac('sha256', `${CHECKOUT_LABEL}${secret}`)
+    .update(body)
+    .digest('base64url');
+  const a = Buffer.from(mac);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as PartnerCheckout;
+    if (
+      typeof parsed.sessionId !== 'string' ||
+      typeof parsed.partnerShopId !== 'string' ||
+      !['plan', 'spotlight', 'plus'].includes(parsed.kind) ||
+      !Number.isInteger(parsed.months) ||
+      !Number.isInteger(parsed.amountPence)
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 /** The person signed in for a business, if they are of this kind and still allowed in. */
 export async function businessActor(
   request: FastifyRequest,

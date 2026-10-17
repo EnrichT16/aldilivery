@@ -813,6 +813,9 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       async findById(id) {
         return (await prisma.partnerShop.findUnique({ where: { id } })) as any;
       },
+      async findBySeedKey(seedKey) {
+        return (await prisma.partnerShop.findUnique({ where: { seedKey } })) as any;
+      },
       async list() {
         return (await prisma.partnerShop.findMany({ orderBy: { createdAt: 'asc' } })) as any;
       },
@@ -887,6 +890,33 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         return (await prisma.partnerPayment.findMany({
           where: { partnerShopId },
           orderBy: { paidAt: 'desc' },
+        })) as any;
+      },
+      async findByReference(reference) {
+        return (await prisma.partnerPayment.findUnique({ where: { reference } })) as any;
+      },
+    },
+
+    serviceEnquiries: {
+      async create(input) {
+        return (await prisma.serviceEnquiry.create({ data: input })) as any;
+      },
+      async findById(id) {
+        return (await prisma.serviceEnquiry.findUnique({ where: { id } })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.serviceEnquiry.update({ where: { id }, data: patch })) as any;
+      },
+      async listForShop(partnerShopId) {
+        return (await prisma.serviceEnquiry.findMany({
+          where: { partnerShopId },
+          orderBy: { createdAt: 'desc' },
+        })) as any;
+      },
+      async listForShopper(shopperId) {
+        return (await prisma.serviceEnquiry.findMany({
+          where: { shopperId },
+          orderBy: { createdAt: 'desc' },
         })) as any;
       },
     },

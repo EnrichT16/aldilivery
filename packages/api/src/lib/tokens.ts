@@ -11,7 +11,7 @@
 
 import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
 
-import type { AccountRole } from '../domain.js';
+import type { AccountRole, SessionRole } from '../domain.js';
 
 export function hashCode(code: string, secret: string): string {
   return createHmac('sha256', secret).update(code.trim()).digest('hex');
@@ -74,7 +74,7 @@ export function generateCode(length: number): string {
 
 export interface SessionClaims {
   accountId: string;
-  role: AccountRole;
+  role: SessionRole;
   /** Seconds since the epoch. */
   expiresAt: number;
 }

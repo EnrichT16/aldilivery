@@ -3067,8 +3067,8 @@
       "topic": "shopping",
       "when": ["i own a shop", "can my shop join", "list my shop", "become a partner"],
       "replies": [
-        "Lovely. Every shop can be listed free. Shops can also become a Shop Partner, for {partnerPlan} a month. Choose the Shop Partner door on the first screen.",
-        "Shops can ask to work with us using the form on the first screen."
+        "Lovely. Every shop can join free: choose the Shop Partner door on the first screen, then Join as a shop. The first {freeShops} shops are listed free for ever, with up to {freeProducts} products; Partner Plus, {partnerPlus} a month, adds the full catalogue with photos.",
+        "Shops, cafés, takeaways and services join from the Shop Partner door on the first screen. A basic listing is free; a café or takeaway pays {foodCommission} on orders through {product} instead of a monthly fee."
       ]
     },
     {
@@ -4205,6 +4205,56 @@
       "replies": [
         "Tell me the item, and I'll read you the prices I have, so you can choose. You always pay the till price.",
         "Ask for an item, and I'll give you the prices I have."
+      ]
+    },
+    {
+      "id": "shopper-which-shops",
+      "topic": "shopping",
+      "when": [
+        "which shops are on {assistant}",
+        "what shops are on {assistant}",
+        "which shops are on {product}",
+        "what shops are on {product}",
+        "which shops are on here",
+        "what shops are there",
+        "which shops do you have",
+        "what shops do you have",
+        "list the shops",
+        "who is on {assistant}",
+        "which businesses are on {assistant}"
+      ],
+      "replies": ["{shopsOnOzi}", "{shopsOnOzi} Say a shop's name to hear more about it."]
+    },
+    {
+      "id": "shopper-shop-kind-found",
+      "topic": "shopping",
+      "when": ["is there a {shopKind} on {assistant}"],
+      "replies": [
+        "Yes. For a {shopKind}, there is {shopsForKind}. The Local shops page has the details.",
+        "There is: {shopsForKind}. You will find it on the Local shops page."
+      ]
+    },
+    {
+      "id": "shopper-shop-kind-none",
+      "topic": "shopping",
+      "when": ["is there any {shopKind} on {assistant}"],
+      "replies": [
+        "Not yet. No {shopKind} is on {product} at the moment. If you know one, tell them about the Shop Partner door: a basic listing is free.",
+        "I have no {shopKind} listed yet. The Local shops page shows everyone who is."
+      ]
+    },
+    {
+      "id": "shopper-ask-for-a-quote",
+      "topic": "shopping",
+      "when": [
+        "how do i ask for a quote",
+        "can i book a call back",
+        "how do i get a quote",
+        "can i get a quote from a service"
+      ],
+      "replies": [
+        "On a service's page, press Ask for a quote or Book a call back, or just say it to me there. The service gets back to you, and nothing is paid through {product} for services yet.",
+        "Open the service on the Local shops page and say ask for a quote, or book a call back. You will see the reply under your past orders."
       ]
     }
   ]

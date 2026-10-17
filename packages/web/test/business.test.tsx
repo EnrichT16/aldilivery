@@ -99,8 +99,36 @@ beforeEach(() => {
       }
       if (path === '/partner/dashboard') {
         return reply({
-          shop: { id: 'shop-1', name: 'Corner Bakery', address: '', telephone: '', about: '' },
-          plan: { monthlyPence: 2999, paidUntil: '2026-11-07T10:00:00.000Z', paid: true },
+          shop: {
+            id: 'shop-1',
+            name: 'Corner Bakery',
+            address: '',
+            telephone: '',
+            about: '',
+            kind: 'shop',
+            kindWords: 'Shop',
+            postcode: 'ME7 1AA',
+            hours: '',
+            status: 'approved',
+            active: true,
+            listed: true,
+          },
+          plan: {
+            tier: 'plus',
+            monthlyPence: 1499,
+            plusMonthlyPence: 1499,
+            paidUntil: '2026-11-07T10:00:00.000Z',
+            paid: true,
+            freeForever: false,
+            firstMonthFree: false,
+            productLimit: null,
+            productsListed: 1,
+            canAddProduct: true,
+            words:
+              'Partner Plus, £14.99 a month, paid until 7 November 2026: the full catalogue with photos, offers and Shop of the Month.',
+          },
+          commission: null,
+          enquiries: [],
           counts: { live: 1, waiting: 0, notAccepted: 0 },
           products: [
             {
@@ -114,6 +142,7 @@ beforeEach(() => {
               note: null,
               catalogueItemId: 'c1',
               createdAt: '2026-10-07T10:00:00.000Z',
+              durationMinutes: null,
             },
           ],
           sharePath: '/shops/shop-1',
@@ -127,8 +156,8 @@ beforeEach(() => {
             {
               id: 'pay1',
               kind: 'plan',
-              what: 'Shop Partner plan',
-              amountPence: 2999,
+              what: 'Partner Plus',
+              amountPence: 1499,
               months: 1,
               coversUntil: '2026-11-07T10:00:00.000Z',
               paidAt: '2026-10-07T10:00:00.000Z',
@@ -160,7 +189,18 @@ beforeEach(() => {
       if (path === '/organisation/dashboard') return reply(ORG);
       if (path === '/shops/shop-1') {
         return reply({
-          shop: { id: 'shop-1', name: 'Corner Bakery', about: 'Fresh bread.', address: '' },
+          shop: {
+            id: 'shop-1',
+            name: 'Corner Bakery',
+            about: 'Fresh bread.',
+            address: '',
+            kind: 'shop',
+            kindWords: 'Shop',
+            area: 'ME7',
+            hours: '',
+            listedByOzi: false,
+            claimable: false,
+          },
           products: [
             {
               id: 'p1',
@@ -264,7 +304,10 @@ describe('a Shop Partner', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Corner Bakery' }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/£29\.99 a month\. Paid until/)).toBeInTheDocument();
+    expect(screen.getByText(/Partner Plus, £14\.99 a month, paid until/)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Renew Partner Plus, £14.99 for a month' }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Spotlight, 1 month, £19\.99/)).toBeInTheDocument();
     expect(screen.getByText(/Mentioned 4 times this month/)).toBeInTheDocument();
     expect(

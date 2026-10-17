@@ -171,10 +171,11 @@ describe('the telephone number', () => {
     renderAt('/shop');
 
     await say(engine, "What's your phone number?");
-    const aloud = 'zero eight, zero zero, zero zero, zero zero, zero zero, zero';
+    const pairs = inPairs(storeConfig.contact.telephonePlaceholder);
+    const aloud = pairsAloud(pairs);
     const reply = said(engine).at(-1)!;
     expect(reply.split(aloud)).toHaveLength(3);
-    expect(reply).toMatch(/It's on the screen too, as 08 00 00 00 00 0\./);
+    expect(reply).toContain(`It's on the screen too, as ${pairs}.`);
     expect(reply).toMatch(/just say yes please, or repeat\.$/);
 
     await say(engine, 'yes please');

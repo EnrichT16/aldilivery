@@ -32,6 +32,7 @@ import type {
   OrganisationPricing,
   ProcessorModel,
 } from './fees.js';
+import type { PartnerPricing } from './partners.js';
 
 export type CatalogueSourceMode = 'partner_feed' | 'community';
 
@@ -201,8 +202,11 @@ export interface StoreConfig {
     readonly findItShops: number;
     /** The gift card amounts on offer. */
     readonly giftCardPence: readonly number[];
-    /** What a partner shop pays a month for its own dashboard, products and promotion. */
-    readonly partnerMonthlyPence: number;
+    /**
+     * Shops, cafés, takeaways and services joining as partners (ruling 65): the free listings,
+     * Partner Plus, the commission a café or takeaway pays, and the kinds of service never listed.
+     */
+    readonly partners: PartnerPricing;
     /**
      * Ozi mentions, extras on top of the partner plan, a month at a time: Spotlight and
      * Spotlight Plus, and how many times a week each may be mentioned to the same Shopper.
@@ -568,6 +572,52 @@ function organisationPricing(raw: Unknown): OrganisationPricing {
   };
 }
 
+/** The kinds of service that are never listed, each as plain words. */
+const DEFAULT_EXCLUDED_SERVICE_KINDS = [
+  'credit',
+  'loans',
+  'mortgages',
+  'insurance',
+  'financial advice',
+  'property sales',
+  'lettings',
+  'medicines',
+];
+
+function partnerPricing(raw: Unknown): PartnerPricing {
+  const excluded = raw['excludedServiceKinds'] ?? DEFAULT_EXCLUDED_SERVICE_KINDS;
+  if (!Array.isArray(excluded) || excluded.some((kind) => typeof kind !== 'string')) {
+    throw new StoreConfigError('extras.partners.excludedServiceKinds must be a list of words.');
+  }
+  return {
+    freeListingCount: wholeNumber(
+      raw['freeListingCount'] ?? 100,
+      'extras.partners.freeListingCount',
+      0,
+    ),
+    freeProductLimit: wholeNumber(
+      raw['freeProductLimit'] ?? 10,
+      'extras.partners.freeProductLimit',
+      1,
+    ),
+    plusMonthlyPence: wholeNumber(
+      raw['plusMonthlyPence'] ?? 1499,
+      'extras.partners.plusMonthlyPence',
+      1,
+    ),
+    plusFirstMonthFree: bool(
+      raw['plusFirstMonthFree'] ?? true,
+      'extras.partners.plusFirstMonthFree',
+    ),
+    foodCommissionBasisPoints: wholeNumber(
+      raw['foodCommissionBasisPoints'] ?? 1000,
+      'extras.partners.foodCommissionBasisPoints',
+      0,
+    ),
+    excludedServiceKinds: (excluded as string[]).map((kind) => kind.trim()).filter(Boolean),
+  };
+}
+
 export function parseStoreConfig(input: unknown): StoreConfig {
   const root = object(input, 'the configuration file');
 
@@ -926,10 +976,8 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       findItPence: wholeNumber(extras['findItPence'] ?? 200, 'extras.findItPence', 1),
       findItShops: wholeNumber(extras['findItShops'] ?? 3, 'extras.findItShops', 1),
       giftCardPence: giftCardAmounts(extras['giftCardPence'] ?? [1000, 2000, 3000, 5000]),
-      partnerMonthlyPence: wholeNumber(
-        extras['partnerMonthlyPence'] ?? 2999,
-        'extras.partnerMonthlyPence',
-        1,
+      partners: partnerPricing(
+        extras['partners'] === undefined ? {} : object(extras['partners'], 'extras.partners'),
       ),
       spotlightPence: wholeNumber(extras['spotlightPence'] ?? 1999, 'extras.spotlightPence', 1),
       spotlightPlusPence: wholeNumber(

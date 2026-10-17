@@ -33,15 +33,19 @@ export function BusinessSignIn(): JSX.Element {
   const [first, setFirst] = useState<(BusinessMe & { token: string }) | null>(null);
 
   useEffect(() => {
-    const words = `Sign in for Shop Partners and organisations. Type your username, then your password. For your privacy, I never ask you to say a password out loud.`;
+    const words = `Sign in for Shop Partners and organisations. Type your username, then your password. For your privacy, I never ask you to say a password out loud. New here? Say "join as a shop", and I will take you to the form.`;
     voice.current.setPageCommands((text) => {
+      if (/\b(join|sign up|register|list my (shop|business|cafe|café|service))\b/i.test(text)) {
+        navigate('/business/join');
+        return true;
+      }
       if (nameHeardIn(text) || /\b(help|what do i do|how)\b/i.test(text))
         void voice.current.say(words);
       return true;
     });
     void voice.current.say(words);
     return () => voice.current.setPageCommands(null);
-  }, []);
+  }, [navigate]);
 
   const submit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -166,14 +170,12 @@ export function BusinessSignIn(): JSX.Element {
           Not signed up yet?
         </h2>
         <p className="m-0">
-          Every local shop is listed free. Shop Partners pay monthly to show their own products and
-          prices, and keep them up to date themselves.
+          Shops, cafés, takeaways and services join here, free. Fill in a short form, confirm your
+          mobile with a code, and add your products straight away. Your page goes public once we
+          have checked it.
         </p>
-        <Link
-          to="/organisations?shop=1#enquiry"
-          className="control border-paper bg-paper/10 text-paper"
-        >
-          Become a Shop Partner
+        <Link to="/business/join" className="control border-paper bg-paper/10 text-paper">
+          Join as a shop
         </Link>{' '}
         <Link to="/organisations#enquiry" className="control bg-paper/10 text-paper underline">
           For organisations

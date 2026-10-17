@@ -6,7 +6,7 @@
  * generated client. The Prisma backed repository maps rows onto these types at the edge.
  */
 
-import type { SplitPartMode } from '@aldilivery/core';
+import type { PartnerKind, PartnerPlan, SplitPartMode } from '@aldilivery/core';
 
 export type VehicleType = 'on_foot' | 'bicycle' | 'motorbike' | 'car' | 'van';
 
@@ -22,7 +22,10 @@ export type JobOfferOutcome = 'pending' | 'accepted' | 'declined' | 'expired' | 
 
 export type SetFrequency = 'weekly' | 'fortnightly' | 'monthly';
 
-export type AccountRole = 'shopper' | 'runner';
+/** Who a session is for: a Shopper or a Runner. */
+export type SessionRole = 'shopper' | 'runner';
+/** Who a one-time code is for. A partner has codes (to confirm a mobile), never a session. */
+export type AccountRole = SessionRole | 'partner';
 
 /** Where an extra Runner's delivery on a linked order has got to (ruling 61). */
 export type ExtraDeliveryStatus =
@@ -804,21 +807,64 @@ export interface StaffMember {
   recoveryCodes: string;
 }
 
-/** A local shop on the monthly partner plan (7 October 2026). */
+export type PartnerShopStatus = 'pending' | 'approved' | 'removed';
+/** How a shop came to be here: joined itself, added by staff from a paper form, listed by Ozi, or claimed. */
+export type PartnerShopSource = 'self' | 'staff' | 'ozi' | 'claimed';
+
+/** A local shop, café, takeaway or service listed here (7 October 2026; ruling 65). */
 export interface PartnerShop {
   id: string;
   name: string;
   address: string;
   telephone: string;
   about: string;
+  /** What Partner Plus costs them a month; 0 on a free listing, a café, a takeaway or a service. */
   monthlyPence: number;
-  /** The plan is paid up to here. Products show only while it is. */
+  /** Partner Plus is paid up to here. The full catalogue shows only while it is. */
   paidUntil: Date | null;
+  /** False when paused by staff. */
   active: boolean;
   /** Ozi mentions, an extra on top of the plan. */
   spotlight: SpotlightLevel;
   spotlightUntil: Date | null;
   createdAt: Date;
+  kind: PartnerKind;
+  /** Pending until a person approves the page; its page is public once approved. */
+  status: PartnerShopStatus;
+  plan: PartnerPlan;
+  /** One of the first free-for-ever listings (ruling 65). */
+  freeForever: boolean;
+  /** The free first month of Partner Plus has been taken. */
+  plusTrialUsed: boolean;
+  source: PartnerShopSource;
+  /** The entry in config/shops-seed.json this came from, if Ozi listed it. */
+  seedKey: string | null;
+  postcode: string;
+  hours: string;
+  contactName: string;
+  /** Private: for codes and for us to ring. Never shown to anybody. */
+  mobile: string;
+  email: string;
+  approvedAt: Date | null;
+}
+
+export type ServiceEnquiryKind = 'quote' | 'call_back';
+export type ServiceEnquiryStatus = 'open' | 'answered' | 'closed';
+
+/** A Shopper asking a service for a quote or a call back (ruling 65). No money moves through us. */
+export interface ServiceEnquiry {
+  id: string;
+  partnerShopId: string;
+  shopperId: string;
+  productId: string | null;
+  kind: ServiceEnquiryKind;
+  message: string;
+  /** How the Shopper chose to be reached, in their own words. Shown to the service only. */
+  contact: string;
+  status: ServiceEnquiryStatus;
+  reply: string | null;
+  createdAt: Date;
+  answeredAt: Date | null;
 }
 
 export type SpotlightLevel = 'none' | 'spotlight' | 'plus';
@@ -840,6 +886,8 @@ export interface PartnerProduct {
   catalogueItemId: string | null;
   createdAt: Date;
   decidedAt: Date | null;
+  /** A service: how long it takes, in minutes. Its price is "from". */
+  durationMinutes: number | null;
 }
 
 export type BusinessKind = 'partner' | 'organisation';
@@ -875,6 +923,8 @@ export interface PartnerPayment {
   coversUntil: Date;
   recordedBy: string;
   paidAt: Date;
+  /** The Stripe Checkout session that paid it, so it is recorded once only. */
+  reference: string | null;
 }
 
 /** Ozi mentioned a Spotlight shop to a Shopper. */
