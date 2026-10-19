@@ -2,7 +2,8 @@ import { storeConfig } from '../config';
 import { useOzi } from '../state/ozi';
 
 /**
- * The switch at the bottom of every screen (Anthony, 4 October 2026): for anybody who would
+ * The switch at the bottom of every screen (Anthony, 4 October 2026), in the bar fixed to the
+ * foot of the screen with the Shopper's navigation (Layout): for anybody who would
  * rather Ozi did not keep talking, or would rather type. Off, Ozi is silent but still listens
  * (agreed 16 October 2026, when the label became "talks out loud"), and its words are still
  * shown on the screen, and read by a screen reader. Saying "turn off" does the same; turning
@@ -19,7 +20,7 @@ export function OziSwitch(): JSX.Element {
   return (
     <aside
       aria-label={`${assistant} on or off`}
-      className="fixed bottom-0 inset-x-0 z-40 border-t-2 border-paper/25 bg-ink px-5 py-2"
+      className="border-t-2 border-paper/25 bg-ink px-5 py-1"
     >
       <div className="mx-auto w-full max-w-3xl flex items-center justify-between gap-4">
         <span id="ozi-switch-label" className="font-bold text-balance">
@@ -31,7 +32,7 @@ export function OziSwitch(): JSX.Element {
           aria-checked={on}
           aria-labelledby="ozi-switch-label"
           onClick={() => ozi.setVoiceOn(!on)}
-          className="control flex items-center gap-3 bg-paper/10 text-paper"
+          className="control !px-3 !py-1 flex items-center gap-3 bg-paper/10 text-paper"
         >
           <span
             aria-hidden="true"

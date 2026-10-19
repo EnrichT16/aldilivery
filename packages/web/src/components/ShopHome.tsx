@@ -4,13 +4,17 @@ import { Link } from 'react-router-dom';
 import { storeConfig } from '../config';
 import { fetchShops, type CatalogueItem, type PublicShop } from '../lib/api';
 import { money, sellable, shownPrice } from '../lib/money';
+import { shopLook } from '../lib/shop-look';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
 
 /**
  * The top of the shop (19 October 2026, Anthony: "not too plain"): the shape the big delivery
  * apps have taught people (a greeting with where it is going, category chips, shops near you,
- * popular things, offers), with the one thing they do not have first: talking. Every chip and
+ * popular things, offers), with the one thing they do not have first: talking. Later the same
+ * day, nearer still to their look: section headings with a round "See all" arrow, big shop
+ * cards with a coloured banner, two rows of round shop badges, and a panel for the season.
+ * White cards with navy words sit on the dark page (15 to 1). Every chip and
  * card has its words on it, every emoji is decoration only, and each row is a list with a
  * heading, so a screen reader hears "Shops near you, list, 6 items".
  */
@@ -56,7 +60,7 @@ function initials(name: string): string {
   ).toUpperCase();
 }
 
-const CATEGORY_EMOJI: Record<string, string> = {
+export const CATEGORY_EMOJI: Record<string, string> = {
   'Fruit and vegetables': '🍎',
   Dairy: '🥛',
   Bakery: '🍞',
@@ -114,7 +118,6 @@ export function ShopHome({
   }, []);
 
   const firstName = shopper?.displayName.trim().split(/\s+/)[0] ?? '';
-  const street = shopper?.deliveryAddress.split(',')[0]?.trim() ?? '';
   const rank = (category: string): number => {
     const at = POPULAR_ORDER.indexOf(category);
     return at === -1 ? POPULAR_ORDER.length : at;
@@ -135,24 +138,10 @@ export function ShopHome({
   const assistant = storeConfig.assistantName;
 
   return (
-    <div className="space-y-8">
-      <p className="m-0 text-lead">
-        <span className="font-bold">
-          {greeting(new Date())}
-          {firstName ? `, ${firstName}` : ''}.
-        </span>{' '}
-        {street ? (
-          <span>
-            Delivering to{' '}
-            <Link
-              to="/addresses"
-              className="inline-flex items-center min-h-control text-paper font-bold"
-            >
-              {street}
-            </Link>
-            .
-          </span>
-        ) : null}
+    <div className="space-y-9">
+      <p className="m-0 text-display font-bold leading-tight">
+        {greeting(new Date())}
+        {firstName ? `, ${firstName}` : ''}.
       </p>
 
       <section
@@ -173,7 +162,7 @@ export function ShopHome({
         <button
           type="button"
           onClick={() => ozi.tapToTalk()}
-          className="control bg-ink text-paper border-4 border-ink font-bold text-lead"
+          className="control !rounded-full bg-ink text-paper border-4 border-ink font-bold text-lead"
         >
           <span aria-hidden="true">🎙️</span> Talk to {assistant}
         </button>
@@ -181,18 +170,21 @@ export function ShopHome({
 
       {search}
 
-      <nav aria-labelledby="chips-heading">
+      <nav aria-labelledby="chips-heading" className="relative">
         <h2 id="chips-heading" className="visually-hidden">
           Browse by kind
         </h2>
-        <ul className="relative list-none m-0 p-0 flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
+        <ul className="relative list-none m-0 p-0 flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
           {CHIPS.map((chip) => (
             <li key={chip.words} className="snap-start shrink-0">
               <Link
                 to={chip.to}
-                className="flex flex-col items-center justify-center gap-1 w-28 min-h-control h-28 rounded-2xl border-2 border-paper/40 bg-paper/10 text-paper no-underline text-center font-bold p-2"
+                className="flex flex-col items-center justify-start gap-1 w-24 min-h-control rounded-2xl text-paper no-underline text-center font-bold p-1"
               >
-                <span aria-hidden="true" className="text-[2.2rem] leading-none">
+                <span
+                  aria-hidden="true"
+                  className="flex items-center justify-center w-16 h-16 rounded-full text-[2rem] leading-none bg-paper/10"
+                >
                   {chip.emoji}
                 </span>
                 <span className="leading-tight">{chip.words}</span>
@@ -202,23 +194,35 @@ export function ShopHome({
         </ul>
       </nav>
 
-      <section aria-labelledby="near-heading" className="space-y-3">
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 id="near-heading" className="text-lead font-bold m-0">
-            Shops near you
-          </h2>
-          <Link to="/shops" className="inline-flex items-center min-h-control text-paper font-bold">
-            See all<span className="visually-hidden"> local shops</span>
-          </Link>
-        </div>
+      <section aria-labelledby="stock-heading" className="space-y-3">
+        <SectionHeading id="stock-heading" to="/shops" hidden="local shops">
+          Stock up at local shops
+        </SectionHeading>
         {shops === null ? (
           <p className="m-0">Finding the shops near you.</p>
         ) : shops.length === 0 ? (
           <p className="m-0">Local shops are joining now. Ask {assistant} for anything.</p>
         ) : (
-          <ul className="relative list-none m-0 p-0 flex gap-4 overflow-x-auto pb-2 snap-x">
+          <ul className="relative list-none m-0 p-0 flex gap-4 overflow-x-auto pb-3 -mx-1 px-1 snap-x">
+            {shops.slice(0, 10).map((shop) => (
+              <li key={shop.id} className="snap-start shrink-0 w-[17rem] max-w-[80vw]">
+                <StoreCard shop={shop} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <SeasonPanel now={new Date()} />
+
+      {shops !== null && shops.length > 0 && (
+        <section aria-labelledby="near-heading" className="space-y-3">
+          <SectionHeading id="near-heading" to="/shops" hidden="shops near you">
+            Shops near you
+          </SectionHeading>
+          <ul className="relative list-none m-0 p-0 grid grid-rows-2 grid-flow-col auto-cols-[6.5rem] gap-x-3 gap-y-4 overflow-x-auto pb-2 snap-x">
             {shops.slice(0, 12).map((shop) => (
-              <li key={shop.id} className="snap-start shrink-0 w-24">
+              <li key={shop.id} className="snap-start">
                 <Link
                   to={`/shops/${shop.id}`}
                   className="flex flex-col items-center gap-1 min-h-control text-paper no-underline text-center"
@@ -235,45 +239,42 @@ export function ShopHome({
                     {shop.kindWords}
                     {shop.area ? `, ${shop.area}` : ''}
                   </span>
-                  {(shop.awards ?? []).length > 0 && (
-                    <span className="font-bold leading-tight">
-                      <span aria-hidden="true">🏆 </span>
-                      {shop.awards![0]}
-                    </span>
-                  )}
                 </Link>
               </li>
             ))}
           </ul>
-        )}
-      </section>
+        </section>
+      )}
 
       {picks.length > 0 && (
         <section aria-labelledby="popular-heading" className="space-y-3">
-          <h2 id="popular-heading" className="text-lead font-bold m-0">
+          <SectionHeading id="popular-heading" to="/shop?q=essentials" hidden="everyday essentials">
             Popular right now
-          </h2>
+          </SectionHeading>
           <p className="m-0 text-paper/90 extra">
             Till prices, no mark-up. Prices include the item charge.
           </p>
-          <ul className="relative list-none m-0 p-0 flex gap-4 overflow-x-auto pb-2 snap-x">
+          <ul className="relative list-none m-0 p-0 flex gap-3 overflow-x-auto pb-3 -mx-1 px-1 snap-x">
             {picks.map((item) => (
               <li
                 key={item.id}
-                className="snap-start shrink-0 w-48 rounded-2xl border-2 border-paper/40 bg-paper/10 p-3 flex flex-col gap-2"
+                className="card-surface relative snap-start shrink-0 w-44 rounded-3xl p-3 flex flex-col gap-2"
               >
                 <span
                   aria-hidden="true"
-                  className="flex items-center justify-center h-20 rounded-xl text-[2.6rem] bg-paper/10"
+                  className="flex items-center justify-center h-24 rounded-2xl text-[2.8rem]"
+                  style={{ background: tint(item.category) }}
                 >
                   {CATEGORY_EMOJI[item.category] ?? '🛍️'}
                 </span>
                 <span className="font-bold leading-tight">{item.name}</span>
-                <span>about {money(shownPrice(item.estimatedPricePence))}</span>
+                <span className="card-muted">
+                  about {money(shownPrice(item.estimatedPricePence))}
+                </span>
                 <button
                   type="button"
                   onClick={() => onAdd(item)}
-                  className="control bg-highlight text-on-accent mt-auto"
+                  className="control !rounded-full bg-highlight text-on-accent mt-auto border-2 border-[#0B1F3A]"
                 >
                   <span aria-hidden="true">+</span> Quick add
                   <span className="visually-hidden">: {item.name}</span>
@@ -315,23 +316,183 @@ export function ShopHome({
             <li key={card.to}>
               <Link
                 to={card.to}
-                className="block h-full min-h-control rounded-2xl p-4 no-underline"
+                className="flex items-center gap-4 h-full min-h-control rounded-3xl p-4 no-underline"
                 style={{
                   background: card.style,
                   color: '#0B1F3A',
                   boxShadow: 'var(--shadow-card)',
                 }}
               >
-                <span aria-hidden="true" className="block text-[2rem] leading-none">
+                <span
+                  aria-hidden="true"
+                  className="flex items-center justify-center shrink-0 w-14 h-14 rounded-full bg-white/60 text-[1.8rem] leading-none"
+                >
                   {card.emoji}
                 </span>
-                <span className="block text-lead font-bold">{card.title}</span>
-                <span className="block">{card.words}</span>
+                <span>
+                  <span className="block text-lead font-bold leading-tight">{card.title}</span>
+                  <span className="block">{card.words}</span>
+                </span>
               </Link>
             </li>
           ))}
         </ul>
       </section>
     </div>
+  );
+}
+
+/** A soft colour behind each kind of thing, light enough for navy words on it. */
+const TINTS: Record<string, string> = {
+  'Fruit and vegetables': '#DFF5E6',
+  Dairy: '#E3EEFB',
+  Bakery: '#FBEBD5',
+  Cupboard: '#F6E3D9',
+  Household: '#ECE6FA',
+  'Everyday essentials': '#FFF4CC',
+  'Meat and fish': '#FBE0E0',
+  Frozen: '#DDF3F8',
+};
+export function tint(category: string): string {
+  return TINTS[category] ?? '#EEF1F5';
+}
+
+/**
+ * A section's heading with "See all" and a round arrow beside it, as the big apps have it. The
+ * arrow is decoration; the words say what it does, and a screen reader hears what it is all of.
+ */
+function SectionHeading({
+  id,
+  to,
+  hidden,
+  children,
+}: {
+  id: string;
+  to: string;
+  hidden: string;
+  children: ReactNode;
+}): JSX.Element {
+  return (
+    <div className="relative flex items-center justify-between gap-3">
+      <h2 id={id} className="text-lead font-bold m-0 leading-tight">
+        {children}
+      </h2>
+      <Link
+        to={to}
+        className="control relative shrink-0 !rounded-full !px-3 !py-1 bg-paper/10 text-paper font-bold"
+      >
+        See all<span className="visually-hidden"> {hidden}</span>
+        <span
+          aria-hidden="true"
+          className="flex items-center justify-center w-8 h-8 rounded-full bg-paper text-ink"
+        >
+          →
+        </span>
+      </Link>
+    </div>
+  );
+}
+
+/** A big card for a shop: a coloured banner with its picture, then its name and its promise. */
+function StoreCard({ shop }: { shop: PublicShop }): JSX.Element {
+  const look = shopLook(shop.kind);
+  const award = (shop.awards ?? [])[0];
+  return (
+    <Link
+      to={`/shops/${shop.id}`}
+      className="card-surface block min-h-control rounded-3xl overflow-hidden no-underline"
+    >
+      <span
+        className="relative flex items-center justify-center h-32"
+        style={{ background: look.gradient }}
+      >
+        <span aria-hidden="true" className="text-[3.6rem] leading-none">
+          {look.emoji}
+        </span>
+        {award && (
+          <span className="absolute top-2 left-2 max-w-[90%] rounded-full bg-white text-[#0B1F3A] font-bold px-3 py-0.5 leading-snug shadow">
+            <span aria-hidden="true">🏆 </span>
+            {award}
+          </span>
+        )}
+      </span>
+      <span className="block p-3 space-y-1">
+        <span className="block text-lead font-bold leading-tight">{shop.name}</span>
+        <span className="block card-muted leading-snug">
+          {shop.kindWords}
+          {shop.area ? ` · ${shop.area}` : ''}
+        </span>
+        <span
+          className="inline-block rounded-full px-3 py-0.5 font-bold leading-snug"
+          style={{ background: shop.kind === 'service' ? '#D6E9FB' : '#CFF5DE' }}
+        >
+          {shop.kind === 'service' ? 'Ask for a quote' : 'Till prices, no mark-up'}
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+/**
+ * The seasonal panel, by the date: Halloween through October, Christmas through December, and
+ * the weekly shop the rest of the year.
+ */
+export function seasonFor(now: Date): 'halloween' | 'christmas' | 'weekly' {
+  const month = now.getMonth();
+  return month === 9 ? 'halloween' : month === 11 ? 'christmas' : 'weekly';
+}
+
+function SeasonPanel({ now }: { now: Date }): JSX.Element {
+  const assistant = storeConfig.assistantName;
+  const season = seasonFor(now);
+  const panel =
+    season === 'halloween'
+      ? {
+          emoji: '🎃',
+          title: 'Halloween treats',
+          words: `Sweets for the door, pumpkins and party bits. Tell ${assistant} what you need.`,
+          link: 'See the offers',
+          to: '/offers',
+          background: 'linear-gradient(135deg, #FFB25B 0%, #FFE2B8 100%)',
+        }
+      : season === 'christmas'
+        ? {
+            emoji: '🎄',
+            title: 'Christmas, sorted',
+            words: `The big shop, little gifts and everything for the table. ${assistant} keeps the list.`,
+            link: 'See the little gifts',
+            to: '/gifts',
+            background: 'linear-gradient(135deg, #F9C6CB 0%, #CDEBD3 100%)',
+          }
+        : {
+            emoji: '📅',
+            title: 'Your weekly shop',
+            words: `The same shopping every week, and ${assistant} asks before each one.`,
+            link: 'Set up a weekly shop',
+            to: '/weekly-shop',
+            background: 'linear-gradient(135deg, #9FE3BE 0%, #E1F7EA 100%)',
+          };
+  return (
+    <section
+      aria-labelledby="season-heading"
+      className="rounded-3xl p-5 flex items-center gap-4"
+      style={{ background: panel.background, color: '#0B1F3A', boxShadow: 'var(--shadow-card)' }}
+    >
+      <div className="flex-1 min-w-0 space-y-3">
+        <h2 id="season-heading" className="text-lead font-bold m-0 leading-tight">
+          {panel.title}
+        </h2>
+        <p className="m-0">{panel.words}</p>
+        <Link
+          to={panel.to}
+          className="control !rounded-full !px-4 bg-[#0B1F3A] text-white font-bold"
+        >
+          {panel.link}
+        </Link>
+      </div>
+      <span aria-hidden="true" className="shrink-0 text-[4rem] leading-none">
+        {panel.emoji}
+      </span>
+    </section>
   );
 }

@@ -13,7 +13,9 @@ import {
   type PublicShopPage,
   type PublicShopProduct,
 } from '../lib/api';
+import { useDockHeights } from '../lib/dock';
 import { money, shownPrice, tooDearWords } from '../lib/money';
+import { productEmoji, shopLook } from '../lib/shop-look';
 import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
@@ -100,12 +102,21 @@ export function Shops(): JSX.Element {
   );
 }
 
-/** One Shop Partner's page: its products, with photos, each one press from the basket. */
+/**
+ * One Shop Partner's page: its products, with photos, each one press from the basket.
+ *
+ * Laid out as the big delivery apps lay out a shop (19 October 2026): a coloured banner, a white
+ * sheet with the name, what it is and its awards, a two-box row with delivery and opening hours,
+ * the kinds of product as tabs held at the top, and each product as a row with its picture on
+ * the right and "+ Add" on the picture. Once something is in the basket, a pill at the foot says
+ * so, with the total, and opens the basket.
+ */
 export function ShopPage(): JSX.Element {
   const { id = '' } = useParams();
   const basket = useBasket();
   const ozi = useOzi();
   const navigate = useNavigate();
+  const bars = useDockHeights();
   const [page, setPage] = useState<PublicShopPage | null>(null);
   const [missing, setMissing] = useState(false);
   const [news, setNews] = useState('');
@@ -203,27 +214,75 @@ export function ShopPage(): JSX.Element {
   }
   const service = page.shop.kind === 'service';
   const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
+  const look = shopLook(page.shop.kind);
+  const groups = productGroups(page.products, service ? 'Services' : 'Products');
+  const inBasket = (product: PublicShopProduct): number =>
+    basket.lines.find((line) => line.item.id === product.catalogueItemId)?.quantity ?? 0;
+  const deliveryFrom = storeConfig.fees.delivery.bands[0]?.payAsYouGoPence ?? 0;
+  const showBasketPill = !service && basket.itemCount > 0;
   return (
-    <div className="space-y-8 max-w-xl">
-      <h1 className="text-display font-bold m-0">{page.shop.name}</h1>
-      {(page.shop.awards ?? []).length > 0 && (
-        <p className="m-0" aria-label="Awards">
-          {(page.shop.awards ?? []).map((award) => (
-            <span
-              key={award}
-              className="inline-block border-2 border-highlight rounded-2xl px-3 py-1 mr-2 mb-2 font-bold"
-            >
-              {award}
-            </span>
-          ))}
+    <div className="space-y-6 max-w-xl">
+      {/* The banner across the top, in the shop's colours, with its way back over it. */}
+      <div
+        className="relative flex items-center justify-center h-44 rounded-3xl overflow-hidden"
+        style={{ background: look.gradient, boxShadow: 'var(--shadow-card)' }}
+      >
+        <span aria-hidden="true" className="text-[5rem] leading-none">
+          {look.emoji}
+        </span>
+        <Link
+          to="/shops"
+          className="control absolute top-3 left-3 !rounded-full !px-4 bg-white text-[#0B1F3A] font-bold shadow"
+        >
+          <span aria-hidden="true">←</span> All shops
+        </Link>
+      </div>
+
+      <div className="relative -mt-12 mx-2 card-surface rounded-3xl p-5 space-y-3">
+        <h1 className="text-display font-bold m-0 leading-tight">{page.shop.name}</h1>
+        <p className="m-0 card-muted">
+          {page.shop.kindWords}
+          {page.shop.area ? ` · ${page.shop.area}` : ''}
         </p>
-      )}
-      <p className="m-0">
-        {page.shop.kindWords}
-        {page.shop.area ? `, ${page.shop.area}` : ''}.{page.shop.about ? ` ${page.shop.about}` : ''}
-      </p>
-      {page.shop.address && <p className="m-0">{page.shop.address}</p>}
-      {page.shop.hours && <p className="m-0">Open: {page.shop.hours}</p>}
+        <ul className="flex flex-wrap gap-2 list-none m-0 p-0" aria-label="About this shop">
+          {(page.shop.awards ?? []).map((award) => (
+            <li
+              key={award}
+              className="rounded-full px-3 py-0.5 font-bold leading-snug"
+              style={{ background: '#FFE9A8' }}
+            >
+              <span aria-hidden="true">🏆 </span>
+              {award}
+            </li>
+          ))}
+          {!service && (
+            <li
+              className="rounded-full px-3 py-0.5 font-bold leading-snug"
+              style={{ background: '#CFF5DE' }}
+            >
+              Till prices, no mark-up
+            </li>
+          )}
+        </ul>
+        {page.shop.about && <p className="m-0">{page.shop.about}</p>}
+        {page.shop.address && <p className="m-0 card-muted">{page.shop.address}</p>}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-2xl border-2 border-paper/40 p-3">
+          <p className="m-0 text-lead font-bold leading-tight">
+            {service ? 'Nothing to pay here' : money(deliveryFrom)}
+          </p>
+          <p className="m-0 text-paper/90 leading-snug">
+            {service ? `Not through ${storeConfig.productName}` : 'Delivery from'}
+          </p>
+        </div>
+        <div className="rounded-2xl border-2 border-paper/40 p-3">
+          <p className="m-0 font-bold leading-snug">{page.shop.hours || 'Ask the shop'}</p>
+          <p className="m-0 text-paper/90 leading-snug">Opens</p>
+        </div>
+      </div>
+
       {page.shop.listedByOzi && (
         <p className="m-0 border-2 border-paper/40 rounded-2xl p-4">
           Listed by {storeConfig.assistantName} from public details.
@@ -233,7 +292,7 @@ export function ShopPage(): JSX.Element {
               Are you the owner?{' '}
               <Link
                 to={`/business/join?claim=${encodeURIComponent(page.shop.id)}`}
-                className="underline"
+                className="inline-flex items-center min-h-control underline text-paper font-bold"
               >
                 Claim this shop
               </Link>
@@ -250,14 +309,14 @@ export function ShopPage(): JSX.Element {
           <button
             type="button"
             onClick={() => setAsking({ kind: 'quote', product: null })}
-            className="control bg-highlight text-on-accent"
+            className="control !rounded-full bg-highlight text-on-accent"
           >
             Ask for a quote
           </button>
           <button
             type="button"
             onClick={() => setAsking({ kind: 'call_back', product: null })}
-            className="control border-paper bg-paper/10 text-paper"
+            className="control !rounded-full border-paper bg-paper/10 text-paper"
           >
             Book a call back
           </button>
@@ -301,7 +360,7 @@ export function ShopPage(): JSX.Element {
           <p className="m-0">
             <Link
               to={`/sign-in?next=/shops/${encodeURIComponent(page.shop.id)}`}
-              className="underline"
+              className="inline-flex items-center min-h-control underline text-paper"
             >
               Sign in
             </Link>{' '}
@@ -317,61 +376,188 @@ export function ShopPage(): JSX.Element {
               : 'No products yet.'}
         </p>
       ) : (
-        <ul className="list-none m-0 p-0 space-y-4">
-          {page.products.map((product) => (
-            <li key={product.id}>
-              <article
-                aria-labelledby={`product-${product.id}`}
-                className="border-2 border-paper rounded-2xl p-4 space-y-2"
-              >
-                {product.hasPhoto && (
-                  <img
-                    src={shopPhotoUrl(page.shop.id, product.id)}
-                    alt={product.name}
-                    className="w-full max-h-64 object-contain rounded-xl bg-paper"
-                  />
-                )}
-                <h2 id={`product-${product.id}`} className="text-lead font-bold m-0">
-                  {product.name}
-                </h2>
-                {service ? (
-                  <p className="m-0">
-                    From {money(product.pricePence)}
-                    {product.durationMinutes
-                      ? `, about ${durationWords(product.durationMinutes)}`
-                      : ''}
-                    .
-                  </p>
-                ) : (
-                  <p className="m-0">
-                    About {money(shownPrice(product.pricePence))}.
-                    {product.expiresOn
-                      ? ` Best before ${new Date(product.expiresOn).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}.`
-                      : ''}
-                  </p>
-                )}
-                {service ? (
-                  <button
-                    type="button"
-                    onClick={() => setAsking({ kind: 'quote', product })}
-                    className="control w-full border-paper bg-paper/10 text-paper"
+        <>
+          {/* The kinds of thing on the menu, held at the top while the list scrolls. */}
+          <nav
+            aria-label={service ? 'Kinds of service' : 'Kinds of product'}
+            className="sticky top-0 z-10 -mx-1 px-1 py-2 bg-ink border-b-2 border-paper/25"
+          >
+            <ul className="relative chip-row list-none m-0 p-0">
+              {groups.map((group) => (
+                <li key={group.id}>
+                  <a
+                    href={`#${group.id}`}
+                    className="control !rounded-full !px-4 bg-paper/10 text-paper no-underline"
                   >
-                    Ask for a quote<span className="visually-hidden">: {product.name}</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => void add(product)}
-                    className="control w-full bg-highlight text-on-accent"
-                  >
-                    Add to my basket<span className="visually-hidden">: {product.name}</span>
-                  </button>
-                )}
-              </article>
-            </li>
+                    {group.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          {groups.map((group) => (
+            <section
+              key={group.id}
+              id={group.id}
+              aria-labelledby={`${group.id}-heading`}
+              className="space-y-1 scroll-mt-24"
+            >
+              <h2 id={`${group.id}-heading`} className="text-lead font-bold m-0">
+                {group.name}
+              </h2>
+              <ul className="list-none m-0 p-0">
+                {group.products.map((product) => {
+                  const count = inBasket(product);
+                  return (
+                    <li key={product.id} className="border-b-2 border-paper/25 last:border-b-0">
+                      <article
+                        aria-labelledby={`product-${product.id}`}
+                        className="flex items-start gap-3 py-4"
+                      >
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <h3 id={`product-${product.id}`} className="text-lead font-bold m-0">
+                            {product.name}
+                          </h3>
+                          {service ? (
+                            <p className="m-0">
+                              From {money(product.pricePence)}
+                              {product.durationMinutes
+                                ? `, about ${durationWords(product.durationMinutes)}`
+                                : ''}
+                              .
+                            </p>
+                          ) : (
+                            <p className="m-0">
+                              About {money(shownPrice(product.pricePence))}.
+                              {product.expiresOn
+                                ? ` Best before ${new Date(product.expiresOn).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}.`
+                                : ''}
+                            </p>
+                          )}
+                          {count > 0 && <p className="m-0 font-bold">{count} in your basket</p>}
+                          {otherTags(product.tags, group.name) && (
+                            <p className="m-0 text-paper/80">
+                              {otherTags(product.tags, group.name)}
+                            </p>
+                          )}
+                          {service && (
+                            <button
+                              type="button"
+                              onClick={() => setAsking({ kind: 'quote', product })}
+                              className="control !rounded-full border-paper bg-paper/10 text-paper"
+                            >
+                              Ask for a quote
+                              <span className="visually-hidden">: {product.name}</span>
+                            </button>
+                          )}
+                        </div>
+                        <div
+                          className="relative shrink-0 w-28 h-28 rounded-2xl overflow-hidden flex items-center justify-center"
+                          style={{ background: look.gradient }}
+                        >
+                          {product.hasPhoto ? (
+                            <img
+                              src={shopPhotoUrl(page.shop.id, product.id)}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span aria-hidden="true" className="text-[3.2rem] leading-none">
+                              {productEmoji(`${product.name} ${product.tags}`, page.shop.kind)}
+                            </span>
+                          )}
+                          {count > 0 && (
+                            <span
+                              aria-hidden="true"
+                              className="absolute top-1 left-1 flex items-center justify-center min-w-[2rem] h-8 px-1 rounded-full bg-[#0B1F3A] text-white font-bold"
+                            >
+                              {count}
+                            </span>
+                          )}
+                          {!service && (
+                            <button
+                              type="button"
+                              onClick={() => void add(product)}
+                              className="control absolute bottom-1 right-1 !rounded-full !px-3 !py-1 bg-white text-[#0B1F3A] border-2 border-[#0B1F3A] font-bold shadow"
+                            >
+                              <span aria-hidden="true">+</span> Add
+                              <span className="visually-hidden"> to my basket: {product.name}</span>
+                            </button>
+                          )}
+                        </div>
+                      </article>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </>
+      )}
+
+      {showBasketPill && (
+        <>
+          {/* Room at the foot of the page, so the pill never sits over the last product. */}
+          <div aria-hidden="true" className="h-20" />
+          <div
+            className="fixed inset-x-0 z-30 px-4 pointer-events-none text-[0.9rem]"
+            style={{ bottom: bars.dock + bars.caption + 8 }}
+          >
+            <Link
+              to="/basket"
+              className="control pointer-events-auto relative mx-auto w-full max-w-xl justify-between !rounded-full bg-[#0B1F3A] text-white border-2 border-white font-bold shadow-lg !px-5"
+            >
+              <span>View basket</span>
+              <span className="font-normal">about {money(basket.pricing.totalPence)}</span>
+              <span className="flex items-center justify-center min-w-[2rem] h-8 px-1 rounded-full bg-white text-[#0B1F3A]">
+                {basket.itemCount}
+                <span className="visually-hidden">
+                  {basket.itemCount === 1 ? ' thing' : ' things'}
+                </span>
+              </span>
+            </Link>
+          </div>
+        </>
       )}
     </div>
   );
+}
+
+/**
+ * A shop's products in the kinds it gave them: the first word of each product's tags, in the
+ * order they first appear. With no tags, one kind, "Products".
+ */
+function productGroups(
+  products: PublicShopProduct[],
+  fallback: string,
+): Array<{ id: string; name: string; products: PublicShopProduct[] }> {
+  const groups = new Map<string, PublicShopProduct[]>();
+  for (const product of products) {
+    const name = firstTag(product.tags) || fallback;
+    groups.set(name, [...(groups.get(name) ?? []), product]);
+  }
+  return [...groups.entries()].map(([name, list], at) => ({
+    id: `kind-${at}`,
+    name,
+    products: list,
+  }));
+}
+
+function tagList(tags: string): string[] {
+  return tags
+    .split(/[,;]/)
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}
+
+function firstTag(tags: string): string {
+  const first = tagList(tags)[0] ?? '';
+  return first ? first[0]!.toUpperCase() + first.slice(1) : '';
+}
+
+/** The rest of a product's tags, as its grey second line. */
+function otherTags(tags: string, groupName: string): string {
+  return tagList(tags)
+    .filter((tag) => tag.toLowerCase() !== groupName.toLowerCase())
+    .join(', ');
 }
