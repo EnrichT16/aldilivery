@@ -5,6 +5,7 @@ import { OverOneRunner } from '../components/OverOneRunner';
 import { storeConfig } from '../config';
 import { deliveryWords, money, shownPrice } from '../lib/money';
 import { useBasket } from '../state/basket';
+import { CATEGORY_EMOJI, tint } from '../components/ShopHome';
 
 /**
  * The basket.
@@ -13,6 +14,10 @@ import { useBasket } from '../state/basket';
  * charge (ruling 58), and the shopping, the item charges and delivery are each stated on their
  * own line before there is any way to carry on. And the only way to carry on is a link to the confirmation screen: nothing on
  * this page charges anybody.
+ *
+ * Laid out as the big delivery apps lay out a basket (19 October 2026): a white card of rows,
+ * each with its picture, its price, and a pill to change how many (Remove at one, Less above
+ * one, the number, More); "+ Add items"; the costs on their own card; and one wide button on.
  */
 export function Basket(): JSX.Element {
   const { lines, pricing, overMaximum, overOneRunner, parts, setQuantity, remove } = useBasket();
@@ -35,23 +40,50 @@ export function Basket(): JSX.Element {
       {/* Ordering in a browser: the app is one press away (ruling 50). */}
       <GetTheApp compact />
 
-      <ul className="list-none m-0 p-0 space-y-4">
+      <ul className="list-none m-0 p-0 rounded-3xl card-surface divide-y-2 divide-[#0B1F3A]/10 overflow-hidden">
         {lines.map((line) => (
-          <li
-            key={line.item.id}
-            className="border-2 border-paper/40 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4"
-          >
-            <div>
-              <p className="m-0 text-lead font-bold">{line.item.name}</p>
-              <p className="m-0 text-paper/90">
+          <li key={line.item.id} className="p-4 flex flex-wrap items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="flex items-center justify-center shrink-0 w-14 h-14 rounded-2xl text-[1.8rem] leading-none"
+              style={{ background: tint(line.item.category) }}
+            >
+              {CATEGORY_EMOJI[line.item.category] ?? '🛍️'}
+            </span>
+            <div className="flex-1 min-w-[10rem]">
+              <p className="m-0 font-bold leading-tight">{line.item.name}</p>
+              <p className="m-0 card-muted leading-snug">
                 {line.quantity} × about {money(shownPrice(line.item.estimatedPricePence))} ={' '}
                 {money(shownPrice(line.item.estimatedPricePence) * line.quantity)}
               </p>
             </div>
 
-            {/* flex-wrap: at 400% zoom the Remove button drops below the quantity rather than
-                pushing the page sideways. Measured 18px of horizontal scroll at 320px without it. */}
-            <div className="flex flex-wrap items-center gap-3">
+            {/* The stepper, a pill as the big apps have it: Remove at one, Less above one, the
+                number (which can be typed), and More. flex-wrap on the row: at 400% zoom it drops
+                below the name rather than pushing the page sideways. */}
+            <div className="ms-auto max-w-full flex items-center gap-1 text-[0.9rem] rounded-full border-2 border-[#0B1F3A]/30 p-1">
+              {line.quantity <= 1 ? (
+                <button
+                  type="button"
+                  className="control !rounded-full !px-3 !py-1 bg-[#0B1F3A]/10 text-[#0B1F3A]"
+                  onClick={() => {
+                    remove(line.item.id);
+                  }}
+                >
+                  <TrashIcon /> Remove<span className="visually-hidden"> {line.item.name}</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="control !rounded-full !px-3 !py-1 bg-[#0B1F3A]/10 text-[#0B1F3A]"
+                  onClick={() => {
+                    setQuantity(line.item.id, line.quantity - 1);
+                  }}
+                >
+                  <span aria-hidden="true">−</span> Less
+                  <span className="visually-hidden">: {line.item.name}</span>
+                </button>
+              )}
               <label htmlFor={`quantity-${line.item.id}`} className="visually-hidden">
                 How many {line.item.name}
               </label>
@@ -64,28 +96,37 @@ export function Basket(): JSX.Element {
                 onChange={(event) => {
                   setQuantity(line.item.id, Number(event.target.value));
                 }}
-                className="w-24 min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3 text-center"
+                className="w-12 min-h-control !rounded-full border-0 bg-transparent text-[#0B1F3A] font-bold p-1 text-center"
               />
               <button
                 type="button"
-                className="control border-paper bg-paper/10 text-paper"
+                disabled={line.quantity >= 99}
+                className="control !rounded-full !px-3 !py-1 bg-[#0B1F3A]/10 text-[#0B1F3A] disabled:opacity-50"
                 onClick={() => {
-                  remove(line.item.id);
+                  setQuantity(line.item.id, line.quantity + 1);
                 }}
               >
-                Remove {line.item.name}
+                <span aria-hidden="true">+</span> More
+                <span className="visually-hidden">: {line.item.name}</span>
               </button>
             </div>
           </li>
         ))}
       </ul>
 
+      <Link
+        to="/shop"
+        className="control !rounded-full bg-paper/10 text-paper border-2 border-paper/40"
+      >
+        <span aria-hidden="true">+</span> Add items
+      </Link>
+
       {/*
         The fee, before anybody commits to anything. A table because it is a table: rows of
         labels and amounts, which a screen reader will read as pairs.
       */}
-      <section aria-labelledby="total-heading" className="space-y-3">
-        <h2 id="total-heading" className="text-lead font-bold">
+      <section aria-labelledby="total-heading" className="card-surface rounded-3xl p-5 space-y-3">
+        <h2 id="total-heading" className="text-lead font-bold m-0">
           What this will cost
         </h2>
 
@@ -100,13 +141,13 @@ export function Basket(): JSX.Element {
               </td>
             </tr>
             <tr>
-              <th scope="row" className="text-left font-normal py-2 ps-6">
+              <th scope="row" className="text-left font-normal py-2 ps-6 card-muted">
                 At the shop&rsquo;s prices
               </th>
               <td className="text-right py-2">{money(pricing.goodsPence)}</td>
             </tr>
             <tr>
-              <th scope="row" className="text-left font-normal py-2 ps-6">
+              <th scope="row" className="text-left font-normal py-2 ps-6 card-muted">
                 Item charges
               </th>
               <td className="text-right py-2">{money(pricing.itemChargesPence)}</td>
@@ -117,7 +158,7 @@ export function Basket(): JSX.Element {
               </th>
               <td className="text-right py-2">{money(pricing.feePence)}</td>
             </tr>
-            <tr className="border-t-2 border-paper">
+            <tr className="border-t-2 border-[#0B1F3A]">
               <th scope="row" className="text-left text-lead font-bold py-2">
                 Altogether, about
               </th>
@@ -126,11 +167,11 @@ export function Basket(): JSX.Element {
           </tbody>
         </table>
 
-        <p className="m-0">
+        <p className="m-0 card-muted">
           {deliveryWords(pricing.plan)} There is no charge for a small order, no charge for being
           busy, and no smallest order. Every price we show already includes its item charge.
         </p>
-        <p className="m-0">
+        <p className="m-0 card-muted">
           You pay what the till says for the shopping, so the total may change a little.
         </p>
       </section>
@@ -148,15 +189,44 @@ export function Basket(): JSX.Element {
           <p className="m-0">
             To stay with one Runner, take something out or swap it above. Or keep everything:
           </p>
-          <Link to="/confirm" className="control w-full bg-highlight text-on-accent text-lead">
+          <Link
+            to="/confirm"
+            className="control w-full !rounded-full !py-4 bg-highlight text-on-accent text-lead font-bold"
+          >
             Keep everything and check my order
           </Link>
         </div>
       ) : (
-        <Link to="/confirm" className="control w-full bg-highlight text-on-accent text-lead">
+        <Link
+          to="/confirm"
+          className="control w-full !rounded-full !py-4 bg-highlight text-on-accent text-lead font-bold"
+        >
           Check and send my order
         </Link>
       )}
     </div>
+  );
+}
+
+/** Decoration: the word "Remove" is beside it. */
+function TrashIcon(): JSX.Element {
+  return (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0"
+    >
+      <path d="M4 7h16" />
+      <path d="M9 7V4h6v3" />
+      <path d="M6 7l1 13h10l1-13" />
+    </svg>
   );
 }

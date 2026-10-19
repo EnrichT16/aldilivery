@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 
 import { storeConfig } from '../config';
+import { useDockHeights, useMeasuredBar } from '../lib/dock';
 import { useOzi } from '../state/ozi';
 import { useVoice } from '../state/voice';
 
@@ -19,7 +20,11 @@ import { useVoice } from '../state/voice';
  * moves it, so moving is never needed to use it (WCAG 2.5.7), and a drag is never mistaken for
  * a press. Settings has a button to put it back.
  *
- * Everything Ozi says is shown beside it while it is said, and for a little while after.
+ * Everything Ozi says is shown while it is said, and for a little while after, in a slim caption
+ * bar docked at the foot of the screen, just above the bottom bars (19 October 2026: beside the
+ * button it covered the landing page's doors). The bar is at most three lines tall and scrolls
+ * inside; the page leaves room for it while it is shown, so it never sits over a control, and
+ * "Hide words" puts it away at once.
  */
 
 const SIZE = 124;
@@ -31,7 +36,28 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-export function OziBubble(): JSX.Element {
+/** The word on Ozi's button for its state; the same on the round button and the bottom bar. */
+export function presenceWord(ozi: { talking: boolean; presence: string }): string {
+  if (ozi.talking) return 'Talking';
+  switch (ozi.presence) {
+    case 'listening':
+      return 'Listening';
+    case 'muted':
+      return 'Paused';
+    case 'needs-tap':
+      return 'Tap to talk';
+    case 'cannot-listen':
+      return 'Can’t listen';
+    default:
+      return 'Starting';
+  }
+}
+
+/**
+ * `docked`: the signed-in Shopper's bottom bar carries Ozi's button (19 October 2026), so the
+ * round one is not drawn over the cards; the words still show in the caption bar.
+ */
+export function OziBubble({ docked = false }: { docked?: boolean } = {}): JSX.Element {
   const ozi = useOzi();
   const voice = useVoice();
   const assistant = storeConfig.assistantName;
@@ -43,6 +69,8 @@ export function OziBubble(): JSX.Element {
   );
   const suppressClick = useRef(false);
   const [screenSize, setScreenSize] = useState({ w: window.innerWidth, h: window.innerHeight });
+  const bars = useDockHeights();
+  const captionRef = useRef<HTMLDivElement>(null);
 
   // Follow the screen turning or resizing, so the button never ends up off the edge.
   useEffect(() => {
@@ -51,7 +79,7 @@ export function OziBubble(): JSX.Element {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // Keep the words beside the button while Ozi says them, and a little while after.
+  // Keep the words in the caption bar while Ozi says them, and a little while after.
   useEffect(() => {
     if (ozi.said === '') return undefined;
     setCaptionShown(true);
@@ -64,9 +92,12 @@ export function OziBubble(): JSX.Element {
   // In pixels, kept wholly on the screen with a small margin, wherever it was put.
   const margin = 8;
   const left = clamp(shown.x * screenSize.w - SIZE / 2, margin, screenSize.w - SIZE - margin);
-  const top = clamp(shown.y * screenSize.h - SIZE / 2, margin, screenSize.h - SIZE - margin);
-  // Ozi's words sit on whichever side of the button has more room.
-  const captionSide = left + SIZE / 2 > screenSize.w / 2 ? 'right-full mr-3' : 'left-full ml-3';
+  // Never down over the bars at the foot of the screen.
+  const top = clamp(
+    shown.y * screenSize.h - SIZE / 2,
+    margin,
+    Math.max(margin, screenSize.h - SIZE - margin - bars.dock),
+  );
   const listening = ozi.presence === 'listening';
   const paused = ozi.presence === 'muted';
 
@@ -158,51 +189,80 @@ export function OziBubble(): JSX.Element {
   // A microphone note or the tap button already shows these words in their own place on the
   // page, so they are not put over the form beside the button as well (ruling 62).
   const captionText = ozi.captionOff ? '' : ozi.said;
+  const captionVisible = captionShown && (captionText !== '' || ozi.heard !== '');
+  useMeasuredBar('caption', captionRef, captionVisible);
 
   return (
     <aside data-ozi aria-label={assistant} className="fixed z-50" style={{ left, top }}>
       <div
+        ref={captionRef}
         className={
-          captionShown && (captionText !== '' || ozi.heard !== '')
-            ? `absolute top-0 ${captionSide} w-56 max-w-[60vw] max-h-[45vh] scroll-pane rounded-2xl border-2 border-ink bg-paper text-ink p-4 m-0 shadow-lg text-base`
-            : 'visually-hidden'
+          captionVisible ? 'fixed inset-x-0 z-50 px-3 pb-2 pointer-events-none' : 'visually-hidden'
         }
+        style={captionVisible ? { bottom: bars.dock } : undefined}
       >
-        {/* What Ozi heard, so anybody can see whether it heard them right. Not announced: the
-            person who said it knows what they said. */}
-        {ozi.heard !== '' && (
-          <p className="m-0 mb-2 italic" aria-hidden="true">
-            You said: {ozi.heard}
-          </p>
-        )}
-        <p role="status" aria-live={captionLive} className="m-0">
-          {captionText}
-        </p>
-      </div>
-      <button
-        type="button"
-        aria-describedby="ozi-bubble-hint"
-        onClick={() => {
-          if (suppressClick.current) {
-            suppressClick.current = false;
-            return;
+        <div
+          className={
+            captionVisible
+              ? 'pointer-events-auto mx-auto w-full max-w-3xl flex items-start gap-2 rounded-2xl border-2 border-ink bg-paper text-ink shadow-lg py-1 pl-4 pr-1'
+              : undefined
           }
-          ozi.press();
-        }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onKeyDown={onKeyDown}
-        style={{ width: SIZE, height: SIZE, borderRadius: '50%', touchAction: 'none' }}
-        className={
-          listening || ozi.talking
-            ? 'control p-0 ozi-beaming rounded-full flex flex-col items-center justify-center gap-1 font-bold text-on-accent border-4 border-ink bg-listening cursor-grab'
-            : 'control p-0 rounded-full flex flex-col items-center justify-center gap-1 font-bold text-ink border-4 border-dashed border-ink bg-paper cursor-grab'
-        }
-      >
-        <BubbleGlyph crossed={!listening && !ozi.talking} />
-        <span className="text-base leading-tight">{label}</span>
-      </button>
+        >
+          <div
+            className={
+              captionVisible
+                ? 'flex-1 min-w-0 max-h-[4.55rem] scroll-pane py-1 text-base'
+                : undefined
+            }
+          >
+            {/* What Ozi heard, so anybody can see whether it heard them right. Not announced:
+                the person who said it knows what they said. */}
+            {ozi.heard !== '' && (
+              <p className="m-0 italic leading-snug" aria-hidden="true">
+                You said: {ozi.heard}
+              </p>
+            )}
+            <p role="status" aria-live={captionLive} className="m-0 leading-snug">
+              {captionText}
+            </p>
+          </div>
+          {captionVisible && (
+            <button
+              type="button"
+              onClick={() => setCaptionShown(false)}
+              className="control shrink-0 flex-col gap-0 w-24 !px-1 !py-1 leading-tight bg-ink/10 text-ink"
+            >
+              <span aria-hidden="true">×</span> Hide words
+            </button>
+          )}
+        </div>
+      </div>
+      {!docked && (
+        <button
+          type="button"
+          aria-describedby="ozi-bubble-hint"
+          onClick={() => {
+            if (suppressClick.current) {
+              suppressClick.current = false;
+              return;
+            }
+            ozi.press();
+          }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onKeyDown={onKeyDown}
+          style={{ width: SIZE, height: SIZE, borderRadius: '50%', touchAction: 'none' }}
+          className={
+            listening || ozi.talking
+              ? 'control p-0 ozi-beaming !rounded-full flex flex-col items-center justify-center gap-1 font-bold text-on-accent border-4 border-ink bg-listening cursor-grab'
+              : 'control p-0 !rounded-full flex flex-col items-center justify-center gap-1 font-bold text-ink border-4 border-dashed border-ink bg-paper cursor-grab'
+          }
+        >
+          <BubbleGlyph crossed={!listening && !ozi.talking} />
+          <span className="text-base leading-tight">{label}</span>
+        </button>
+      )}
       <p id="ozi-bubble-hint" className="visually-hidden">
         {action} You can move this button: hold it and drag it, or use the arrow keys.
       </p>

@@ -283,6 +283,41 @@ html:not([data-words='shown']) .extra {
   scroll-snap-align: start;
 }
 
+/*
+ * The bars fixed to the foot of the screen (the Shopper's navigation, the talking switch and
+ * the caption bar) measure themselves into these two variables, so a control that is focused
+ * is always scrolled clear of them, never left underneath.
+ */
+html {
+  scroll-padding-bottom: calc(var(--dock-height, 0px) + var(--caption-height, 0px) + 1rem);
+}
+
+/*
+ * A white card, in either appearance (19 October 2026: the shop's cards, after the big
+ * delivery apps). Navy words on white, 15 to 1. On the dark page it stands out as a bright
+ * card; on the light page a fine navy edge keeps its shape. Words inside use `card-muted`
+ * for second lines, still over 7 to 1.
+ */
+.card-surface {
+  background-color: rgb(var(--brand-paper-rgb));
+  color: rgb(var(--brand-ink-rgb));
+  box-shadow: var(--shadow-card);
+}
+
+:root[data-theme='light'] .card-surface {
+  outline: 1px solid rgb(var(--brand-ink-rgb) / 0.18);
+}
+
+.card-muted {
+  color: rgb(var(--brand-ink-rgb) / 0.82);
+}
+
+/* A focused control on a white card: the ring is navy, so it shows on the white. */
+.card-surface :where(a, button, input):focus-visible {
+  outline-color: rgb(var(--brand-ink-rgb));
+  box-shadow: 0 0 0 8px rgb(var(--brand-paper-rgb));
+}
+
 /* The switch at the bottom of every screen: its knob slides rather than jumps. */
 .switch-knob {
   transition:
