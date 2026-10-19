@@ -82,6 +82,75 @@ export interface OziBrain {
   readonly model: string;
   /** What the words mean. Null when the model did not answer in time, or declined. */
   understand(input: UnderstandInput): Promise<Understanding | null>;
+  /**
+   * Something asked for that is not in the shop list (19 October 2026): what it is, where it is
+   * bought, and its usual UK shelf price, so it can be added rather than left out. Optional, so
+   * stand-ins in tests need not have it.
+   */
+  estimate?(name: string): Promise<Estimate | null>;
+}
+
+const estimateShape = z.object({
+  kind: z.enum(['grocery', 'prepared', 'service', 'not_allowed', 'not_a_product']),
+  name: z.string(),
+  category: z.enum([
+    'Fruit and vegetables',
+    'Dairy',
+    'Bakery',
+    'Cupboard',
+    'Meat and fish',
+    'Frozen',
+    'Household',
+    'Everyday essentials',
+    'Health',
+    'Cards and gifts',
+    'Other',
+  ]),
+  pricePence: z.number().int().min(0).max(100_000),
+  reply: z.string().nullable(),
+});
+export type Estimate = z.infer<typeof estimateShape>;
+
+const ESTIMATE_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['kind', 'name', 'category', 'pricePence', 'reply'],
+  properties: {
+    kind: {
+      type: 'string',
+      enum: ['grocery', 'prepared', 'service', 'not_allowed', 'not_a_product'],
+    },
+    name: { type: 'string' },
+    category: {
+      type: 'string',
+      enum: [
+        'Fruit and vegetables',
+        'Dairy',
+        'Bakery',
+        'Cupboard',
+        'Meat and fish',
+        'Frozen',
+        'Household',
+        'Everyday essentials',
+        'Health',
+        'Cards and gifts',
+        'Other',
+      ],
+    },
+    pricePence: { type: 'integer', minimum: 0, maximum: 100000 },
+    reply: { type: ['string', 'null'] },
+  },
+} as const;
+
+/** The standing instructions for an estimate, from configuration (Rule Nine). */
+export function estimateInstructions(config: StoreConfig): string {
+  return [
+    `You help ${config.assistantName}, the assistant of ${config.productName}, a delivery service in Medway, England, where a Runner buys things at UK high street shops and supermarkets and brings them to the door.`,
+    `You are given the name of one thing a customer asked for that is not in the shop list. Answer in the JSON shape given.`,
+    `kind: "grocery" for anything a UK supermarket, corner shop or high street shop sells off the shelf (food, drink without alcohol, toiletries, household, stationery, small gifts); "prepared" for a hot or made-to-order meal from a café, restaurant or takeaway (a curry, chow mein, a pizza, a burger, fish and chips, a coffee); "service" for a service rather than a thing; "not_allowed" for alcohol, tobacco or vapes, any medicine (even paracetamol), cash or gift vouchers for money, weapons or anything age restricted; "not_a_product" when it is not a thing anyone sells.`,
+    `name: the tidy shop name a shelf label would carry, in British English, with a typical size ("Plain flour, 1.5kg", "Large free range eggs, 12"). category: the closest from the list. pricePence: a typical current UK supermarket price in pence for that size, a sensible middle price, never a premium brand unless named; 0 when not "grocery".`,
+    `reply: null for "grocery"; otherwise one short, kind sentence for the customer, under 25 words, British English, never naming a company: for "prepared" say it comes from a café or takeaway; for "not_allowed" say plainly the service does not carry it; for "service" say services are asked for by quote on a service's page; for "not_a_product" ask what they meant.`,
+  ].join('\n');
 }
 
 /** The part of the provider's client this module uses, so tests can hand in a stand-in. */
@@ -106,6 +175,7 @@ export function languageModel(
 ): OziBrain {
   const model = settings.model ?? DEFAULT_MODEL;
   const system = instructions(settings.config);
+  const estimateSystem = estimateInstructions(settings.config);
   return {
     name: 'model',
     model,
@@ -152,6 +222,42 @@ export function languageModel(
         };
       } catch {
         // Too slow, rate limited, no credit, or the network: the hand-built parts carry on.
+        return null;
+      }
+    },
+    async estimate(name) {
+      try {
+        const response = await client.messages.create(
+          {
+            model,
+            max_tokens: 300,
+            output_config: {
+              effort: 'low',
+              format: { type: 'json_schema', schema: ESTIMATE_SCHEMA },
+            },
+            system: [{ type: 'text', text: estimateSystem, cache_control: { type: 'ephemeral' } }],
+            messages: [
+              {
+                role: 'user',
+                content: `They asked for: "${name.replace(/"/g, "'").slice(0, 120)}"`,
+              },
+            ],
+          },
+          { timeout: WAIT_MS },
+        );
+        if (response.stop_reason === 'refusal') return null;
+        const text = response.content
+          .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+          .map((block) => block.text)
+          .join('');
+        const parsed = estimateShape.safeParse(JSON.parse(text));
+        if (!parsed.success) return null;
+        return {
+          ...parsed.data,
+          name: parsed.data.name.trim(),
+          reply: parsed.data.reply?.trim() || null,
+        };
+      } catch {
         return null;
       }
     },

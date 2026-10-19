@@ -36,6 +36,8 @@ export const LIMITED: Record<string, number> = {
   '/ozi/reply': 600,
   // What the app said back, for Ozi's memory (ruling 68): one line per thing Ozi says.
   '/ozi/heard': 600,
+  // Each one may ask the language model and add a row to the list (19 October 2026).
+  '/catalogue/suggest': 120,
   // A voice pass (ruling 53) lasts five minutes and the app keeps it, so sixty in ten minutes
   // is far more than a household needs. Each one costs a call to the voice engine.
   '/voice/session': 60,

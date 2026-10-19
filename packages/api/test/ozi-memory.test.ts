@@ -328,7 +328,7 @@ describe('the telephone line', () => {
     expect(spoken(added.body)).toMatch(/I've added 2 Semi skimmed milk/);
 
     const lost = await twilio(nextStep(added.body), { ...call, SpeechResult: 'a flux capacitor' });
-    expect(spoken(lost.body)).toMatch(/Sorry, I couldn't find flux capacitor/);
+    expect(spoken(lost.body)).toMatch(/I don't have flux capacitor in my list yet/);
 
     const rows = (await harness.repository.memory.list({ channel: 'phone', limit: 10 })).reverse();
     expect(rows.map((row) => [row.turn, row.heard, row.brain, row.outcome])).toEqual([

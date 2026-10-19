@@ -66,6 +66,8 @@ function stubShop(
     shelf?: boolean;
     /** What the server's phrase book answers to a sentence looked within (ruling 49). */
     oziReply?: (text: string) => string | null;
+    /** What the server says about something not in the list (19 October 2026). */
+    suggest?: (name: string) => unknown;
     /** What the language model hears in a sentence the phrase book had nothing for (ruling 69). */
     oziHears?: (text: string) => { kind: string; items: unknown[]; reply: string | null } | null;
   } = {},
@@ -132,6 +134,9 @@ function stubShop(
       // The server's phrase book (ruling 49): nothing is a whole phrase, and a sentence looked
       // within is answered only when the test says so; otherwise the server keeps it to learn.
       if (path === '/ozi/known') return reply({ fingerprints: [] });
+      if (path === '/catalogue/suggest' && options.suggest) {
+        return reply(options.suggest((body as { name: string }).name));
+      }
       if (path === '/ozi/reply') {
         const { text, mode } = body as { text: string; mode: 'exact' | 'within' };
         if (mode !== 'within') return reply({ reply: null });
@@ -230,6 +235,31 @@ describe('ordering by voice alone', () => {
     );
     expect(asked.length).toBeGreaterThan(0);
     expect((asked[0]!.body as { basket?: string[] }).basket).toBeUndefined();
+  });
+
+  it('adds something not in the list at a typical price instead of leaving it out (19 October 2026)', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubShop({
+      suggest: (name) =>
+        name === 'pawpaws'
+          ? { outcome: 'refused', reply: 'Not that.' }
+          : {
+              outcome: 'added',
+              item: {
+                id: 'item-quinoa',
+                name: 'Quinoa, 300g',
+                category: 'Cupboard',
+                estimatedPricePence: 199,
+                source: 'community',
+                lastSeenAt: '2026-10-19T12:00:00.000Z',
+              },
+            },
+    });
+    renderApp();
+    expect(await say(engine, 'I would like 2 quinoa and 3 bananas')).toMatch(
+      /^Quinoa, 300g wasn't in my list yet, so I've added it at about £2\.\d\d\. You pay what the till says\. Here is your order: 2 Quinoa, 300g, and 3 Bananas, loose\./,
+    );
   });
 
   it("tells the server what it heard and what it said, for Ozi's memory (ruling 68)", async () => {
@@ -335,7 +365,7 @@ describe('ordering by voice alone', () => {
     renderApp();
     const readBack = await say(engine, 'Ozi, three bananas and a pineapple');
     expect(readBack).toMatch(
-      /^I couldn't find pineapple, so I'll leave it out\. Here is your order: 3 Bananas, loose\./,
+      /^I don't have pineapple in my list yet\. I've noted it so we can add it\. Here is your order: 3 Bananas, loose\./,
     );
   });
 
@@ -546,7 +576,7 @@ describe('small talk and general statements are not shopping (ruling 66)', () =>
     renderApp();
     expect(await say(engine, 'Ozi')).toBe("I'm here. How can I help?");
     expect(await say(engine, 'quinoa')).toBe(
-      "I couldn't find quinoa, so I'll leave it out. I haven't added anything, so there is no order.",
+      "I don't have quinoa in my list yet. I've noted it so we can add it. I haven't added anything, so there is no order.",
     );
   });
 });

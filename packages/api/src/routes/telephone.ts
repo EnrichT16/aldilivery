@@ -51,6 +51,7 @@ import { itemWords } from '../lib/language-model.js';
 import { remember, spokenIn, type Brain, type Outcome } from '../lib/ozi-memory.js';
 import { phraseReply } from '../lib/phrases.js';
 import { priceLinesInParts } from '../services/basket.js';
+import { suggestItem } from '../services/suggest.js';
 import { liveBook } from './ozi.js';
 import { CANCEL_PLAN, cancelPlanFor, deliveryPlanFor, freeMonthEnd } from '../services/plans.js';
 import { answerByText } from '../services/questions.js';
@@ -307,7 +308,13 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     missing: string[];
     tooDear: string[];
     lines: Array<[string, number]>;
+    /** What the language model said about things not in the list. */
+    said: string[];
+    /** Things added at a typical price because they were not in the list yet. */
+    estimated: string[];
   }> {
+    const said: string[] = [];
+    const estimated: string[] = [];
     const added: string[] = [];
     const missing: string[] = [];
     const tooDear: string[] = [];
@@ -326,10 +333,22 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
           limit: 20,
         });
       }
-      const item = bestMatch(found, wanted);
+      let item = bestMatch(found, wanted);
       if (!item) {
-        missing.push(wanted);
-        continue;
+        // Not in the list: never simply left out (19 October 2026). The language model says
+        // what it is, and a shelf item is added at a typical price.
+        const suggestion = await suggestItem(app.ctx, wanted, 'phone');
+        if (suggestion.outcome === 'added' || suggestion.outcome === 'found') {
+          item = suggestion.item;
+          if (suggestion.outcome === 'added') estimated.push(item.name);
+        } else {
+          if (suggestion.outcome === 'shops' || suggestion.outcome === 'refused') {
+            said.push(suggestion.reply);
+          } else {
+            missing.push(wanted);
+          }
+          continue;
+        }
       }
       // No single product over the most one product may cost (ruling 58).
       if (!productAllowed(item.estimatedPricePence, config.fees)) {
@@ -344,7 +363,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
         `${quantity} ${item.name}, about ${money(displayPricePence(item.estimatedPricePence, config.fees) * quantity)}`,
       );
     }
-    return { added, missing, tooDear, lines };
+    return { added, missing, tooDear, lines, said, estimated };
   }
 
   /* -------------------------------------------------------------- the call arrives */
@@ -670,7 +689,10 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
         }
 
         const { items: asked } = splitItems(heard, config.assistantName);
-        let { added, missing, tooDear, lines } = await addAsked(asked, state.lines);
+        let { added, missing, tooDear, lines, said, estimated } = await addAsked(
+          asked,
+          state.lines,
+        );
         let brain: Brain = 'shopping';
         if (added.length === 0 && tooDear.length === 0) {
           // Not shopping at all, perhaps: "how are you", "what do you deliver", "thank you".
@@ -702,7 +724,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
           if (understood) {
             brain = 'model';
             if (understood.kind === 'items' && understood.items.length > 0) {
-              ({ added, missing, tooDear, lines } = await addAsked(
+              ({ added, missing, tooDear, lines, said, estimated } = await addAsked(
                 understood.items.map(itemWords),
                 state.lines,
               ));
@@ -719,7 +741,13 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
           }
         }
         const notFound =
-          (missing.length > 0 ? ` I couldn't find ${listWords(missing)}.` : '') +
+          (estimated.length > 0
+            ? ` ${listWords(estimated)} ${estimated.length === 1 ? "wasn't" : "weren't"} in my list yet, so the price is an estimate. You pay what the till says.`
+            : '') +
+          (said.length > 0 ? ` ${said.join(' ')}` : '') +
+          (missing.length > 0
+            ? ` I don't have ${listWords(missing)} in my list yet. I've noted it so we can add it.`
+            : '') +
           (tooDear.length > 0
             ? ` I can't bring ${listWords(tooDear)}: no single product can cost more than ${money(config.fees.maximumProductPence)}.`
             : '');

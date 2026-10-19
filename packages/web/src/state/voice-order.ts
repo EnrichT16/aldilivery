@@ -7,10 +7,13 @@ import { storeConfig } from '../config';
 import {
   askOzi,
   createOrder,
+  fetchShops,
   listPaymentMethods,
   recordExchange,
   searchCatalogue,
+  suggestItem,
   type CatalogueItem,
+  type ItemSuggestion,
   type ExchangeBrain,
   type ExchangeOutcome,
   type OziUnderstanding,
@@ -86,6 +89,10 @@ export const EXPECT_ORDER_MS = 30_000;
 
 const ORDER_INTENT =
   /\b(order|want|like|need|get|buy|have|bring|send|shopping|basket|grab|pick up|purchase|fetch|add|run out|ran out)\b/i;
+/** "open X", "show me X", "go to X". */
+const OPEN_SHOP = /^(?:please\s+)?(?:open|show me|go to|take me to)\s+(.{2,60})$/i;
+/** How long the app waits for something not in the list to be looked up. */
+const SUGGEST_WAIT_MS = 6000;
 /** How long the app waits for the server's phrase book and the language model before going on alone. */
 const ASK_WAIT_MS = 4500;
 /**
@@ -397,7 +404,35 @@ export function useVoiceOrdering(
           continue;
         }
         if (found.length === 0) {
-          notes += `I couldn't find ${name}, so I'll leave it out. `;
+          // Never simply left out (19 October 2026): the server asks the language model what it
+          // is. A shelf item is added at a typical price; a meal names the cafés that make it.
+          const suggestion = await Promise.race<ItemSuggestion>([
+            suggestItem(name).catch((): ItemSuggestion => ({ outcome: 'unknown' })),
+            new Promise<ItemSuggestion>((resolve) =>
+              setTimeout(() => resolve({ outcome: 'unknown' }), SUGGEST_WAIT_MS),
+            ),
+          ]);
+          if (suggestion.outcome === 'added' || suggestion.outcome === 'found') {
+            note.current = { brain: 'model', outcome: 'added' };
+            picked.current.push({ product: suggestion.item, quantity: quantity ?? 1 });
+            if (suggestion.outcome === 'added') {
+              notes += `${suggestion.item.name} wasn't in my list yet, so I've added it at about ${money(shownPrice(suggestion.item.estimatedPricePence))}. You pay what the till says. `;
+            }
+            continue;
+          }
+          if (suggestion.outcome === 'shops') {
+            const names = suggestion.shops.map((shop) => shop.name);
+            notes +=
+              names.length > 0
+                ? `${suggestion.reply} On ${storeConfig.productName}: ${names.slice(0, -1).join(', ')}${names.length > 1 ? ' and ' : ''}${names[names.length - 1]}. Say open and the name to see what they have. `
+                : `${suggestion.reply} No cafés or takeaways have joined near you yet. `;
+            continue;
+          }
+          if (suggestion.outcome === 'refused') {
+            notes += `${suggestion.reply} `;
+            continue;
+          }
+          notes += `I don't have ${name} in my list yet. I've noted it so we can add it. `;
           continue;
         }
         if (found.length > 1) {
@@ -444,7 +479,39 @@ export function useVoiceOrdering(
       switch (current.kind) {
         case 'idle': {
           const addressed = nameHeardIn(text);
+          // "Open Wok Kitchen", "show me the corner shop": a listed shop's own page (19 October
+          // 2026), after Ozi has named the cafés that make a dish.
+          const opening = OPEN_SHOP.exec(
+            text
+              .replace(
+                new RegExp(`^\\s*((hey|hi|hello|ok|okay)[\\s,]+)?${NAME_PATTERN}[\\s,.]*`, 'i'),
+                '',
+              )
+              .replace(/[.!?]+$/, '')
+              .trim(),
+          );
+          if (opening && (addressed || isExpecting())) {
+            const wantedShop = opening[1]!.toLowerCase().replace(/^the\s+/, '');
+            try {
+              const { shops } = await fetchShops();
+              const match = shops.find((one) => one.name.toLowerCase().includes(wantedShop));
+              if (match) {
+                navigate(`/shops/${match.id}`);
+                note.current = { brain: 'flow', outcome: 'answered' };
+                await say(
+                  `Here is ${match.name}. Say what you'd like from it, or tap plus beside it.`,
+                );
+                return true;
+              }
+            } catch {
+              // The shops list cannot be reached: carry on as if it were not asked.
+            }
+          }
           if (!isExpecting() && !addressed && !ORDER_INTENT.test(text)) return false;
+          // Nobody signed in, and not said to Ozi: a stray word ("Rectangle") is not an order
+          // and never earns "you need an account first" (19 October 2026). Like a phone's own
+          // assistant, Ozi waits for its name, or for words that clearly ask for something.
+          if (!live.current.shopper && !addressed && !ORDER_INTENT.test(text)) return false;
           // Small talk and general statements are not shopping (ruling 66): "how are you
           // doing" is answered warmly, never with "I haven't added how are you doing".
           const parsed = splitItems(text, NAME_PATTERN);
