@@ -36,7 +36,28 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-export function OziBubble(): JSX.Element {
+/** The word on Ozi's button for its state; the same on the round button and the bottom bar. */
+export function presenceWord(ozi: { talking: boolean; presence: string }): string {
+  if (ozi.talking) return 'Talking';
+  switch (ozi.presence) {
+    case 'listening':
+      return 'Listening';
+    case 'muted':
+      return 'Paused';
+    case 'needs-tap':
+      return 'Tap to talk';
+    case 'cannot-listen':
+      return 'Can’t listen';
+    default:
+      return 'Starting';
+  }
+}
+
+/**
+ * `docked`: the signed-in Shopper's bottom bar carries Ozi's button (19 October 2026), so the
+ * round one is not drawn over the cards; the words still show in the caption bar.
+ */
+export function OziBubble({ docked = false }: { docked?: boolean } = {}): JSX.Element {
   const ozi = useOzi();
   const voice = useVoice();
   const assistant = storeConfig.assistantName;
@@ -216,30 +237,32 @@ export function OziBubble(): JSX.Element {
           )}
         </div>
       </div>
-      <button
-        type="button"
-        aria-describedby="ozi-bubble-hint"
-        onClick={() => {
-          if (suppressClick.current) {
-            suppressClick.current = false;
-            return;
+      {!docked && (
+        <button
+          type="button"
+          aria-describedby="ozi-bubble-hint"
+          onClick={() => {
+            if (suppressClick.current) {
+              suppressClick.current = false;
+              return;
+            }
+            ozi.press();
+          }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onKeyDown={onKeyDown}
+          style={{ width: SIZE, height: SIZE, borderRadius: '50%', touchAction: 'none' }}
+          className={
+            listening || ozi.talking
+              ? 'control p-0 ozi-beaming !rounded-full flex flex-col items-center justify-center gap-1 font-bold text-on-accent border-4 border-ink bg-listening cursor-grab'
+              : 'control p-0 !rounded-full flex flex-col items-center justify-center gap-1 font-bold text-ink border-4 border-dashed border-ink bg-paper cursor-grab'
           }
-          ozi.press();
-        }}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onKeyDown={onKeyDown}
-        style={{ width: SIZE, height: SIZE, borderRadius: '50%', touchAction: 'none' }}
-        className={
-          listening || ozi.talking
-            ? 'control p-0 ozi-beaming !rounded-full flex flex-col items-center justify-center gap-1 font-bold text-on-accent border-4 border-ink bg-listening cursor-grab'
-            : 'control p-0 !rounded-full flex flex-col items-center justify-center gap-1 font-bold text-ink border-4 border-dashed border-ink bg-paper cursor-grab'
-        }
-      >
-        <BubbleGlyph crossed={!listening && !ozi.talking} />
-        <span className="text-base leading-tight">{label}</span>
-      </button>
+        >
+          <BubbleGlyph crossed={!listening && !ozi.talking} />
+          <span className="text-base leading-tight">{label}</span>
+        </button>
+      )}
       <p id="ozi-bubble-hint" className="visually-hidden">
         {action} You can move this button: hold it and drag it, or use the arrow keys.
       </p>

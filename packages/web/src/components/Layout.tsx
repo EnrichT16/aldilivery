@@ -10,7 +10,7 @@ import { AdSquare } from './AdSquare';
 import { companyFacts } from './CompanyDetails';
 import { DemoBanner } from './DemoBanner';
 import { MicrophoneHelp } from './MicrophoneHelp';
-import { OziBubble } from './OziBubble';
+import { OziBubble, presenceWord } from './OziBubble';
 import { OziSwitch } from './OziSwitch';
 import { SocialLinks } from './SocialLinks';
 
@@ -173,7 +173,7 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
         {shopperBars && <ShopperBottomBar />}
         <OziSwitch />
       </div>
-      <OziBubble />
+      <OziBubble docked={shopperBars} />
     </div>
   );
 }
@@ -259,14 +259,28 @@ function ShopperBottomBar(): JSX.Element {
           </NavLink>
         </li>
         <li className="flex-[1.25] min-w-0">
+          {/* Ozi's own button (19 October 2026): green while it listens or talks, its state in
+              words, and the same press as the round button it replaces on these screens. */}
           <button
             type="button"
-            onClick={() => ozi.tapToTalk()}
-            className="control w-full h-full flex-col gap-0 !px-1 !py-1 !rounded-full bg-highlight text-on-accent font-bold leading-tight border-2 border-ink"
+            aria-describedby="bar-ozi-hint"
+            onClick={() => (ozi.presence === 'needs-tap' ? ozi.tapToTalk() : ozi.press())}
+            className={`control w-full h-full flex-col gap-0 !px-1 !py-1 !rounded-full font-bold leading-tight border-2 border-ink text-on-accent ${
+              ozi.presence === 'listening' || ozi.talking
+                ? 'bg-listening ozi-beaming'
+                : 'bg-highlight'
+            }`}
           >
             <MicIcon />
-            Talk to {assistant}
+            {ozi.presence === 'needs-tap' ? `Talk to ${assistant}` : presenceWord(ozi)}
           </button>
+          <span id="bar-ozi-hint" className="visually-hidden">
+            {ozi.talking
+              ? `${assistant} is talking. Press to stop.`
+              : ozi.presence === 'listening'
+                ? `${assistant} is listening. Press to pause.`
+                : `Press to talk to ${assistant}.`}
+          </span>
         </li>
         <li className="flex-1 min-w-0">
           <NavLink
