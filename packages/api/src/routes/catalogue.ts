@@ -15,6 +15,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { recordSearch } from '../lib/analytics.js';
+import { suggestItem } from '../services/suggest.js';
 
 const searchSchema = z.object({
   q: z.string().trim().max(100).optional().default(''),
@@ -58,6 +59,30 @@ export async function registerCatalogueRoutes(app: FastifyInstance): Promise<voi
         lastSeenAt: item.lastSeenAt,
       })),
     };
+  });
+
+  /**
+   * Something not in the list (19 October 2026): what it is, from the language model, and the
+   * row added for it, or the cafés that make it, or why it is never carried.
+   */
+  app.post('/catalogue/suggest', async (request) => {
+    const { name } = z.object({ name: z.string().trim().min(2).max(80) }).parse(request.body ?? {});
+    const suggestion = await suggestItem(app.ctx, name);
+    if (suggestion.outcome === 'found' || suggestion.outcome === 'added') {
+      const { item } = suggestion;
+      return {
+        outcome: suggestion.outcome,
+        item: {
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          estimatedPricePence: item.estimatedPricePence,
+          source: item.source,
+          lastSeenAt: item.lastSeenAt,
+        },
+      };
+    }
+    return suggestion;
   });
 
   app.get('/catalogue/:id', async (request) => {

@@ -136,6 +136,23 @@ export function searchCatalogue(query: string): Promise<CatalogueResult> {
   return request<CatalogueResult>(`/catalogue/search?q=${encodeURIComponent(query)}`);
 }
 
+/**
+ * Something not in the shop list (19 October 2026): added at a typical price, or the cafés that
+ * make it, or why it is never carried. "unknown" when the server cannot say.
+ */
+export type ItemSuggestion =
+  | { outcome: 'found' | 'added'; item: CatalogueItem }
+  | { outcome: 'shops'; reply: string; shops: Array<{ id: string; name: string }> }
+  | { outcome: 'refused'; reply: string }
+  | { outcome: 'unknown' };
+
+export function suggestItem(name: string): Promise<ItemSuggestion> {
+  return request<ItemSuggestion>('/catalogue/suggest', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
 export interface BasketPrice {
   goodsEstimatePence: number;
   itemChargesPence: number;
