@@ -11,6 +11,7 @@ import {
   type CatalogueItem,
 } from '../lib/api';
 import { money, sellable, shownPrice, tooDearWords } from '../lib/money';
+import { ShopHome } from '../components/ShopHome';
 import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
@@ -32,6 +33,11 @@ export function Catalogue(): JSX.Element {
   // A link can open the shop already searched: /shop?q=essentials.
   const [params] = useSearchParams();
   const [query, setQuery] = useState(params.get('q') ?? '');
+  // A chip on the home rows opens /shop?q=…: the search follows the address.
+  const linked = params.get('q') ?? '';
+  useEffect(() => {
+    setQuery(linked);
+  }, [linked]);
   const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [lastAdded, setLastAdded] = useState('');
   // A product dearer than any one product may be is refused, in plain words (ruling 58).
@@ -85,39 +91,57 @@ export function Catalogue(): JSX.Element {
     };
   }, [query]);
 
+  const searchForm = (
+    <form
+      role="search"
+      className="space-y-2 max-w-xl"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        setQuery(String(data.get('q') ?? ''));
+      }}
+    >
+      <label htmlFor="catalogue-search" className="block text-lead font-bold">
+        What are you looking for?
+      </label>
+      <p id="catalogue-search-hint" className="m-0 text-paper/90 extra">
+        Try milk, or bread, or leave it empty to see everything.
+      </p>
+      <div className="flex gap-3">
+        <input
+          key={query}
+          id="catalogue-search"
+          name="q"
+          type="search"
+          defaultValue={query}
+          aria-describedby="catalogue-search-hint"
+          className="flex-1 min-w-0 min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
+        />
+        <button type="submit" className="control border-paper bg-paper/10 text-paper">
+          Search
+        </button>
+      </div>
+    </form>
+  );
+
   return (
     <div className="space-y-6">
-      <h1 className="text-display font-bold m-0">Your shopping</h1>
+      <h1 className={query === '' ? 'visually-hidden' : 'text-display font-bold m-0'}>
+        Your shopping
+      </h1>
 
-      <form
-        role="search"
-        className="space-y-2 max-w-xl"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const data = new FormData(event.currentTarget);
-          setQuery(String(data.get('q') ?? ''));
-        }}
-      >
-        <label htmlFor="catalogue-search" className="block text-lead font-bold">
-          What are you looking for?
-        </label>
-        <p id="catalogue-search-hint" className="m-0 text-paper/90 extra">
-          Try milk, or bread, or leave it empty to see everything.
-        </p>
-        <div className="flex flex-wrap gap-3">
-          <input
-            id="catalogue-search"
-            name="q"
-            type="search"
-            defaultValue={query}
-            aria-describedby="catalogue-search-hint"
-            className="flex-1 min-w-[12rem] min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
-          />
-          <button type="submit" className="control border-paper bg-paper/10 text-paper">
-            Search
-          </button>
-        </div>
-      </form>
+      {query === '' ? (
+        <ShopHome
+          search={searchForm}
+          popular={state.kind === 'ready' ? state.items : []}
+          onAdd={(item) => {
+            setLastAdded(basket.add(item) ? item.name : '');
+            setRefused(sellable(item.estimatedPricePence) ? '' : tooDearWords(item.name));
+          }}
+        />
+      ) : (
+        searchForm
+      )}
 
       <p role="status" aria-live="polite" className="m-0 min-h-control">
         {refused !== '' ? refused : lastAdded === '' ? '' : `${lastAdded} added to your basket.`}
@@ -147,7 +171,9 @@ export function Catalogue(): JSX.Element {
           <h2 id="results-heading" className="text-lead font-bold">
             {state.items.length === 0
               ? 'Nothing matched that'
-              : `${state.items.length} ${state.items.length === 1 ? 'thing' : 'things'} you can add`}
+              : query === ''
+                ? `Everything in the shop: ${state.items.length} things`
+                : `${state.items.length} ${state.items.length === 1 ? 'thing' : 'things'} you can add`}
           </h2>
           <p className="m-0 text-paper/90">{state.attribution}</p>
 
