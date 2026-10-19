@@ -70,6 +70,11 @@ export const WORKBOX = {
   // before. The request never leaves the browser, which is why a redeploy, a hard
   // refresh habit or a correct routing rule all change nothing. Found 25 Sep 2026.
   navigateFallbackDenylist: [/^\/api(\/|$)/],
+  // A new version takes over at once and old caches are cleared (19 October 2026), so nobody
+  // is left on yesterday's pages after a deployment.
+  skipWaiting: true,
+  clientsClaim: true,
+  cleanupOutdatedCaches: true,
   // Shows a Runner's question as a notification when no page is open. See the file.
   importScripts: ['/push-sw.js'],
 };
