@@ -53,7 +53,10 @@ export default defineConfig({
     storeIdentityInHtml(),
     react(),
     VitePWA({
-      registerType: 'prompt',
+      // Updates itself (19 October 2026): with 'prompt' and no prompt on any page, a home-screen
+      // copy kept serving an old sign-up page for days, which posted to an address the server
+      // no longer has ("There is nothing at that address").
+      registerType: 'autoUpdate',
       // The manifest and the offline rules live in pwa.ts, where test/install.test.ts checks them.
       includeAssets: INCLUDE_ASSETS,
       manifest: webAppManifest(storeConfig),
