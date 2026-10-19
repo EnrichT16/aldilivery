@@ -57,6 +57,8 @@ export default defineConfig({
       // copy kept serving an old sign-up page for days, which posted to an address the server
       // no longer has ("There is nothing at that address").
       registerType: 'autoUpdate',
+      // Registered in src/lib/updates.ts, which also checks for new versions and reloads.
+      injectRegister: false,
       // The manifest and the offline rules live in pwa.ts, where test/install.test.ts checks them.
       includeAssets: INCLUDE_ASSETS,
       manifest: webAppManifest(storeConfig),

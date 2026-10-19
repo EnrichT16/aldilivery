@@ -2609,7 +2609,16 @@ export function fetchKnownPhrases(as: OziAsker): Promise<{ fingerprints: string[
 
 /** What the language model heard in the words when the phrase book had nothing (ruling 69). */
 export interface OziUnderstanding {
-  kind: 'items' | 'question' | 'done' | 'stop' | 'remove' | 'repeat' | 'chatter' | 'unclear';
+  kind:
+    | 'items'
+    | 'recommend'
+    | 'question'
+    | 'done'
+    | 'stop'
+    | 'remove'
+    | 'repeat'
+    | 'chatter'
+    | 'unclear';
   items: Array<{ name: string; quantity: number; brand: string | null; detail: string | null }>;
   reply: string | null;
 }
