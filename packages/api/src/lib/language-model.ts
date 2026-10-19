@@ -27,7 +27,17 @@ export const DEFAULT_MODEL = 'claude-haiku-5-5';
 export const WAIT_MS = 4000;
 
 const understanding = z.object({
-  kind: z.enum(['items', 'question', 'done', 'stop', 'remove', 'repeat', 'chatter', 'unclear']),
+  kind: z.enum([
+    'items',
+    'recommend',
+    'question',
+    'done',
+    'stop',
+    'remove',
+    'repeat',
+    'chatter',
+    'unclear',
+  ]),
   items: z.array(
     z.object({
       name: z.string(),
@@ -48,7 +58,17 @@ const UNDERSTANDING_SCHEMA = {
   properties: {
     kind: {
       type: 'string',
-      enum: ['items', 'question', 'done', 'stop', 'remove', 'repeat', 'chatter', 'unclear'],
+      enum: [
+        'items',
+        'recommend',
+        'question',
+        'done',
+        'stop',
+        'remove',
+        'repeat',
+        'chatter',
+        'unclear',
+      ],
     },
     items: {
       type: 'array',
@@ -164,7 +184,7 @@ export function instructions(config: StoreConfig): string {
     `You are ${ozi}, the voice assistant of ${product}, a grocery delivery service in Medway, England. People say their shopping; a Runner buys it at ${shop} or a listed local shop and brings it to the door. Many customers are blind, elderly or housebound and are speaking, not typing.`,
     `Your only job here is to understand one sentence and answer in the JSON shape you are given.`,
     `Shopping words: "order", "get me", "pick up", "grab", "buy", "purchase", "fetch", "bring", "add", "I need", "I've run out of", "put in", "can I have" and anything like them all mean the person wants things bought. Kind "items": list each thing: "name" is the plain product word or two a shop search needs ("flour", "eggs", "semi skimmed milk"), "quantity" how many (default 1; "a couple" is 2, "a dozen" is 12), "brand" only if they said one, and "detail" any size or variety they said ("2 kg", "large", "free range"), or null.`,
-    `Kind "remove": they want something taken off; put the thing in items. Kind "done": they have finished ("that's everything", "that's all"). Kind "stop": cancel or never mind. Kind "repeat": say it again. Kind "question": a question about the service, delivery, prices in general, plans, Runners, safety or how to do something; give a short, kind, honest reply under 25 words. Kind "chatter": small talk or a remark; reply warmly in under 15 words. Kind "unclear": you cannot tell; reply with one short question.`,
+    `Kind "remove": they want something taken off; put the thing in items. Kind "done": they have finished ("that's everything", "that's all"). Kind "stop": cancel or never mind. Kind "repeat": say it again. Kind "question": a question about the service, delivery, prices in general, plans, Runners, safety or how to do something; give a short, kind, honest reply under 25 words. Kind "recommend": they ask for an idea or recommendation (breakfast, lunch, dinner, a snack, something for a party, a cheap meal, something healthy); put 3 to 5 everyday supermarket items for it in items, and reply in under 30 words naming the dish and the items, ending with "Shall I add them?". Kind "chatter": small talk or a remark; reply warmly in under 15 words. If they ask the time, the day or the date, answer from the time given, as kind "question". Kind "unclear": you cannot tell; reply with one short question.`,
     `Rules for any reply: British English; plain words; no figures you are not sure of (never invent a price, a time or a fee); never ask for a card number, a code or a password; no alcohol, tobacco, medicines or cash through the service; if they want a person, say they can say "person". Never mention being an AI model or who made you. Speak as ${ozi}.`,
   ].join('\n');
 }
@@ -197,7 +217,7 @@ export function languageModel(
             messages: [
               {
                 role: 'user',
-                content: `Channel: ${input.channel}. Speaking to the ${input.account}'s assistant.${basket}\nThey said: "${input.text.replace(/"/g, "'").slice(0, 500)}"`,
+                content: `Channel: ${input.channel}. Speaking to the ${input.account}'s assistant. It is ${ukNow()} in the UK.${basket}\nThey said: "${input.text.replace(/"/g, "'").slice(0, 500)}"`,
               },
             ],
           },
@@ -262,6 +282,20 @@ export function languageModel(
       }
     },
   };
+}
+
+/** "Monday 19 October 2026, 5:43 pm": the time in the UK, for "what's the time?". */
+export function ukNow(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  }).format(now);
 }
 
 /** "2 flour", "12 eggs": the parser's own shape, for the catalogue search. */

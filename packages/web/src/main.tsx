@@ -4,9 +4,11 @@ import { BrowserRouter } from 'react-router-dom';
 
 import { App } from './App';
 import { applyBrandToDocument } from './config';
+import { keepUpToDate } from './lib/updates';
 import './styles/index.css';
 
 applyBrandToDocument();
+keepUpToDate();
 
 const container = document.getElementById('root');
 if (!container) {

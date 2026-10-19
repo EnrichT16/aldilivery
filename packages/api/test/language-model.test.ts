@@ -11,6 +11,7 @@ import {
   instructions,
   itemWords,
   languageModel,
+  ukNow,
   type BrainClient,
 } from '../src/lib/language-model.js';
 
@@ -101,5 +102,11 @@ describe('understanding', () => {
     expect(
       await wrongShape.understand({ text: 'hello', account: 'shopper', channel: 'app' }),
     ).toBeNull();
+  });
+});
+
+describe('the time in the UK', () => {
+  it('is given to the model so "what is the time" can be answered', () => {
+    expect(ukNow(new Date('2026-10-19T16:43:00.000Z'))).toBe('Monday, 19 October 2026 at 5:43 pm');
   });
 });

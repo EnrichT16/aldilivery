@@ -100,6 +100,13 @@ const ASK_WAIT_MS = 4500;
  * given ("I've run out of"), a request wrapped in politeness, or a long sentence.
  */
 function needsEars(text: string): boolean {
+  if (
+    /\b(recommend|suggest|idea|ideas|what should i (have|eat|cook|make)|what('s| is) the (time|date|day)|what time)\b/i.test(
+      text,
+    )
+  ) {
+    return true;
+  }
   return (
     /\b(run out|ran out|because|i've|i have|could you|would you|can you|for me|please)\b/i.test(
       text,
@@ -204,6 +211,8 @@ export function useVoiceOrdering(
     return false;
   }, []);
 
+  // Things the language model recommended, waiting for a yes (19 October 2026).
+  const offered = useRef<string[] | null>(null);
   // What the language model heard in the last sentence, when the parser saw nothing (ruling 69).
   const heardItems = useRef<OziUnderstanding | null>(null);
 
@@ -243,6 +252,15 @@ export function useVoiceOrdering(
       if (!looksLikeChatter(text) || (await anyInCatalogue(items))) return false;
       const answer = await askWithin(text);
       chatterTurn.current += 1;
+      // "Recommend a breakfast" (19 October 2026): the idea is said, and its things wait for a
+      // yes; nothing goes in the basket until then.
+      if (answer?.understood?.kind === 'recommend' && answer.understood.items.length > 0) {
+        offered.current = answer.understood.items.map((item) => `${item.quantity} ${item.name}`);
+        note.current = { brain: 'model', outcome: 'answered' };
+        expectNow();
+        await say(answer.understood.reply ?? answer.reply ?? 'Shall I add them?');
+        return true;
+      }
       if (answer?.reply) {
         // The server keeps this one itself, with the words it answered.
         return (await say(answer.reply), true);
@@ -514,6 +532,24 @@ export function useVoiceOrdering(
           if (!live.current.shopper && !addressed && !ORDER_INTENT.test(text)) return false;
           // Small talk and general statements are not shopping (ruling 66): "how are you
           // doing" is answered warmly, never with "I haven't added how are you doing".
+          // A yes to Ozi's recommendation puts its things in, through the usual read-back.
+          if (offered.current) {
+            const waiting = offered.current;
+            offered.current = null;
+            const answer = parseYesNo(text);
+            if (answer === 'yes' || /\b(add (them|those|it|all)|go on|sounds good)\b/i.test(text)) {
+              picked.current = [];
+              pending.current = waiting;
+              expectingUntil.current = null;
+              await next('');
+              return true;
+            }
+            if (answer === 'no') {
+              await say('All right. What would you like instead?');
+              expectNow();
+              return true;
+            }
+          }
           const parsed = splitItems(text, NAME_PATTERN);
           heardItems.current = null;
           if (await chatter(text, parsed.items)) return true;
@@ -524,6 +560,15 @@ export function useVoiceOrdering(
           const { shopAskedFor } = parsed;
           if (heardItems.current === null && (items.length === 0 || needsEars(text))) {
             const answer = await askWithin(text);
+            if (answer?.understood?.kind === 'recommend' && answer.understood.items.length > 0) {
+              offered.current = answer.understood.items.map(
+                (item) => `${item.quantity} ${item.name}`,
+              );
+              note.current = { brain: 'model', outcome: 'answered' };
+              expectNow();
+              await say(answer.understood.reply ?? answer.reply ?? 'Shall I add them?');
+              return true;
+            }
             if (answer?.understood && answer.understood.items.length > 0) {
               heardItems.current = answer.understood;
             } else if (answer?.reply) {

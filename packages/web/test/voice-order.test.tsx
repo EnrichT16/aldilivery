@@ -237,6 +237,30 @@ describe('ordering by voice alone', () => {
     expect((asked[0]!.body as { basket?: string[] }).basket).toBeUndefined();
   });
 
+  it('recommends a breakfast and adds its things only after a yes (19 October 2026)', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const sent = stubShop({
+      oziHears: (text) =>
+        /recommend/i.test(text)
+          ? {
+              kind: 'recommend',
+              items: [
+                { name: 'bananas', quantity: 6, brand: null, detail: null },
+                { name: 'milk', quantity: 1, brand: null, detail: null },
+              ],
+              reply: 'How about porridge with bananas and milk? Shall I add them?',
+            }
+          : null,
+    });
+    renderApp();
+    expect(await say(engine, 'Ozi, can you recommend a breakfast for me')).toBe(
+      'How about porridge with bananas and milk? Shall I add them?',
+    );
+    expect(sent.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(false);
+    expect(await say(engine, 'yes please')).toMatch(/^I found 2 kinds of milk/);
+  });
+
   it('adds something not in the list at a typical price instead of leaving it out (19 October 2026)', async () => {
     const engine = fakeEngine();
     setVoiceEngine(engine);

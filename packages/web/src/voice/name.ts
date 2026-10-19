@@ -23,7 +23,7 @@ export function nameHeardIn(text: string): boolean {
 /** Just the name, perhaps with "hey": a call for attention, with nothing asked yet. */
 export function onlyName(text: string): boolean {
   return new RegExp(
-    `^\\s*((hey|hi|hello|ok|okay|excuse me)[\\s,]+)?${NAME_PATTERN}[\\s,.!?]*$`,
+    `^\\s*((hey|hi|hello|ok|okay|excuse me|my)[\\s,]+)?${NAME_PATTERN}[\\s,.!?]*$`,
     'i',
   ).test(text);
 }
