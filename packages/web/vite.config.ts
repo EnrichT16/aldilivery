@@ -48,9 +48,32 @@ function storeIdentityInHtml(): Plugin {
   };
 }
 
+/**
+ * Which build this is (20 October 2026). Baked into the app as `__BUILD_ID__` and written next
+ * to it as `/version.json`, which is never kept by the service worker, so a home-screen copy
+ * can always ask the server whether it is still the newest (src/lib/updates.ts).
+ */
+const BUILD_ID = process.env['BUILD_ID'] ?? new Date().toISOString();
+
+function buildVersionFile(): Plugin {
+  return {
+    name: 'build-version-file',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: JSON.stringify({ build: BUILD_ID }),
+      });
+    },
+  };
+}
+
 export default defineConfig({
+  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   plugins: [
     storeIdentityInHtml(),
+    buildVersionFile(),
     react(),
     VitePWA({
       // Updates itself (19 October 2026): with 'prompt' and no prompt on any page, a home-screen
