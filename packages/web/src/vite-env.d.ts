@@ -47,3 +47,6 @@ declare module '@small-talk' {
 interface ImportMetaEnv {
   readonly VITE_API_URL?: string;
 }
+
+/** Which build this is, baked in by vite.config.ts and compared with /version.json. */
+declare const __BUILD_ID__: string;
