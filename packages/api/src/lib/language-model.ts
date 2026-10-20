@@ -108,7 +108,62 @@ export interface OziBrain {
    * stand-ins in tests need not have it.
    */
   estimate?(name: string): Promise<Estimate | null>;
+  /**
+   * The prices on a photo of a till receipt (ruling 72), matched to what was on the order, so
+   * the catalogue learns what things really cost. Optional, as above.
+   */
+  readReceipt?(photo: ReceiptImage, items: string[]): Promise<ReceiptReading | null>;
+  /** A typical current UK shelf price found by one web search (ruling 72). Optional, as above. */
+  webPrice?(name: string): Promise<WebPrice | null>;
 }
+
+/** The kinds of photo the model can read. */
+export const READABLE_IMAGES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'] as const;
+export interface ReceiptImage {
+  /** Base64, without the `data:` prefix. */
+  data: string;
+  mediaType: (typeof READABLE_IMAGES)[number];
+}
+
+const receiptShape = z.object({
+  shop: z.string().nullable(),
+  lines: z.array(
+    z.object({
+      item: z.number().int().min(1),
+      unitPricePence: z.number().int().min(1).max(100_000),
+    }),
+  ),
+});
+export type ReceiptReading = z.infer<typeof receiptShape>;
+
+const RECEIPT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['shop', 'lines'],
+  properties: {
+    shop: { type: ['string', 'null'] },
+    lines: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['item', 'unitPricePence'],
+        properties: {
+          item: { type: 'integer', minimum: 1 },
+          unitPricePence: { type: 'integer', minimum: 1, maximum: 100000 },
+        },
+      },
+    },
+  },
+} as const;
+
+export interface WebPrice {
+  pricePence: number;
+  shop: string | null;
+}
+
+/** How long a lookup in the background may take: nobody is waiting on it. */
+export const BACKGROUND_WAIT_MS = 45_000;
 
 const estimateShape = z.object({
   kind: z.enum(['grocery', 'prepared', 'service', 'not_allowed', 'not_a_product']),
@@ -281,7 +336,95 @@ export function languageModel(
         return null;
       }
     },
+    async readReceipt(photo, items) {
+      if (items.length === 0) return null;
+      try {
+        const list = items.map((name, index) => `${index + 1}. ${name}`).join('\n');
+        const response = await client.messages.create(
+          {
+            model,
+            max_tokens: 1500,
+            output_config: {
+              effort: 'low',
+              format: { type: 'json_schema', schema: RECEIPT_SCHEMA },
+            },
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'image',
+                    source: { type: 'base64', media_type: photo.mediaType, data: photo.data },
+                  },
+                  {
+                    type: 'text',
+                    text: `This is a photo of a UK till receipt. These things were on the shopping list:\n${list}\n\nFor each list thing you can clearly see on the receipt, give its number and the price of ONE of it in pence (if the receipt shows 2 x 1.10, the price is 110). Leave out anything you cannot read or are unsure of; never guess. shop: the shop name printed at the top, or null.`,
+                  },
+                ],
+              },
+            ],
+          },
+          { timeout: BACKGROUND_WAIT_MS },
+        );
+        if (response.stop_reason === 'refusal') return null;
+        const text = response.content
+          .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+          .map((block) => block.text)
+          .join('');
+        const parsed = receiptShape.safeParse(JSON.parse(text));
+        if (!parsed.success) return null;
+        return {
+          shop: parsed.data.shop?.trim() || null,
+          lines: parsed.data.lines.filter((line) => line.item <= items.length),
+        };
+      } catch {
+        return null;
+      }
+    },
+    async webPrice(name) {
+      try {
+        const response = await client.messages.create(
+          {
+            model,
+            max_tokens: 1500,
+            tools: [
+              {
+                type: 'web_search_20250305',
+                name: 'web_search',
+                max_uses: 1,
+                user_location: { type: 'approximate', country: 'GB' },
+              },
+            ],
+            messages: [
+              {
+                role: 'user',
+                content: `Search the web once for the current price of "${name.replace(/"/g, "'").slice(0, 120)}" at a UK supermarket. Then end your answer with exactly one line in this form and nothing after it:\nPRICE_PENCE=<whole number of pence for one>; SHOP=<the shop's name>\nIf you found no clear current UK price, end with:\nPRICE_PENCE=0; SHOP=none`,
+              },
+            ],
+          },
+          { timeout: BACKGROUND_WAIT_MS },
+        );
+        if (response.stop_reason === 'refusal') return null;
+        const text = response.content
+          .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+          .map((block) => block.text)
+          .join('');
+        return readWebPrice(text);
+      } catch {
+        return null;
+      }
+    },
   };
+}
+
+/** The last "PRICE_PENCE=…; SHOP=…" line of a web lookup's answer, or null. */
+export function readWebPrice(text: string): WebPrice | null {
+  const found = [...text.matchAll(/PRICE_PENCE\s*=\s*(\d+)\s*;\s*SHOP\s*=\s*([^\n]*)/g)].at(-1);
+  if (!found) return null;
+  const pricePence = Number(found[1]);
+  if (!Number.isInteger(pricePence) || pricePence < 1 || pricePence > 100_000) return null;
+  const shop = (found[2] ?? '').trim().replace(/[.*]+$/, '').trim();
+  return { pricePence, shop: shop && shop.toLowerCase() !== 'none' ? shop.slice(0, 60) : null };
 }
 
 /** "Monday 19 October 2026, 5:43 pm": the time in the UK, for "what's the time?". */

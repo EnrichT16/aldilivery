@@ -1028,6 +1028,28 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    prices: {
+      async record(input) {
+        return (await prisma.priceSighting.create({ data: input })) as any;
+      },
+      async listForItem(catalogueItemId, limit) {
+        return (await prisma.priceSighting.findMany({
+          where: { catalogueItemId },
+          orderBy: { seenAt: 'desc' },
+          take: limit,
+        })) as any;
+      },
+      async latest(limit) {
+        return (await prisma.priceSighting.findMany({
+          orderBy: { seenAt: 'desc' },
+          take: limit,
+        })) as any;
+      },
+      async countSince(source, since) {
+        return prisma.priceSighting.count({ where: { source, seenAt: { gte: since } } });
+      },
+    },
+
     receiptPhotos: {
       async save(input) {
         const data = { ...input, data: Buffer.from(input.data) };

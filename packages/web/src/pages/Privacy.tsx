@@ -152,6 +152,13 @@ export function Privacy(): JSX.Element {
           with them, and the provider does not use what we send to train its models. Reason: a
           contract, and our legitimate interest in understanding what you ask for.
         </p>
+        <p className="m-0">
+          To keep our prices close to the shelf, the photo of the till receipt a Runner takes is
+          read by the same language model, which is given only the photo and the names of the things
+          on the order. What it reads is kept as the price of each thing, with the shop and the
+          date, and never with your name or address. Reason: our legitimate interest in giving you
+          honest prices.
+        </p>
       </section>
 
       <section aria-labelledby="runners" className="space-y-3">

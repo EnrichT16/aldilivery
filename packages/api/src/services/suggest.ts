@@ -20,6 +20,8 @@ import type { CatalogueItem } from '../domain.js';
 import { bannedList, containsBanned } from '../lib/banned.js';
 import { remember } from '../lib/ozi-memory.js';
 
+import { lookUpPriceLater } from './prices.js';
+
 export type Suggestion =
   | { outcome: 'found'; item: CatalogueItem }
   | { outcome: 'added'; item: CatalogueItem }
@@ -35,7 +37,10 @@ function tidy(name: string): string {
 }
 
 export async function suggestItem(
-  ctx: Pick<AppContext, 'repository' | 'config' | 'env' | 'now' | 'brain'>,
+  ctx: Pick<
+    AppContext,
+    'repository' | 'config' | 'env' | 'now' | 'brain' | 'openPrices' | 'lookUpPrices'
+  >,
   asked: string,
   channel: 'app' | 'phone' = 'app',
 ): Promise<Suggestion> {
@@ -103,5 +108,7 @@ export async function suggestItem(
     lastSeenAt: ctx.now(),
   });
   keep(`[added: ${name}, about ${pricePence}p]`, 'added');
+  // A real price in the background (ruling 72): the open price database, or one web search.
+  lookUpPriceLater(ctx, item);
   return { outcome: 'added', item };
 }

@@ -998,6 +998,26 @@ export interface ReceiptPhoto {
   createdAt: Date;
 }
 
+/**
+ * One price seen for one thing (20 October 2026, ruling 72): read off a till receipt, from the
+ * open price database, or found by a web lookup. The catalogue's estimate follows the best of
+ * these; the Shopper still pays the till price.
+ */
+export interface PriceSighting {
+  id: string;
+  catalogueItemId: string | null;
+  /** The name as the source gave it. */
+  name: string;
+  /** For one of the thing, in pence. */
+  pricePence: number;
+  /** The shop it was seen at, when the source says. */
+  shop: string | null;
+  source: 'receipt' | 'open_prices' | 'web';
+  orderId: string | null;
+  barcode: string | null;
+  seenAt: Date;
+}
+
 /** What a Shopper said after a delivery (Section O), and the credit it earned. */
 export interface ShopperFeedback {
   id: string;

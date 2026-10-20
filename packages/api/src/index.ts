@@ -20,6 +20,7 @@ import { livekitProvider } from './lib/livekit.js';
 import { loadShopsSeed } from './lib/shops-seed.js';
 import { oluomaVoice } from './lib/oluoma-voice.js';
 import { languageModel } from './lib/language-model.js';
+import { openPrices } from './lib/open-prices.js';
 import { webPushSender } from './lib/push.js';
 import { callScript, codeMessage, senderName, twilioCaller, twilioSender } from './lib/sms.js';
 import { twilioDialler } from './lib/twilio-voice.js';
@@ -33,6 +34,7 @@ import { sweepSets } from './services/set-runner.js';
 import { sweepInsuranceReminders } from './services/insurance.js';
 import { sweepDeposits } from './services/runner-leaving.js';
 import { sweepPlans } from './services/plans.js';
+import { refreshPrices } from './services/prices.js';
 
 async function main(): Promise<void> {
   const env = readEnv();
@@ -146,6 +148,11 @@ async function main(): Promise<void> {
     calls,
     voice,
     brain,
+    // The open price database (ruling 72), which asks every app to say who it is.
+    openPrices: openPrices({
+      userAgent: `${config.productName}/1.0 (${config.contact.email})`,
+    }),
+    lookUpPrices: true,
     repository,
     payments,
     env,
@@ -348,6 +355,16 @@ async function main(): Promise<void> {
       });
   }, 3_600_000);
   planSweep.unref();
+  // Every six hours: a few things whose price is only an estimate, or a month old, are looked
+  // up again in the open price database or, failing that, by one web search (ruling 72).
+  const priceSweep = setInterval(() => {
+    refreshPrices(app.ctx, app.log)
+      .then((report) => app.log.info(report, 'Price sweep'))
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, 'The price sweep failed');
+      });
+  }, 6 * 3_600_000);
+  priceSweep.unref();
 
   const shutdown = async (signal: string): Promise<void> => {
     clearInterval(sweep);

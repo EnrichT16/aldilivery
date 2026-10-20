@@ -48,6 +48,7 @@ import type {
   ProblemEvidence,
   RunnerRecovery,
   RecurringSet,
+  PriceSighting,
   ReceiptPhoto,
   ReimbursementStatus,
   ShopperFeedback,
@@ -664,6 +665,16 @@ export interface Repository {
     record(input: Omit<IncomeRecord, 'id'>): Promise<void>;
     /** Oldest first. */
     list(where: { since: Date; until?: Date }): Promise<IncomeRecord[]>;
+  };
+
+  /** Prices seen for things (ruling 72): receipts, the open price database, web lookups. */
+  prices: {
+    record(input: Omit<PriceSighting, 'id'>): Promise<PriceSighting>;
+    /** Newest first. */
+    listForItem(catalogueItemId: string, limit: number): Promise<PriceSighting[]>;
+    /** Newest first, for the admin panel. */
+    latest(limit: number): Promise<PriceSighting[]>;
+    countSince(source: PriceSighting['source'], since: Date): Promise<number>;
   };
 
   /** Photos of till receipts, one per order. */
