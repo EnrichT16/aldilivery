@@ -22,8 +22,14 @@ import {
  * - When something went wrong, one short note saying what to tap, closed with one tap.
  *
  * Typing always works alongside: none of this stands between anybody and the page.
+ *
+ * `talkInBar`: the signed-in Shopper's bottom bar has its own "Talk to Ozi" button, which does
+ * the same first tap (20 October 2026), so the big button is not repeated at the top of every
+ * page. The in-app browser banner and the notes still show.
  */
-export function MicrophoneHelp(): JSX.Element | null {
+export function MicrophoneHelp({
+  talkInBar = false,
+}: { talkInBar?: boolean } = {}): JSX.Element | null {
   const ozi = useOzi();
   const assistant = storeConfig.assistantName;
   const [bannerClosed, setBannerClosed] = useState(false);
@@ -32,7 +38,7 @@ export function MicrophoneHelp(): JSX.Element | null {
   const inApp = ozi.browser.inApp !== null && !bannerClosed;
   // While the page waits for its first touch to let Ozi speak, that touch comes first: Ozi
   // speaks, then asks for the tap that lets it listen.
-  const needsTap = ozi.presence === 'needs-tap' && !ozi.waitingForTouch;
+  const needsTap = !talkInBar && ozi.presence === 'needs-tap' && !ozi.waitingForTouch;
   const note = ozi.micNote;
   if (!inApp && !needsTap && !note) return null;
 

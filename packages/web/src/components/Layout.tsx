@@ -132,7 +132,7 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
           )}
           {/* Ozi's "Tap to talk" and microphone notes, in the flow of the page, so they push
               it down and never cover a form field (ruling 62). */}
-          <MicrophoneHelp />
+          <MicrophoneHelp talkInBar={shopperBars} />
           {children}
         </div>
       </main>
