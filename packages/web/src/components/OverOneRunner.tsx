@@ -21,7 +21,11 @@ export function OverOneRunner({ parts }: { parts: readonly BasketPartPricing[] }
           <li key={part.part} className="m-0">
             Runner {part.part}: {money(part.goodsPence)} of shopping at the shop&rsquo;s prices and{' '}
             {money(part.itemChargesPence)} of item charges, delivery {money(part.feePence)}
-            {part.extra ? ', taken only when this Runner collects it' : ''}.
+            {part.extra ? ', taken only when this Runner collects it' : ''}
+            {part.allowanceExtraPence > 0
+              ? `, and an extra delivery charge of ${money(part.allowanceExtraPence)}`
+              : ''}
+            .
           </li>
         ))}
       </ul>

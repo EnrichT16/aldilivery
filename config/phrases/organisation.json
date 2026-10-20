@@ -191,6 +191,19 @@
       ]
     },
     {
+      "id": "org-how-many-orders-a-month",
+      "topic": "delivery",
+      "when": [
+        "how many orders can each person make",
+        "how many orders a month",
+        "is there an order allowance",
+        "what is the extra delivery charge"
+      ],
+      "replies": [
+        "Each person you support has {memberOrders} orders a month on Membership delivery. After that, the next order has an extra {allowanceExtra} delivery charge, and so does every {allowanceEvery} order after it. They are always told before they say yes."
+      ]
+    },
+    {
       "id": "org-what-is-the-biggest-order",
       "topic": "delivery",
       "when": ["what is the biggest order", "maximum basket"],

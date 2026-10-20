@@ -76,6 +76,47 @@ describe('the telephone line', () => {
     expect(response.statusCode).toBe(403);
   });
 
+  it('tells a Member on the telephone about the extra delivery charge past the allowance, before the yes (ruling 73)', async () => {
+    const shopper = await readyShopper();
+    await harness.repository.shoppers.update(shopper.shopperId, {
+      freeMonthUntil: null,
+      plan: 'membership',
+      planUntil: new Date('2026-11-07T10:00:00.000Z'),
+    });
+    for (let index = 0; index < 5; index += 1) {
+      await harness.repository.orders.create({
+        shopperId: shopper.shopperId,
+        status: 'delivered',
+        goodsEstimatePence: 500,
+        feePence: 799,
+        totalEstimatePence: 1349,
+        deliveryAddress: '1 High Street, London',
+        items: [],
+      });
+    }
+    const call = { CallSid: 'CA73', From: '+447700900001', Direction: 'inbound' };
+    const hello = await twilio('/api/webhooks/twilio/voice', call);
+    const added = await twilio(nextStep(hello.body), {
+      ...call,
+      SpeechResult: 'Two milk and a loaf of bread please',
+    });
+    const readBack = await twilio(nextStep(added.body), {
+      ...call,
+      SpeechResult: "That's everything.",
+    });
+    // £4.89 with the item charges, £7.99 Member delivery and the £5.99 extra: £18.87.
+    expect(spoken(readBack.body)).toMatch(
+      /Delivery is £7\.99\. This is your 6th order this month\. Your plan includes 5, so this one has an extra £5\.99 delivery charge\. So the total is about £18\.87/,
+    );
+    const sent = await twilio(nextStep(readBack.body), { ...call, SpeechResult: 'Yes please' });
+    expect(spoken(sent.body)).toMatch(/Thank you\. Your order is on its way to a Runner/);
+    const orders = await harness.repository.orders.listForShopper(shopper.shopperId);
+    expect(orders.find((order) => order.status === 'paid')).toMatchObject({
+      allowanceExtraPence: 599,
+      totalEstimatePence: 1887,
+    });
+  });
+
   it('takes an order from a known caller, reads it back, and sends it after a yes', async () => {
     const shopper = await readyShopper();
     const call = { CallSid: 'CA2', From: '+447700900001', Direction: 'inbound' };
@@ -99,9 +140,9 @@ describe('the telephone line', () => {
     });
     expect(spoken(readBack.body)).toMatch(/Here is your order\. 2 Semi skimmed milk/);
     // Prices are read with their item charges in (ruling 58): £3.39 at the shop and £1.50 of
-    // item charges is £4.89; a shop of £15 or less on pay as you go has the £7.99 delivery.
+    // item charges is £4.89; a shop of £30 or less on pay as you go has the £10.99 delivery (ruling 73).
     expect(spoken(readBack.body)).toMatch(
-      /The shopping comes to about £4\.89, with the item charges included\. Delivery is £7\.99\. So the total is about £12\.88/,
+      /The shopping comes to about £4\.89, with the item charges included\. Delivery is £10\.99\. So the total is about £15\.88/,
     );
     expect(spoken(readBack.body)).toMatch(/card ending 4 2 4 2/);
     expect(spoken(readBack.body)).toMatch(

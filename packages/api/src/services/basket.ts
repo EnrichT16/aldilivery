@@ -70,6 +70,7 @@ export function priceLines(
   catalogueItems: readonly CatalogueItem[],
   options: PriceBasketOptions,
   plan: DeliveryPlan = 'payg',
+  allowanceExtraPence = 0,
 ): PricedBasket {
   const pricedLines = checkedLines(lines, catalogueItems, options);
   const goodsPence = pricedLines.reduce((sum, line) => sum + line.linePence, 0);
@@ -82,6 +83,7 @@ export function priceLines(
     pricedLines.map((line) => ({ shopPricePence: line.unitPricePence, quantity: line.quantity })),
     plan,
     options,
+    allowanceExtraPence,
   );
   return { ...pricing, lines: pricedLines };
 }
@@ -104,13 +106,15 @@ export interface PricedBasketInParts extends BasketPricing {
 /**
  * Price a basket that may be over one order (ruling 61): the same checks as `priceLines`, then
  * linked orders of up to £150 of shopping each, the first at the Shopper's plan price and each
- * after it at `extraRunnerDeliveryPence`. Refuses a basket over `maximumBasketGoodsPence`.
+ * after it at `extraRunnerDeliveryPence`. Refuses a basket over `maximumBasketGoodsPence`. Any
+ * extra delivery charge for the monthly allowance (ruling 73) is on the first order only.
  */
 export function priceLinesInParts(
   lines: readonly BasketLine[],
   catalogueItems: readonly CatalogueItem[],
   options: BasketPartFees,
   plan: DeliveryPlan = 'payg',
+  allowanceExtraPence = 0,
 ): PricedBasketInParts {
   const pricedLines = checkedLines(lines, catalogueItems, options);
   const goodsPence = pricedLines.reduce((sum, line) => sum + line.linePence, 0);
@@ -125,6 +129,7 @@ export function priceLinesInParts(
     })),
     plan,
     options,
+    allowanceExtraPence,
   );
   const byId = new Map(pricedLines.map((line) => [line.catalogueItemId, line]));
   const parts = inParts.parts.map((part) => ({
@@ -133,6 +138,7 @@ export function priceLinesInParts(
     goodsPence: part.goodsPence,
     itemChargesPence: part.itemChargesPence,
     feePence: part.feePence,
+    allowanceExtraPence: part.allowanceExtraPence,
     totalPence: part.totalPence,
     plan: part.plan,
     lines: part.lines.map((line) => {
@@ -149,6 +155,7 @@ export function priceLinesInParts(
     goodsPence: inParts.goodsPence,
     itemChargesPence: inParts.itemChargesPence,
     feePence: inParts.feePence,
+    allowanceExtraPence: inParts.allowanceExtraPence,
     totalPence: inParts.totalPence,
     plan: inParts.plan,
     extraDeliveryPence: inParts.extraDeliveryPence,

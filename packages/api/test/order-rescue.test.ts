@@ -228,14 +228,14 @@ describe('cancelling an order', () => {
       care,
     );
     expect(cancelled.statusCode, cancelled.body).toBe(200);
-    expect(cancelled.json().refundedPence).toBe(350 + 799);
-    expect(cancelled.json().message).toMatch(/£11\.49 is going back to the card/);
+    expect(cancelled.json().refundedPence).toBe(350 + 1099);
+    expect(cancelled.json().message).toMatch(/£14\.49 is going back to the card/);
 
     const refunds = harness.payments.calls.filter((call) => call.kind === 'refund');
     expect(refunds).toHaveLength(before + 1);
     expect(refunds.at(-1)!.input).toMatchObject({
       paymentIntentId: expect.stringMatching(/^pi_/),
-      amountPence: 1149,
+      amountPence: 1449,
       reference: `cancel:${orderId}`,
     });
 
@@ -257,7 +257,7 @@ describe('cancelling an order', () => {
     );
     const refundsReport = (await get('/staff/reports/refunds')).json();
     expect(refundsReport.refunds[0]).toMatchObject({
-      amountPence: 1149,
+      amountPence: 1449,
       group: 'cancelled orders',
     });
     // And the audit log says who did it, as their own account, whatever name was sent.
@@ -285,12 +285,12 @@ describe('cancelling an order', () => {
     expect(received.statusCode, received.body).toBe(200);
     const second = await post(`/staff/orders/${paid}/cancel`, { reason: 'Shop shut.', by: 'Kemi' });
     expect(second.statusCode, second.body).toBe(200);
-    expect(second.json().bankRefundPence).toBe(1149);
+    expect(second.json().bankRefundPence).toBe(1449);
     expect(harness.payments.calls.filter((call) => call.kind === 'refund')).toHaveLength(0);
     // It waits on the till cases, to send back by hand, and no card is ever touched.
     const cases = (await get('/staff/till-cases')).json();
     expect(cases.waiting).toEqual([
-      expect.objectContaining({ orderId: paid, differencePence: -1149, paidBy: 'bank' }),
+      expect.objectContaining({ orderId: paid, differencePence: -1449, paidBy: 'bank' }),
     ]);
     const settled = await post(`/staff/till-cases/${paid}/settle`, {
       outcome: 'refunded_by_hand',
@@ -350,16 +350,16 @@ describe('a goodwill refund', () => {
       reference: `goodwill:${orderId}`,
     });
     expect((await harness.repository.orders.findById(orderId))!.goodwillRefundedPence).toBe(300);
-    // The order cost £11.49; £3.00 has gone; £8.49 is left, and no more.
+    // The order cost £14.49; £3.00 has gone; £11.49 is left, and no more.
     const detail = (await get(`/staff/orders/${orderId}`)).json();
-    expect(detail.order.refundablePence).toBe(849);
+    expect(detail.order.refundablePence).toBe(1149);
     const tooMuch = await post(`/staff/orders/${orderId}/goodwill`, {
-      amountPence: 850,
+      amountPence: 1150,
       reason: 'x',
       by: 'Kemi',
     });
     expect(tooMuch.statusCode).toBe(400);
-    expect(tooMuch.json().error.message).toMatch(/Up to £8\.49 can still go back/);
+    expect(tooMuch.json().error.message).toMatch(/Up to £11\.49 can still go back/);
     expect((await auditActions()).filter((action) => action.endsWith('/goodwill'))).toHaveLength(1);
     expect(detail.timeline.map((event: { what: string }) => event.what)).toContain(
       'Founder (staff key): Gave a goodwill refund.',

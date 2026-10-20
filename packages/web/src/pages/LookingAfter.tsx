@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import { storeConfig } from '../config';
-import { money, planDeliveryWords } from '../lib/money';
+import { money, planAllowanceWords, planDeliveryWords } from '../lib/money';
 
 /**
  * For family and carers: someone who wants to help a Shopper with their shopping. Ozi Family and
@@ -36,9 +36,10 @@ export function LookingAfter(): JSX.Element {
         <p className="m-0">
           {money(storeConfig.extras.familyPence)} a month for up to{' '}
           {storeConfig.extras.familyMaximum} people in different homes, with delivery at{' '}
-          {planDeliveryWords('plus')}. You see every order and are told when it is ordered, on its
-          way and delivered; you can approve orders above a limit you choose; one card pays for
-          everyone; and you get a weekly summary. You can cancel at any time with one button.
+          {planDeliveryWords('plus')}, and {planAllowanceWords('family')}. You see every order and
+          are told when it is ordered, on its way and delivered; you can approve orders above a
+          limit you choose; one card pays for everyone; and you get a weekly summary. You can cancel
+          at any time with one button.
         </p>
         <Link to="/plus" className="control border-paper bg-paper/10 text-paper">
           See the plans

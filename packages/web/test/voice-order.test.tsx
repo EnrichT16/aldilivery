@@ -325,15 +325,15 @@ describe('ordering by voice alone', () => {
     );
 
     // 6 x 20p + 2 x £1.25 = £3.70 of shopping, with eight item charges of 50p is £7.70; pay as
-    // you go, £15 or less, so £7.99 delivery: £15.69 (ruling 58).
+    // you go, £30 or less, so £10.99 delivery: £18.69 (ruling 73).
     const readBack = await say(engine, 'two');
     expect(readBack).toBe(
-      `Here is your order: 6 Bananas, loose, and 2 Semi skimmed milk, 2 pints. Your shopping comes to about £7.70, with the item charges included, and delivery is £7.99, so about £15.69 altogether. It will be delivered to your home address: ${FAKE_SHOPPER.deliveryAddress}. Is that right?`,
+      `Here is your order: 6 Bananas, loose, and 2 Semi skimmed milk, 2 pints. Your shopping comes to about £7.70, with the item charges included, and delivery is £10.99, so about £18.69 altogether. It will be delivered to your home address: ${FAKE_SHOPPER.deliveryAddress}. Is that right?`,
     );
     expect(sent.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(false);
 
     expect(await say(engine, 'yes')).toBe(
-      'Shall I send your order and pay now, charging about £15.69 to your card ending 4242? You pay what the till says. Say yes to send it and pay, or no to stop.',
+      'Shall I send your order and pay now, charging about £18.69 to your card ending 4242? You pay what the till says. Say yes to send it and pay, or no to stop.',
     );
     expect(sent.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(false);
 
@@ -350,9 +350,9 @@ describe('ordering by voice alone', () => {
         confirmed: true,
         channel: 'voice',
         addressConfirmed: true,
-        agreedTotalPence: 1569,
+        agreedTotalPence: 1869,
         statement:
-          'Shall I send your order and pay now, charging about £15.69 to your card ending 4242? You pay what the till says.',
+          'Shall I send your order and pay now, charging about £18.69 to your card ending 4242? You pay what the till says.',
       },
     });
     expect(await screen.findByRole('heading', { name: 'Your order' })).toBeInTheDocument();

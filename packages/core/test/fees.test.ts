@@ -1,7 +1,8 @@
 /**
  * The proving tests for the fee engine, against the pricing ruled on 9 October 2026
- * (docs/BUILD_PROMPT.md, ruling 58): an item charge on every unit, delivery by plan and shop
- * size, no product over £60, a whole-order goods cap, and the Runner's five pounds untouched.
+ * (docs/BUILD_PROMPT.md, ruling 58) and re-priced on 20 October 2026 (ruling 73): an item
+ * charge on every unit, delivery by plan and shop size, a monthly order allowance on every
+ * plan, no product over £60, a whole-order goods cap, and the Runner's five pounds untouched.
  *
  * The figures are read from the real `config/store.json`, and also pinned here, so an edit to
  * the live configuration that changes a ruled price fails this suite and has to be made on
@@ -11,6 +12,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  allowanceExtraPence,
+  allowancePlanWords,
+  allowanceWords,
   bandPrice,
   BasketOverMaximumError,
   DELIVERY_PLANS,
@@ -22,7 +26,9 @@ import {
   displayPricePence,
   itemChargePence,
   itemChargesForLines,
+  orderAllowanceFor,
   orderEconomics,
+  ordinalWord,
   organisationMonthlyPence,
   overOneRunnerWords,
   priceBasket,
@@ -31,6 +37,7 @@ import {
   processorCostPence,
   ProductOverMaximumError,
   RUNNER_PAYMENT_PENCE,
+  type AllowancePlan,
   type DeliveryPlan,
 } from '../src/index.js';
 import { loadStoreConfig } from '../src/node.js';
@@ -48,14 +55,26 @@ const JOHN = [140, 125, 95, 249, 279, 499, 650, 700, 1249, 1850];
 const MARY = [125, 95, 249];
 
 describe('the ruled figures', () => {
-  it('prices delivery in three bands by goods value and plan (ruling 63, 16 October 2026)', () => {
+  it('prices delivery in three bands by goods value and plan (ruling 73, 20 October 2026)', () => {
     expect(fees.delivery).toEqual({
       bands: [
-        { upToPence: 3000, payAsYouGoPence: 799, membershipPence: 599, plusPence: 399 },
-        { upToPence: 6000, payAsYouGoPence: 999, membershipPence: 599, plusPence: 399 },
-        { upToPence: null, payAsYouGoPence: 1350, membershipPence: 999, plusPence: 799 },
+        { upToPence: 3000, payAsYouGoPence: 1099, membershipPence: 799, plusPence: 699 },
+        { upToPence: 6000, payAsYouGoPence: 1299, membershipPence: 799, plusPence: 699 },
+        { upToPence: null, payAsYouGoPence: 1499, membershipPence: 999, plusPence: 899 },
       ],
+      allowance: {
+        membershipOrders: 5,
+        plusOrders: 8,
+        familyOrdersEach: 5,
+        extraChargePence: 599,
+        extraEvery: 3,
+      },
     });
+  });
+
+  it('gives one free Ozi Finds It a month on Membership and two on Plus and Family', () => {
+    expect(config.extras.freeFindItsPerMonth).toBe(1);
+    expect(config.extras.plusFreeFindItsPerMonth).toBe(2);
   });
 
   it('charges 50p on every unit, and 50p more for every whole £6', () => {
@@ -126,24 +145,24 @@ describe('deliveryFeePence', () => {
     }
   }
 
-  it('is £7.99 pay as you go up to £30.00, £9.99 from £30.01 to £60.00 and £13.50 from £60.01', () => {
-    expectEveryPenny('payg', (goods) => (goods <= 3000 ? 799 : goods <= 6000 ? 999 : 1350));
-    expect(deliveryFeePence(3000, 'payg', fees)).toBe(799);
-    expect(deliveryFeePence(3001, 'payg', fees)).toBe(999);
-    expect(deliveryFeePence(6000, 'payg', fees)).toBe(999);
-    expect(deliveryFeePence(6001, 'payg', fees)).toBe(1350);
+  it('is £10.99 pay as you go up to £30.00, £12.99 from £30.01 to £60.00 and £14.99 from £60.01', () => {
+    expectEveryPenny('payg', (goods) => (goods <= 3000 ? 1099 : goods <= 6000 ? 1299 : 1499));
+    expect(deliveryFeePence(3000, 'payg', fees)).toBe(1099);
+    expect(deliveryFeePence(3001, 'payg', fees)).toBe(1299);
+    expect(deliveryFeePence(6000, 'payg', fees)).toBe(1299);
+    expect(deliveryFeePence(6001, 'payg', fees)).toBe(1499);
   });
 
-  it('is £5.99 for members up to £60.00 and £9.99 from £60.01', () => {
-    expectEveryPenny('membership', (goods) => (goods <= 6000 ? 599 : 999));
-    expect(deliveryFeePence(6000, 'membership', fees)).toBe(599);
+  it('is £7.99 for members up to £60.00 and £9.99 from £60.01', () => {
+    expectEveryPenny('membership', (goods) => (goods <= 6000 ? 799 : 999));
+    expect(deliveryFeePence(6000, 'membership', fees)).toBe(799);
     expect(deliveryFeePence(6001, 'membership', fees)).toBe(999);
   });
 
-  it('is £3.99 on Plus and Family and Carer up to £60.00 and £7.99 from £60.01', () => {
-    expectEveryPenny('plus', (goods) => (goods <= 6000 ? 399 : 799));
-    expect(deliveryFeePence(6000, 'plus', fees)).toBe(399);
-    expect(deliveryFeePence(6001, 'plus', fees)).toBe(799);
+  it('is £6.99 on Plus and Family and Carer up to £60.00 and £8.99 from £60.01', () => {
+    expectEveryPenny('plus', (goods) => (goods <= 6000 ? 699 : 899));
+    expect(deliveryFeePence(6000, 'plus', fees)).toBe(699);
+    expect(deliveryFeePence(6001, 'plus', fees)).toBe(899);
   });
 
   it('is never dearer for a smaller shop, on any plan (Rule Four)', () => {
@@ -169,9 +188,9 @@ describe('deliveryFeePence', () => {
     expect(deliveryBandFor(3001, fees).upToPence).toBe(6000);
     expect(deliveryBandFor(6001, fees).upToPence).toBeNull();
     const top = deliveryBandFor(15000, fees);
-    expect(bandPrice(top, 'payg')).toBe(1350);
+    expect(bandPrice(top, 'payg')).toBe(1499);
     expect(bandPrice(top, 'membership')).toBe(999);
-    expect(bandPrice(top, 'plus')).toBe(799);
+    expect(bandPrice(top, 'plus')).toBe(899);
     expect(() =>
       deliveryBandFor(1, {
         delivery: {
@@ -183,17 +202,17 @@ describe('deliveryFeePence', () => {
 
   it('joins neighbouring bands with the same price into steps, for the screens and Ozi', () => {
     expect(deliverySteps('payg', fees)).toEqual([
-      { upToPence: 3000, pence: 799 },
-      { upToPence: 6000, pence: 999 },
-      { upToPence: null, pence: 1350 },
+      { upToPence: 3000, pence: 1099 },
+      { upToPence: 6000, pence: 1299 },
+      { upToPence: null, pence: 1499 },
     ]);
     expect(deliverySteps('membership', fees)).toEqual([
-      { upToPence: 6000, pence: 599 },
+      { upToPence: 6000, pence: 799 },
       { upToPence: null, pence: 999 },
     ]);
     expect(deliverySteps('plus', fees)).toEqual([
-      { upToPence: 6000, pence: 399 },
-      { upToPence: null, pence: 799 },
+      { upToPence: 6000, pence: 699 },
+      { upToPence: null, pence: 899 },
     ]);
   });
 
@@ -201,10 +220,10 @@ describe('deliveryFeePence', () => {
     const say = (plan: DeliveryPlan) =>
       deliveryStepsWords(plan, fees, (pence) => formatPence(pence));
     expect(say('payg')).toBe(
-      '£7.99 for shopping up to £30.00, £9.99 up to £60.00, and £13.50 over £60.00',
+      '£10.99 for shopping up to £30.00, £12.99 up to £60.00, and £14.99 over £60.00',
     );
-    expect(say('membership')).toBe('£5.99 for shopping up to £60.00, and £9.99 over £60.00');
-    expect(say('plus')).toBe('£3.99 for shopping up to £60.00, and £7.99 over £60.00');
+    expect(say('membership')).toBe('£7.99 for shopping up to £60.00, and £9.99 over £60.00');
+    expect(say('plus')).toBe('£6.99 for shopping up to £60.00, and £8.99 over £60.00');
     const flat = {
       delivery: {
         bands: [{ upToPence: null, payAsYouGoPence: 1350, membershipPence: 799, plusPence: 599 }],
@@ -215,8 +234,8 @@ describe('deliveryFeePence', () => {
     );
   });
 
-  it('knows the cheapest and dearest delivery on any plan: £3.99 to £13.50', () => {
-    expect(deliveryPriceRange(fees)).toEqual({ lowestPence: 399, highestPence: 1350 });
+  it('knows the cheapest and dearest delivery on any plan: £6.99 to £14.99', () => {
+    expect(deliveryPriceRange(fees)).toEqual({ lowestPence: 699, highestPence: 1499 });
   });
 
   it('has no input that could carry surge pricing (Rule Four): goods, plan and fees only', () => {
@@ -224,7 +243,7 @@ describe('deliveryFeePence', () => {
   });
 
   it('accepts the whole-order cap exactly, and offers two deliveries one penny over', () => {
-    expect(deliveryFeePence(15000, 'payg', fees)).toBe(1350);
+    expect(deliveryFeePence(15000, 'payg', fees)).toBe(1499);
     expect(() => deliveryFeePence(15001, 'payg', fees)).toThrow(BasketOverMaximumError);
     expect(() => deliveryFeePence(15001, 'plus', fees)).toThrow(/split into two deliveries/);
   });
@@ -236,43 +255,58 @@ describe('deliveryFeePence', () => {
 });
 
 describe('priceBasket, the worked examples', () => {
-  it('John, first month, pay as you go: £58.36 + £8.50 + £9.99 = £76.85 (over £30, up to £60)', () => {
+  it('John, first month, pay as you go: £58.36 + £8.50 + £12.99 = £79.85 (over £30, up to £60)', () => {
     expect(priceBasket(lines(JOHN), 'payg', fees)).toEqual({
       goodsPence: 5836,
       itemChargesPence: 850,
-      feePence: 999,
-      totalPence: 7685,
+      feePence: 1299,
+      allowanceExtraPence: 0,
+      totalPence: 7985,
       plan: 'payg',
     });
   });
 
-  it('John, as a Member: £58.36 + £8.50 + £5.99 = £72.85', () => {
-    expect(priceBasket(lines(JOHN), 'membership', fees).totalPence).toBe(7285);
+  it('John, as a Member: £58.36 + £8.50 + £7.99 = £74.85', () => {
+    expect(priceBasket(lines(JOHN), 'membership', fees).totalPence).toBe(7485);
   });
 
-  it('John on Plus: £58.36 + £8.50 + £3.99 = £70.85', () => {
-    expect(priceBasket(lines(JOHN), 'plus', fees).totalPence).toBe(7085);
+  it('John on Plus: £58.36 + £8.50 + £6.99 = £73.85', () => {
+    expect(priceBasket(lines(JOHN), 'plus', fees).totalPence).toBe(7385);
   });
 
-  it('a £75 shop (car-and-two-bags territory): £13.50, £9.99 and £7.99 by plan', () => {
+  it('a £75 shop (car-and-two-bags territory): £14.99, £9.99 and £8.99 by plan', () => {
     const big = lines([2500, 2500, 2500]);
-    expect(priceBasket(big, 'payg', fees).feePence).toBe(1350);
+    expect(priceBasket(big, 'payg', fees).feePence).toBe(1499);
     expect(priceBasket(big, 'membership', fees).feePence).toBe(999);
-    expect(priceBasket(big, 'plus', fees).feePence).toBe(799);
+    expect(priceBasket(big, 'plus', fees).feePence).toBe(899);
   });
 
-  it('Mary, pay as you go: £4.69 + £1.50 + £7.99 = £14.18', () => {
+  it('Mary, pay as you go: £4.69 + £1.50 + £10.99 = £17.18', () => {
     expect(priceBasket(lines(MARY), 'payg', fees)).toEqual({
       goodsPence: 469,
       itemChargesPence: 150,
-      feePence: 799,
-      totalPence: 1418,
+      feePence: 1099,
+      allowanceExtraPence: 0,
+      totalPence: 1718,
       plan: 'payg',
+    });
+  });
+
+  it('a Member’s 6th order this month, £25 of ten things under £6: £25 + £5 + £7.99 + £5.99 = £43.98', () => {
+    const tenThings = lines([250, 250, 250, 250, 250, 250, 250, 250, 250, 250]);
+    const extra = allowanceExtraPence('membership', 6, fees.delivery.allowance);
+    expect(priceBasket(tenThings, 'membership', fees, extra)).toEqual({
+      goodsPence: 2500,
+      itemChargesPence: 500,
+      feePence: 799,
+      allowanceExtraPence: 599,
+      totalPence: 4398,
+      plan: 'membership',
     });
   });
 
   it('prices a basket of one penny without any small order fee (Rule Four)', () => {
-    expect(priceBasket(lines([1]), 'payg', fees).totalPence).toBe(1 + 50 + 799);
+    expect(priceBasket(lines([1]), 'payg', fees).totalPence).toBe(1 + 50 + 1099);
   });
 
   it('refuses any one product over £60, plainly', () => {
@@ -303,18 +337,132 @@ describe('orderEconomics', () => {
   });
 
   it('reports what the business keeps on John’s pay-as-you-go order', () => {
-    // £76.85 charged: the processor takes 116p + 20p. £9.99 − £5 + £8.50 − £1.36.
+    // £79.85 charged: the processor takes 120p + 20p. £12.99 − £5 + £8.50 − £1.40.
     expect(orderEconomics(priceBasket(lines(JOHN), 'payg', fees), processor).platformNetPence).toBe(
-      999 - 500 + 850 - 136,
+      1299 - 500 + 850 - 140,
     );
   });
 
-  it('still pays the Runner five pounds on a £3.99 Plus delivery; the item charges carry it', () => {
-    // Mary's £4.69 on Plus: £1.50 of item charges and £3.99 delivery, £10.18 charged, 36p of card fee.
+  it('still pays the Runner five pounds on a £6.99 Plus delivery; the item charges help carry it', () => {
+    // Mary's £4.69 on Plus: £1.50 of item charges and £6.99 delivery, £13.18 charged, 40p of card fee.
     const e = orderEconomics(priceBasket(lines(MARY), 'plus', fees), processor);
-    expect(e.feePence).toBe(399);
+    expect(e.feePence).toBe(699);
     expect(e.runnerPaymentPence).toBe(500);
-    expect(e.platformNetPence).toBe(399 - 500 + 150 - 36);
+    expect(e.platformNetPence).toBe(699 - 500 + 150 - 40);
+  });
+
+  it('keeps the extra delivery charge for the business; the Runner still gets five pounds', () => {
+    const e = orderEconomics(priceBasket(lines(MARY), 'membership', fees, 599), processor);
+    expect(e.runnerPaymentPence).toBe(500);
+    expect(e.runnerPaymentPence + e.processorCostPence + e.platformNetPence).toBe(
+      e.feePence + e.itemChargesPence + e.allowanceExtraPence,
+    );
+  });
+});
+
+describe('the monthly order allowance (ruling 73)', () => {
+  const allowance = fees.delivery.allowance;
+
+  it('includes 5 orders on Membership, 8 on Plus, 5 each on Family, none on pay as you go', () => {
+    expect(orderAllowanceFor('membership', allowance)).toBe(5);
+    expect(orderAllowanceFor('plus', allowance)).toBe(8);
+    expect(orderAllowanceFor('family', allowance)).toBe(5);
+    expect(orderAllowanceFor('payg', allowance)).toBeNull();
+  });
+
+  it('charges £5.99 on the 6th, 9th, 12th and 15th Membership orders, and no others', () => {
+    const charged = Array.from({ length: 20 }, (_, i) => i + 1).filter(
+      (n) => allowanceExtraPence('membership', n, allowance) > 0,
+    );
+    expect(charged).toEqual([6, 9, 12, 15, 18]);
+    expect(allowanceExtraPence('membership', 6, allowance)).toBe(599);
+    expect(allowanceExtraPence('membership', 7, allowance)).toBe(0);
+  });
+
+  it('charges on the 9th, 12th and 15th Plus orders', () => {
+    const charged = Array.from({ length: 16 }, (_, i) => i + 1).filter(
+      (n) => allowanceExtraPence('plus', n, allowance) > 0,
+    );
+    expect(charged).toEqual([9, 12, 15]);
+  });
+
+  it('follows n > allowance and (n − allowance − 1) % 3 === 0 on every plan, up to 100 orders', () => {
+    for (const plan of ['membership', 'plus', 'family'] as AllowancePlan[]) {
+      const included = orderAllowanceFor(plan, allowance) as number;
+      for (let n = 1; n <= 100; n += 1) {
+        const expected = n > included && (n - included - 1) % 3 === 0 ? 599 : 0;
+        expect(allowanceExtraPence(plan, n, allowance)).toBe(expected);
+      }
+    }
+  });
+
+  it('never charges the extra on pay as you go', () => {
+    for (let n = 1; n <= 100; n += 1) expect(allowanceExtraPence('payg', n, allowance)).toBe(0);
+  });
+
+  it('refuses an order number that is not a whole number from 1', () => {
+    expect(() => allowanceExtraPence('membership', 0, allowance)).toThrow(TypeError);
+    expect(() => allowanceExtraPence('membership', 1.5, allowance)).toThrow(TypeError);
+  });
+
+  it('tells the Shopper plainly before the yes', () => {
+    const say = (plan: AllowancePlan, n: number) =>
+      allowanceWords(plan, n, allowance, (pence) => formatPence(pence));
+    expect(say('membership', 6)).toBe(
+      'This is your 6th order this month. Your plan includes 5, so this one has an extra £5.99 delivery charge.',
+    );
+    expect(say('family', 6)).toBe(
+      'This is your 6th order this month. Your plan includes 5 for each person, so this one has an extra £5.99 delivery charge.',
+    );
+    expect(say('plus', 8)).toMatch(
+      /^This is your 8th order this month, the last one your plan includes\./,
+    );
+    expect(say('membership', 7)).toBe(
+      'This is your 7th order this month. Your plan includes 5, and this one has no extra delivery charge.',
+    );
+    expect(say('membership', 3)).toBeNull();
+    expect(say('payg', 30)).toBeNull();
+  });
+
+  it('says each plan’s allowance in one plain phrase', () => {
+    const say = (plan: AllowancePlan) =>
+      allowancePlanWords(plan, allowance, (pence) => formatPence(pence));
+    expect(say('membership')).toBe(
+      '5 orders a month; after that, an extra £5.99 delivery charge on the next order and every 3rd order after it',
+    );
+    expect(say('family')).toBe(
+      '5 orders a month for each person; after that, an extra £5.99 delivery charge on the next order and every 3rd order after it',
+    );
+    expect(say('payg')).toBeNull();
+  });
+
+  it('writes ordinals as people say them', () => {
+    expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101, 111].map(ordinalWord)).toEqual([
+      '1st',
+      '2nd',
+      '3rd',
+      '4th',
+      '11th',
+      '12th',
+      '13th',
+      '21st',
+      '22nd',
+      '23rd',
+      '101st',
+      '111th',
+    ]);
+  });
+
+  it('puts the extra on the first order only of a basket kept whole', () => {
+    const basket = priceBasketInParts(
+      [{ key: 'x', unitPricePence: 200, quantity: 86 }],
+      'membership',
+      fees,
+      599,
+    );
+    expect(basket.parts.map((part) => part.allowanceExtraPence)).toEqual([599, 0]);
+    expect(basket.allowanceExtraPence).toBe(599);
+    expect(basket.totalPence).toBe(17200 + basket.itemChargesPence + basket.feePence + 599);
   });
 });
 
@@ -370,21 +518,21 @@ describe('baskets over £150 (ruling 61)', () => {
     );
   });
 
-  it('makes £172 kept two orders, £13.50 + £13.50 delivery on pay as you go', () => {
+  it('makes £172 kept two orders, £14.99 + £13.50 delivery on pay as you go', () => {
     const basket = priceBasketInParts([of(200, 86)], 'payg', fees);
     expect(basket.parts.map((part) => [part.goodsPence, part.feePence, part.extra])).toEqual([
-      [15000, 1350, false],
+      [15000, 1499, false],
       [2200, 1350, true],
     ]);
-    expect(basket.feePence).toBe(2700);
+    expect(basket.feePence).toBe(2849);
     expect(basket.extraDeliveryPence).toBe(1350);
-    expect(basket.totalPence).toBe(17200 + basket.itemChargesPence + 2700);
+    expect(basket.totalPence).toBe(17200 + basket.itemChargesPence + 2849);
   });
 
   it('charges each extra Runner £13.50 whatever the plan; the first order keeps the plan price', () => {
     // The first order is £150 of shopping, so it is in the over-£60 band of its plan.
     const plus = priceBasketInParts([of(200, 86)], 'plus', fees);
-    expect(plus.parts.map((part) => part.feePence)).toEqual([799, 1350]);
+    expect(plus.parts.map((part) => part.feePence)).toEqual([899, 1350]);
     const member = priceBasketInParts([of(200, 86)], 'membership', fees);
     expect(member.parts.map((part) => part.feePence)).toEqual([999, 1350]);
   });

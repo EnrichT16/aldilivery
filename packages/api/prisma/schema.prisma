@@ -437,6 +437,9 @@ model Order {
   goodsEstimatePence Int
   itemChargesPence   Int     @default(0)
   feePence           Int
+  /// The extra delivery charge for an order past the plan's monthly allowance (ruling 73), or
+  /// 0. In the total; not shop goods; kept by the business, never the Runner's.
+  allowanceExtraPence Int    @default(0)
   totalEstimatePence Int
   /// Which delivery price applied: "payg", "membership" or "plus".
   deliveryPlan       String  @default("payg")

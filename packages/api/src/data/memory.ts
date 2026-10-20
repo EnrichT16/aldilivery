@@ -908,6 +908,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           goodsEstimatePence: input.goodsEstimatePence,
           itemChargesPence: input.itemChargesPence ?? 0,
           feePence: input.feePence,
+          allowanceExtraPence: input.allowanceExtraPence ?? 0,
           totalEstimatePence: input.totalEstimatePence,
           deliveryPlan: input.deliveryPlan ?? 'payg',
           payerShopperId: input.payerShopperId ?? null,

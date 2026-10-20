@@ -31,8 +31,12 @@ export function FindIt(): JSX.Element {
   const [busy, setBusy] = useState(false);
   const { findItPence, findItShops } = storeConfig.extras;
   const name = `${storeConfig.assistantName} Finds It`;
-  // One free a month on any plan and in the free month (ruling 58); the server decides for sure.
+  // One free a month on Membership and in the free month, two on Plus and Family and Carer
+  // (rulings 58 and 73); the server decides for sure.
   const covered = Boolean(shopper?.membershipExtras);
+  const freeEachMonth = shopper?.plusExtras
+    ? storeConfig.extras.plusFreeFindItsPerMonth
+    : storeConfig.extras.freeFindItsPerMonth;
 
   useEffect(() => {
     if (!shopperId) return;
@@ -92,7 +96,7 @@ export function FindIt(): JSX.Element {
       </p>
       <p className="m-0">
         {covered
-          ? `One a month is free with your ${storeConfig.assistantName} membership.`
+          ? `${freeEachMonth === 1 ? 'One' : freeEachMonth === 2 ? 'Two' : freeEachMonth} a month ${freeEachMonth === 1 ? 'is' : 'are'} free with your ${storeConfig.assistantName} plan.`
           : `It costs ${money(findItPence)}, and you get it back if it can't be found.`}{' '}
         We never look for alcohol, tobacco, medicines or cash.
       </p>

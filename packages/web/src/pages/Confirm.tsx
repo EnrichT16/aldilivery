@@ -42,10 +42,10 @@ import { useSession } from '../state/session';
  * again, not a reason to charge a different amount.
  */
 export function Confirm(): JSX.Element {
-  const { lines, pricing, overMaximum, overOneRunner, parts, clear } = useBasket();
+  const { lines, pricing, overMaximum, overOneRunner, parts, clear, allowanceWords } = useBasket();
   /** Ruling 61: over £150, the Shopper chooses to keep everything. Never ticked for them. */
   const [keepEverything, setKeepEverything] = useState(false);
-  const { shopper, restoring, replaceShopper } = useSession();
+  const { shopper, restoring, replaceShopper, refresh } = useSession();
 
   const [cards, setCards] = useState<PaymentMethod[] | null>(null);
   const [placed, setPlaced] = useState<{ order: PlacedOrder; message: string } | null>(null);
@@ -144,9 +144,15 @@ export function Confirm(): JSX.Element {
   // Ozi Family and Carer: a member's order is paid with the payer's card (ruling 58).
   const byFamily = Boolean(shopper?.familyOwnerId) && shopper?.activePlan === 'family';
   const extraDeliveryPence = parts.reduce((sum, part) => sum + (part.extra ? part.feePence : 0), 0);
+  // Past the plan's monthly allowance (ruling 73): the extra delivery charge is in the words
+  // agreed to, as its own figure.
+  const allowanceExtra =
+    pricing.allowanceExtraPence > 0
+      ? `, and an extra delivery charge of ${money(pricing.allowanceExtraPence)}`
+      : '';
   const statement = overOneRunner
-    ? `Send my order and pay. About ${money(pricing.totalPence)} altogether, as ${parts.length} orders each with its own Runner: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}, of which ${money(extraDeliveryPence)} for further Runners is ${bankOn && payBy === 'bank' && !(Boolean(shopper?.familyOwnerId) && shopper?.activePlan === 'family') ? 'given back as credit if they are not needed' : 'taken only when each collects'}.`
-    : `Send my order and pay. About ${money(pricing.totalPence)} altogether: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}.`;
+    ? `Send my order and pay. About ${money(pricing.totalPence)} altogether, as ${parts.length} orders each with its own Runner: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}, of which ${money(extraDeliveryPence)} for further Runners is ${bankOn && payBy === 'bank' && !(Boolean(shopper?.familyOwnerId) && shopper?.activePlan === 'family') ? 'given back as credit if they are not needed' : 'taken only when each collects'}${allowanceExtra}.`
+    : `Send my order and pay. About ${money(pricing.totalPence)} altogether: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}${allowanceExtra}.`;
 
   /**
    * The button is never greyed out (review of 16 October 2026): a disabled button says nothing
@@ -194,6 +200,8 @@ export function Confirm(): JSX.Element {
         ...(overOneRunner ? { keepEverything: true } : {}),
         confirmation: { statement, agreedTotalPence: pricing.totalPence, addressConfirmed: true },
       });
+      // The monthly order count (ruling 73) is the server's: asked again after every order.
+      void refresh();
       if (result.bank) {
         clear();
         setPlaced({ order: result.order, message: result.message });
@@ -359,6 +367,10 @@ export function Confirm(): JSX.Element {
           {money(pricing.itemChargesPence)} of item charges.
         </p>
         <p className="m-0">Delivery, {money(pricing.feePence)}.</p>
+        {pricing.allowanceExtraPence > 0 && (
+          <p className="m-0">Extra delivery charge, {money(pricing.allowanceExtraPence)}.</p>
+        )}
+        {allowanceWords && <p className="m-0 font-bold">{allowanceWords}</p>}
         <p className="m-0 text-lead font-bold">Altogether, about {money(pricing.totalPence)}.</p>
         <p className="m-0">
           {deliveryWords(pricing.plan)} You pay what the till says for the shopping, so this may

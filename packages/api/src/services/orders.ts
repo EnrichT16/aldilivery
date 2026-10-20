@@ -69,15 +69,21 @@ export interface Repricing {
 /**
  * Reprice an order to the receipt the Runner actually got at the till.
  *
- * The Shopper is charged the shelf price, so the estimate never binds them. Delivery and the
- * item charges stay what the Shopper agreed to when they said yes (ruling 58): the till only
- * ever changes the shopping, which goes to the shop. The maximum basket is not applied here: it
- * was checked when the order was placed, and a shelf price a few pence above the estimate must
- * never stop an order that is already in the Runner's hands.
+ * The Shopper is charged the shelf price, so the estimate never binds them. Delivery, any extra
+ * delivery charge for the monthly allowance (ruling 73) and the item charges stay what the
+ * Shopper agreed to when they said yes (ruling 58): the till only ever changes the shopping,
+ * which goes to the shop. The maximum basket is not applied here: it was checked when the order
+ * was placed, and a shelf price a few pence above the estimate must never stop an order that is
+ * already in the Runner's hands.
  */
 export function repriceToReceipt(
   receiptTotalPence: number,
-  order: { goodsEstimatePence: number; itemChargesPence: number; feePence: number },
+  order: {
+    goodsEstimatePence: number;
+    itemChargesPence: number;
+    feePence: number;
+    allowanceExtraPence?: number;
+  },
 ): Repricing {
   if (!Number.isInteger(receiptTotalPence) || receiptTotalPence < 0) {
     throw new BadRequestError('A receipt total must be a whole number of pence.');
@@ -87,7 +93,11 @@ export function repriceToReceipt(
   return {
     receiptTotalPence,
     receiptFeePence,
-    finalTotalPence: receiptTotalPence + order.itemChargesPence + receiptFeePence,
+    finalTotalPence:
+      receiptTotalPence +
+      order.itemChargesPence +
+      receiptFeePence +
+      (order.allowanceExtraPence ?? 0),
     differenceFromEstimatePence: order.goodsEstimatePence - receiptTotalPence,
   };
 }

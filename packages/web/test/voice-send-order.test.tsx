@@ -136,19 +136,19 @@ describe('"send my order" by voice', () => {
     renderApp();
     await fillBasket(engine);
 
-    // 3 x 20p of shopping with three 50p item charges is £2.10; £7.99 delivery: £10.09.
+    // 3 x 20p of shopping with three 50p item charges is £2.10; £10.99 delivery: £13.09.
     expect(await say(engine, 'send my order')).toBe(
-      `Here is your order: 3 Bananas, loose. Your shopping comes to about £2.10, with the item charges included, and delivery is £7.99, so about £10.09 altogether. It will be delivered to your home address: ${FAKE_SHOPPER.deliveryAddress}. Is that right?`,
+      `Here is your order: 3 Bananas, loose. Your shopping comes to about £2.10, with the item charges included, and delivery is £10.99, so about £13.09 altogether. It will be delivered to your home address: ${FAKE_SHOPPER.deliveryAddress}. Is that right?`,
     );
     expect(await say(engine, 'yes')).toMatch(
-      /^Shall I send your order and pay now, charging about £10\.09/,
+      /^Shall I send your order and pay now, charging about £13\.09/,
     );
     expect(sent.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(false);
     expect(await say(engine, 'yes')).toMatch(/^Thank you\. Your order is on its way/);
     expect(sent.find((r) => r.method === 'POST' && r.path === '/orders')?.body).toMatchObject({
       lines: [{ catalogueItemId: 'item-bananas', quantity: 3 }],
       deliveryAddress: FAKE_SHOPPER.deliveryAddress,
-      confirmation: { channel: 'voice', addressConfirmed: true, agreedTotalPence: 1009 },
+      confirmation: { channel: 'voice', addressConfirmed: true, agreedTotalPence: 1309 },
     });
     expect(await screen.findByRole('heading', { name: 'Your order' })).toBeInTheDocument();
   });

@@ -45,10 +45,17 @@
     "runnerPaymentPence": 500,
     "delivery": {
       "bands": [
-        { "upToPence": 3000, "payAsYouGoPence": 799, "membershipPence": 599, "plusPence": 399 },
-        { "upToPence": 6000, "payAsYouGoPence": 999, "membershipPence": 599, "plusPence": 399 },
-        { "upToPence": null, "payAsYouGoPence": 1350, "membershipPence": 999, "plusPence": 799 }
-      ]
+        { "upToPence": 3000, "payAsYouGoPence": 1099, "membershipPence": 799, "plusPence": 699 },
+        { "upToPence": 6000, "payAsYouGoPence": 1299, "membershipPence": 799, "plusPence": 699 },
+        { "upToPence": null, "payAsYouGoPence": 1499, "membershipPence": 999, "plusPence": 899 }
+      ],
+      "allowance": {
+        "membershipOrders": 5,
+        "plusOrders": 8,
+        "familyOrdersEach": 5,
+        "extraChargePence": 599,
+        "extraEvery": 3
+      }
     },
     "itemCharge": {
       "basePence": 50,
@@ -126,6 +133,7 @@
     "freeFirstMonth": true,
     "freeMonthReminderDaysBefore": 3,
     "freeFindItsPerMonth": 1,
+    "plusFreeFindItsPerMonth": 2,
     "checkInAfterDays": 14,
     "organisations": {
       "clientMonthlyPence": 1000,

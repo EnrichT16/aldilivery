@@ -137,7 +137,16 @@ describe('answering an everyday phrase', () => {
       'My pleasure. Is there anything else you need?',
     );
     expect(phraseReply('How much is delivery?', 0, 'exact', 'shopper', config, book)).toMatch(
-      /^If you pay as you go, delivery is £7\.99 for shopping up to £30\.00, £9\.99 up to £60\.00, and £13\.50 over £60\.00\. Members pay £5\.99 for shopping up to £60\.00, and £9\.99 over £60\.00; Plus and Family £3\.99 for shopping up to £60\.00, and £7\.99 over £60\.00\./,
+      /^If you pay as you go, delivery is £10\.99 for shopping up to £30\.00, £12\.99 up to £60\.00, and £14\.99 over £60\.00\. Members pay £7\.99 for shopping up to £60\.00, and £9\.99 over £60\.00; Plus and Family £6\.99 for shopping up to £60\.00, and £8\.99 over £60\.00\./,
+    );
+  });
+
+  it('says the monthly order allowance from the settings, never written in (ruling 73)', () => {
+    expect(phraseReply('How many orders can I make?', 0, 'exact', 'shopper', config, book)).toBe(
+      'Membership includes 5 orders a month, Plus 8, and Family and Carer 5 each. After that, the next order has an extra £5.99 delivery charge, as does every 3rd one after it. I tell you before you say yes.',
+    );
+    expect(phraseReply('Does Plus include Finds It?', 0, 'exact', 'shopper', config, book)).toBe(
+      'Yes, two free Finds It searches a month on Plus and Family and Carer.',
     );
   });
 
@@ -164,7 +173,7 @@ describe('answering an everyday phrase', () => {
       'Good day, Mr Anthony. How can I help, sir?',
     );
     expect(phraseReply('how much is delivery', 0, 'exact', 'owner', config, book)).toMatch(
-      /^Yes, sir\. If you pay as you go, delivery is £7\.99 for shopping up to £30\.00/,
+      /^Yes, sir\. If you pay as you go, delivery is £10\.99 for shopping up to £30\.00/,
     );
     expect(phraseReply('how much is delivery', 1, 'exact', 'owner', config, book)).toMatch(
       /^Okay, sir\./,

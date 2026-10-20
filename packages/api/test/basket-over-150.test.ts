@@ -130,7 +130,7 @@ describe('a basket over £150', () => {
     );
     // Nothing hidden: each order, its Runner and its delivery.
     expect(priced.parts.map((part: { runner: string; goodsPence: number; feePence: number }) => [part.runner, part.goodsPence, part.feePence])).toEqual([
-      ['Runner 1', 15000, 1350],
+      ['Runner 1', 15000, 1499],
       ['Runner 2', 300, 1350],
     ]);
     expect(priced.explanation.join(' ')).toContain('taken only when this Runner collects it');
@@ -141,12 +141,12 @@ describe('a basket over £150', () => {
     expect(harness.payments.calls).toHaveLength(0);
   });
 
-  it('makes £172 kept two orders, £13.50 + £13.50 on pay as you go, the second taken only when its Runner collects', async () => {
+  it('makes £172 kept two orders, £14.99 + £13.50 on pay as you go, the second taken only when its Runner collects', async () => {
     const placed = await send(await BASKET_172(), { keepEverything: true });
     expect(placed.statusCode, placed.body).toBe(201);
     const orders = placed.json().orders as Order[];
     expect(orders.map((order) => [order.goodsEstimatePence, order.feePence, order.basketPart, order.basketOf])).toEqual([
-      [15000, 1350, 1, 2],
+      [15000, 1499, 1, 2],
       [2200, 1350, 2, 2],
     ]);
     expect(orders.every((order) => order.basketGroupId === orders[0]!.id)).toBe(true);

@@ -144,6 +144,7 @@ export type CreateOrder = Pick<
       | 'payerShopperId'
       | 'approvalStatus'
       | 'itemChargesPence'
+      | 'allowanceExtraPence'
       | 'deliveryPlan'
       | 'runnerPaymentPence'
       | 'splitParentId'

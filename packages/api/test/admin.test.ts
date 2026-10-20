@@ -52,8 +52,9 @@ async function placeOrder(shopper: SignedInShopper, milk = 2): Promise<string> {
         addressConfirmed: true,
         channel: 'button',
         statement: 'Send my order and pay.',
-        // Pay as you go, by the value of the shopping (ruling 63): £7.99 up to £30, £9.99 up to £60.
-        agreedTotalPence: milk * 175 + (milk * 125 <= 3000 ? 799 : milk * 125 <= 6000 ? 999 : 1350),
+        // Pay as you go, by the value of the shopping (ruling 63): £10.99 up to £30, £12.99 up to £60 (ruling 73).
+        agreedTotalPence:
+          milk * 175 + (milk * 125 <= 3000 ? 1099 : milk * 125 <= 6000 ? 1299 : 1499),
       },
     },
     shopper.authHeader,

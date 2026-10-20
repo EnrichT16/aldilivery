@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 
 import { CompanyDetails, DetailsToFollowNotice, companyFacts } from '../components/CompanyDetails';
 import { storeConfig } from '../config';
-import { money, planDeliveryWords } from '../lib/money';
+import { money, planAllowanceWords, planDeliveryWords } from '../lib/money';
 
 /**
  * The terms for Shoppers, in plain words.
@@ -77,7 +77,13 @@ export function Terms(): JSX.Element {
             prices. If you pay as you go, it is {planDeliveryWords('payg')}. On {assistant}{' '}
             Membership it is {planDeliveryWords('membership')}; on {assistant} Plus or Family and
             Carer, {planDeliveryWords('plus')}. People an organisation looks after pay the
-            Membership delivery. There is no minimum spend and no extra charge at busy times.{' '}
+            Membership delivery. There is no minimum spend and no extra charge at busy times. Each
+            monthly plan includes a number of your own orders each calendar month (UK time):
+            {assistant} Membership, and people an organisation looks after,{' '}
+            {planAllowanceWords('membership')}; {assistant} Plus {planAllowanceWords('plus')};{' '}
+            {assistant} Family and Carer {planAllowanceWords('family')}. Cancelled and refunded
+            orders do not count. The extra delivery charge is shown and said before you say yes, and
+            is its own line on your receipt. Pay as you go has no allowance.{' '}
             {money(runnerPaymentPence)} of every delivery goes to your Runner, or{' '}
             {money(storeConfig.fees.largeOrderRunnerPaymentPence)} for an order of{' '}
             {money(storeConfig.fees.largeOrderFromPence)} or more of shopping.
@@ -126,9 +132,10 @@ export function Terms(): JSX.Element {
           <li>
             Extras, if you choose them: Recipe Pass {money(extras.recipePassPence)} for{' '}
             {extras.recipePassDays} days (included in every plan); {assistant} Finds It{' '}
-            {money(extras.findItPence)}, given back if nothing is found (one free a month on any
-            plan). Neither renews by itself. Each price is told to you and agreed before it is
-            taken.
+            {money(extras.findItPence)}, given back if nothing is found (
+            {extras.freeFindItsPerMonth} free a month on Membership and in the free month,{' '}
+            {extras.plusFreeFindItsPerMonth} on {assistant} Plus and Family and Carer). Neither
+            renews by itself. Each price is told to you and agreed before it is taken.
           </li>
           <li>All prices include any VAT that applies.</li>
         </ul>

@@ -61,7 +61,7 @@ function order(payBy: 'bank' | 'card' = 'bank') {
         addressConfirmed: true,
         channel: 'button',
         statement: 'Send my order and pay.',
-        agreedTotalPence: 250 + 100 + 799,
+        agreedTotalPence: 250 + 100 + 1099,
       },
     },
   });
@@ -76,7 +76,7 @@ describe('paying by bank transfer', () => {
       accountName: 'Example Shop Ltd',
       sortCode: '12-34-56',
       accountNumber: '12345678',
-      amountPence: 250 + 100 + 799,
+      amountPence: 250 + 100 + 1099,
     });
     expect(body.bank.reference).toMatch(/^OZI-[A-Z2-9]{6}$/);
     expect(body.order).toMatchObject({ status: 'confirmed', paidBy: 'bank' });
@@ -95,7 +95,7 @@ describe('paying by bank transfer', () => {
       headers: STAFF,
     });
     expect(list.json().waiting).toEqual([
-      expect.objectContaining({ reference: body.bank.reference, amountPence: 250 + 100 + 799 }),
+      expect.objectContaining({ reference: body.bank.reference, amountPence: 250 + 100 + 1099 }),
     ]);
 
     const received = await harness.app.inject({

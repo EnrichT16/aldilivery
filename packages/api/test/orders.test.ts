@@ -40,7 +40,7 @@ function orderPayload(overrides: Record<string, unknown> = {}) {
       addressConfirmed: true,
       channel: 'button',
       statement: 'Send my order and pay. About £16.00 altogether.',
-      agreedTotalPence: 250 + 100 + 799,
+      agreedTotalPence: 250 + 100 + 1099,
     },
     ...overrides,
   };
@@ -72,7 +72,7 @@ describe('Rule One: no payment without an explicit confirmation', () => {
           confirmed: false,
           channel: 'button',
           statement: 'Send my order and pay.',
-          agreedTotalPence: 250 + 100 + 799,
+          agreedTotalPence: 250 + 100 + 1099,
         },
       }),
     });
@@ -163,7 +163,7 @@ describe('Rule One: no payment without an explicit confirmation', () => {
     expect(response.statusCode).toBe(201);
     const input = harness.payments.calls[0]!.input as { amountPence: number };
     // £2.50 of milk, two item charges of 50p, and the smaller pay-as-you-go delivery.
-    expect(input.amountPence).toBe(250 + 100 + 799);
+    expect(input.amountPence).toBe(250 + 100 + 1099);
     expect(harness.payments.calls.filter((call) => call.kind === 'payment_intent')).toHaveLength(1);
   });
 
@@ -292,7 +292,7 @@ describe('a payment the bank has not approved yet', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay. About £16.00 altogether.',
-          agreedTotalPence: 250 + 100 + 799,
+          agreedTotalPence: 250 + 100 + 1099,
         },
       },
     });
@@ -332,7 +332,7 @@ describe('a payment the bank has not approved yet', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay. About £16.00 altogether.',
-          agreedTotalPence: 250 + 100 + 799,
+          agreedTotalPence: 250 + 100 + 1099,
         },
       },
     });
@@ -396,7 +396,7 @@ describe('a payment the gateway refuses', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay. About £16.00 altogether.',
-          agreedTotalPence: 250 + 100 + 799,
+          agreedTotalPence: 250 + 100 + 1099,
         },
       },
     });
@@ -468,7 +468,7 @@ describe('a payment the gateway refuses', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay. About £16.00 altogether.',
-          agreedTotalPence: 250 + 100 + 799,
+          agreedTotalPence: 250 + 100 + 1099,
         },
       },
     });
@@ -502,7 +502,7 @@ describe('ordering by voice (Sections D and E)', () => {
           addressConfirmed: true,
           channel: 'voice',
           statement: 'Yes, send it.',
-          agreedTotalPence: overrides.agreedTotalPence ?? 250 + 100 + 799,
+          agreedTotalPence: overrides.agreedTotalPence ?? 250 + 100 + 1099,
         },
       },
     });
@@ -553,13 +553,13 @@ describe('ordering by voice (Sections D and E)', () => {
           addressConfirmed: true,
           channel: 'voice',
           statement: 'Yes, send it.',
-          agreedTotalPence: 250 + 100 + 799,
+          agreedTotalPence: 250 + 100 + 1099,
         },
       },
     });
     expect(response.statusCode).toBe(400);
     expect(response.json().error.message).toMatch(
-      /^A payment confirmed by voice alone can be up to £10\.00\. This one is £11\.49, so please confirm it by touch/,
+      /^A payment confirmed by voice alone can be up to £10\.00\. This one is £14\.49, so please confirm it by touch/,
     );
     expect(strict.payments.calls).toHaveLength(0);
   });

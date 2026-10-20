@@ -1,7 +1,13 @@
 import { useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { deliveryFeePence, itemChargesForLines, overOneRunnerWords } from '@aldilivery/core';
+import {
+  allowanceExtraPence,
+  allowanceWords,
+  deliveryFeePence,
+  itemChargesForLines,
+  overOneRunnerWords,
+} from '@aldilivery/core';
 
 import { storeConfig } from '../config';
 import {
@@ -147,7 +153,7 @@ export function useVoiceOrdering(
   /** No account yet: Ozi asks whether to open one now, by talking. */
   offerAccount?: () => void,
 ): VoiceOrdering {
-  const { shopper } = useSession();
+  const { shopper, refresh } = useSession();
   // Ozi's memory (ruling 68): everything said here is kept with the words it answered, which
   // part of Ozi decided, and how it went. Recording never waits and never fails the talking.
   const lastHeard = useRef('');
@@ -355,7 +361,14 @@ export function useVoiceOrdering(
         return;
       }
       const deliveryPence = deliveryFeePence(goodsPence, plan, storeConfig.fees);
-      const totalPence = shoppingPence + deliveryPence;
+      // The monthly order allowance (ruling 73), counted as the server counts it, and said
+      // before the yes.
+      const allowancePlan = live.current.shopper?.allowancePlan ?? 'payg';
+      const orderNumber = (live.current.shopper?.ordersThisMonth ?? 0) + 1;
+      const allowance = storeConfig.fees.delivery.allowance;
+      const extraPence = allowanceExtraPence(allowancePlan, orderNumber, allowance);
+      const allowanceSaid = allowanceWords(allowancePlan, orderNumber, allowance, money);
+      const totalPence = shoppingPence + deliveryPence + extraPence;
 
       let cards: Awaited<ReturnType<typeof listPaymentMethods>>['paymentMethods'] = [];
       try {
@@ -392,7 +405,7 @@ export function useVoiceOrdering(
         lastFour: card.lastFour,
       };
       await say(
-        `${notes}Here is your order: ${list}. Your shopping comes to about ${money(shoppingPence)}, with the item charges included, and delivery is ${money(deliveryPence)}, so about ${money(totalPence)} altogether. It will be delivered to your home address: ${home}. Is that right?`,
+        `${notes}Here is your order: ${list}. Your shopping comes to about ${money(shoppingPence)}, with the item charges included, and delivery is ${money(deliveryPence)}${allowanceSaid ? `. ${allowanceSaid} So` : ', so'} about ${money(totalPence)} altogether. It will be delivered to your home address: ${home}. Is that right?`,
       );
     },
     [say, reset, putInBasket, navigate, maximumOrderGoodsPence],
@@ -720,6 +733,7 @@ export function useVoiceOrdering(
                 return true;
               }
               live.current.basket.clear();
+              void refresh();
               await say(
                 'Thank you, your bank said yes. You can follow your order on the Your order page.',
               );
@@ -727,6 +741,7 @@ export function useVoiceOrdering(
               return true;
             }
             live.current.basket.clear();
+            void refresh();
             note.current = { brain: 'flow', outcome: 'sent' };
             await say(`${result.message} You can follow it on the Your order page.`);
             navigate('/my-order');
@@ -741,7 +756,7 @@ export function useVoiceOrdering(
         }
       }
     },
-    [say, offerAccount, reset, next, navigate, ceiling, shop, chatter],
+    [say, offerAccount, reset, next, navigate, ceiling, shop, chatter, refresh],
   );
 
   const expectOrder = useCallback(() => {

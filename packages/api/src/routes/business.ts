@@ -18,6 +18,7 @@ import type { FastifyInstance } from 'fastify';
 import {
   basisPointsWords,
   commissionPence,
+  allowancePlanWords,
   deliveryFeePence,
   deliveryStepsWords,
   displayPricePence,
@@ -1148,6 +1149,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       items: number;
       paidPence: number;
       feePence: number;
+      /** The extra delivery charge past the client's monthly allowance (ruling 73), or 0. */
+      allowanceExtraPence: number;
     }> = [];
     const upcoming: Array<{
       person: string;
@@ -1167,6 +1170,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
           items: order.items.reduce((sum, item) => sum + item.quantity, 0),
           paidPence: paidAmount(order),
           feePence: order.feePence,
+          allowanceExtraPence: order.allowanceExtraPence,
         });
       }
       for (const set of await repository.sets.listForShopper(person.id)) {
@@ -1204,12 +1208,16 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       byOffice.set(office, (byOffice.get(office) ?? 0) + row.paidPence);
     }
     // Savings, from the organisation's own figure for what a staff trip to the shops costs them,
-    // against what each delivery actually cost (Membership delivery, by the value of the shop).
+    // against what each delivery actually cost (Membership delivery, by the value of the shop,
+    // with any extra delivery charge past the client's monthly allowance, ruling 73).
     const tripCost = organisation.staffTripCostPence;
     const savedThisMonth =
       tripCost === null
         ? null
-        : thisMonth.reduce((total, row) => total + Math.max(0, tripCost - row.feePence), 0);
+        : thisMonth.reduce(
+            (total, row) => total + Math.max(0, tripCost - row.feePence - row.allowanceExtraPence),
+            0,
+          );
 
     return {
       organisation: {
@@ -1243,6 +1251,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       // its band's price, which each order's own figure above reflects.
       deliveryFeePence: deliveryFeePence(0, 'membership', config.fees),
       deliveryWords: deliveryStepsWords('membership', config.fees, money),
+      // Each client's monthly allowance on Membership delivery (ruling 73), in words.
+      allowanceWords: allowancePlanWords('membership', config.fees.delivery.allowance, money),
       // What the organisation pays a month for the people it looks after (ruling 58).
       plan: organisationPlan(people.length),
       sharePath: organisation.joinCode ? `/join/organisation/${organisation.joinCode}` : null,
@@ -1278,7 +1288,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         (discounted > 0
           ? ` and ${discounted} at ${money(pricing.discountedClientMonthlyPence)}`
           : '') +
-        `, ${money(monthlyPence)} a month. Every ${ordinal(pricing.discountEveryNthClient)} client is ${money(pricing.discountedClientMonthlyPence)}. Each client's orders have the item charges and Membership delivery: ${deliveryStepsWords('membership', config.fees, money)}.`,
+        `, ${money(monthlyPence)} a month. Every ${ordinal(pricing.discountEveryNthClient)} client is ${money(pricing.discountedClientMonthlyPence)}. Each client's orders have the item charges and Membership delivery: ${deliveryStepsWords('membership', config.fees, money)}. Each client has ${allowancePlanWords('membership', config.fees.delivery.allowance, money) ?? ''}.`,
     };
   }
 

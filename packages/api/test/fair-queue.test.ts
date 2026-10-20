@@ -62,7 +62,7 @@ function later(seconds: number): void {
 }
 
 /** Two pints of milk to a place. The agreed total is the server's own: the plan sets delivery. */
-async function placeOrder(where = HOME, agreedTotalPence = 250 + 100 + 799): Promise<string> {
+async function placeOrder(where = HOME, agreedTotalPence = 250 + 100 + 1099): Promise<string> {
   const response = await harness.app.inject({
     method: 'POST',
     url: '/orders',

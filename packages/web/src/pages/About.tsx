@@ -32,7 +32,8 @@ export function About(): JSX.Element {
           <li>
             It comes to your door. Delivery is from {deliveryRangeWords()}, depending on your plan
             and the value of the shop, and every price you see already includes its small item
-            charge.{' '}
+            charge. Each monthly plan includes a number of orders a month; past it, some orders have
+            an extra delivery charge, always told to you before you say yes.{' '}
             <Link to="/plus" className="underline">
               See the prices and plans
             </Link>

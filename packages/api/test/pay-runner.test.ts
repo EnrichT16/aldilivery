@@ -65,7 +65,7 @@ async function deliverAnOrder(): Promise<string> {
         addressConfirmed: true,
         channel: 'button',
         statement: 'Send my order and pay.',
-        agreedTotalPence: 250 + 100 + 799,
+        agreedTotalPence: 250 + 100 + 1099,
       },
     },
   });

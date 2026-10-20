@@ -57,14 +57,21 @@ describe('the recipe pass', () => {
     expect(me.json().shopper.recipePassUntil).toBeNull();
   });
 
-  it('tells the web the delivery bands in /config, as configured (ruling 63)', async () => {
+  it('tells the web the delivery bands and the monthly allowance in /config, as configured (ruling 73)', async () => {
     const config = await harness.app.inject({ method: 'GET', url: '/config' });
     expect(config.json().fees.delivery).toEqual({
       bands: [
-        { upToPence: 3000, payAsYouGoPence: 799, membershipPence: 599, plusPence: 399 },
-        { upToPence: 6000, payAsYouGoPence: 999, membershipPence: 599, plusPence: 399 },
-        { upToPence: null, payAsYouGoPence: 1350, membershipPence: 999, plusPence: 799 },
+        { upToPence: 3000, payAsYouGoPence: 1099, membershipPence: 799, plusPence: 699 },
+        { upToPence: 6000, payAsYouGoPence: 1299, membershipPence: 799, plusPence: 699 },
+        { upToPence: null, payAsYouGoPence: 1499, membershipPence: 999, plusPence: 899 },
       ],
+      allowance: {
+        membershipOrders: 5,
+        plusOrders: 8,
+        familyOrdersEach: 5,
+        extraChargePence: 599,
+        extraEvery: 3,
+      },
     });
     expect(config.json().plans).toEqual(
       expect.objectContaining({ membershipPence: 1000, plusPence: 1500, familyPence: 2000 }),

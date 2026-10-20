@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { ordinalWord } from '@aldilivery/core';
 import { moneyOut } from '../lib/alert';
 
 import { PriceConfirm } from '../components/PriceConfirm';
@@ -29,9 +30,22 @@ function longDate(when: string): string {
   });
 }
 
-/** The plans, their prices and what each includes, all from config/store.json (rulings 58 and 63). */
+/**
+ * The plans, their prices and what each includes, all from config/store.json (rulings 58, 63 and
+ * 73): the monthly price, delivery, the monthly order allowance and the extra delivery charge
+ * past it, and the free Finds It searches.
+ */
 export function planDetails() {
   const { extras, assistantName } = storeConfig;
+  const allowance = storeConfig.fees.delivery.allowance;
+  const extra = money(allowance.extraChargePence);
+  const every = ordinalWord(allowance.extraEvery);
+  const past = (included: number, each = '') =>
+    `${included} orders a month${each} included. After that, the next order has an extra ${extra} delivery charge, and so does every ${every} order after it. You are always told before you say yes.`;
+  const findIts = (count: number) =>
+    count === 1
+      ? `One free “${assistantName} Finds It” each month (worth ${money(extras.findItPence)}).`
+      : `${count === 2 ? 'Two' : count} free “${assistantName} Finds It” searches each month (worth ${money(extras.findItPence)} each).`;
   return [
     {
       plan: 'membership' as PlanName,
@@ -39,8 +53,9 @@ export function planDetails() {
       pence: extras.membershipPence,
       includes: [
         `Delivery ${planDeliveryWords('membership')}.`,
+        past(allowance.membershipOrders),
         `The Recipe Pass is included free (worth ${money(extras.recipePassPence)}).`,
-        `One free “${assistantName} Finds It” each month (worth ${money(extras.findItPence)}).`,
+        findIts(extras.freeFindItsPerMonth),
         `${assistantName} remembers your favourites and your usual order.`,
       ],
     },
@@ -51,6 +66,8 @@ export function planDetails() {
       includes: [
         'Everything in Membership.',
         `Delivery ${planDeliveryWords('plus')}.`,
+        past(allowance.plusOrders),
+        findIts(extras.plusFreeFindItsPerMonth),
         'My regular Runner: the same trusted Runner whenever possible.',
         'Priority at busy times.',
         'No adverts, ever.',
@@ -63,6 +80,7 @@ export function planDetails() {
       pence: extras.familyPence,
       includes: [
         `Everything in Plus, for up to ${extras.familyMaximum} people in different homes.`,
+        past(allowance.familyOrdersEach, ' for each person'),
         'The family member or carer sees every order, and is told when it is ordered, on its way and delivered.',
         'They can approve orders above a limit they choose.',
         'One card pays for everyone on the plan.',

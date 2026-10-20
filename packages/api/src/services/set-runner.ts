@@ -28,7 +28,7 @@ import type { Order, RecurringSet } from '../domain.js';
 import { recordOrder } from '../lib/analytics.js';
 import { cardAccepted } from '../lib/card-region.js';
 import { priceLines } from './basket.js';
-import { deliveryPlanFor } from './plans.js';
+import { allowanceFor, deliveryPlanFor } from './plans.js';
 import { applyCredit } from './credit.js';
 import { offerOrder } from './dispatch.js';
 import { tellShopperById } from './order-updates.js';
@@ -60,12 +60,15 @@ export function noticeWords(
   set: RecurringSet,
   config: AppContext['config'],
   minutes: number,
+  allowanceWords: string | null = null,
 ): string {
   const skip = config.recurringOrders.skipWord;
   const money = formatPence(goodsOf(set), config.store.currencySymbol);
   if (set.autoSendAgreedAt) {
+    // Ruling 73: when this one is past the monthly allowance, the notice says so, with the charge.
     return (
       `Your regular order "${set.name}" goes in ${minutes} minutes, about ${money} of shopping plus the delivery, paid with your saved card. ` +
+      (allowanceWords ? `${allowanceWords} ` : '') +
       `To stop this one, say "${skip}" to ${config.assistantName}, press Skip in the app, or text ${skip} back.`
     );
   }
@@ -89,10 +92,11 @@ export async function sendDueNotices(
     const owner = await ctx.repository.shoppers.findById(set.shopperId);
     if (!owner || owner.deletionScheduledFor || owner.erasedAt) continue;
     const left = Math.max(1, Math.round((set.nextFireAt.getTime() - at.getTime()) / MINUTE_MS));
+    const allowance = set.autoSendAgreedAt ? await allowanceFor(ctx, owner, at) : null;
     const reached = await tellShopperById(
       ctx,
       set.shopperId,
-      noticeWords(set, ctx.config, left),
+      noticeWords(set, ctx.config, left, allowance?.extraPence ? allowance.words : null),
       { url: '/weekly-shop', tag: `set-${set.id}` },
       log,
     );
@@ -238,11 +242,15 @@ export async function placeSetOrder(
     const catalogueItems = await repository.catalogue.findManyByIds(
       lines.map((line) => line.catalogueItemId),
     );
+    // The monthly allowance (ruling 73): a regular order counts like any other, and carries
+    // the extra delivery charge when it is due; the notice before it said so.
+    const allowance = await allowanceFor(ctx, shopper, ctx.now());
     priced = priceLines(
       lines,
       catalogueItems,
       config.fees,
       await deliveryPlanFor(ctx, shopper, ctx.now()),
+      allowance.extraPence,
     );
   } catch (failure) {
     log.warn({ err: failure, setId: set.id }, 'A regular order could not be priced.');
@@ -268,6 +276,7 @@ export async function placeSetOrder(
     runnerPaymentPence: runnerPaymentFor(priced.goodsPence, config.fees),
     itemChargesPence: priced.itemChargesPence,
     feePence: priced.feePence,
+    allowanceExtraPence: priced.allowanceExtraPence,
     totalEstimatePence: priced.totalPence,
     deliveryPlan: priced.plan,
     deliveryAddress: set.deliveryAddress,

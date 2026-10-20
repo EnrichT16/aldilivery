@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import { storeConfig } from '../config';
-import { money, planDeliveryWords } from '../lib/money';
+import { money, planAllowanceWords, planDeliveryWords } from '../lib/money';
 
 /**
  * The third door: for someone who has not decided yet.
@@ -49,8 +49,11 @@ export function JustLooking(): JSX.Element {
           If you pay as you go: {planDeliveryWords('payg')}. With {assistantName} Membership (
           {money(extras.membershipPence)} a month): {planDeliveryWords('membership')}. With{' '}
           {assistantName} Plus ({money(extras.plusPence)} a month) or Family and Carer (
-          {money(extras.familyPence)} a month): {planDeliveryWords('plus')}. Your first month of
-          membership is free. It never goes up because it is raining, or because it is Friday.
+          {money(extras.familyPence)} a month): {planDeliveryWords('plus')}. Each plan includes a
+          number of orders a month: Membership {planAllowanceWords('membership')}; Plus{' '}
+          {planAllowanceWords('plus')}; Family and Carer {planAllowanceWords('family')}. Your first
+          month of membership is free. It never goes up because it is raining, or because it is
+          Friday.
         </p>
         <p className="m-0 max-w-xl">
           One order carries up to {money(maximumOrderGoodsPence)} of shopping. If you need more than

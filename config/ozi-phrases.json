@@ -1,5 +1,5 @@
 {
-  "about": "What Ozi says to everyday words (ruling 34). Added to every day (50 a day, ruling 44) by a scheduled task, checked by the tests before it goes live. Each entry: an id, a topic, the words people say ('when'), and replies, one chosen in turn. In replies, {assistant} becomes Ozi's name, {product} the product's name, {motto} the motto, and {fee}, {smallFee}, {smallUpTo}, {middleFee}, {largeUpTo}, {memberFee}, {memberLargeFee}, {plusFee}, {plusLargeFee}, {paygDelivery}, {memberDelivery}, {plusDelivery}, {itemCharge}, {membership}, {plusPrice}, {familyPrice}, {orgClient}, {maximum}, {maximumProduct}, {runnerPay}, {callPrice} and {instantRefund} the figures from config/store.json, so a price is never written here. Ozi only uses these when nothing about an order or the basket was meant, and only when the whole sentence is one of the 'when' phrases or Ozi was called by name.",
+  "about": "What Ozi says to everyday words (ruling 34). Added to every day (50 a day, ruling 44) by a scheduled task, checked by the tests before it goes live. Each entry: an id, a topic, the words people say ('when'), and replies, one chosen in turn. In replies, {assistant} becomes Ozi's name, {product} the product's name, {motto} the motto, and {fee}, {smallFee}, {smallUpTo}, {middleFee}, {largeUpTo}, {memberFee}, {memberLargeFee}, {plusFee}, {plusLargeFee}, {paygDelivery}, {memberDelivery}, {plusDelivery}, {memberOrders}, {plusOrders}, {familyOrders}, {allowanceExtra}, {allowanceEvery}, {findIts}, {plusFindIts}, {itemCharge}, {membership}, {plusPrice}, {familyPrice}, {orgClient}, {maximum}, {maximumProduct}, {runnerPay}, {callPrice} and {instantRefund} the figures from config/store.json, so a price is never written here. Ozi only uses these when nothing about an order or the basket was meant, and only when the whole sentence is one of the 'when' phrases or Ozi was called by name.",
   "phrases": [
     {
       "id": "thanks",
@@ -370,7 +370,7 @@
       "topic": "plus",
       "when": ["what is ozi plus", "tell me about plus", "membership"],
       "replies": [
-        "{assistant} Plus is {plusPrice} a month: delivery at {plusDelivery}, your regular Runner where possible, priority at busy times, no adverts, and everything in Membership. You choose to join, and can cancel at any time.",
+        "{assistant} Plus is {plusPrice} a month: delivery at {plusDelivery}, {plusOrders} orders a month, {plusFindIts} free Finds It searches, your regular Runner where possible, priority at busy times, no adverts, and all of Membership. You choose to join, and can cancel any time.",
         "A membership with Recipes and Finds It included."
       ]
     },
@@ -2681,7 +2681,7 @@
         "benefits of plus"
       ],
       "replies": [
-        "If you order most weeks, Membership at {membership} a month brings delivery down to {memberFee} for shopping up to {largeUpTo}, with Recipes and a free Finds It each month. Plus at {plusPrice} brings it to {plusFee}.",
+        "If you order most weeks, Membership at {membership} a month brings delivery down to {memberFee} for shopping up to {largeUpTo}, with {memberOrders} orders a month, Recipes and a free Finds It. Plus at {plusPrice} brings it to {plusFee}, with {plusOrders} orders a month.",
         "It depends how often you order. I'll always tell you the price before you choose, and you can cancel any time."
       ]
     },
@@ -2704,7 +2704,7 @@
         "how does the family plan work"
       ],
       "replies": [
-        "{assistant} Family and Carer is {familyPrice} a month for up to four people in different homes. The person who pays sees every order, can approve bigger ones, and gets a weekly summary. Each person joins with a six-letter family code.",
+        "{assistant} Family and Carer is {familyPrice} a month for up to four people in different homes, {familyOrders} orders a month each. The person who pays sees every order, can approve bigger ones, and gets a weekly summary. Each person joins with a six-letter family code.",
         "Up to four people can share Family and Carer, joined with a family code, all paid with one card."
       ]
     },
@@ -6813,7 +6813,7 @@
       "topic": "prices",
       "when": ["how much is finds it", "finds it price", "cost of finds it"],
       "replies": [
-        "Finds It is a small charge per search, with one free search a month on Plus. Say finds it to hear it."
+        "Finds It is a small charge per search, with {findIts} free a month on Membership and {plusFindIts} on Plus. Say finds it to hear it."
       ]
     },
     {
@@ -7265,7 +7265,9 @@
       "id": "s66-plans-how-much-is-the-family-plan",
       "topic": "plans",
       "when": ["how much is the family plan", "family and carer price", "family plan cost"],
-      "replies": ["{familyPrice} a month for up to four people, all with Plus delivery prices."]
+      "replies": [
+        "{familyPrice} a month for up to four people, all with Plus delivery prices and {familyOrders} orders a month each."
+      ]
     },
     {
       "id": "s66-plans-how-do-i-join-a-plan",
@@ -7365,14 +7367,33 @@
         "membership benefits",
         "what do i get for membership"
       ],
-      "replies": ["Cheaper delivery: {memberDelivery}."]
+      "replies": [
+        "Cheaper delivery: {memberDelivery}, with {memberOrders} orders a month included, Recipes, and {findIts} free Finds It a month."
+      ]
     },
     {
       "id": "s66-plans-what-is-included-in-plus",
       "topic": "plans",
       "when": ["what is included in plus", "plus benefits", "what comes with plus"],
       "replies": [
-        "Delivery at {plusDelivery}. Recipes read aloud, and Finds It with one free search a month."
+        "Delivery at {plusDelivery}, with {plusOrders} orders a month included. Recipes read aloud, and {plusFindIts} free Finds It searches a month."
+      ]
+    },
+    {
+      "id": "s73-plans-monthly-order-allowance",
+      "topic": "plans",
+      "when": [
+        "how many orders can i make",
+        "how many orders are included",
+        "how many orders do i get",
+        "order allowance",
+        "monthly order allowance",
+        "is there a limit on orders",
+        "what is the extra delivery charge",
+        "why is there an extra delivery charge"
+      ],
+      "replies": [
+        "Membership includes {memberOrders} orders a month, Plus {plusOrders}, and Family and Carer {familyOrders} each. After that, the next order has an extra {allowanceExtra} delivery charge, as does every {allowanceEvery} one after it. I tell you before you say yes."
       ]
     },
     {
@@ -7557,7 +7578,7 @@
       "id": "s66-plans-does-plus-include-finds-it",
       "topic": "plans",
       "when": ["does plus include finds it", "free finds it on plus", "finds it with plus"],
-      "replies": ["Yes, one free Finds It search a month on Plus and Family and Carer."]
+      "replies": ["Yes, {plusFindIts} free Finds It searches a month on Plus and Family and Carer."]
     },
     {
       "id": "s66-plans-does-plus-include-recipes",

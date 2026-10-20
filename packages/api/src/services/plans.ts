@@ -1,13 +1,19 @@
 /**
- * The monthly plans and the first free month (ruling 58, Anthony, 9 October 2026).
+ * The monthly plans and the first free month (ruling 58, Anthony, 9 October 2026; delivery and
+ * the monthly allowance as ruled on 20 October 2026, ruling 73).
  *
- * - Ozi Membership (£10 a month): delivery £7.99, Recipes included, one free Ozi Finds It a
- *   month, favourites remembered.
- * - Ozi Plus (£15 a month): all of Membership, delivery £5.99, my regular Runner where possible,
- *   priority at busy times, no adverts, a friendly check-in after a while without an order.
- * - Ozi Family and Carer (£20 a month): all of Plus for up to four people in different homes;
- *   the payer sees every order and is told at each stage, approves orders above a limit they
- *   set, pays with one card, and has a weekly summary.
+ * - Ozi Membership (£10 a month): delivery £7.99 up to £60 and £9.99 over, 5 orders a month,
+ *   Recipes included, one free Ozi Finds It a month, favourites remembered.
+ * - Ozi Plus (£15 a month): all of Membership, delivery £6.99 up to £60 and £8.99 over, 8 orders
+ *   a month, two free Ozi Finds It a month, my regular Runner where possible, priority at busy
+ *   times, no adverts, a friendly check-in after a while without an order.
+ * - Ozi Family and Carer (£20 a month): all of Plus for up to four people in different homes,
+ *   5 orders a month for each of them; the payer sees every order and is told at each stage,
+ *   approves orders above a limit they set, pays with one card, and has a weekly summary.
+ *
+ * Past a plan's allowance, the next order has an extra delivery charge (£5.99), then two orders
+ * without it, then the extra again (`allowanceExtraPence` in core). The Shopper is told before
+ * the one yes. Pay as you go has no allowance.
  *
  * Every new Shopper has their first month of membership free, from sign-up, and pays the
  * pay-as-you-go delivery during it unless they choose to join. About three days before it ends
@@ -22,7 +28,16 @@
 
 import type { FastifyBaseLogger } from 'fastify';
 
-import { deliveryStepsWords, formatPence, type DeliveryPlan } from '@aldilivery/core';
+import {
+  allowanceExtraPence,
+  allowancePlanWords,
+  allowanceWords,
+  deliveryStepsWords,
+  formatPence,
+  orderAllowanceFor,
+  type AllowancePlan,
+  type DeliveryPlan,
+} from '@aldilivery/core';
 
 import type { AppContext } from '../app.js';
 import type { Order, Shopper, ShopperPlan } from '../domain.js';
@@ -113,6 +128,102 @@ export async function deliveryPlanFor(
   return 'payg';
 }
 
+/**
+ * Which monthly allowance applies to this Shopper now (ruling 73): like `deliveryPlanFor`, with
+ * Family and Carer told apart from Plus because it is counted for each person. A person an
+ * organisation looks after has Membership's; the free month and pay as you go have none.
+ */
+export async function allowancePlanFor(
+  ctx: Pick<PlanContext, 'repository'>,
+  shopper: Shopper,
+  at: Date,
+): Promise<AllowancePlan> {
+  const plan = activePlan(shopper, at);
+  if (plan) return plan;
+  return (await deliveryPlanFor(ctx, shopper, at)) === 'membership' ? 'membership' : 'payg';
+}
+
+/** The calendar month in the United Kingdom, as "2026-10", for counting orders. */
+export function ukMonth(at: Date): string {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Europe/London',
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(at);
+  const year = parts.find((part) => part.type === 'year')?.value ?? '';
+  const month = parts.find((part) => part.type === 'month')?.value ?? '';
+  return `${year}-${month}`;
+}
+
+/**
+ * Whether an order counts towards the monthly allowance (ruling 73): one of the Shopper's own
+ * whole orders that was placed (paid) and not cancelled or refunded. A part of a split job is
+ * not an order of its own, and a basket kept whole as linked orders counts once, by its first.
+ */
+export function countsTowardsAllowance(order: Order): boolean {
+  if (order.splitParentId !== null) return false;
+  if (order.basketPart !== null && order.basketPart > 1) return false;
+  return PAID.has(order.status);
+}
+
+/**
+ * The number the next order would be in this calendar month (UK time): the Shopper's own
+ * orders that count, this month, plus one for the order being placed.
+ */
+export async function orderNumberThisMonth(
+  ctx: Pick<PlanContext, 'repository'>,
+  shopper: Shopper,
+  at: Date,
+): Promise<number> {
+  const month = ukMonth(at);
+  const orders = await ctx.repository.orders.listForShopper(shopper.id);
+  return (
+    orders.filter((order) => countsTowardsAllowance(order) && ukMonth(order.createdAt) === month)
+      .length + 1
+  );
+}
+
+/** Where the Shopper stands with their monthly allowance, for the next order. */
+export interface AllowanceStanding {
+  plan: AllowancePlan;
+  /** The number the next order would be this month, from 1. */
+  orderNumber: number;
+  /** Orders the plan includes a month (for each person on Family), or null on pay as you go. */
+  included: number | null;
+  /** The extra delivery charge the next order carries, or 0. */
+  extraPence: number;
+  /** What the Shopper is told before the yes, or null when there is nothing to say. */
+  words: string | null;
+}
+
+/** The monthly allowance for this Shopper's next order (ruling 73), with the words to say. */
+export async function allowanceFor(
+  ctx: Pick<PlanContext, 'repository' | 'config'>,
+  shopper: Shopper,
+  at: Date,
+): Promise<AllowanceStanding> {
+  const { config } = ctx;
+  const allowance = config.fees.delivery.allowance;
+  const plan = await allowancePlanFor(ctx, shopper, at);
+  const orderNumber = await orderNumberThisMonth(ctx, shopper, at);
+  const money = (pence: number): string => formatPence(pence, config.store.currencySymbol);
+  return {
+    plan,
+    orderNumber,
+    included: orderAllowanceFor(plan, allowance),
+    extraPence: allowanceExtraPence(plan, orderNumber, allowance),
+    words: allowanceWords(plan, orderNumber, allowance, money),
+  };
+}
+
+/** Free Ozi Finds It searches a month for this Shopper (ruling 73: two on Plus and Family). */
+export function freeFindItsFor(shopper: Shopper, at: Date, config: AppContext['config']): number {
+  if (!hasMembershipExtras(shopper, at)) return 0;
+  return hasPlusExtras(shopper, at)
+    ? config.extras.plusFreeFindItsPerMonth
+    : config.extras.freeFindItsPerMonth;
+}
+
 /** What the account page and the plan page say about the Shopper's plan. */
 export async function planView(ctx: PlanContext, shopper: Shopper) {
   const { config, repository, now } = ctx;
@@ -141,6 +252,9 @@ export async function planView(ctx: PlanContext, shopper: Shopper) {
     approvalLimitPence: shopper.familyOwnerId === null ? shopper.approvalLimitPence : null,
     familyMaximum: config.extras.familyMaximum,
     creditPence: shopper.creditPence,
+    // The monthly allowance (ruling 73): which applies, and how many orders so far this month.
+    allowancePlan: await allowancePlanFor(ctx, shopper, at),
+    ordersThisMonth: (await orderNumberThisMonth(ctx, shopper, at)) - 1,
   };
 }
 
@@ -245,7 +359,7 @@ export async function remindFreeMonthEnding(
     await tellShopperById(
       ctx as AppContext,
       shopper.id,
-      `Your free month of ${name} ends on ${longDate(shopper.freeMonthUntil)}. Nothing will be taken. If you'd like to carry on, you can choose to join for ${money(config.extras.membershipPence)} a month, with delivery at ${deliveryStepsWords('membership', config.fees, money)}. If you don't, you simply pay as you go, as now.`,
+      `Your free month of ${name} ends on ${longDate(shopper.freeMonthUntil)}. Nothing will be taken. If you'd like to carry on, you can choose to join for ${money(config.extras.membershipPence)} a month, with delivery at ${deliveryStepsWords('membership', config.fees, money)}, and ${allowancePlanWords('membership', config.fees.delivery.allowance, money) ?? ''}. If you don't, you simply pay as you go, as now, with delivery at ${deliveryStepsWords('payg', config.fees, money)}.`,
       { url: '/plus', tag: 'free-month' },
       log,
     );
