@@ -20,25 +20,99 @@ export function shopLook(kind: PartnerKind | string): ShopLook {
   return LOOKS[kind as PartnerKind] ?? LOOKS.shop;
 }
 
-/** A product's picture by the words in its name or tags, for a row with no photo. */
+/**
+ * A product's picture by the words in its name (20 October 2026: "the picture of milk does not
+ * match the name cheese"). The most particular words come first, so "Baking potatoes" is a
+ * potato, not bread, and "Chopped tomatoes" is a tin. Whole words only. Decoration: the name
+ * is always written beside it.
+ */
 const PRODUCT_EMOJI: Array<[RegExp, string]> = [
-  [/bread|loaf|roll|bun|bak|cake|scone|croissant|pastr/i, '🍞'],
-  [/milk|cheese|yog|butter|cream|dairy/i, '🥛'],
-  [/fruit|apple|banana|orange|grape|berr|pear/i, '🍎'],
-  [/veg|potato|carrot|onion|salad|tomato|greens/i, '🥕'],
-  [/meat|chicken|beef|pork|lamb|sausage|bacon/i, '🍗'],
-  [/fish|prawn|salmon|cod/i, '🐟'],
-  [/rice|noodle|curry|wok|soup|stew/i, '🍜'],
-  [/coffee|tea|latte|cappuccino/i, '☕'],
-  [/drink|juice|water|pop|soda|cola/i, '🥤'],
-  [/sweet|choc|candy|biscuit|cookie/i, '🍫'],
-  [/egg/i, '🥚'],
-  [/flower|plant|bouquet/i, '💐'],
-  [/clean|soap|household|wash|tissue|toilet/i, '🧻'],
-  [/hair|cut|trim|beard|shave/i, '✂️'],
-  [/gift|card|present/i, '🎁'],
+  [/\b(toilet roll|kitchen roll|tissue)/i, '🧻'],
+  [/\b(chopped tomato|baked beans?|tinned|tin of|soup)/i, '🥫'],
+  [/\bpotato/i, '🥔'],
+  [/\b(cheese|cheddar|brie|mozzarella|parmesan)/i, '🧀'],
+  [/\bbutter\b/i, '🧈'],
+  [/\begg/i, '🥚'],
+  [/\b(yoghurt|yogurt|porridge|oats|cereal|cornflakes|muesli)/i, '🥣'],
+  [/\bmilk\b(?! chocolate)|\bcream\b/i, '🥛'],
+  [/\b(choc|chocolate)/i, '🍫'],
+  [/\b(biscuit|cookie|digestive)/i, '🍪'],
+  [/\bcroissant/i, '🥐'],
+  [/\b(bread|loaf|rolls?|buns?|baguette|bagel)\b/i, '🍞'],
+  [/\b(cake|scone|muffin|pastr)/i, '🧁'],
+  [/\bbanana/i, '🍌'],
+  [/\bapple/i, '🍎'],
+  [/\b(orange|satsuma|clementine)/i, '🍊'],
+  [/\blemon|\blime/i, '🍋'],
+  [/\bgrape/i, '🍇'],
+  [/\bstrawberr|\bberr/i, '🍓'],
+  [/\bpear\b|\bpears\b/i, '🍐'],
+  [/\bcarrot/i, '🥕'],
+  [/\bonion/i, '🧅'],
+  [/\bgarlic/i, '🧄'],
+  [/\bbroccoli/i, '🥦'],
+  [/\b(lettuce|salad|spinach|cabbage|greens)/i, '🥬'],
+  [/\btomato/i, '🍅'],
+  [/\bmushroom/i, '🍄'],
+  [/\b(peas|frozen)\b/i, '🧊'],
+  [/\b(chicken|turkey)/i, '🍗'],
+  [/\bbacon/i, '🥓'],
+  [/\b(beef|mince|steak|lamb|pork)/i, '🥩'],
+  [/\bsausage/i, '🌭'],
+  [/\b(prawn|shrimp)/i, '🦐'],
+  [/\b(fish|salmon|cod|tuna|haddock)/i, '🐟'],
+  [/\b(spaghetti|pasta|penne|noodle)/i, '🍝'],
+  [/\brice\b/i, '🍚'],
+  [/\b(curry|stew|wok)/i, '🍜'],
+  [/\bpizza/i, '🍕'],
+  [/\b(flour)\b/i, '🌾'],
+  [/\b(lentil|chickpea|kidney beans?)/i, '🫘'],
+  [/\bhoney/i, '🍯'],
+  [/\bolive/i, '🫒'],
+  [/\b(herb|bay leaves|basil|parsley|oregano)/i, '🌿'],
+  [/\b(stock cube|salt|pepper|spice)/i, '🧂'],
+  [/\b(tea bags?|tea)\b/i, '🍵'],
+  [/\b(coffee|latte|cappuccino)/i, '☕'],
+  [/\bjuice/i, '🧃'],
+  [/\b(water|cola|lemonade|fizzy|drink|soda)\b/i, '🥤'],
+  [/\b(wine)\b/i, '🍷'],
+  [/\b(washing|laundry|soap|shampoo|bleach|cleaner|detergent|liquid)\b/i, '🧴'],
+  [/\b(toothpaste|toothbrush)/i, '🪥'],
+  [/\b(paracetamol|ibuprofen|tablets|plasters?)\b/i, '🩹'],
+  [/\bbatter(y|ies)/i, '🔋'],
+  [/\b(cable|charger|charging|plug)/i, '🔌'],
+  [/\b(light bulb|bulb)/i, '💡'],
+  [/\b(tape|glue|scissors)/i, '✂️'],
+  [/\bcandle/i, '🕯️'],
+  [/\b(teddy|toy)/i, '🧸'],
+  [/\b(colouring|crayon|pencil|pen)\b/i, '🖍️'],
+  [/\b(flower|bouquet|plant)/i, '💐'],
+  [/\b(card)\b/i, '💌'],
+  [/\b(gift|present)/i, '🎁'],
+  [/\b(haircut|hair|trim|beard|shave)/i, '✂️'],
 ];
 
+/** The picture for a category, when no word in the name says more. */
+export const CATEGORY_EMOJI: Record<string, string> = {
+  'Fruit and vegetables': '🥕',
+  Dairy: '🥛',
+  Bakery: '🍞',
+  Cupboard: '🥫',
+  Household: '🧻',
+  'Everyday essentials': '🛍️',
+  'Meat and fish': '🍗',
+  Frozen: '🧊',
+  Health: '🩹',
+  'Cards and gifts': '🎁',
+};
+
+/** A catalogue item's picture: by its name first, then its category. */
+export function itemEmoji(name: string, category: string): string {
+  for (const [pattern, emoji] of PRODUCT_EMOJI) if (pattern.test(name)) return emoji;
+  return CATEGORY_EMOJI[category] ?? '🛍️';
+}
+
+/** A Shop Partner's product: by its name and tags, then the shop's kind. */
 export function productEmoji(words: string, kind: PartnerKind | string): string {
   for (const [pattern, emoji] of PRODUCT_EMOJI) if (pattern.test(words)) return emoji;
   return shopLook(kind).emoji === '🛒' ? '🛍️' : shopLook(kind).emoji;

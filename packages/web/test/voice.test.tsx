@@ -321,7 +321,8 @@ describe('the round button', () => {
     await user.keyboard('{ArrowLeft}{ArrowUp}');
     const moved = storedSettings().bubble as { x: number; y: number };
     expect(moved.x).toBeCloseTo(0.87);
-    expect(moved.y).toBeCloseTo(0.5);
+    // It starts at the foot of the screen (20 October 2026), kept within 0.95, then one step up.
+    expect(moved.y).toBeCloseTo(0.9);
 
     await user.click(
       screen.getByRole('button', { name: `Put ${assistant}’s button back in its usual place` }),
