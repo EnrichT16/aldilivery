@@ -28,6 +28,8 @@ import { useVoice } from '../state/voice';
  */
 
 const SIZE = 124;
+/** The room the round button needs at the foot of a page, so nothing ends up under it. */
+export const BUBBLE_ROOM = SIZE + 16;
 const DRAG_START_PX = 10;
 const ARROW_STEP = 0.05;
 const CAPTION_LINGER_MS = 8000;
@@ -61,7 +63,9 @@ export function OziBubble({ docked = false }: { docked?: boolean } = {}): JSX.El
   const ozi = useOzi();
   const voice = useVoice();
   const assistant = storeConfig.assistantName;
-  const position = voice.settings.bubble ?? { x: 0.92, y: 0.55 };
+  // Bottom right to start with, above the bars (20 October 2026: in the middle of the edge it
+  // sat over the first screen's buttons). Anyone can still move it.
+  const position = voice.settings.bubble ?? { x: 0.92, y: 1 };
   const [dragAt, setDragAt] = useState<{ x: number; y: number } | null>(null);
   const [captionShown, setCaptionShown] = useState(false);
   const pointer = useRef<{ id: number; startX: number; startY: number; dragging: boolean } | null>(

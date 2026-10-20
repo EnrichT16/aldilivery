@@ -10,7 +10,7 @@ import { AdSquare } from './AdSquare';
 import { companyFacts } from './CompanyDetails';
 import { DemoBanner } from './DemoBanner';
 import { MicrophoneHelp } from './MicrophoneHelp';
-import { OziBubble, presenceWord } from './OziBubble';
+import { BUBBLE_ROOM, OziBubble, presenceWord } from './OziBubble';
 import { OziSwitch } from './OziSwitch';
 import { SocialLinks } from './SocialLinks';
 
@@ -46,12 +46,18 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
   const dockRef = useRef<HTMLDivElement>(null);
   useMeasuredBar('dock', dockRef);
   const bars = useDockHeights();
-  const room = bars.dock + bars.caption;
+  // The round button needs room too when it is not in the bottom bar.
+  const room = bars.dock + bars.caption + (shopperBars ? 0 : BUBBLE_ROOM);
 
   return (
     <div
       className="min-h-screen flex flex-col bg-ink text-paper"
-      style={{ paddingBottom: `calc(${room}px + 1rem)` }}
+      // Saved to the home screen, the page runs under the phone's clock and its home bar: the
+      // safe areas keep everything clear of them (20 October 2026).
+      style={{
+        paddingTop: 'env(safe-area-inset-top)',
+        paddingBottom: `calc(${room}px + 1rem)`,
+      }}
     >
       <a className="skip-link" href="#main">
         Skip to the main part of this page
@@ -169,7 +175,11 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
           <CompanyLine />
         </div>
       </footer>
-      <div ref={dockRef} className="fixed bottom-0 inset-x-0 z-40">
+      <div
+        ref={dockRef}
+        className="fixed bottom-0 inset-x-0 z-40"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         {shopperBars && <ShopperBottomBar />}
         <OziSwitch />
       </div>

@@ -5,7 +5,8 @@ import { OverOneRunner } from '../components/OverOneRunner';
 import { storeConfig } from '../config';
 import { deliveryWords, money, shownPrice } from '../lib/money';
 import { useBasket } from '../state/basket';
-import { CATEGORY_EMOJI, tint } from '../components/ShopHome';
+import { tint } from '../components/ShopHome';
+import { itemEmoji } from '../lib/shop-look';
 
 /**
  * The basket.
@@ -48,7 +49,7 @@ export function Basket(): JSX.Element {
               className="flex items-center justify-center shrink-0 w-14 h-14 rounded-2xl text-[1.8rem] leading-none"
               style={{ background: tint(line.item.category) }}
             >
-              {CATEGORY_EMOJI[line.item.category] ?? '🛍️'}
+              {itemEmoji(line.item.name, line.item.category)}
             </span>
             <div className="flex-1 min-w-[10rem]">
               <p className="m-0 font-bold leading-tight">{line.item.name}</p>

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { storeConfig } from '../config';
 import { fetchShops, type CatalogueItem, type PublicShop } from '../lib/api';
 import { money, sellable, shownPrice } from '../lib/money';
-import { shopLook } from '../lib/shop-look';
+import { itemEmoji, shopLook } from '../lib/shop-look';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
 
@@ -59,19 +59,6 @@ function initials(name: string): string {
     words.length > 1 ? words[0]![0]! + words[1]![0]! : (words[0] ?? '?').slice(0, 2)
   ).toUpperCase();
 }
-
-export const CATEGORY_EMOJI: Record<string, string> = {
-  'Fruit and vegetables': '🍎',
-  Dairy: '🥛',
-  Bakery: '🍞',
-  Cupboard: '🥫',
-  Household: '🧻',
-  'Everyday essentials': '🧺',
-  'Meat and fish': '🍗',
-  Frozen: '🧊',
-  Health: '🩹',
-  'Cards and gifts': '🎁',
-};
 
 function greeting(now: Date): string {
   const hour = now.getHours();
@@ -265,7 +252,7 @@ export function ShopHome({
                   className="flex items-center justify-center h-24 rounded-2xl text-[2.8rem]"
                   style={{ background: tint(item.category) }}
                 >
-                  {CATEGORY_EMOJI[item.category] ?? '🛍️'}
+                  {itemEmoji(item.name, item.category)}
                 </span>
                 <span className="font-bold leading-tight">{item.name}</span>
                 <span className="card-muted">
