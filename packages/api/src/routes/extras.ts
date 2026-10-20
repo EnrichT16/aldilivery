@@ -30,7 +30,7 @@ import {
   activePlan,
   addMonths,
   cancelPlanFor,
-  hasMembershipExtras,
+  freeFindItsFor,
   inFreeMonth,
   planName,
   planPricePence,
@@ -355,15 +355,19 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
     };
   }
 
-  /** Every plan, and the free month, include a number of free Finds It searches a month. */
+  /**
+   * Every plan, and the free month, include a number of free Finds It searches a month: one on
+   * Membership and in the free month, two on Plus and Family and Carer (ruling 73).
+   */
   async function freeFindItLeft(shopper: Shopper): Promise<boolean> {
     const at = now();
-    if (!hasMembershipExtras(shopper, at) || extras.freeFindItsPerMonth === 0) return false;
+    const included = freeFindItsFor(shopper, at, config);
+    if (included === 0) return false;
     const monthAgo = addMonths(at, -1);
     const freeThisMonth = (await repository.findRequests.listForShopper(shopper.id)).filter(
       (row) => row.feePence === 0 && row.createdAt.getTime() > monthAgo.getTime(),
     ).length;
-    return freeThisMonth < extras.freeFindItsPerMonth;
+    return freeThisMonth < included;
   }
 
   app.get('/extras/find-it', async (request) => {

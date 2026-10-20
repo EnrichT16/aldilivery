@@ -121,22 +121,58 @@ describe('a Set that sends itself', () => {
     expect(orders).toHaveLength(1);
     const order = orders[0]!;
     expect(order.status).toBe('paid');
-    expect(order.totalEstimatePence).toBe(250 + 100 + 799);
+    expect(order.totalEstimatePence).toBe(250 + 100 + 1099);
     expect(order.confirmationChannel).toBe('set');
     expect(order.confirmationStatement).toContain(AGREED);
     expect(order.spokenConfirmationAt).not.toBeNull();
     expect(order.setFireAt?.toISOString()).toBe(FIRE_AT.toISOString());
     expect(charges()).toEqual([
       expect.objectContaining({
-        input: expect.objectContaining({ amountPence: 1149, reference: `order:${order.id}` }),
+        input: expect.objectContaining({ amountPence: 1449, reference: `order:${order.id}` }),
       }),
     ]);
-    expect(texts.at(-1)?.body).toContain('£11.49 has been taken from your card ending 4242');
+    expect(texts.at(-1)?.body).toContain('£14.49 has been taken from your card ending 4242');
 
     // The Set moves on to next week, needing its own notice.
     const set = (await harness.repository.sets.listForShopper(shopper.shopperId))[0]!;
     expect(set.nextFireAt.toISOString()).toBe('2026-09-23T09:00:00.000Z');
     expect(set.noticeSentAt).toBeNull();
+  });
+
+  it('says in the notice when it is past the monthly allowance, and charges the extra (ruling 73)', async () => {
+    await harness.repository.shoppers.update(shopper.shopperId, {
+      freeMonthUntil: null,
+      plan: 'membership',
+      planUntil: new Date('2026-10-30T09:00:00.000Z'),
+    });
+    await createSet(true);
+    harness.setNow(new Date('2026-09-10T09:00:00.000Z'));
+    for (let index = 0; index < 5; index += 1) {
+      await harness.repository.orders.create({
+        shopperId: shopper.shopperId,
+        status: 'delivered',
+        goodsEstimatePence: 500,
+        feePence: 799,
+        totalEstimatePence: 1349,
+        deliveryAddress: '12 Example Street',
+        items: [],
+      });
+    }
+    await sweepAt('2026-09-16T08:29:00.000Z');
+    expect(texts.at(-1)?.body).toContain(
+      'This is your 6th order this month. Your plan includes 5, so this one has an extra £5.99 delivery charge.',
+    );
+    await sweepAt('2026-09-16T09:00:30.000Z');
+    const placed = (await harness.repository.orders.listForShopper(shopper.shopperId)).find(
+      (order) => order.setId !== null,
+    );
+    expect(placed).toMatchObject({
+      status: 'paid',
+      feePence: 799,
+      allowanceExtraPence: 599,
+      totalEstimatePence: 250 + 100 + 799 + 599,
+      runnerPaymentPence: 500,
+    });
   });
 
   it('places each occurrence once only, however often the sweep runs', async () => {

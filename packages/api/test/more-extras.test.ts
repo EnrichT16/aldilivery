@@ -137,6 +137,23 @@ describe('Ozi Finds It', () => {
     expect(never.json().error.message).toMatch(/never brings alcohol/);
   });
 
+  it('gives two free a month on Plus and Family and Carer (ruling 73)', async () => {
+    await harness.repository.shoppers.update(shopper.shopperId, {
+      freeMonthUntil: null,
+      plan: 'plus',
+      planUntil: new Date('2026-11-07T10:00:00.000Z'),
+    });
+    for (const description of ['Welsh cakes', 'A blue teapot']) {
+      const covered = await post('/extras/find-it', { description });
+      expect(covered.statusCode, covered.body).toBe(201);
+      expect(covered.json().message).toMatch(/your free Ozi Finds It for this month/);
+    }
+    expect(charges()).toHaveLength(0);
+    const third = await post('/extras/find-it', { description: 'Laverbread' });
+    expect(third.statusCode).toBe(400);
+    expect(third.json().error.message).toMatch(/agree to the price first: £2\.00/);
+  });
+
   it('is only for staff to decide', async () => {
     const response = await harness.app.inject({ method: 'GET', url: '/staff/find-it' });
     expect(response.statusCode).toBe(403);
@@ -183,20 +200,20 @@ describe('gift cards', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay.',
-          agreedTotalPence: 250 + 100 + 799,
+          agreedTotalPence: 250 + 100 + 1099,
         },
       },
       mum,
     );
     expect(order.statusCode, order.body).toBe(201);
     expect(order.json().message).toMatch(
-      /£11\.49\. £11\.49 of gift card money is going straight back to your card\./,
+      /£14\.49\. £14\.49 of gift card money is going straight back to your card\./,
     );
     expect(refunds()).toEqual([
-      expect.objectContaining({ input: expect.objectContaining({ amountPence: 1149 }) }),
+      expect.objectContaining({ input: expect.objectContaining({ amountPence: 1449 }) }),
     ]);
     const after = await harness.repository.shoppers.findById(mum.shopperId);
-    expect(after?.creditPence).toBe(2000 - 1149);
+    expect(after?.creditPence).toBe(2000 - 1449);
   });
 });
 

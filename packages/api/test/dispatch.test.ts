@@ -52,7 +52,7 @@ async function placeOrder(): Promise<string> {
         addressConfirmed: true,
         channel: 'button',
         statement: 'Send my order and pay.',
-        agreedTotalPence: 250 + 89 + 150 + 799,
+        agreedTotalPence: 250 + 89 + 150 + 1099,
       },
     },
   });
@@ -534,7 +534,7 @@ describe('a large order nobody who can carry it has taken', () => {
           addressConfirmed: true,
           channel: 'button',
           statement: 'Send my order and pay.',
-          agreedTotalPence: 6250 + 2500 + 1350,
+          agreedTotalPence: 6250 + 2500 + 1499,
         },
       },
     });

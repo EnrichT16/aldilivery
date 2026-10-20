@@ -86,33 +86,33 @@ async function price(lines: object[], who: SignedInShopper = shopper) {
 }
 
 describe('the worked examples, priced by the server', () => {
-  it('John, first month, pays as he goes: £58.36 + £8.50 + £9.99 = £76.85 (over £30, up to £60)', async () => {
+  it('John, first month, pays as he goes: £58.36 + £8.50 + £12.99 = £79.85 (over £30, up to £60)', async () => {
     const priced = await price(await johnsBasket());
     expect(priced).toMatchObject({
       goodsEstimatePence: 5836,
       itemChargesPence: 850,
-      feePence: 999,
-      totalPence: 7685,
+      feePence: 1299,
+      totalPence: 7985,
       deliveryPlan: 'payg',
     });
     // Every price shown includes its item charge: the £1.40 product is shown as £1.90.
     expect(priced.lines[0]).toMatchObject({ unitPricePence: 140, unitDisplayPence: 190 });
   });
 
-  it('John, as a Member: £58.36 + £8.50 + £5.99 = £72.85', async () => {
+  it('John, as a Member: £58.36 + £8.50 + £7.99 = £74.85', async () => {
     const lines = await johnsBasket();
     await harness.repository.shoppers.update(shopper.shopperId, {
       plan: 'membership',
       planUntil: addMonths(START, 1),
     });
-    expect(await price(lines)).toMatchObject({ totalPence: 7285, deliveryPlan: 'membership' });
+    expect(await price(lines)).toMatchObject({ totalPence: 7485, deliveryPlan: 'membership' });
   });
 
-  it('prices a £75 shop, over £60, at £13.50, £9.99 and £7.99 by plan (ruling 63)', async () => {
+  it('prices a £75 shop, over £60, at £14.99, £9.99 and £8.99 by plan (ruling 73)', async () => {
     const big = [{ catalogueItemId: await product('Hamper', 2500), quantity: 3 }];
     expect(await price(big)).toMatchObject({
       goodsEstimatePence: 7500,
-      feePence: 1350,
+      feePence: 1499,
       deliveryPlan: 'payg',
     });
     await harness.repository.shoppers.update(shopper.shopperId, {
@@ -124,20 +124,20 @@ describe('the worked examples, priced by the server', () => {
       plan: 'plus',
       planUntil: addMonths(START, 1),
     });
-    expect(await price(big)).toMatchObject({ feePence: 799, deliveryPlan: 'plus' });
+    expect(await price(big)).toMatchObject({ feePence: 899, deliveryPlan: 'plus' });
     // The band edges, one penny apart: £60.00 is up to £60, £60.01 is over it.
     const edge = await product('Edge', 1);
     const sixty = await product('Sixty', 6000);
-    expect(await price([{ catalogueItemId: sixty, quantity: 1 }])).toMatchObject({ feePence: 399 });
+    expect(await price([{ catalogueItemId: sixty, quantity: 1 }])).toMatchObject({ feePence: 699 });
     expect(
       await price([
         { catalogueItemId: sixty, quantity: 1 },
         { catalogueItemId: edge, quantity: 1 },
       ]),
-    ).toMatchObject({ feePence: 799 });
+    ).toMatchObject({ feePence: 899 });
   });
 
-  it('Mary, milk, bread and eggs, pays as she goes: £4.69 + £1.50 + £7.99 = £14.18', async () => {
+  it('Mary, milk, bread and eggs, pays as she goes: £4.69 + £1.50 + £10.99 = £17.18', async () => {
     const lines = [
       { catalogueItemId: await product('Milk', 125), quantity: 1 },
       { catalogueItemId: await product('Bread', 95), quantity: 1 },
@@ -146,8 +146,8 @@ describe('the worked examples, priced by the server', () => {
     expect(await price(lines)).toMatchObject({
       goodsEstimatePence: 469,
       itemChargesPence: 150,
-      feePence: 799,
-      totalPence: 1418,
+      feePence: 1099,
+      totalPence: 1718,
     });
   });
 
@@ -161,15 +161,15 @@ describe('the worked examples, priced by the server', () => {
         confirmed: true,
         addressConfirmed: true,
         statement: 'Send my order and pay.',
-        agreedTotalPence: 7685,
+        agreedTotalPence: 7985,
       },
     });
     expect(placed.statusCode, placed.body).toBe(201);
     expect(placed.json().order).toMatchObject({
       goodsEstimatePence: 5836,
       itemChargesPence: 850,
-      feePence: 999,
-      totalEstimatePence: 7685,
+      feePence: 1299,
+      totalEstimatePence: 7985,
       deliveryPlan: 'payg',
     });
   });
@@ -250,7 +250,7 @@ describe('joining a plan', () => {
     expect(texts.at(-1)?.body).toMatch(/£10\.00 was taken for another month of Ozi Membership/);
   });
 
-  it('Plus takes £15 now, brings delivery to £3.99 up to £60 of shopping, and shows no adverts', async () => {
+  it('Plus takes £15 now, brings delivery to £6.99 up to £60 of shopping, and shows no adverts', async () => {
     await harness.repository.shoppers.update(shopper.shopperId, { freeMonthUntil: null });
     const joined = await post('/plans/join', {
       plan: 'plus',
@@ -260,7 +260,7 @@ describe('joining a plan', () => {
     expect(joined.statusCode, joined.body).toBe(200);
     expect(charges()[0]?.input).toEqual(expect.objectContaining({ amountPence: 1500 }));
     const priced = await price(await johnsBasket());
-    expect(priced).toMatchObject({ feePence: 399, totalPence: 5836 + 850 + 399 });
+    expect(priced).toMatchObject({ feePence: 699, totalPence: 5836 + 850 + 699 });
     const advert = await harness.app.inject({
       method: 'GET',
       url: '/spotlight?q=milk',
@@ -341,7 +341,7 @@ describe('Ozi Family and Carer', () => {
     );
   }
 
-  it('is for up to four people in different homes, all on £3.99 delivery up to £60 of shopping', async () => {
+  it('is for up to four people in different homes, all on £6.99 delivery up to £60 of shopping', async () => {
     const { code, dad } = await familyOf(null);
     for (const [index, name] of ['Aunt', 'Gran'].entries()) {
       const other = await signUpShopper(harness, {
@@ -356,7 +356,7 @@ describe('Ozi Family and Carer', () => {
     expect(full.json().error.message).toMatch(/up to 4 people/);
     const milk = await product('Milk', 125);
     expect(await price([{ catalogueItemId: milk, quantity: 2 }], dad)).toMatchObject({
-      feePence: 399,
+      feePence: 699,
       deliveryPlan: 'plus',
     });
   });
@@ -367,7 +367,7 @@ describe('Ozi Family and Carer', () => {
     const placed = await familyOrder(
       dad,
       [{ catalogueItemId: milk, quantity: 2 }],
-      250 + 100 + 399,
+      250 + 100 + 699,
     );
     expect(placed.statusCode, placed.body).toBe(201);
     const order = placed.json().order;
@@ -389,7 +389,7 @@ describe('Ozi Family and Carer', () => {
     const { dad } = await familyOf(1000);
     const milk = await product('Milk', 125);
     const lines = [{ catalogueItemId: milk, quantity: 8 }];
-    const total = 1000 + 400 + 399;
+    const total = 1000 + 400 + 699;
     const placed = await familyOrder(dad, lines, total);
     expect(placed.statusCode, placed.body).toBe(201);
     expect(placed.json()).toMatchObject({ waitingForApproval: true });
@@ -481,9 +481,9 @@ describe('organisations', () => {
       organisationId: organisation.id,
     });
     expect(await price(await johnsBasket())).toMatchObject({
-      feePence: 599,
+      feePence: 799,
       itemChargesPence: 850,
-      totalPence: 7285,
+      totalPence: 7485,
       deliveryPlan: 'membership',
     });
   });

@@ -197,6 +197,10 @@ export async function registerPaymentRoutes(app: FastifyInstance): Promise<void>
       `Shop total: ${money(order.receiptTotalPence ?? order.goodsEstimatePence)}`,
       `Item charges: ${money(order.itemChargesPence)}`,
       `Delivery: ${money(order.receiptFeePence ?? order.feePence)}`,
+      // Past the plan's monthly allowance (ruling 73): its own line, never folded into delivery.
+      ...(order.allowanceExtraPence > 0
+        ? [`Extra delivery charge: ${money(order.allowanceExtraPence)}`]
+        : []),
       `Total: ${money(total)}`,
       order.receiptTotalPence === null
         ? 'The shopping is an estimate until your Runner reaches the till.'

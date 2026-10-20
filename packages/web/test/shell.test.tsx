@@ -420,8 +420,40 @@ describe('the confirmation screen', () => {
         /Your shopping, about £1\.75, with the item charges included: £1\.25 at the shop/,
       ),
     ).toBeInTheDocument();
+    expect(screen.getByText(/^Delivery, £10\.99\.$/)).toBeInTheDocument();
+    expect(screen.getByText(/Altogether, about £12\.74\./)).toBeInTheDocument();
+  });
+
+  it('shows and puts in the words agreed the extra delivery charge past the monthly allowance (ruling 73)', async () => {
+    stubApi({
+      shopper: {
+        ...FAKE_SHOPPER,
+        deliveryPlan: 'membership',
+        allowancePlan: 'membership',
+        ordersThisMonth: 5,
+      },
+      paymentMethods: [FAKE_CARD],
+    });
+    const user = userEvent.setup();
+    renderAt('/shop');
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Add Semi skimmed milk/ })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole('button', { name: /Add Semi skimmed milk/ }));
+    await user.click(screen.getByRole('link', { name: 'Basket' }));
+    await user.click(screen.getByRole('link', { name: 'Check and send my order' }));
     expect(screen.getByText(/^Delivery, £7\.99\.$/)).toBeInTheDocument();
-    expect(screen.getByText(/Altogether, about £9\.74\./)).toBeInTheDocument();
+    expect(screen.getByText(/^Extra delivery charge, £5\.99\.$/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'This is your 6th order this month. Your plan includes 5, so this one has an extra £5.99 delivery charge.',
+      ),
+    ).toBeInTheDocument();
+    // £1.25 + 50p + £7.99 + £5.99.
+    expect(screen.getByText(/Altogether, about £15\.73\./)).toBeInTheDocument();
+    expect(
+      screen.getByText(/and delivery £7\.99, and an extra delivery charge of £5\.99\./),
+    ).toBeInTheDocument();
   });
 });
 

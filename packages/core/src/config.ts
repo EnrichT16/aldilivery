@@ -29,6 +29,7 @@ import type {
   DeliveryBand,
   DeliveryPrices,
   ItemChargeRule,
+  OrderAllowance,
   OrganisationPricing,
   ProcessorModel,
 } from './fees.js';
@@ -102,10 +103,11 @@ export interface StoreConfig {
     readonly runnerPaymentPence: number;
     /**
      * Delivery by plan and by the value of the shopping, in bands (ruling 58, 9 October 2026;
-     * re-banded by ruling 63, 16 October 2026). Pay as you go covers the Runner's five pounds in
-     * every band; a plan's price may be below it, its monthly price making up the difference.
+     * re-banded by ruling 63, 16 October 2026, and ruling 73, 20 October 2026). Pay as you go
+     * covers the Runner's five pounds in every band; a plan's price may be below it, its monthly
+     * price making up the difference. With the monthly order allowance of each plan (ruling 73).
      */
-    readonly delivery: DeliveryPrices;
+    readonly delivery: DeliveryPrices & { readonly allowance: OrderAllowance };
     /** The charge on every unit, from its shop price (ruling 58). Never removed by a plan. */
     readonly itemCharge: ItemChargeRule;
     /** No single product may cost more than this in the shop (ruling 58: £60). */
@@ -191,8 +193,10 @@ export interface StoreConfig {
     readonly freeFirstMonth: boolean;
     /** The reminder that the free month is ending goes this many days before. */
     readonly freeMonthReminderDaysBefore: number;
-    /** Free Ozi Finds It searches a month on any plan. */
+    /** Free Ozi Finds It searches a month on Membership and in the free month. */
     readonly freeFindItsPerMonth: number;
+    /** Free Ozi Finds It searches a month on Ozi Plus and Ozi Family and Carer (ruling 73: two). */
+    readonly plusFreeFindItsPerMonth: number;
     /** Ozi Plus: a friendly check-in after this many days without an order. */
     readonly checkInAfterDays: number;
     /** What organisations pay for the people they look after (ruling 58). */
@@ -529,6 +533,24 @@ function parseDeliveryBands(value: unknown): DeliveryBand[] {
   return bands;
 }
 
+/**
+ * The monthly order allowance (ruling 73, 20 October 2026): `fees.delivery.allowance`, how many
+ * orders a calendar month Membership, Plus and (for each person) Family and Carer include, and
+ * the extra delivery charge on the order after it and every `extraEvery`-th order after that.
+ * Every plan includes at least one order, and the extra comes at most on every order past it.
+ */
+function parseOrderAllowance(value: unknown): OrderAllowance {
+  const path = 'fees.delivery.allowance';
+  const raw = object(value, path);
+  return {
+    membershipOrders: wholeNumber(raw['membershipOrders'], `${path}.membershipOrders`, 1),
+    plusOrders: wholeNumber(raw['plusOrders'], `${path}.plusOrders`, 1),
+    familyOrdersEach: wholeNumber(raw['familyOrdersEach'], `${path}.familyOrdersEach`, 1),
+    extraChargePence: wholeNumber(raw['extraChargePence'], `${path}.extraChargePence`, 0),
+    extraEvery: wholeNumber(raw['extraEvery'], `${path}.extraEvery`, 1),
+  };
+}
+
 const HEX_COLOUR = /^#[0-9A-Fa-f]{6}$/;
 
 function hexColour(value: unknown, path: string): string {
@@ -712,7 +734,10 @@ export function parseStoreConfig(input: unknown): StoreConfig {
 
   const deliveryRaw = object(fees['delivery'], 'fees.delivery');
   const itemChargeRaw = object(fees['itemCharge'], 'fees.itemCharge');
-  const delivery: DeliveryPrices = { bands: parseDeliveryBands(deliveryRaw['bands']) };
+  const delivery: DeliveryPrices & { allowance: OrderAllowance } = {
+    bands: parseDeliveryBands(deliveryRaw['bands']),
+    allowance: parseOrderAllowance(deliveryRaw['allowance']),
+  };
   const itemCharge: ItemChargeRule = {
     basePence: wholeNumber(itemChargeRaw['basePence'], 'fees.itemCharge.basePence', 0),
     stepPence: wholeNumber(itemChargeRaw['stepPence'], 'fees.itemCharge.stepPence', 0),
@@ -984,6 +1009,11 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       freeFindItsPerMonth: wholeNumber(
         extras['freeFindItsPerMonth'] ?? 1,
         'extras.freeFindItsPerMonth',
+        0,
+      ),
+      plusFreeFindItsPerMonth: wholeNumber(
+        extras['plusFreeFindItsPerMonth'] ?? extras['freeFindItsPerMonth'] ?? 1,
+        'extras.plusFreeFindItsPerMonth',
         0,
       ),
       checkInAfterDays: wholeNumber(extras['checkInAfterDays'] ?? 14, 'extras.checkInAfterDays', 1),

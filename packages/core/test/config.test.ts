@@ -343,8 +343,39 @@ describe('the configuration parser refuses to contradict a rule', () => {
     const delivery = (goodConfig()['fees'] as Record<string, Record<string, unknown>>)['delivery']!;
     const bands = [...(delivery['bands'] as Record<string, unknown>[])];
     bands[index] = { ...bands[index], ...changes };
-    return withFees({ delivery: { bands } });
+    return withFees({ delivery: { ...delivery, bands } });
   }
+
+  /** The live monthly allowance (ruling 73), with some of its figures changed. */
+  function withAllowance(changes: Record<string, unknown>): Record<string, unknown> {
+    const delivery = (goodConfig()['fees'] as Record<string, Record<string, unknown>>)['delivery']!;
+    const allowance = { ...(delivery['allowance'] as Record<string, unknown>), ...changes };
+    return withFees({ delivery: { ...delivery, allowance } });
+  }
+
+  it('reads the monthly order allowance, and refuses one that makes no sense (ruling 73)', () => {
+    expect(config.fees.delivery.allowance).toEqual({
+      membershipOrders: 5,
+      plusOrders: 8,
+      familyOrdersEach: 5,
+      extraChargePence: 599,
+      extraEvery: 3,
+    });
+    expect(() => parseStoreConfig(withAllowance({ membershipOrders: 0 }))).toThrow(
+      /fees\.delivery\.allowance\.membershipOrders/,
+    );
+    expect(() => parseStoreConfig(withAllowance({ extraEvery: 0 }))).toThrow(
+      /fees\.delivery\.allowance\.extraEvery/,
+    );
+    expect(() => parseStoreConfig(withAllowance({ extraChargePence: 5.99 }))).toThrow(
+      /fees\.delivery\.allowance\.extraChargePence/,
+    );
+    expect(() => parseStoreConfig(withAllowance({ plusOrders: undefined }))).toThrow(/plusOrders/);
+    const delivery = (goodConfig()['fees'] as Record<string, Record<string, unknown>>)['delivery']!;
+    expect(() => parseStoreConfig(withFees({ delivery: { bands: delivery['bands'] } }))).toThrow(
+      /fees\.delivery\.allowance must be an object/,
+    );
+  });
 
   it('rejects a pay-as-you-go delivery price, in any band, that would not cover the Runner (Rule Two)', () => {
     for (const index of [0, 1, 2]) {
@@ -374,10 +405,10 @@ describe('the configuration parser refuses to contradict a rule', () => {
     expect(() => parseStoreConfig(withBand(1, { upToPence: 3000 }))).toThrow(
       /must be above the band before it/,
     );
-    expect(() => parseStoreConfig(withBand(1, { payAsYouGoPence: 798 }))).toThrow(
+    expect(() => parseStoreConfig(withBand(1, { payAsYouGoPence: 1098 }))).toThrow(
       /never dearer to deliver/,
     );
-    expect(() => parseStoreConfig(withBand(2, { plusPence: 398 }))).toThrow(
+    expect(() => parseStoreConfig(withBand(2, { plusPence: 698 }))).toThrow(
       /never dearer to deliver/,
     );
     expect(() => parseStoreConfig(withFees({ delivery: { bands: [] } }))).toThrow(StoreConfigError);

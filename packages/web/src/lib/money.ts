@@ -1,9 +1,11 @@
 import {
+  allowancePlanWords,
   deliveryPriceRange,
   deliveryStepsWords,
   displayPricePence,
   formatPence,
   productAllowed,
+  type AllowancePlan,
   type DeliveryPlan,
 } from '@aldilivery/core';
 
@@ -35,13 +37,22 @@ export function tooDearWords(name: string): string {
 
 /**
  * A plan's delivery prices, by the value of the shopping, in one plain phrase (ruling 63):
- * "£7.99 for shopping up to £30.00, £9.99 up to £60.00, and £13.50 over £60.00".
+ * "£10.99 for shopping up to £30.00, £12.99 up to £60.00, and £14.99 over £60.00".
  */
 export function planDeliveryWords(plan: DeliveryPlan): string {
   return deliveryStepsWords(plan, storeConfig.fees, money);
 }
 
-/** The cheapest and dearest delivery on any plan: "£3.99 to £13.50". */
+/**
+ * A plan's monthly order allowance in one plain phrase (ruling 73): "5 orders a month; after
+ * that, an extra £5.99 delivery charge on the next order and every 3rd order after it". Empty
+ * for pay as you go, which has none.
+ */
+export function planAllowanceWords(plan: AllowancePlan): string {
+  return allowancePlanWords(plan, storeConfig.fees.delivery.allowance, money) ?? '';
+}
+
+/** The cheapest and dearest delivery on any plan: "£6.99 to £14.99". */
 export function deliveryRangeWords(): string {
   const { lowestPence, highestPence } = deliveryPriceRange(storeConfig.fees);
   return `${money(lowestPence)} to ${money(highestPence)}`;

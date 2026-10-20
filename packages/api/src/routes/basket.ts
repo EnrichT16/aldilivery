@@ -11,7 +11,7 @@ import { z } from 'zod';
 
 import { priceLinesInParts, type PricedBasketInParts } from '../services/basket.js';
 import { largeOrderShopperWords } from '../services/dispatch.js';
-import { deliveryPlanFor } from '../services/plans.js';
+import { allowanceFor, deliveryPlanFor, type AllowanceStanding } from '../services/plans.js';
 
 const basketSchema = z.object({
   lines: z
@@ -40,14 +40,16 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
         ? await repository.shoppers.findById(request.session.accountId)
         : null;
     const plan = shopper ? await deliveryPlanFor(app.ctx, shopper, now()) : 'payg';
+    // The monthly allowance (ruling 73): the order being priced counts as the next this month.
+    const allowance = shopper ? await allowanceFor(app.ctx, shopper, now()) : null;
 
     // Throws on an age restricted item (Rule Six), on a product over the most one product may
     // cost, and on a basket over the most one basket holds (ruling 61: £450). Over one order
     // (£150), it is priced both ways the Shopper may choose (basketChoice).
-    const priced = priceLinesInParts(lines, items, config.fees, plan);
+    const priced = priceLinesInParts(lines, items, config.fees, plan, allowance?.extraPence ?? 0);
 
     const symbol = config.store.currencySymbol;
-    if (priced.parts.length > 1) return basketChoice(priced);
+    if (priced.parts.length > 1) return basketChoice(priced, allowance);
     const shopping = priced.goodsPence + priced.itemChargesPence;
     // Rulings 59 and 60: a large shop goes to a Runner with a vehicle who can carry it, or
     // comes in parts if none takes it, which may take a little longer.
@@ -57,8 +59,10 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
       goodsEstimatePence: priced.goodsPence,
       itemChargesPence: priced.itemChargesPence,
       feePence: priced.feePence,
+      allowanceExtraPence: priced.allowanceExtraPence,
       totalPence: priced.totalPence,
       deliveryPlan: priced.plan,
+      ...allowanceFields(allowance),
       carNeeded,
       lines: priced.lines,
       // Said in words as well as pence, so a screen reader, a large text setting or a
@@ -68,11 +72,13 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
         itemCharges: formatPence(priced.itemChargesPence, symbol),
         shopping: formatPence(shopping, symbol),
         fee: formatPence(priced.feePence, symbol),
+        allowanceExtra: formatPence(priced.allowanceExtraPence, symbol),
         total: formatPence(priced.totalPence, symbol),
       },
       explanation: [
         `The shopping is about ${formatPence(shopping, symbol)}, with the item charges included: ${formatPence(priced.goodsPence, symbol)} at the shop's prices and ${formatPence(priced.itemChargesPence, symbol)} of item charges.`,
         `Delivery is ${formatPence(priced.feePence, symbol)}.`,
+        ...(allowance?.words ? [allowance.words] : []),
         `So about ${formatPence(priced.totalPence, symbol)} altogether.`,
         'You pay what the till says for the shopping, so the total may change a little.',
         ...(carNeeded ? [largeOrderShopperWords(config, priced.goodsPence)] : []),
@@ -85,7 +91,17 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
    * than one Runner can carry, and given both choices: take something out or swap it, or keep
    * everything as linked orders. Nothing hidden: every order, its Runner and its delivery.
    */
-  function basketChoice(priced: PricedBasketInParts) {
+  /** Where the Shopper stands with the monthly allowance (ruling 73), for the screen. */
+  function allowanceFields(allowance: AllowanceStanding | null) {
+    return {
+      allowancePlan: allowance?.plan ?? 'payg',
+      orderNumberThisMonth: allowance?.orderNumber ?? null,
+      ordersIncluded: allowance?.included ?? null,
+      allowanceWords: allowance?.words ?? null,
+    };
+  }
+
+  function basketChoice(priced: PricedBasketInParts, allowance: AllowanceStanding | null) {
     const money = (pence: number) => formatPence(pence, config.store.currencySymbol);
     const shopping = priced.goodsPence + priced.itemChargesPence;
     const choice = overOneRunnerWords(config.fees, money);
@@ -95,12 +111,13 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
       goodsPence: part.goodsPence,
       itemChargesPence: part.itemChargesPence,
       feePence: part.feePence,
+      allowanceExtraPence: part.allowanceExtraPence,
       totalPence: part.totalPence,
       extra: part.extra,
       tinyExtra: part.extra && part.goodsPence < config.dispatch.tinyExtraBelowPence,
       carNeeded: needsVehicle(part.goodsPence, config.dispatch.maxGoodsPenceByMode),
       lines: part.lines,
-      words: `Runner ${part.part}: ${money(part.goodsPence)} of shopping at the shop's prices and ${money(part.itemChargesPence)} of item charges, delivery ${money(part.feePence)}${part.extra ? ', taken only when this Runner collects it' : ''}.`,
+      words: `Runner ${part.part}: ${money(part.goodsPence)} of shopping at the shop's prices and ${money(part.itemChargesPence)} of item charges, delivery ${money(part.feePence)}${part.extra ? ', taken only when this Runner collects it' : ''}${part.allowanceExtraPence > 0 ? `, and an extra delivery charge of ${money(part.allowanceExtraPence)}` : ''}.`,
     }));
     return {
       overOneRunner: true,
@@ -111,9 +128,11 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
       itemChargesPence: priced.itemChargesPence,
       // Keeping everything: every order's delivery added up.
       feePence: priced.feePence,
+      allowanceExtraPence: priced.allowanceExtraPence,
       totalPence: priced.totalPence,
       extraDeliveryPence: priced.extraDeliveryPence,
       deliveryPlan: priced.plan,
+      ...allowanceFields(allowance),
       carNeeded: true,
       lines: priced.lines,
       parts,
@@ -122,12 +141,14 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
         itemCharges: money(priced.itemChargesPence),
         shopping: money(shopping),
         fee: money(priced.feePence),
+        allowanceExtra: money(priced.allowanceExtraPence),
         total: money(priced.totalPence),
       },
       explanation: [
         choice,
         `If you keep everything, it comes as ${priced.parts.length} orders, each with its own Runner:`,
         ...parts.map((part) => part.words),
+        ...(allowance?.words ? [allowance.words] : []),
         `So about ${money(priced.totalPence)} altogether, delivery ${money(priced.feePence)} of it.`,
         'You pay what the till says for the shopping, so the total may change a little.',
       ],

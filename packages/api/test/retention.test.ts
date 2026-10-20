@@ -49,7 +49,7 @@ async function placeOrder(): Promise<string> {
         addressConfirmed: true,
         channel: 'button',
         statement: 'Send my order and pay.',
-        agreedTotalPence: 250 + 100 + 799,
+        agreedTotalPence: 250 + 100 + 1099,
       },
     },
   });
@@ -91,7 +91,7 @@ describe('closing an account', () => {
 
     // The order and its money stay, as the privacy page says, without the address.
     const order = (await harness.repository.orders.findById(orderId))!;
-    expect(order.totalEstimatePence).toBe(250 + 100 + 799);
+    expect(order.totalEstimatePence).toBe(250 + 100 + 1099);
     expect(order.deliveryAddress).toBe('');
     expect(order.doorstepProtocolSnapshot).toBe('');
     expect(order.confirmationStatement).toBe('Send my order and pay.');
@@ -210,7 +210,7 @@ describe('the retention periods on the privacy page', () => {
     });
     const order = (await harness.repository.orders.findById(orderId))!;
     expect(order.deliveryAddress).toBe('');
-    expect(order.totalEstimatePence).toBe(250 + 100 + 799);
+    expect(order.totalEstimatePence).toBe(250 + 100 + 1099);
     expect(order.anonymisedAt).not.toBeNull();
   });
 });

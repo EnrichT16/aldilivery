@@ -24,6 +24,11 @@ interface SessionValue {
   signOut: () => void;
   /** Keeps the cached Shopper in step after an edit, without another round trip. */
   replaceShopper: (shopper: Shopper) => void;
+  /**
+   * Asks the server again who is signed in, after an order is placed, so the monthly order
+   * count (ruling 73) and anything else the order changed stay as the server has them.
+   */
+  refresh: () => Promise<void>;
 }
 
 const SessionContext = createContext<SessionValue | null>(null);
@@ -84,9 +89,27 @@ export function SessionProvider({ children }: { children: ReactNode }): JSX.Elem
     setShopper(null);
   }, []);
 
+  const refresh = useCallback(async () => {
+    if (readToken() === null) return;
+    try {
+      const me = await fetchMe();
+      if (me.shopper) setShopper(me.shopper);
+    } catch {
+      // Kept as it was: the server checks the price again before anything is charged.
+    }
+  }, []);
+
   const value = useMemo<SessionValue>(
-    () => ({ shopper, restoring, signedUp, signedIn, signOut, replaceShopper: setShopper }),
-    [shopper, restoring, signedUp, signedIn, signOut],
+    () => ({
+      shopper,
+      restoring,
+      signedUp,
+      signedIn,
+      signOut,
+      replaceShopper: setShopper,
+      refresh,
+    }),
+    [shopper, restoring, signedUp, signedIn, signOut, refresh],
   );
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;

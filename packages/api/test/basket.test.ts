@@ -109,7 +109,7 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
     expect(body.totalPence).toBe(1 + 50 + body.feePence);
   });
 
-  it('charges pay-as-you-go delivery by the value of the shopping: £7.99 up to £30, £9.99 up to £60, £13.50 over', async () => {
+  it('charges pay-as-you-go delivery by the value of the shopping: £10.99 up to £30, £12.99 up to £60, £14.99 over (ruling 73)', async () => {
     const small = await harness.app.inject({
       method: 'POST',
       url: '/basket/price',
@@ -124,8 +124,8 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
     const smallFee = (small.json() as { feePence: number }).feePence;
     const largerFee = (larger.json() as { feePence: number }).feePence;
     // Ten pints at £1.25 is £12.50: still the smallest fee. Twenty-five is £31.25: the middle.
-    expect(smallFee).toBe(799);
-    expect(largerFee).toBe(799);
+    expect(smallFee).toBe(1099);
+    expect(largerFee).toBe(1099);
     const middle = await harness.app.inject({
       method: 'POST',
       url: '/basket/price',
@@ -134,8 +134,8 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
     expect(middle.json()).toMatchObject({
       goodsEstimatePence: 3125,
       itemChargesPence: 1250,
-      feePence: 999,
-      totalPence: 3125 + 1250 + 999,
+      feePence: 1299,
+      totalPence: 3125 + 1250 + 1299,
     });
     // Forty-nine pints is £61.25: over £60, car-and-two-bags territory.
     const over = await harness.app.inject({
@@ -146,8 +146,8 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
     expect(over.json()).toMatchObject({
       goodsEstimatePence: 6125,
       itemChargesPence: 2450,
-      feePence: 1350,
-      totalPence: 6125 + 2450 + 1350,
+      feePence: 1499,
+      totalPence: 6125 + 2450 + 1499,
     });
   });
 
@@ -162,8 +162,8 @@ describe('Rule Four: no minimum spend and no small order fee', () => {
       inWords: { fee: string; total: string };
       explanation: string[];
     };
-    expect(body.inWords.fee).toBe('£7.99');
-    expect(body.inWords.total).toBe('£11.49');
+    expect(body.inWords.fee).toBe('£10.99');
+    expect(body.inWords.total).toBe('£14.49');
     // The shopping is said with its item charges in it, and the parts are named.
     expect(body.explanation.join(' ')).toContain(
       "The shopping is about £3.50, with the item charges included: £2.50 at the shop's prices and £1.00 of item charges.",
@@ -229,7 +229,7 @@ describe('the most one order carries, and the most one product may cost', () => 
     expect(response.json()).toMatchObject({
       goodsEstimatePence: 15000,
       itemChargesPence: 10 * 150,
-      feePence: 1350,
+      feePence: 1499,
     });
   });
 
@@ -245,7 +245,8 @@ describe('the most one order carries, and the most one product may cost', () => 
       choice:
         'Your shopping is over £150, which is more than one Runner can carry. You can take something out or swap it to stay with one Runner, or keep everything and a second Runner will bring the rest for an extra £13.50 delivery.',
       goodsEstimatePence: 16500,
-      feePence: 2700,
+      // £14.99 for the first order (over £60 on pay as you go) and £13.50 for the second.
+      feePence: 1499 + 1350,
     });
   });
 
@@ -270,8 +271,8 @@ describe('the most one order carries, and the most one product may cost', () => 
       payload: { lines: [{ catalogueItemId: await product(6000), quantity: 1 }] },
     });
     expect(sixty.statusCode).toBe(200);
-    // £60 of shopping is still within the middle band: £9.99 on pay as you go.
-    expect(sixty.json()).toMatchObject({ itemChargesPence: 550, totalPence: 6000 + 550 + 999 });
+    // £60 of shopping is still within the middle band: £12.99 on pay as you go.
+    expect(sixty.json()).toMatchObject({ itemChargesPence: 550, totalPence: 6000 + 550 + 1299 });
     const over = await harness.app.inject({
       method: 'POST',
       url: '/basket/price',

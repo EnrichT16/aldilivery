@@ -49,7 +49,7 @@ import { learnFromReceiptLater } from '../services/prices.js';
 import { keepReceiptPhoto, receiptPhotoSchema } from '../services/receipt-photo.js';
 import { startReimbursement } from '../services/reimburse.js';
 import { DEMO_BANNER, DEMO_REFUSED } from '../services/demo.js';
-import { activePlan, deliveryPlanFor } from '../services/plans.js';
+import { activePlan, allowanceFor, deliveryPlanFor } from '../services/plans.js';
 import { tellShopperById } from '../services/order-updates.js';
 import {
   assertConfirmedBeforePayment,
@@ -164,8 +164,15 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     input: z.infer<typeof createOrderSchema>,
     catalogueItems: Parameters<typeof priceLinesInParts>[1],
     plan: Parameters<typeof priceLinesInParts>[3],
+    allowanceExtraPence: number,
   ): PricedBasketInParts {
-    const priced = priceLinesInParts(input.lines, catalogueItems, config.fees, plan);
+    const priced = priceLinesInParts(
+      input.lines,
+      catalogueItems,
+      config.fees,
+      plan,
+      allowanceExtraPence,
+    );
     if (priced.parts.length > 1 && !input.keepEverything) {
       const money = (pence: number) => formatPence(pence, symbol);
       throw new BadRequestError(
@@ -198,6 +205,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       | 'goodsEstimatePence'
       | 'itemChargesPence'
       | 'feePence'
+      | 'allowanceExtraPence'
       | 'totalEstimatePence'
       | 'items'
       | 'runnerPaymentPence'
@@ -215,6 +223,8 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
           runnerPaymentPence: runnerPaymentFor(part.goodsPence, config.fees),
           itemChargesPence: part.itemChargesPence,
           feePence: part.feePence,
+          // Ruling 73: the extra delivery charge past the monthly allowance, on the first only.
+          allowanceExtraPence: part.allowanceExtraPence,
           totalEstimatePence: part.totalPence,
           ...(linked
             ? {
@@ -261,10 +271,13 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     const catalogueItems = await repository.catalogue.findManyByIds(
       input.lines.map((line) => line.catalogueItemId),
     );
+    // The monthly allowance (ruling 73): this order counts as the next one this month.
+    const allowance = await allowanceFor(app.ctx, shopper, now());
     const priced = pricedForOrder(
       input,
       catalogueItems,
       await deliveryPlanFor(app.ctx, shopper, now()),
+      allowance.extraPence,
     );
     if (!input.overrideBudgetCap && exceedsBudgetCap(priced.goodsPence, shopper.budgetCapPence)) {
       throw new BadRequestError(
@@ -273,7 +286,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     }
     if (input.confirmation.agreedTotalPence !== priced.totalPence) {
       throw new BadRequestError(
-        `The price changed while you were deciding. It is now ${formatPence(priced.totalPence, symbol)}. Nothing has been charged. Please check it and confirm again.`,
+        `The price changed while you were deciding. It is now ${formatPence(priced.totalPence, symbol)}.${allowance.extraPence > 0 && allowance.words ? ` ${allowance.words}` : ''} Nothing has been charged. Please check it and confirm again.`,
         { agreedTotalPence: input.confirmation.agreedTotalPence, totalPence: priced.totalPence },
       );
     }
@@ -406,10 +419,13 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
     // Rule Six is applied again here, not only at basket time, because the catalogue can
     // change between pricing a basket and sending it. Delivery follows the Shopper's plan.
+    // The monthly allowance (ruling 73): this order counts as the next one this month.
+    const allowance = await allowanceFor(app.ctx, shopper, now());
     const priced = pricedForOrder(
       input,
       catalogueItems,
       await deliveryPlanFor(app.ctx, shopper, now()),
+      allowance.extraPence,
     );
 
     if (!input.overrideBudgetCap && exceedsBudgetCap(priced.goodsPence, shopper.budgetCapPence)) {
@@ -423,7 +439,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     // different amount from the one they confirmed.
     if (input.confirmation.agreedTotalPence !== priced.totalPence) {
       throw new BadRequestError(
-        `The price changed while you were deciding. It is now ${formatPence(priced.totalPence, symbol)}. Nothing has been charged. Please check it and confirm again.`,
+        `The price changed while you were deciding. It is now ${formatPence(priced.totalPence, symbol)}.${allowance.extraPence > 0 && allowance.words ? ` ${allowance.words}` : ''} Nothing has been charged. Please check it and confirm again.`,
         { agreedTotalPence: input.confirmation.agreedTotalPence, totalPence: priced.totalPence },
       );
     }

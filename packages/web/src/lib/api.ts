@@ -194,6 +194,10 @@ export interface Shopper {
   membershipExtras?: boolean;
   /** Plus and Family: no adverts. */
   plusExtras?: boolean;
+  /** Which monthly order allowance applies now (ruling 73): the server decides. */
+  allowancePlan?: import('@aldilivery/core').AllowancePlan;
+  /** The Shopper's own orders that count towards it so far this calendar month. */
+  ordersThisMonth?: number;
   /** On somebody else's Family and Carer plan, whose card pays. */
   familyOwnerId?: string | null;
   creditPence?: number;

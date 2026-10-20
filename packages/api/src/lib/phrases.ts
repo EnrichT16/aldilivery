@@ -18,6 +18,7 @@ import { dirname, join } from 'node:path';
 import {
   basisPointsWords,
   deliverySteps,
+  ordinalWord,
   deliveryStepsWords,
   formatPence,
   normalisePhrase,
@@ -72,6 +73,15 @@ export const BLANKS = [
   'paygDelivery',
   'memberDelivery',
   'plusDelivery',
+  // The monthly order allowance (ruling 73): orders a month on each plan, the extra delivery
+  // charge past it and how often it comes ("3rd"); and the free Finds It searches a month.
+  'memberOrders',
+  'plusOrders',
+  'familyOrders',
+  'allowanceExtra',
+  'allowanceEvery',
+  'findIts',
+  'plusFindIts',
   'itemCharge',
   'membership',
   'plusPrice',
@@ -201,6 +211,14 @@ export function phraseBook(explicitConfigPath?: string): PhraseBook {
   return cached;
 }
 
+/** A small count as people say it: "one", "two"... up to ten, then the number. */
+function countWord(n: number): string {
+  return (
+    ['none', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'][n] ??
+    String(n)
+  );
+}
+
 /** The figures and names a reply may mention, always from the store's own settings. */
 export function fillIn(
   reply: string,
@@ -221,8 +239,8 @@ export function fillIn(
     // below the dearest (up to {largeUpTo}) and {fee} the dearest, over {largeUpTo}. Members pay
     // {memberFee} up to {largeUpTo} and {memberLargeFee} over; Plus and Family and Carer {plusFee}
     // and {plusLargeFee}. {paygDelivery}, {memberDelivery} and {plusDelivery} say a whole plan's
-    // prices in one phrase: "£7.99 for shopping up to £30.00, £9.99 up to £60.00, and £13.50 over
-    // £60.00".
+    // prices in one phrase: "£10.99 for shopping up to £30.00, £12.99 up to £60.00, and £14.99
+    // over £60.00".
     fee: money(paygSteps[paygSteps.length - 1]!.pence),
     smallFee: money(paygSteps[0]!.pence),
     smallUpTo: money(paygSteps[0]!.upToPence ?? 0),
@@ -235,6 +253,13 @@ export function fillIn(
     paygDelivery: deliveryStepsWords('payg', config.fees, money),
     memberDelivery: deliveryStepsWords('membership', config.fees, money),
     plusDelivery: deliveryStepsWords('plus', config.fees, money),
+    memberOrders: String(config.fees.delivery.allowance.membershipOrders),
+    plusOrders: String(config.fees.delivery.allowance.plusOrders),
+    familyOrders: String(config.fees.delivery.allowance.familyOrdersEach),
+    allowanceExtra: money(config.fees.delivery.allowance.extraChargePence),
+    allowanceEvery: ordinalWord(config.fees.delivery.allowance.extraEvery),
+    findIts: countWord(config.extras.freeFindItsPerMonth),
+    plusFindIts: countWord(config.extras.plusFreeFindItsPerMonth),
     // The smallest item charge, said as pence when it is under a pound.
     itemCharge:
       config.fees.itemCharge.basePence < 100

@@ -18,7 +18,9 @@ import { hashCode, signSession, suggestHandle, verifyPhoneProof } from '../lib/t
 import { sweepOffers } from '../services/dispatch.js';
 import {
   activePlan,
+  allowancePlanFor,
   deliveryPlanFor,
+  orderNumberThisMonth,
   freeMonthEnd,
   hasMembershipExtras,
   hasPlusExtras,
@@ -372,6 +374,10 @@ async function publicShopper(
     membershipExtras: hasMembershipExtras(shopper, at),
     // Plus and Family: no adverts.
     plusExtras: hasPlusExtras(shopper, at),
+    // The monthly order allowance (ruling 73): which applies, and the Shopper's own orders so
+    // far this calendar month, so the basket shows any extra delivery charge before the yes.
+    allowancePlan: await allowancePlanFor(ctx, shopper, at),
+    ordersThisMonth: (await orderNumberThisMonth(ctx, shopper, at)) - 1,
   };
 }
 

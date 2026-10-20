@@ -21,7 +21,8 @@ import { itemEmoji } from '../lib/shop-look';
  * one, the number, More); "+ Add items"; the costs on their own card; and one wide button on.
  */
 export function Basket(): JSX.Element {
-  const { lines, pricing, overMaximum, overOneRunner, parts, setQuantity, remove } = useBasket();
+  const { lines, pricing, overMaximum, overOneRunner, parts, setQuantity, remove, allowanceWords } =
+    useBasket();
 
   if (lines.length === 0) {
     return (
@@ -159,6 +160,14 @@ export function Basket(): JSX.Element {
               </th>
               <td className="text-right py-2">{money(pricing.feePence)}</td>
             </tr>
+            {pricing.allowanceExtraPence > 0 && (
+              <tr>
+                <th scope="row" className="text-left font-normal py-2">
+                  Extra delivery charge
+                </th>
+                <td className="text-right py-2">{money(pricing.allowanceExtraPence)}</td>
+              </tr>
+            )}
             <tr className="border-t-2 border-[#0B1F3A]">
               <th scope="row" className="text-left text-lead font-bold py-2">
                 Altogether, about
@@ -172,6 +181,7 @@ export function Basket(): JSX.Element {
           {deliveryWords(pricing.plan)} There is no charge for a small order, no charge for being
           busy, and no smallest order. Every price we show already includes its item charge.
         </p>
+        {allowanceWords && <p className="m-0 font-bold">{allowanceWords}</p>}
         <p className="m-0 card-muted">
           You pay what the till says for the shopping, so the total may change a little.
         </p>

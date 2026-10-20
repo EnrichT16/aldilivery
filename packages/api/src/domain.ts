@@ -380,6 +380,12 @@ export interface Order {
   /** The item charges on every unit (ruling 58). They go to the business, never to the shop. */
   itemChargesPence: number;
   feePence: number;
+  /**
+   * The extra delivery charge for an order past the plan's monthly allowance (ruling 73), or 0.
+   * In `totalEstimatePence` and the final total; not shop goods, so the till never sees it; it
+   * goes to the business, never to the Runner.
+   */
+  allowanceExtraPence: number;
   totalEstimatePence: number;
   /** Which delivery price applied. */
   deliveryPlan: import('@aldilivery/core').DeliveryPlan;

@@ -53,7 +53,13 @@ import { phraseReply } from '../lib/phrases.js';
 import { priceLinesInParts } from '../services/basket.js';
 import { suggestItem } from '../services/suggest.js';
 import { liveBook } from './ozi.js';
-import { CANCEL_PLAN, cancelPlanFor, deliveryPlanFor, freeMonthEnd } from '../services/plans.js';
+import {
+  allowanceFor,
+  CANCEL_PLAN,
+  cancelPlanFor,
+  deliveryPlanFor,
+  freeMonthEnd,
+} from '../services/plans.js';
 import { answerByText } from '../services/questions.js';
 import { skipByText } from '../services/set-runner.js';
 
@@ -263,6 +269,9 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
   async function readBack(lines: Array<[string, number]>, shopperId?: string) {
     const items = await repository.catalogue.findManyByIds(lines.map(([id]) => id));
     const shopper = shopperId ? await repository.shoppers.findById(shopperId) : null;
+    // The monthly allowance (ruling 73): this order counts as the caller's next this month, and
+    // any extra delivery charge is said before the yes, as on the screen.
+    const allowance = shopper ? await allowanceFor(app.ctx, shopper, now()) : null;
     // Priced as linked orders when over one order (ruling 61), so a big basket is explained
     // rather than refused with an error.
     const priced = priceLinesInParts(
@@ -270,22 +279,34 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       items,
       config.fees,
       shopper ? await deliveryPlanFor(app.ctx, shopper, now()) : 'payg',
+      allowance?.extraPence ?? 0,
     );
     const words = listWords(priced.lines.map((line) => `${line.quantity} ${line.name}`));
-    return { priced, words };
+    return { priced, words, allowanceWords: allowance?.words ?? null };
   }
 
   /**
    * The cost, read aloud: the shopping with its item charges included (prices are always said
-   * with them in, ruling 58), then delivery, then the total.
+   * with them in, ruling 58), then delivery, then any extra delivery charge for the monthly
+   * allowance with the reason for it (ruling 73), then the total.
    */
-  function costWords(priced: {
-    goodsPence: number;
-    itemChargesPence: number;
-    feePence: number;
-    totalPence: number;
-  }): string {
-    return `The shopping comes to about ${money(priced.goodsPence + priced.itemChargesPence)}, with the item charges included. Delivery is ${money(priced.feePence)}. So the total is about ${money(priced.totalPence)}`;
+  function costWords(
+    priced: {
+      goodsPence: number;
+      itemChargesPence: number;
+      feePence: number;
+      allowanceExtraPence: number;
+      totalPence: number;
+    },
+    allowanceWords: string | null = null,
+  ): string {
+    const extra =
+      priced.allowanceExtraPence > 0
+        ? ` ${allowanceWords ?? `There is an extra delivery charge of ${money(priced.allowanceExtraPence)}.`}`
+        : allowanceWords
+          ? ` ${allowanceWords}`
+          : '';
+    return `The shopping comes to about ${money(priced.goodsPence + priced.itemChargesPence)}, with the item charges included. Delivery is ${money(priced.feePence)}.${extra} So the total is about ${money(priced.totalPence)}`;
   }
 
   /** The order so far, then "anything else?". */
@@ -808,7 +829,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
   /** The order read back slowly: everything, the cost, the card and the address. */
   async function confirmTwiml(state: CallState, sid: string, opening = ''): Promise<string> {
     if (state.link) {
-      const { priced, words } = await readBack(state.lines, state.shopperId);
+      const { priced, words, allowanceWords } = await readBack(state.lines, state.shopperId);
       const ceiling = config.voice.paymentCeilingPence;
       if (priced.parts.length > 1) return overOneRunnerOnPhone(state, sid);
       if (priced.totalPence > ceiling) {
@@ -818,14 +839,14 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
         );
       }
       return ask(
-        `${opening ? `${opening} ` : ''}Here is your order. ${words}. ${costWords(priced)}. You pay what the till says for the shopping. I'll text you a secure link from our payment company to pay and give your delivery address, and your card is kept safely by them for next time. A Runner is sent once you've paid. Shall I send the link? Say yes or no.`,
+        `${opening ? `${opening} ` : ''}Here is your order. ${words}. ${costWords(priced, allowanceWords)}. You pay what the till says for the shopping. I'll text you a secure link from our payment company to pay and give your delivery address, and your card is kept safely by them for next time. A Runner is sent once you've paid. Shall I send the link? Say yes or no.`,
         next({ ...state, step: 'confirm', agreedTotalPence: priced.totalPence, quiet: 0 }, sid),
       );
     }
     const shopper = state.shopperId ? await repository.shoppers.findById(state.shopperId) : null;
     if (!shopper)
       return goodbye('Sorry, I could not find your account. Please ring again. Goodbye.');
-    const { priced, words } = await readBack(state.lines, shopper.id);
+    const { priced, words, allowanceWords } = await readBack(state.lines, shopper.id);
     const ceiling = config.voice.paymentCeilingPence;
     if (priced.parts.length > 1) return overOneRunnerOnPhone(state, sid);
     if (priced.totalPence > ceiling) {
@@ -837,7 +858,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     const cards = await repository.paymentMethods.listForShopper(shopper.id);
     const card = cards[0];
     return ask(
-      `${opening ? `${opening} ` : ''}Here is your order. ${words}. ${costWords(priced)}, taken from your card ending ${card?.lastFour.split('').join(' ') ?? ''}. You pay what the till says for the shopping. It goes to your home address: ${shopper.deliveryAddress}. Shall I send it? Say yes or no.`,
+      `${opening ? `${opening} ` : ''}Here is your order. ${words}. ${costWords(priced, allowanceWords)}, taken from your card ending ${card?.lastFour.split('').join(' ') ?? ''}. You pay what the till says for the shopping. It goes to your home address: ${shopper.deliveryAddress}. Shall I send it? Say yes or no.`,
       next({ ...state, step: 'confirm', agreedTotalPence: priced.totalPence, quiet: 0 }, sid),
     );
   }
@@ -888,6 +909,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       runnerPaymentPence: runnerPaymentFor(priced.goodsPence, config.fees),
       itemChargesPence: priced.itemChargesPence,
       feePence: priced.feePence,
+      allowanceExtraPence: priced.allowanceExtraPence,
       totalEstimatePence: priced.totalPence,
       deliveryPlan: priced.plan,
       deliveryAddress: '',

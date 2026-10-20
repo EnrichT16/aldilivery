@@ -1,9 +1,12 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
 import {
+  allowanceExtraPence,
+  allowanceWords,
   deliveryFeePence,
   itemChargesForLines,
   priceBasketInParts,
+  formatPence,
   productAllowed,
   type BasketPartPricing,
   type BasketPricing,
@@ -44,6 +47,12 @@ interface BasketValue {
   overOneRunner: boolean;
   parts: readonly BasketPartPricing[];
   itemCount: number;
+  /**
+   * The monthly order allowance (ruling 73): what the Shopper is told about this order before
+   * the yes ("This is your 6th order this month. Your plan includes 5, so this one has an extra
+   * £5.99 delivery charge."), or null when there is nothing to say.
+   */
+  allowanceWords: string | null;
 }
 
 const BasketContext = createContext<BasketValue | null>(null);
@@ -61,6 +70,22 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
   const session = useOptionalSession();
   // The delivery price follows the signed-in Shopper's plan, exactly as the server decides it.
   const plan: DeliveryPlan = session?.shopper?.deliveryPlan ?? 'payg';
+  // The monthly order allowance (ruling 73), exactly as the server counts it: this order is the
+  // next one this calendar month.
+  const allowancePlan = session?.shopper?.allowancePlan ?? 'payg';
+  const orderNumber = (session?.shopper?.ordersThisMonth ?? 0) + 1;
+  const extraPence = allowanceExtraPence(
+    allowancePlan,
+    orderNumber,
+    storeConfig.fees.delivery.allowance,
+  );
+  const allowanceText = useMemo(
+    () =>
+      allowanceWords(allowancePlan, orderNumber, storeConfig.fees.delivery.allowance, (pence) =>
+        formatPence(pence, storeConfig.store.currencySymbol),
+      ),
+    [allowancePlan, orderNumber],
+  );
 
   const add = useCallback((item: CatalogueItem): boolean => {
     if (!productAllowed(item.estimatedPricePence, storeConfig.fees)) return false;
@@ -100,7 +125,14 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
     // An empty basket has no fee to show. Rule Four means there is no minimum, so a basket
     // of one penny is priced exactly like any other.
     if (lines.length === 0) {
-      return { goodsPence: 0, itemChargesPence: 0, feePence: 0, totalPence: 0, plan };
+      return {
+        goodsPence: 0,
+        itemChargesPence: 0,
+        feePence: 0,
+        allowanceExtraPence: 0,
+        totalPence: 0,
+        plan,
+      };
     }
     // Every unit carries its item charge (ruling 58), shown within its price.
     const itemChargesPence = itemChargesForLines(
@@ -123,11 +155,13 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
         })),
         plan,
         storeConfig.fees,
+        extraPence,
       );
       return {
         goodsPence,
         itemChargesPence,
         feePence: inParts.feePence,
+        allowanceExtraPence: inParts.allowanceExtraPence,
         totalPence: inParts.totalPence,
         plan,
         parts: inParts.parts,
@@ -144,10 +178,11 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
       goodsPence,
       itemChargesPence,
       feePence,
-      totalPence: goodsPence + itemChargesPence + feePence,
+      allowanceExtraPence: extraPence,
+      totalPence: goodsPence + itemChargesPence + feePence + extraPence,
       plan,
     };
-  }, [lines, plan]);
+  }, [lines, plan, extraPence]);
 
   const pricing = useMemo<BasketPricing>(() => {
     const { parts: _parts, ...rest } = priced;
@@ -169,8 +204,20 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
       overOneRunner,
       parts,
       itemCount: lines.reduce((sum, line) => sum + line.quantity, 0),
+      allowanceWords: lines.length === 0 ? null : allowanceText,
     }),
-    [lines, add, remove, setQuantity, clear, pricing, overMaximum, overOneRunner, parts],
+    [
+      lines,
+      add,
+      remove,
+      setQuantity,
+      clear,
+      pricing,
+      overMaximum,
+      overOneRunner,
+      parts,
+      allowanceText,
+    ],
   );
 
   return <BasketContext.Provider value={value}>{children}</BasketContext.Provider>;
