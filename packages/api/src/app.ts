@@ -25,6 +25,7 @@ import { addSecurityHeaders, limiter } from './lib/guard.js';
 import type { CallProvider } from './lib/livekit.js';
 import type { VoiceEngineLink } from './lib/oluoma-voice.js';
 import type { OziBrain } from './lib/language-model.js';
+import type { OpenPricesLookup } from './lib/open-prices.js';
 import type { PaymentsGateway } from './lib/payments.js';
 import type { SendPush } from './lib/push.js';
 import type { SendText } from './lib/sms.js';
@@ -127,6 +128,13 @@ export interface AppContext {
    * give up. Null without LANGUAGE_MODEL_KEY; the hand-built parts then work alone.
    */
   brain: OziBrain | null;
+  /** The open price database (ruling 72). Null in tests unless one is given. */
+  openPrices: OpenPricesLookup | null;
+  /**
+   * Look prices up and read receipts in the background (ruling 72). On in the real server, off
+   * unless asked for in the tests, which drive lookups by hand.
+   */
+  lookUpPrices: boolean;
 }
 
 export interface Session {
@@ -161,6 +169,8 @@ export interface BuildAppOptions extends Partial<
     | 'calls'
     | 'voice'
     | 'brain'
+    | 'openPrices'
+    | 'lookUpPrices'
   >
 > {
   config: StoreConfig;
@@ -224,6 +234,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     calls: options.calls ?? null,
     voice: options.voice ?? null,
     brain: options.brain ?? null,
+    openPrices: options.openPrices ?? null,
+    lookUpPrices: options.lookUpPrices ?? false,
   };
 
   app.decorate('ctx', ctx);

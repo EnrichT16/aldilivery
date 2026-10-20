@@ -45,6 +45,7 @@ import { settleTill, type TillOutcome } from '../services/till.js';
 import { settleSplitTill, syncSplitParent } from '../services/split.js';
 import { cardTill, flagCardTill, releaseCard } from '../services/runner-card.js';
 import { payOutOrder } from '../services/pay-runner.js';
+import { learnFromReceiptLater } from '../services/prices.js';
 import { keepReceiptPhoto, receiptPhotoSchema } from '../services/receipt-photo.js';
 import { startReimbursement } from '../services/reimburse.js';
 import { DEMO_BANNER, DEMO_REFUSED } from '../services/demo.js';
@@ -929,7 +930,11 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     }
 
     // The photo first, so a pay-back that needs one sees it.
-    if (input.photo) await keepReceiptPhoto(app.ctx, order.id, input.photo);
+    if (input.photo) {
+      await keepReceiptPhoto(app.ctx, order.id, input.photo);
+      // Its prices teach the catalogue what things really cost (ruling 72), in the background.
+      learnFromReceiptLater(app.ctx, order.id, request.log);
+    }
 
     // Paid with the spending card: the till total is what the card actually paid, as long as
     // the receipt typed matches it within a few pence; otherwise a person looks.

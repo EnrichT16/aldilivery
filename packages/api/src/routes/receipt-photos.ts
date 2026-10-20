@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { requireSession } from '../app.js';
 import { ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 import { staffActor } from '../lib/staff.js';
+import { learnFromReceiptLater } from '../services/prices.js';
 import { keepReceiptPhoto, receiptPhotoSchema } from '../services/receipt-photo.js';
 import { receiptPhotoArrived } from '../services/reimburse.js';
 
@@ -33,6 +34,8 @@ export async function registerReceiptPhotoRoutes(app: FastifyInstance): Promise<
       throw new ConflictError('That order is finished. If the receipt matters, please tell us.');
     }
     await keepReceiptPhoto(app.ctx, order.id, photo);
+    // Its prices teach the catalogue what things really cost (ruling 72), in the background.
+    learnFromReceiptLater(app.ctx, order.id, request.log);
     const paidBack = await receiptPhotoArrived(app.ctx, order.id, request.log);
     void reply.status(201);
     return {
@@ -41,6 +44,25 @@ export async function registerReceiptPhotoRoutes(app: FastifyInstance): Promise<
       message: paidBack
         ? `Thank you, the photo of the receipt is in. ${paidBack.message}`
         : 'Thank you, the photo of the receipt is in.',
+    };
+  });
+
+  /**
+   * The prices learned lately (ruling 72): from receipts, the open price database and web
+   * lookups, newest first. Prices of things only, never who bought them.
+   */
+  app.get('/staff/prices', async (request) => {
+    await staffActor(request, 'learning');
+    const rows = await repository.prices.latest(200);
+    return {
+      prices: rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        pricePence: row.pricePence,
+        shop: row.shop,
+        source: row.source,
+        seenAt: row.seenAt,
+      })),
     };
   });
 

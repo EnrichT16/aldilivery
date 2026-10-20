@@ -74,6 +74,7 @@ import {
   type LearningRow,
   fetchMemory,
   fetchMemoryExport,
+  fetchPricesLearned,
   judgeExchange,
   type ExchangeRow,
   fetchStaffShopOfTheMonth,
@@ -408,6 +409,7 @@ export function Staff(): JSX.Element {
             {shown === 'learning' && (
               <Memory staffKey={key} owner={me.isOwner === true} onNews={setNews} />
             )}
+            {shown === 'learning' && <PricesLearned staffKey={key} />}
             {shown === 'payments' && <Payments staffKey={key} onNews={setNews} />}
             {shown === 'partners' && <Partners staffKey={key} onNews={setNews} />}
             {shown === 'partners' && <ShopOfTheMonth staffKey={key} />}
@@ -2101,6 +2103,47 @@ interface PanelProps {
  * quarter and the half year among Partner Plus shops, each with how many reviews it has and
  * whether it has enough to win. Counts and averages only, never who said what.
  */
+const PRICE_SOURCE_WORDS = {
+  receipt: 'a till receipt',
+  open_prices: 'the open price database',
+  web: 'a web lookup',
+} as const;
+
+/** The prices learned lately (ruling 72), newest first, so a person can spot an odd one. */
+function PricesLearned({ staffKey }: { staffKey: string }): JSX.Element {
+  const list = useList(() => fetchPricesLearned(staffKey));
+  const rows = list.data?.prices;
+  return (
+    <section aria-labelledby="prices-learned-heading" className="space-y-4 max-w-2xl">
+      <h2 id="prices-learned-heading" className="text-lead font-bold">
+        Prices learned
+      </h2>
+      <p className="m-0 extra">
+        Real prices, read off Runners&rsquo; till receipts, from the open price database, or found
+        by one web lookup. Each estimate in the shop follows the best of them. Shoppers still pay
+        what the till says.
+      </p>
+      <Failure text={list.problem} />
+      {rows && rows.length === 0 && <p className="m-0">No prices learned yet.</p>}
+      {rows && rows.length > 0 && (
+        <ul className="m-0 p-0 list-none space-y-2">
+          {rows.map((row) => (
+            <li key={row.id} className="border-2 border-paper rounded-2xl p-4">
+              <strong>{row.name}</strong>: {money(row.pricePence)}
+              {row.shop ? ` at ${row.shop}` : ''}, from {PRICE_SOURCE_WORDS[row.source]},{' '}
+              {new Date(row.seenAt).toLocaleDateString('en-GB', {
+                day: 'numeric',
+                month: 'long',
+              })}
+              .
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function ShopOfTheMonth({ staffKey }: { staffKey: string }): JSX.Element {
   const list = useList(() => fetchStaffShopOfTheMonth(staffKey));
   const [which, setWhich] = useState<'month' | 'quarter' | 'half'>('month');

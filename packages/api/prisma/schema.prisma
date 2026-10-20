@@ -593,6 +593,25 @@ model ReceiptPhoto {
   createdAt   DateTime @default(now())
 }
 
+/// One price seen for one thing (ruling 72): off a till receipt, from the open price database,
+/// or from a web lookup. The catalogue estimate follows the best of them.
+model PriceSighting {
+  id              String   @id @default(cuid())
+  catalogueItemId String?
+  name            String
+  pricePence      Int
+  shop            String?
+  /// receipt, open_prices or web.
+  source          String
+  orderId         String?
+  barcode         String?
+  seenAt          DateTime @default(now())
+
+  @@index([catalogueItemId, seenAt])
+  @@index([source, seenAt])
+  @@index([seenAt])
+}
+
 /// What a Shopper said after a delivery (Section O). One per order, and the credit given for it,
 /// whatever it says. Shops see only patterns, never who said what.
 model ShopperFeedback {

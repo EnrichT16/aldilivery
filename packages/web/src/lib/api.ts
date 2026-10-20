@@ -2742,6 +2742,20 @@ export function fetchMemory(
   return staffRequest(key, `/staff/memory${tail ? `?${tail}` : ''}`);
 }
 
+/** A price learned (ruling 72): off a till receipt, the open price database, or a web lookup. */
+export interface PriceRow {
+  id: string;
+  name: string;
+  pricePence: number;
+  shop: string | null;
+  source: 'receipt' | 'open_prices' | 'web';
+  seenAt: string;
+}
+
+export function fetchPricesLearned(key: string): Promise<{ prices: PriceRow[] }> {
+  return staffRequest(key, '/staff/prices');
+}
+
 export function judgeExchange(
   key: string,
   id: string,

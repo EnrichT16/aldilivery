@@ -61,6 +61,7 @@ import type {
   Shopper,
   ShopperFeedback,
   OziExchange,
+  PriceSighting,
   ReviewPointsSpend,
   ShopReview,
 } from '../domain.js';
@@ -136,6 +137,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const learned: LearnedPhrase[] = [];
   const exchanges: OziExchange[] = [];
   const receiptPhotos = new Map<string, ReceiptPhoto>();
+  const sightings: PriceSighting[] = [];
   const shopperFeedback = new Map<string, ShopperFeedback>();
   const shopReviews: ShopReview[] = [];
   const reviewPointsSpends: ReviewPointsSpend[] = [];
@@ -1703,6 +1705,32 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           )
           .sort((a, b) => a.at.getTime() - b.at.getTime())
           .map(clone);
+      },
+    },
+
+    prices: {
+      async record(input) {
+        const row: PriceSighting = { ...input, id: id() };
+        sightings.push(row);
+        return clone(row);
+      },
+      async listForItem(catalogueItemId, limit) {
+        return [...sightings]
+          .reverse()
+          .filter((row) => row.catalogueItemId === catalogueItemId)
+          .sort((a, b) => b.seenAt.getTime() - a.seenAt.getTime())
+          .slice(0, limit)
+          .map(clone);
+      },
+      async latest(limit) {
+        return [...sightings]
+          .reverse()
+          .sort((a, b) => b.seenAt.getTime() - a.seenAt.getTime())
+          .slice(0, limit)
+          .map(clone);
+      },
+      async countSince(source, since) {
+        return sightings.filter((row) => row.source === source && row.seenAt >= since).length;
       },
     },
 
