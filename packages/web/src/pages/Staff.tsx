@@ -609,18 +609,18 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
       <button type="submit" disabled={busy} className="control w-full bg-highlight text-on-accent">
         Sign in
       </button>
-      {(withKey || username.trim() !== '') && (
-        <button
-          type="button"
-          onClick={() => {
-            setWithKey(!withKey);
-            setProblem('');
-          }}
-          className="control bg-paper/10 text-paper underline"
-        >
-          {withKey ? 'Sign in with a username instead' : 'Founder: sign in with the staff key'}
-        </button>
-      )}
+      {/* Always there (21 October 2026): it used to appear only after a username was typed,
+          which nobody could find, least of all by ear. */}
+      <button
+        type="button"
+        onClick={() => {
+          setWithKey(!withKey);
+          setProblem('');
+        }}
+        className="control bg-paper/10 text-paper underline"
+      >
+        {withKey ? 'Sign in with a username instead' : 'Founder: sign in with the staff key'}
+      </button>
     </form>
   );
 }

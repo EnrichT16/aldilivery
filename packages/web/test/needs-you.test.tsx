@@ -426,7 +426,7 @@ describe('plain words', () => {
     expect(screen.queryByText('order-9f8e7d6c5b4a')).not.toBeInTheDocument();
   });
 
-  it('offers the founder’s staff key only once a username has been typed', async () => {
+  it('always offers the founder’s staff key, typed username or not', async () => {
     const user = userEvent.setup({ delay: null });
     render(
       <MemoryRouter initialEntries={['/staff']}>
@@ -434,13 +434,12 @@ describe('plain words', () => {
       </MemoryRouter>,
     );
     await screen.findByLabelText('Username');
-    expect(screen.queryByRole('button', { name: /staff key/ })).not.toBeInTheDocument();
+    const founder = { name: 'Founder: sign in with the staff key' };
+    expect(screen.getByRole('button', founder)).toBeInTheDocument();
     await user.type(screen.getByLabelText('Username'), 'a');
-    expect(
-      screen.getByRole('button', { name: 'Founder: sign in with the staff key' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', founder)).toBeInTheDocument();
     await user.clear(screen.getByLabelText('Username'));
-    expect(screen.queryByRole('button', { name: /staff key/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', founder)).toBeInTheDocument();
   });
 });
 

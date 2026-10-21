@@ -1322,6 +1322,15 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   // told if their account still needs finishing.
   useEffect(() => {
     if (restoring || !shopper || !settings.introHeard) return;
+    // Not on the admin panel or another account's pages (21 October 2026: "What shopping would
+    // you like today?" greeted the owner signing in to the admin panel). Welcomed later, in the
+    // shop, instead.
+    if (
+      /^\/(staff|runner|partner|business|organisation|join\/organisation)(\/|$)/.test(
+        location.pathname,
+      )
+    )
+      return;
     try {
       if (window.sessionStorage.getItem('ozidelivery.welcomed') === shopper.id) return;
       window.sessionStorage.setItem('ozidelivery.welcomed', shopper.id);

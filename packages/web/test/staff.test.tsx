@@ -168,11 +168,7 @@ function renderStaff() {
 }
 
 async function signIn(user: ReturnType<typeof userEvent.setup>, key = 'right-key') {
-  // The founder's way in is offered only once a staff username has been typed.
-  expect(
-    screen.queryByRole('button', { name: 'Founder: sign in with the staff key' }),
-  ).not.toBeInTheDocument();
-  await user.type(screen.getByLabelText('Username'), 'anthony');
+  // The founder's way in is always offered (21 October 2026).
   await user.click(screen.getByRole('button', { name: 'Founder: sign in with the staff key' }));
   await user.type(screen.getByLabelText('Your name, recorded with each decision'), 'Anthony');
   await user.type(screen.getByLabelText('Staff key'), key);
