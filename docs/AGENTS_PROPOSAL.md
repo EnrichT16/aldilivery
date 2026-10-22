@@ -53,7 +53,7 @@ Cloudflare's pricing page before deciding.
 
 ## What each helper needs from you before it can work
 
-- **Email:** which inbox (for example hello@ozidelivery.co.uk), and permission to read and send
+- **Email:** which inbox (for example enquiries@ozidelivery.co.uk), and permission to read and send
   from it. Cloudflare can receive email for the domain for free; sending replies needs a
   sending service, several of which have free allowances.
 - **Social media:** a business account on each platform, and each platform's own developer
