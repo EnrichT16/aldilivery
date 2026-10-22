@@ -333,8 +333,8 @@ export interface StoreConfig {
    * Up to `callsInARow` calls `minutesBetweenCalls` apart; unanswered, it waits
    * `hoursBetweenCascades` and starts again, until he answers and every matter is decided or put
    * to later. No calls between `quietFrom` and `quietUntil` (UK time) unless urgent, when
-   * `urgentInQuietHours` is true. Matters put to later come back in the first call at
-   * `laterCallAt` the next day. Feedback of `lowRatingAtMost` stars or fewer goes to him; the
+   * `urgentInQuietHours` is true. Matters put to later come back `laterAfterMinutes` later
+   * (an hour: Anthony, 22 October 2026), or when quiet hours end. Feedback of `lowRatingAtMost` stars or fewer goes to him; the
    * automatic check approves only at `checkConfidence` or above.
    */
   readonly ownerDesk: OwnerDeskSettings;
@@ -361,7 +361,7 @@ export interface OwnerDeskSettings {
   readonly quietFrom: string;
   readonly quietUntil: string;
   readonly urgentInQuietHours: boolean;
-  readonly laterCallAt: string;
+  readonly laterAfterMinutes: number;
   readonly lowRatingAtMost: number;
   readonly checkConfidence: number;
 }
@@ -715,7 +715,11 @@ function parseOwnerDesk(raw: Unknown): OwnerDeskSettings {
     quietFrom: clockTime(raw['quietFrom'] ?? '21:00', 'ownerDesk.quietFrom'),
     quietUntil: clockTime(raw['quietUntil'] ?? '08:00', 'ownerDesk.quietUntil'),
     urgentInQuietHours: bool(raw['urgentInQuietHours'] ?? true, 'ownerDesk.urgentInQuietHours'),
-    laterCallAt: clockTime(raw['laterCallAt'] ?? '09:00', 'ownerDesk.laterCallAt'),
+    laterAfterMinutes: wholeNumber(
+      raw['laterAfterMinutes'] ?? 60,
+      'ownerDesk.laterAfterMinutes',
+      1,
+    ),
     lowRatingAtMost: wholeNumber(raw['lowRatingAtMost'] ?? 2, 'ownerDesk.lowRatingAtMost', 1),
     checkConfidence: confidence,
   };

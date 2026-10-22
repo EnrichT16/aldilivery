@@ -443,7 +443,7 @@ describe('the configuration parser refuses to contradict a rule', () => {
       quietFrom: '22:50',
       quietUntil: '06:00',
       urgentInQuietHours: true,
-      laterCallAt: '09:00',
+      laterAfterMinutes: 60,
       lowRatingAtMost: 2,
       checkConfidence: 0.9,
     });
