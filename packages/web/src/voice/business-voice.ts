@@ -66,6 +66,7 @@ export function understandPartner(said: string): PartnerCommand | null {
 export function partnerHelp(): string {
   return (
     'You can say: "add a product", and I will ask you its name, price and best before date; ' +
+    '"scan products", to add them with the camera, then "add all" when the list is right; ' +
     '"read my products"; "change the price of" a product "to" an amount; "remove" a product; ' +
     '"what do I pay"; "my payment history"; "how am I doing"; "my spotlight"; "share my link"; or "sign me out".'
   );

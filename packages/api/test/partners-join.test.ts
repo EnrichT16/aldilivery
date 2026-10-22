@@ -118,7 +118,7 @@ describe('a shop joining by itself', () => {
     expect(body.shop).toEqual(
       expect.objectContaining({ status: 'pending', plan: 'free', freeForever: true }),
     );
-    expect(body.message).toMatch(/free, for ever/);
+    expect(body.message).toMatch(/Your basic listing is free\./);
 
     const headers = { 'x-business-token': body.token as string };
     const dashboard = await harness.app.inject({

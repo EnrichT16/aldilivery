@@ -570,7 +570,7 @@ export interface Repository {
         PartnerProduct,
         'partnerShopId' | 'name' | 'pricePence' | 'tags' | 'expiresOn' | 'photo' | 'photoType'
       > &
-        Partial<Pick<PartnerProduct, 'durationMinutes'>>,
+        Partial<Pick<PartnerProduct, 'durationMinutes' | 'barcode' | 'priceEstimated'>>,
     ): Promise<PartnerProduct>;
     findById(id: string): Promise<PartnerProduct | null>;
     update(id: string, patch: Partial<Omit<PartnerProduct, 'id'>>): Promise<PartnerProduct>;

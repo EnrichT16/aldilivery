@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { ProductScanner } from '../components/ProductScanner';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { storeConfig } from '../config';
 import {
@@ -9,6 +10,7 @@ import {
   confirmPartnerCheckout,
   downloadBusinessStatement,
   fetchPartnerDashboard,
+  PARTNER_RECEIPT_KEY,
   rememberBusinessToken,
   removePartnerProduct,
   setPartnerPrice,
@@ -43,7 +45,7 @@ function longDate(when: string): string {
 }
 
 /** The receipt for a Checkout page, kept until Stripe sends the shop back (ruling 65). */
-const RECEIPT = 'ozidelivery.partner.receipt';
+const RECEIPT = PARTNER_RECEIPT_KEY;
 
 /**
  * A Shop Partner's own area (7 October 2026; ruling 65): what they pay and paying it here, their
@@ -63,6 +65,15 @@ export function PartnerDashboard(): JSX.Element {
   const latest = useRef({ ozi, data, navigate });
   const phraseTurn = useRef(0);
   latest.current = { ozi, data, navigate };
+  // While products are being scanned, what Ozi hears about the list is handled there first.
+  const scanVoice = useRef<((text: string) => boolean) | null>(null);
+  const registerScanVoice = useCallback((handler: ((text: string) => boolean) | null) => {
+    scanVoice.current = handler;
+  }, []);
+  const sayIt = useCallback((words: string) => void latest.current.ozi.say(words), []);
+  const confirmIt = useCallback((question: string, then: (yes: boolean) => void) => {
+    latest.current.ozi.listenFor(question, (answer) => then(YES.test(answer)));
+  }, []);
 
   const load = useCallback(
     () =>
@@ -164,6 +175,7 @@ export function PartnerDashboard(): JSX.Element {
       );
 
     const handle = (text: string): boolean => {
+      if (scanVoice.current?.(text)) return true;
       const command = understandPartner(text);
       const current = latest.current.data;
       if (!command) {
@@ -216,7 +228,7 @@ export function PartnerDashboard(): JSX.Element {
             const level = current.spotlight.level;
             say(
               level === 'none'
-                ? `You are not on Spotlight. With Spotlight, at ${money(current.spotlight.prices.spotlightPence)} a month, I mention your shop to Shoppers looking for what you sell, up to once a week each; Spotlight Plus, at ${money(current.spotlight.prices.plusPence)}, up to ${current.spotlight.prices.plusPerWeek} times. Speak to us to add it.`
+                ? `You are not on Spotlight. With Spotlight, at ${money(current.spotlight.prices.spotlightPence)} a month, I mention your shop to Shoppers looking for what you sell, up to once a week each; Spotlight Plus, at ${money(current.spotlight.prices.plusPence)}, up to ${current.spotlight.prices.plusPerWeek} times. ${current.shop.kind === 'shop' && current.plan.tier === 'plus' && current.plan.paid ? 'Use the buttons under Spotlight on the screen, or speak to us.' : 'Spotlight is for shops on paid Partner Plus.'}`
                 : `You are on ${level === 'plus' ? 'Spotlight Plus' : 'Spotlight'}${current.spotlight.until ? ` until ${longDate(current.spotlight.until)}` : ''}. I have mentioned your shop ${current.spotlight.mentionsThisMonth} time${current.spotlight.mentionsThisMonth === 1 ? '' : 's'} this month.`,
             );
           }
@@ -425,6 +437,8 @@ export function PartnerDashboard(): JSX.Element {
   }
 
   const service = data.shop.kind === 'service';
+  // Spotlight is bought here by a shop on paid Partner Plus, through the plan's own Checkout.
+  const spotlightOpen = data.shop.kind === 'shop' && data.plan.tier === 'plus' && data.plan.paid;
   return (
     <div className="space-y-8 max-w-2xl">
       <h1 className="text-display font-bold m-0">{data.shop.name}</h1>
@@ -588,8 +602,10 @@ export function PartnerDashboard(): JSX.Element {
               ? 'once'
               : `${data.spotlight.prices.spotlightPerWeek} times`}{' '}
             a week each. Spotlight Plus, {money(data.spotlight.prices.plusPence)} a month: up to{' '}
-            {data.spotlight.prices.plusPerWeek} times a week. On top of your plan; speak to us to
-            add it.
+            {data.spotlight.prices.plusPerWeek} times a week. On top of your plan
+            {spotlightOpen
+              ? '; pay for it here, or speak to us.'
+              : ', for shops on paid Partner Plus.'}
           </p>
         ) : (
           <p className="m-0">
@@ -599,6 +615,28 @@ export function PartnerDashboard(): JSX.Element {
             {data.spotlight.mentionsThisMonth === 1 ? '' : 's'} this month. Each mention is called
             an advert, after {storeConfig.assistantName}'s own answer.
           </p>
+        )}
+        {spotlightOpen && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void pay('spotlight')}
+              className="control border-paper bg-paper/10 text-paper disabled:opacity-70"
+            >
+              {data.spotlight.level === 'spotlight' ? 'Renew Spotlight' : 'Buy Spotlight'},{' '}
+              {money(data.spotlight.prices.spotlightPence)} for a month
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void pay('plus')}
+              className="control border-paper bg-paper/10 text-paper disabled:opacity-70"
+            >
+              {data.spotlight.level === 'plus' ? 'Renew Spotlight Plus' : 'Buy Spotlight Plus'},{' '}
+              {money(data.spotlight.prices.plusPence)} for a month
+            </button>
+          </div>
         )}
       </section>
 
@@ -663,6 +701,22 @@ export function PartnerDashboard(): JSX.Element {
           See my page as Shoppers do
         </Link>
       </section>
+
+      {!service && (
+        <ProductScanner
+          plus={data.plan.productLimit === null}
+          placesLeft={
+            data.plan.productLimit === null
+              ? null
+              : Math.max(0, data.plan.productLimit - data.plan.productsListed)
+          }
+          products={data.products}
+          say={sayIt}
+          confirm={confirmIt}
+          onAdded={() => void load()}
+          registerVoice={registerScanVoice}
+        />
+      )}
 
       <form
         onSubmit={(event) => void submit(event)}
@@ -748,6 +802,12 @@ export function PartnerDashboard(): JSX.Element {
                 {product.expiresOn ? ` Best before ${longDate(product.expiresOn)}.` : ''}
                 {product.note ? ` ${product.note}` : ''}
               </p>
+              {product.priceEstimated && (
+                <p className="m-0 font-bold">
+                  <span aria-hidden="true">⚠️</span> The price is an estimate: please check it, and
+                  change it below if it is not right.
+                </p>
+              )}
               <form
                 onSubmit={(event) => {
                   event.preventDefault();

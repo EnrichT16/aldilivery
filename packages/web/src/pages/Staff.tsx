@@ -2268,6 +2268,10 @@ function Partners({
                 {product.expiresOn
                   ? `Best before ${new Date(product.expiresOn).toLocaleDateString('en-GB')}.`
                   : ''}
+                {product.priceEstimated
+                  ? ' The price is an estimate (the label showed none): please check it.'
+                  : ''}
+                {product.barcode ? ` Barcode ${product.barcode}.` : ''}
               </p>
               {product.hasPhoto &&
                 (photos[product.id] ? (

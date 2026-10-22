@@ -175,3 +175,57 @@ describe('prices (ruling 72)', () => {
     ]);
   });
 });
+
+describe('reading a shelf label (ruling 75)', () => {
+  it('shows the model the photo, asks for the JSON shape, and tidies the answer', async () => {
+    let sent: (Sent & { output_config?: { format?: { type?: string } } }) | null = null;
+    const model = languageModel({ apiKey: 'test', config }, {
+      messages: {
+        create: async (body: unknown) => {
+          sent = body as typeof sent;
+          return message({
+            name: '  Braeburn   apples ',
+            size: '6 pack',
+            pricePence: 240,
+            barcode: '5 012345 678900',
+          });
+        },
+      },
+    } as unknown as BrainClient);
+    const reading = await model.readLabel!({ data: 'AAAA', mediaType: 'image/jpeg' });
+    expect(reading).toEqual({
+      name: 'Braeburn apples',
+      size: '6 pack',
+      pricePence: 240,
+      barcode: '5012345678900',
+    });
+    expect(sent!.output_config?.format?.type).toBe('json_schema');
+    expect(sent!.messages[0]!.content[0]).toEqual({
+      type: 'image',
+      source: { type: 'base64', media_type: 'image/jpeg', data: 'AAAA' },
+    });
+    expect(sent!.messages[0]!.content[1]!.text).toMatch(/never guess/);
+  });
+
+  it('gives no price and no barcode when they cannot be read, and nothing when it fails', async () => {
+    const unclear = languageModel(
+      { apiKey: 'test', config },
+      stubClient(async () =>
+        message({ name: 'Milk', size: null, pricePence: null, barcode: '12' }),
+      ),
+    );
+    expect(await unclear.readLabel!({ data: 'AAAA', mediaType: 'image/png' })).toEqual({
+      name: 'Milk',
+      size: null,
+      pricePence: null,
+      barcode: null,
+    });
+    const broken = languageModel(
+      { apiKey: 'test', config },
+      stubClient(async () => {
+        throw new Error('network');
+      }),
+    );
+    expect(await broken.readLabel!({ data: 'AAAA', mediaType: 'image/png' })).toBeNull();
+  });
+});

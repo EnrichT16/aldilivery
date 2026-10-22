@@ -1430,6 +1430,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       async create(input) {
         const row: PartnerProduct = {
           durationMinutes: null,
+          barcode: null,
+          priceEstimated: false,
           ...input,
           id: id(),
           status: 'pending',

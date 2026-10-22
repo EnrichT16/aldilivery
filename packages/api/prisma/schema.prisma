@@ -1149,6 +1149,10 @@ model PartnerProduct {
   decidedAt       DateTime?
   /// A service: how long it takes, in minutes. Its price is "from".
   durationMinutes Int?
+  /// The barcode, when the shop scanned one (ruling 75): one listing for every identical pack.
+  barcode         String?
+  /// The price was not on the label, so it is an estimate the shop and the owner should check.
+  priceEstimated  Boolean   @default(false)
 
   @@index([partnerShopId])
   @@index([status])

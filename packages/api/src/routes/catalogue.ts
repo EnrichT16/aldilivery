@@ -14,8 +14,58 @@
 
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+
+import type { AppContext } from '../app.js';
+import type { CatalogueItem } from '../domain.js';
 import { recordSearch } from '../lib/analytics.js';
 import { suggestItem } from '../services/suggest.js';
+
+/**
+ * Shops on paid Partner Plus are listed above free shops in search (ruling 75). Only the places
+ * a shop's own products already hold are reordered: a Plus shop's things take the first of
+ * those places, a free shop's the rest, and everything else stays exactly where it was.
+ */
+export async function plusShopsFirst(
+  ctx: Pick<AppContext, 'repository' | 'now'>,
+  items: CatalogueItem[],
+): Promise<CatalogueItem[]> {
+  const places: number[] = [];
+  const plus: CatalogueItem[] = [];
+  const free: CatalogueItem[] = [];
+  const paidByShop = new Map<string, boolean>();
+  for (const [index, item] of items.entries()) {
+    if (!item.externalRef?.startsWith('partner:')) continue;
+    places.push(index);
+    const product = await ctx.repository.partnerProducts.findById(
+      item.externalRef.slice('partner:'.length),
+    );
+    let paid = false;
+    if (product) {
+      if (!paidByShop.has(product.partnerShopId)) {
+        const shop = await ctx.repository.partnerShops.findById(product.partnerShopId);
+        paidByShop.set(
+          product.partnerShopId,
+          Boolean(
+            shop &&
+            shop.kind === 'shop' &&
+            shop.plan === 'plus' &&
+            shop.active &&
+            shop.paidUntil !== null &&
+            shop.paidUntil.getTime() > ctx.now().getTime(),
+          ),
+        );
+      }
+      paid = paidByShop.get(product.partnerShopId) ?? false;
+    }
+    (paid ? plus : free).push(item);
+  }
+  if (plus.length === 0 || free.length === 0) return items;
+  const reordered = [...items];
+  [...plus, ...free].forEach((item, n) => {
+    reordered[places[n]!] = item;
+  });
+  return reordered;
+}
 
 const searchSchema = z.object({
   q: z.string().trim().max(100).optional().default(''),
@@ -29,12 +79,15 @@ export async function registerCatalogueRoutes(app: FastifyInstance): Promise<voi
   app.get('/catalogue/search', async (request) => {
     const { q, category, limit } = searchSchema.parse(request.query);
 
-    const items = await repository.catalogue.search(q, {
-      // Never true. Rule Six.
-      includeAgeRestricted: false,
-      ...(category ? { category } : {}),
-      limit,
-    });
+    const items = await plusShopsFirst(
+      app.ctx,
+      await repository.catalogue.search(q, {
+        // Never true. Rule Six.
+        includeAgeRestricted: false,
+        ...(category ? { category } : {}),
+        limit,
+      }),
+    );
     // Business analysis: what people look for, and what nobody has (Section O, unmet demand).
     if (q.trim()) {
       void recordSearch(
