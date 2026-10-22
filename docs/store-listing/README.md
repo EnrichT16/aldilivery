@@ -23,7 +23,7 @@ Read these in this order:
 - Terms (Apple's custom licence agreement is not needed; the standard one is fine), for
   reference: https://ozidelivery.co.uk/terms
 - Google's "Delete account" URL: https://ozidelivery.co.uk/help#close-account
-- Support email: enquiries@ozidelivery.co.uk, once it is a real mailbox. It is still marked as a
+- Support email: hello@ozidelivery.co.uk, once it is a real mailbox. It is still marked as a
   placeholder in config/store.json (`contact.emailIsPlaceholder`), so the website shows "to
   follow". Both stores need a working email address before submitting.
 - Support telephone: the real number, once it replaces the 0800 000 0000 placeholder.

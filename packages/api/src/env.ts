@@ -13,6 +13,8 @@ import { fileURLToPath } from 'node:url';
 
 import { config as loadDotenv } from 'dotenv';
 
+import { ukPhone } from './lib/phone.js';
+
 /**
  * Find the `.env` to read, searching upward from this file.
  *
@@ -303,7 +305,10 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     livekitApiKey: realValue(source['LIVEKIT_API_KEY']),
     livekitApiSecret: realValue(source['LIVEKIT_API_SECRET']),
     livekitSipTrunkId: realValue(source['LIVEKIT_SIP_TRUNK_ID']),
-    ownerAlertPhone: realValue(source['OWNER_ALERT_PHONE']),
+    // Written any usual way ("07…", "+44 7…", with spaces): Twilio needs it in +44 form.
+    ownerAlertPhone: ((raw) => (raw ? (ukPhone(raw) ?? raw) : undefined))(
+      realValue(source['OWNER_ALERT_PHONE']),
+    ),
     humanLinePhone: realValue(source['HUMAN_LINE_PHONE']),
     oluomaVoiceUrl: realValue(source['OLUOMA_VOICE_URL']),
     oluomaVoiceKey: realValue(source['OLUOMA_VOICE_KEY']),

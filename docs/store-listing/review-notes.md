@@ -59,7 +59,7 @@ Notifications tell people how their order is going.
 The app opens only its own pages. Sign in with Apple is not offered because the app uses no
 third-party or social sign-in, only a telephone number and code (guideline 4.8).
 
-Contact for the review: Anthony Ibe, `REVIEW_CONTACT_PHONE`, enquiries@ozidelivery.co.uk.
+Contact for the review: Anthony Ibe, `REVIEW_CONTACT_PHONE`, hello@ozidelivery.co.uk.
 
 ## Apple contact information (same page)
 
