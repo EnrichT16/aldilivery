@@ -37,6 +37,8 @@ import { sweepPlans } from './services/plans.js';
 import { refreshPrices } from './services/prices.js';
 import { checkWaiting } from './services/auto-check.js';
 import { sweepOwnerDesk } from './services/owner-desk.js';
+import { sweepEmail } from './services/email-desk.js';
+import { imapMailbox, mailboxSettings, smtpMailer } from './lib/mailbox.js';
 
 async function main(): Promise<void> {
   const env = readEnv();
@@ -403,9 +405,58 @@ async function main(): Promise<void> {
   }, 60_000);
   deskSweep.unref();
 
+  // Every five minutes: the business mailbox (ruling 76), on the company's own mail host. New
+  // emails are sorted: important ones go on Ozi's desk, spam, newsletters and notices are only
+  // marked as read, and simple customer questions are answered only if EMAIL_AUTO_REPLY is on.
+  // The password and the emails' words are never written to this log.
+  const mail = mailboxSettings(env);
+  let emailSweep: ReturnType<typeof setInterval> | null = null;
+  if (!mail) {
+    app.log.info(
+      'Ozi is not reading the business mailbox: EMAIL_IMAP_HOST, EMAIL_IMAP_USER and EMAIL_IMAP_PASSWORD are not all set.',
+    );
+  } else {
+    const mailbox = imapMailbox(mail);
+    const mailer = mail.smtp ? smtpMailer({ ...mail, smtp: mail.smtp }, config.productName) : null;
+    app.log.info(
+      {
+        host: mail.imap.host,
+        port: mail.imap.port,
+        replies: mail.autoReply && mailer ? 'on' : 'off',
+      },
+      `${config.assistantName} reads the business mailbox every five minutes.`,
+    );
+    let emailRunning = false;
+    const readMail = (): void => {
+      if (emailRunning) return;
+      emailRunning = true;
+      sweepEmail(
+        app.ctx,
+        { mailbox, mailer, autoReply: mail.autoReply, ownAddress: mail.user },
+        app.log,
+      )
+        .then((report) => {
+          if (report.read > 0 || report.failed > 0) app.log.info(report, 'Email sweep');
+        })
+        .catch((failure: unknown) => {
+          app.log.error(
+            { err: failure instanceof Error ? failure.message : 'unknown' },
+            'The business mailbox could not be read',
+          );
+        })
+        .finally(() => {
+          emailRunning = false;
+        });
+    };
+    emailSweep = setInterval(readMail, 5 * 60_000);
+    emailSweep.unref();
+    setTimeout(readMail, 30_000).unref();
+  }
+
   const shutdown = async (signal: string): Promise<void> => {
     clearInterval(sweep);
     clearInterval(deskSweep);
+    if (emailSweep) clearInterval(emailSweep);
     clearInterval(paySweep);
     clearInterval(setSweep);
     clearInterval(retentionSweep);

@@ -1210,6 +1210,20 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    emails: {
+      async findByMessageId(messageId) {
+        return (await prisma.emailMessage.findUnique({ where: { messageId } })) as any;
+      },
+      async record(input) {
+        // Two sweeps at once can only ever keep one record of an email.
+        return (await prisma.emailMessage.upsert({
+          where: { messageId: input.messageId },
+          create: input,
+          update: {},
+        })) as any;
+      },
+    },
+
     admin: {
       async listOrders(where) {
         const rows = await prisma.order.findMany({

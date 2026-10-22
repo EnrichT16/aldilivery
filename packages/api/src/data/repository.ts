@@ -61,6 +61,7 @@ import type {
   SetItem,
   Shopper,
   OziExchange,
+  EmailRecord,
   OwnerCall,
   OwnerMatter,
   ReviewPointsSpend,
@@ -777,7 +778,8 @@ export interface Repository {
    */
   ownerDesk: {
     createMatter(
-      input: Pick<OwnerMatter, 'kind' | 'subjectId' | 'summary' | 'options' | 'urgent'>,
+      input: Pick<OwnerMatter, 'kind' | 'subjectId' | 'summary' | 'options' | 'urgent'> &
+        Partial<Pick<OwnerMatter, 'emailFrom' | 'emailSubject'>>,
     ): Promise<OwnerMatter>;
     findMatter(id: string): Promise<OwnerMatter | null>;
     /** Every matter about this thing, newest first. */
@@ -792,6 +794,13 @@ export interface Repository {
     /** The most recent calls, newest first. */
     latestCalls(limit: number): Promise<OwnerCall[]>;
     updateCall(id: string, patch: Partial<Omit<OwnerCall, 'id'>>): Promise<OwnerCall>;
+  };
+
+  /** The business mailbox (ruling 76): each email already read, so none is read twice. */
+  emails: {
+    findByMessageId(messageId: string): Promise<EmailRecord | null>;
+    /** Keeps the record; a second record of the same Message-ID returns the first. */
+    record(input: Omit<EmailRecord, 'id'>): Promise<EmailRecord>;
   };
 
   /** What the admin panel looks up across everybody (Section Q). Read only. */

@@ -59,6 +59,8 @@ export interface AskOwnerInput {
    * approved, a Runner's application checked again.
    */
   again?: boolean;
+  /** For an email (ruling 76): who it is from and its subject, for the admin panel only. */
+  email?: { from: string; subject: string };
 }
 
 /** A call still marked ringing after this long lost its status callback: treated as unanswered. */
@@ -99,6 +101,12 @@ export async function askOwner(
       summary,
       options: input.options,
       urgent: input.urgent ?? false,
+      ...(input.email
+        ? {
+            emailFrom: input.email.from.slice(0, 200),
+            emailSubject: input.email.subject.slice(0, 300),
+          }
+        : {}),
     });
   } catch (failure) {
     log?.error({ err: failure, kind: input.kind }, 'A matter for the owner could not be kept.');
@@ -261,6 +269,7 @@ async function stillNeedsOwner(ctx: DeskContext, matter: OwnerMatter): Promise<b
       return enquiry !== undefined && !enquiry.handled;
     }
     case 'shopper_feedback':
+    case 'email':
       return true;
   }
 }

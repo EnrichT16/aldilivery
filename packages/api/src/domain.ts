@@ -1153,7 +1153,8 @@ export type OwnerMatterKind =
   | 'till_case'
   | 'bank_transfer'
   | 'waiting_order'
-  | 'find_it';
+  | 'find_it'
+  | 'email';
 
 /** Approve, decline or later; or only "I have heard it", or later. */
 export type OwnerMatterOptions = 'decide' | 'acknowledge';
@@ -1183,6 +1184,44 @@ export interface OwnerMatter {
   callAttempts: number;
   lastCalledAt: Date | null;
   lastReadAt: Date | null;
+  /**
+   * For an email (ruling 76): who it is from and its subject, shown on the "Needs you now" page.
+   * Never read aloud as they are: the summary says who it is from without the address.
+   */
+  emailFrom: string | null;
+  emailSubject: string | null;
+}
+
+/** What an email to the business mailbox was sorted as (ruling 76). */
+export type EmailCategory =
+  | 'important_decision'
+  | 'complaint'
+  | 'partner_or_organisation'
+  | 'runner'
+  | 'customer_question'
+  | 'invoice_or_bill'
+  | 'legal_or_official'
+  | 'spam_or_marketing'
+  | 'newsletter'
+  | 'automated_notification'
+  | 'other';
+
+/**
+ * One email read from the business mailbox (ruling 76), kept so nothing is read twice. Only the
+ * sender's domain is kept, never the address, the subject or the words.
+ */
+export interface EmailRecord {
+  id: string;
+  /** The email's Message-ID, or, for one without, a fingerprint of its sender, subject and date. */
+  messageId: string;
+  fromDomain: string;
+  category: EmailCategory;
+  important: boolean;
+  /** The matter on Ozi's desk it became, if any. */
+  matterId: string | null;
+  /** Whether it was answered automatically. */
+  replied: boolean;
+  processedAt: Date;
 }
 
 /** One call Ozi placed to the owner: which cascade, which call of it, and how it went. */

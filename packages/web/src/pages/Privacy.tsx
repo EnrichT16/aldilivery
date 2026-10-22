@@ -109,6 +109,16 @@ export function Privacy(): JSX.Element {
             everybody&rsquo;s account safe.
           </li>
         </ul>
+        <p className="m-0">
+          <strong>Emails you send us.</strong> Emails sent to our business email address are read by
+          the automatic check to sort them: whether they need our owner, and whether a simple
+          question can be answered straight away. The check reads who the email is from, its subject
+          and the start of its words, but not its attachments. We keep only a short summary, with
+          who it is from and its subject, for our owner, and a note that it was read, so it is never
+          read twice, with only the part of the sender&rsquo;s address after the @. The email itself
+          stays in our mailbox. Reason: our legitimate interest in answering the people who write to
+          us.
+        </p>
       </section>
 
       <section aria-labelledby="voice" className="space-y-3">

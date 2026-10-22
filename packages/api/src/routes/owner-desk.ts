@@ -117,6 +117,8 @@ function publicMatter(matter: OwnerMatter) {
     laterUntil: matter.laterUntil,
     createdAt: matter.createdAt,
     callAttempts: matter.callAttempts,
+    emailFrom: matter.emailFrom,
+    emailSubject: matter.emailSubject,
   };
 }
 
