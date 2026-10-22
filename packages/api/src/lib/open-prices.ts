@@ -27,7 +27,33 @@ export interface OpenPrice {
 
 export interface OpenPricesLookup {
   lookUp(name: string): Promise<OpenPrice[]>;
+  /**
+   * One product by its barcode, for a Shop Partner scanning their shelves (ruling 75): its name
+   * and size from the food database, and the newest UK price seen for it, if any. Optional, so
+   * stand-ins in tests need not have it.
+   */
+  lookUpBarcode?(barcode: string): Promise<BarcodeProduct | null>;
 }
+
+export interface BarcodeProduct {
+  barcode: string;
+  name: string;
+  /** The newest UK price seen for one, or null: someone else's shelf, so only an estimate. */
+  pricePence: number | null;
+}
+
+const PRODUCT_URL = 'https://world.openfoodfacts.org/api/v2/product';
+
+const productShape = z.object({
+  status: z.number().optional(),
+  product: z
+    .object({
+      product_name: z.string().optional().nullable(),
+      quantity: z.string().optional().nullable(),
+    })
+    .optional()
+    .nullable(),
+});
 
 const productsShape = z.object({
   products: z.array(
@@ -71,7 +97,60 @@ export function openPrices(
     return response.json();
   };
 
+  /** The recent prices in pounds for one barcode, newest first, as pence for one. */
+  const pricesFor = async (barcode: string, name: string): Promise<OpenPrice[]> => {
+    const prices = pricesShape.safeParse(
+      await get(
+        `${PRICES_URL}?${new URLSearchParams({
+          product_code: barcode,
+          currency: 'GBP',
+          order_by: '-date',
+          size: '10',
+        })}`,
+      ),
+    );
+    if (!prices.success) return [];
+    const oldest = now().getTime() - OLDEST_DAYS * 86_400_000;
+    const found: OpenPrice[] = [];
+    for (const price of prices.data.items) {
+      const seenAt = new Date(price.date);
+      if (price.currency !== 'GBP' || Number.isNaN(seenAt.getTime())) continue;
+      if (seenAt.getTime() < oldest) continue;
+      // Loose fruit and the like are priced by the kilo, not for one.
+      if (price.price_per && price.price_per !== 'UNIT') continue;
+      const pricePence = Math.round(price.price * 100);
+      if (pricePence < 1 || pricePence > 100_000) continue;
+      found.push({
+        barcode,
+        name: name.slice(0, 120),
+        pricePence,
+        shop: price.location?.osm_name?.slice(0, 60) ?? null,
+        seenAt,
+      });
+    }
+    return found;
+  };
+
   return {
+    async lookUpBarcode(barcode) {
+      if (!/^\d{8,14}$/.test(barcode)) return null;
+      try {
+        const product = productShape.safeParse(
+          await get(
+            `${PRODUCT_URL}/${barcode}?${new URLSearchParams({ fields: 'product_name,quantity' })}`,
+          ),
+        );
+        if (!product.success || !product.data.product?.product_name) return null;
+        const name = [product.data.product.product_name, product.data.product.quantity]
+          .filter(Boolean)
+          .join(', ')
+          .slice(0, 100);
+        const prices = await pricesFor(barcode, name);
+        return { barcode, name, pricePence: prices[0]?.pricePence ?? null };
+      } catch {
+        return null;
+      }
+    },
     async lookUp(name) {
       try {
         const query = new URLSearchParams({
@@ -87,38 +166,11 @@ export function openPrices(
         });
         const products = productsShape.safeParse(await get(`${PRODUCTS_URL}?${query}`));
         if (!products.success) return [];
-        const oldest = now().getTime() - OLDEST_DAYS * 86_400_000;
         const found: OpenPrice[] = [];
         for (const product of products.data.products.slice(0, 3)) {
           if (!/^\d{8,14}$/.test(product.code)) continue;
-          const prices = pricesShape.safeParse(
-            await get(
-              `${PRICES_URL}?${new URLSearchParams({
-                product_code: product.code,
-                currency: 'GBP',
-                order_by: '-date',
-                size: '10',
-              })}`,
-            ),
-          );
-          if (!prices.success) continue;
           const label = [product.product_name, product.quantity].filter(Boolean).join(', ');
-          for (const price of prices.data.items) {
-            const seenAt = new Date(price.date);
-            if (price.currency !== 'GBP' || Number.isNaN(seenAt.getTime())) continue;
-            if (seenAt.getTime() < oldest) continue;
-            // Loose fruit and the like are priced by the kilo, not for one.
-            if (price.price_per && price.price_per !== 'UNIT') continue;
-            const pricePence = Math.round(price.price * 100);
-            if (pricePence < 1 || pricePence > 100_000) continue;
-            found.push({
-              barcode: product.code,
-              name: (label || name).slice(0, 120),
-              pricePence,
-              shop: price.location?.osm_name?.slice(0, 60) ?? null,
-              seenAt,
-            });
-          }
+          found.push(...(await pricesFor(product.code, label || name)));
           if (found.length >= 5) break;
         }
         return found.slice(0, 10);

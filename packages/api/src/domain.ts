@@ -894,6 +894,13 @@ export interface PartnerProduct {
   decidedAt: Date | null;
   /** A service: how long it takes, in minutes. Its price is "from". */
   durationMinutes: number | null;
+  /** The barcode, when the shop scanned one (ruling 75). */
+  barcode: string | null;
+  /**
+   * The price was not on the label, so it is an estimate: shown to the shop and the owner as
+   * "estimate, please check" until somebody sets it (ruling 75).
+   */
+  priceEstimated: boolean;
 }
 
 export type BusinessKind = 'partner' | 'organisation';

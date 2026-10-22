@@ -115,6 +115,46 @@ export interface OziBrain {
   readReceipt?(photo: ReceiptImage, items: string[]): Promise<ReceiptReading | null>;
   /** A typical current UK shelf price found by one web search (ruling 72). Optional, as above. */
   webPrice?(name: string): Promise<WebPrice | null>;
+  /**
+   * A shelf price label or a pack, photographed by a Shop Partner scanning products (ruling 75):
+   * the product's name, its size, the price in pence and the barcode digits, each only when it
+   * can clearly be read. Optional, as above.
+   */
+  readLabel?(photo: ReceiptImage): Promise<LabelReading | null>;
+}
+
+/** How long a Shop Partner holding the camera to a label waits for it to be read. */
+export const LABEL_WAIT_MS = 15_000;
+
+const labelShape = z.object({
+  name: z.string().nullable(),
+  size: z.string().nullable(),
+  pricePence: z.number().int().min(1).max(100_000).nullable(),
+  barcode: z.string().nullable(),
+});
+export type LabelReading = z.infer<typeof labelShape>;
+
+const LABEL_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['name', 'size', 'pricePence', 'barcode'],
+  properties: {
+    name: { type: ['string', 'null'] },
+    size: { type: ['string', 'null'] },
+    pricePence: { type: ['integer', 'null'], minimum: 1, maximum: 100000 },
+    barcode: { type: ['string', 'null'] },
+  },
+} as const;
+
+/** What the label reading gives back, tidied: no stray spaces, a barcode of digits only. */
+export function tidyLabel(reading: LabelReading): LabelReading {
+  const digits = (reading.barcode ?? '').replace(/\D/g, '');
+  return {
+    name: reading.name?.replace(/\s+/g, ' ').trim().slice(0, 100) || null,
+    size: reading.size?.replace(/\s+/g, ' ').trim().slice(0, 30) || null,
+    pricePence: reading.pricePence,
+    barcode: /^\d{8,14}$/.test(digits) ? digits : null,
+  };
 }
 
 /** The kinds of photo the model can read. */
@@ -381,6 +421,46 @@ export function languageModel(
         return null;
       }
     },
+    async readLabel(photo) {
+      try {
+        const response = await client.messages.create(
+          {
+            model,
+            max_tokens: 300,
+            output_config: {
+              effort: 'low',
+              format: { type: 'json_schema', schema: LABEL_SCHEMA },
+            },
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  {
+                    type: 'image',
+                    source: { type: 'base64', media_type: photo.mediaType, data: photo.data },
+                  },
+                  {
+                    type: 'text',
+                    text: `This is a photo taken in a UK shop of a shelf price label or of a product's pack. name: the product's name as a shelf label would carry it, in British English, without the size ("Braeburn apples", "Semi skimmed milk"), or null if you cannot read it. size: its size or count as printed ("6 pack", "2 pints", "500g"), or null. pricePence: the price of one, in whole pence, exactly as printed (£2.40 is 240, 85p is 85), never a price per kilo or per 100g, and null if no price is clearly visible; never guess. barcode: the digits under the barcode if they are clearly visible, else null.`,
+                  },
+                ],
+              },
+            ],
+          },
+          { timeout: LABEL_WAIT_MS },
+        );
+        if (response.stop_reason === 'refusal') return null;
+        const text = response.content
+          .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+          .map((block) => block.text)
+          .join('');
+        const parsed = labelShape.safeParse(JSON.parse(text));
+        if (!parsed.success) return null;
+        return tidyLabel(parsed.data);
+      } catch {
+        return null;
+      }
+    },
     async webPrice(name) {
       try {
         const response = await client.messages.create(
@@ -423,7 +503,10 @@ export function readWebPrice(text: string): WebPrice | null {
   if (!found) return null;
   const pricePence = Number(found[1]);
   if (!Number.isInteger(pricePence) || pricePence < 1 || pricePence > 100_000) return null;
-  const shop = (found[2] ?? '').trim().replace(/[.*]+$/, '').trim();
+  const shop = (found[2] ?? '')
+    .trim()
+    .replace(/[.*]+$/, '')
+    .trim();
   return { pricePence, shop: shop && shop.toLowerCase() !== 'none' ? shop.slice(0, 60) : null };
 }
 

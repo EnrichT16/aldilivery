@@ -112,3 +112,25 @@ export async function suggestItem(
   lookUpPriceLater(ctx, item);
   return { outcome: 'added', item };
 }
+
+/**
+ * A price for something a Shop Partner scanned whose label showed none (ruling 75): the
+ * catalogue's own estimate for the closest name, or else the language model's typical UK
+ * price. Only ever an estimate, marked so, for the shop and the owner to check; null when
+ * nothing knows.
+ */
+export async function estimatedPricePence(
+  ctx: Pick<AppContext, 'repository' | 'brain'>,
+  name: string,
+): Promise<number | null> {
+  const wanted = tidy(name);
+  if (wanted.length < 2) return null;
+  const [closest] = await ctx.repository.catalogue.search(wanted, {
+    includeAgeRestricted: false,
+    limit: 1,
+  });
+  if (closest && closest.estimatedPricePence > 0) return closest.estimatedPricePence;
+  const estimate = await ctx.brain?.estimate?.(wanted);
+  if (!estimate || estimate.kind !== 'grocery' || estimate.pricePence < 1) return null;
+  return Math.round(estimate.pricePence);
+}

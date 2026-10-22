@@ -4,7 +4,7 @@
  * and a Shopper asking a service for a quote.
  */
 
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -12,7 +12,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { storeConfig } from '../src/config';
 import type { PartnerDashboard } from '../src/lib/api';
-import { heardKind } from '../src/pages/PartnerJoin';
+import { setScannerDevices, understandScanVoice } from '../src/components/ProductScanner';
+import { heardKind, heardPlan, planQuestion } from '../src/pages/PartnerJoin';
 import { durationWords, heardEnquiry } from '../src/pages/Shops';
 import { FAKE_SHOPPER } from './setup';
 
@@ -46,7 +47,7 @@ const BAKERY_DASHBOARD: PartnerDashboard = {
     productsListed: 0,
     canAddProduct: true,
     words:
-      'Free listing, for ever: your name, address, hours and up to 10 products. Partner Plus, £14.99 a month, adds the full catalogue with photos, offers and Shop of the Month, with the first month free.',
+      'Free listing: your name, address, hours and up to 10 products. Partner Plus, £14.99 a month, adds the full catalogue with photos, offers, Shop of the Month and a place above free shops, with the first month free.',
   },
   commission: null,
   enquiries: [],
@@ -115,6 +116,49 @@ beforeEach(() => {
           phoneProof: 'proof.partner',
           message: 'Thank you, that is your number.',
         });
+      }
+      if (path === '/partner/join' && (body as { payNow?: boolean }).payNow) {
+        return reply(
+          {
+            token: 'bz1.new.shop',
+            kind: 'partner',
+            name: 'Bola',
+            office: '',
+            business: 'Corner Bakery',
+            mustChangePassword: false,
+            shop: { id: 'shop-1', status: 'pending', plan: 'plus', freeForever: false },
+            checkout: {
+              url: 'https://checkout.rehearsal.invalid/cs_rehearsal_join',
+              receipt: 'pc1.join.receipt',
+            },
+            message: 'Welcome, Bola. Taking you to pay £14.99 for Partner Plus.',
+          },
+          201,
+        );
+      }
+      if (path === '/partner/scan/barcode') {
+        return reply({
+          draft: {
+            name: 'Baked beans, 415g',
+            pricePence: 85,
+            priceEstimated: true,
+            barcode: (body as { barcode: string }).barcode,
+          },
+        });
+      }
+      if (path === '/partner/scan/label') {
+        return reply({
+          draft: {
+            name: 'Braeburn apples, 6 pack',
+            pricePence: 240,
+            priceEstimated: false,
+            barcode: null,
+          },
+          message: '',
+        });
+      }
+      if (path === '/partner/products' && method === 'POST') {
+        return reply({ product: { id: 'p-new' }, message: 'Thank you.' }, 201);
       }
       if (path === '/partner/join') {
         return reply(
@@ -262,10 +306,10 @@ describe('joining as a shop', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Join as a shop' }),
     ).toBeInTheDocument();
-    expect(await screen.findByText(/for ever for the next 97 shops to join/)).toBeInTheDocument();
     expect(
-      screen.getByText(/first month free: the full catalogue with photos/),
+      await screen.findByText(/with no monthly fee, for the next 97 shops to join/),
     ).toBeInTheDocument();
+    expect(screen.getByRole('table', { name: 'What each plan gives a shop' })).toBeInTheDocument();
     expect(screen.getByText(/10% of each order placed through/)).toBeInTheDocument();
     expect(
       screen.getByText(/We cannot list credit, loans, mortgages, insurance/),
@@ -275,7 +319,7 @@ describe('joining as a shop', () => {
   it('confirms the mobile with a code, then joins and lands on the dashboard, pending', async () => {
     const user = userEvent.setup({ delay: null });
     renderAt('/business/join');
-    await screen.findByText(/for ever for the next 97 shops/);
+    await screen.findByText(/for the next 97 shops to join/);
     await user.type(screen.getByLabelText('The business’s name'), 'Corner Bakery');
     await user.type(screen.getByLabelText('Address'), '12 High Street, Gillingham');
     await user.type(screen.getByLabelText('Postcode'), 'ME7 1AA');
@@ -357,7 +401,7 @@ describe('paying from the dashboard', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Corner Bakery' }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Free listing, for ever/)).toBeInTheDocument();
+    expect(screen.getByText(/Free listing: your name/)).toBeInTheDocument();
     expect(screen.getByText('Photos come with Partner Plus.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Start Partner Plus, first month free' }));
     await waitFor(() => {
@@ -469,5 +513,195 @@ describe('a Shopper and a service', () => {
     expect(heardEnquiry('add bread')).toBeNull();
     expect(durationWords(30)).toBe('30 minutes');
     expect(durationWords(90)).toBe('1 hour 30 minutes');
+  });
+});
+
+describe('choosing free or paid at sign-up (ruling 75)', () => {
+  it('compares the two plans side by side in a table, in plain words, and says it kindly', async () => {
+    renderAt('/business/join');
+    const table = await screen.findByRole('table', { name: 'What each plan gives a shop' });
+    expect(
+      within(table).getByRole('columnheader', { name: 'Basic listing (free)' }),
+    ).toBeInTheDocument();
+    expect(
+      within(table).getByRole('columnheader', { name: 'Partner Plus (£14.99 a month)' }),
+    ).toBeInTheDocument();
+    const row = (name: string) =>
+      within(table).getByRole('rowheader', { name }).closest('tr') as HTMLElement;
+    expect(row('Products')).toHaveTextContent('Up to 10');
+    expect(row('Products')).toHaveTextContent('Your full catalogue');
+    expect(row('Photos of your products')).toHaveTextContent(/NoYes/);
+    expect(row('Offers')).toHaveTextContent(/NoYes/);
+    expect(row('Shop of the Month')).toHaveTextContent('Not eligible');
+    expect(row('In search and on the shops list')).toHaveTextContent('Above free shops');
+    expect(
+      within(table).getByRole('rowheader', { name: /Spotlight \(£19\.99\) and Spotlight Plus/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/free listings may be reviewed as paid shops join/),
+    ).toBeInTheDocument();
+    const group = screen.getByRole('group', { name: 'Which plan would you like?' });
+    expect(within(group).getByRole('radio', { name: 'Basic listing, free' })).toBeChecked();
+    expect(
+      within(group).getByRole('radio', { name: /Partner Plus: start with the free month/ }),
+    ).toBeInTheDocument();
+    expect(
+      within(group).getByRole('radio', { name: /Partner Plus: start and pay today, £14\.99/ }),
+    ).toBeInTheDocument();
+    // Not for a café: no monthly plan to choose.
+    await userEvent.setup({ delay: null }).click(screen.getByLabelText('A café or takeaway'));
+    expect(screen.queryByRole('table', { name: 'What each plan gives a shop' })).toBeNull();
+  });
+
+  it('pay now: after the form, straight to Stripe Checkout with the receipt kept', async () => {
+    const user = userEvent.setup({ delay: null });
+    const assign = vi.fn();
+    vi.stubGlobal('location', { ...window.location, assign, origin: 'http://localhost' });
+    renderAt('/business/join');
+    await screen.findByRole('table', { name: 'What each plan gives a shop' });
+    await user.type(screen.getByLabelText('The business’s name'), 'Corner Bakery');
+    await user.click(screen.getByRole('radio', { name: /Partner Plus: start and pay today/ }));
+    expect(
+      screen.getByText(/we take you to Stripe’s secure page to pay £14\.99/),
+    ).toBeInTheDocument();
+    await user.type(screen.getByLabelText('Address'), '12 High Street, Gillingham');
+    await user.type(screen.getByLabelText('Postcode'), 'ME7 1AA');
+    await user.type(screen.getByLabelText('Opening hours'), 'Monday to Saturday 7am to 5pm');
+    await user.type(screen.getByLabelText('Who should we speak to?'), 'Bola');
+    await user.type(screen.getByLabelText('Mobile number'), '07700 900 222');
+    await user.type(screen.getByLabelText('Email address'), 'bola@example.com');
+    await user.type(screen.getByLabelText('Choose a username'), 'cornerbakery');
+    await user.type(screen.getByLabelText('Choose a password'), 'a-long-enough-password');
+    await user.click(screen.getByRole('button', { name: 'Join' }));
+    await user.type(await screen.findByLabelText('The code from the text'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Confirm and join' }));
+    await waitFor(() =>
+      expect(assign).toHaveBeenCalledWith('https://checkout.rehearsal.invalid/cs_rehearsal_join'),
+    );
+    expect(sent.find((r) => r.path === '/partner/join')?.body).toEqual(
+      expect.objectContaining({ plan: 'plus', payNow: true }),
+    );
+    expect(window.sessionStorage.getItem('ozidelivery.partner.receipt')).toBe('pc1.join.receipt');
+    vi.unstubAllGlobals();
+  });
+
+  it('hears free, free month or pay now, and reads the comparison briefly from config', () => {
+    expect(heardPlan('free please')).toBe('free');
+    expect(heardPlan('the basic one')).toBe('free');
+    expect(heardPlan('free month')).toBe('free-month');
+    expect(heardPlan("I'll take the free month, then pay")).toBe('free-month');
+    expect(heardPlan('pay now')).toBe('pay-now');
+    expect(heardPlan('I want to pay today')).toBe('pay-now');
+    expect(heardPlan('something else')).toBeNull();
+    const question = planQuestion({
+      kinds: [],
+      freeListingsLeft: 97,
+      freeProductLimit: 10,
+      plusMonthlyPence: 1499,
+      plusFirstMonthFree: true,
+      foodCommissionWords: '10%',
+      spotlightPence: 1999,
+      spotlightPlusPence: 3999,
+      excludedServiceKinds: [],
+      mobileConfirmed: true,
+    });
+    expect(question).toMatch(/up to 10 products, with no photos and no offers/);
+    expect(question).toMatch(/Partner Plus is £14\.99 a month/);
+    expect(question).toMatch(/Say free, free month, or pay now\.$/);
+  });
+});
+
+describe('scanning products into the dashboard (ruling 75)', () => {
+  it('captures a barcode by itself with a stand-in detector, and adds nothing until Add all', async () => {
+    window.sessionStorage.setItem('ozidelivery.business.token', 'bz1.x.y');
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    const stopped = vi.fn();
+    setScannerDevices({
+      openCamera: async () => ({ getTracks: () => [{ stop: stopped }] }) as unknown as MediaStream,
+      findCodes: async () => ({ find: async () => '5000000000001' }),
+    });
+    try {
+      const user = userEvent.setup({ delay: null });
+      renderAt('/partner');
+      await user.click(
+        await screen.findByRole('button', { name: 'Start scanning with the camera' }),
+      );
+      expect(
+        await screen.findByRole('heading', { level: 4, name: 'Baked beans, 415g' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Got it: Baked beans, 415g, £0.85, an estimate, please check.'),
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Estimate, please check the price/)).toBeInTheDocument();
+      expect(sent.filter((r) => r.path === '/partner/scan/barcode')).toHaveLength(1);
+      expect(sent.some((r) => r.path === '/partner/products')).toBe(false);
+
+      await user.click(screen.getByRole('button', { name: 'Stop scanning' }));
+      expect(stopped).toHaveBeenCalled();
+      await user.click(screen.getByRole('button', { name: 'Add all (1) to be checked' }));
+      await waitFor(() =>
+        expect(sent.find((r) => r.path === '/partner/products')?.body).toEqual({
+          name: 'Baked beans, 415g',
+          pricePence: 85,
+          tags: '',
+          barcode: '5000000000001',
+          priceEstimated: true,
+        }),
+      );
+      expect(await screen.findByText(/Sent 1 product to be checked/)).toBeInTheDocument();
+    } finally {
+      setScannerDevices(null);
+    }
+  });
+
+  it('lists the same product once: a second capture is "already added"', async () => {
+    window.sessionStorage.setItem('ozidelivery.business.token', 'bz1.x.y');
+    const user = userEvent.setup({ delay: null });
+    renderAt('/partner');
+    const upload = await screen.findByLabelText('Or upload photos of labels');
+    await user.upload(upload, [
+      new File(['one'], 'label-1.jpg', { type: 'image/jpeg' }),
+      new File(['two'], 'label-2.jpg', { type: 'image/jpeg' }),
+    ]);
+    expect(await screen.findByText('Already added: Braeburn apples, 6 pack.')).toBeInTheDocument();
+    expect(
+      screen.getAllByRole('heading', { level: 4, name: 'Braeburn apples, 6 pack' }),
+    ).toHaveLength(1);
+    expect(sent.filter((r) => r.path === '/partner/scan/label')).toHaveLength(2);
+
+    // Corrected by typing before it is sent.
+    const price = screen.getByLabelText('Price in pounds for Braeburn apples, 6 pack');
+    await user.clear(price);
+    await user.type(price, '2.50');
+    await user.click(screen.getByRole('button', { name: 'Add all (1) to be checked' }));
+    await waitFor(() =>
+      expect(sent.find((r) => r.path === '/partner/products')?.body).toEqual({
+        name: 'Braeburn apples, 6 pack',
+        pricePence: 250,
+        tags: '',
+      }),
+    );
+  });
+
+  it('understands corrections said about the list', () => {
+    expect(understandScanVoice('add all')).toEqual({ kind: 'add-all' });
+    expect(understandScanVoice('change the price of apples to £2.40')).toEqual({
+      kind: 'price',
+      name: 'apples',
+      pricePence: 240,
+    });
+    expect(understandScanVoice('the price is two pounds')).toEqual({
+      kind: 'price',
+      name: null,
+      pricePence: 200,
+    });
+    expect(understandScanVoice('call it Welsh cakes')).toEqual({
+      kind: 'rename',
+      name: null,
+      to: 'Welsh cakes',
+    });
+    expect(understandScanVoice('remove the beans')).toEqual({ kind: 'remove', name: 'beans' });
+    expect(understandScanVoice('scan products')).toEqual({ kind: 'start' });
+    expect(understandScanVoice('what is the weather')).toBeNull();
   });
 });

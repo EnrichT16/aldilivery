@@ -35,7 +35,9 @@ import {
 import { z } from 'zod';
 
 import { phoneConfirmedAtSignUp, requireSession } from '../app.js';
+import { READABLE_IMAGES } from '../lib/language-model.js';
 import { hasPlusExtras } from '../services/plans.js';
+import { estimatedPricePence } from '../services/suggest.js';
 import type {
   BusinessKind,
   BusinessUser,
@@ -96,6 +98,20 @@ const ENQUIRY_WORDS: Record<ServiceEnquiry['kind'], string> = {
 
 /** A Checkout page for a partner's plan lasts this long. */
 const CHECKOUT_HOURS = 23;
+
+/**
+ * Labels one shop may have read in a day while scanning (ruling 75): a frame is sent only when
+ * the camera is steady on something new, so a whole shop's shelves fit well inside it.
+ */
+export const LABEL_READS_PER_DAY = 400;
+
+/** A product's name as two listings are compared: "Apples, 6 pack" and "apples 6-pack" match. */
+export function sameNameKey(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
 
 /** A file name with nothing a browser or a computer would object to. */
 function safeName(name: string): string {
@@ -185,6 +201,16 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     if (!listed(shop)) return false;
     if (shop.kind !== 'shop' || shop.plan === 'free') return true;
     return planPaid(shop);
+  }
+
+  /** A shop on Partner Plus whose month is paid: listed above free shops (ruling 75). */
+  function onPaidPlus(shop: PartnerShop): boolean {
+    return shop.kind === 'shop' && shop.plan === 'plus' && planPaid(shop);
+  }
+
+  /** Paid Partner Plus shops first, everyone else after, each group in its own order. */
+  function plusFirst(shops: PartnerShop[]): PartnerShop[] {
+    return [...shops.filter(onPaidPlus), ...shops.filter((shop) => !onPaidPlus(shop))];
   }
 
   /** Listed by Ozi and nobody has claimed it: its page invites the owner to. */
@@ -282,7 +308,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         ? `Partner Plus, ${money(partners.plusMonthlyPence)} a month, paid until ${longDay(shop.paidUntil)}: the full catalogue with photos, offers and Shop of the Month.`
         : `Partner Plus, ${money(partners.plusMonthlyPence)} a month, is not paid at the moment, so your products are hidden. Pay here, or ring us.`;
     }
-    return `${shop.freeForever ? 'Free listing, for ever' : 'Free listing'}: your name, address, hours and up to ${limit ?? partners.freeProductLimit} products. Partner Plus, ${money(partners.plusMonthlyPence)} a month, adds the full catalogue with photos, offers and Shop of the Month${partners.plusFirstMonthFree && !shop.plusTrialUsed ? ', with the first month free' : ''}.`;
+    return `Free listing: your name, address, hours and up to ${limit ?? partners.freeProductLimit} products. Partner Plus, ${money(partners.plusMonthlyPence)} a month, adds the full catalogue with photos, offers, Shop of the Month and a place above free shops${partners.plusFirstMonthFree && !shop.plusTrialUsed ? ', with the first month free' : ''}.`;
   }
 
   function publicProduct(product: PartnerProduct) {
@@ -298,6 +324,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       catalogueItemId: product.catalogueItemId,
       createdAt: product.createdAt,
       durationMinutes: product.durationMinutes,
+      barcode: product.barcode,
+      priceEstimated: product.priceEstimated,
     };
   }
 
@@ -565,8 +593,27 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
           .min(5)
           .max(24 * 60)
           .optional(),
+        /** Scanned (ruling 75): the barcode digits, one listing for every identical pack. */
+        barcode: z
+          .string()
+          .trim()
+          .regex(/^\d{8,14}$/, 'A barcode is 8 to 14 digits.')
+          .optional(),
+        /** The label showed no price, so this one is an estimate to be checked. */
+        priceEstimated: z.boolean().default(false),
       })
       .parse(request.body ?? {});
+    // One product is one listing with one price, never one per pack (ruling 75).
+    const already = (await repository.partnerProducts.listForShop(shop.id)).find(
+      (product) =>
+        (product.status === 'approved' || product.status === 'pending') &&
+        ((body.barcode !== undefined && product.barcode === body.barcode) ||
+          (sameNameKey(product.name) === sameNameKey(body.name) &&
+            product.pricePence === body.pricePence)),
+    );
+    if (already) {
+      throw new ConflictError(`${already.name} is already added.`);
+    }
     if (NEVER_FOUND.test(`${body.name} ${body.tags}`)) {
       throw new BadRequestError(
         `${config.productName} never brings alcohol, tobacco, medicines, cash or anything age restricted, so that cannot be listed.`,
@@ -606,11 +653,13 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       photo: photo ? new Uint8Array(photo) : null,
       photoType: photo ? (body.photoType ?? null) : null,
       durationMinutes: shop.kind === 'service' ? (body.durationMinutes ?? null) : null,
+      barcode: shop.kind === 'service' ? null : (body.barcode ?? null),
+      priceEstimated: body.priceEstimated,
     });
     void reply.status(201);
     return {
       product: publicProduct(product),
-      message: `Thank you. ${body.name}, ${shop.kind === 'service' ? `from ${money(body.pricePence)}` : money(body.pricePence)}, is waiting to be checked. It usually goes live within one working day.${shop.status === 'pending' ? ' Your page goes public once we have checked your listing.' : ''}`,
+      message: `Thank you. ${body.name}, ${shop.kind === 'service' ? `from ${money(body.pricePence)}` : money(body.pricePence)}, is waiting to be checked. It usually goes live within one working day.${body.priceEstimated ? ' Its price is an estimate: please check it.' : ''}${shop.status === 'pending' ? ' Your page goes public once we have checked your listing.' : ''}`,
     };
   });
 
@@ -630,7 +679,10 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       .object({ pricePence: z.number().int().min(1).max(100_000) })
       .parse(request.body ?? {});
     const product = await myProduct(request, id);
-    const updated = await repository.partnerProducts.update(product.id, { pricePence });
+    const updated = await repository.partnerProducts.update(product.id, {
+      pricePence,
+      priceEstimated: false,
+    });
     if (product.catalogueItemId) {
       await repository.catalogue.update(product.catalogueItemId, {
         estimatedPricePence: pricePence,
@@ -662,11 +714,127 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     return reply.send(Buffer.from(product.photo));
   });
 
+  /* ------------------------------------------------------------------ scanning products (ruling 75) */
+
+  /** Labels read today, by shop, so one shop's camera cannot run up the model's bill. */
+  const labelReads = new Map<string, { day: string; count: number }>();
+
+  /** Who may scan: any shop, café or takeaway whose listing can take products. */
+  async function scanningShop(request: Parameters<typeof businessActor>[0]) {
+    const shop = await myShop(request);
+    if (shop.status === 'removed' || !shop.active) {
+      throw new ConflictError('This listing is paused, so nothing can be added. Please ring us.');
+    }
+    if (shop.kind === 'service') {
+      throw new BadRequestError('Scanning is for products. A service adds its services by typing.');
+    }
+    return shop;
+  }
+
+  /** The draft a scan gives back: the shop corrects it, then sends it with "Add all". */
+  async function scanDraft(found: {
+    name: string | null;
+    size: string | null;
+    pricePence: number | null;
+    barcode: string | null;
+  }) {
+    const name = [found.name, found.size].filter(Boolean).join(', ').slice(0, 120);
+    let pricePence = found.pricePence;
+    let priceEstimated = false;
+    if (pricePence === null && name) {
+      pricePence = await estimatedPricePence(app.ctx, name);
+      priceEstimated = pricePence !== null;
+    }
+    return { name, pricePence, priceEstimated, barcode: found.barcode };
+  }
+
+  /**
+   * A photo of a shelf price label or a pack, from the camera held steady or a photo taken or
+   * uploaded: the language model reads the name, the size, the price and the barcode. Nothing
+   * is added here; the draft goes back to the shop's list for their "Add all".
+   */
+  app.post('/partner/scan/label', { bodyLimit: 7 * 1024 * 1024 }, async (request) => {
+    const shop = await scanningShop(request);
+    const body = z
+      .object({
+        photo: z
+          .string()
+          .min(1)
+          .max(6 * 1024 * 1024),
+        photoType: z.enum(READABLE_IMAGES),
+      })
+      .parse(request.body ?? {});
+    const brain = app.ctx.brain;
+    if (!brain?.readLabel) {
+      return {
+        draft: null,
+        message: 'Reading labels is not working at the moment. Please type the product in.',
+      };
+    }
+    const day = now().toISOString().slice(0, 10);
+    const used = labelReads.get(shop.id);
+    const count = used && used.day === day ? used.count : 0;
+    if (count >= LABEL_READS_PER_DAY) {
+      return {
+        draft: null,
+        message: `That is ${LABEL_READS_PER_DAY} labels read today, the most for one day. Scan barcodes or type the rest in, or carry on tomorrow.`,
+      };
+    }
+    labelReads.set(shop.id, { day, count: count + 1 });
+    const reading = await brain.readLabel({ data: body.photo, mediaType: body.photoType });
+    if (!reading || (!reading.name && !reading.barcode)) {
+      return {
+        draft: null,
+        message: 'I could not read that label. Hold it steady, a little closer.',
+      };
+    }
+    let found = reading;
+    if (!reading.name && reading.barcode) {
+      const product = await app.ctx.openPrices?.lookUpBarcode?.(reading.barcode);
+      found = { ...reading, name: product?.name ?? null };
+    }
+    const draft = await scanDraft(found);
+    return { draft, message: '' };
+  });
+
+  /**
+   * A barcode the camera saw: its name and size from the open food database, and a price from
+   * the catalogue or the open price database, marked as an estimate (someone else's shelf). A
+   * barcode nobody knows comes back with no name, for the shop to say or type it.
+   */
+  app.post('/partner/scan/barcode', async (request) => {
+    await scanningShop(request);
+    const { barcode } = z
+      .object({
+        barcode: z
+          .string()
+          .trim()
+          .regex(/^\d{8,14}$/, 'A barcode is 8 to 14 digits.'),
+      })
+      .parse(request.body ?? {});
+    const product = await app.ctx.openPrices?.lookUpBarcode?.(barcode);
+    if (!product) {
+      return { draft: { name: '', pricePence: null, priceEstimated: false, barcode } };
+    }
+    const draft = await scanDraft({
+      name: product.name,
+      size: null,
+      pricePence: null,
+      barcode,
+    });
+    if (product.pricePence !== null && (draft.pricePence === null || draft.priceEstimated)) {
+      return { draft: { ...draft, pricePence: product.pricePence, priceEstimated: true } };
+    }
+    return { draft };
+  });
+
   /* ------------------------------------------------------------------ the public shop pages */
 
   /** Every approved shop, café, takeaway and service, with its kind and area (ruling 65). */
   app.get('/shops', async () => {
-    const shops = (await repository.partnerShops.list()).filter(listed);
+    // Shops on paid Partner Plus come first, here, on the home page's "Stock up at local shops"
+    // and in search (ruling 75); everyone else keeps the order they joined in.
+    const shops = plusFirst((await repository.partnerShops.list()).filter(listed));
     // Shop of the Month, of the Quarter and of the Half Year (ruling 70): a badge with words.
     const awards = await awardTitlesByShop(app.ctx);
     const rows = [];
@@ -680,6 +848,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         ...publicShopRow(shop),
         products: live.length,
         awards: awards.get(shop.id) ?? [],
+        partnerPlus: onPaidPlus(shop),
       });
     }
     return { shops: rows };
@@ -846,6 +1015,11 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     /** A shop Ozi listed, being claimed by its owner. */
     claimShopId: z.string().min(1).optional(),
     plan: z.enum(['free', 'plus']).default('free'),
+    /**
+     * Partner Plus only (ruling 75): true when the shop starts and pays today, skipping the free
+     * month, and goes straight to Stripe Checkout; false takes the free month at once.
+     */
+    payNow: z.boolean().default(false),
   });
 
   /**
@@ -938,6 +1112,26 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     });
     await repository.businessUsers.update(user.id, { mustChangePassword: false });
     const at = now();
+
+    // Partner Plus chosen at sign-up (ruling 75): the free month starts at once, or, when the
+    // shop pays from the start, the free month is set aside and Stripe's page is made now.
+    let planMessage = '';
+    let checkout: { url: string; receipt: string } | null = null;
+    if (body.kind === 'shop' && plan === 'plus' && !freeGone) {
+      if (body.payNow || !partners.plusFirstMonthFree) {
+        const paying = await repository.partnerShops.update(shop.id, { plusTrialUsed: true });
+        try {
+          const page = await checkoutPage(paying, 'plan', 1, '/partner');
+          checkout = { url: page.url, receipt: page.receipt };
+          planMessage = ` ${page.message}`;
+        } catch {
+          planMessage = ` We could not open the payment page just now. Pay for Partner Plus from your dashboard, ${money(partners.plusMonthlyPence)} a month, or ring us.`;
+        }
+      } else {
+        const started = await startFreeMonth(shop);
+        planMessage = ` ${started}`;
+      }
+    }
     void reply.status(201);
     return {
       token: signBusinessToken(
@@ -951,15 +1145,83 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       business: shop.name,
       mustChangePassword: false,
       shop: { id: shop.id, status: shop.status, plan: shop.plan, freeForever: shop.freeForever },
+      checkout,
       message:
         `Welcome, ${body.contactName}. ${shop.name} is set up${claimed ? ' and claimed' : ''}. You can add ${body.kind === 'service' ? 'services' : 'products'} now; your page goes public once we have checked it, usually within one working day.` +
         (freeGone
           ? ` The ${partners.freeListingCount} free listings have all gone, so you are on Partner Plus at ${money(partners.plusMonthlyPence)} a month${partners.plusFirstMonthFree ? ', with the first month free' : ''}; start it from your dashboard.`
           : freeForever
-            ? ' Your basic listing is free, for ever.'
-            : ''),
+            ? ' Your basic listing is free.'
+            : '') +
+        planMessage,
     };
   });
+
+  /** The free first month of Partner Plus, taken once: no Stripe at all. Returns what to say. */
+  async function startFreeMonth(shop: PartnerShop): Promise<string> {
+    const at = now();
+    const from = shop.paidUntil && shop.paidUntil > at ? shop.paidUntil : at;
+    const updated = await repository.partnerShops.update(shop.id, {
+      plan: 'plus',
+      monthlyPence: partners.plusMonthlyPence,
+      plusTrialUsed: true,
+      paidUntil: addMonths(from, 1),
+    });
+    await repository.partnerPayments.create({
+      partnerShopId: shop.id,
+      kind: 'plan',
+      amountPence: 0,
+      months: 1,
+      coversUntil: updated.paidUntil ?? at,
+      recordedBy: 'first month free',
+      paidAt: at,
+    });
+    return `Partner Plus is on, and your first month is free, until ${longDay(updated.paidUntil ?? at)}. After that it is ${money(partners.plusMonthlyPence)} a month, paid here whenever you choose; nothing is ever taken without you.`;
+  }
+
+  /**
+   * A Stripe Checkout page for Partner Plus, Spotlight or Spotlight Plus, the pattern a telephone
+   * order's link uses (`purpose: 'partner'`), with the signed receipt the dashboard sends back.
+   */
+  async function checkoutPage(
+    shop: PartnerShop,
+    kind: PartnerPayment['kind'],
+    months: number,
+    returnTo: string,
+  ) {
+    const at = now();
+    const price =
+      kind === 'plan'
+        ? partners.plusMonthlyPence
+        : kind === 'plus'
+          ? config.extras.spotlightPlusPence
+          : config.extras.spotlightPence;
+    const amountPence = price * months;
+    const origin = env.primaryOrigin ?? '';
+    const path = returnTo.startsWith('/') ? returnTo : '/partner';
+    // Stripe fills in the session's id where it sees this exact text.
+    const placeholder = '{CHECKOUT_SESSION_ID}';
+    const reference = `partner:${shop.id}:${kind}:${at.getTime()}`;
+    const link = await app.ctx.payments.createPaymentLink({
+      orderId: reference,
+      purpose: 'partner',
+      amountPence,
+      currency: config.fees.currency,
+      description: `${config.productName}: ${PAYMENT_WORDS[kind]} for ${shop.name}, ${months} month${months === 1 ? '' : 's'}`,
+      customerId: null,
+      successUrl: `${origin}${path}?paid=${placeholder}`,
+      cancelUrl: `${origin}${path}`,
+      expiresAt: Math.floor(at.getTime() / 1000) + CHECKOUT_HOURS * 3600,
+    });
+    return {
+      url: link.url,
+      receipt: signPartnerCheckout(
+        { sessionId: link.id, partnerShopId: shop.id, kind, months, amountPence },
+        env.authTokenSecret,
+      ),
+      message: `Taking you to pay ${money(amountPence)} for ${PAYMENT_WORDS[kind]}. Your card is given to Stripe, never to us.`,
+    };
+  }
 
   /**
    * Paying for Partner Plus, Spotlight or Spotlight Plus from the dashboard (ruling 65), through
@@ -986,66 +1248,10 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     if (body.kind !== 'plan' && !(shop.plan === 'plus' && planPaid(shop))) {
       throw new ConflictError('Spotlight is only for shops on Partner Plus whose plan is paid.');
     }
-    const at = now();
     if (body.kind === 'plan' && partners.plusFirstMonthFree && !shop.plusTrialUsed) {
-      const from = shop.paidUntil && shop.paidUntil > at ? shop.paidUntil : at;
-      const updated = await repository.partnerShops.update(shop.id, {
-        plan: 'plus',
-        monthlyPence: partners.plusMonthlyPence,
-        plusTrialUsed: true,
-        paidUntil: addMonths(from, 1),
-      });
-      await repository.partnerPayments.create({
-        partnerShopId: shop.id,
-        kind: 'plan',
-        amountPence: 0,
-        months: 1,
-        coversUntil: updated.paidUntil ?? at,
-        recordedBy: 'first month free',
-        paidAt: at,
-      });
-      return {
-        url: null,
-        message: `Partner Plus is on, and your first month is free, until ${longDay(updated.paidUntil ?? at)}. After that it is ${money(partners.plusMonthlyPence)} a month, paid here whenever you choose; nothing is ever taken without you.`,
-      };
+      return { url: null, message: await startFreeMonth(shop) };
     }
-    const price =
-      body.kind === 'plan'
-        ? partners.plusMonthlyPence
-        : body.kind === 'plus'
-          ? config.extras.spotlightPlusPence
-          : config.extras.spotlightPence;
-    const amountPence = price * body.months;
-    const origin = env.primaryOrigin ?? '';
-    const path = body.returnTo.startsWith('/') ? body.returnTo : '/partner';
-    // Stripe fills in the session's id where it sees this exact text.
-    const placeholder = '{CHECKOUT_SESSION_ID}';
-    const reference = `partner:${shop.id}:${body.kind}:${at.getTime()}`;
-    const link = await app.ctx.payments.createPaymentLink({
-      orderId: reference,
-      purpose: 'partner',
-      amountPence,
-      currency: config.fees.currency,
-      description: `${config.productName}: ${PAYMENT_WORDS[body.kind]} for ${shop.name}, ${body.months} month${body.months === 1 ? '' : 's'}`,
-      customerId: null,
-      successUrl: `${origin}${path}?paid=${placeholder}`,
-      cancelUrl: `${origin}${path}`,
-      expiresAt: Math.floor(at.getTime() / 1000) + CHECKOUT_HOURS * 3600,
-    });
-    return {
-      url: link.url,
-      receipt: signPartnerCheckout(
-        {
-          sessionId: link.id,
-          partnerShopId: shop.id,
-          kind: body.kind,
-          months: body.months,
-          amountPence,
-        },
-        env.authTokenSecret,
-      ),
-      message: `Taking you to pay ${money(amountPence)} for ${PAYMENT_WORDS[body.kind]}. Your card is given to Stripe, never to us.`,
-    };
+    return checkoutPage(shop, body.kind, body.months, body.returnTo);
   });
 
   /** Back from Stripe: checks the page was paid and records it, once. */

@@ -1825,6 +1825,10 @@ export interface PartnerProductRow {
   createdAt: string;
   /** A service: how long it takes, in minutes. Its price is "from". */
   durationMinutes: number | null;
+  /** The barcode it was scanned with, if any (ruling 75). */
+  barcode?: string | null;
+  /** The label showed no price, so the price is an estimate to check (ruling 75). */
+  priceEstimated?: boolean;
 }
 
 /** What kind of business a partner is (ruling 65). */
@@ -1922,6 +1926,8 @@ export interface PartnerJoinInput {
   password: string;
   claimShopId?: string;
   plan?: 'free' | 'plus';
+  /** Partner Plus paid from today, skipping the free month (ruling 75). */
+  payNow?: boolean;
 }
 
 /** A shop, café, takeaway or service joins by itself (ruling 65) and is signed in at once. */
@@ -1929,10 +1935,46 @@ export function joinAsPartner(input: PartnerJoinInput): Promise<
   BusinessMe & {
     token: string;
     shop: { id: string; status: string; plan: string; freeForever: boolean };
+    /** Paying from today (ruling 75): Stripe's page to go to, and the receipt to keep. */
+    checkout?: { url: string; receipt: string } | null;
     message: string;
   }
 > {
   return request('/partner/join', { method: 'POST', body: JSON.stringify(input) });
+}
+
+/**
+ * The receipt for a Partner Plus Checkout page, kept in this tab until Stripe sends the shop back
+ * to the dashboard with `?paid=<session>` (ruling 65; from the join form too, ruling 75).
+ */
+export const PARTNER_RECEIPT_KEY = 'ozidelivery.partner.receipt';
+
+/** A product the camera found, for the shop to check before "Add all" (ruling 75). */
+export interface ScanDraft {
+  name: string;
+  pricePence: number | null;
+  /** The label showed no price: this one is an estimate, "please check". */
+  priceEstimated: boolean;
+  barcode: string | null;
+}
+
+/** A photo of a shelf label or a pack, read by the language model on the server. */
+export function scanLabel(
+  photo: string,
+  photoType: string,
+): Promise<{ draft: ScanDraft | null; message: string }> {
+  return businessRequest('/partner/scan/label', {
+    method: 'POST',
+    body: JSON.stringify({ photo, photoType }),
+  });
+}
+
+/** A barcode the camera saw: its name and an estimated price, when anything knows them. */
+export function scanBarcode(barcode: string): Promise<{ draft: ScanDraft }> {
+  return businessRequest('/partner/scan/barcode', {
+    method: 'POST',
+    body: JSON.stringify({ barcode }),
+  });
 }
 
 /**
@@ -1992,6 +2034,8 @@ export function addPartnerProduct(input: {
   photo?: string;
   photoType?: string;
   durationMinutes?: number;
+  barcode?: string;
+  priceEstimated?: boolean;
 }): Promise<{ product: PartnerProductRow; message: string }> {
   return businessRequest('/partner/products', { method: 'POST', body: JSON.stringify(input) });
 }
@@ -2023,6 +2067,8 @@ export interface PublicShop {
   products: number;
   /** Shop of the Month, of the Quarter or of the Half Year, with words (ruling 70). */
   awards?: string[];
+  /** On paid Partner Plus: listed above free shops (ruling 75). */
+  partnerPlus?: boolean;
 }
 
 export function fetchShops(): Promise<{ shops: PublicShop[] }> {

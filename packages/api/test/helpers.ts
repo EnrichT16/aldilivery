@@ -21,6 +21,7 @@ import {
 } from '../src/lib/payments.js';
 import type { CallProvider } from '../src/lib/livekit.js';
 import type { OziBrain } from '../src/lib/language-model.js';
+import type { OpenPricesLookup } from '../src/lib/open-prices.js';
 import type { VoiceEngineLink } from '../src/lib/oluoma-voice.js';
 import type { SendPush } from '../src/lib/push.js';
 
@@ -116,6 +117,8 @@ export interface TestAppOptions {
   voice?: VoiceEngineLink;
   /** The language model behind Ozi (ruling 69). Off unless a test hands in a stand-in. */
   brain?: OziBrain;
+  /** The open price database (ruling 72). Off unless a test hands in a stand-in. */
+  openPrices?: OpenPricesLookup;
   /** Settings that differ from `testEnv`, such as a Twilio Auth Token. */
   env?: Partial<Env>;
   /** Ringing someone from our Twilio number. Off unless a test hands in a stand-in. */
@@ -161,6 +164,7 @@ export async function buildTestApp(
     ...(options.calls ? { calls: options.calls } : {}),
     ...(options.voice ? { voice: options.voice } : {}),
     ...(options.brain ? { brain: options.brain } : {}),
+    ...(options.openPrices ? { openPrices: options.openPrices } : {}),
     ...(options.placeCall ? { placeCall: options.placeCall } : {}),
     deliverCode:
       options.deliverCode ??

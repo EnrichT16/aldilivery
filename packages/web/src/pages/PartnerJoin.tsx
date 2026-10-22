@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
-import { Field, Radio } from '../components/FormFields';
+import { Field } from '../components/FormFields';
 import { storeConfig } from '../config';
 import {
   fetchPartnerJoinOptions,
   fetchShop,
   isUkMobileNumber,
   joinAsPartner,
+  PARTNER_RECEIPT_KEY,
   rememberBusinessToken,
   requestSignInCode,
   verifySignInCode,
@@ -40,10 +41,44 @@ export function heardKind(said: string): PartnerKind | null {
   return null;
 }
 
+/**
+ * The three ways a shop can start (ruling 75): a free basic listing; Partner Plus with the free
+ * first month; or Partner Plus paid from today, when Anthony has agreed the shop pays from the
+ * start, which goes straight to Stripe Checkout after the form.
+ */
+export type PlanChoice = 'free' | 'free-month' | 'pay-now';
+
+/** Which plan was said: "free", "free month" or "pay now", in the words people use. */
+export function heardPlan(said: string): PlanChoice | null {
+  const text = said.toLowerCase();
+  if (/\b(pay (it )?(now|today|straight away|from (today|the start))|start paying)\b/.test(text)) {
+    return 'pay-now';
+  }
+  if (/\b(free month|first month|month free|trial)\b/.test(text)) return 'free-month';
+  if (/\b(pay|paid)\b/.test(text)) return 'pay-now';
+  if (/\b(plus|partner plus)\b/.test(text)) return 'free-month';
+  if (/\b(free|basic)\b/.test(text)) return 'free';
+  return null;
+}
+
+/** Ozi's plan question, with the comparison read briefly, every figure from config. */
+export function planQuestion(options: PartnerJoinOptions | null): string {
+  const limit = options?.freeProductLimit ?? 10;
+  const price = options ? money(options.plusMonthlyPence) : 'a monthly fee';
+  const freeMonth = options?.plusFirstMonthFree ?? true;
+  return (
+    `Which plan would you like? The basic listing is free: your name, address, hours and up to ${limit} products, with no photos and no offers. ` +
+    `Partner Plus is ${price} a month: your full catalogue with photos, offers, Shop of the Month and Spotlight, and you are listed above free shops. ` +
+    (freeMonth ? 'Say free, free month, or pay now.' : 'Say free, or pay now.')
+  );
+}
+
 /** The order Ozi asks the join form's questions in, each filling one field (ruling 65). */
 export const JOIN_QUESTIONS: Array<{ field: string; ask: string }> = [
   { field: 'join-name', ask: 'What is the name of your business, as it is on the front?' },
   { field: 'join-kind', ask: 'Is it a shop, a café or takeaway, or a service?' },
+  // Shops only (ruling 75); the words are planQuestion's, with the figures from config.
+  { field: 'join-plan', ask: 'Which plan would you like?' },
   { field: 'join-address', ask: 'What is the address? The street and the town is plenty.' },
   { field: 'join-postcode', ask: 'And the postcode?' },
   { field: 'join-hours', ask: 'When are you open? For example, Monday to Saturday, nine to five.' },
@@ -67,7 +102,7 @@ export function PartnerJoin(): JSX.Element {
   const claimId = params.get('claim') ?? '';
   const [options, setOptions] = useState<PartnerJoinOptions | null>(null);
   const [kind, setKind] = useState<PartnerKind>('shop');
-  const [plan, setPlan] = useState<'free' | 'plus'>('free');
+  const [plan, setPlan] = useState<PlanChoice>('free');
   const [claimedName, setClaimedName] = useState('');
   const [errors, setErrors] = useState<Array<{ field: string; message: string }>>([]);
   const [busy, setBusy] = useState(false);
@@ -77,8 +112,8 @@ export function PartnerJoin(): JSX.Element {
   );
   const summary = useRef<HTMLDivElement>(null);
   const codeField = useRef<HTMLInputElement>(null);
-  const live = useRef({ ozi, navigate });
-  live.current = { ozi, navigate };
+  const live = useRef({ ozi, navigate, options });
+  live.current = { ozi, navigate, options };
   const assistant = storeConfig.assistantName;
 
   useEffect(() => {
@@ -132,7 +167,8 @@ export function PartnerJoin(): JSX.Element {
     username: field('join-username').toLowerCase(),
     password: field('join-password'),
     ...(claimId ? { claimShopId: claimId } : {}),
-    ...(kind === 'shop' ? { plan } : {}),
+    ...(kind === 'shop' ? { plan: plan === 'free' ? ('free' as const) : ('plus' as const) } : {}),
+    ...(kind === 'shop' && plan === 'pay-now' ? { payNow: true } : {}),
   });
 
   const check = (details: PartnerJoinInput): Array<{ field: string; message: string }> => {
@@ -166,6 +202,17 @@ export function PartnerJoin(): JSX.Element {
       const result = await joinAsPartner(details);
       rememberBusinessToken(result.token);
       void live.current.ozi.say(result.message);
+      if (result.checkout?.url) {
+        // Paying from today (ruling 75): straight to Stripe's page; the dashboard records the
+        // payment when Stripe sends the shop back, with this receipt.
+        try {
+          window.sessionStorage.setItem(PARTNER_RECEIPT_KEY, result.checkout.receipt);
+        } catch {
+          // Private browsing: a person records the payment by hand if the receipt is lost.
+        }
+        window.location.assign(result.checkout.url);
+        return;
+      }
       live.current.navigate('/partner', { state: { welcome: result.message } });
     } catch (failure) {
       const message = failure instanceof Error ? failure.message : 'That did not work.';
@@ -235,6 +282,7 @@ export function PartnerJoin(): JSX.Element {
   /** Ozi asks each question in turn and fills the form as it goes, as it does for a Shopper. */
   const talk = (): void => {
     setTalking(true);
+    let chosenKind = kind;
     const ask = (index: number): void => {
       const question = JOIN_QUESTIONS[index];
       if (!question) {
@@ -245,12 +293,32 @@ export function PartnerJoin(): JSX.Element {
         document.getElementById('join-email')?.focus();
         return;
       }
-      live.current.ozi.listenFor(question.ask, (heard) => {
+      if (question.field === 'join-plan' && chosenKind !== 'shop') return ask(index + 1);
+      const words =
+        question.field === 'join-plan' ? planQuestion(live.current.options) : question.ask;
+      live.current.ozi.listenFor(words, (heard) => {
         const answer = heard.trim();
         if (question.field === 'join-kind') {
           const chosen = heardKind(answer);
           if (!chosen) return ask(index);
+          chosenKind = chosen;
           setKind(chosen);
+          return ask(index + 1);
+        }
+        if (question.field === 'join-plan') {
+          let chosen = heardPlan(answer);
+          if (chosen === 'free-month' && live.current.options?.plusFirstMonthFree === false) {
+            chosen = 'pay-now';
+          }
+          if (!chosen) return ask(index);
+          setPlan(chosen);
+          void live.current.ozi.say(
+            chosen === 'free'
+              ? 'The basic listing, free.'
+              : chosen === 'free-month'
+                ? 'Partner Plus, starting with the free month.'
+                : 'Partner Plus, paid from today. After the form, I will take you to the payment page.',
+          );
           return ask(index + 1);
         }
         if (question.field === 'join-about' && /^(skip|no|nothing|none)\b/i.test(answer)) {
@@ -301,18 +369,13 @@ export function PartnerJoin(): JSX.Element {
           </h2>
           <ul className="m-0 ps-6 space-y-1">
             <li>
-              <strong>Basic listing, free</strong>
+              <strong>Shops: a basic listing, free</strong>
               {options.freeListingsLeft > 0
-                ? ` for ever for the next ${options.freeListingsLeft} shops to join`
+                ? `, with no monthly fee, for the next ${options.freeListingsLeft} shops to join`
                 : ''}
-              : your name, address, hours and up to {options.freeProductLimit} products.
-            </li>
-            <li>
-              <strong>Partner Plus, {money(options.plusMonthlyPence)} a month</strong>
-              {options.plusFirstMonthFree ? ', first month free' : ''}: the full catalogue with
-              photos, offers, and Shop of the Month. Spotlight ({money(options.spotlightPence)}) and
-              Spotlight Plus ({money(options.spotlightPlusPence)}) on top, if you want {assistant}{' '}
-              to mention you.
+              ; or <strong>Partner Plus, {money(options.plusMonthlyPence)} a month</strong>
+              {options.plusFirstMonthFree ? ', first month free' : ''}. You choose below, and the
+              two are compared side by side.
             </li>
             <li>
               <strong>Cafés and takeaways: no monthly fee.</strong> {options.foodCommissionWords} of
@@ -421,26 +484,7 @@ export function PartnerJoin(): JSX.Element {
           ))}
         </fieldset>
         {kind === 'shop' && options && (
-          <fieldset className="space-y-2 border-0 p-0 m-0">
-            <legend className="text-lead font-bold">Which plan?</legend>
-            <div
-              onChange={(event) =>
-                setPlan((event.target as HTMLInputElement).value as 'free' | 'plus')
-              }
-            >
-              <Radio
-                name="join-plan"
-                value="free"
-                label={`Basic listing, free${options.freeListingsLeft > 0 ? ' for ever' : ' (while listings last)'}`}
-                defaultChecked
-              />
-              <Radio
-                name="join-plan"
-                value="plus"
-                label={`Partner Plus, ${money(options.plusMonthlyPence)} a month${options.plusFirstMonthFree ? ', first month free' : ''}`}
-              />
-            </div>
-          </fieldset>
+          <PlanChoiceSection options={options} plan={plan} setPlan={setPlan} />
         )}
         <Field
           id="join-address"
@@ -512,5 +556,125 @@ export function PartnerJoin(): JSX.Element {
         Already joined? Sign in
       </Link>
     </div>
+  );
+}
+
+/**
+ * Free or paid, chosen as the shop joins (ruling 75): the two plans side by side in a table with
+ * headings, so a screen reader hears each row and column, then the three ways to start.
+ */
+function PlanChoiceSection({
+  options,
+  plan,
+  setPlan,
+}: {
+  options: PartnerJoinOptions;
+  plan: PlanChoice;
+  setPlan: (plan: PlanChoice) => void;
+}): JSX.Element {
+  const price = money(options.plusMonthlyPence);
+  const rows: Array<[string, string, string]> = [
+    ['Your name, address and opening hours', 'Yes', 'Yes'],
+    ['Products', `Up to ${options.freeProductLimit}`, 'Your full catalogue'],
+    [
+      'Adding products by scanning with your camera',
+      `Yes, up to ${options.freeProductLimit}`,
+      'Yes',
+    ],
+    ['Photos of your products', 'No', 'Yes'],
+    ['Offers', 'No', 'Yes'],
+    ['Shop of the Month', 'Not eligible', 'Eligible'],
+    [
+      `Spotlight (${money(options.spotlightPence)}) and Spotlight Plus (${money(options.spotlightPlusPence)}) a month, on top`,
+      'Not available',
+      'Available',
+    ],
+    ['“Stock up at local shops” on the home page', 'After Partner Plus shops', 'Given priority'],
+    ['In search and on the shops list', 'Below Partner Plus shops', 'Above free shops'],
+  ];
+  const choices: Array<{ value: PlanChoice; label: string }> = [
+    { value: 'free', label: 'Basic listing, free' },
+    ...(options.plusFirstMonthFree
+      ? [
+          {
+            value: 'free-month' as const,
+            label: `Partner Plus: start with the free month, then ${price} a month, paid when you choose`,
+          },
+        ]
+      : []),
+    {
+      value: 'pay-now',
+      label: `Partner Plus: start and pay today, ${price} for the first month${options.plusFirstMonthFree ? ' (no free month)' : ''}`,
+    },
+  ];
+  return (
+    <section
+      aria-labelledby="plans-heading"
+      className="space-y-4 border-4 border-highlight rounded-2xl p-4"
+    >
+      <h2 id="plans-heading" className="text-lead font-bold m-0">
+        Choose your plan
+      </h2>
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-left">
+          <caption className="visually-hidden">What each plan gives a shop</caption>
+          <thead>
+            <tr>
+              <th scope="col" className="p-2 border-b-2 border-paper align-bottom">
+                What you get
+              </th>
+              <th scope="col" className="p-2 border-b-2 border-paper align-bottom">
+                Basic listing (free)
+              </th>
+              <th scope="col" className="p-2 border-b-2 border-paper align-bottom">
+                Partner Plus ({price} a month)
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([what, basic, plus]) => (
+              <tr key={what}>
+                <th scope="row" className="p-2 border-b border-paper/40 font-normal align-top">
+                  {what}
+                </th>
+                <td className="p-2 border-b border-paper/40 align-top">{basic}</td>
+                <td className="p-2 border-b border-paper/40 align-top font-bold">{plus}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="m-0">
+        Please know that free listings may be reviewed as paid shops join, and some may be taken off
+        then. You can move to Partner Plus at any time to keep your place.
+      </p>
+      <fieldset className="space-y-2 border-0 p-0 m-0">
+        <legend id="join-plan" className="text-lead font-bold">
+          Which plan would you like?
+        </legend>
+        {choices.map((choice) => (
+          <div key={choice.value} className="flex items-center gap-3 min-h-control">
+            <input
+              type="radio"
+              id={`join-plan-${choice.value}`}
+              name="join-plan"
+              value={choice.value}
+              checked={plan === choice.value}
+              onChange={() => setPlan(choice.value)}
+              className="h-6 w-6 shrink-0"
+            />
+            <label htmlFor={`join-plan-${choice.value}`} className="m-0">
+              {choice.label}
+            </label>
+          </div>
+        ))}
+        {plan === 'pay-now' && (
+          <p className="m-0">
+            After the form, we take you to Stripe’s secure page to pay {price}. Your card is given
+            to Stripe, never to us.
+          </p>
+        )}
+      </fieldset>
+    </section>
   );
 }
