@@ -111,7 +111,7 @@ searches from the name.)
 
 ## Contact details shown in the listing
 
-- Google, Contact email: enquiries@ozidelivery.co.uk (must be a working mailbox).
+- Google, Contact email: hello@ozidelivery.co.uk (must be a working mailbox).
 - Google, Website: https://ozidelivery.co.uk
 - Google, Phone: optional; leave blank until the real number exists.
 - Apple, Copyright: 2026 OZIDELIVERY LTD

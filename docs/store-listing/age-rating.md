@@ -33,7 +33,7 @@ terms. Check the option is still offered; if not, accept Apple's suggestion.
 
 ## Google (Play Console, App content, Content rating: the IARC questionnaire)
 
-- Email for the rating certificate: enquiries@ozidelivery.co.uk (once it is a real mailbox), or
+- Email for the rating certificate: hello@ozidelivery.co.uk (once it is a real mailbox), or
   Anthony's own.
 - Category: **All other app types** (it is not a game, and not only a social or
   communication app).
