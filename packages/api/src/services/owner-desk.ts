@@ -14,7 +14,7 @@
  * unanswered one it waits `hoursBetweenCascades`, then another run of calls, until he answers and
  * every open matter is decided or put to later. New matters join a run already going. A text goes
  * with the first call of each run, as a backup. No calls in quiet hours (UK time) unless a matter
- * is urgent. Matters put to later come back at `laterCallAt` the next day, unless decided in the
+ * is urgent. Matters put to later come back `laterAfterMinutes` later, unless decided in the
  * admin panel first. A voicemail never counts as picked up (Twilio's machine detection).
  *
  * The keypad does what the admin panel would, through the same service functions, and every
@@ -361,7 +361,7 @@ export async function decideMatter(
   if (choice === 'later') {
     const updated = await repository.ownerDesk.updateMatter(matter.id, {
       status: 'later',
-      laterUntil: nextDayAt(at, ctx.config.ownerDesk.laterCallAt),
+      laterUntil: new Date(at.getTime() + ctx.config.ownerDesk.laterAfterMinutes * 60_000),
     });
     await audit({
       actorName: by,
@@ -369,7 +369,9 @@ export async function decideMatter(
       target,
       detail: `Put to later ${how}: ${matter.summary}`,
     });
-    return { matter: updated, words: 'Left for later. I will ask you again tomorrow.' };
+    const after = ctx.config.ownerDesk.laterAfterMinutes;
+    const when = after === 60 ? 'in an hour' : `in ${after} minutes`;
+    return { matter: updated, words: `Left for later. I will ask you again ${when}.` };
   }
 
   // Acknowledge-only matters: 1 means "I have heard it", whichever word the screen sent.

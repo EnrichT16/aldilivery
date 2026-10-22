@@ -504,7 +504,7 @@ describe('the call', () => {
     expect(audit.map((entry) => entry.detail).join(' ')).toMatch(/by phone/);
   });
 
-  it('silence twice moves on and keeps it for the next call; 3 puts it to the next morning', async () => {
+  it('silence twice moves on and keeps it for the next call; 3 puts it off for an hour', async () => {
     await build();
     await aMatter('First thing.');
     later(1000);
@@ -518,13 +518,13 @@ describe('the call', () => {
     );
     const done = await press(moved.body, '3');
     expect(spoken(done.body)).toBe(
-      "Left for later. I will ask you again tomorrow. That's everything. Goodbye, Mr. Anthony.",
+      "Left for later. I will ask you again in an hour. That's everything. Goodbye, Mr. Anthony.",
     );
     const matters = await harness.repository.ownerDesk.listUnsettled();
     const second = matters.find((m) => m.summary === 'Second thing.')!;
     expect(second.status).toBe('later');
-    // 9:00 the next morning, UK time (8:00 UTC while summer time lasts).
-    expect(second.laterUntil?.toISOString()).toBe('2026-10-23T08:00:00.000Z');
+    // An hour later (Anthony, 22 October 2026).
+    expect(second.laterUntil?.getTime()).toBe(harness.now().getTime() + 60 * 60_000);
     expect(matters.find((m) => m.summary === 'First thing.')!.status).toBe('open');
   });
 
@@ -609,10 +609,10 @@ describe('ringing until he answers, exactly as Anthony asked', () => {
     expect(await sweep()).toEqual({ called: false, reason: 'nothing-open' });
     expect(rang).toHaveLength(4);
 
-    // The next morning at 9, UK time, the matter put to later is rung about again.
-    moveTo(new Date('2026-10-23T07:59:00.000Z'));
+    // An hour after he put it to later, it is rung about again (Anthony, 22 October 2026).
+    later(minutes(54));
     expect(await sweep()).toEqual({ called: false, reason: 'nothing-open' });
-    moveTo(new Date('2026-10-23T08:00:00.000Z'));
+    later(minutes(1));
     expect(await sweep()).toEqual(
       expect.objectContaining({ called: true, call: expect.objectContaining({ attempt: 1 }) }),
     );

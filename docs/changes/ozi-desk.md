@@ -26,7 +26,7 @@ Exactly as Anthony asked. If he does not pick up, Ozi rings again about two minu
 
 A text goes with the first call of each round, as a backup. It only says how many things are waiting, never what they are.
 
-Anything he puts to later comes back in the first call at nine the next morning, unless he or someone else decides it in the admin panel first.
+Anything he puts to later comes back an hour later (Anthony's change on 22 October 2026; it was nine the next morning), or as soon as quiet hours end if the hour falls inside them, unless he or someone else decides it in the admin panel first.
 
 Quiet hours are Anthony's choice and can be changed: as set now, Ozi does not ring between nine in the evening and eight in the morning, UK time, unless something is urgent. All of these figures are in `ownerDesk` in config/store.json.
 
