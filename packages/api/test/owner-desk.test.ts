@@ -647,9 +647,9 @@ describe('ringing until he answers, exactly as Anthony asked', () => {
     expect((await sweep()).called).toBe(true);
   });
 
-  it('no calls in quiet hours (21:00 to 08:00 UK time) unless urgent', async () => {
-    // 21:30 in the UK.
-    await build(new Date('2026-10-22T20:30:00.000Z'));
+  it('no calls in quiet hours (22:50 to 06:00 UK time, Anthony 22 October 2026) unless urgent', async () => {
+    // 23:30 in the UK.
+    await build(new Date('2026-10-22T22:30:00.000Z'));
     await aMatter();
     expect(await sweep()).toEqual({ called: false, reason: 'quiet-hours' });
     expect(rang).toHaveLength(0);
