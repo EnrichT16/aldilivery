@@ -285,6 +285,9 @@ model Runner {
   /// When and from where they accepted the cardholder terms, which Stripe requires.
   issuingTermsAcceptedAt DateTime?
   issuingTermsAcceptedIp String?
+  /// When they agreed that the automatic check may compare their face photo with the photo on
+  /// their ID (ruling 74). Null: no face comparison is made by it; a person does it instead.
+  faceMatchConsentAt     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -921,6 +924,12 @@ model RunnerDocument {
   reviewedBy  String?
   reviewedAt  DateTime?
   createdAt   DateTime  @default(now())
+  /// The automatic check (ruling 74): when it read it, whether every check was clearly fine,
+  /// why not when it was not, and the name it read on the document.
+  checkedAt   DateTime?
+  checkPassed Boolean?
+  checkNote   String?
+  checkName   String?
 
   @@index([runnerId])
   @@index([status])
@@ -1153,6 +1162,9 @@ model PartnerProduct {
   barcode         String?
   /// The price was not on the label, so it is an estimate the shop and the owner should check.
   priceEstimated  Boolean   @default(false)
+  /// The automatic check (ruling 74): when it last looked, and what it found when unsure.
+  checkedAt       DateTime?
+  checkNote       String?
 
   @@index([partnerShopId])
   @@index([status])
@@ -1407,4 +1419,52 @@ model ReviewPointsSpend {
   createdAt DateTime @default(now())
 
   @@index([shopperId])
+}
+
+/// Ozi's desk (ruling 74): something that needs the owner. Ozi rings him about it and he decides
+/// with the keypad, or in the admin panel. The summary is said aloud: never a card number, never
+/// a customer's telephone number.
+model OwnerMatter {
+  id           String    @id @default(cuid())
+  /// sos, runner_document, runner_application, partner_product, partner_shop,
+  /// organisation_enquiry, problem, shopper_feedback, pay_back, till_case, bank_transfer,
+  /// waiting_order or find_it.
+  kind         String
+  subjectId    String
+  summary      String
+  /// decide (approve, decline or later) or acknowledge (heard, or later).
+  options      String
+  urgent       Boolean   @default(false)
+  /// open, later, decided or handled.
+  status       String    @default("open")
+  /// approve, decline, acknowledge or settled.
+  decision     String?
+  /// phone, panel or automatic.
+  decidedVia   String?
+  decidedBy    String?
+  createdAt    DateTime  @default(now())
+  decidedAt    DateTime?
+  laterUntil   DateTime?
+  callAttempts Int       @default(0)
+  lastCalledAt DateTime?
+  lastReadAt   DateTime?
+
+  @@index([status, createdAt])
+  @@index([kind, subjectId])
+}
+
+/// Each call Ozi placed to the owner about his matters (ruling 74), so the escalation (three in
+/// a row, then an hour, then three again) survives a restart.
+model OwnerCall {
+  id          String    @id @default(cuid())
+  cascade     Int
+  attempt     Int
+  placedAt    DateTime
+  /// placed, answered, unanswered, voicemail or failed.
+  status      String    @default("placed")
+  answeredAt  DateTime?
+  endedAt     DateTime?
+  matterCount Int       @default(0)
+
+  @@index([placedAt])
 }

@@ -11,6 +11,7 @@
  */
 
 import type { AppContext } from '../app.js';
+import type { Order, ProblemReport, RunnerDocument, RunnerSos } from '../domain.js';
 import type { StaffActor, StaffArea } from '../lib/staff.js';
 import { waitingSince } from './dispatch.js';
 
@@ -55,13 +56,55 @@ function plural(count: number, one: string, many: string): string {
   return `${countWords(count)} ${count === 1 ? one : many}`;
 }
 
+/**
+ * Everything waiting for a person, by card (ruling 74): the same lists the cards count, so Ozi's
+ * desk can use this page as its checklist and ring the owner about each one. Typed by key, so a
+ * new card cannot be added here without the desk being told what to say about it.
+ */
+export interface NeedsYouItems {
+  sos: RunnerSos[];
+  'waiting-orders': Order[];
+  'bank-transfers': Order[];
+  'pay-backs': Order[];
+  problems: ProblemReport[];
+  documents: RunnerDocument[];
+}
+
+export async function needsYouItems(
+  ctx: Pick<AppContext, 'repository' | 'config' | 'now'>,
+): Promise<NeedsYouItems> {
+  const { repository, config } = ctx;
+  const at = ctx.now();
+  const limit = config.dispatch.splitAfterMinutes * 60_000;
+  return {
+    sos: (await repository.sos.listSince(new Date(at.getTime() - 24 * 3600 * 1000))).filter(
+      (row) => row.endedAt === null,
+    ),
+    'waiting-orders': [
+      ...(await repository.orders.listByStatus('paid')),
+      ...(await repository.orders.listByStatus('offered')),
+    ].filter(
+      (order) =>
+        order.runnerId === null &&
+        order.splitAt === null &&
+        !order.isDemo &&
+        at.getTime() - waitingSince(order).getTime() > limit,
+    ),
+    'bank-transfers': (await repository.orders.listByStatus('confirmed')).filter(
+      (order) => order.paidBy === 'bank' && (order.basketPart ?? 1) === 1,
+    ),
+    'pay-backs': await repository.orders.listByReimbursementStatus('waiting'),
+    problems: await repository.problems.listOpen(),
+    documents: await repository.runnerDocuments.listSubmitted(),
+  };
+}
+
 /** The cards, in their fixed order, counting only what is there. */
 export async function needsYou(
   ctx: Pick<AppContext, 'repository' | 'config' | 'now'>,
   actor: Pick<StaffActor, 'areas'>,
 ): Promise<NeedsYouCard[]> {
-  const { repository, config } = ctx;
-  const at = ctx.now();
+  const { config } = ctx;
   const cards: NeedsYouCard[] = [];
   const add = (
     key: NeedsYouKey,
@@ -76,86 +119,55 @@ export async function needsYou(
     cards.push({ key, count, words: plural(count, one, many), title, action, tab });
   };
 
-  if (actor.areas.includes('problems')) {
-    const sos = (await repository.sos.listSince(new Date(at.getTime() - 24 * 3600 * 1000))).filter(
-      (row) => row.endedAt === null,
-    );
-    add('sos', sos.length, 'SOS', 'SOS', 'Runner SOS, on now', 'Open the SOS', 'problems');
-  }
+  const items = await needsYouItems(ctx);
+  add('sos', items.sos.length, 'SOS', 'SOS', 'Runner SOS, on now', 'Open the SOS', 'problems');
+  add(
+    'waiting-orders',
+    items['waiting-orders'].length,
+    'order waiting for a Runner',
+    'orders waiting for a Runner',
+    `Orders waiting for a Runner for more than ${config.dispatch.splitAfterMinutes} minutes`,
+    'Open the orders',
+    'orders',
+  );
+  add(
+    'bank-transfers',
+    items['bank-transfers'].length,
+    'bank transfer to check',
+    'bank transfers to check',
+    'Bank transfers to check',
+    'Open the payments',
+    'payments',
+  );
+  add(
+    'pay-backs',
+    items['pay-backs'].length,
+    'Runner pay-back to approve',
+    'Runner pay-backs to approve',
+    'Runner pay-backs to approve',
+    'Open the pay-backs',
+    'payments',
+  );
 
-  if (actor.areas.includes('orders')) {
-    const limit = config.dispatch.splitAfterMinutes * 60_000;
-    const waiting = [
-      ...(await repository.orders.listByStatus('paid')),
-      ...(await repository.orders.listByStatus('offered')),
-    ].filter(
-      (order) =>
-        order.runnerId === null &&
-        order.splitAt === null &&
-        !order.isDemo &&
-        at.getTime() - waitingSince(order).getTime() > limit,
-    );
-    add(
-      'waiting-orders',
-      waiting.length,
-      'order waiting for a Runner',
-      'orders waiting for a Runner',
-      `Orders waiting for a Runner for more than ${config.dispatch.splitAfterMinutes} minutes`,
-      'Open the orders',
-      'orders',
-    );
-  }
+  add(
+    'problems',
+    items.problems.length,
+    'problem to decide',
+    'problems to decide',
+    'Problems to decide',
+    'Open the problems',
+    'problems',
+  );
 
-  if (actor.areas.includes('payments')) {
-    const transfers = (await repository.orders.listByStatus('confirmed')).filter(
-      (order) => order.paidBy === 'bank' && (order.basketPart ?? 1) === 1,
-    );
-    add(
-      'bank-transfers',
-      transfers.length,
-      'bank transfer to check',
-      'bank transfers to check',
-      'Bank transfers to check',
-      'Open the payments',
-      'payments',
-    );
-    const payBacks = await repository.orders.listByReimbursementStatus('waiting');
-    add(
-      'pay-backs',
-      payBacks.length,
-      'Runner pay-back to approve',
-      'Runner pay-backs to approve',
-      'Runner pay-backs to approve',
-      'Open the pay-backs',
-      'payments',
-    );
-  }
-
-  if (actor.areas.includes('problems')) {
-    const problems = await repository.problems.listOpen();
-    add(
-      'problems',
-      problems.length,
-      'problem to decide',
-      'problems to decide',
-      'Problems to decide',
-      'Open the problems',
-      'problems',
-    );
-  }
-
-  if (actor.areas.includes('documents')) {
-    const documents = await repository.runnerDocuments.listSubmitted();
-    add(
-      'documents',
-      documents.length,
-      'Runner document to review',
-      'Runner documents to review',
-      'Runner documents to review',
-      'Open the documents',
-      'documents',
-    );
-  }
+  add(
+    'documents',
+    items.documents.length,
+    'Runner document to review',
+    'Runner documents to review',
+    'Runner documents to review',
+    'Open the documents',
+    'documents',
+  );
 
   return cards;
 }

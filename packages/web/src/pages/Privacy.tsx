@@ -185,9 +185,20 @@ export function Privacy(): JSX.Element {
             and Shoppers&rsquo; safety.
           </li>
           <li>
-            Photos of your documents are deleted as soon as a person has checked them. We keep a
-            record of what was checked, by whom and when. Your face photo is kept while you are a
-            Runner, because Shoppers see it so they know it is you at the door.
+            Photos of your documents are deleted as soon as they have been checked. We keep a record
+            of what was checked, by whom and when. Your face photo is kept while you are a Runner,
+            because Shoppers see it so they know it is you at the door.
+          </li>
+          <li>
+            The automatic check reads each photo you send: whether it is the document we asked for,
+            whether it can be read, the name and any expiry date on it, and for a DBS certificate
+            whether anything is recorded. Only if you tick the box to agree, it also compares your
+            face photo with the photo on your ID to confirm it is you; that is biometric
+            information, and we rely on the consent you give by ticking the box, which you can
+            withdraw by unticking the box at any time. The automatic check can approve a document,
+            but it never turns one down: anything unclear, and every decision against you, is made
+            by a person, our owner. The photo is sent to the service that runs the check only to be
+            read, and that service does not keep it or learn from it.
           </li>
           <li>
             While you are on shift, we use where you are to offer you jobs nearby. We keep only

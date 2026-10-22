@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useId, useState } from 'react';
 
+import { storeConfig } from '../config';
 import {
   fetchRunnerDocuments,
   sendRunnerDocument,
+  setFaceMatchConsent,
   type RunnerDocumentKind,
   type RunnerDocuments,
 } from '../lib/api';
@@ -52,12 +54,50 @@ export function DocumentsChecklist({ onNews }: { onNews?: (news: string) => void
     void load();
   }, [load]);
 
+  async function consent(agree: boolean): Promise<void> {
+    try {
+      const result = await setFaceMatchConsent(agree);
+      setState((current) =>
+        current ? { ...current, faceMatchConsent: result.faceMatchConsent } : current,
+      );
+      setProblem('');
+      onNews?.(result.message);
+    } catch (failure) {
+      setProblem(
+        failure instanceof Error ? failure.message : 'That did not save. Please try again.',
+      );
+    }
+  }
+
   return (
     <div className="space-y-6 max-w-xl">
       {problem !== '' && (
         <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           {problem}
         </p>
+      )}
+      {state !== null && (
+        <div className="space-y-2 border-2 border-paper/40 rounded-2xl p-4">
+          {/* Biometric consent (ruling 74, UK GDPR Article 9): never ticked for them. Without
+              it, a person compares the photos instead. */}
+          <label className="flex items-start gap-3 min-h-control cursor-pointer">
+            <input
+              type="checkbox"
+              checked={state.faceMatchConsent === true}
+              onChange={(event) => void consent(event.target.checked)}
+              aria-describedby="face-match-why"
+              className="mt-1 h-6 w-6 shrink-0"
+            />
+            <span>
+              I agree that {storeConfig.productName} may compare my face photo with the photo on my
+              ID to confirm it is me.
+            </span>
+          </label>
+          <p id="face-match-why" className="m-0">
+            This is optional. If you leave it unticked, a person compares them instead, which can
+            take a little longer.
+          </p>
+        </div>
       )}
       {state === null ? (
         problem === '' && <p className="m-0">Finding your documents.</p>

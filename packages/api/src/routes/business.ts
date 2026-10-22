@@ -61,6 +61,9 @@ import { NEVER_FOUND } from '../lib/restricted.js';
 import { loadShopsSeed, seedShops } from '../lib/shops-seed.js';
 import { chooseAdvert, spotlightActive } from '../lib/spotlight.js';
 import { awardTitlesByShop } from '../services/shop-of-the-month.js';
+import { checkInBackground, checkPartnerProduct } from '../services/auto-check.js';
+import { askOwner, settleMattersFor } from '../services/owner-desk.js';
+import { decidePartnerProduct } from '../services/partner-products.js';
 import { hashPassword, passwordMatches, staffActor, temporaryPassword } from '../lib/staff.js';
 import { verifyPhoneProof } from '../lib/tokens.js';
 
@@ -656,10 +659,26 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       barcode: shop.kind === 'service' ? null : (body.barcode ?? null),
       priceEstimated: body.priceEstimated,
     });
+    // The automatic check (ruling 74): clear ones are approved at once, clearly restricted ones
+    // refused by the rule lists, and anything doubtful goes to the owner.
+    await checkInBackground(app.ctx, request.log, () =>
+      checkPartnerProduct(app.ctx, product.id, request.log),
+    );
+    const latest = (await repository.partnerProducts.findById(product.id)) ?? product;
+    const price =
+      shop.kind === 'service' ? `from ${money(body.pricePence)}` : money(body.pricePence);
+    const estimated = body.priceEstimated ? ' Its price is an estimate: please check it.' : '';
+    const later =
+      shop.status === 'pending' ? ' Your page goes public once we have checked your listing.' : '';
     void reply.status(201);
     return {
-      product: publicProduct(product),
-      message: `Thank you. ${body.name}, ${shop.kind === 'service' ? `from ${money(body.pricePence)}` : money(body.pricePence)}, is waiting to be checked. It usually goes live within one working day.${body.priceEstimated ? ' Its price is an estimate: please check it.' : ''}${shop.status === 'pending' ? ' Your page goes public once we have checked your listing.' : ''}`,
+      product: publicProduct(latest),
+      message:
+        latest.status === 'approved'
+          ? `Thank you. ${body.name}, ${price}, is checked and listed.${estimated}${later}`
+          : latest.status === 'rejected'
+            ? `${body.name} cannot be listed: ${latest.note ?? 'it is something we never bring.'}`
+            : `Thank you. ${body.name}, ${price}, is waiting to be checked. It usually goes live within one working day.${estimated}${later}`,
     };
   });
 
@@ -689,6 +708,10 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         lastSeenAt: now(),
       });
     }
+    // A change is checked like a new one (ruling 74): a doubtful price goes to the owner.
+    await checkInBackground(app.ctx, request.log, () =>
+      checkPartnerProduct(app.ctx, product.id, request.log, { edited: true }),
+    );
     return {
       product: publicProduct(updated),
       message: `${product.name} is now ${money(pricePence)}.`,
@@ -1111,6 +1134,17 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       passwordHash: hashPassword(body.password),
     });
     await repository.businessUsers.update(user.id, { mustChangePassword: false });
+    // A new shop waiting for approval: Ozi rings the owner about it (ruling 74).
+    await askOwner(
+      app.ctx,
+      {
+        kind: 'partner_shop',
+        subjectId: shop.id,
+        summary: `A new ${body.kind === 'service' ? 'service' : body.kind === 'shop' ? 'shop' : 'café or takeaway'}, ${shop.name}, in ${shop.postcode.split(' ')[0] ?? shop.postcode}, has ${claimed ? 'claimed its listing' : 'joined'} and is waiting for approval.`,
+        options: 'decide',
+      },
+      request.log,
+    );
     const at = now();
 
     // Partner Plus chosen at sign-up (ruling 75): the free month starts at once, or, when the
@@ -1873,45 +1907,19 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
   });
 
   app.post('/staff/partner-products/:id/decide', async (request) => {
-    await staffActor(request, 'partners');
+    const actor = await staffActor(request, 'partners');
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const body = z
       .object({ approve: z.boolean(), note: z.string().trim().max(300).optional() })
       .parse(request.body ?? {});
     const product = await repository.partnerProducts.findById(id);
     if (!product) throw new NotFoundError('product');
-    if (product.status !== 'pending') throw new ConflictError('That one has already been decided.');
-    if (!body.approve) {
-      const updated = await repository.partnerProducts.update(product.id, {
-        status: 'rejected',
-        note: body.note ?? null,
-        decidedAt: now(),
-      });
-      return { product: publicProduct(updated) };
-    }
-    if (NEVER_FOUND.test(`${product.name} ${product.tags}`)) {
-      throw new BadRequestError('That is something we never bring, so it cannot be approved.');
-    }
-    const shop = await repository.partnerShops.findById(product.partnerShopId);
-    if (!shop) throw new NotFoundError('partner shop');
-    // In the catalogue, so it can go in a basket like anything else, with the shop's name on it.
-    // A service is never in the catalogue: nobody buys it here, they ask for a quote (ruling 65).
-    const item =
-      shop.kind === 'service'
-        ? null
-        : await repository.catalogue.create({
-            name: `${product.name} (${shop.name})`,
-            category: `From ${shop.name}`,
-            estimatedPricePence: product.pricePence,
-            source: 'partner_feed',
-            externalRef: `partner:${product.id}`,
-          });
-    const updated = await repository.partnerProducts.update(product.id, {
-      status: 'approved',
-      catalogueItemId: item?.id ?? null,
+    // The same decision Ozi's desk makes on the owner's keypad (services/partner-products.ts).
+    const updated = await decidePartnerProduct(app.ctx, product, {
+      approve: body.approve,
       note: body.note ?? null,
-      decidedAt: now(),
     });
+    await settleMattersFor(app.ctx, 'partner_product', product.id, 'panel', actor.name);
     return { product: publicProduct(updated) };
   });
 

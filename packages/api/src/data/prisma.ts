@@ -1162,6 +1162,54 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    ownerDesk: {
+      async createMatter(input) {
+        return (await prisma.ownerMatter.create({ data: input })) as any;
+      },
+      async findMatter(id) {
+        return (await prisma.ownerMatter.findUnique({ where: { id } })) as any;
+      },
+      async findMattersFor(kind, subjectId) {
+        return (await prisma.ownerMatter.findMany({
+          where: { kind, subjectId },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        })) as any;
+      },
+      async listUnsettled() {
+        return (await prisma.ownerMatter.findMany({
+          where: { status: { in: ['open', 'later'] } },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        })) as any;
+      },
+      async listSettledSince(since) {
+        return (await prisma.ownerMatter.findMany({
+          where: {
+            status: { in: ['decided', 'handled'] },
+            OR: [{ decidedAt: { gte: since } }, { decidedAt: null, createdAt: { gte: since } }],
+          },
+          orderBy: [{ decidedAt: 'desc' }, { id: 'desc' }],
+        })) as any;
+      },
+      async updateMatter(id, patch) {
+        return (await prisma.ownerMatter.update({ where: { id }, data: patch as any })) as any;
+      },
+      async createCall(input) {
+        return (await prisma.ownerCall.create({ data: input })) as any;
+      },
+      async findCall(id) {
+        return (await prisma.ownerCall.findUnique({ where: { id } })) as any;
+      },
+      async latestCalls(limit) {
+        return (await prisma.ownerCall.findMany({
+          orderBy: [{ placedAt: 'desc' }, { id: 'desc' }],
+          take: limit,
+        })) as any;
+      },
+      async updateCall(id, patch) {
+        return (await prisma.ownerCall.update({ where: { id }, data: patch as any })) as any;
+      },
+    },
+
     admin: {
       async listOrders(where) {
         const rows = await prisma.order.findMany({

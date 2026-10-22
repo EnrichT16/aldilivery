@@ -35,6 +35,8 @@ import { sweepInsuranceReminders } from './services/insurance.js';
 import { sweepDeposits } from './services/runner-leaving.js';
 import { sweepPlans } from './services/plans.js';
 import { refreshPrices } from './services/prices.js';
+import { checkWaiting } from './services/auto-check.js';
+import { sweepOwnerDesk } from './services/owner-desk.js';
 
 async function main(): Promise<void> {
   const env = readEnv();
@@ -153,6 +155,8 @@ async function main(): Promise<void> {
       userAgent: `${config.productName}/1.0 (${config.contact.email})`,
     }),
     lookUpPrices: true,
+    // The automatic check (ruling 74) runs in the background: nobody waits for it.
+    backgroundChecks: true,
     repository,
     payments,
     env,
@@ -366,8 +370,42 @@ async function main(): Promise<void> {
   }, 6 * 3_600_000);
   priceSweep.unref();
 
+  // Once at start: Runner documents and shop products already waiting, never read by the
+  // automatic check, are checked now (ruling 74), so nobody who sent them earlier is left out.
+  checkWaiting(app.ctx, app.log)
+    .then((report) => app.log.info(report, 'The automatic check looked at what was waiting'))
+    .catch((failure: unknown) => {
+      app.log.error({ err: failure }, 'The automatic check of what was waiting failed');
+    });
+
+  // Every minute: Ozi's desk (ruling 74). Anything that needs the owner, and whether to ring
+  // him now: three calls in a row two minutes apart, an hour, then three again, until every
+  // matter is decided or put to later; no calls in quiet hours unless urgent.
+  if (!env.ownerAlertPhone || !placeCall || !env.primaryOrigin) {
+    app.log.info(
+      "Ozi's desk will not ring the owner: OWNER_ALERT_PHONE, the Twilio voice number and ALLOWED_ORIGIN are not all set. Matters still show on the Needs you now page.",
+    );
+  }
+  let deskRunning = false;
+  const deskSweep = setInterval(() => {
+    if (deskRunning) return;
+    deskRunning = true;
+    sweepOwnerDesk(app.ctx, app.log)
+      .then((result) => {
+        if (result.called) app.log.info({ attempt: result.call.attempt }, 'Ozi rang the owner');
+      })
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, "The owner's desk sweep failed");
+      })
+      .finally(() => {
+        deskRunning = false;
+      });
+  }, 60_000);
+  deskSweep.unref();
+
   const shutdown = async (signal: string): Promise<void> => {
     clearInterval(sweep);
+    clearInterval(deskSweep);
     clearInterval(paySweep);
     clearInterval(setSweep);
     clearInterval(retentionSweep);

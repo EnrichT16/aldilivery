@@ -163,6 +163,11 @@ export const AUDIT_WORDS: Record<string, string> = {
   'POST /staff/orders/:id/cancel': 'Cancelled an order and sent the money back',
   'POST /staff/orders/:id/goodwill': 'Gave a goodwill refund',
   'POST /staff/orders/:id/reassign': 'Gave an order to another Runner',
+  // Ozi's desk and the automatic check (ruling 74).
+  'owner-desk.decided': 'Decided something Ozi rang about',
+  'owner-desk.later': 'Put something Ozi rang about to later',
+  'automatic-check': 'The automatic check',
+  'POST /runners/me/face-match-consent': 'Agreed to, or withdrew, the face comparison',
 };
 
 export function auditWords(action: string): string {

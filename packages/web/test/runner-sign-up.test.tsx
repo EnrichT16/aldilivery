@@ -103,6 +103,27 @@ describe('signing up to run', () => {
     expect(screen.getByRole('heading', { name: 'Your DBS certificate' })).toBeInTheDocument();
   });
 
+  it('asks, unticked, for consent to compare the face photo with the ID (ruling 74)', async () => {
+    const user = userEvent.setup({ delay: null });
+    const recorded = renderAt('/runner/sign-up');
+    await user.type(screen.getByLabelText('Your name'), 'Tomasz');
+    await user.type(screen.getByLabelText('Your mobile number'), '07700 900101');
+    await user.click(screen.getByLabelText('I am 18 or over, and I agree to the Runner agreement'));
+    await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
+
+    const consent = await screen.findByRole('checkbox', {
+      name: /may compare my face photo with the photo on my ID to confirm it is me\./,
+    });
+    expect(consent).not.toBeChecked();
+    expect(consent).toHaveAccessibleDescription(/a person compares them instead/);
+    await user.click(consent);
+    expect(await screen.findByText(/Your face photo may be compared/)).toBeInTheDocument();
+    expect(consent).toBeChecked();
+    expect(recorded.find((r) => r.path === '/runners/me/face-match-consent')?.body).toEqual({
+      agree: true,
+    });
+  });
+
   it('keeps the Runner signed in on this device, without touching a Shopper signed in here', async () => {
     const user = userEvent.setup({ delay: null });
     renderAt('/runner/sign-up');

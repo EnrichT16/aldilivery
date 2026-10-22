@@ -8,7 +8,9 @@ import { describe, expect, it } from 'vitest';
 import { loadStoreConfig } from '@aldilivery/core/node';
 
 import {
+  documentInstructions,
   instructions,
+  productInstructions,
   itemWords,
   languageModel,
   ukNow,
@@ -227,5 +229,72 @@ describe('reading a shelf label (ruling 75)', () => {
       }),
     );
     expect(await broken.readLabel!({ data: 'AAAA', mediaType: 'image/png' })).toBeNull();
+  });
+});
+
+describe('the automatic check (ruling 74)', () => {
+  it('shows the model the document photo, and the ID only for a face comparison', async () => {
+    const sent: Array<{ messages: Array<{ content: Array<{ type: string }> }> }> = [];
+    const model = languageModel({ apiKey: 'test', config }, {
+      messages: {
+        create: async (body: unknown) => {
+          sent.push(body as (typeof sent)[number]);
+          return message({
+            kindMatches: true,
+            readable: true,
+            nameOnDocument: ' CHIDI OKAFOR ',
+            expiresOn: null,
+            dbsRecordsSomething: false,
+            clearRealFace: null,
+            samePerson: null,
+            concern: null,
+            confidence: 0.96,
+          });
+        },
+      },
+    } as unknown as BrainClient);
+    const photo = { data: 'AAAA', mediaType: 'image/jpeg' as const };
+    const reading = await model.checkDocument!({
+      kind: 'dbs',
+      photo,
+      accountName: 'Chidi Okafor',
+      today: '2026-10-22',
+    });
+    expect(reading).toEqual(
+      expect.objectContaining({ nameOnDocument: 'CHIDI OKAFOR', confidence: 0.96 }),
+    );
+    expect(sent[0]!.messages[0]!.content.filter((part) => part.type === 'image')).toHaveLength(1);
+    await model.checkDocument!({
+      kind: 'face_photo',
+      photo,
+      idPhoto: photo,
+      accountName: 'Chidi Okafor',
+      today: '2026-10-22',
+    });
+    expect(sent[1]!.messages[0]!.content.filter((part) => part.type === 'image')).toHaveLength(2);
+  });
+
+  it('is absent when the model refuses or answers outside the shape', async () => {
+    const refusing = languageModel(
+      { apiKey: 'test', config },
+      stubClient(async () => message({}, 'refusal')),
+    );
+    expect(
+      await refusing.checkProduct!({ name: 'Bread', tags: '', pricePence: 100, isService: false }),
+    ).toBeNull();
+    const nonsense = languageModel(
+      { apiKey: 'test', config },
+      stubClient(async () => message({ verdict: 'maybe' })),
+    );
+    expect(
+      await nonsense.checkProduct!({ name: 'Bread', tags: '', pricePence: 100, isService: false }),
+    ).toBeNull();
+  });
+
+  it('its instructions come from configuration and never name the maker', () => {
+    for (const text of [documentInstructions(config), productInstructions(config)]) {
+      expect(text).toContain(config.productName);
+      expect(text).not.toMatch(/anthropic|claude/i);
+    }
   });
 });

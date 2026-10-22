@@ -322,6 +322,22 @@ export interface StoreConfig {
     readonly tinyExtraBelowPence: number;
     readonly splitRunnerPayPence: number;
   };
+  /**
+   * The owner (ruling 74): how Ozi speaks to him on the telephone, "Mr. Anthony", always.
+   */
+  readonly owner: {
+    readonly spokenName: string;
+  };
+  /**
+   * Ozi's desk (ruling 74, 22 October 2026): Ozi rings the owner about anything that needs him.
+   * Up to `callsInARow` calls `minutesBetweenCalls` apart; unanswered, it waits
+   * `hoursBetweenCascades` and starts again, until he answers and every matter is decided or put
+   * to later. No calls between `quietFrom` and `quietUntil` (UK time) unless urgent, when
+   * `urgentInQuietHours` is true. Matters put to later come back in the first call at
+   * `laterCallAt` the next day. Feedback of `lowRatingAtMost` stars or fewer goes to him; the
+   * automatic check approves only at `checkConfidence` or above.
+   */
+  readonly ownerDesk: OwnerDeskSettings;
   /** The admin panel (Section Q): who may do what, and how signing in is kept safe. */
   readonly admin: {
     /** A refund above this is the owner's alone to give (Section Q). £25 unless set. */
@@ -335,6 +351,19 @@ export interface StoreConfig {
     /** The day the grace period starts for accounts that already exist, as YYYY-MM-DD. */
     readonly staffTwoStepFrom: string;
   };
+}
+
+/** Ozi's desk (ruling 74): when and how often Ozi rings the owner. Times are "HH:MM", UK time. */
+export interface OwnerDeskSettings {
+  readonly callsInARow: number;
+  readonly minutesBetweenCalls: number;
+  readonly hoursBetweenCascades: number;
+  readonly quietFrom: string;
+  readonly quietUntil: string;
+  readonly urgentInQuietHours: boolean;
+  readonly laterCallAt: string;
+  readonly lowRatingAtMost: number;
+  readonly checkConfidence: number;
 }
 
 export class StoreConfigError extends Error {
@@ -657,6 +686,41 @@ function partnerPricing(raw: Unknown): PartnerPricing {
   };
 }
 
+/** A time of day written "HH:MM", such as "21:00"; refuses anything else. */
+function clockTime(value: unknown, path: string): string {
+  const text = str(value, path);
+  if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(text)) {
+    throw new StoreConfigError(`${path} must be a time written as HH:MM, such as 21:00.`);
+  }
+  return text;
+}
+
+function parseOwnerDesk(raw: Unknown): OwnerDeskSettings {
+  const confidence = raw['checkConfidence'] ?? 0.9;
+  if (typeof confidence !== 'number' || !(confidence > 0 && confidence <= 1)) {
+    throw new StoreConfigError('ownerDesk.checkConfidence must be a number above 0, up to 1.');
+  }
+  return {
+    callsInARow: wholeNumber(raw['callsInARow'] ?? 3, 'ownerDesk.callsInARow', 1),
+    minutesBetweenCalls: wholeNumber(
+      raw['minutesBetweenCalls'] ?? 2,
+      'ownerDesk.minutesBetweenCalls',
+      1,
+    ),
+    hoursBetweenCascades: wholeNumber(
+      raw['hoursBetweenCascades'] ?? 1,
+      'ownerDesk.hoursBetweenCascades',
+      1,
+    ),
+    quietFrom: clockTime(raw['quietFrom'] ?? '21:00', 'ownerDesk.quietFrom'),
+    quietUntil: clockTime(raw['quietUntil'] ?? '08:00', 'ownerDesk.quietUntil'),
+    urgentInQuietHours: bool(raw['urgentInQuietHours'] ?? true, 'ownerDesk.urgentInQuietHours'),
+    laterCallAt: clockTime(raw['laterCallAt'] ?? '09:00', 'ownerDesk.laterCallAt'),
+    lowRatingAtMost: wholeNumber(raw['lowRatingAtMost'] ?? 2, 'ownerDesk.lowRatingAtMost', 1),
+    checkConfidence: confidence,
+  };
+}
+
 export function parseStoreConfig(input: unknown): StoreConfig {
   const root = object(input, 'the configuration file');
 
@@ -690,6 +754,9 @@ export function parseStoreConfig(input: unknown): StoreConfig {
   );
   const admin = root['admin'] === undefined ? {} : object(root['admin'], 'admin');
   const dispatch = root['dispatch'] === undefined ? {} : object(root['dispatch'], 'dispatch');
+  const ownerRaw = root['owner'] === undefined ? {} : object(root['owner'], 'owner');
+  const ownerDeskRaw =
+    root['ownerDesk'] === undefined ? {} : object(root['ownerDesk'], 'ownerDesk');
   const dunsRaw = store['dunsNumber'];
   const dunsNumber =
     dunsRaw === undefined || dunsRaw === null ? null : str(dunsRaw, 'store.dunsNumber');
@@ -1180,6 +1247,10 @@ export function parseStoreConfig(input: unknown): StoreConfig {
         1,
       ),
     },
+    owner: {
+      spokenName: str(ownerRaw['spokenName'] ?? 'Mr. Anthony', 'owner.spokenName'),
+    },
+    ownerDesk: parseOwnerDesk(ownerDeskRaw),
     admin: {
       ownerOnlyRefundAbovePence: wholeNumber(
         admin['ownerOnlyRefundAbovePence'] ?? 2500,

@@ -24,6 +24,7 @@ import { formatPence } from '@aldilivery/core';
 import type { AppContext } from '../app.js';
 import type { Order } from '../domain.js';
 import { tellShopperWords } from './order-updates.js';
+import { askOwner, matterWords } from './owner-desk.js';
 
 export const EXTRA_FLOOR_PENCE = 500;
 export const EXTRA_SHARE = 0.2;
@@ -59,6 +60,17 @@ export async function settleTill(
       .catch((failure: unknown) =>
         log.error({ err: failure, orderId: order.id }, 'The till case could not be recorded.'),
       );
+    // Ozi's desk (ruling 74): a till dispute that needs a person.
+    await askOwner(
+      ctx,
+      {
+        kind: 'till_case',
+        subjectId: order.id,
+        summary: matterWords(ctx).tillCase({ ...order, tillReason: outcome.reason }),
+        options: 'acknowledge',
+      },
+      log,
+    );
   }
   return outcome;
 }

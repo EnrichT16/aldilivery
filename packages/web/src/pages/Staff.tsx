@@ -25,6 +25,9 @@ import {
   setUpOwner,
   setViewer,
   type NeedsYouCard,
+  type OwnerMatter,
+  fetchOwnerDesk,
+  decideOwnerMatter,
   type OwnerMoney,
   type StaffOverview,
   type Viewer,
@@ -2973,6 +2976,7 @@ function Overview({
           ))}
         </ol>
       )}
+      <OwnerDeskList staffKey={staffKey} />
       <h3 className="m-0 font-bold">The figures</h3>
       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 m-0">
         {tiles.map(([label, value]) => (
@@ -2982,6 +2986,124 @@ function Overview({
           </div>
         ))}
       </dl>
+    </section>
+  );
+}
+
+/**
+ * Ozi's desk (ruling 74): what Ozi rings the owner about, open ones urgent first, then those put
+ * to later. Each can be decided here instead of on the call, with the same result.
+ */
+function OwnerDeskList({ staffKey }: { staffKey: string }): JSX.Element {
+  const desk = useList(() => fetchOwnerDesk(staffKey));
+  const [news, setNews] = useState('');
+  const [problem, setProblem] = useState('');
+  const [busy, setBusy] = useState(false);
+  const assistant = storeConfig.assistantName;
+  const matters: OwnerMatter[] = desk.data?.matters ?? [];
+
+  async function decide(
+    matter: OwnerMatter,
+    choice: 'approve' | 'decline' | 'acknowledge' | 'later',
+  ): Promise<void> {
+    setBusy(true);
+    try {
+      const result = await decideOwnerMatter(staffKey, matter.id, choice);
+      setNews(result.message);
+      setProblem('');
+      desk.reload();
+    } catch (failure) {
+      setProblem(failure instanceof Error ? failure.message : 'That could not be done.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const when = (iso: string): string =>
+    new Date(iso).toLocaleString('en-GB', {
+      timeZone: 'Europe/London',
+      weekday: 'long',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+
+  return (
+    <section aria-labelledby="desk-heading" className="space-y-3">
+      <h3 id="desk-heading" className="m-0 font-bold">
+        {assistant}&rsquo;s desk
+      </h3>
+      <p className="m-0">
+        What {assistant} rings you about. Decide here, or with the keypad on the call.
+      </p>
+      <Failure text={desk.problem || problem} />
+      {news !== '' && (
+        <p role="status" className="m-0">
+          {news}
+        </p>
+      )}
+      {desk.data && matters.length === 0 && <p className="m-0">Nothing is waiting on the desk.</p>}
+      {matters.length > 0 && (
+        <ul className="list-none m-0 p-0 space-y-3" aria-label={`${assistant}’s desk`}>
+          {matters.map((matter) => (
+            <li key={matter.id} className="border-2 border-paper rounded-xl p-4 space-y-2">
+              <p className="m-0">
+                {matter.urgent && <strong>Urgent. </strong>}
+                {matter.summary}
+              </p>
+              {matter.status === 'later' && matter.laterUntil && (
+                <p className="m-0">
+                  Put to later. {assistant} asks again {when(matter.laterUntil)}.
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {matter.options === 'decide' ? (
+                  <>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void decide(matter, 'approve')}
+                      className="control min-h-control bg-highlight text-on-accent"
+                    >
+                      <span aria-hidden="true">✓ </span>
+                      Approve<span className="visually-hidden">: {matter.summary}</span>
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void decide(matter, 'decline')}
+                      className="control min-h-control border-paper bg-paper/10 text-paper"
+                    >
+                      <span aria-hidden="true">✗ </span>
+                      Decline<span className="visually-hidden">: {matter.summary}</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void decide(matter, 'acknowledge')}
+                    className="control min-h-control bg-highlight text-on-accent"
+                  >
+                    <span aria-hidden="true">✓ </span>
+                    Heard it<span className="visually-hidden">: {matter.summary}</span>
+                  </button>
+                )}
+                {matter.status === 'open' && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => void decide(matter, 'later')}
+                    className="control min-h-control border-paper bg-paper/10 text-paper"
+                  >
+                    <span aria-hidden="true">⏲ </span>
+                    Later<span className="visually-hidden">: {matter.summary}</span>
+                  </button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

@@ -428,6 +428,18 @@ export interface RunnerDocumentRecord {
 export interface RunnerDocuments {
   documents: RunnerDocumentRecord[];
   stillNeeded: Array<{ kind: RunnerDocumentKind; name: string }>;
+  /** They agreed their face photo may be compared with the photo on their ID (ruling 74). */
+  faceMatchConsent?: boolean;
+}
+
+export function setFaceMatchConsent(
+  agree: boolean,
+): Promise<{ faceMatchConsent: boolean; message: string }> {
+  return request<{ faceMatchConsent: boolean; message: string }>(
+    '/runners/me/face-match-consent',
+    { method: 'POST', body: JSON.stringify({ agree }) },
+    'runner',
+  );
 }
 
 export function fetchRunnerDocuments(): Promise<RunnerDocuments> {
@@ -2529,6 +2541,43 @@ export function fetchNeedsYou(
   key: string,
 ): Promise<{ cards: NeedsYouCard[]; splitAfterMinutes: number }> {
   return staffRequest(key, '/staff/needs-you');
+}
+
+/** Something Ozi rings the owner about (ruling 74, Ozi's desk). */
+export interface OwnerMatter {
+  id: string;
+  kind: string;
+  /** One or two sentences, as Ozi says them on the call. */
+  summary: string;
+  /** decide: approve, decline or later. acknowledge: heard, or later. */
+  options: 'decide' | 'acknowledge';
+  urgent: boolean;
+  status: 'open' | 'later';
+  laterUntil: string | null;
+  createdAt: string;
+  callAttempts: number;
+}
+
+export interface OwnerDesk {
+  matters: OwnerMatter[];
+  /** Whether Ozi can ring the owner: the alert phone and Twilio are set up. */
+  ringing: boolean;
+  lastCall: { at: string; status: string; attempt: number } | null;
+}
+
+export function fetchOwnerDesk(key: string): Promise<OwnerDesk> {
+  return staffRequest(key, '/staff/desk');
+}
+
+export function decideOwnerMatter(
+  key: string,
+  id: string,
+  choice: 'approve' | 'decline' | 'acknowledge' | 'later',
+): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/desk/${encodeURIComponent(id)}`, {
+    method: 'POST',
+    body: JSON.stringify({ choice }),
+  });
 }
 
 export interface StaffOverview {

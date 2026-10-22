@@ -33,7 +33,13 @@ import {
   ukWeekStart,
 } from '../services/earnings.js';
 import { insuranceNotice, insuranceRenewalDue } from '../services/insurance.js';
-import { recordRunnerCheck } from '../services/runner-checks.js';
+import {
+  afterDocumentDecided,
+  checkApplication,
+  checkInBackground,
+  checkRunnerDocument,
+} from '../services/auto-check.js';
+import { decideRunnerDocument, KIND_WORDS } from '../services/runner-documents.js';
 
 export const MOTOR_MODES: VehicleType[] = ['motorbike', 'car', 'van'];
 const KINDS: RunnerDocumentKind[] = [
@@ -47,15 +53,6 @@ const KINDS: RunnerDocumentKind[] = [
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 /** A phone photo, made smaller by the app before it is sent, is far below this. */
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
-
-const KIND_WORDS: Record<RunnerDocumentKind, string> = {
-  face_photo: 'A photo of your face',
-  right_to_work: 'Your right to work in the UK',
-  dbs: 'Your DBS certificate',
-  driving_licence_front: 'The front of your driving licence',
-  driving_licence_back: 'The back of your driving licence',
-  insurance: 'Your motor insurance certificate',
-};
 
 /** The documents this Runner needs, for the ways they said they might deliver. */
 export function documentsNeeded(travelModes: VehicleType[]): RunnerDocumentKind[] {
@@ -196,10 +193,17 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
       reviewedAt: null,
       createdAt: now(),
     });
+    // The automatic check (ruling 74): approves it only when every check is clearly fine, and
+    // otherwise asks the owner. In the background on the real server, so nobody waits for it.
+    await checkInBackground(app.ctx, request.log, () =>
+      checkRunnerDocument(app.ctx, document.id, request.log),
+    );
+    const latest = (await repository.runnerDocuments.findById(document.id)) ?? document;
     void reply.status(201);
     return {
-      document: publicDocument(document),
+      document: publicDocument(latest),
       stillNeeded: (await stillNeeded(runner)).map((kind) => ({ kind, name: KIND_WORDS[kind] })),
+      faceMatchConsent: runner.faceMatchConsentAt !== null,
       message: 'Thank you. We will check it and let you know.',
     };
   });
@@ -210,6 +214,32 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
     return {
       documents: documents.map(publicDocument),
       stillNeeded: (await stillNeeded(runner)).map((kind) => ({ kind, name: KIND_WORDS[kind] })),
+      faceMatchConsent: runner.faceMatchConsentAt !== null,
+    };
+  });
+
+  /**
+   * The face comparison (ruling 74): only when the Runner ticks "I agree that … may compare my
+   * face photo with the photo on my ID to confirm it is me". Unticking withdraws it; a person
+   * then compares the photos instead.
+   */
+  app.post('/runners/me/face-match-consent', async (request) => {
+    const runner = await me(request);
+    const { agree } = z.object({ agree: z.boolean() }).parse(request.body ?? {});
+    const updated = await repository.runners.update(runner.id, {
+      faceMatchConsentAt: agree ? (runner.faceMatchConsentAt ?? now()) : null,
+    });
+    // Documents already read and waiting for the comparison can now be compared.
+    if (agree) {
+      await checkInBackground(app.ctx, request.log, () =>
+        checkApplication(app.ctx, runner.id, request.log),
+      );
+    }
+    return {
+      faceMatchConsent: updated.faceMatchConsentAt !== null,
+      message: agree
+        ? 'Thank you. Your face photo may be compared with the photo on your ID.'
+        : 'Understood. A person will compare your photos instead.',
     };
   });
 
@@ -408,51 +438,20 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
     if (body.decision === 'reject' && !body.note) {
       throw new BadRequestError('Please say why, so the Runner knows what to send instead.');
     }
-    const at = now();
     const expiresOn = body.expiresOn ? new Date(`${body.expiresOn}T00:00:00Z`) : document.expiresOn;
     if (body.decision === 'accept' && document.kind === 'insurance' && !expiresOn) {
       throw new BadRequestError('Please give the date the insurance runs out.');
     }
 
-    const decided = await repository.runnerDocuments.update(document.id, {
-      status: body.decision === 'accept' ? 'accepted' : 'rejected',
-      reviewNote: body.note ?? null,
-      reviewedBy: decidedBy(actor, body.by),
-      reviewedAt: at,
+    const decided = await decideRunnerDocument(app.ctx, document, {
+      decision: body.decision,
+      by: decidedBy(actor, body.by),
+      note: body.note ?? null,
       expiresOn,
-      // Kept only until decided, apart from the face photo the Shopper sees at the door.
-      ...(document.kind === 'face_photo' && body.decision === 'accept'
-        ? {}
-        : { image: null, contentType: null }),
     });
-
-    if (body.decision === 'accept') {
-      const evidence = `${KIND_WORDS[document.kind]}, ${document.shareCode ? `share code ending ${document.shareCode.slice(-4)}` : 'photo'}, seen in the app`;
-      if (document.kind === 'right_to_work' || document.kind === 'dbs') {
-        await recordRunnerCheck(repository, {
-          runnerId: document.runnerId,
-          kind: document.kind === 'right_to_work' ? 'right_to_work' : 'criminal_record',
-          outcome: 'verified',
-          evidence,
-          checkedBy: decidedBy(actor, body.by),
-          note: body.note ?? '',
-          checkedAt: at,
-        });
-      } else if (
-        document.kind === 'driving_licence_front' ||
-        document.kind === 'driving_licence_back'
-      ) {
-        const documents = await repository.runnerDocuments.listForRunner(document.runnerId);
-        const bothSides = ['driving_licence_front', 'driving_licence_back'].every((kind) =>
-          documents.some((d) => d.kind === kind && d.status === 'accepted'),
-        );
-        if (bothSides) {
-          await repository.runners.update(document.runnerId, { drivingLicenceVerified: true });
-        }
-      } else if (document.kind === 'insurance') {
-        await repository.runners.update(document.runnerId, { motorInsuranceUntil: expiresOn });
-      }
-    }
+    // The rest of the application may now be complete for the automatic check (ruling 74), and
+    // anything Ozi was to ring the owner about for it is settled.
+    await afterDocumentDecided(app.ctx, decided, request.log);
     return { document: publicDocument(decided) };
   });
 

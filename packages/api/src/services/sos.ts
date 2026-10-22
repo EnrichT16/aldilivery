@@ -23,6 +23,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { AppContext } from '../app.js';
 import type { Order, Runner, RunnerSos } from '../domain.js';
 import { areaOf, orderReference } from '../routes/runner-account.js';
+import { askOwner, matterWords } from './owner-desk.js';
 
 type SosContext = Pick<AppContext, 'repository' | 'config' | 'env' | 'now' | 'sendText'>;
 
@@ -113,6 +114,19 @@ export async function startSos(
     alertSentAt: null,
     alertProblem: null,
   });
+
+  // Ozi's desk (ruling 74): an urgent matter too, so Ozi rings the owner, even in quiet hours.
+  await askOwner(
+    ctx,
+    {
+      kind: 'sos',
+      subjectId: sos.id,
+      summary: matterWords(ctx).sos(runner.name),
+      options: 'acknowledge',
+      urgent: true,
+    },
+    log,
+  );
 
   let alerted = false;
   if (!ctx.env.ownerAlertPhone || !ctx.sendText) {

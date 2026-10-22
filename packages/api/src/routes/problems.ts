@@ -22,6 +22,7 @@ import { requireSession, type Session } from '../app.js';
 import { decidedBy, staffActor } from '../lib/staff.js';
 import type { Order, ProblemDecision, ProblemEvidence, ProblemReport } from '../domain.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
+import { askOwner, problemSummary } from '../services/owner-desk.js';
 
 const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 const AUDIO_TYPES = [
@@ -176,6 +177,19 @@ export async function registerProblemRoutes(app: FastifyInstance): Promise<void>
         decidedAt: at,
       });
       message = `${formatPence(asked, symbol)} is on its way back to your card. Your bank may take a few days to show it.`;
+    }
+    // Ozi's desk (ruling 74): a complaint, or a refund asked that needs a person.
+    if (report.status === 'open') {
+      await askOwner(
+        app.ctx,
+        {
+          kind: 'problem',
+          subjectId: report.id,
+          summary: await problemSummary(app.ctx, report),
+          options: 'acknowledge',
+        },
+        request.log,
+      );
     }
     void reply.status(201);
     return { report: await withEvidence(report), message };

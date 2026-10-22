@@ -14,6 +14,8 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '.
 import { businessActor } from '../lib/business.js';
 import { staffActor } from '../lib/staff.js';
 import { feedbackPatterns } from '../services/feedback.js';
+import { askOwner } from '../services/owner-desk.js';
+import { orderReference } from './runner-account.js';
 
 const DAY_MS = 24 * 3600 * 1000;
 /** Patterns are made from the last three months of feedback. */
@@ -52,7 +54,7 @@ export async function registerOrderExtraRoutes(app: FastifyInstance): Promise<vo
     }
 
     const creditPence = config.feedback.creditPence;
-    await repository.shopperFeedback.create({
+    const feedback = await repository.shopperFeedback.create({
       orderId: order.id,
       rating: input.rating ?? null,
       themes: themes.join(','),
@@ -60,6 +62,23 @@ export async function registerOrderExtraRoutes(app: FastifyInstance): Promise<vo
       creditPence,
       createdAt: now(),
     });
+    // Ozi's desk (ruling 74): a low score, or anything written, is for the owner to hear.
+    const low = input.rating !== undefined && input.rating <= config.ownerDesk.lowRatingAtMost;
+    if (low || input.message !== '') {
+      const stars =
+        input.rating === undefined ? '' : `${input.rating} star${input.rating === 1 ? '' : 's'}`;
+      const said = input.message.replace(/\s+/g, ' ').slice(0, 200);
+      await askOwner(
+        app.ctx,
+        {
+          kind: 'shopper_feedback',
+          subjectId: feedback.id,
+          summary: `A Shopper ${stars ? `gave ${stars}` : 'wrote about'} order ${orderReference(order.id)}${said ? `${stars ? ', and wrote' : ''}: ${said.replace(/[.!?]?$/, '.')}` : '.'}`,
+          options: 'acknowledge',
+        },
+        request.log,
+      );
+    }
     if (creditPence > 0) {
       const shopper = await repository.shoppers.findById(session.accountId);
       if (shopper) {

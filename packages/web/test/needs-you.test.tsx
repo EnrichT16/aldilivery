@@ -16,6 +16,7 @@ import { groupTabs, openPage, pageTabs } from './staff-tabs';
 
 let sent: Array<{ method: string; path: string; body: unknown }>;
 let needsYou: unknown[];
+let desk: unknown[];
 
 const AREAS = [
   'overview',
@@ -57,6 +58,7 @@ const ORDER = {
 
 beforeEach(() => {
   sent = [];
+  desk = [];
   needsYou = [
     {
       key: 'sos',
@@ -174,6 +176,11 @@ beforeEach(() => {
         });
       }
       if (path === '/staff/sos') return reply({ sos: [] });
+      if (path === '/staff/desk') return reply({ matters: desk, ringing: true, lastCall: null });
+      if (path.startsWith('/staff/desk/')) {
+        desk = [];
+        return reply({ matter: {}, message: 'Approved.' });
+      }
       if (path === '/staff/problems') {
         return reply({
           reports: [
@@ -314,6 +321,57 @@ async function noViolations(): Promise<void> {
   });
   expect(results.violations.map((violation) => violation.id)).toEqual([]);
 }
+
+describe("Ozi's desk on the first screen (ruling 74)", () => {
+  it('lists what Ozi rings about, with Approve, Decline and Later in words, and decides one', async () => {
+    desk = [
+      {
+        id: 'm1',
+        kind: 'runner_document',
+        summary: "Runner Chidi Okafor's DBS certificate needs you. Something is recorded on it.",
+        options: 'decide',
+        urgent: false,
+        status: 'open',
+        laterUntil: null,
+        createdAt: '2026-10-22T10:00:00.000Z',
+        callAttempts: 1,
+      },
+      {
+        id: 'm2',
+        kind: 'shopper_feedback',
+        summary: 'A Shopper gave 1 star for order OZ-AAAAAA.',
+        options: 'acknowledge',
+        urgent: false,
+        status: 'later',
+        laterUntil: '2026-10-23T08:00:00.000Z',
+        createdAt: '2026-10-22T10:00:00.000Z',
+        callAttempts: 1,
+      },
+    ];
+    const user = await signIn();
+    const list = await screen.findByRole('list', { name: 'Ozi’s desk' });
+    const items = within(list).getAllByRole('listitem');
+    expect(items).toHaveLength(2);
+    const first = items[0]!;
+    expect(first).toHaveTextContent('Something is recorded on it.');
+    const approve = within(first).getByRole('button', { name: /^Approve\b.*Runner Chidi/ });
+    expect(approve).toHaveClass('control', 'min-h-control');
+    expect(within(first).getByRole('button', { name: /^Decline\b/ })).toBeInTheDocument();
+    expect(within(first).getByRole('button', { name: /^Later\b/ })).toBeInTheDocument();
+    // Only to hear, and already put to later: "Heard it", and when Ozi asks again.
+    expect(within(items[1]!).getByRole('button', { name: /^Heard it\b/ })).toBeInTheDocument();
+    expect(within(items[1]!).queryByRole('button', { name: /^Later/ })).toBeNull();
+    expect(items[1]).toHaveTextContent(/Put to later\. Ozi asks again Friday/);
+    await noViolations();
+
+    await user.click(approve);
+    expect(await screen.findByText('Approved.')).toBeInTheDocument();
+    expect(sent.find((r) => r.path === '/staff/desk/m1')).toEqual(
+      expect.objectContaining({ method: 'POST', body: { choice: 'approve' } }),
+    );
+    expect(await screen.findByText('Nothing is waiting on the desk.')).toBeInTheDocument();
+  });
+});
 
 describe('needs you now', () => {
   it('is the first screen: each thing as a card, most urgent first, with a button to its tab', async () => {

@@ -17,6 +17,7 @@ import type { FastifyBaseLogger } from 'fastify';
 
 import type { AppContext } from '../app.js';
 import type { Order } from '../domain.js';
+import { askOwner, matterWords } from '../services/owner-desk.js';
 
 export interface BankSettings {
   enabled: boolean;
@@ -75,6 +76,17 @@ export async function alertPayments(
   /** The whole transfer, for a basket kept whole as linked orders (ruling 61). */
   amountPence: number = order.totalEstimatePence,
 ): Promise<void> {
+  // Ozi's desk (ruling 74): on the "Needs you now" page, so on the owner's calls too.
+  await askOwner(
+    ctx,
+    {
+      kind: 'bank_transfer',
+      subjectId: order.id,
+      summary: matterWords(ctx).bankTransfer({ ...order, totalEstimatePence: amountPence }),
+      options: 'acknowledge',
+    },
+    log,
+  );
   if (!ctx.env.ownerAlertPhone || !ctx.sendText) return;
   try {
     await ctx.sendText(

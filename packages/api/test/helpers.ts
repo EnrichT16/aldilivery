@@ -24,6 +24,7 @@ import type { OziBrain } from '../src/lib/language-model.js';
 import type { OpenPricesLookup } from '../src/lib/open-prices.js';
 import type { VoiceEngineLink } from '../src/lib/oluoma-voice.js';
 import type { SendPush } from '../src/lib/push.js';
+import type { PlaceCall } from '../src/lib/twilio-voice.js';
 
 export const TEST_SECRET = 'test-secret-that-is-long-enough-for-hmac';
 
@@ -122,7 +123,7 @@ export interface TestAppOptions {
   /** Settings that differ from `testEnv`, such as a Twilio Auth Token. */
   env?: Partial<Env>;
   /** Ringing someone from our Twilio number. Off unless a test hands in a stand-in. */
-  placeCall?: (to: string, url: string, statusCallback: string) => Promise<void>;
+  placeCall?: PlaceCall;
 }
 
 export async function buildTestApp(

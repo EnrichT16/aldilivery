@@ -17,6 +17,7 @@ import { z } from 'zod';
 import { requireSession } from '../app.js';
 import { NEVER_FOUND } from '../lib/restricted.js';
 import { refuseIfDemo } from '../services/demo.js';
+import { askOwner } from '../services/owner-desk.js';
 import { staffActor } from '../lib/staff.js';
 import type { FindRequest, GiftCard, Shopper, ShopperPlan } from '../domain.js';
 import {
@@ -404,6 +405,17 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
       feePence: covered ? 0 : extras.findItPence,
       chargeId: charge?.id ?? null,
     });
+    // Ozi's desk (ruling 74): a Finds It request waiting for a person to look.
+    await askOwner(
+      app.ctx,
+      {
+        kind: 'find_it',
+        subjectId: row.id,
+        summary: `A Finds It request is waiting: ${shopper.displayName} would like ${body.description.replace(/[.!?]?$/, '.')}`,
+        options: 'acknowledge',
+      },
+      request.log,
+    );
     void reply.status(201);
     return {
       request: publicFind(row),
@@ -593,7 +605,18 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
         message: z.string().trim().max(1000).default(''),
       })
       .parse(request.body ?? {});
-    await repository.organisationEnquiries.create(body);
+    const enquiry = await repository.organisationEnquiries.create(body);
+    // Ozi's desk (ruling 74). The number they gave is on the Enquiries page, never said aloud.
+    await askOwner(
+      app.ctx,
+      {
+        kind: 'organisation_enquiry',
+        subjectId: enquiry.id,
+        summary: `A new organisation, ${body.organisation}, asked to work with us${body.people ? `, for ${body.people} people` : ''}. ${body.contactName} would like a call back; the number is on the Enquiries page.`,
+        options: 'acknowledge',
+      },
+      request.log,
+    );
     void reply.status(201);
     return {
       message: `Thank you, ${body.contactName}. A person from ${config.productName} will ring you within two working days.`,
