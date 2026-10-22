@@ -9,7 +9,7 @@
     "telephonePlaceholder": "01634 980059",
     "telephoneIsPlaceholder": false,
     "email": "hello@ozidelivery.co.uk",
-    "emailIsPlaceholder": true
+    "emailIsPlaceholder": false
   },
   "store": {
     "displayName": "Aldi",
