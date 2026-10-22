@@ -61,6 +61,7 @@ import type {
   Shopper,
   ShopperFeedback,
   OziExchange,
+  EmailRecord,
   OwnerCall,
   OwnerMatter,
   PriceSighting,
@@ -149,6 +150,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const cardAuthorizations = new Map<string, CardAuthorization>();
   const ownerMatters = new Map<string, OwnerMatter>();
   const ownerCalls = new Map<string, OwnerCall>();
+  const emailRecords = new Map<string, EmailRecord>();
 
   const now = (): Date => options.now?.() ?? new Date();
 
@@ -1881,6 +1883,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       async createMatter(input) {
         const row: OwnerMatter = {
           ...input,
+          emailFrom: input.emailFrom ?? null,
+          emailSubject: input.emailSubject ?? null,
           id: id(),
           status: 'open',
           decision: null,
@@ -1950,6 +1954,20 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         if (!found) throw new NotFoundError('Owner call', key);
         const row = { ...found, ...patch, id: found.id };
         ownerCalls.set(key, row);
+        return clone(row);
+      },
+    },
+
+    emails: {
+      async findByMessageId(messageId) {
+        const found = emailRecords.get(messageId);
+        return found ? clone(found) : null;
+      },
+      async record(input) {
+        const found = emailRecords.get(input.messageId);
+        if (found) return clone(found);
+        const row: EmailRecord = { ...input, id: id() };
+        emailRecords.set(row.messageId, row);
         return clone(row);
       },
     },

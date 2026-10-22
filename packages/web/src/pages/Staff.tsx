@@ -3050,6 +3050,18 @@ function OwnerDeskList({ staffKey }: { staffKey: string }): JSX.Element {
                 {matter.urgent && <strong>Urgent. </strong>}
                 {matter.summary}
               </p>
+              {matter.kind === 'email' && (matter.emailFrom || matter.emailSubject) && (
+                <dl className="m-0">
+                  <div>
+                    <dt className="inline font-bold">From: </dt>
+                    <dd className="inline m-0">{matter.emailFrom}</dd>
+                  </div>
+                  <div>
+                    <dt className="inline font-bold">Subject: </dt>
+                    <dd className="inline m-0">{matter.emailSubject}</dd>
+                  </div>
+                </dl>
+              )}
               {matter.status === 'later' && matter.laterUntil && (
                 <p className="m-0">
                   Put to later. {assistant} asks again {when(matter.laterUntil)}.

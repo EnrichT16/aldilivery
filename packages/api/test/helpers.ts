@@ -68,6 +68,13 @@ export const testEnv: Env = {
   oluomaVoiceKey: undefined,
   demoSignInPhone: undefined,
   demoSignInCode: undefined,
+  emailImapHost: undefined,
+  emailImapPort: 993,
+  emailImapUser: undefined,
+  emailImapPassword: undefined,
+  emailSmtpHost: undefined,
+  emailSmtpPort: 465,
+  emailAutoReply: false,
   seedOnStart: true,
 };
 

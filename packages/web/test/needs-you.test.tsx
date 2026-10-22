@@ -371,6 +371,31 @@ describe("Ozi's desk on the first screen (ruling 74)", () => {
     );
     expect(await screen.findByText('Nothing is waiting on the desk.')).toBeInTheDocument();
   });
+
+  it('shows who an email is from and its subject (ruling 76)', async () => {
+    desk = [
+      {
+        id: 'e1',
+        kind: 'email',
+        summary: 'An email from HMRC at hmrc.example.test, with the subject: VAT return due.',
+        options: 'acknowledge',
+        urgent: false,
+        status: 'open',
+        laterUntil: null,
+        createdAt: '2026-10-22T10:00:00.000Z',
+        callAttempts: 0,
+        emailFrom: 'HMRC <noreply@hmrc.example.test>',
+        emailSubject: 'VAT return due',
+      },
+    ];
+    await signIn();
+    const list = await screen.findByRole('list', { name: 'Ozi’s desk' });
+    const [item] = within(list).getAllByRole('listitem');
+    expect(item).toHaveTextContent('From: HMRC <noreply@hmrc.example.test>');
+    expect(item).toHaveTextContent('Subject: VAT return due');
+    expect(within(item!).getByRole('button', { name: /^Heard it\b/ })).toBeInTheDocument();
+    await noViolations();
+  });
 });
 
 describe('needs you now', () => {

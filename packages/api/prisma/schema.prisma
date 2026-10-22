@@ -1448,6 +1448,9 @@ model OwnerMatter {
   callAttempts Int       @default(0)
   lastCalledAt DateTime?
   lastReadAt   DateTime?
+  /// For an email (ruling 76): who it is from and its subject, for the admin panel.
+  emailFrom    String?
+  emailSubject String?
 
   @@index([status, createdAt])
   @@index([kind, subjectId])
@@ -1467,4 +1470,22 @@ model OwnerCall {
   matterCount Int       @default(0)
 
   @@index([placedAt])
+}
+
+/// Each email read from the business mailbox (ruling 76), so none is read twice. Only the
+/// sender's domain is kept: never the address, the subject or the words.
+model EmailMessage {
+  id          String   @id @default(cuid())
+  messageId   String   @unique
+  fromDomain  String
+  /// important_decision, complaint, partner_or_organisation, runner, customer_question,
+  /// invoice_or_bill, legal_or_official, spam_or_marketing, newsletter,
+  /// automated_notification or other.
+  category    String
+  important   Boolean  @default(false)
+  matterId    String?
+  replied     Boolean  @default(false)
+  processedAt DateTime @default(now())
+
+  @@index([processedAt])
 }

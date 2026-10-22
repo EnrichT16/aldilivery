@@ -2556,6 +2556,9 @@ export interface OwnerMatter {
   laterUntil: string | null;
   createdAt: string;
   callAttempts: number;
+  /** For an email (ruling 76): who it is from and its subject. Older servers leave them out. */
+  emailFrom?: string | null;
+  emailSubject?: string | null;
 }
 
 export interface OwnerDesk {

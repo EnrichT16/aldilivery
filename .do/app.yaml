@@ -280,6 +280,43 @@ services:
         type: SECRET
         value: replace_with_the_language_model_key
 
+      # The business mailbox Ozi reads every five minutes (ruling 76), on the company's existing
+      # mail host; no DNS or MX record changes. Off unless host, user and password are real.
+      # Yvette: in cPanel, Email Accounts, then Connect Devices beside the business address.
+      # "Secure SSL/TLS Settings" shows the Incoming Server (EMAIL_IMAP_HOST, port 993) and the
+      # Outgoing Server (EMAIL_SMTP_HOST, port 465). The username is the full email address and
+      # the password is that mailbox's own password.
+      - key: EMAIL_IMAP_HOST
+        scope: RUN_TIME
+        value: replace_with_the_incoming_server_from_cpanel
+
+      - key: EMAIL_IMAP_PORT
+        scope: RUN_TIME
+        value: "993"
+
+      - key: EMAIL_IMAP_USER
+        scope: RUN_TIME
+        value: replace_with_the_full_email_address
+
+      - key: EMAIL_IMAP_PASSWORD
+        scope: RUN_TIME
+        type: SECRET
+        value: replace_with_the_mailbox_password
+
+      # For automatic replies only; the same user and password.
+      - key: EMAIL_SMTP_HOST
+        scope: RUN_TIME
+        value: replace_with_the_outgoing_server_from_cpanel
+
+      - key: EMAIL_SMTP_PORT
+        scope: RUN_TIME
+        value: "465"
+
+      # "on" lets Ozi answer simple customer questions by email itself; anything else is off.
+      - key: EMAIL_AUTO_REPLY
+        scope: RUN_TIME
+        value: "off"
+
 # ---------------------------------------------------------------------------
 # The web app
 # ---------------------------------------------------------------------------

@@ -154,6 +154,21 @@ export interface Env {
   demoSignInPhone: string | undefined;
   demoSignInCode: string | undefined;
   /**
+   * The business mailbox Ozi reads (ruling 76), on the company's existing mail host: the IMAP
+   * server, its port (993, over TLS, unless given), and the mailbox's own sign-in, which is the
+   * full email address and its password. The password is a secret: environment only, never in
+   * the repository and never in a log. Off unless the host, user and password are all real.
+   */
+  emailImapHost: string | undefined;
+  emailImapPort: number;
+  emailImapUser: string | undefined;
+  emailImapPassword: string | undefined;
+  /** The same host's outgoing server, only for replies; the same user and password. */
+  emailSmtpHost: string | undefined;
+  emailSmtpPort: number;
+  /** Answer simple customer questions by email without the owner. Off unless exactly "on". */
+  emailAutoReply: boolean;
+  /**
    * Fill an empty catalogue at startup. On by default, because a deployed service with
    * no catalogue looks broken. Set `SEED_ON_START=false` once the catalogue comes from
    * somewhere else.
@@ -296,6 +311,13 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     languageModelName: realValue(source['LANGUAGE_MODEL']?.trim() || undefined),
     demoSignInPhone: realValue(source['DEMO_SIGNIN_PHONE']?.trim() || undefined),
     demoSignInCode: realValue(source['DEMO_SIGNIN_CODE']?.trim() || undefined),
+    emailImapHost: realValue(source['EMAIL_IMAP_HOST']?.trim() || undefined),
+    emailImapPort: integer(source['EMAIL_IMAP_PORT'], 993),
+    emailImapUser: realValue(source['EMAIL_IMAP_USER']?.trim() || undefined),
+    emailImapPassword: realValue(source['EMAIL_IMAP_PASSWORD'] || undefined),
+    emailSmtpHost: realValue(source['EMAIL_SMTP_HOST']?.trim() || undefined),
+    emailSmtpPort: integer(source['EMAIL_SMTP_PORT'], 465),
+    emailAutoReply: source['EMAIL_AUTO_REPLY']?.trim().toLowerCase() === 'on',
     seedOnStart: source['SEED_ON_START'] !== 'false',
   };
 }
