@@ -51,6 +51,7 @@ import { registerOwnerRoutes } from './routes/owner.js';
 import { registerOziRoutes } from './routes/ozi.js';
 import { registerShareRoutes } from './routes/share.js';
 import { registerTelephoneRoutes } from './routes/telephone.js';
+import { registerOwnerDeskRoutes } from './routes/owner-desk.js';
 import { registerVoiceRoutes } from './routes/voice.js';
 import { registerPaymentRoutes } from './routes/payments.js';
 import { registerReimbursementRoutes } from './routes/reimbursements.js';
@@ -135,6 +136,11 @@ export interface AppContext {
    * unless asked for in the tests, which drive lookups by hand.
    */
   lookUpPrices: boolean;
+  /**
+   * Run the automatic check (ruling 74) in the background, so a Runner or a shop never waits for
+   * the model. On in the real server; off in the tests, which await each check to prove it.
+   */
+  backgroundChecks: boolean;
 }
 
 export interface Session {
@@ -171,6 +177,7 @@ export interface BuildAppOptions extends Partial<
     | 'brain'
     | 'openPrices'
     | 'lookUpPrices'
+    | 'backgroundChecks'
   >
 > {
   config: StoreConfig;
@@ -236,6 +243,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     brain: options.brain ?? null,
     openPrices: options.openPrices ?? null,
     lookUpPrices: options.lookUpPrices ?? false,
+    backgroundChecks: options.backgroundChecks ?? false,
   };
 
   app.decorate('ctx', ctx);
@@ -488,6 +496,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerOziRoutes(app);
   await registerShareRoutes(app);
   await registerTelephoneRoutes(app);
+  await registerOwnerDeskRoutes(app);
   await registerVoiceRoutes(app);
   await registerPaymentRoutes(app);
   await registerReimbursementRoutes(app);

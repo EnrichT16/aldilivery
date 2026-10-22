@@ -121,6 +121,14 @@ export interface OziBrain {
    * can clearly be read. Optional, as above.
    */
   readLabel?(photo: ReceiptImage): Promise<LabelReading | null>;
+  /**
+   * The automatic check of a Runner's document (ruling 74): what the photo shows, and how sure.
+   * It only reads; what is done with the reading (approve, or ask the owner) is decided by code,
+   * and nothing is ever refused on it. Optional, as above.
+   */
+  checkDocument?(input: DocumentCheckInput): Promise<DocumentReading | null>;
+  /** The automatic check of a shop's product or service (ruling 74). Optional, as above. */
+  checkProduct?(input: ProductCheckInput): Promise<ProductReading | null>;
 }
 
 /** How long a Shop Partner holding the camera to a label waits for it to be read. */
@@ -155,6 +163,135 @@ export function tidyLabel(reading: LabelReading): LabelReading {
     pricePence: reading.pricePence,
     barcode: /^\d{8,14}$/.test(digits) ? digits : null,
   };
+}
+
+/** The documents a Runner sends (routes/runner-account.ts). */
+export type CheckedDocumentKind =
+  | 'face_photo'
+  | 'right_to_work'
+  | 'dbs'
+  | 'driving_licence_front'
+  | 'driving_licence_back'
+  | 'insurance';
+
+export interface DocumentCheckInput {
+  kind: CheckedDocumentKind;
+  photo: ReceiptImage;
+  /** The name on the Runner's account, to compare with the name on the document. */
+  accountName: string;
+  /** Today, as YYYY-MM-DD, so "expired" is judged against the right day. */
+  today: string;
+  /**
+   * For the face comparison only, and only when the Runner agreed to it: the photo of their ID,
+   * to say whether the face photo shows the same person.
+   */
+  idPhoto?: ReceiptImage;
+}
+
+const documentReadingShape = z.object({
+  kindMatches: z.boolean(),
+  readable: z.boolean(),
+  nameOnDocument: z.string().nullable(),
+  expiresOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable(),
+  dbsRecordsSomething: z.boolean().nullable(),
+  clearRealFace: z.boolean().nullable(),
+  samePerson: z.boolean().nullable(),
+  concern: z.string().nullable(),
+  confidence: z.number().min(0).max(1),
+});
+export type DocumentReading = z.infer<typeof documentReadingShape>;
+
+const DOCUMENT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: [
+    'kindMatches',
+    'readable',
+    'nameOnDocument',
+    'expiresOn',
+    'dbsRecordsSomething',
+    'clearRealFace',
+    'samePerson',
+    'concern',
+    'confidence',
+  ],
+  properties: {
+    kindMatches: { type: 'boolean' },
+    readable: { type: 'boolean' },
+    nameOnDocument: { type: ['string', 'null'] },
+    expiresOn: { type: ['string', 'null'] },
+    dbsRecordsSomething: { type: ['boolean', 'null'] },
+    clearRealFace: { type: ['boolean', 'null'] },
+    samePerson: { type: ['boolean', 'null'] },
+    concern: { type: ['string', 'null'] },
+    confidence: { type: 'number' },
+  },
+} as const;
+
+/** What each document should be, in the words the check is given. */
+const DOCUMENT_ASKED: Record<CheckedDocumentKind, string> = {
+  face_photo:
+    'a clear, recent photo of one real person’s face, looking at the camera, nothing covering it (not a photo of a photo or a screen, not a drawing)',
+  right_to_work:
+    'the photo page of a British or Irish passport, proving the right to work in the UK',
+  dbs: 'a basic DBS certificate from the Disclosure and Barring Service (England and Wales)',
+  driving_licence_front: 'the front of a UK photocard driving licence',
+  driving_licence_back: 'the back of a UK photocard driving licence',
+  insurance:
+    'a UK motor insurance certificate that covers delivery work (business use, or hire and reward)',
+};
+
+export interface ProductCheckInput {
+  name: string;
+  tags: string;
+  pricePence: number;
+  /** A service (hairdresser, cleaner…) rather than a thing: its price is "from". */
+  isService: boolean;
+  photo?: ReceiptImage;
+}
+
+const productReadingShape = z.object({
+  verdict: z.enum(['allowed', 'restricted', 'unsure']),
+  offensive: z.boolean(),
+  photoMatches: z.boolean().nullable(),
+  priceSensible: z.boolean(),
+  concern: z.string().nullable(),
+  confidence: z.number().min(0).max(1),
+});
+export type ProductReading = z.infer<typeof productReadingShape>;
+
+const PRODUCT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['verdict', 'offensive', 'photoMatches', 'priceSensible', 'concern', 'confidence'],
+  properties: {
+    verdict: { type: 'string', enum: ['allowed', 'restricted', 'unsure'] },
+    offensive: { type: 'boolean' },
+    photoMatches: { type: ['boolean', 'null'] },
+    priceSensible: { type: 'boolean' },
+    concern: { type: ['string', 'null'] },
+    confidence: { type: 'number' },
+  },
+} as const;
+
+/** The standing instructions for checking a Runner's document, from configuration (Rule Nine). */
+export function documentInstructions(config: StoreConfig): string {
+  return [
+    `You check photos of documents sent by people applying to deliver shopping for ${config.productName}, a delivery service in England. You only read and report; a person makes every decision against anyone.`,
+    `Answer in the JSON shape given. kindMatches: whether the photo is what was asked for. readable: whether every important part can be read clearly. nameOnDocument: the full name printed on it, as printed, or null. expiresOn: the expiry or "valid until" date as YYYY-MM-DD, or null if it has none. dbsRecordsSomething: for a DBS certificate only, true if anything at all is recorded (any conviction, caution, reprimand or warning), false if it says none recorded, null for other documents. clearRealFace: for a face photo only, whether it clearly shows one real, live person's face, otherwise null. samePerson: only when a second photo of an ID is given, whether the face photo and the face on the ID appear to be the same person, otherwise null.`,
+    `concern: when anything is not clearly fine, one short plain sentence saying what, under 20 words, never quoting numbers from the document; otherwise null. confidence: from 0 to 1, how sure you are that every answer is right. Be cautious: when unsure, say so with a low confidence.`,
+  ].join('\n');
+}
+
+/** The standing instructions for checking a shop's product, from configuration (Rule Nine). */
+export function productInstructions(config: StoreConfig): string {
+  return [
+    `You check what local shops list on ${config.productName}, a grocery delivery service in England whose customers include children, elderly and vulnerable people. You only report; a person decides anything doubtful.`,
+    `Answer in the JSON shape given. verdict: "restricted" for alcohol, tobacco, vapes or e-cigarettes, any medicine (even paracetamol), weapons or knives, fireworks, lottery or anything age restricted in the UK; "allowed" for ordinary goods or services clearly not restricted; "unsure" otherwise. offensive: anything hateful, sexual or offensive in its name or photo. photoMatches: whether the photo shows what the name says, or null when there is no photo. priceSensible: whether the price is believable for that thing at a UK high street shop (a service's price is a starting price). concern: one short plain sentence when anything is not clearly fine, under 20 words, otherwise null. confidence: from 0 to 1, how sure you are.`,
+  ].join('\n');
 }
 
 /** The kinds of photo the model can read. */
@@ -291,6 +428,8 @@ export function languageModel(
   const model = settings.model ?? DEFAULT_MODEL;
   const system = instructions(settings.config);
   const estimateSystem = estimateInstructions(settings.config);
+  const documentSystem = documentInstructions(settings.config);
+  const productSystem = productInstructions(settings.config);
   return {
     name: 'model',
     model,
@@ -490,6 +629,108 @@ export function languageModel(
           .map((block) => block.text)
           .join('');
         return readWebPrice(text);
+      } catch {
+        return null;
+      }
+    },
+    async checkDocument(input) {
+      try {
+        const image = (photo: ReceiptImage) =>
+          ({
+            type: 'image',
+            source: { type: 'base64', media_type: photo.mediaType, data: photo.data },
+          }) as const;
+        const comparing = input.kind === 'face_photo' && input.idPhoto !== undefined;
+        const response = await client.messages.create(
+          {
+            model,
+            max_tokens: 600,
+            output_config: {
+              effort: 'low',
+              format: { type: 'json_schema', schema: DOCUMENT_SCHEMA },
+            },
+            system: [{ type: 'text', text: documentSystem, cache_control: { type: 'ephemeral' } }],
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  image(input.photo),
+                  ...(comparing && input.idPhoto ? [image(input.idPhoto)] : []),
+                  {
+                    type: 'text',
+                    text:
+                      `Today is ${input.today}. The first photo should be ${DOCUMENT_ASKED[input.kind]}. The name on their account is "${input.accountName.replace(/"/g, "'").slice(0, 80)}".` +
+                      (comparing
+                        ? ' The second photo is the photo ID they sent, given only to compare faces: they agreed to this.'
+                        : ''),
+                  },
+                ],
+              },
+            ],
+          },
+          { timeout: BACKGROUND_WAIT_MS },
+        );
+        if (response.stop_reason === 'refusal') return null;
+        const text = response.content
+          .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+          .map((block) => block.text)
+          .join('');
+        const parsed = documentReadingShape.safeParse(JSON.parse(text));
+        if (!parsed.success) return null;
+        return {
+          ...parsed.data,
+          nameOnDocument: parsed.data.nameOnDocument?.trim() || null,
+          concern: parsed.data.concern?.trim() || null,
+        };
+      } catch {
+        return null;
+      }
+    },
+    async checkProduct(input) {
+      try {
+        const response = await client.messages.create(
+          {
+            model,
+            max_tokens: 400,
+            output_config: {
+              effort: 'low',
+              format: { type: 'json_schema', schema: PRODUCT_SCHEMA },
+            },
+            system: [{ type: 'text', text: productSystem, cache_control: { type: 'ephemeral' } }],
+            messages: [
+              {
+                role: 'user',
+                content: [
+                  ...(input.photo
+                    ? [
+                        {
+                          type: 'image' as const,
+                          source: {
+                            type: 'base64' as const,
+                            media_type: input.photo.mediaType,
+                            data: input.photo.data,
+                          },
+                        },
+                      ]
+                    : []),
+                  {
+                    type: 'text' as const,
+                    text: `A shop lists this ${input.isService ? 'service' : 'product'}: "${input.name.replace(/"/g, "'").slice(0, 120)}"${input.tags ? `, described as "${input.tags.replace(/"/g, "'").slice(0, 200)}"` : ''}, at ${input.isService ? 'from ' : ''}${(input.pricePence / 100).toFixed(2)} pounds.${input.photo ? ' Its photo is above.' : ' It has no photo.'}`,
+                  },
+                ],
+              },
+            ],
+          },
+          { timeout: BACKGROUND_WAIT_MS },
+        );
+        if (response.stop_reason === 'refusal') return null;
+        const text = response.content
+          .filter((block): block is Anthropic.TextBlock => block.type === 'text')
+          .map((block) => block.text)
+          .join('');
+        const parsed = productReadingShape.safeParse(JSON.parse(text));
+        if (!parsed.success) return null;
+        return { ...parsed.data, concern: parsed.data.concern?.trim() || null };
       } catch {
         return null;
       }

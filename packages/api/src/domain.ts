@@ -177,6 +177,11 @@ export interface Runner {
   /** When, and from which internet address, they accepted the cardholder terms. */
   issuingTermsAcceptedAt: Date | null;
   issuingTermsAcceptedIp: string | null;
+  /**
+   * When the Runner ticked "I agree that … may compare my face photo with the photo on my ID"
+   * (ruling 74). Null: the automatic check makes no face comparison, and a person does it.
+   */
+  faceMatchConsentAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -673,6 +678,15 @@ export interface RunnerDocument {
   reviewedBy: string | null;
   reviewedAt: Date | null;
   createdAt: Date;
+  /**
+   * The automatic check (ruling 74): when it read the document, whether every check was clearly
+   * fine (true) or not (false, the reason in `checkNote`), and the name it read on it. A passed
+   * document may still wait for the rest of the application to be compared.
+   */
+  checkedAt: Date | null;
+  checkPassed: boolean | null;
+  checkNote: string | null;
+  checkName: string | null;
 }
 
 /** Something a Runner told us, from the Feedback page. Anonymous if they chose. */
@@ -901,6 +915,9 @@ export interface PartnerProduct {
    * "estimate, please check" until somebody sets it (ruling 75).
    */
   priceEstimated: boolean;
+  /** The automatic check (ruling 74): when it last looked, and what it found when unsure. */
+  checkedAt: Date | null;
+  checkNote: string | null;
 }
 
 export type BusinessKind = 'partner' | 'organisation';
@@ -1116,4 +1133,67 @@ export interface ReviewPointsSpend {
   points: number;
   pence: number;
   createdAt: Date;
+}
+
+/**
+ * Something that needs the owner (ruling 74, Ozi's desk): Ozi rings him about it and he decides
+ * with the keypad, or in the admin panel. One sentence or two, said aloud: never a card number,
+ * never a customer's telephone number.
+ */
+export type OwnerMatterKind =
+  | 'sos'
+  | 'runner_document'
+  | 'runner_application'
+  | 'partner_product'
+  | 'partner_shop'
+  | 'organisation_enquiry'
+  | 'problem'
+  | 'shopper_feedback'
+  | 'pay_back'
+  | 'till_case'
+  | 'bank_transfer'
+  | 'waiting_order'
+  | 'find_it';
+
+/** Approve, decline or later; or only "I have heard it", or later. */
+export type OwnerMatterOptions = 'decide' | 'acknowledge';
+export type OwnerMatterStatus = 'open' | 'later' | 'decided' | 'handled';
+export type OwnerMatterDecision = 'approve' | 'decline' | 'acknowledge' | 'settled';
+/** By the keypad on Ozi's call, in the admin panel, or by itself (dealt with elsewhere). */
+export type OwnerMatterVia = 'phone' | 'panel' | 'automatic';
+
+export interface OwnerMatter {
+  id: string;
+  kind: OwnerMatterKind;
+  /** The thing it is about: a document, a product, a shop, a report, an order, a Runner. */
+  subjectId: string;
+  summary: string;
+  options: OwnerMatterOptions;
+  /** An SOS or another safety matter: rung about even in quiet hours. */
+  urgent: boolean;
+  status: OwnerMatterStatus;
+  decision: OwnerMatterDecision | null;
+  decidedVia: OwnerMatterVia | null;
+  decidedBy: string | null;
+  createdAt: Date;
+  decidedAt: Date | null;
+  /** Put to later: when it comes back (the next day's first call). */
+  laterUntil: Date | null;
+  /** How many calls it has been part of, the last one, and when it was last read out. */
+  callAttempts: number;
+  lastCalledAt: Date | null;
+  lastReadAt: Date | null;
+}
+
+/** One call Ozi placed to the owner: which cascade, which call of it, and how it went. */
+export interface OwnerCall {
+  id: string;
+  cascade: number;
+  attempt: number;
+  placedAt: Date;
+  /** placed (ringing), answered (a person), unanswered, voicemail or failed. */
+  status: 'placed' | 'answered' | 'unanswered' | 'voicemail' | 'failed';
+  answeredAt: Date | null;
+  endedAt: Date | null;
+  matterCount: number;
 }

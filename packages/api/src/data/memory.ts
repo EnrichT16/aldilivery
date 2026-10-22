@@ -61,6 +61,8 @@ import type {
   Shopper,
   ShopperFeedback,
   OziExchange,
+  OwnerCall,
+  OwnerMatter,
   PriceSighting,
   ReviewPointsSpend,
   ShopReview,
@@ -145,6 +147,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const referralRewards: ReferralReward[] = [];
   const auditEntries: AuditEntry[] = [];
   const cardAuthorizations = new Map<string, CardAuthorization>();
+  const ownerMatters = new Map<string, OwnerMatter>();
+  const ownerCalls = new Map<string, OwnerCall>();
 
   const now = (): Date => options.now?.() ?? new Date();
 
@@ -332,6 +336,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           cardStatus: null,
           issuingTermsAcceptedAt: null,
           issuingTermsAcceptedIp: null,
+          faceMatchConsentAt: null,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -439,7 +444,14 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
 
     runnerDocuments: {
       async create(input) {
-        const row: RunnerDocument = { ...input, id: id() };
+        const row: RunnerDocument = {
+          checkedAt: null,
+          checkPassed: null,
+          checkNote: null,
+          checkName: null,
+          ...input,
+          id: id(),
+        };
         runnerDocuments.set(row.id, row);
         return clone(row);
       },
@@ -1432,6 +1444,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           durationMinutes: null,
           barcode: null,
           priceEstimated: false,
+          checkedAt: null,
+          checkNote: null,
           ...input,
           id: id(),
           status: 'pending',
@@ -1860,6 +1874,83 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           .sort((a, b) => b.at.getTime() - a.at.getTime())
           .slice(0, where.limit ?? 200)
           .map(clone);
+      },
+    },
+
+    ownerDesk: {
+      async createMatter(input) {
+        const row: OwnerMatter = {
+          ...input,
+          id: id(),
+          status: 'open',
+          decision: null,
+          decidedVia: null,
+          decidedBy: null,
+          createdAt: now(),
+          decidedAt: null,
+          laterUntil: null,
+          callAttempts: 0,
+          lastCalledAt: null,
+          lastReadAt: null,
+        };
+        ownerMatters.set(row.id, row);
+        return clone(row);
+      },
+      async findMatter(key) {
+        const found = ownerMatters.get(key);
+        return found ? clone(found) : null;
+      },
+      async findMattersFor(kind, subjectId) {
+        return [...ownerMatters.values()]
+          .filter((row) => row.kind === kind && row.subjectId === subjectId)
+          .reverse()
+          .map(clone);
+      },
+      async listUnsettled() {
+        return [...ownerMatters.values()]
+          .filter((row) => row.status === 'open' || row.status === 'later')
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async listSettledSince(since) {
+        return [...ownerMatters.values()]
+          .filter(
+            (row) =>
+              (row.status === 'decided' || row.status === 'handled') &&
+              (row.decidedAt ?? row.createdAt) >= since,
+          )
+          .reverse()
+          .map(clone);
+      },
+      async updateMatter(key, patch) {
+        const found = ownerMatters.get(key);
+        if (!found) throw new NotFoundError('Owner matter', key);
+        const row = { ...found, ...patch, id: found.id };
+        ownerMatters.set(key, row);
+        return clone(row);
+      },
+      async createCall(input) {
+        const row: OwnerCall = { ...input, id: id() };
+        ownerCalls.set(row.id, row);
+        return clone(row);
+      },
+      async findCall(key) {
+        const found = ownerCalls.get(key);
+        return found ? clone(found) : null;
+      },
+      async latestCalls(limit) {
+        return [...ownerCalls.values()]
+          .reverse()
+          .sort((a, b) => b.placedAt.getTime() - a.placedAt.getTime())
+          .slice(0, limit)
+          .map(clone);
+      },
+      async updateCall(key, patch) {
+        const found = ownerCalls.get(key);
+        if (!found) throw new NotFoundError('Owner call', key);
+        const row = { ...found, ...patch, id: found.id };
+        ownerCalls.set(key, row);
+        return clone(row);
       },
     },
 

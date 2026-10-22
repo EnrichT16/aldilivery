@@ -70,6 +70,7 @@ export {
   StoreConfigError,
   type StoreConfig,
   type CatalogueSourceMode,
+  type OwnerDeskSettings,
 } from './config.js';
 
 export {

@@ -37,6 +37,7 @@ import { ConflictError, NotFoundError } from '../errors.js';
 import { canBePaid } from './pay-runner.js';
 import { tillLimitPence, type TillOutcome } from './till.js';
 import { mostOneOrderCarries } from './basket-orders.js';
+import { askOwner, matterWords } from './owner-desk.js';
 
 type ReimburseContext = Pick<
   AppContext,
@@ -152,6 +153,21 @@ export async function startReimbursement(
     await alertOwner(
       ctx,
       `paying back ${money(plan.pence)} for order ${order.id} (${plan.waitReason}) is waiting for you to approve in the Payments tab.`,
+      log,
+    );
+    // Ozi's desk (ruling 74): rung about too, not only texted.
+    await askOwner(
+      ctx,
+      {
+        kind: 'pay_back',
+        subjectId: order.id,
+        summary: matterWords(ctx).payBack({
+          ...order,
+          reimbursementPence: plan.pence,
+          reimbursementReason: plan.waitReason,
+        }),
+        options: 'acknowledge',
+      },
       log,
     );
     return {

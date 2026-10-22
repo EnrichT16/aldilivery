@@ -130,7 +130,21 @@ export function openState(sealed: string, secret: string, now: Date): CallState 
 
 /* ------------------------------------------------------------------ ringing back */
 
-export type PlaceCall = (to: string, url: string, statusCallback: string) => Promise<void>;
+export interface PlaceCallOptions {
+  /**
+   * Twilio's answering machine detection (ruling 74): the address in `url` is told who
+   * answered (`AnsweredBy`: human, machine_start, fax, unknown…), so a voicemail is not taken
+   * for the owner picking up.
+   */
+  machineDetection?: boolean;
+}
+
+export type PlaceCall = (
+  to: string,
+  url: string,
+  statusCallback: string,
+  options?: PlaceCallOptions,
+) => Promise<void>;
 
 /** A call from our number to `to`, which fetches what to say from `url` when answered. */
 export function twilioDialler(
@@ -139,7 +153,7 @@ export function twilioDialler(
 ): PlaceCall {
   const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${encodeURIComponent(settings.accountSid)}/Calls.json`;
   const authorisation = `Basic ${Buffer.from(`${settings.accountSid}:${settings.authToken}`).toString('base64')}`;
-  return async (to, url, statusCallback) => {
+  return async (to, url, statusCallback, options) => {
     const form = new URLSearchParams({
       To: to,
       From: settings.from,
@@ -148,6 +162,11 @@ export function twilioDialler(
       StatusCallback: statusCallback,
       StatusCallbackMethod: 'POST',
     });
+    if (options?.machineDetection) {
+      form.set('MachineDetection', 'Enable');
+      // Ring long enough for a person to reach the phone, not so long that voicemail answers.
+      form.set('Timeout', '30');
+    }
     const response = await fetchImpl(endpoint, {
       method: 'POST',
       headers: {

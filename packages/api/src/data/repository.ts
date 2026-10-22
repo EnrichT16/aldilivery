@@ -61,6 +61,8 @@ import type {
   SetItem,
   Shopper,
   OziExchange,
+  OwnerCall,
+  OwnerMatter,
   ReviewPointsSpend,
   ShopReview,
 } from '../domain.js';
@@ -276,7 +278,10 @@ export interface Repository {
 
   /** What Runners send in at sign-up, and what a person decided about each. */
   runnerDocuments: {
-    create(input: Omit<RunnerDocument, 'id'>): Promise<RunnerDocument>;
+    create(
+      input: Omit<RunnerDocument, 'id' | 'checkedAt' | 'checkPassed' | 'checkNote' | 'checkName'> &
+        Partial<Pick<RunnerDocument, 'checkedAt' | 'checkPassed' | 'checkNote' | 'checkName'>>,
+    ): Promise<RunnerDocument>;
     findById(id: string): Promise<RunnerDocument | null>;
     /** Newest first. */
     listForRunner(runnerId: string): Promise<RunnerDocument[]>;
@@ -765,6 +770,28 @@ export interface Repository {
       target?: string;
       limit?: number;
     }): Promise<AuditEntry[]>;
+  };
+
+  /**
+   * Ozi's desk (ruling 74): what needs the owner, and the calls Ozi placed to him about it.
+   */
+  ownerDesk: {
+    createMatter(
+      input: Pick<OwnerMatter, 'kind' | 'subjectId' | 'summary' | 'options' | 'urgent'>,
+    ): Promise<OwnerMatter>;
+    findMatter(id: string): Promise<OwnerMatter | null>;
+    /** Every matter about this thing, newest first. */
+    findMattersFor(kind: OwnerMatter['kind'], subjectId: string): Promise<OwnerMatter[]>;
+    /** Open and later ones, oldest first. */
+    listUnsettled(): Promise<OwnerMatter[]>;
+    /** Decided and handled ones since a moment, newest first. */
+    listSettledSince(since: Date): Promise<OwnerMatter[]>;
+    updateMatter(id: string, patch: Partial<Omit<OwnerMatter, 'id'>>): Promise<OwnerMatter>;
+    createCall(input: Omit<OwnerCall, 'id'>): Promise<OwnerCall>;
+    findCall(id: string): Promise<OwnerCall | null>;
+    /** The most recent calls, newest first. */
+    latestCalls(limit: number): Promise<OwnerCall[]>;
+    updateCall(id: string, patch: Partial<Omit<OwnerCall, 'id'>>): Promise<OwnerCall>;
   };
 
   /** What the admin panel looks up across everybody (Section Q). Read only. */

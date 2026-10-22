@@ -434,6 +434,27 @@ describe('the configuration parser refuses to contradict a rule', () => {
     );
   });
 
+  it("reads Ozi's desk and how the owner is addressed, and refuses a time that is not HH:MM (ruling 74)", () => {
+    expect(config.owner.spokenName).toBe('Mr. Anthony');
+    expect(config.ownerDesk).toEqual({
+      callsInARow: 3,
+      minutesBetweenCalls: 2,
+      hoursBetweenCascades: 1,
+      quietFrom: '21:00',
+      quietUntil: '08:00',
+      urgentInQuietHours: true,
+      laterCallAt: '09:00',
+      lowRatingAtMost: 2,
+      checkConfidence: 0.9,
+    });
+    const raw = goodConfig();
+    raw['ownerDesk'] = { ...(raw['ownerDesk'] as object), quietFrom: '9pm' };
+    expect(() => parseStoreConfig(raw)).toThrow(/ownerDesk\.quietFrom must be a time/);
+    const sure = goodConfig();
+    sure['ownerDesk'] = { ...(sure['ownerDesk'] as object), checkConfidence: 1.5 };
+    expect(() => parseStoreConfig(sure)).toThrow(/checkConfidence/);
+  });
+
   it('rejects a notice period that is not thirty minutes (Rule Five)', () => {
     const raw = goodConfig();
     raw['recurringOrders'] = { noticeMinutesBefore: 10, skipWord: 'skip' };

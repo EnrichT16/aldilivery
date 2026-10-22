@@ -95,11 +95,13 @@ export interface RecordedRequest {
 
 export interface ApiStubOptions {
   /** Present means signed in: a token is stored and `/me` answers with this Shopper. */
-  shopper?: (typeof FAKE_SHOPPER & {
+  shopper?:
+    | (typeof FAKE_SHOPPER & {
         deliveryPlan?: 'payg' | 'membership' | 'plus';
         allowancePlan?: 'payg' | 'membership' | 'plus' | 'family';
         ordersThisMonth?: number;
-      }) | undefined;
+      })
+    | undefined;
   paymentMethods?: Array<typeof FAKE_CARD>;
   /** `rehearsal` keeps the card screen from ever reaching for Stripe.js. */
   paymentsMode?: 'stripe' | 'rehearsal';
@@ -228,7 +230,10 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
 
       if (path === '/auth/request-code' && method === 'POST') {
         if (options.requestCodeUnavailable) {
-          return reply({ error: { code: 'unavailable', message: options.requestCodeUnavailable } }, 503);
+          return reply(
+            { error: { code: 'unavailable', message: options.requestCodeUnavailable } },
+            503,
+          );
         }
         const asked = (body ?? {}) as { channel?: string };
         return reply({
@@ -304,6 +309,17 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
           );
         }
         return reply({ documents: [], stillNeeded: needed });
+      }
+
+      // The face comparison, only with the Runner's own tick (ruling 74).
+      if (path === '/runners/me/face-match-consent') {
+        const { agree } = body as { agree: boolean };
+        return reply({
+          faceMatchConsent: agree,
+          message: agree
+            ? 'Thank you. Your face photo may be compared with the photo on your ID.'
+            : 'Understood. A person will compare your photos instead.',
+        });
       }
 
       if (path === '/shoppers') {

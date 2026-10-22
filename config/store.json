@@ -215,6 +215,20 @@
     "staffTwoStepGraceDays": 14,
     "staffTwoStepFrom": "2026-10-17"
   },
+  "owner": {
+    "spokenName": "Mr. Anthony"
+  },
+  "ownerDesk": {
+    "callsInARow": 3,
+    "minutesBetweenCalls": 2,
+    "hoursBetweenCascades": 1,
+    "quietFrom": "21:00",
+    "quietUntil": "08:00",
+    "urgentInQuietHours": true,
+    "laterCallAt": "09:00",
+    "lowRatingAtMost": 2,
+    "checkConfidence": 0.9
+  },
   "versionOneRestrictions": {
     "ageRestrictedGoodsAllowed": false
   },
