@@ -23,6 +23,7 @@ import { LookingAfter } from './pages/LookingAfter';
 import { MyOrder } from './pages/MyOrder';
 import { About } from './pages/About';
 import { Orders } from './pages/Orders';
+import { PayByBank } from './pages/PayByBank';
 import { OrganisationDashboard } from './pages/OrganisationDashboard';
 import { Organisations } from './pages/Organisations';
 import { PartnerDashboard } from './pages/PartnerDashboard';
@@ -149,6 +150,28 @@ export function App(): JSX.Element {
                 <Route path="/gifts" element={<Gifts />} />
                 <Route path="/more" element={<More />} />
                 <Route path="/messages" element={<ShopperMessages />} />
+                <Route
+                  path="/pay-by-bank"
+                  element={<PayByBank as="shopper" back={{ to: '/more', label: 'Back to More' }} />}
+                />
+                <Route
+                  path="/partner/pay-by-bank"
+                  element={
+                    <PayByBank
+                      as="business"
+                      back={{ to: '/partner', label: 'Back to your shop' }}
+                    />
+                  }
+                />
+                <Route
+                  path="/organisation/pay-by-bank"
+                  element={
+                    <PayByBank
+                      as="business"
+                      back={{ to: '/organisation', label: 'Back to your organisation' }}
+                    />
+                  }
+                />
                 <Route path="/runner/messages" element={<RunnerMessages />} />
                 <Route path="/partner/messages" element={<BusinessMessages back="/partner" />} />
                 <Route

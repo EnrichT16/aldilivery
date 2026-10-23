@@ -26,6 +26,7 @@ import { webPushSender } from './lib/push.js';
 import { callScript, codeMessage, senderName, twilioCaller, twilioSender } from './lib/sms.js';
 import { twilioDialler } from './lib/twilio-voice.js';
 import { sweepOffers } from './services/dispatch.js';
+import { sweepScheduled } from './services/scheduled.js';
 import { sweepPayouts } from './services/pay-runner.js';
 import { sweepReimbursements } from './services/reimburse.js';
 import { sweepCards } from './services/runner-card.js';
@@ -295,6 +296,29 @@ async function main(): Promise<void> {
   }, 10_000);
   sweep.unref();
 
+  // Every minute: orders booked for a later day (ruling 78). A payment at the day and time the
+  // Shopper chose, tried again every hour after a refusal; an order still unpaid at its offer
+  // time held, with the Shopper and the owner told; the Shopper's reminders; and the owner's
+  // one morning summary on Ozi's desk. Offering them on the day is the offer sweep's, above.
+  let bookedRunning = false;
+  const bookedSweep = setInterval(() => {
+    if (bookedRunning) return;
+    bookedRunning = true;
+    sweepScheduled(app.ctx, app.log)
+      .then((report) => {
+        if (report.charged + report.held + report.reminded > 0 || report.summary) {
+          app.log.info(report, 'Booked order sweep');
+        }
+      })
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, 'The booked order sweep failed');
+      })
+      .finally(() => {
+        bookedRunning = false;
+      });
+  }, 60_000);
+  bookedSweep.unref();
+
   // Every minute: pay any delivered order whose Runner can now be paid — somebody who finished
   // setting up their account after delivering, or a transfer Stripe refused the first time.
   const paySweep = setInterval(() => {
@@ -493,6 +517,7 @@ async function main(): Promise<void> {
 
   const shutdown = async (signal: string): Promise<void> => {
     clearInterval(sweep);
+    clearInterval(bookedSweep);
     clearInterval(deskSweep);
     clearInterval(deskFallback);
     if (emailSweep) clearInterval(emailSweep);

@@ -130,6 +130,14 @@ export type CreatePaymentMethod = Pick<
 export type CreateOrderItem = Pick<OrderItem, 'name' | 'quantity' | 'estimatedPricePence'> &
   Partial<Pick<OrderItem, 'catalogueItemId' | 'note'>>;
 
+/** The statuses of a booked order (ruling 78) that is not yet being shopped. */
+export const SCHEDULED_WAITING: readonly OrderStatus[] = [
+  'confirmed',
+  'paid',
+  'offered',
+  'accepted',
+];
+
 export type CreateOrder = Pick<
   Order,
   'shopperId' | 'goodsEstimatePence' | 'feePence' | 'totalEstimatePence' | 'deliveryAddress'
@@ -166,6 +174,13 @@ export type CreateOrder = Pick<
       | 'basketOf'
       | 'extraDeliveryStatus'
       | 'isDemo'
+      | 'deliveryDay'
+      | 'deliveryWindow'
+      | 'offerAt'
+      | 'chargePlan'
+      | 'chargeAt'
+      | 'chargeNextTryAt'
+      | 'chargeStatus'
     >
   > & { items: CreateOrderItem[] };
 
@@ -461,6 +476,11 @@ export interface Repository {
     listByTillStatus(status: TillStatus): Promise<Order[]>;
     /** The order a Set placed for one occurrence, if it placed one. */
     findBySetOccurrence(setId: string, fireAt: Date): Promise<Order | null>;
+    /**
+     * Orders booked for a later day (ruling 78) that are not yet being shopped: with a delivery
+     * day, and confirmed (waiting for payment), paid, offered or accepted. Soonest first.
+     */
+    listScheduled(): Promise<Order[]>;
   };
 
   offers: {

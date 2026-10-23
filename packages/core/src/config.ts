@@ -25,6 +25,13 @@ import {
   type MaxGoodsByMode,
   type SplitPartMaxByMode,
 } from './dispatch.js';
+import {
+  DELIVERY_WINDOWS,
+  SCHEDULED_DEFAULTS,
+  type DeliveryWindow,
+  type ScheduledSettings,
+  type WindowTimes,
+} from './scheduled.js';
 import type {
   DeliveryBand,
   DeliveryPrices,
@@ -343,6 +350,12 @@ export interface StoreConfig {
    * staff call's recording is kept before the retention sweep deletes it.
    */
   readonly companyContact: CompanyContactSettings;
+  /**
+   * Ordering now for a later day (ruling 78): up to `maxDaysAhead` days ahead, offered to
+   * Runners `offerLeadMinutes` before the window starts, a chosen-day payment tried again every
+   * `retryEveryMinutes` up to `maxChargeTries` tries, and the reminders' times.
+   */
+  readonly scheduled: ScheduledSettings;
   /** The admin panel (Section Q): who may do what, and how signing in is kept safe. */
   readonly admin: {
     /** A refund above this is the owner's alone to give (Section Q). £25 unless set. */
@@ -756,6 +769,74 @@ function parseCompanyContact(raw: Unknown): CompanyContactSettings {
       'companyContact.callRecordingDays',
       1,
     ),
+  };
+}
+
+function parseScheduled(raw: Unknown): ScheduledSettings {
+  const defaults = SCHEDULED_DEFAULTS;
+  const windowsRaw =
+    raw['windows'] === undefined ? {} : object(raw['windows'], 'scheduled.windows');
+  const windows = {} as Record<DeliveryWindow, WindowTimes>;
+  for (const window of DELIVERY_WINDOWS) {
+    const one =
+      windowsRaw[window] === undefined
+        ? {}
+        : object(windowsRaw[window], `scheduled.windows.${window}`);
+    const from = clockTime(
+      one['from'] ?? defaults.windows[window].from,
+      `scheduled.windows.${window}.from`,
+    );
+    const until = clockTime(
+      one['until'] ?? defaults.windows[window].until,
+      `scheduled.windows.${window}.until`,
+    );
+    if (until <= from) {
+      throw new StoreConfigError(`scheduled.windows.${window} must end after it starts.`);
+    }
+    windows[window] = { from, until };
+  }
+  const reminders =
+    raw['reminders'] === undefined ? {} : object(raw['reminders'], 'scheduled.reminders');
+  return {
+    maxDaysAhead: wholeNumber(
+      raw['maxDaysAhead'] ?? defaults.maxDaysAhead,
+      'scheduled.maxDaysAhead',
+      1,
+    ),
+    offerLeadMinutes: wholeNumber(
+      raw['offerLeadMinutes'] ?? defaults.offerLeadMinutes,
+      'scheduled.offerLeadMinutes',
+      0,
+    ),
+    defaultChargeTime: clockTime(
+      raw['defaultChargeTime'] ?? defaults.defaultChargeTime,
+      'scheduled.defaultChargeTime',
+    ),
+    retryEveryMinutes: wholeNumber(
+      raw['retryEveryMinutes'] ?? defaults.retryEveryMinutes,
+      'scheduled.retryEveryMinutes',
+      1,
+    ),
+    maxChargeTries: wholeNumber(
+      raw['maxChargeTries'] ?? defaults.maxChargeTries,
+      'scheduled.maxChargeTries',
+      1,
+    ),
+    windows,
+    reminders: {
+      dayBeforeAt: clockTime(
+        reminders['dayBeforeAt'] ?? defaults.reminders.dayBeforeAt,
+        'scheduled.reminders.dayBeforeAt',
+      ),
+      morningOfAt: clockTime(
+        reminders['morningOfAt'] ?? defaults.reminders.morningOfAt,
+        'scheduled.reminders.morningOfAt',
+      ),
+      ownerSummaryAt: clockTime(
+        reminders['ownerSummaryAt'] ?? defaults.reminders.ownerSummaryAt,
+        'scheduled.reminders.ownerSummaryAt',
+      ),
+    },
   };
 }
 
@@ -1291,6 +1372,9 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     ownerDesk: parseOwnerDesk(ownerDeskRaw),
     companyContact: parseCompanyContact(
       root['companyContact'] === undefined ? {} : object(root['companyContact'], 'companyContact'),
+    ),
+    scheduled: parseScheduled(
+      root['scheduled'] === undefined ? {} : object(root['scheduled'], 'scheduled'),
     ),
     admin: {
       ownerOnlyRefundAbovePence: wholeNumber(

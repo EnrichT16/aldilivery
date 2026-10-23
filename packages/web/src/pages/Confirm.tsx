@@ -1,18 +1,27 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { largeOrderShopperWords, needsVehicle, runnerPaymentFor } from '@aldilivery/core';
+import {
+  checkSchedule,
+  largeOrderShopperWords,
+  needsVehicle,
+  runnerPaymentFor,
+  scheduleAgreementWords,
+  ukDay,
+} from '@aldilivery/core';
 
 import { moneyIn, moneyOut } from '../lib/alert';
 
 import { NotifyMe } from '../components/NotifyMe';
 import { OverOneRunner } from '../components/OverOneRunner';
 import { PinGate } from '../components/PinGate';
+import { startingBooking, WhenItComes, type Booking } from '../components/WhenItComes';
 import { storeConfig } from '../config';
 import {
   createOrder,
   fetchBankTransferEnabled,
   fetchAddresses,
   listPaymentMethods,
+  priceBasketRemotely,
   saveAddress,
   updateMe,
   type AddressBook,
@@ -42,7 +51,50 @@ import { useSession } from '../state/session';
  * again, not a reason to charge a different amount.
  */
 export function Confirm(): JSX.Element {
-  const { lines, pricing, overMaximum, overOneRunner, parts, clear, allowanceWords } = useBasket();
+  const basket = useBasket();
+  const { lines, overMaximum, overOneRunner, parts, clear } = basket;
+  /**
+   * When it comes, and when the money is taken (ruling 78). Today unless the Shopper chooses a
+   * later day. A day in another month counts towards that month's allowance (ruling 73), so the
+   * server prices it for that month and the figure agreed to is the one charged.
+   */
+  const [booking, setBooking] = useState<Booking>(() => startingBooking());
+  const later = booking.when === 'later';
+  const otherMonth = later && booking.deliveryDay.slice(0, 7) !== ukDay(new Date()).slice(0, 7);
+  const [monthPrice, setMonthPrice] = useState<{
+    day: string;
+    allowanceExtraPence: number;
+    totalPence: number;
+  } | null>(null);
+  useEffect(() => {
+    if (!otherMonth) return;
+    let cancelled = false;
+    priceBasketRemotely(
+      lines.map((line) => ({ catalogueItemId: line.item.id, quantity: line.quantity })),
+      booking.deliveryDay,
+    )
+      .then((price) => {
+        if (cancelled) return;
+        setMonthPrice({
+          day: booking.deliveryDay,
+          allowanceExtraPence: price.allowanceExtraPence ?? 0,
+          totalPence: price.totalPence,
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [otherMonth, booking.deliveryDay, lines]);
+  const monthApplies = otherMonth && monthPrice?.day === booking.deliveryDay;
+  const pricing = monthApplies
+    ? {
+        ...basket.pricing,
+        allowanceExtraPence: monthPrice.allowanceExtraPence,
+        totalPence: monthPrice.totalPence,
+      }
+    : basket.pricing;
+  const allowanceWords = monthApplies ? null : basket.allowanceWords;
   /** Ruling 61: over £150, the Shopper chooses to keep everything. Never ticked for them. */
   const [keepEverything, setKeepEverything] = useState(false);
   const { shopper, restoring, replaceShopper, refresh } = useSession();
@@ -51,6 +103,8 @@ export function Confirm(): JSX.Element {
   const [placed, setPlaced] = useState<{ order: PlacedOrder; message: string } | null>(null);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
+  /** The order sent was booked for a later day (ruling 78). */
+  const [booked, setBooked] = useState(false);
 
   const [editingAddress, setEditingAddress] = useState(false);
   const [address, setAddress] = useState('');
@@ -150,9 +204,20 @@ export function Confirm(): JSX.Element {
     pricing.allowanceExtraPence > 0
       ? `, and an extra delivery charge of ${money(pricing.allowanceExtraPence)}`
       : '';
-  const statement = overOneRunner
+  const choice = {
+    deliveryDay: booking.deliveryDay,
+    window: booking.window,
+    chargePlan: byFamily && booking.pay !== 'now' ? ('now' as const) : booking.pay,
+    chargeDay: booking.chargeDay,
+    chargeTime: booking.chargeTime,
+  };
+  // The booking, said plainly in the words agreed to (ruling 78): the day and window, when the
+  // money is taken, and that the final amount is what the till says on the day.
+  const bookingWords = later ? ` ${scheduleAgreementWords(choice, storeConfig.scheduled)}` : '';
+  const baseStatement = overOneRunner
     ? `Send my order and pay. About ${money(pricing.totalPence)} altogether, as ${parts.length} orders each with its own Runner: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}, of which ${money(extraDeliveryPence)} for further Runners is ${bankOn && payBy === 'bank' && !(Boolean(shopper?.familyOwnerId) && shopper?.activePlan === 'family') ? 'given back as credit if they are not needed' : 'taken only when each collects'}${allowanceExtra}.`
     : `Send my order and pay. About ${money(pricing.totalPence)} altogether: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}${allowanceExtra}.`;
+  const statement = `${baseStatement}${bookingWords}`;
 
   /**
    * The button is never greyed out (review of 16 October 2026): a disabled button says nothing
@@ -160,7 +225,7 @@ export function Confirm(): JSX.Element {
    */
   function whatIsMissing(): string | null {
     const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
-    const byBank = bankOn && payBy === 'bank' && !byFamily;
+    const byBank = payingByBank();
     if (overMaximum) {
       return `Your shopping is more than one basket holds, ${money(storeConfig.fees.maximumBasketGoodsPence)}. Please go back to your basket and take some things out.`;
     }
@@ -169,13 +234,28 @@ export function Confirm(): JSX.Element {
     if (overOneRunner && !keepEverything) {
       return 'Please tick "Keep everything", or go back to your basket to take something out.';
     }
+    if (later) {
+      if (overOneRunner) {
+        return 'A basket for more than one Runner can only be sent for as soon as possible at the moment. Please choose as soon as possible, or take something out.';
+      }
+      const check = checkSchedule(choice, new Date(), storeConfig.scheduled);
+      if (!check.ok) return check.message;
+      if (otherMonth && !monthApplies) return 'One moment: working out the price for that month.';
+    }
     return null;
+  }
+
+  /** By bank transfer: chosen for today in "Pay by", or for a later day in "When it comes". */
+  function payingByBank(): boolean {
+    if (byFamily) return false;
+    if (later) return bankOn && booking.pay === 'bank';
+    return bankOn && payBy === 'bank';
   }
 
   async function onSend(): Promise<void> {
     if (sending) return;
     const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
-    const byBank = bankOn && payBy === 'bank' && !byFamily;
+    const byBank = payingByBank();
     const missing = whatIsMissing();
     if (missing !== null) {
       setError(missing);
@@ -198,11 +278,24 @@ export function Confirm(): JSX.Element {
             ? { payBy: 'bank' as const }
             : { paymentMethodId: card.id }),
         ...(overOneRunner ? { keepEverything: true } : {}),
+        ...(later
+          ? {
+              schedule: {
+                deliveryDay: booking.deliveryDay,
+                window: booking.window,
+                pay: byBank || !card ? ('bank' as const) : choice.chargePlan,
+                ...(choice.chargePlan === 'scheduled'
+                  ? { chargeDay: booking.chargeDay, chargeTime: booking.chargeTime }
+                  : {}),
+              },
+            }
+          : {}),
         confirmation: { statement, agreedTotalPence: pricing.totalPence, addressConfirmed: true },
       });
+      setBooked(later);
       // The monthly order count (ruling 73) is the server's: asked again after every order.
       void refresh();
-      if (result.bank) {
+      if (result.bank || result.scheduled) {
         clear();
         setPlaced({ order: result.order, message: result.message });
         return;
@@ -264,6 +357,31 @@ export function Confirm(): JSX.Element {
   /* ---------------------------------------------------------------------------------- *
    * The states that come before the button
    * ---------------------------------------------------------------------------------- */
+
+  if (placed && booked) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-display font-bold m-0">Your order is booked</h1>
+        <p role="status" className="m-0 max-w-xl text-lead">
+          {placed.message}
+        </p>
+        <p className="m-0 max-w-xl">
+          We will remind you the day before and on the morning, and a Runner is found on the day.
+          You can change or cancel it under Past orders until then.
+        </p>
+        <NotifyMe />
+        <p className="m-0 text-paper/80">
+          Your order reference is {orderReference(placed.order.id)}.
+        </p>
+        <Link to="/orders" className="control bg-highlight text-on-accent">
+          See your booked orders
+        </Link>
+        <Link to="/" className="control bg-paper/10 text-paper underline">
+          Back to the start
+        </Link>
+      </div>
+    );
+  }
 
   if (placed) {
     return (
@@ -338,7 +456,7 @@ export function Confirm(): JSX.Element {
   }
 
   const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
-  const byBank = bankOn && payBy === 'bank' && !byFamily;
+  const byBank = payingByBank();
 
   return (
     <div className="space-y-8">
@@ -596,11 +714,23 @@ export function Confirm(): JSX.Element {
         )}
       </section>
 
+      <WhenItComes
+        booking={booking}
+        onChange={setBooking}
+        bankOn={bankOn}
+        laterPaymentAllowed={!byFamily}
+      />
+      {later && (
+        <p className="m-0 max-w-xl font-bold">
+          {scheduleAgreementWords(choice, storeConfig.scheduled)}
+        </p>
+      )}
+
       <section aria-labelledby="card-heading" className="space-y-3">
         <h2 id="card-heading" className="text-lead font-bold">
           How you are paying
         </h2>
-        {bankOn && (
+        {bankOn && !later && (
           <fieldset className="border-2 border-paper/40 rounded-2xl p-4 m-0 space-y-2">
             <legend className="px-2 font-bold">Pay by</legend>
             <div className="flex items-center gap-3 min-h-control">

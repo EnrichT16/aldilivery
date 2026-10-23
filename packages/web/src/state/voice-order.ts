@@ -4,9 +4,16 @@ import { useNavigate } from 'react-router-dom';
 import {
   allowanceExtraPence,
   allowanceWords,
+  chargeMomentWords,
+  checkSchedule,
+  dayWords,
   deliveryFeePence,
   itemChargesForLines,
   overOneRunnerWords,
+  parseSpokenSchedule,
+  scheduleAgreementWords,
+  ukDay,
+  type DeliveryWindow,
 } from '@aldilivery/core';
 
 import { storeConfig } from '../config';
@@ -15,6 +22,7 @@ import {
   createOrder,
   fetchShops,
   listPaymentMethods,
+  priceBasketRemotely,
   recordExchange,
   searchCatalogue,
   suggestItem,
@@ -76,8 +84,48 @@ type Stage =
       totalPence: number;
       home: string;
       cardId: string;
+      lastFour: string;
       statement: string;
+      /** Booked for a later day (ruling 78), as it was said: "deliver it on Saturday morning". */
+      booking?: VoiceBooking;
     };
+
+/** A later day, its window, and, if said, when the money is taken (ruling 78). */
+interface VoiceBooking {
+  deliveryDay: string;
+  window: DeliveryWindow;
+  chargeDay?: string;
+  chargeTime?: string;
+}
+
+/** Said after the payment question: how to have it brought another day (ruling 78). */
+const ANOTHER_DAY = 'To have it on another day, say the day, like deliver it on Saturday morning.';
+
+/**
+ * The question the one yes answers. For a booked order it says the day and window, when the
+ * money is taken, and that the till on the day settles the final amount (ruling 78).
+ */
+function paymentQuestion(totalPence: number, lastFour: string, booking?: VoiceBooking): string {
+  if (!booking) {
+    return `Shall I send your order and pay now, charging about ${money(totalPence)} to your card ending ${lastFour}? You pay what the till says.`;
+  }
+  const settings = storeConfig.scheduled;
+  const chargeTime = booking.chargeTime ?? settings.defaultChargeTime;
+  const later = Boolean(booking.chargeDay);
+  const paying = later
+    ? `taking about ${money(totalPence)} from your card ending ${lastFour} ${chargeMomentWords(booking.chargeDay ?? booking.deliveryDay, chargeTime)}`
+    : `and pay now, charging about ${money(totalPence)} to your card ending ${lastFour}`;
+  return `Shall I send your order for ${dayWords(booking.deliveryDay)}, in the ${booking.window}, ${paying}? ${scheduleAgreementWords(
+    {
+      deliveryDay: booking.deliveryDay,
+      window: booking.window,
+      chargePlan: later ? 'scheduled' : 'now',
+      chargeDay: booking.chargeDay,
+      chargeTime,
+    },
+    settings,
+  )}`;
+}
 
 /** One line of the order as it will be sent: the whole basket, not only what was just said. */
 interface OrderLine {
@@ -494,6 +542,88 @@ export function useVoiceOrdering(
     [say, reset, readBack],
   );
 
+  /**
+   * A later day, a time of day, or when to take the money, said at the payment question (ruling
+   * 78): checked, priced for the month it is delivered in, and the question asked again.
+   */
+  const rebook = useCallback(
+    async (
+      current: Extract<Stage, { kind: 'payment' }>,
+      heard: ReturnType<typeof parseSpokenSchedule>,
+    ): Promise<void> => {
+      if (heard.bank) {
+        await say(
+          `Paying by bank transfer can be chosen on the confirmation screen. ${current.statement} Say yes to send it and pay, or no to stop.`,
+        );
+        return;
+      }
+      let booking: VoiceBooking | undefined;
+      if (!heard.asap) {
+        const deliveryDay = heard.deliveryDay ?? current.booking?.deliveryDay;
+        if (!deliveryDay) {
+          await say(`Which day would you like it? ${ANOTHER_DAY}`);
+          return;
+        }
+        booking = {
+          deliveryDay,
+          window: heard.window ?? current.booking?.window ?? 'morning',
+        };
+        if (!heard.chargeNow) {
+          const chargeDay =
+            heard.chargeDay ??
+            current.booking?.chargeDay ??
+            (heard.chargeTime ? deliveryDay : undefined);
+          const chargeTime = heard.chargeTime ?? current.booking?.chargeTime;
+          if (chargeDay) booking.chargeDay = chargeDay;
+          if (chargeTime) booking.chargeTime = chargeTime;
+        }
+        const check = checkSchedule(
+          {
+            deliveryDay: booking.deliveryDay,
+            window: booking.window,
+            chargePlan: booking.chargeDay ? 'scheduled' : 'now',
+            chargeDay: booking.chargeDay,
+            chargeTime: booking.chargeTime ?? storeConfig.scheduled.defaultChargeTime,
+          },
+          new Date(),
+          storeConfig.scheduled,
+        );
+        if (!check.ok) {
+          await say(
+            `${check.message} ${current.statement} Say yes to send it and pay, or no to stop.`,
+          );
+          return;
+        }
+      }
+      // Booked into another month, the monthly allowance is counted there (ruling 73).
+      let totalPence = current.totalPence;
+      if (booking && booking.deliveryDay.slice(0, 7) !== ukDay(new Date()).slice(0, 7)) {
+        try {
+          totalPence = (await priceBasketRemotely(current.lines, booking.deliveryDay)).totalPence;
+        } catch {
+          // The server prices it again when it is sent, and says if the figure moved.
+        }
+      }
+      if (totalPence > ceiling) {
+        reset();
+        await say(
+          `Because this comes to more than ${money(ceiling)}, I need you to confirm it by touch. I've opened the confirmation screen for you.`,
+        );
+        navigate('/confirm');
+        return;
+      }
+      const statement = paymentQuestion(totalPence, current.lastFour, booking);
+      stage.current = {
+        ...current,
+        totalPence,
+        statement,
+        booking,
+      };
+      await say(`${statement} Say yes to send it and pay, or no to stop.`);
+    },
+    [say, reset, navigate, ceiling],
+  );
+
   const handle = useCallback(
     async (text: string): Promise<boolean> => {
       const current = stage.current;
@@ -681,20 +811,35 @@ export function useVoiceOrdering(
             navigate('/confirm');
             return true;
           }
-          const statement = `Shall I send your order and pay now, charging about ${money(current.totalPence)} to your card ending ${current.lastFour}? You pay what the till says.`;
+          const statement = paymentQuestion(current.totalPence, current.lastFour);
           stage.current = {
             kind: 'payment',
             lines: current.lines,
             totalPence: current.totalPence,
             home: current.home,
             cardId: current.cardId,
+            lastFour: current.lastFour,
             statement,
           };
-          await say(`${statement} Say yes to send it and pay, or no to stop.`);
+          await say(`${statement} Say yes to send it and pay, or no to stop. ${ANOTHER_DAY}`);
           return true;
         }
 
         case 'payment': {
+          // "Deliver it on Saturday morning", "take the money on the first at five past
+          // midnight" (ruling 78): the booking changes, and the question is asked again.
+          const heardBooking = parseSpokenSchedule(text, new Date());
+          if (
+            heardBooking.deliveryDay ||
+            heardBooking.window ||
+            heardBooking.chargeDay ||
+            heardBooking.chargeTime ||
+            heardBooking.bank ||
+            (current.booking && (heardBooking.asap || heardBooking.chargeNow))
+          ) {
+            await rebook(current, heardBooking);
+            return true;
+          }
           const answer = parseYesNo(text);
           if (answer === null) {
             await say('Please say yes to send it and pay, or no to stop.');
@@ -710,10 +855,27 @@ export function useVoiceOrdering(
           }
           reset();
           try {
+            const booking = current.booking;
             const result = await createOrder({
               lines,
               deliveryAddress: current.home,
               paymentMethodId: current.cardId,
+              ...(booking
+                ? {
+                    schedule: {
+                      deliveryDay: booking.deliveryDay,
+                      window: booking.window,
+                      pay: booking.chargeDay ? ('scheduled' as const) : ('now' as const),
+                      ...(booking.chargeDay
+                        ? {
+                            chargeDay: booking.chargeDay,
+                            chargeTime:
+                              booking.chargeTime ?? storeConfig.scheduled.defaultChargeTime,
+                          }
+                        : {}),
+                    },
+                  }
+                : {}),
               confirmation: {
                 statement: current.statement,
                 agreedTotalPence: current.totalPence,
@@ -743,6 +905,11 @@ export function useVoiceOrdering(
             live.current.basket.clear();
             void refresh();
             note.current = { brain: 'flow', outcome: 'sent' };
+            if (booking) {
+              await say(`${result.message} You can see it under Past orders.`);
+              navigate('/orders');
+              return true;
+            }
             await say(`${result.message} You can follow it on the Your order page.`);
             navigate('/my-order');
           } catch (failure) {
@@ -756,7 +923,7 @@ export function useVoiceOrdering(
         }
       }
     },
-    [say, offerAccount, reset, next, navigate, ceiling, shop, chatter, refresh],
+    [say, offerAccount, reset, next, navigate, ceiling, shop, chatter, refresh, rebook],
   );
 
   const expectOrder = useCallback(() => {

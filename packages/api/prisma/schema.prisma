@@ -562,6 +562,25 @@ model Order {
   /// charged and no Runner is ever sent.
   isDemo Boolean @default(false)
 
+  /// Ordering now for a later day (ruling 78). The UK day it comes (YYYY-MM-DD) and its window
+  /// (morning, afternoon, evening), or null for as soon as possible; when it is offered to
+  /// Runners; how the money is taken (now, scheduled, bank); for "scheduled", when, how many
+  /// tries so far, the next try, and where it has got to (waiting, retrying,
+  /// needs_authentication, failed, paid); a link sent when the bank asked to check; when it was
+  /// held unpaid at its offer time; and the Shopper's reminders.
+  deliveryDay         String?
+  deliveryWindow      String?
+  offerAt             DateTime?
+  chargePlan          String?
+  chargeAt            DateTime?
+  chargeTries         Int       @default(0)
+  chargeNextTryAt     DateTime?
+  chargeStatus        String?
+  chargeLinkSentAt    DateTime?
+  scheduledHeldAt     DateTime?
+  reminderDayBeforeAt DateTime?
+  reminderMorningAt   DateTime?
+
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
   acceptedAt   DateTime?
@@ -586,6 +605,7 @@ model Order {
   @@index([tillStatus])
   @@index([shopperId])
   @@index([poolId])
+  @@index([deliveryDay])
   @@unique([splitParentId, splitPart])
 }
 

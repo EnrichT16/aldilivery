@@ -282,9 +282,15 @@ async function stillNeedsOwner(ctx: DeskContext, matter: OwnerMatter): Promise<b
       const message = await repository.companyContact.findMessage(matter.subjectId);
       return message?.status === 'held';
     }
+    case 'scheduled_payment': {
+      // A booked order's payment that could not be taken (ruling 78): until it is paid or over.
+      const found = await order();
+      return found?.status === 'confirmed' && found.chargePlan === 'scheduled';
+    }
     case 'shopper_feedback':
     case 'email':
     case 'account_message':
+    case 'scheduled_today':
       return true;
   }
 }
