@@ -157,16 +157,20 @@ export interface BasketPrice {
   goodsEstimatePence: number;
   itemChargesPence: number;
   feePence: number;
+  /** The extra delivery charge past the monthly allowance (ruling 73), when there is one. */
+  allowanceExtraPence?: number;
   totalPence: number;
   explanation: string[];
 }
 
 export function priceBasketRemotely(
   lines: Array<{ catalogueItemId: string; quantity: number }>,
+  /** Booked for a later day (ruling 78): it counts in the month it is delivered in. */
+  deliveryDay?: string,
 ): Promise<BasketPrice> {
   return request<BasketPrice>('/basket/price', {
     method: 'POST',
-    body: JSON.stringify({ lines }),
+    body: JSON.stringify(deliveryDay ? { lines, deliveryDay } : { lines }),
   });
 }
 
@@ -983,8 +987,21 @@ export interface CreateOrderResult {
     reference: string;
     amountPence: number;
     payWithinHours: number;
+    /** Booked for a later day (ruling 78): the transfer must arrive by this day. */
+    payByDay?: string;
   };
+  /** Booked, with the money taken on a chosen day (ruling 78): nothing is taken yet. */
+  scheduled?: boolean;
   message: string;
+}
+
+/** Ordering now for a later day (ruling 78): the day, the window, and when the money is taken. */
+export interface OrderSchedule {
+  deliveryDay: string;
+  window: 'morning' | 'afternoon' | 'evening';
+  pay: 'now' | 'scheduled' | 'bank';
+  chargeDay?: string;
+  chargeTime?: string;
 }
 
 /**
@@ -1005,6 +1022,8 @@ export function createOrder(input: {
   payBy?: 'card' | 'bank' | 'family';
   /** Ruling 61: a basket over £150 kept whole, as linked orders each with its own Runner. */
   keepEverything?: boolean;
+  /** Booked for a later day (ruling 78); left out, as soon as possible. */
+  schedule?: OrderSchedule;
   confirmation: {
     statement: string;
     agreedTotalPence: number;
@@ -1022,6 +1041,7 @@ export function createOrder(input: {
       ...(input.paymentMethodId ? { paymentMethodId: input.paymentMethodId } : {}),
       payBy: input.payBy ?? 'card',
       ...(input.keepEverything ? { keepEverything: true } : {}),
+      ...(input.schedule ? { schedule: input.schedule } : {}),
       confirmation: {
         confirmed: true,
         addressConfirmed: input.confirmation.addressConfirmed,
@@ -3516,4 +3536,86 @@ export function fetchAuditLog(
   filters: { search?: string; from?: string; to?: string } = {},
 ): Promise<{ entries: AuditEntryRow[] }> {
   return staffRequest(key, `/staff/audit${query(filters)}`);
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * Booked orders (ruling 78): ordered now for a later day
+ * ------------------------------------------------------------------------------------- */
+
+export interface BookedOrder {
+  id: string;
+  reference: string;
+  status: string;
+  deliveryDay: string;
+  deliveryWindow: 'morning' | 'afternoon' | 'evening' | null;
+  /** "Saturday 31 October, in the morning, 8:00 to 12:00". */
+  deliveryWords: string;
+  chargePlan: 'now' | 'scheduled' | 'bank' | null;
+  chargeAt: string | null;
+  /** "on Sunday 1 November at 00:05", "now", or "by bank transfer by Friday 30 October". */
+  chargeWords: string;
+  chargeStatus: 'waiting' | 'retrying' | 'needs_authentication' | 'failed' | 'paid' | null;
+  paid: boolean;
+  held: boolean;
+  bankReference: string | null;
+  totalPence: number;
+  items: Array<{ name: string; quantity: number }>;
+  canChange: boolean;
+  canChangePayment: boolean;
+  canCancel: boolean;
+}
+
+export function fetchBookedOrders(): Promise<{ orders: BookedOrder[] }> {
+  return request<{ orders: BookedOrder[] }>('/orders/booked');
+}
+
+export function changeBookedOrder(
+  id: string,
+  change: {
+    deliveryDay?: string;
+    window?: 'morning' | 'afternoon' | 'evening';
+    chargeDay?: string;
+    chargeTime?: string;
+  },
+): Promise<{ order: BookedOrder; message: string }> {
+  return request(`/orders/${encodeURIComponent(id)}/booking`, {
+    method: 'POST',
+    body: JSON.stringify(change),
+  });
+}
+
+export function cancelBookedOrder(
+  id: string,
+): Promise<{ order: BookedOrder; refundedPence: number; message: string }> {
+  return request(`/orders/${encodeURIComponent(id)}/booking/cancel`, { method: 'POST' });
+}
+
+/** What a Runner sees of tomorrow: how many are booked, by window, and nothing about anybody. */
+export interface BookedTomorrow {
+  day: string;
+  total: number;
+  morning: number;
+  afternoon: number;
+  evening: number;
+}
+
+export function fetchBookedTomorrow(): Promise<BookedTomorrow> {
+  return request<BookedTomorrow>('/runner/booked', undefined, 'runner');
+}
+
+/** "Pay us by bank": the business account and a reference of the account's own. */
+export type PayByBank =
+  | {
+      enabled: true;
+      accountName: string;
+      sortCode: string;
+      accountNumber: string;
+      reference: string;
+    }
+  | { enabled: false; message: string };
+
+export function fetchPayByBank(as: 'shopper' | 'business'): Promise<PayByBank> {
+  return as === 'business'
+    ? businessRequest<PayByBank>('/business/pay-by-bank')
+    : request<PayByBank>('/pay-by-bank');
 }

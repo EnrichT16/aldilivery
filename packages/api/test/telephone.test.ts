@@ -170,6 +170,49 @@ describe('the telephone line', () => {
     });
   });
 
+  it('books a later day and a payday by voice, read back before the one yes (ruling 78)', async () => {
+    const shopper = await readyShopper();
+    const call = { CallSid: 'CA78', From: '+447700900001', Direction: 'inbound' };
+    const hello = await twilio('/api/webhooks/twilio/voice', call);
+    const added = await twilio(nextStep(hello.body), {
+      ...call,
+      SpeechResult: 'Two milk and a loaf of bread please',
+    });
+    const readBack = await twilio(nextStep(added.body), {
+      ...call,
+      SpeechResult: "That's everything.",
+    });
+    expect(spoken(readBack.body)).toMatch(
+      /say the day, for example: deliver it on Saturday morning/,
+    );
+    const booked = await twilio(nextStep(readBack.body), {
+      ...call,
+      SpeechResult:
+        'Deliver it on Saturday morning and take the money tomorrow at five past midnight',
+    });
+    const words = spoken(booked.body).replace(/&#39;|&apos;/g, "'");
+    expect(words).toMatch(/Delivered on Saturday 10 October, in the morning, 8:00 to 12:00\./);
+    expect(words).toMatch(/The money is taken from your card on Thursday 8 October at 00:05\./);
+    expect(words).toMatch(
+      /if prices have gone up, the difference is taken from your card on the day/,
+    );
+    expect(harness.payments.calls).toHaveLength(0);
+
+    const sent = await twilio(nextStep(booked.body), { ...call, SpeechResult: 'Yes please' });
+    expect(spoken(sent.body)).toMatch(/Your order is booked for Saturday 10 October/);
+    const orders = await harness.repository.orders.listForShopper(shopper.shopperId);
+    expect(orders[0]).toMatchObject({
+      status: 'confirmed',
+      deliveryDay: '2026-10-10',
+      deliveryWindow: 'morning',
+      chargePlan: 'scheduled',
+    });
+    expect(orders[0]!.chargeAt?.toISOString()).toBe('2026-10-07T23:05:00.000Z');
+    expect(orders[0]!.confirmationStatement).toContain('Saturday 10 October');
+    // Nothing is taken at the yes: the money is taken at the moment agreed.
+    expect(harness.payments.calls).toHaveLength(0);
+  });
+
   it('cancels a membership when the caller says so, as easily as joining (ruling 58)', async () => {
     const shopper = await readyShopper();
     await harness.repository.shoppers.update(shopper.shopperId, {

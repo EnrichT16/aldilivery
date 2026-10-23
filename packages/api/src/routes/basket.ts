@@ -6,12 +6,13 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import { formatPence, needsVehicle, overOneRunnerWords } from '@aldilivery/core';
+import { formatPence, isDay, needsVehicle, overOneRunnerWords } from '@aldilivery/core';
 import { z } from 'zod';
 
 import { priceLinesInParts, type PricedBasketInParts } from '../services/basket.js';
 import { largeOrderShopperWords } from '../services/dispatch.js';
 import { allowanceFor, deliveryPlanFor, type AllowanceStanding } from '../services/plans.js';
+import { middayOf } from '../services/scheduled.js';
 
 const basketSchema = z.object({
   lines: z
@@ -22,13 +23,21 @@ const basketSchema = z.object({
       }),
     )
     .min(1, 'There is nothing in the basket yet.'),
+  /**
+   * The day it is booked for (ruling 78), YYYY-MM-DD: the order counts towards the allowance of
+   * the month it is delivered in.
+   */
+  deliveryDay: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
 
 export async function registerBasketRoutes(app: FastifyInstance): Promise<void> {
   const { repository, config, now } = app.ctx;
 
   app.post('/basket/price', async (request) => {
-    const { lines } = basketSchema.parse(request.body);
+    const { lines, deliveryDay } = basketSchema.parse(request.body);
 
     const items = await repository.catalogue.findManyByIds(
       lines.map((line) => line.catalogueItemId),
@@ -41,7 +50,14 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
         : null;
     const plan = shopper ? await deliveryPlanFor(app.ctx, shopper, now()) : 'payg';
     // The monthly allowance (ruling 73): the order being priced counts as the next this month.
-    const allowance = shopper ? await allowanceFor(app.ctx, shopper, now()) : null;
+    const allowance = shopper
+      ? await allowanceFor(
+          app.ctx,
+          shopper,
+          now(),
+          deliveryDay && isDay(deliveryDay) ? middayOf(deliveryDay) : now(),
+        )
+      : null;
 
     // Throws on an age restricted item (Rule Six), on a product over the most one product may
     // cost, and on a basket over the most one basket holds (ruling 61: £450). Over one order

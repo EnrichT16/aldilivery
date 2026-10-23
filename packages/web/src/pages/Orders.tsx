@@ -10,6 +10,7 @@ import {
 import { addPastItems, listInWords } from '../lib/extras';
 import { money } from '../lib/money';
 import { storeConfig } from '../config';
+import { BookedOrders } from '../components/BookedOrders';
 import { ShopReviews } from '../components/ShopReviews';
 import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
@@ -109,6 +110,8 @@ export function Orders(): JSX.Element {
           {problem}
         </p>
       )}
+      {/* Ordered now for a later day (ruling 78): see, change or cancel before the day. */}
+      <BookedOrders />
       {orders === null ? (
         problem === '' && <p className="m-0">Finding your orders.</p>
       ) : orders.length === 0 ? (

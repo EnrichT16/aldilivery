@@ -6,7 +6,13 @@
  * generated client. The Prisma backed repository maps rows onto these types at the edge.
  */
 
-import type { PartnerKind, PartnerPlan, SplitPartMode } from '@aldilivery/core';
+import type {
+  ChargePlan,
+  DeliveryWindow,
+  PartnerKind,
+  PartnerPlan,
+  SplitPartMode,
+} from '@aldilivery/core';
 
 export type VehicleType = 'on_foot' | 'bicycle' | 'motorbike' | 'car' | 'van';
 
@@ -32,6 +38,15 @@ export type ExtraDeliveryStatus =
   'pending' | 'charged' | 'failed' | 'transfer' | 'waived' | 'refunded' | 'credited';
 
 export type { OrderStatus, SplitPartMode } from '@aldilivery/core';
+export type { ChargePlan, DeliveryWindow } from '@aldilivery/core';
+
+/**
+ * Where a payment taken on a chosen day has got to (ruling 78): waiting for its moment, being
+ * tried again after a refusal, waiting for the Shopper to check it is them with their bank,
+ * given up after the last try, or paid.
+ */
+export type ScheduledChargeStatus =
+  'waiting' | 'retrying' | 'needs_authentication' | 'failed' | 'paid';
 
 export interface Shopper {
   id: string;
@@ -495,6 +510,27 @@ export interface Order {
   extraDeliveryPaymentId: string | null;
   /** A demo order (ruling 60): no card is charged and no Runner is sent. */
   isDemo: boolean;
+  /**
+   * Ordering now for a later day (ruling 78). The UK day it comes (YYYY-MM-DD) and its window,
+   * or null for as soon as possible; when it is offered to Runners (the window's start less the
+   * lead time); and when the money is taken: now, at a chosen moment (`chargeAt`, tried
+   * `chargeTries` times so far, next at `chargeNextTryAt`), or by bank transfer before the day.
+   */
+  deliveryDay: string | null;
+  deliveryWindow: DeliveryWindow | null;
+  offerAt: Date | null;
+  chargePlan: ChargePlan | null;
+  chargeAt: Date | null;
+  chargeTries: number;
+  chargeNextTryAt: Date | null;
+  chargeStatus: ScheduledChargeStatus | null;
+  /** When the Shopper was sent a link to pay because their bank asked to check it was them. */
+  chargeLinkSentAt: Date | null;
+  /** When it was held, unpaid at its offer time, and not sent to a Runner. */
+  scheduledHeldAt: Date | null;
+  /** The Shopper's reminders: the day before, and the morning of delivery. */
+  reminderDayBeforeAt: Date | null;
+  reminderMorningAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   acceptedAt: Date | null;
@@ -1169,7 +1205,11 @@ export type OwnerMatterKind =
   /** An account replied to a message from the company (ruling 77): to hear. */
   | 'account_message'
   /** A staff member asks to send a message without a code (ruling 77): to approve or decline. */
-  | 'message_approval';
+  | 'message_approval'
+  /** The day's booked orders, in one summary each morning (ruling 78): to hear. */
+  | 'scheduled_today'
+  /** A booked order's payment on its chosen day could not be taken (ruling 78): to hear. */
+  | 'scheduled_payment';
 
 /** Approve, decline or later; or only "I have heard it", or later. */
 export type OwnerMatterOptions = 'decide' | 'acknowledge';

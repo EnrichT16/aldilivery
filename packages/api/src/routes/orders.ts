@@ -11,6 +11,8 @@
 
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import {
+  addDays,
+  dayWords,
   formatPence,
   overOneRunnerWords,
   type OrderStatus,
@@ -51,6 +53,13 @@ import { startReimbursement } from '../services/reimburse.js';
 import { DEMO_BANNER, DEMO_REFUSED } from '../services/demo.js';
 import { activePlan, allowanceFor, deliveryPlanFor } from '../services/plans.js';
 import { tellShopperById } from '../services/order-updates.js';
+import {
+  bookedWords,
+  chargeWords,
+  middayOf,
+  scheduleFields,
+  type ScheduleRequest,
+} from '../services/scheduled.js';
 import {
   assertConfirmedBeforePayment,
   assertNotAlreadyConfirmed,
@@ -97,8 +106,11 @@ const createOrderSchema = z.object({
         message: 'Please check the delivery address and say it is right before sending the order.',
       }),
     }),
-    /** The exact words the Shopper agreed to, kept for the record. */
-    statement: z.string().trim().min(1).max(400),
+    /**
+     * The exact words the Shopper agreed to, kept for the record. Longer for an order booked for
+     * a later day (ruling 78), whose words say the day, when the money is taken and the till.
+     */
+    statement: z.string().trim().min(1).max(1200),
     /** What the Shopper was shown as the total, in pence, at the moment they confirmed. */
     agreedTotalPence: z.number().int().min(0),
   }),
@@ -108,7 +120,31 @@ const createOrderSchema = z.object({
    * orders each with its own Runner, rather than take something out.
    */
   keepEverything: z.boolean().optional(),
+  /**
+   * Ordering now for a later day (ruling 78): the UK day (tomorrow up to 28 days ahead) and
+   * window, and when the money is taken: now, on a chosen day and time from the saved card, or
+   * by bank transfer before the day. Left out, the order is for as soon as possible, as before.
+   */
+  schedule: z
+    .object({
+      deliveryDay: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/, 'Please choose the day for your delivery.'),
+      window: z.enum(['morning', 'afternoon', 'evening']),
+      pay: z.enum(['now', 'scheduled', 'bank']).default('now'),
+      chargeDay: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .optional(),
+      chargeTime: z
+        .string()
+        .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Please give the time as HH:MM, such as 00:05.')
+        .optional(),
+    })
+    .optional(),
 });
+
+type CreateOrderInput = z.infer<typeof createOrderSchema>;
 
 const statusSchema = z.object({
   status: z.enum([
@@ -150,6 +186,11 @@ const receiptSchema = z.object({
   /** A photo of the receipt, optional but encouraged (services/receipt-photo.ts). */
   photo: receiptPhotoSchema.optional(),
 });
+
+/** The day before a day: when a booked order's bank transfer must arrive by (ruling 78). */
+function addDaysBefore(day: string): string {
+  return addDays(day, -1);
+}
 
 export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
   const { repository, config, payments, now } = app.ctx;
@@ -250,6 +291,44 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
   }
 
   /**
+   * An order booked for a later day (ruling 78): checked, and the fields it is written with. The
+   * words the Shopper said yes to must name the day, so the one yes covers the booking (Rule
+   * One). A basket for more than one Runner is sent as soon as possible only, for now.
+   */
+  function bookingFor(input: CreateOrderInput, parts: number) {
+    if (!input.schedule) return null;
+    const request: ScheduleRequest = {
+      deliveryDay: input.schedule.deliveryDay,
+      window: input.schedule.window,
+      pay: input.payBy === 'bank' ? 'bank' : input.schedule.pay,
+      chargeDay: input.schedule.chargeDay,
+      chargeTime: input.schedule.chargeTime,
+    };
+    if (request.pay === 'scheduled' && input.payBy === 'family') {
+      throw new BadRequestError(
+        'An order on a family plan is paid when it is sent. Please choose to pay now, or by bank transfer. Nothing has been charged.',
+      );
+    }
+    if (parts > 1) {
+      throw new BadRequestError(
+        'A basket for more than one Runner can only be sent for as soon as possible at the moment. Please choose as soon as possible, or take something out. Nothing has been charged.',
+      );
+    }
+    const fields = scheduleFields(app.ctx, request);
+    if (!input.confirmation.statement.includes(dayWords(request.deliveryDay))) {
+      throw new BadRequestError(
+        `The words you agreed to did not say the day, ${dayWords(request.deliveryDay)}. Please check it and confirm again. Nothing has been charged.`,
+      );
+    }
+    return { request, fields };
+  }
+
+  /** The moment an order counts in for the monthly allowance: its delivery day, if booked. */
+  function countInFor(input: CreateOrderInput): Date {
+    return input.schedule ? middayOf(input.schedule.deliveryDay) : now();
+  }
+
+  /**
    * An order paid by bank transfer to the business account (ruling 50, Anthony, 7 October
    * 2026). The same checks as a card order (prices, the cap, the confirmation, the voice
    * ceiling and home address), then the order waits, confirmed, with a reference for the
@@ -260,7 +339,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     request: FastifyRequest,
     reply: FastifyReply,
     shopper: Shopper,
-    input: z.infer<typeof createOrderSchema>,
+    input: CreateOrderInput,
   ) {
     const bank = bankSettings(app.ctx.env.storeConfigPath);
     if (!bank.enabled) {
@@ -271,14 +350,16 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     const catalogueItems = await repository.catalogue.findManyByIds(
       input.lines.map((line) => line.catalogueItemId),
     );
-    // The monthly allowance (ruling 73): this order counts as the next one this month.
-    const allowance = await allowanceFor(app.ctx, shopper, now());
+    // The monthly allowance (ruling 73): this order counts as the next one this month, or, booked
+    // for a later day, the month it is delivered in (ruling 78).
+    const allowance = await allowanceFor(app.ctx, shopper, now(), countInFor(input));
     const priced = pricedForOrder(
       input,
       catalogueItems,
       await deliveryPlanFor(app.ctx, shopper, now()),
       allowance.extraPence,
     );
+    const booking = bookingFor(input, priced.parts.length);
     if (!input.overrideBudgetCap && exceedsBudgetCap(priced.goodsPence, shopper.budgetCapPence)) {
       throw new BadRequestError(
         `This shop comes to ${formatPence(priced.goodsPence, symbol)}, which is over the limit you set of ${formatPence(shopper.budgetCapPence ?? 0, symbol)}. Say the word and we will send it anyway.`,
@@ -330,10 +411,20 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         confirmationStatement: input.confirmation.statement,
         paidBy: 'bank',
         bankReference: reference,
+        ...(booking ? booking.fields : {}),
       },
       'transfer',
     );
     const order = group[0]!;
+    if (booking) {
+      void tellShopperById(
+        app.ctx,
+        shopper.id,
+        `your order is booked for ${bookedWords(app.ctx, order)}. Please pay by bank transfer by ${dayWords(addDaysBefore(booking.request.deliveryDay))}, with the reference ${reference}.`,
+        { url: '/orders', tag: `booked-${order.id}` },
+        request.log,
+      );
+    }
     void alertPayments(app.ctx, order, request.log, priced.totalPence);
     await alertTinyExtras(app.ctx, group);
     const amount = formatPence(priced.totalPence, symbol);
@@ -347,9 +438,12 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         reference,
         amountPence: priced.totalPence,
         payWithinHours: bank.payWithinHours,
+        ...(booking ? { payByDay: addDaysBefore(booking.request.deliveryDay) } : {}),
       },
       ...(group.length > 1 ? { orders: group } : {}),
-      message: `Thank you. Please pay ${amount} by bank transfer to ${bank.accountName}, sort code ${bank.sortCode}, account ${bank.accountNumber}, with the reference ${reference}.${group.length > 1 ? ` Your shopping comes as ${group.length} orders, each with its own Runner. If a further Runner is not needed, their ${formatPence(config.fees.extraRunnerDeliveryPence, symbol)} delivery comes back to your account as Unused Runner fee credit.` : ''} A Runner is sent once your transfer arrives. A Faster Payments transfer usually arrives within minutes, and staff check for transfers at least every morning and evening. Nothing is taken from a card.`,
+      message: booking
+        ? `Thank you. Your order is booked for ${bookedWords(app.ctx, order)}. Please pay ${amount} by bank transfer to ${bank.accountName}, sort code ${bank.sortCode}, account ${bank.accountNumber}, with the reference ${reference}, by ${dayWords(addDaysBefore(booking.request.deliveryDay))}. A Runner is sent on the day once your transfer has arrived. The final amount is what the till says on the day: if prices have gone up, the difference is added to what you pay; if they have gone down, it is given back. Nothing is taken from a card.`
+        : `Thank you. Please pay ${amount} by bank transfer to ${bank.accountName}, sort code ${bank.sortCode}, account ${bank.accountNumber}, with the reference ${reference}.${group.length > 1 ? ` Your shopping comes as ${group.length} orders, each with its own Runner. If a further Runner is not needed, their ${formatPence(config.fees.extraRunnerDeliveryPence, symbol)} delivery comes back to your account as Unused Runner fee credit.` : ''} A Runner is sent once your transfer arrives. A Faster Payments transfer usually arrives within minutes, and staff check for transfers at least every morning and evening. Nothing is taken from a card.`,
     };
   }
 
@@ -361,11 +455,11 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     if (!shopper) throw new NotFoundError('account');
 
     // The demo account (ruling 60) orders with its demo card only: nothing is ever charged.
-    if (shopper.isDemo && input.payBy !== 'card') {
+    if (shopper.isDemo && (input.payBy !== 'card' || input.schedule?.pay === 'bank')) {
       throw new ForbiddenError(DEMO_REFUSED);
     }
-    if (input.payBy === 'bank') {
-      return placeBankTransferOrder(request, reply, shopper, input);
+    if (input.payBy === 'bank' || input.schedule?.pay === 'bank') {
+      return placeBankTransferOrder(request, reply, shopper, { ...input, payBy: 'bank' });
     }
 
     // Ozi Family and Carer: a member's order is paid with the payer's card (ruling 58).
@@ -419,14 +513,16 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
     // Rule Six is applied again here, not only at basket time, because the catalogue can
     // change between pricing a basket and sending it. Delivery follows the Shopper's plan.
-    // The monthly allowance (ruling 73): this order counts as the next one this month.
-    const allowance = await allowanceFor(app.ctx, shopper, now());
+    // The monthly allowance (ruling 73): this order counts as the next one this month, or, booked
+    // for a later day, the month it is delivered in (ruling 78).
+    const allowance = await allowanceFor(app.ctx, shopper, now(), countInFor(input));
     const priced = pricedForOrder(
       input,
       catalogueItems,
       await deliveryPlanFor(app.ctx, shopper, now()),
       allowance.extraPence,
     );
+    const booking = bookingFor(input, priced.parts.length);
 
     if (!input.overrideBudgetCap && exceedsBudgetCap(priced.goodsPence, shopper.budgetCapPence)) {
       throw new BadRequestError(
@@ -492,6 +588,8 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         // The doorstep instructions as they stand right now, so a later profile edit cannot
         // change what the Runner was told.
         doorstepProtocolSnapshot: shopper.doorstepProtocol,
+        // Booked for a later day (ruling 78): its day, window and when the money is taken.
+        ...(booking ? booking.fields : {}),
       },
       'pending',
     );
@@ -531,6 +629,25 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         order: confirmed,
         waitingForApproval: true,
         message: `Thank you. Your order of ${total} is over the limit ${payer.displayName} set, so we have asked them to approve it. Nothing has been taken yet, and we will tell you as soon as they answer.`,
+      };
+    }
+
+    // Booked, with the money taken on the day and time the Shopper chose (ruling 78): nothing is
+    // taken now. The sweep takes it then (services/scheduled.ts), as agreed with this one yes.
+    if (confirmed.chargePlan === 'scheduled') {
+      const total = formatPence(priced.totalPence, symbol);
+      void tellShopperById(
+        app.ctx,
+        shopper.id,
+        `your order is booked for ${bookedWords(app.ctx, confirmed)}. The payment is taken ${chargeWords(confirmed)}.`,
+        { url: '/orders', tag: `booked-${confirmed.id}` },
+        request.log,
+      );
+      void reply.status(201);
+      return {
+        order: confirmed,
+        scheduled: true,
+        message: `Thank you. Your order is booked for ${bookedWords(app.ctx, confirmed)}. Nothing has been taken yet: about ${total} is taken from your card ending ${paymentMethod.lastFour} ${chargeWords(confirmed)}. The final amount is what the till says on the day. You can change or cancel it under Your orders until then.`,
       };
     }
 
@@ -691,7 +808,9 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         requiresAction: !succeeded,
       },
       message: succeeded
-        ? `Thank you. Your order is on its way to a Runner. We have taken ${formatPence(amountPence, symbol)}.${extraWords}` +
+        ? (placed.deliveryDay
+            ? `Thank you. Your order is booked for ${bookedWords(app.ctx, placed)}. We have taken ${formatPence(amountPence, symbol)}. The final amount is what the till says on the day. You can change or cancel it under Your orders until then.`
+            : `Thank you. Your order is on its way to a Runner. We have taken ${formatPence(amountPence, symbol)}.${extraWords}`) +
           (creditPence > 0
             ? ` ${formatPence(creditPence, symbol)} of gift card money is going straight back to your card.`
             : '')

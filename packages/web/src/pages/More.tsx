@@ -18,6 +18,11 @@ export function More(): JSX.Element {
             name: unread > 0 ? `Messages, ${unread} new` : 'Messages',
             about: `Messages from ${storeConfig.productName}, and your replies.`,
           },
+          {
+            to: '/pay-by-bank',
+            name: 'Pay us by bank',
+            about: 'Our bank details and your own reference, for a transfer or a standing order.',
+          },
         ]
       : []),
     { to: '/recipes', name: `${assistant} Recipes`, about: 'Simple, healthy meals, read aloud.' },

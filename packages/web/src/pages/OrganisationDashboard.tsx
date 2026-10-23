@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { storeConfig } from '../config';
@@ -254,6 +254,14 @@ export function OrganisationDashboard(): JSX.Element {
       <nav aria-label="Your messages">
         <InboxLink as="business" to="/organisation/messages" />
       </nav>
+      <p className="m-0">
+        <Link
+          to="/organisation/pay-by-bank"
+          className="control border-paper bg-paper/10 text-paper"
+        >
+          Pay us by bank: our details and your reference
+        </Link>
+      </p>
       <details className="max-w-xl">
         <summary className="control px-0 text-paper underline">The screen</summary>
         <ShowWordsSwitch />

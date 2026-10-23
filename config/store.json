@@ -240,5 +240,18 @@
   "mobileApp": {
     "appId": "uk.co.ozidelivery.app",
     "site": "https://ozidelivery.co.uk"
+  },
+  "scheduled": {
+    "maxDaysAhead": 28,
+    "offerLeadMinutes": 90,
+    "defaultChargeTime": "00:05",
+    "retryEveryMinutes": 60,
+    "maxChargeTries": 6,
+    "windows": {
+      "morning": { "from": "08:00", "until": "12:00" },
+      "afternoon": { "from": "12:00", "until": "17:00" },
+      "evening": { "from": "17:00", "until": "21:00" }
+    },
+    "reminders": { "dayBeforeAt": "18:00", "morningOfAt": "07:30", "ownerSummaryAt": "07:00" }
   }
 }

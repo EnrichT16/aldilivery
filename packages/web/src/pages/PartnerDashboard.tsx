@@ -450,6 +450,11 @@ export function PartnerDashboard(): JSX.Element {
       <nav aria-label="Your messages">
         <InboxLink as="business" to="/partner/messages" />
       </nav>
+      <p className="m-0">
+        <Link to="/partner/pay-by-bank" className="control border-paper bg-paper/10 text-paper">
+          Pay us by bank: our details and your reference
+        </Link>
+      </p>
       <details className="max-w-xl">
         <summary className="control px-0 text-paper underline">The screen</summary>
         <ShowWordsSwitch />

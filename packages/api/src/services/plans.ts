@@ -167,8 +167,17 @@ export function countsTowardsAllowance(order: Order): boolean {
 }
 
 /**
+ * The calendar month an order counts in: the month it was placed, or for an order booked for a
+ * later day (ruling 78), the month of its delivery, "2026-11".
+ */
+export function allowanceMonth(order: Pick<Order, 'createdAt' | 'deliveryDay'>): string {
+  return order.deliveryDay ? order.deliveryDay.slice(0, 7) : ukMonth(order.createdAt);
+}
+
+/**
  * The number the next order would be in this calendar month (UK time): the Shopper's own
- * orders that count, this month, plus one for the order being placed.
+ * orders that count, this month, plus one for the order being placed. For an order booked for a
+ * later day (ruling 78), `at` is a moment on its delivery day, so it counts in that month.
  */
 export async function orderNumberThisMonth(
   ctx: Pick<PlanContext, 'repository'>,
@@ -178,7 +187,7 @@ export async function orderNumberThisMonth(
   const month = ukMonth(at);
   const orders = await ctx.repository.orders.listForShopper(shopper.id);
   return (
-    orders.filter((order) => countsTowardsAllowance(order) && ukMonth(order.createdAt) === month)
+    orders.filter((order) => countsTowardsAllowance(order) && allowanceMonth(order) === month)
       .length + 1
   );
 }
@@ -201,11 +210,13 @@ export async function allowanceFor(
   ctx: Pick<PlanContext, 'repository' | 'config'>,
   shopper: Shopper,
   at: Date,
+  /** For an order booked for a later day (ruling 78): a moment on its delivery day. */
+  countIn: Date = at,
 ): Promise<AllowanceStanding> {
   const { config } = ctx;
   const allowance = config.fees.delivery.allowance;
   const plan = await allowancePlanFor(ctx, shopper, at);
-  const orderNumber = await orderNumberThisMonth(ctx, shopper, at);
+  const orderNumber = await orderNumberThisMonth(ctx, shopper, countIn);
   const money = (pence: number): string => formatPence(pence, config.store.currencySymbol);
   return {
     plan,

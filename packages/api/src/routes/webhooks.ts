@@ -79,7 +79,9 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           if (order && order.status === 'confirmed') {
             // A basket kept whole (ruling 61): the one payment is for every linked order.
             const group = (await basketGroup(app.ctx, order)).filter(
-              (row) => row.status === 'confirmed' && row.stripePaymentIntentId === order.stripePaymentIntentId,
+              (row) =>
+                row.status === 'confirmed' &&
+                row.stripePaymentIntentId === order.stripePaymentIntentId,
             );
             for (const row of group) {
               await repository.orders.update(row.id, { status: 'paid' });
@@ -87,7 +89,13 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
                 const sibling = await repository.orders.findById(row.id);
                 if (sibling) {
                   await recordOrder(app.ctx, sibling, 'order_paid', request.log);
-                  await recordOrderIncome(repository, app.ctx.payments, sibling, now(), chargedNowPence(sibling));
+                  await recordOrderIncome(
+                    repository,
+                    app.ctx.payments,
+                    sibling,
+                    now(),
+                    chargedNowPence(sibling),
+                  );
                 }
               }
             }
@@ -103,7 +111,13 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
             const paid = await repository.orders.findById(order.id);
             if (paid) {
               await recordOrder(app.ctx, paid, 'order_paid', request.log);
-              await recordOrderIncome(repository, app.ctx.payments, paid, now(), chargedNowPence(paid));
+              await recordOrderIncome(
+                repository,
+                app.ctx.payments,
+                paid,
+                now(),
+                chargedNowPence(paid),
+              );
               void tellShopper(app.ctx, paid, 'paid', request.log);
             }
           }
@@ -175,7 +189,15 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
           status: 'paid',
           stripePaymentIntentId: paid.paymentIntentId,
           paymentMethodId: card.id,
-          deliveryAddress: paid.address || shopper.deliveryAddress,
+          // A booked order paid by the link sent when the bank asked to check (ruling 78)
+          // already has its address; a telephone order takes the one given on Stripe's page.
+          deliveryAddress:
+            order.deliveryAddress.trim() !== ''
+              ? order.deliveryAddress
+              : paid.address || shopper.deliveryAddress,
+          ...(order.chargePlan === 'scheduled'
+            ? { chargeStatus: 'paid' as const, chargeNextTryAt: null }
+            : {}),
         });
         if (app.ctx.autoOffer) await offerOrder(app.ctx, updated.id).catch(() => undefined);
         await recordOrder(app.ctx, updated, 'order_paid', request.log);
@@ -187,7 +209,9 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
       // The link ran out unpaid: the order is closed, and nothing was taken.
       case 'checkout.session.expired': {
         const order = orderId ? await repository.orders.findById(orderId) : null;
-        if (order && order.status === 'confirmed') {
+        // A booked order (ruling 78) stays booked when its link runs out: it waits, and the
+        // Shopper can pay another way or cancel it.
+        if (order && order.status === 'confirmed' && order.chargePlan !== 'scheduled') {
           await repository.orders.update(order.id, {
             status: 'cancelled',
             cancelledAt: now(),

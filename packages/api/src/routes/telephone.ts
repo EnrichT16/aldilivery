@@ -23,7 +23,11 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 
 import {
+  checkSchedule,
+  dayWords,
   displayPricePence,
+  parseSpokenSchedule,
+  scheduleAgreementWords,
   overOneRunnerWords,
   formatPence,
   parseQuantity,
@@ -51,6 +55,7 @@ import { itemWords } from '../lib/language-model.js';
 import { remember, spokenIn, type Brain, type Outcome } from '../lib/ozi-memory.js';
 import { phraseReply } from '../lib/phrases.js';
 import { priceLinesInParts } from '../services/basket.js';
+import { middayOf, scheduleFields } from '../services/scheduled.js';
 import { suggestItem } from '../services/suggest.js';
 import { liveBook } from './ozi.js';
 import {
@@ -266,12 +271,19 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
    * What is in the basket, in words, and what it comes to, at the caller's own delivery price
    * (their plan, or pay as you go for somebody with no account yet).
    */
-  async function readBack(lines: Array<[string, number]>, shopperId?: string) {
+  async function readBack(
+    lines: Array<[string, number]>,
+    shopperId?: string,
+    /** Booked for a later day (ruling 78): it counts in the month it is delivered in. */
+    deliveryDay?: string,
+  ) {
     const items = await repository.catalogue.findManyByIds(lines.map(([id]) => id));
     const shopper = shopperId ? await repository.shoppers.findById(shopperId) : null;
     // The monthly allowance (ruling 73): this order counts as the caller's next this month, and
     // any extra delivery charge is said before the yes, as on the screen.
-    const allowance = shopper ? await allowanceFor(app.ctx, shopper, now()) : null;
+    const allowance = shopper
+      ? await allowanceFor(app.ctx, shopper, now(), deliveryDay ? middayOf(deliveryDay) : now())
+      : null;
     // Priced as linked orders when over one order (ruling 61), so a big basket is explained
     // rather than refused with an error.
     const priced = priceLinesInParts(
@@ -790,6 +802,20 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       }
 
       case 'confirm': {
+        // "Deliver it on Saturday morning", "take the money on the first at five past midnight"
+        // (ruling 78): the booking is changed and the whole order read back again for the yes.
+        const said = parseSpokenSchedule(heard, now());
+        if (
+          said.deliveryDay ||
+          said.window ||
+          said.chargeDay ||
+          said.chargeTime ||
+          said.bank ||
+          // "As soon as possible" and "take it now" only change something already booked.
+          (state.booking && (said.asap || said.chargeNow))
+        ) {
+          return reply(response, await rebook(state, sid, said));
+        }
         const answer = parseYesNo(heard);
         if (answer === 'no') {
           return reply(
@@ -839,14 +865,18 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
         );
       }
       return ask(
-        `${opening ? `${opening} ` : ''}Here is your order. ${words}. ${costWords(priced, allowanceWords)}. You pay what the till says for the shopping. I'll text you a secure link from our payment company to pay and give your delivery address, and your card is kept safely by them for next time. A Runner is sent once you've paid. Shall I send the link? Say yes or no.`,
+        `${opening ? `${opening} ` : ''}Here is your order. ${words}. ${costWords(priced, allowanceWords)}. You pay what the till says for the shopping. ${state.booking ? `${phoneBookingWords(state.booking, false)} ` : ''}I'll text you a secure link from our payment company to pay and give your delivery address, and your card is kept safely by them for next time. ${state.booking ? 'A Runner is sent on the day once you have paid.' : "A Runner is sent once you've paid."} Shall I send the link? Say yes or no.${state.booking ? '' : ANOTHER_DAY}`,
         next({ ...state, step: 'confirm', agreedTotalPence: priced.totalPence, quiet: 0 }, sid),
       );
     }
     const shopper = state.shopperId ? await repository.shoppers.findById(state.shopperId) : null;
     if (!shopper)
       return goodbye('Sorry, I could not find your account. Please ring again. Goodbye.');
-    const { priced, words, allowanceWords } = await readBack(state.lines, shopper.id);
+    const { priced, words, allowanceWords } = await readBack(
+      state.lines,
+      shopper.id,
+      state.booking?.deliveryDay,
+    );
     const ceiling = config.voice.paymentCeilingPence;
     if (priced.parts.length > 1) return overOneRunnerOnPhone(state, sid);
     if (priced.totalPence > ceiling) {
@@ -858,7 +888,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     const cards = await repository.paymentMethods.listForShopper(shopper.id);
     const card = cards[0];
     return ask(
-      `${opening ? `${opening} ` : ''}Here is your order. ${words}. ${costWords(priced, allowanceWords)}, taken from your card ending ${card?.lastFour.split('').join(' ') ?? ''}. You pay what the till says for the shopping. It goes to your home address: ${shopper.deliveryAddress}. Shall I send it? Say yes or no.`,
+      `${opening ? `${opening} ` : ''}Here is your order. ${words}. ${costWords(priced, allowanceWords)}, taken from your card ending ${card?.lastFour.split('').join(' ') ?? ''}. You pay what the till says for the shopping. ${state.booking ? `${phoneBookingWords(state.booking, true)} ` : ''}It goes to your home address: ${shopper.deliveryAddress}. Shall I send it? Say yes or no.${state.booking ? '' : ANOTHER_DAY}`,
       next({ ...state, step: 'confirm', agreedTotalPence: priced.totalPence, quiet: 0 }, sid),
     );
   }
@@ -873,7 +903,11 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     const sorry =
       'Sorry, I could not send the link just now. Nothing has been charged. Please ring again. Goodbye.';
     if (!phone || state.agreedTotalPence === undefined || !app.ctx.sendText) return goodbye(sorry);
-    const { priced, words } = await readBack(state.lines, state.shopperId);
+    const { priced, words } = await readBack(
+      state.lines,
+      state.shopperId,
+      state.booking?.deliveryDay,
+    );
     if (priced.totalPence !== state.agreedTotalPence) {
       return goodbye(
         `The price changed while we were talking. It is now ${money(priced.totalPence)}. Nothing has been charged. Please ring again. Goodbye.`,
@@ -917,10 +951,18 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       spokenConfirmationAt: at,
       confirmationChannel: 'voice',
       confirmationStatement:
-        `By telephone: yes to ${words}, about ${money(priced.totalPence)}, paid by a texted link.`.slice(
+        `By telephone: yes to ${words}, about ${money(priced.totalPence)}, paid by a texted link.${state.booking ? ` ${phoneBookingWords(state.booking, false)}` : ''}`.slice(
           0,
-          400,
+          1200,
         ),
+      // Booked for a later day (ruling 78): paid on the link now, offered on the day.
+      ...(state.booking
+        ? scheduleFields(app.ctx, {
+            deliveryDay: state.booking.deliveryDay,
+            window: state.booking.window,
+            pay: 'now',
+          })
+        : {}),
       items: priced.lines.map((line) => ({
         catalogueItemId: line.catalogueItemId,
         name: line.name,
@@ -969,6 +1011,97 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     );
   }
 
+  /** Said after the question when nothing is booked yet: how to have it another day. */
+  const ANOTHER_DAY =
+    ' Or, to have it brought on another day, say the day, for example: deliver it on Saturday morning.';
+
+  /** The booking in words, as agreed with the yes (ruling 78): the day, the money and the till. */
+  function phoneBookingWords(
+    booking: NonNullable<CallState['booking']>,
+    savedCard: boolean,
+  ): string {
+    const later = savedCard && Boolean(booking.chargeDay || booking.chargeTime);
+    return scheduleAgreementWords(
+      {
+        deliveryDay: booking.deliveryDay,
+        window: booking.window,
+        chargePlan: later ? 'scheduled' : 'now',
+        chargeDay: booking.chargeDay ?? booking.deliveryDay,
+        chargeTime: booking.chargeTime ?? config.scheduled.defaultChargeTime,
+      },
+      config.scheduled,
+    ).replace(
+      'The money is taken from your card now.',
+      savedCard ? 'The money is taken from your card now.' : 'You pay on the link now.',
+    );
+  }
+
+  /**
+   * The caller named a day, a time of day, or when to take the money (ruling 78): the booking
+   * is changed, checked, and the whole order read back again for the yes.
+   */
+  async function rebook(
+    state: CallState,
+    sid: string,
+    said: ReturnType<typeof parseSpokenSchedule>,
+  ): Promise<string> {
+    if (said.bank) {
+      return confirmTwiml(
+        state,
+        sid,
+        'Paying by bank transfer can be chosen in the app or on the website. By phone, the money is taken from your card.',
+      );
+    }
+    if (said.asap) {
+      const { booking: _dropped, ...rest } = state;
+      void _dropped;
+      return confirmTwiml({ ...rest }, sid, 'All right, as soon as possible.');
+    }
+    const deliveryDay = said.deliveryDay ?? state.booking?.deliveryDay;
+    if (!deliveryDay) {
+      return confirmTwiml(
+        state,
+        sid,
+        'Which day would you like it? Say a day, for example: deliver it on Saturday morning.',
+      );
+    }
+    const booking: NonNullable<CallState['booking']> = {
+      deliveryDay,
+      window: said.window ?? state.booking?.window ?? 'morning',
+    };
+    if (!said.chargeNow) {
+      const chargeDay = said.chargeDay ?? state.booking?.chargeDay;
+      const chargeTime = said.chargeTime ?? state.booking?.chargeTime;
+      if (chargeDay) booking.chargeDay = chargeDay;
+      if (chargeTime) booking.chargeTime = chargeTime;
+      if (!booking.chargeDay && booking.chargeTime) booking.chargeDay = deliveryDay;
+    }
+    let opening = '';
+    if (state.link && (booking.chargeDay || booking.chargeTime)) {
+      delete booking.chargeDay;
+      delete booking.chargeTime;
+      opening = 'On the link, the money is taken when you pay. ';
+    }
+    const later = Boolean(booking.chargeDay || booking.chargeTime);
+    const check = checkSchedule(
+      {
+        deliveryDay: booking.deliveryDay,
+        window: booking.window,
+        chargePlan: later ? 'scheduled' : 'now',
+        chargeDay: booking.chargeDay,
+        chargeTime: booking.chargeTime ?? config.scheduled.defaultChargeTime,
+      },
+      now(),
+      config.scheduled,
+    );
+    if (!check.ok) return confirmTwiml(state, sid, check.message);
+    return confirmTwiml(
+      { ...state, booking },
+      sid,
+      `${opening}All right, ${dayWords(booking.deliveryDay)}, in the ${booking.window}.`,
+    );
+  }
+
   /** The order goes through exactly the checks an order in the app goes through. */
   async function placeOrder(state: CallState, sid: string): Promise<string> {
     const shopper = state.shopperId ? await repository.shoppers.findById(state.shopperId) : null;
@@ -979,6 +1112,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       );
     }
     const { words } = await readBack(state.lines);
+    const booking = state.booking;
     const token = signSession(
       {
         accountId: shopper.id,
@@ -995,14 +1129,25 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
         lines: state.lines.map(([catalogueItemId, quantity]) => ({ catalogueItemId, quantity })),
         deliveryAddress: shopper.deliveryAddress,
         paymentMethodId: cards[0].id,
+        ...(booking
+          ? {
+              schedule: {
+                deliveryDay: booking.deliveryDay,
+                window: booking.window,
+                pay: booking.chargeDay || booking.chargeTime ? 'scheduled' : 'now',
+                ...(booking.chargeDay ? { chargeDay: booking.chargeDay } : {}),
+                ...(booking.chargeTime ? { chargeTime: booking.chargeTime } : {}),
+              },
+            }
+          : {}),
         confirmation: {
           confirmed: true,
           channel: 'voice',
           addressConfirmed: true,
           statement:
-            `By telephone: yes to ${words}, about ${money(state.agreedTotalPence)}, to the home address.`.slice(
+            `By telephone: yes to ${words}, about ${money(state.agreedTotalPence)}, to the home address.${booking ? ` ${phoneBookingWords(booking, true)}` : ''}`.slice(
               0,
-              400,
+              1200,
             ),
           agreedTotalPence: state.agreedTotalPence,
         },

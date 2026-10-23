@@ -10,6 +10,8 @@ import {
   agreeToRunnerAgreement,
   ApiUnavailableError,
   fetchRunnerDashboard,
+  fetchBookedTomorrow,
+  type BookedTomorrow,
   sendRunnerFeedback,
   setTravelMode,
   type RunnerDashboard,
@@ -430,6 +432,7 @@ export function RunnerHome(): JSX.Element {
                     ? 'Jobs near you will appear here. You do not need to keep refreshing.'
                     : 'Go on shift when you are ready to take jobs.'}
                 </p>
+                <BookedForTomorrow />
                 {runner.available && queue && queue.position !== null && (
                   <p className="m-0">
                     <strong>{placeInLine(queue.position)}</strong>
@@ -1367,5 +1370,37 @@ function More({
         </form>
       </section>
     </div>
+  );
+}
+
+/**
+ * "Booked for tomorrow" (ruling 78): how many orders are booked for tomorrow, by time of day, so
+ * a Runner can plan a shift. Never who, where or what: those come only with an offer, on the day.
+ */
+function BookedForTomorrow(): JSX.Element | null {
+  const [booked, setBooked] = useState<BookedTomorrow | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetchBookedTomorrow()
+      .then((found) => {
+        if (!cancelled) setBooked(found);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  if (!booked || booked.total === 0) return null;
+  const parts = (['morning', 'afternoon', 'evening'] as const)
+    .filter((slot) => booked[slot] > 0)
+    .map((slot) => `${booked[slot]} in the ${slot}`);
+  return (
+    <p className="m-0">
+      <strong>
+        Booked for tomorrow: {booked.total} {booked.total === 1 ? 'order' : 'orders'}
+      </strong>
+      {parts.length > 0 ? ` (${parts.join(', ')})` : ''}. They are offered on the day, like any
+      order.
+    </p>
   );
 }

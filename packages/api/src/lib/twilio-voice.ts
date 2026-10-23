@@ -95,6 +95,16 @@ export interface CallState {
   link?: boolean;
   /** The total read back to them, which their yes agreed to. */
   agreedTotalPence?: number;
+  /**
+   * Booked for a later day (ruling 78), as the caller said it: "deliver it on Saturday morning",
+   * and, for a saved card, "take the money on the first at five past midnight".
+   */
+  booking?: {
+    deliveryDay: string;
+    window: 'morning' | 'afternoon' | 'evening';
+    chargeDay?: string;
+    chargeTime?: string;
+  };
   /** When this stops being accepted, in seconds since 1970. */
   expiresAt: number;
 }

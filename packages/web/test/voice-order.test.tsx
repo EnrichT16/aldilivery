@@ -9,6 +9,8 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
+import { dayWords, parseSpokenDay } from '@aldilivery/core';
+
 import { App } from '../src/App';
 import { setVoiceEngine } from '../src/voice';
 import {
@@ -333,7 +335,7 @@ describe('ordering by voice alone', () => {
     expect(sent.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(false);
 
     expect(await say(engine, 'yes')).toBe(
-      'Shall I send your order and pay now, charging about £18.69 to your card ending 4242? You pay what the till says. Say yes to send it and pay, or no to stop.',
+      'Shall I send your order and pay now, charging about £18.69 to your card ending 4242? You pay what the till says. Say yes to send it and pay, or no to stop. To have it on another day, say the day, like deliver it on Saturday morning.',
     );
     expect(sent.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(false);
 
@@ -356,6 +358,39 @@ describe('ordering by voice alone', () => {
       },
     });
     expect(await screen.findByRole('heading', { name: 'Your order' })).toBeInTheDocument();
+  });
+
+  it('books a later day and a payday by voice, saying both before the one yes (ruling 78)', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const sent = stubShop();
+    renderApp();
+    await say(engine, 'Ozi, three bananas please');
+    await say(engine, 'yes');
+    const asked = await say(
+      engine,
+      'deliver it on Saturday morning and take the money tomorrow at five past midnight',
+    );
+    const saturday = parseSpokenDay('Saturday', new Date())!;
+    const tomorrow = parseSpokenDay('tomorrow', new Date())!;
+    expect(asked).toContain(`Shall I send your order for ${dayWords(saturday)}, in the morning,`);
+    expect(asked).toContain(`from your card ending 4242 on ${dayWords(tomorrow)} at 00:05?`);
+    expect(asked).toContain('The final amount is what the till says on the day');
+    expect(asked).toContain('if prices have gone up, the difference is taken from your card');
+    expect(sent.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(false);
+
+    await say(engine, 'yes please');
+    const order = sent.find((r) => r.method === 'POST' && r.path === '/orders');
+    expect(order?.body).toMatchObject({
+      schedule: {
+        deliveryDay: saturday,
+        window: 'morning',
+        pay: 'scheduled',
+        chargeDay: tomorrow,
+        chargeTime: '00:05',
+      },
+      confirmation: { channel: 'voice', statement: expect.stringContaining(dayWords(saturday)) },
+    });
   });
 
   it('adds to what is already in the basket, reads the whole basket back, and sends all of it', async () => {

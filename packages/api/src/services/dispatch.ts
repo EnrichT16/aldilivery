@@ -147,7 +147,14 @@ export function canCarry(
  * which comes just before a card payment (Rule One).
  */
 export function waitingSince(order: Order): Date {
-  return order.bankReceivedAt ?? order.spokenConfirmationAt ?? order.createdAt;
+  const since = order.bankReceivedAt ?? order.spokenConfirmationAt ?? order.createdAt;
+  // A booked order (ruling 78) starts waiting at its offer time, not when it was booked.
+  return order.offerAt && order.offerAt.getTime() > since.getTime() ? order.offerAt : since;
+}
+
+/** A booked order (ruling 78) whose offer time has not come yet: never offered before it. */
+function bookedForLater(order: Pick<Order, 'offerAt'>, at: Date): boolean {
+  return order.offerAt !== null && order.offerAt.getTime() > at.getTime();
 }
 
 /** Only an order that has been paid for, and has nobody yet, is ever offered. */
@@ -183,6 +190,14 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
   }
 
   const at = now();
+  // Booked for a later day (ruling 78): kept until its window's start less the lead time.
+  if (bookedForLater(order, at)) {
+    return {
+      offer: null,
+      alreadyOffered: false,
+      message: 'This order is booked for a later day, so it is offered to Runners on that day.',
+    };
+  }
   const existing = await repository.offers.listForOrder(order.id);
 
   const live = existing.find((offer) => offer.outcome === 'pending' && !isOfferExpired(offer, at));
@@ -453,7 +468,14 @@ export async function sweepOffers(
   const waiting = [
     ...(await ctx.repository.orders.listByStatus('paid')),
     ...(await ctx.repository.orders.listByStatus('offered')),
-  ].filter((order) => order.runnerId === null && order.splitAt === null && !order.isDemo);
+  ].filter(
+    (order) =>
+      order.runnerId === null &&
+      order.splitAt === null &&
+      !order.isDemo &&
+      // A booked order (ruling 78) waits for its day.
+      !bookedForLater(order, ctx.now()),
+  );
 
   // Priority at busy times (ruling 58): when orders are waiting for Runners, those of Shoppers on
   // Ozi Plus or Family and Carer are offered first; otherwise the oldest first, as before.

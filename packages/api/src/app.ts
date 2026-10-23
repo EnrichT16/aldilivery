@@ -41,6 +41,7 @@ import { registerCatalogueRoutes } from './routes/catalogue.js';
 import { registerJobRoutes } from './routes/jobs.js';
 import { registerQuestionRoutes } from './routes/questions.js';
 import { registerOrderRoutes } from './routes/orders.js';
+import { registerScheduledRoutes } from './routes/scheduled.js';
 import { registerPaymentMethodRoutes } from './routes/payment-methods.js';
 import { registerPayoutRoutes } from './routes/payouts.js';
 import { registerAddressRoutes } from './routes/addresses.js';
@@ -506,6 +507,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerProblemRoutes(app);
   await registerExtrasRoutes(app);
   await registerQuestionRoutes(app);
+  await registerScheduledRoutes(app);
   await registerOrderRoutes(app);
   await registerJobRoutes(app);
   await registerPayoutRoutes(app);

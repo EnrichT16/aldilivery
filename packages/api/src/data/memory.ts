@@ -86,6 +86,7 @@ import type {
   CreateShopper,
   Repository,
 } from './repository.js';
+import { SCHEDULED_WAITING } from './repository.js';
 
 const id = (): string => randomUUID();
 
@@ -1019,6 +1020,18 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           extraDeliveryStatus: input.extraDeliveryStatus ?? null,
           extraDeliveryPaymentId: null,
           isDemo: input.isDemo ?? false,
+          deliveryDay: input.deliveryDay ?? null,
+          deliveryWindow: input.deliveryWindow ?? null,
+          offerAt: input.offerAt ?? null,
+          chargePlan: input.chargePlan ?? null,
+          chargeAt: input.chargeAt ?? null,
+          chargeTries: 0,
+          chargeNextTryAt: input.chargeNextTryAt ?? null,
+          chargeStatus: input.chargeStatus ?? null,
+          chargeLinkSentAt: null,
+          scheduledHeldAt: null,
+          reminderDayBeforeAt: null,
+          reminderMorningAt: null,
           createdAt: now(),
           updatedAt: now(),
           acceptedAt: null,
@@ -1124,6 +1137,16 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           }
         }
         return null;
+      },
+      async listScheduled() {
+        return [...orders.values()]
+          .filter((o) => o.deliveryDay !== null && SCHEDULED_WAITING.includes(o.status))
+          .sort(
+            (a, b) =>
+              (a.offerAt?.getTime() ?? 0) - (b.offerAt?.getTime() ?? 0) ||
+              a.createdAt.getTime() - b.createdAt.getTime(),
+          )
+          .map(clone);
       },
     },
 

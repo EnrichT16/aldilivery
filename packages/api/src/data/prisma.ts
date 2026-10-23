@@ -24,6 +24,7 @@ import type {
 } from '../domain.js';
 import { erasedOrderPatch, erasedRunnerPatch, erasedShopperPatch } from './erasure.js';
 import type { CatalogueSearchOptions, Repository } from './repository.js';
+import { SCHEDULED_WAITING } from './repository.js';
 
 export function createPrismaClient(databaseUrl?: string): PrismaClient {
   return new PrismaClient(databaseUrl ? { datasources: { db: { url: databaseUrl } } } : undefined);
@@ -644,6 +645,14 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           include: { items: true },
         });
         return row ? toOrder(row) : null;
+      },
+      async listScheduled() {
+        const rows = await prisma.order.findMany({
+          where: { deliveryDay: { not: null }, status: { in: [...SCHEDULED_WAITING] as any } },
+          include: { items: true },
+          orderBy: [{ offerAt: 'asc' }, { createdAt: 'asc' }],
+        });
+        return rows.map(toOrder);
       },
     },
 

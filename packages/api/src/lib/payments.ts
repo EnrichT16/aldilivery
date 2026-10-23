@@ -47,6 +47,25 @@ export interface ChargeSavedCardInput {
   agreedAt: string;
 }
 
+/**
+ * A booked order's payment on the day and time the Shopper chose (ruling 78), with nobody at the
+ * screen: the saved card, off session, confirmed at once. The reference makes one try happen once
+ * only, however often it is asked for.
+ */
+export interface ChargeOffSessionInput extends ChargeSavedCardInput {
+  idempotencyKey: string;
+}
+
+/**
+ * How it went: taken; the bank wants the Shopper to check it is them (strong customer
+ * authentication), which only they can do, so no more tries; or refused, to try again later.
+ * The reason is Stripe's short code, never anything about the card.
+ */
+export type OffSessionCharge =
+  | { outcome: 'succeeded'; id: string }
+  | { outcome: 'authentication_required'; id: string | null }
+  | { outcome: 'declined'; reason: string };
+
 export interface CreateTransferInput {
   amountPence: number;
   currency: string;
@@ -180,6 +199,11 @@ export interface PaymentsGateway {
   createTransfer(input: CreateTransferInput): Promise<TransferResult>;
   /** Succeeds, or throws: there is no half-taken charge. */
   chargeSavedCard(input: ChargeSavedCardInput): Promise<{ id: string }>;
+  /**
+   * A booked order's payment on its chosen day (ruling 78). Never throws for a refusal: it says
+   * whether the money was taken, the bank wants the Shopper to check, or the card was refused.
+   */
+  chargeOffSession(input: ChargeOffSessionInput): Promise<OffSessionCharge>;
   /** Give money back to the card a payment came from. Part of it, or all. */
   refundPayment(input: {
     paymentIntentId: string;
@@ -343,6 +367,48 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
         throw new Error(`The charge did not go through (${intent.status}).`);
       }
       return { id: intent.id };
+    },
+
+    async chargeOffSession(input) {
+      if (!input.customerId) {
+        return { outcome: 'declined', reason: 'card_not_saved_for_reuse' };
+      }
+      try {
+        const intent = await stripe.paymentIntents.create(
+          {
+            amount: input.amountPence,
+            currency: input.currency.toLowerCase(),
+            customer: input.customerId,
+            payment_method: input.paymentMethodId,
+            confirm: true,
+            off_session: true,
+            description: input.description,
+            // Not `orderId`: the payment_intent webhooks leave a booked order's payment to the
+            // sweep that took it (services/scheduled.ts).
+            metadata: { reference: input.reference, shopperAgreedAt: input.agreedAt },
+          },
+          { idempotencyKey: input.idempotencyKey },
+        );
+        if (intent.status === 'succeeded') return { outcome: 'succeeded', id: intent.id };
+        if (intent.status === 'requires_action' || intent.status === 'requires_confirmation') {
+          return { outcome: 'authentication_required', id: intent.id };
+        }
+        return { outcome: 'declined', reason: intent.status };
+      } catch (failure) {
+        const error = failure as {
+          type?: string;
+          code?: string;
+          raw?: { payment_intent?: { id?: string; status?: string } };
+        };
+        const intent = error.raw?.payment_intent;
+        if (error.code === 'authentication_required' || intent?.status === 'requires_action') {
+          return { outcome: 'authentication_required', id: intent?.id ?? null };
+        }
+        if (error.type === 'StripeCardError') {
+          return { outcome: 'declined', reason: error.code ?? 'card_declined' };
+        }
+        throw failure;
+      }
     },
 
     async createTransfer(input) {
@@ -596,6 +662,7 @@ export interface RecordedCall {
     | 'transfer'
     | 'connected_account'
     | 'saved_card_charge'
+    | 'off_session_charge'
     | 'refund'
     | 'payment_link'
     | 'payout_schedule'
@@ -627,6 +694,11 @@ export interface RehearsalGateway extends PaymentsGateway {
   readonly calls: RecordedCall[];
   /** For tests: the next saved-card charge is refused, as a card with no money would be. */
   declineNextCharge: boolean;
+  /**
+   * For tests: how the next booked-order payments go (ruling 78), one each, in turn: refused,
+   * or the bank asks the Shopper to check it is them. Taken once the list is empty.
+   */
+  offSessionOutcomes: Array<'decline' | 'authenticate'>;
   /** For tests: the next card cannot be kept, as one already spent would not be. */
   refuseNextSave: boolean;
   /** For tests: what each Runner's account could pay out instantly, by account. */
@@ -648,6 +720,7 @@ export function rehearsalGateway(): RehearsalGateway {
     mode: 'rehearsal',
     calls,
     declineNextCharge: false,
+    offSessionOutcomes: [],
     refuseNextSave: false,
     instantAvailable: new Map(),
     fingerprints: new Map(),
@@ -731,6 +804,17 @@ export function rehearsalGateway(): RehearsalGateway {
       counter += 1;
       calls.push({ kind: 'saved_card_charge', input });
       return { id: `pi_rehearsal_${counter}` };
+    },
+    async chargeOffSession(input) {
+      if (!input.customerId) return { outcome: 'declined', reason: 'card_not_saved_for_reuse' };
+      const next = gateway.offSessionOutcomes.shift();
+      counter += 1;
+      calls.push({ kind: 'off_session_charge', input });
+      if (next === 'decline') return { outcome: 'declined', reason: 'card_declined' };
+      if (next === 'authenticate') {
+        return { outcome: 'authentication_required', id: `pi_rehearsal_${counter}` };
+      }
+      return { outcome: 'succeeded', id: `pi_rehearsal_${counter}` };
     },
     async createPaymentIntent(input) {
       counter += 1;

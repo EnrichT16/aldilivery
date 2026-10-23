@@ -10,7 +10,7 @@
 
 import type { FastifyBaseLogger } from 'fastify';
 
-import { formatPence } from '@aldilivery/core';
+import { dayWords, formatPence } from '@aldilivery/core';
 
 import type { AppContext } from '../app.js';
 import type { Order } from '../domain.js';
@@ -94,8 +94,13 @@ export async function tellShopper(
       /\.00$/,
       '',
     );
+    // Booked for a later day (ruling 78): paid now, and a Runner is found on the day.
+    const booked =
+      order.deliveryDay && order.offerAt && order.offerAt.getTime() > ctx.now().getTime()
+        ? `We have your order, booked for ${dayWords(order.deliveryDay)}${order.deliveryWindow ? ` in the ${order.deliveryWindow}` : ''}. We will find a Runner on the day.`
+        : null;
     const whole = {
-      paid: 'We have your order and are finding a Runner now.',
+      paid: booked ?? 'We have your order and are finding a Runner now.',
       accepted: `${who} has your order.${atTheDoor}`,
       delivering: `${who} has your shopping and is on the way to you.`,
       delivered:
