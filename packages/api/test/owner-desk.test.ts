@@ -100,10 +100,6 @@ function minutes(count: number): number {
   return count * 60_000;
 }
 
-function moveTo(at: Date): void {
-  harness.setNow(at);
-}
-
 function later(ms: number): Date {
   const at = new Date(harness.now().getTime() + ms);
   harness.setNow(at);
