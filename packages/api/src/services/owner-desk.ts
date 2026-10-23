@@ -268,8 +268,14 @@ async function stillNeedsOwner(ctx: DeskContext, matter: OwnerMatter): Promise<b
       );
       return enquiry !== undefined && !enquiry.handled;
     }
+    case 'message_approval': {
+      // A staff member's message waiting for the owner's yes (ruling 77).
+      const message = await repository.companyContact.findMessage(matter.subjectId);
+      return message?.status === 'held';
+    }
     case 'shopper_feedback':
     case 'email':
+    case 'account_message':
       return true;
   }
 }
@@ -496,6 +502,13 @@ async function carryOut(
         approvedAt: approve ? (shop.approvedAt ?? ctx.now()) : shop.approvedAt,
         ...(approve ? {} : { active: false }),
       });
+      return;
+    }
+    case 'message_approval': {
+      // The owner's yes sends a staff member's held message, authorised by the desk (ruling 77).
+      const { releaseHeldMessage, declineHeldMessage } = await import('./company-contact.js');
+      if (approve) await releaseHeldMessage(ctx, matter.subjectId, by, log);
+      else await declineHeldMessage(ctx, matter.subjectId, by);
       return;
     }
     default:

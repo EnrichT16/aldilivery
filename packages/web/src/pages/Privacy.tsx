@@ -119,6 +119,18 @@ export function Privacy(): JSX.Element {
           stays in our mailbox. Reason: our legitimate interest in answering the people who write to
           us.
         </p>
+        <p className="m-0">
+          <strong>Messages and calls from us.</strong> {name} (our owner and our staff) may send you
+          a message in the app, and you can reply; only {name} reads your replies. When a message
+          comes, we tell you by a notification, or by a text to your own number that says only that
+          there is a message, never what it says. We may also call you in the app or ring your own
+          phone from our number. Every call from us is recorded, and you are told so at the start of
+          the call. Recordings are kept for {storeConfig.companyContact.callRecordingDays} days,
+          then deleted, and only our owner, and the people he trusts to authorise our calls, can
+          play them. Messages are kept for as long as your account is open, and are deleted with it.
+          Reason: our legitimate interest in looking after your orders and your account, and in
+          settling any disagreement about what was said.
+        </p>
       </section>
 
       <section aria-labelledby="voice" className="space-y-3">
@@ -346,6 +358,10 @@ export function Privacy(): JSX.Element {
             The figures about how the service is used, with codes instead of names: three years.
           </li>
           <li>Security records of signing in: one year.</li>
+          <li>
+            Recordings of calls from us: {storeConfig.companyContact.callRecordingDays} days.
+            Messages between you and us: as long as your account, and deleted with it.
+          </li>
         </ul>
       </section>
 

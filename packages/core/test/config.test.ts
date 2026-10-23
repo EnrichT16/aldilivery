@@ -455,6 +455,13 @@ describe('the configuration parser refuses to contradict a rule', () => {
     expect(() => parseStoreConfig(sure)).toThrow(/checkConfidence/);
   });
 
+  it('reads the company inbox settings: message codes for two hours, recordings kept 90 days (ruling 77)', () => {
+    expect(config.companyContact).toEqual({ messageCodeMinutes: 120, callRecordingDays: 90 });
+    const raw = goodConfig();
+    raw['companyContact'] = { messageCodeMinutes: 0 };
+    expect(() => parseStoreConfig(raw)).toThrow(/companyContact\.messageCodeMinutes/);
+  });
+
   it('rejects a notice period that is not thirty minutes (Rule Five)', () => {
     const raw = goodConfig();
     raw['recurringOrders'] = { noticeMinutesBefore: 10, skipWord: 'skip' };

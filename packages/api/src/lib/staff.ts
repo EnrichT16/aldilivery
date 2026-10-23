@@ -52,7 +52,13 @@ export type StaffArea =
   /** The owner's alone: opening a Shopper's account, and exporting their data. */
   | 'accounts'
   /** The owner's alone: the audit log of everything done in the admin panel. */
-  | 'audit';
+  | 'audit'
+  /**
+   * The company inbox and staff calls (ruling 77): messaging and calling any account, and the
+   * messages and calls log. Every message and call by staff needs a code, unless the owner or
+   * someone he lets authorise makes it.
+   */
+  | 'messages';
 
 export type StaffRole =
   | 'founder'
@@ -84,6 +90,7 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
       'orders',
       'runners',
       'reports',
+      'messages',
     ],
   },
   operations_manager: {
@@ -99,18 +106,22 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
       'orders',
       'runners',
       'reports',
+      'messages',
     ],
   },
-  onboarding: { title: 'Runner onboarding officer', areas: ['documents'] },
+  onboarding: { title: 'Runner onboarding officer', areas: ['documents', 'messages'] },
   // Customer care looks orders up, to answer a Shopper about one.
   customer_care: {
     title: 'Customer care officer',
-    areas: ['problems', 'feedback', 'learning', 'orders'],
+    areas: ['problems', 'feedback', 'learning', 'orders', 'messages'],
   },
   // Finance sees refunds and what Runners have earned, but never the owner's money totals.
-  finance: { title: 'Finance officer', areas: ['owed', 'payments', 'runners', 'reports'] },
-  sourcing: { title: 'Finds It shopper', areas: ['finds'] },
-  partnerships: { title: 'Partnerships officer', areas: ['enquiries', 'partners'] },
+  finance: {
+    title: 'Finance officer',
+    areas: ['owed', 'payments', 'runners', 'reports', 'messages'],
+  },
+  sourcing: { title: 'Finds It shopper', areas: ['finds', 'messages'] },
+  partnerships: { title: 'Partnerships officer', areas: ['enquiries', 'partners', 'messages'] },
   // People the owner lets see parts of his own dashboard (Anthony, 7 October 2026), such as
   // his wife, or investors. They only ever see what he has switched on for them, never the
   // money, and they can look but not change anything.

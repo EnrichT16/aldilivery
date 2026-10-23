@@ -16,6 +16,7 @@ import { seedRepository } from './data/seed-data.js';
 import { seedOnStartup, seedShopsOnStartup, type StartupSeedOutcome } from './data/startup-seed.js';
 import { readEnv } from './env.js';
 import { rehearsalGateway, stripeGateway, type PaymentsGateway } from './lib/payments.js';
+import { livekitRecorder, recordingStorageFrom } from './lib/call-recording.js';
 import { livekitProvider } from './lib/livekit.js';
 import { loadShopsSeed } from './lib/shops-seed.js';
 import { oluomaVoice } from './lib/oluoma-voice.js';
@@ -135,6 +136,17 @@ async function main(): Promise<void> {
         })
       : null;
 
+  // Recording staff calls (ruling 77): LiveKit Egress into S3-compatible storage, when LiveKit and
+  // all five RECORDING_S3_* settings are real. The secret is never logged.
+  const storage = recordingStorageFrom(env);
+  const recorder =
+    calls && storage && env.livekitUrl && env.livekitApiKey && env.livekitApiSecret
+      ? livekitRecorder(
+          { url: env.livekitUrl, apiKey: env.livekitApiKey, apiSecret: env.livekitApiSecret },
+          storage,
+        )
+      : null;
+
   // Oluoma Voice (ruling 53), when both settings are real. The key never leaves this server.
   const voice =
     env.oluomaVoiceUrl && env.oluomaVoiceKey
@@ -150,6 +162,7 @@ async function main(): Promise<void> {
   const app = await buildApp({
     config,
     calls,
+    recorder,
     voice,
     brain,
     // The open price database (ruling 72), which asks every app to say who it is.
@@ -203,6 +216,12 @@ async function main(): Promise<void> {
   if (!calls) {
     app.log.info(
       'In-app calls are off: LIVEKIT_URL, LIVEKIT_API_KEY and LIVEKIT_API_SECRET are not all set.',
+    );
+  }
+
+  if (calls && !recorder) {
+    app.log.info(
+      'Staff calls are not recorded: RECORDING_S3_ENDPOINT, RECORDING_S3_BUCKET, RECORDING_S3_KEY, RECORDING_S3_SECRET and RECORDING_S3_REGION are not all set.',
     );
   }
 

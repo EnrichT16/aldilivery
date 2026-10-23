@@ -34,6 +34,7 @@ import {
   outstandingPence,
   priceStatement,
 } from '../services/calls.js';
+import { handleStaffCallEvent } from '../services/company-contact.js';
 import { notifyShopper } from '../services/notify.js';
 
 /** A pass into a room lasts long enough to connect, not for ever. */
@@ -407,6 +408,10 @@ export async function registerCallRoutes(app: FastifyInstance): Promise<void> {
       throw new BadRequestError('That signature did not check out.');
     }
     const call = event.roomName ? await repository.calls.findByRoomName(event.roomName) : null;
+    // A call from the company to an account (ruling 77) has its own log.
+    if (!call && (await handleStaffCallEvent(app.ctx, event, request.log))) {
+      return { received: true };
+    }
     if (!call || call.status === 'ended') return { received: true };
 
     if (event.event === 'participant_joined' || event.event === 'participant_left') {

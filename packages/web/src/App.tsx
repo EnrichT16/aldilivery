@@ -16,6 +16,7 @@ import { Gifts } from './pages/Gifts';
 import { JoinOrganisation } from './pages/JoinOrganisation';
 import { JustLooking } from './pages/JustLooking';
 import { More } from './pages/More';
+import { BusinessMessages, RunnerMessages, ShopperMessages } from './pages/Messages';
 import { Offers } from './pages/Offers';
 import { Landing } from './pages/Landing';
 import { LookingAfter } from './pages/LookingAfter';
@@ -147,6 +148,13 @@ export function App(): JSX.Element {
                 <Route path="/recipes" element={<Recipes />} />
                 <Route path="/gifts" element={<Gifts />} />
                 <Route path="/more" element={<More />} />
+                <Route path="/messages" element={<ShopperMessages />} />
+                <Route path="/runner/messages" element={<RunnerMessages />} />
+                <Route path="/partner/messages" element={<BusinessMessages back="/partner" />} />
+                <Route
+                  path="/organisation/messages"
+                  element={<BusinessMessages back="/organisation" />}
+                />
                 <Route path="/find-it" element={<FindIt />} />
                 <Route path="/gift-cards" element={<GiftCards />} />
                 <Route path="/plus" element={<Plus />} />

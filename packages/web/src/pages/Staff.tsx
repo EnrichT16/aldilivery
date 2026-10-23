@@ -111,7 +111,9 @@ import {
   TwoStepRequired,
 } from './StaffAdmin';
 import { storeConfig } from '../config';
+import { setTeamAuthoriser } from '../lib/inbox-api';
 import { money } from '../lib/money';
+import { StaffMessages } from './StaffMessages';
 import { useOzi } from '../state/ozi';
 import { nameHeardIn } from '../voice/name';
 
@@ -156,6 +158,7 @@ export const TABS: Array<{ key: TabKey; label: string; group: TabGroup }> = [
   { key: 'analytics', label: 'Analytics', group: 'money' },
   { key: 'documents', label: 'Documents', group: 'people' },
   { key: 'team', label: 'Team', group: 'people' },
+  { key: 'messages', label: 'Messages', group: 'people' },
   { key: 'partners', label: 'Shops and organisations', group: 'people' },
   { key: 'enquiries', label: 'Enquiries', group: 'people' },
   { key: 'feedback', label: 'Feedback', group: 'people' },
@@ -424,6 +427,7 @@ export function Staff(): JSX.Element {
             {shown === 'runners' && <RunnersNow staffKey={key} />}
             {shown === 'reports' && <Reports staffKey={key} />}
             {shown === 'accounts' && <ShopperAccounts staffKey={key} />}
+            {shown === 'messages' && <StaffMessages staffKey={key} onNews={setNews} />}
             {shown === 'audit' && <AuditLog staffKey={key} />}
             {shown === 'twostep' && (
               <TwoStepCodes
@@ -446,7 +450,7 @@ export function Staff(): JSX.Element {
             {shown === 'team' && (
               <>
                 {!me.account && <OwnerSetup staffKey={key} onNews={setNews} />}
-                <Team staffKey={key} onNews={setNews} />
+                <Team staffKey={key} onNews={setNews} owner={me.isOwner === true} />
               </>
             )}
           </div>
@@ -1911,9 +1915,12 @@ function Memory({
 function Team({
   staffKey,
   onNews,
+  owner = false,
 }: {
   staffKey: string;
   onNews: (text: string) => void;
+  /** The owner alone decides who may authorise messages and calls (ruling 77). */
+  owner?: boolean;
 }): JSX.Element {
   const list = useList(() => fetchTeam(staffKey));
   const roles = useList(fetchStaffRoles);
@@ -2052,6 +2059,28 @@ function Team({
                 >
                   Reset two-step codes
                   <span className="visually-hidden"> for {member.name}</span>
+                </button>
+              )}
+              {owner && !member.title.includes('owner') && (
+                <button
+                  type="button"
+                  aria-pressed={member.canAuthorise === true}
+                  onClick={() =>
+                    void setTeamAuthoriser(staffKey, member.id, member.canAuthorise !== true)
+                      .then((result) => {
+                        onNews(result.message);
+                        list.reload();
+                      })
+                      .catch((failure: unknown) =>
+                        setProblem(
+                          failure instanceof Error ? failure.message : 'That did not work.',
+                        ),
+                      )
+                  }
+                  className="control border-paper bg-paper/10 text-paper"
+                >
+                  {member.canAuthorise ? 'Authorises messages and calls' : 'Let them authorise'}
+                  <span className="visually-hidden"> {member.name}</span>
                 </button>
               )}
               <button

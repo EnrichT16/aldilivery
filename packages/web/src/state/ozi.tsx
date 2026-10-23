@@ -28,6 +28,8 @@ import {
   type Shopper,
 } from '../lib/api';
 import { addNamedItems, currentOffers, listInWords } from '../lib/extras';
+import { READ_MESSAGES, readMessagesAloud } from '../lib/inbox-api';
+import { readRunnerToken } from '../lib/session';
 import { CLOSE_QUESTION, leaveRunning } from '../lib/runner-api';
 import {
   ALLOW_LINE,
@@ -617,6 +619,18 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     setHeard(text);
     // The page's own commands come before anything about shopping.
     if (pageCommandsRef.current?.(text)) return;
+    // "Read my messages": the company inbox (ruling 77), for a Shopper or a Runner signed in.
+    if (!ordering.busy() && READ_MESSAGES.test(words)) {
+      const runnerPage = window.location.pathname.startsWith('/runner');
+      if (runnerPage ? readRunnerToken() : accountRef.current.shopper) {
+        void readMessagesAloud(
+          runnerPage ? 'runner' : 'shopper',
+          { say: (said: string) => sayRef.current(said), listenFor },
+          storeConfig.productName,
+        );
+        return;
+      }
+    }
     // "Finish my account": what is still missing, and where to put it (ruling 47).
     if (/\bfinish\s+(setting\s+up\s+)?my\s+account\b/.test(words) && accountRef.current.shopper) {
       void welcomeRef.current(accountRef.current.shopper, '');

@@ -229,6 +229,10 @@
     "lowRatingAtMost": 2,
     "checkConfidence": 0.9
   },
+  "companyContact": {
+    "messageCodeMinutes": 120,
+    "callRecordingDays": 90
+  },
   "versionOneRestrictions": {
     "ageRestrictedGoodsAllowed": false
   },

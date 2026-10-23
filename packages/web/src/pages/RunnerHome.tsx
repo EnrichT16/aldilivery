@@ -36,6 +36,7 @@ import {
   type RunnerPay,
 } from '../lib/api';
 import { useOzi } from '../state/ozi';
+import { InboxLink } from '../components/Inbox';
 import { AgreeByVoice } from '../components/AgreeByVoice';
 import { CallControls } from '../components/CallControls';
 import { DocumentsChecklist } from '../components/DocumentsChecklist';
@@ -282,6 +283,9 @@ export function RunnerHome(): JSX.Element {
     <div className="space-y-8">
       <h1 className="text-display font-bold m-0">Hello, {runner.name}</h1>
       {runner.isDemo && <DemoBanner />}
+      <nav aria-label="Your messages">
+        <InboxLink as="runner" to="/runner/messages" />
+      </nav>
       <details className="max-w-xl">
         <summary className="control px-0 text-paper underline">The screen</summary>
         <ShowWordsSwitch />

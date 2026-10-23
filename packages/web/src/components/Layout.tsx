@@ -9,6 +9,7 @@ import { useSession } from '../state/session';
 import { AdSquare } from './AdSquare';
 import { companyFacts } from './CompanyDetails';
 import { DemoBanner } from './DemoBanner';
+import { InboxLink } from './Inbox';
 import { MicrophoneHelp } from './MicrophoneHelp';
 import { BUBBLE_ROOM, OziBubble, presenceWord } from './OziBubble';
 import { OziSwitch } from './OziSwitch';
@@ -231,6 +232,14 @@ function ShopperTopBar({
                 <Link to="/orders" className="control !px-3 bg-paper/10 text-paper">
                   Past orders
                 </Link>
+              </li>
+              <li>
+                {/* The company inbox (ruling 77), with how many are new. */}
+                <InboxLink
+                  as="shopper"
+                  to="/messages"
+                  className="control !px-3 bg-paper/10 text-paper"
+                />
               </li>
             </ul>
           </nav>

@@ -19,6 +19,7 @@ import {
   type PaymentsGateway,
   type RehearsalGateway,
 } from '../src/lib/payments.js';
+import type { CallRecorder } from '../src/lib/call-recording.js';
 import type { CallProvider } from '../src/lib/livekit.js';
 import type { OziBrain } from '../src/lib/language-model.js';
 import type { OpenPricesLookup } from '../src/lib/open-prices.js';
@@ -75,6 +76,11 @@ export const testEnv: Env = {
   emailSmtpHost: undefined,
   emailSmtpPort: 465,
   emailAutoReply: false,
+  recordingS3Endpoint: undefined,
+  recordingS3Bucket: undefined,
+  recordingS3Key: undefined,
+  recordingS3Secret: undefined,
+  recordingS3Region: undefined,
   seedOnStart: true,
 };
 
@@ -131,6 +137,8 @@ export interface TestAppOptions {
   env?: Partial<Env>;
   /** Ringing someone from our Twilio number. Off unless a test hands in a stand-in. */
   placeCall?: PlaceCall;
+  /** Recording staff calls (ruling 77). Off unless a test hands in a stand-in. */
+  recorder?: CallRecorder;
 }
 
 export async function buildTestApp(
@@ -174,6 +182,7 @@ export async function buildTestApp(
     ...(options.brain ? { brain: options.brain } : {}),
     ...(options.openPrices ? { openPrices: options.openPrices } : {}),
     ...(options.placeCall ? { placeCall: options.placeCall } : {}),
+    ...(options.recorder ? { recorder: options.recorder } : {}),
     deliverCode:
       options.deliverCode ??
       (async (phone, code) => {

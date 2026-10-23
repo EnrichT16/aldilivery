@@ -71,6 +71,7 @@ export {
   type StoreConfig,
   type CatalogueSourceMode,
   type OwnerDeskSettings,
+  type CompanyContactSettings,
 } from './config.js';
 
 export {

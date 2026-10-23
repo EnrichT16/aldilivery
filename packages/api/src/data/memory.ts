@@ -67,6 +67,10 @@ import type {
   PriceSighting,
   ReviewPointsSpend,
   ShopReview,
+  InboxMessage,
+  InboxThread,
+  StaffCall,
+  StaffCode,
 } from '../domain.js';
 import type {
   CatalogueSearchOptions,
@@ -151,6 +155,34 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const ownerMatters = new Map<string, OwnerMatter>();
   const ownerCalls = new Map<string, OwnerCall>();
   const emailRecords = new Map<string, EmailRecord>();
+  const inboxThreads = new Map<string, InboxThread>();
+  const inboxMessages = new Map<string, InboxMessage>();
+  const staffCodes = new Map<string, StaffCode>();
+  const staffCalls = new Map<string, StaffCall>();
+
+  /** The account's thread and its messages go with the account (ruling 77). */
+  const dropThread = (accountKind: InboxThread['accountKind'], accountId: string): number => {
+    let removed = 0;
+    for (const [key, thread] of inboxThreads) {
+      if (thread.accountKind !== accountKind || thread.accountId !== accountId) continue;
+      for (const [messageKey, message] of inboxMessages) {
+        if (message.threadId === key) {
+          inboxMessages.delete(messageKey);
+          removed += 1;
+        }
+      }
+      inboxThreads.delete(key);
+    }
+    return removed;
+  };
+  /** A closed account's calls stay in the log, without its name. */
+  const forgetCallNames = (accountKind: InboxThread['accountKind'], accountId: string): void => {
+    for (const [key, call] of staffCalls) {
+      if (call.accountKind === accountKind && call.accountId === accountId) {
+        staffCalls.set(key, { ...call, accountName: 'Closed account' });
+      }
+    }
+  };
 
   const now = (): Date => options.now?.() ?? new Date();
 
@@ -1363,6 +1395,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           allowedAreas: '',
           sessionVersion: 0,
           recoveryCodes: '',
+          canAuthorise: false,
         };
         staffMembers.set(row.id, row);
         return clone(row);
@@ -1958,6 +1991,145 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
     },
 
+    companyContact: {
+      async findThread(accountKind, accountId) {
+        for (const thread of inboxThreads.values()) {
+          if (thread.accountKind === accountKind && thread.accountId === accountId) {
+            return clone(thread);
+          }
+        }
+        return null;
+      },
+      async findThreadById(key) {
+        const found = inboxThreads.get(key);
+        return found ? clone(found) : null;
+      },
+      async openThread(accountKind, accountId) {
+        for (const thread of inboxThreads.values()) {
+          if (thread.accountKind === accountKind && thread.accountId === accountId) {
+            return clone(thread);
+          }
+        }
+        const at = now();
+        const row: InboxThread = {
+          id: id(),
+          accountKind,
+          accountId,
+          createdAt: at,
+          lastMessageAt: at,
+        };
+        inboxThreads.set(row.id, row);
+        return clone(row);
+      },
+      async listThreads() {
+        return [...inboxThreads.values()]
+          .sort((a, b) => b.lastMessageAt.getTime() - a.lastMessageAt.getTime())
+          .map(clone);
+      },
+      async updateThread(key, patch) {
+        const found = inboxThreads.get(key);
+        if (!found) throw new NotFoundError('Inbox thread', key);
+        const row = { ...found, ...patch, id: found.id };
+        inboxThreads.set(key, row);
+        return clone(row);
+      },
+      async addMessage(input) {
+        if (!inboxThreads.has(input.threadId))
+          throw new NotFoundError('Inbox thread', input.threadId);
+        const row: InboxMessage = { ...input, id: id() };
+        inboxMessages.set(row.id, row);
+        return clone(row);
+      },
+      async findMessage(key) {
+        const found = inboxMessages.get(key);
+        return found ? clone(found) : null;
+      },
+      async updateMessage(key, patch) {
+        const found = inboxMessages.get(key);
+        if (!found) throw new NotFoundError('Inbox message', key);
+        const row = { ...found, ...patch, id: found.id, threadId: found.threadId };
+        inboxMessages.set(key, row);
+        return clone(row);
+      },
+      async listMessages(threadId) {
+        return [...inboxMessages.values()]
+          .filter((row) => row.threadId === threadId)
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async listStaffMessages(limit) {
+        return [...inboxMessages.values()]
+          .filter((row) => row.fromStaff)
+          .reverse()
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .slice(0, limit)
+          .map(clone);
+      },
+      async deleteThreadFor(accountKind, accountId) {
+        return dropThread(accountKind, accountId);
+      },
+      async createCode(input) {
+        const row: StaffCode = { ...input, id: id() };
+        staffCodes.set(row.id, row);
+        return clone(row);
+      },
+      async listCodesFor(staffId, kind) {
+        return [...staffCodes.values()]
+          .filter((row) => row.staffId === staffId && row.kind === kind)
+          .reverse()
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map(clone);
+      },
+      async updateCode(key, patch) {
+        const found = staffCodes.get(key);
+        if (!found) throw new NotFoundError('Staff code', key);
+        const row = { ...found, ...patch, id: found.id };
+        staffCodes.set(key, row);
+        return clone(row);
+      },
+      async createCall(input) {
+        const row: StaffCall = { ...input, id: id() };
+        staffCalls.set(row.id, row);
+        return clone(row);
+      },
+      async findCall(key) {
+        const found = staffCalls.get(key);
+        return found ? clone(found) : null;
+      },
+      async findCallByRoomName(roomName) {
+        for (const call of staffCalls.values()) {
+          if (call.roomName === roomName) return clone(call);
+        }
+        return null;
+      },
+      async updateCall(key, patch) {
+        const found = staffCalls.get(key);
+        if (!found) throw new NotFoundError('Staff call', key);
+        const row = { ...found, ...patch, id: found.id };
+        staffCalls.set(key, row);
+        return clone(row);
+      },
+      async listCalls(limit) {
+        return [...staffCalls.values()]
+          .reverse()
+          .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+          .slice(0, limit)
+          .map(clone);
+      },
+      async listCallsFor(accountKind, accountId) {
+        return [...staffCalls.values()]
+          .filter((row) => row.accountKind === accountKind && row.accountId === accountId)
+          .reverse()
+          .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime())
+          .map(clone);
+      },
+      async listRecordingsStartedBefore(before) {
+        return [...staffCalls.values()]
+          .filter((row) => row.recordingKey !== null && row.startedAt < before)
+          .map(clone);
+      },
+    },
+
     emails: {
       async findByMessageId(messageId) {
         const found = emailRecords.get(messageId);
@@ -1996,6 +2168,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         for (const [key, set] of sets) {
           if (set.shopperId === shopperId) sets.delete(key);
         }
+        dropThread('shopper', shopperId);
+        forgetCallNames('shopper', shopperId);
         for (const [key, order] of orders) {
           if (order.shopperId !== shopperId) continue;
           orders.set(key, {
@@ -2014,6 +2188,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         for (const [key, document] of runnerDocuments) {
           if (document.runnerId === runnerId) runnerDocuments.delete(key);
         }
+        dropThread('runner', runnerId);
+        forgetCallNames('runner', runnerId);
       },
       async deleteRunnerChecksLeftBefore(before) {
         const gone = new Set(

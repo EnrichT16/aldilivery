@@ -22,6 +22,8 @@ import { click } from '../lib/alert';
 import { money } from '../lib/money';
 import { preparePhoto } from '../lib/photo';
 import { useOzi } from '../state/ozi';
+import { InboxLink } from '../components/Inbox';
+import { readMessagesAloud } from '../lib/inbox-api';
 import { partnerHelp, understandPartner } from '../voice/business-voice';
 import { everydayOr } from '../voice/phrases';
 import { listWords, spokenMoney } from '../voice/staff-voice';
@@ -191,6 +193,9 @@ export function PartnerDashboard(): JSX.Element {
       switch (command.kind) {
         case 'help':
           say(partnerHelp());
+          return true;
+        case 'messages':
+          void readMessagesAloud('business', latest.current.ozi, storeConfig.productName);
           return true;
         case 'sign-out':
           rememberBusinessToken(null);
@@ -442,6 +447,9 @@ export function PartnerDashboard(): JSX.Element {
   return (
     <div className="space-y-8 max-w-2xl">
       <h1 className="text-display font-bold m-0">{data.shop.name}</h1>
+      <nav aria-label="Your messages">
+        <InboxLink as="business" to="/partner/messages" />
+      </nav>
       <details className="max-w-xl">
         <summary className="control px-0 text-paper underline">The screen</summary>
         <ShowWordsSwitch />
