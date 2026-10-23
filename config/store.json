@@ -227,7 +227,8 @@
     "urgentInQuietHours": true,
     "laterAfterMinutes": 60,
     "lowRatingAtMost": 2,
-    "checkConfidence": 0.9
+    "checkConfidence": 0.9,
+    "appRingSeconds": 30
   },
   "companyContact": {
     "messageCodeMinutes": 120,

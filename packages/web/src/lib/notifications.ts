@@ -66,8 +66,20 @@ function keyBytes(base64url: string): Uint8Array<ArrayBuffer> {
   return bytes;
 }
 
-/** Asks the browser, then tells the server. Returns what the page should now say. */
-export async function turnOn(publicKey: string): Promise<NotificationState> {
+type SaveSubscription = (subscription: {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}) => Promise<unknown>;
+
+/**
+ * Asks the browser, then tells the server. Returns what the page should now say. `save` is the
+ * Shopper's by default; the admin panel passes its own, so the owner's device is kept against his
+ * staff account (ruling 79).
+ */
+export async function turnOn(
+  publicKey: string,
+  save: SaveSubscription = savePushSubscription,
+): Promise<NotificationState> {
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') return permission === 'denied' ? 'blocked' : 'off';
   const ready = await registration();
@@ -82,7 +94,7 @@ export async function turnOn(publicKey: string): Promise<NotificationState> {
     endpoint: string;
     keys: { p256dh: string; auth: string };
   };
-  await savePushSubscription({ endpoint: json.endpoint, keys: json.keys });
+  await save({ endpoint: json.endpoint, keys: json.keys });
   return 'on';
 }
 

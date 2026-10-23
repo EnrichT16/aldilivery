@@ -98,7 +98,12 @@ const LOOKING = new Set(['GET', 'HEAD', 'OPTIONS']);
  * Asked with a staff sign-in but changing nothing: what someone says to Ozi in the panel is a
  * conversation, not an action, and is never written down here.
  */
-const NOT_CHANGES = new Set(['POST /ozi/reply']);
+const NOT_CHANGES = new Set([
+  'POST /ozi/reply',
+  // Ozi reading a matter on its call in the app, and the call ending (ruling 79).
+  'POST /staff/desk/:id/read',
+  'POST /staff/desk/ring/:id/end',
+]);
 
 /**
  * The hook: every successful change by someone the admin panel checked. Runs as the reply is
@@ -128,6 +133,11 @@ export const AUDIT_WORDS: Record<string, string> = {
   'shopper.searched': 'Searched for a Shopper',
   'shopper.exported': "Exported a Shopper's data",
   'POST /staff/password': 'Changed their own password',
+  'POST /staff/desk/ring/:id/answer': "Answered Ozi's call in the app",
+  'POST /staff/desk/ring/:id/not-now': "Said not now to Ozi's call in the app",
+  'POST /staff/desk/test-call': "Tested Ozi's call",
+  'POST /staff/push-subscriptions': 'Let Ozi ring them in the app on a device',
+  'DELETE /staff/push-subscriptions': 'Stopped Ozi ringing them on a device',
   'POST /staff/team': 'Added someone to the team',
   'POST /staff/team/:id': "Changed someone's job or turned their account on or off",
   'POST /staff/team/:id/reset': "Reset someone's password",

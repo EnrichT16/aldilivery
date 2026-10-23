@@ -446,6 +446,7 @@ describe('the configuration parser refuses to contradict a rule', () => {
       laterAfterMinutes: 60,
       lowRatingAtMost: 2,
       checkConfidence: 0.9,
+      appRingSeconds: 30,
     });
     const raw = goodConfig();
     raw['ownerDesk'] = { ...(raw['ownerDesk'] as object), quietFrom: '9pm' };
@@ -453,6 +454,10 @@ describe('the configuration parser refuses to contradict a rule', () => {
     const sure = goodConfig();
     sure['ownerDesk'] = { ...(sure['ownerDesk'] as object), checkConfidence: 1.5 };
     expect(() => parseStoreConfig(sure)).toThrow(/checkConfidence/);
+    // Ozi rings in the app first, then the phone (ruling 79): never a ring too short to answer.
+    const quick = goodConfig();
+    quick['ownerDesk'] = { ...(quick['ownerDesk'] as object), appRingSeconds: 2 };
+    expect(() => parseStoreConfig(quick)).toThrow(/ownerDesk\.appRingSeconds/);
   });
 
   it('reads the company inbox settings: message codes for two hours, recordings kept 90 days (ruling 77)', () => {

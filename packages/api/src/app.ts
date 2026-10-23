@@ -72,6 +72,7 @@ import { registerReferralRewardRoutes } from './routes/referral-reward.js';
 import { registerPushRoutes } from './routes/push.js';
 import { registerSetRoutes } from './routes/sets.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
+import { ukPhone } from './lib/phone.js';
 import { demoPhone } from './services/demo.js';
 
 export interface AppContext {
@@ -193,6 +194,11 @@ export interface BuildAppOptions extends Partial<
   payments: PaymentsGateway;
   env: Env;
   logger?: boolean;
+}
+
+/** Whether the owner's alert number is a real UK number (ruling 79). Says yes or no, nothing more. */
+export function ownerPhoneSet(phone: string | undefined): boolean {
+  return phone !== undefined && ukPhone(phone) !== undefined;
 }
 
 /** Whether opening an account needs a code sent to the number: once codes really go out. */
@@ -423,6 +429,13 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
     voiceEnabled: ctx.voice !== null,
     // Whether a language model stands behind Ozi (ruling 69). Never which: its name is private.
     brainEnabled: ctx.brain !== null,
+    // Ozi's desk (ruling 79): whether OWNER_ALERT_PHONE is a real UK number, and whether Ozi can
+    // ring it (that, Twilio's voice settings and our own address). Never the number itself.
+    ownerPhoneSet: ownerPhoneSet(ctx.env.ownerAlertPhone),
+    ownerDeskCanRing:
+      ownerPhoneSet(ctx.env.ownerAlertPhone) &&
+      ctx.placeCall !== null &&
+      Boolean(ctx.env.primaryOrigin),
   }));
 
   /** The public facing configuration the web app is allowed to know about. */

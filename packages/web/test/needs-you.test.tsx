@@ -177,6 +177,8 @@ beforeEach(() => {
       }
       if (path === '/staff/sos') return reply({ sos: [] });
       if (path === '/staff/desk') return reply({ matters: desk, ringing: true, lastCall: null });
+      // The owner's panel asks whether Ozi is ringing him in the app (ruling 79).
+      if (path === '/staff/desk/ring') return reply({ ring: null });
       if (path.startsWith('/staff/desk/')) {
         desk = [];
         return reply({ matter: {}, message: 'Approved.' });

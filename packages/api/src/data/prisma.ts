@@ -404,14 +404,25 @@ export function prismaRepository(prisma: PrismaClient): Repository {
 
     pushSubscriptions: {
       async save(input) {
+        // The device moves to whoever saved it last, of its kind; the other kind's claim stays.
+        const owner = input.staffId ? { staffId: input.staffId } : { shopperId: input.shopperId };
         return (await prisma.pushSubscription.upsert({
           where: { endpoint: input.endpoint },
-          create: input,
-          update: { shopperId: input.shopperId, p256dh: input.p256dh, auth: input.auth },
+          create: {
+            endpoint: input.endpoint,
+            p256dh: input.p256dh,
+            auth: input.auth,
+            createdAt: input.createdAt,
+            ...owner,
+          },
+          update: { ...owner, p256dh: input.p256dh, auth: input.auth },
         })) as any;
       },
       async listForShopper(shopperId) {
         return (await prisma.pushSubscription.findMany({ where: { shopperId } })) as any;
+      },
+      async listForStaff(staffId) {
+        return (await prisma.pushSubscription.findMany({ where: { staffId } })) as any;
       },
       async deleteByEndpoint(endpoint) {
         await prisma.pushSubscription.deleteMany({ where: { endpoint } });
