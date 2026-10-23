@@ -362,11 +362,21 @@ export interface Repository {
     update(id: string, patch: Partial<Omit<CallLeg, 'id'>>): Promise<CallLeg>;
   };
 
-  /** The devices a Shopper has allowed to show notifications. */
+  /**
+   * The devices a Shopper, or a staff member (the owner, ruling 79), has allowed to show
+   * notifications.
+   */
   pushSubscriptions: {
-    /** One row per device address: saving an address again moves it to this Shopper. */
-    save(input: Omit<PushSubscription, 'id'>): Promise<PushSubscription>;
+    /**
+     * One row per device address: saving an address again moves it to this Shopper, or to this
+     * staff member, and keeps the other one's claim on the same device.
+     */
+    save(
+      input: Pick<PushSubscription, 'endpoint' | 'p256dh' | 'auth' | 'createdAt'> &
+        ({ shopperId: string; staffId?: never } | { staffId: string; shopperId?: never }),
+    ): Promise<PushSubscription>;
     listForShopper(shopperId: string): Promise<PushSubscription[]>;
+    listForStaff(staffId: string): Promise<PushSubscription[]>;
     deleteByEndpoint(endpoint: string): Promise<void>;
   };
 

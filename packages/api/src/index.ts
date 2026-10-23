@@ -37,7 +37,7 @@ import { sweepDeposits } from './services/runner-leaving.js';
 import { sweepPlans } from './services/plans.js';
 import { refreshPrices } from './services/prices.js';
 import { checkWaiting } from './services/auto-check.js';
-import { sweepOwnerDesk } from './services/owner-desk.js';
+import { fallBackToPhone, sweepOwnerDesk } from './services/owner-desk.js';
 import { sweepEmail } from './services/email-desk.js';
 import { imapMailbox, mailboxSettings, smtpMailer } from './lib/mailbox.js';
 
@@ -404,7 +404,7 @@ async function main(): Promise<void> {
   // matter is decided or put to later; no calls in quiet hours unless urgent.
   if (!env.ownerAlertPhone || !placeCall || !env.primaryOrigin) {
     app.log.info(
-      "Ozi's desk will not ring the owner: OWNER_ALERT_PHONE, the Twilio voice number and ALLOWED_ORIGIN are not all set. Matters still show on the Needs you now page.",
+      "Ozi's desk will not ring the owner's phone: OWNER_ALERT_PHONE, the Twilio voice number and ALLOWED_ORIGIN are not all set. Ozi can still ring him in the app, and matters still show on the Needs you now page.",
     );
   }
   let deskRunning = false;
@@ -423,6 +423,25 @@ async function main(): Promise<void> {
       });
   }, 60_000);
   deskSweep.unref();
+
+  // Every five seconds: a call ringing the owner in the app for `ownerDesk.appRingSeconds`
+  // without an answer goes on to his phone, the same attempt (ruling 79).
+  let fallbackRunning = false;
+  const deskFallback = setInterval(() => {
+    if (fallbackRunning) return;
+    fallbackRunning = true;
+    fallBackToPhone(app.ctx, app.log)
+      .then((rung) => {
+        if (rung.length > 0) app.log.info("Ozi's call was not answered in the app: rang the phone");
+      })
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, "Ringing the owner's phone after the app failed");
+      })
+      .finally(() => {
+        fallbackRunning = false;
+      });
+  }, 5_000);
+  deskFallback.unref();
 
   // Every five minutes: the business mailbox (ruling 76), on the company's own mail host. New
   // emails are sorted: important ones go on Ozi's desk, spam, newsletters and notices are only
@@ -475,6 +494,7 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string): Promise<void> => {
     clearInterval(sweep);
     clearInterval(deskSweep);
+    clearInterval(deskFallback);
     if (emailSweep) clearInterval(emailSweep);
     clearInterval(paySweep);
     clearInterval(setSweep);

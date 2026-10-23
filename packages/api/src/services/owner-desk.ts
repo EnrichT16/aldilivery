@@ -19,6 +19,13 @@
  *
  * The keypad does what the admin panel would, through the same service functions, and every
  * decision is written in the audit log as the owner's, by phone.
+ *
+ * In the app first (ruling 79, Anthony, 23 October 2026): each attempt first rings the owner in
+ * the app, with a notification on every device where he allowed Ozi to ring him and, if the admin
+ * panel is open, a full-screen incoming call. Not answered there within `ownerDesk.appRingSeconds`,
+ * the same attempt rings OWNER_ALERT_PHONE as before (`fallBackToPhone`). No device and no panel
+ * open: straight to the phone. Answered in the app, Ozi says the same things, and his choices go
+ * through `decideMatter` exactly as the keypad's do, recorded as decided in the app.
  */
 
 import type { FastifyBaseLogger } from 'fastify';
@@ -34,6 +41,7 @@ import type {
   OwnerMatterKind,
   OwnerMatterOptions,
   OwnerMatterVia,
+  PushSubscription,
   RunnerDocument,
 } from '../domain.js';
 import { ApiError } from '../errors.js';
@@ -45,7 +53,8 @@ import { decideRunnerDocument, KIND_SPOKEN } from './runner-documents.js';
 export type DeskContext = Pick<
   AppContext,
   'repository' | 'config' | 'env' | 'now' | 'sendText' | 'placeCall' | 'brain' | 'backgroundChecks'
->;
+> &
+  Partial<Pick<AppContext, 'sendPush'>>;
 
 export interface AskOwnerInput {
   kind: OwnerMatterKind;
@@ -360,7 +369,12 @@ export async function decideMatter(
   const { repository } = ctx;
   const at = ctx.now();
   const target = `${matter.kind}=${matter.subjectId}`;
-  const how = via === 'phone' ? 'by phone' : 'in the admin panel';
+  const how =
+    via === 'phone'
+      ? 'by phone'
+      : via === 'app'
+        ? "on Ozi's call in the app"
+        : 'in the admin panel';
   const audit = (entry: { actorName: string; action: string; target: string; detail: string }) =>
     auditEntry(ctx, { ...entry, ...seen });
 
@@ -389,7 +403,8 @@ export async function decideMatter(
 
   try {
     if (decision !== 'acknowledge') {
-      await carryOut(ctx, matter, decision, via === 'phone' ? `${by}, by phone` : by, log);
+      const named = via === 'phone' ? `${by}, by phone` : via === 'app' ? `${by}, in the app` : by;
+      await carryOut(ctx, matter, decision, named, log);
     }
   } catch (failure) {
     if (failure instanceof ApiError && (failure.statusCode === 409 || failure.statusCode === 404)) {
@@ -702,8 +717,11 @@ export async function sweepOwnerDesk(
 ): Promise<SweepResult> {
   await reconcileWithNeedsYou(ctx, log);
   const unsettled = await tidyMatters(ctx);
+  // An attempt that rang in the app long enough goes on to the phone (ruling 79).
+  await fallBackToPhone(ctx, log);
   const phone = ctx.env.ownerAlertPhone;
-  if (!phone || !ctx.placeCall || !ctx.env.primaryOrigin) {
+  const app = await inAppReach(ctx);
+  if (!canRingPhone(ctx) && !app.reachable) {
     return { called: false, reason: 'not-set-up' };
   }
   const open = inReadingOrder(unsettled);
@@ -719,9 +737,13 @@ export async function sweepOwnerDesk(
     return { called: false, reason: 'quiet-hours' };
   }
 
-  let [latest] = await ctx.repository.ownerDesk.latestCalls(1);
+  let latest = await latestRealCall(ctx);
+  if (latest && latest.status === 'app_ringing') {
+    // Still ringing in the app: the phone comes after, from `fallBackToPhone`.
+    return { called: false, reason: 'ringing' };
+  }
   if (latest && latest.status === 'placed') {
-    if (at.getTime() - latest.placedAt.getTime() < STALE_CALL_MS) {
+    if (at.getTime() - (latest.phonePlacedAt ?? latest.placedAt).getTime() < STALE_CALL_MS) {
       return { called: false, reason: 'ringing' };
     }
     latest = await ctx.repository.ownerDesk.updateCall(latest.id, {
@@ -757,14 +779,20 @@ export async function sweepOwnerDesk(
     }
   }
 
+  // In the app first when he can be rung there (ruling 79); otherwise straight to the phone.
+  const appRing = app.reachable;
   const call = await ctx.repository.ownerDesk.createCall({
     cascade,
     attempt,
     placedAt: at,
-    status: 'placed',
+    status: appRing ? 'app_ringing' : 'placed',
     answeredAt: null,
     endedAt: null,
     matterCount: open.length,
+    appRingUntil: appRing ? new Date(at.getTime() + desk.appRingSeconds * 1000) : null,
+    phonePlacedAt: appRing ? null : at,
+    answeredVia: null,
+    test: false,
   });
   for (const matter of open) {
     await ctx.repository.ownerDesk.updateMatter(matter.id, {
@@ -772,7 +800,7 @@ export async function sweepOwnerDesk(
       lastCalledAt: at,
     });
   }
-  if (attempt === 1 && ctx.sendText) {
+  if (attempt === 1 && ctx.sendText && phone) {
     // A text with the first call of each run, as a backup. How many, never what.
     const count = countWords(open.length);
     await ctx
@@ -784,6 +812,108 @@ export async function sweepOwnerDesk(
         log?.warn({ err: failure }, 'The text to the owner with the call did not go.');
       });
   }
+  if (appRing) {
+    await ringInApp(ctx, call, app.devices, log);
+    return { called: true, call };
+  }
+  return { called: true, call: await dialOwner(ctx, call, log) };
+}
+
+/* ------------------------------------------------------------------ in the app first (ruling 79) */
+
+/** The admin panel asks every few seconds while the owner has it open; this long, and it is shut. */
+const PANEL_OPEN_MS = 15_000;
+/** When the owner's admin panel last asked whether Ozi is ringing, for each running server. */
+const panelSeen = new WeakMap<object, Date>();
+
+/** The owner's admin panel is open: it asked just now whether Ozi is ringing. */
+export function ownerPanelSeen(ctx: Pick<AppContext, 'repository' | 'now'>): void {
+  panelSeen.set(ctx.repository, ctx.now());
+}
+
+export function ownerPanelOpen(ctx: Pick<AppContext, 'repository' | 'now'>): boolean {
+  const seen = panelSeen.get(ctx.repository);
+  return seen !== undefined && ctx.now().getTime() - seen.getTime() < PANEL_OPEN_MS;
+}
+
+/** Whether Ozi can ring the owner's phone at all: his number, Twilio's voice and our address. */
+export function canRingPhone(ctx: Pick<AppContext, 'env' | 'placeCall'>): boolean {
+  return Boolean(ctx.env.ownerAlertPhone && ctx.placeCall && ctx.env.primaryOrigin);
+}
+
+/** Every device where the owner allowed Ozi to ring him in the app. */
+export async function ownerDevices(
+  ctx: Pick<AppContext, 'repository'> & Partial<Pick<AppContext, 'sendPush'>>,
+): Promise<PushSubscription[]> {
+  if (!ctx.sendPush) return [];
+  const owners = (await ctx.repository.staffMembers.list()).filter(
+    (member) => member.isOwner && member.active,
+  );
+  const devices: PushSubscription[] = [];
+  for (const owner of owners) {
+    devices.push(...(await ctx.repository.pushSubscriptions.listForStaff(owner.id)));
+  }
+  return devices;
+}
+
+/** Whether the owner can be rung in the app now: a device for notifications, or the panel open. */
+export async function inAppReach(
+  ctx: Pick<AppContext, 'repository' | 'now'> & Partial<Pick<AppContext, 'sendPush'>>,
+): Promise<{ reachable: boolean; devices: PushSubscription[]; panelOpen: boolean }> {
+  const devices = await ownerDevices(ctx);
+  const panelOpen = ownerPanelOpen(ctx);
+  return { reachable: devices.length > 0 || panelOpen, devices, panelOpen };
+}
+
+/** The newest call that counts in the rounds: never a test from My settings. */
+async function latestRealCall(ctx: Pick<AppContext, 'repository'>): Promise<OwnerCall | undefined> {
+  return (await ctx.repository.ownerDesk.latestCalls(20)).find((call) => !call.test);
+}
+
+/**
+ * "Ozi is calling, Mr. Anthony": a notification on each of his devices. The admin panel, if
+ * open, shows the incoming call by itself. Never a word of what the matters are.
+ */
+async function ringInApp(
+  ctx: DeskContext,
+  call: OwnerCall,
+  devices: readonly PushSubscription[],
+  log?: FastifyBaseLogger,
+): Promise<void> {
+  const send = ctx.sendPush;
+  if (!send) return;
+  const title = `${ctx.config.assistantName} is calling, ${ctx.config.owner.spokenName}`;
+  const body = call.test
+    ? 'A test call. Open the admin panel to answer.'
+    : 'Open the admin panel to answer.';
+  for (const device of devices) {
+    try {
+      const result = await send(device, { title, body, url: '/staff', tag: 'ozi-desk-call' });
+      if (result === 'gone') {
+        await ctx.repository.pushSubscriptions.deleteByEndpoint(device.endpoint);
+      }
+    } catch (failure) {
+      log?.warn({ err: failure }, "A notification of Ozi's call to the owner did not go.");
+    }
+  }
+}
+
+/** Rings OWNER_ALERT_PHONE for this attempt, from our Twilio number. */
+async function dialOwner(
+  ctx: DeskContext,
+  call: OwnerCall,
+  log?: FastifyBaseLogger,
+): Promise<OwnerCall> {
+  const at = ctx.now();
+  const phone = ctx.env.ownerAlertPhone;
+  if (!phone || !ctx.placeCall || !ctx.env.primaryOrigin) {
+    // Rung in the app only, and not answered there: an unanswered attempt.
+    return ctx.repository.ownerDesk.updateCall(call.id, { status: 'unanswered', endedAt: at });
+  }
+  const placed = await ctx.repository.ownerDesk.updateCall(call.id, {
+    status: 'placed',
+    phonePlacedAt: at,
+  });
   const base = deskWebhookBase(ctx);
   try {
     await ctx.placeCall(
@@ -794,12 +924,80 @@ export async function sweepOwnerDesk(
     );
   } catch (failure) {
     log?.warn({ err: failure }, 'Ozi could not ring the owner.');
-    return {
-      called: true,
-      call: await ctx.repository.ownerDesk.updateCall(call.id, { status: 'failed', endedAt: at }),
-    };
+    return ctx.repository.ownerDesk.updateCall(call.id, { status: 'failed', endedAt: at });
   }
-  return { called: true, call };
+  return placed;
+}
+
+/**
+ * Any attempt still ringing in the app after `appRingSeconds` goes on to the phone, the same
+ * attempt (ruling 79). If everything was dealt with meanwhile, it simply ends. Run with the sweep
+ * and every few seconds from index.ts, so the phone rings about half a minute after the app.
+ */
+export async function fallBackToPhone(
+  ctx: DeskContext,
+  log?: FastifyBaseLogger,
+): Promise<OwnerCall[]> {
+  const at = ctx.now();
+  const rung: OwnerCall[] = [];
+  for (const call of await ctx.repository.ownerDesk.latestCalls(20)) {
+    if (call.status !== 'app_ringing') continue;
+    if (call.appRingUntil && call.appRingUntil > at) continue;
+    const stillOpen =
+      call.test || inReadingOrder(await ctx.repository.ownerDesk.listUnsettled()).length > 0;
+    if (!stillOpen) {
+      await ctx.repository.ownerDesk.updateCall(call.id, { status: 'unanswered', endedAt: at });
+      continue;
+    }
+    rung.push(await dialOwner(ctx, call, log));
+  }
+  return rung;
+}
+
+/**
+ * "Test Ozi's call" in My settings: a test ring in the app, then the phone if it is not answered,
+ * exactly as a real call goes; never counted in the rounds of calls, and nothing is decided.
+ */
+export async function testOwnerCall(
+  ctx: DeskContext,
+  log?: FastifyBaseLogger,
+): Promise<{ call: OwnerCall; inApp: boolean; phone: boolean }> {
+  const at = ctx.now();
+  const app = await inAppReach(ctx);
+  const phone = canRingPhone(ctx);
+  const call = await ctx.repository.ownerDesk.createCall({
+    cascade: 0,
+    attempt: 0,
+    placedAt: at,
+    status: app.reachable ? 'app_ringing' : 'placed',
+    answeredAt: null,
+    endedAt: null,
+    matterCount: 0,
+    appRingUntil: app.reachable
+      ? new Date(at.getTime() + ctx.config.ownerDesk.appRingSeconds * 1000)
+      : null,
+    phonePlacedAt: app.reachable ? null : at,
+    answeredVia: null,
+    test: true,
+  });
+  if (app.reachable) {
+    await ringInApp(ctx, call, app.devices, log);
+    return { call, inApp: true, phone };
+  }
+  return { call: await dialOwner(ctx, call, log), inApp: false, phone };
+}
+
+/** What is ringing the owner in the app right now, newest first; null when nothing is. */
+export async function ringingInApp(
+  ctx: Pick<AppContext, 'repository' | 'now'>,
+): Promise<OwnerCall | null> {
+  const at = ctx.now();
+  return (
+    (await ctx.repository.ownerDesk.latestCalls(20)).find(
+      (call) =>
+        call.status === 'app_ringing' && (call.appRingUntil === null || call.appRingUntil > at),
+    ) ?? null
+  );
 }
 
 /** Twilio's word on how a call to the owner went (its status callback). */

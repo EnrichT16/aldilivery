@@ -14,6 +14,13 @@
  *
  * In the admin panel, the "Needs you now" page lists the open matters with Approve, Decline and
  * Later, for the founder and the owner.
+ *
+ * In the app first (ruling 79): the owner's admin panel asks every few seconds whether Ozi is
+ * ringing (`/staff/desk/ring`), which is also how the server knows the panel is open. He answers
+ * there, or says "Not now"; answered, the panel is given the same words the telephone says, and
+ * each choice comes back to `/staff/desk/:id` with `via: "app"`, through the same `decideMatter`.
+ * His devices for notifications are kept against his staff account (`/staff/push-subscriptions`),
+ * and "Test Ozi's call" (`/staff/desk/test-call`) rings him in the app, then the phone.
  */
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
@@ -22,15 +29,21 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
 import type { OwnerMatter } from '../domain.js';
-import { ForbiddenError, NotFoundError } from '../errors.js';
-import { staffActor } from '../lib/staff.js';
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
+import { isPushServiceEndpoint } from '../lib/push.js';
+import { staffActor, type StaffActor } from '../lib/staff.js';
 import { escapeXml, goodbye, say, signedByTwilio } from '../lib/twilio-voice.js';
 import { countWords } from '../services/needs-you.js';
 import {
+  canRingPhone,
   decideMatter,
   deskWebhookBase,
+  inAppReach,
   inReadingOrder,
+  ownerPanelSeen,
   recordCallStatus,
+  ringingInApp,
+  testOwnerCall,
   tidyMatters,
   type DeskChoice,
 } from '../services/owner-desk.js';
@@ -104,6 +117,28 @@ export function promptFor(matter: Pick<OwnerMatter, 'options'>): string {
   return matter.options === 'decide'
     ? 'Press 1 to approve, 2 to decline, 3 to decide later.'
     : 'Press 1 if you have heard it, 3 to hear it later.';
+}
+
+/** The same question on Ozi's call in the app (ruling 79): said, pressed or typed. */
+export function appPromptFor(matter: Pick<OwnerMatter, 'options'>): string {
+  return matter.options === 'decide'
+    ? 'Say approve, decline or later, or press 1, 2 or 3.'
+    : 'Say heard it, or later, or press 1 or 3.';
+}
+
+/** "One thing needs you." or "Three things need you." */
+function howMany(count: number): string {
+  if (count === 1) return 'One thing needs you.';
+  const words = countWords(count);
+  return `${words.charAt(0).toUpperCase()}${words.slice(1)} things need you.`;
+}
+
+/** Only the owner's own account, signed in with his passcode, answers Ozi's call. */
+function ownerOnly(actor: StaffActor): string {
+  if (!actor.isOwner || !actor.id) {
+    throw new ForbiddenError("Only the owner's own account answers Ozi's call.");
+  }
+  return actor.id;
 }
 
 function publicMatter(matter: OwnerMatter) {
@@ -202,16 +237,24 @@ export async function registerOwnerDeskRoutes(app: FastifyInstance): Promise<voi
       await repository.ownerDesk.updateCall(call.id, { status: 'voicemail', endedAt: now() });
       return twiml(reply, '<Response><Hangup/></Response>');
     }
-    await repository.ownerDesk.updateCall(call.id, { status: 'answered', answeredAt: now() });
-    const open = inReadingOrder(await tidyMatters(ctx));
+    await repository.ownerDesk.updateCall(call.id, {
+      status: 'answered',
+      answeredAt: now(),
+      answeredVia: 'phone',
+    });
     const hello = `Hello, ${name}. This is ${config.assistantName}.`;
+    if (call.test) {
+      // "Test Ozi's call" in My settings (ruling 79): nothing is read and nothing decided.
+      return twiml(
+        reply,
+        goodbye(`${hello} This is a test call. Ringing your phone works. Goodbye, ${name}.`),
+      );
+    }
+    const open = inReadingOrder(await tidyMatters(ctx));
     if (open.length === 0) {
       return twiml(reply, goodbye(`${hello} Everything has been dealt with already. ${farewell}`));
     }
-    const count =
-      open.length === 1
-        ? 'One thing needs you.'
-        : `${countWords(open.length).charAt(0).toUpperCase()}${countWords(open.length).slice(1)} things need you.`;
+    const count = howMany(open.length);
     return twiml(
       reply,
       await readOut(`${hello} ${count}`, { c: call.id, ids: open.map((m) => m.id), i: 0, r: 0 }),
@@ -296,9 +339,14 @@ export async function registerOwnerDeskRoutes(app: FastifyInstance): Promise<voi
   app.post('/staff/desk/:id', async (request) => {
     const actor = await staffActor(request, 'overview');
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
-    const { choice } = z
-      .object({ choice: z.enum(['approve', 'decline', 'acknowledge', 'later']) })
+    const { choice, via } = z
+      .object({
+        choice: z.enum(['approve', 'decline', 'acknowledge', 'later']),
+        // On Ozi's call in the app (ruling 79): the owner, exactly as on the keypad.
+        via: z.enum(['panel', 'app']).default('panel'),
+      })
       .parse(request.body ?? {});
+    if (via === 'app') ownerOnly(actor);
     const matter = await repository.ownerDesk.findMatter(id);
     if (!matter) throw new NotFoundError('matter');
     // A staff member's message is approved only by the owner or someone he lets authorise
@@ -311,12 +359,195 @@ export async function registerOwnerDeskRoutes(app: FastifyInstance): Promise<voi
         );
       }
     }
-    const outcome = await decideMatter(ctx, matter, choice, 'panel', actor.name, request.log, {
-      actorId: actor.id,
-      ip: request.ip ?? '',
-    });
+    // On Ozi's call he is named as on the telephone, "Mr. Anthony"; in the panel, by account.
+    const outcome = await decideMatter(
+      ctx,
+      matter,
+      choice,
+      via,
+      via === 'app' ? name : actor.name,
+      request.log,
+      { actorId: actor.id, ip: request.ip ?? '' },
+    );
     // Written in the audit log by the desk itself, in plain words.
     (request as FastifyRequest & { audited?: boolean }).audited = true;
     return { matter: publicMatter(outcome.matter), message: outcome.words };
+  });
+
+  /* -------------------------------------------------------------- in the app first (ruling 79) */
+
+  /**
+   * Asked every few seconds by the owner's admin panel: is Ozi ringing him? Asking is also how
+   * the server knows the panel is open, so an attempt rings there first. Anyone else is told
+   * nothing is ringing.
+   */
+  app.get('/staff/desk/ring', async (request) => {
+    const actor = await staffActor(request, 'overview');
+    if (!actor.isOwner || !actor.id) return { ring: null };
+    ownerPanelSeen(ctx);
+    const call = await ringingInApp(ctx);
+    return {
+      ring: call
+        ? {
+            id: call.id,
+            test: call.test,
+            until: call.appRingUntil,
+            words: `${config.assistantName} is calling, ${name}.`,
+          }
+        : null,
+    };
+  });
+
+  /** He answers in the app: the same words the telephone says, for the panel to speak. */
+  app.post('/staff/desk/ring/:id/answer', async (request) => {
+    ownerOnly(await staffActor(request, 'overview'));
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const call = await repository.ownerDesk.findCall(id);
+    if (!call) throw new NotFoundError('call');
+    if (call.status !== 'app_ringing') {
+      throw new ConflictError(
+        call.status === 'placed'
+          ? `${config.assistantName} is ringing your phone for this call now.`
+          : 'This call has already ended.',
+      );
+    }
+    await repository.ownerDesk.updateCall(call.id, {
+      status: 'answered',
+      answeredAt: now(),
+      answeredVia: 'app',
+    });
+    const hello = `Hello, ${name}. This is ${config.assistantName}.`;
+    if (call.test) {
+      return {
+        opening: `${hello} This is a test call. Ringing you in the app works.`,
+        matters: [],
+        farewell: `Goodbye, ${name}.`,
+        test: true,
+      };
+    }
+    const open = inReadingOrder(await tidyMatters(ctx));
+    const many = open.length > 1;
+    return {
+      opening:
+        open.length === 0
+          ? `${hello} Everything has been dealt with already.`
+          : `${hello} ${howMany(open.length)}`,
+      matters: open.map((matter, index) => ({
+        ...publicMatter(matter),
+        prompt: appPromptFor(matter),
+        spoken: `${
+          many
+            ? `The ${ORDINALS[index] ?? `number ${index + 1}`}${index === open.length - 1 ? ', and last' : ''}. `
+            : ''
+        }${matter.summary} ${appPromptFor(matter)}`,
+      })),
+      farewell,
+      test: false,
+    };
+  });
+
+  /** "Not now": this attempt ends without ringing the phone, and counts as unanswered. */
+  app.post('/staff/desk/ring/:id/not-now', async (request) => {
+    ownerOnly(await staffActor(request, 'overview'));
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const call = await repository.ownerDesk.findCall(id);
+    if (!call) throw new NotFoundError('call');
+    if (call.status === 'app_ringing') {
+      await repository.ownerDesk.updateCall(call.id, { status: 'unanswered', endedAt: now() });
+    }
+    return {
+      message: `All right, ${name}. ${config.assistantName} will try again later.`,
+    };
+  });
+
+  /** The call in the app has finished. */
+  app.post('/staff/desk/ring/:id/end', async (request) => {
+    ownerOnly(await staffActor(request, 'overview'));
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const call = await repository.ownerDesk.findCall(id);
+    if (!call) throw new NotFoundError('call');
+    if (call.status === 'answered' && call.endedAt === null) {
+      await repository.ownerDesk.updateCall(call.id, { endedAt: now() });
+    }
+    return { ended: true };
+  });
+
+  /** A matter was read to him on the call in the app, as the telephone marks it. */
+  app.post('/staff/desk/:id/read', async (request) => {
+    ownerOnly(await staffActor(request, 'overview'));
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const matter = await repository.ownerDesk.findMatter(id);
+    if (!matter) throw new NotFoundError('matter');
+    await repository.ownerDesk.updateMatter(matter.id, { lastReadAt: now() });
+    return { read: true };
+  });
+
+  /** "Test Ozi's call" in My settings: a test ring in the app, then the phone. */
+  app.post('/staff/desk/test-call', async (request) => {
+    ownerOnly(await staffActor(request, 'overview'));
+    // He pressed it in the panel, so the panel is open.
+    ownerPanelSeen(ctx);
+    const result = await testOwnerCall(ctx, request.log);
+    const seconds = config.ownerDesk.appRingSeconds;
+    const message = result.inApp
+      ? result.phone
+        ? `${config.assistantName} is ringing you in the app now. If you do not answer within ${seconds} seconds, ${config.assistantName} rings your phone.`
+        : `${config.assistantName} is ringing you in the app now. Your phone is not set up for ${config.assistantName}'s calls, so only the app rings.`
+      : result.call.status === 'placed'
+        ? `${config.assistantName} is ringing your phone now.`
+        : `${config.assistantName} could not ring you: no device and no phone is set up.`;
+    return { message, inApp: result.inApp, phone: result.phone };
+  });
+
+  /** Whether Ozi can ring him in the app and on the phone, for My settings. Never the number. */
+  app.get('/staff/desk/reach', async (request) => {
+    ownerOnly(await staffActor(request, 'overview'));
+    const reach = await inAppReach(ctx);
+    return {
+      notificationsOn: ctx.sendPush !== null,
+      devices: reach.devices.length,
+      phone: canRingPhone(ctx),
+      appRingSeconds: config.ownerDesk.appRingSeconds,
+    };
+  });
+
+  const Subscription = z.object({
+    endpoint: z.string().min(1).max(2048),
+    keys: z.object({
+      p256dh: z.string().min(1).max(256),
+      auth: z.string().min(1).max(64),
+    }),
+  });
+
+  /** "Let Ozi ring me in the app": this device, against the owner's own staff account. */
+  app.post('/staff/push-subscriptions', async (request, reply) => {
+    const staffId = ownerOnly(await staffActor(request, 'overview'));
+    if (!ctx.sendPush) throw new ConflictError('Notifications are not switched on yet.');
+    const { endpoint, keys } = Subscription.parse(request.body);
+    if (!isPushServiceEndpoint(endpoint)) {
+      throw new BadRequestError('That is not a notification address we can use.');
+    }
+    await repository.pushSubscriptions.save({
+      staffId,
+      endpoint,
+      p256dh: keys.p256dh,
+      auth: keys.auth,
+      createdAt: now(),
+    });
+    void reply.status(201);
+    return {
+      saved: true,
+      message: `${config.assistantName} can ring you in the app on this device.`,
+    };
+  });
+
+  app.delete('/staff/push-subscriptions', async (request) => {
+    const staffId = ownerOnly(await staffActor(request, 'overview'));
+    const { endpoint } = z.object({ endpoint: z.string().min(1).max(2048) }).parse(request.body);
+    const mine = await repository.pushSubscriptions.listForStaff(staffId);
+    if (mine.some((device) => device.endpoint === endpoint)) {
+      await repository.pushSubscriptions.deleteByEndpoint(endpoint);
+    }
+    return { removed: true, message: `${config.assistantName} will not ring this device.` };
   });
 }

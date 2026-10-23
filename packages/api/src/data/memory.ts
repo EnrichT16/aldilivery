@@ -722,7 +722,15 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
     pushSubscriptions: {
       async save(input) {
         const existing = pushSubscriptions.get(input.endpoint);
-        const row: PushSubscription = { ...input, id: existing?.id ?? id() };
+        const row: PushSubscription = {
+          id: existing?.id ?? id(),
+          endpoint: input.endpoint,
+          p256dh: input.p256dh,
+          auth: input.auth,
+          createdAt: existing?.createdAt ?? input.createdAt,
+          shopperId: input.shopperId ?? existing?.shopperId ?? null,
+          staffId: input.staffId ?? existing?.staffId ?? null,
+        };
         pushSubscriptions.set(input.endpoint, row);
         return clone(row);
       },
@@ -730,6 +738,9 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         return [...pushSubscriptions.values()]
           .filter((row) => row.shopperId === shopperId)
           .map(clone);
+      },
+      async listForStaff(staffId) {
+        return [...pushSubscriptions.values()].filter((row) => row.staffId === staffId).map(clone);
       },
       async deleteByEndpoint(endpoint) {
         pushSubscriptions.delete(endpoint);

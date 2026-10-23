@@ -831,14 +831,18 @@ model ItemQuestion {
 /// keys for encrypting what is sent to it; no message is ever stored.
 model PushSubscription {
   id        String   @id @default(cuid())
-  shopperId String
-  shopper   Shopper  @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  shopperId String?
+  shopper   Shopper? @relation(fields: [shopperId], references: [id], onDelete: Cascade)
+  /// The staff account that allowed notifications here: the owner letting Ozi ring him in the
+  /// app (ruling 79). One device can be both a Shopper's and a staff member's.
+  staffId   String?
   endpoint  String   @unique
   p256dh    String
   auth      String
   createdAt DateTime @default(now())
 
   @@index([shopperId])
+  @@index([staffId])
 }
 
 /// An address a Shopper has saved for orders sent somewhere other than home: a child at
@@ -1461,15 +1465,23 @@ model OwnerMatter {
 /// Each call Ozi placed to the owner about his matters (ruling 74), so the escalation (three in
 /// a row, then an hour, then three again) survives a restart.
 model OwnerCall {
-  id          String    @id @default(cuid())
-  cascade     Int
-  attempt     Int
-  placedAt    DateTime
-  /// placed, answered, unanswered, voicemail or failed.
-  status      String    @default("placed")
-  answeredAt  DateTime?
-  endedAt     DateTime?
-  matterCount Int       @default(0)
+  id            String    @id @default(cuid())
+  cascade       Int
+  attempt       Int
+  placedAt      DateTime
+  /// app_ringing, placed, answered, unanswered, voicemail or failed.
+  status        String    @default("placed")
+  answeredAt    DateTime?
+  endedAt       DateTime?
+  matterCount   Int       @default(0)
+  /// Ringing in the app first until then (ruling 79); null when it went straight to the phone.
+  appRingUntil  DateTime?
+  /// When the phone was rung for this attempt.
+  phonePlacedAt DateTime?
+  /// app or phone.
+  answeredVia   String?
+  /// A test call from My settings, never counted in the rounds of calls.
+  test          Boolean   @default(false)
 
   @@index([placedAt])
 }

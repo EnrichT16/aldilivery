@@ -369,6 +369,11 @@ export interface OwnerDeskSettings {
   readonly laterAfterMinutes: number;
   readonly lowRatingAtMost: number;
   readonly checkConfidence: number;
+  /**
+   * Ozi rings the owner in the app first (ruling 79): this many seconds unanswered, and the same
+   * attempt falls back to the telephone.
+   */
+  readonly appRingSeconds: number;
 }
 
 /** The company inbox and staff calls (ruling 77). */
@@ -735,6 +740,7 @@ function parseOwnerDesk(raw: Unknown): OwnerDeskSettings {
     ),
     lowRatingAtMost: wholeNumber(raw['lowRatingAtMost'] ?? 2, 'ownerDesk.lowRatingAtMost', 1),
     checkConfidence: confidence,
+    appRingSeconds: wholeNumber(raw['appRingSeconds'] ?? 30, 'ownerDesk.appRingSeconds', 5),
   };
 }
 

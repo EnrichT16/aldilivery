@@ -49,3 +49,28 @@ Without the language model key nothing is automatic, and everything goes to Anth
 ## What has to be set for the calls
 
 OWNER_ALERT_PHONE, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VOICE_FROM and ALLOWED_ORIGIN. Each call tells Twilio where to ask what to say and where to report how the call went, so nothing needs setting on the number in the Twilio console. LANGUAGE_MODEL_KEY switches the automatic check on.
+
+## In the app first, then his mobile
+
+Decided by Anthony on 23 October 2026, recorded as ruling 79 in docs/BUILD_PROMPT.md.
+
+Each time Ozi tries to reach him, it now rings him in the app first. Every device where he has allowed Ozi to ring him gets a notification, "Ozi is calling, Mr. Anthony", which never says what the matters are. If the admin panel is open, the whole screen becomes the incoming call: a screen reader announces "Ozi is calling", the focus is on Answer, and Ozi asks aloud "Say answer, or not now". He can press Answer or Not now, use the keyboard (Escape is Not now), or say "answer" or "not now".
+
+If he does not answer in the app within 30 seconds, the same attempt rings his phone, exactly as before. An attempt is the app ringing and then the phone, so the rounds are unchanged: three attempts about two minutes apart, then an hour, until everything is decided or put to later. If no device is set to ring and the panel is not open, Ozi rings the phone straight away. Quiet hours (22:50 to 06:00 UK time) and the rule that urgent matters ring in them are unchanged. "Not now" ends that attempt without ringing the phone, and Ozi tries again as it would after an unanswered call.
+
+When he answers in the app, Ozi says the same things it says on the phone, in the browser's own voice: "Hello, Mr. Anthony. This is Ozi.", how many things need him, and then each one. He answers each with the big buttons (Approve, Decline and Later, or Heard it and Later), with 1, 2 and 3 on a keyboard just like the keypad, or by saying "yes" or "approve", "no" or "decline", "later" or "heard it". Each answer does exactly what the keypad does, and the audit log records that Mr. Anthony decided it on Ozi's call in the app. Anything Ozi does not understand, it asks again. At the end: "That's everything. Goodbye, Mr. Anthony."
+
+### Setting it up
+
+In the admin panel, My settings has a part called "Ozi's calls" with two buttons:
+
+- **Let Ozi ring me in the app** asks the browser to allow notifications, and keeps this device against his own account. Press it on each phone, tablet or computer he uses. On an iPhone or iPad the app must be on the Home Screen first.
+- **Test Ozi's call** rings him in the app straight away, and then his phone if nobody answers within 30 seconds, saying it is a test. It never counts as one of Ozi's real calls, so Yvette can prove both work.
+
+The part also says how many devices are set to ring and whether his phone is set up. It never shows the number.
+
+Notifications need VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY, as for Shoppers. The phone still needs OWNER_ALERT_PHONE, TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_VOICE_FROM and ALLOWED_ORIGIN. How long the app rings is `ownerDesk.appRingSeconds` in config/store.json.
+
+### Checking from outside
+
+`/api/health` now answers two more questions with yes or no, and never shows the number: `ownerPhoneSet` says whether OWNER_ALERT_PHONE is a real UK number, and `ownerDeskCanRing` says whether that, Twilio's voice settings and ALLOWED_ORIGIN are all in place, so Ozi can ring his phone.

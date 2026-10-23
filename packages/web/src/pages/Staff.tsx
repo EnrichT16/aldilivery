@@ -95,6 +95,8 @@ import {
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { ShareCard } from '../components/ShareCard';
 import { StaffVoice } from '../components/StaffVoice';
+import { OziCall } from '../components/OziCall';
+import { OziCallSettings } from '../components/OziCallSettings';
 import {
   ActiveSos,
   ReferralRewards,
@@ -369,6 +371,16 @@ export function Staff(): JSX.Element {
             }}
             onSignOut={signOut}
           />
+          {/* Ozi rings the owner here first, then his phone (ruling 79). */}
+          {me.isOwner === true && me.account && (
+            <OziCall
+              staffKey={key}
+              onChanged={(text) => {
+                setNews(text);
+                setRefresh((value) => value + 1);
+              }}
+            />
+          )}
           <nav aria-label="Admin pages" className="space-y-3">
             <TabList
               id="group"
@@ -3467,6 +3479,8 @@ function MySettings({
           {password}
         </p>
       )}
+
+      <OziCallSettings staffKey={staffKey} onNews={onNews} />
 
       <section aria-labelledby="viewers-heading" className="space-y-4">
         <h3 id="viewers-heading" className="text-lead font-bold m-0">

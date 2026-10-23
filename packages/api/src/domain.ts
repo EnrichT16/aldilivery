@@ -252,7 +252,13 @@ export interface ReferralReward {
  */
 export interface PushSubscription {
   id: string;
-  shopperId: string;
+  /** The Shopper who allowed notifications on this device, if one did. */
+  shopperId: string | null;
+  /**
+   * The staff account that allowed them, if one did: the owner letting Ozi ring him in the app
+   * (ruling 79). One device can be both.
+   */
+  staffId: string | null;
   endpoint: string;
   p256dh: string;
   auth: string;
@@ -1170,7 +1176,8 @@ export type OwnerMatterOptions = 'decide' | 'acknowledge';
 export type OwnerMatterStatus = 'open' | 'later' | 'decided' | 'handled';
 export type OwnerMatterDecision = 'approve' | 'decline' | 'acknowledge' | 'settled';
 /** By the keypad on Ozi's call, in the admin panel, or by itself (dealt with elsewhere). */
-export type OwnerMatterVia = 'phone' | 'panel' | 'automatic';
+/** How a matter was decided: on the phone's keypad, in the admin panel, on Ozi's call in the app (ruling 79), or by itself. */
+export type OwnerMatterVia = 'phone' | 'panel' | 'app' | 'automatic';
 
 export interface OwnerMatter {
   id: string;
@@ -1239,11 +1246,22 @@ export interface OwnerCall {
   cascade: number;
   attempt: number;
   placedAt: Date;
-  /** placed (ringing), answered (a person), unanswered, voicemail or failed. */
-  status: 'placed' | 'answered' | 'unanswered' | 'voicemail' | 'failed';
+  /**
+   * app_ringing (ringing in the app first, ruling 79), placed (the phone ringing), answered (a
+   * person, in the app or on the phone), unanswered, voicemail or failed.
+   */
+  status: 'app_ringing' | 'placed' | 'answered' | 'unanswered' | 'voicemail' | 'failed';
   answeredAt: Date | null;
   endedAt: Date | null;
   matterCount: number;
+  /** Until when it rings in the app before the phone (ruling 79); null when it went straight to the phone. */
+  appRingUntil: Date | null;
+  /** When the phone was rung for this attempt; null while it rings only in the app. */
+  phonePlacedAt: Date | null;
+  /** Where he answered: in the app or on the phone. */
+  answeredVia: 'app' | 'phone' | null;
+  /** A test call from My settings ("Test Ozi's call"): never counted in the rounds of calls. */
+  test: boolean;
 }
 
 /* ------------------------------------------------------------------ the company inbox (ruling 77) */
