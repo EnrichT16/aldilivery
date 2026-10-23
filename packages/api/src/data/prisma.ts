@@ -1210,6 +1210,107 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    companyContact: {
+      async findThread(accountKind, accountId) {
+        return (await prisma.inboxThread.findUnique({
+          where: { accountKind_accountId: { accountKind, accountId } },
+        })) as any;
+      },
+      async findThreadById(id) {
+        return (await prisma.inboxThread.findUnique({ where: { id } })) as any;
+      },
+      async openThread(accountKind, accountId) {
+        // Two messages at once can only ever make one thread.
+        return (await prisma.inboxThread.upsert({
+          where: { accountKind_accountId: { accountKind, accountId } },
+          create: { accountKind, accountId },
+          update: {},
+        })) as any;
+      },
+      async listThreads() {
+        return (await prisma.inboxThread.findMany({
+          orderBy: [{ lastMessageAt: 'desc' }, { id: 'desc' }],
+        })) as any;
+      },
+      async updateThread(id, patch) {
+        return (await prisma.inboxThread.update({ where: { id }, data: patch })) as any;
+      },
+      async addMessage(input) {
+        return (await prisma.inboxMessage.create({ data: input })) as any;
+      },
+      async findMessage(id) {
+        return (await prisma.inboxMessage.findUnique({ where: { id } })) as any;
+      },
+      async updateMessage(id, patch) {
+        return (await prisma.inboxMessage.update({ where: { id }, data: patch as any })) as any;
+      },
+      async listMessages(threadId) {
+        return (await prisma.inboxMessage.findMany({
+          where: { threadId },
+          orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+        })) as any;
+      },
+      async listStaffMessages(limit) {
+        return (await prisma.inboxMessage.findMany({
+          where: { fromStaff: true },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: limit,
+        })) as any;
+      },
+      async deleteThreadFor(accountKind, accountId) {
+        const thread = await prisma.inboxThread.findUnique({
+          where: { accountKind_accountId: { accountKind, accountId } },
+        });
+        if (!thread) return 0;
+        const [messages] = await prisma.$transaction([
+          prisma.inboxMessage.deleteMany({ where: { threadId: thread.id } }),
+          prisma.inboxThread.delete({ where: { id: thread.id } }),
+        ]);
+        return messages.count;
+      },
+      async createCode(input) {
+        return (await prisma.staffContactCode.create({ data: input })) as any;
+      },
+      async listCodesFor(staffId, kind) {
+        return (await prisma.staffContactCode.findMany({
+          where: { staffId, kind },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        })) as any;
+      },
+      async updateCode(id, patch) {
+        return (await prisma.staffContactCode.update({ where: { id }, data: patch })) as any;
+      },
+      async createCall(input) {
+        return (await prisma.staffCall.create({ data: input })) as any;
+      },
+      async findCall(id) {
+        return (await prisma.staffCall.findUnique({ where: { id } })) as any;
+      },
+      async findCallByRoomName(roomName) {
+        return (await prisma.staffCall.findUnique({ where: { roomName } })) as any;
+      },
+      async updateCall(id, patch) {
+        return (await prisma.staffCall.update({ where: { id }, data: patch as any })) as any;
+      },
+      async listCalls(limit) {
+        return (await prisma.staffCall.findMany({
+          orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+          take: limit,
+        })) as any;
+      },
+      async listCallsFor(accountKind, accountId) {
+        return (await prisma.staffCall.findMany({
+          where: { accountKind, accountId },
+          orderBy: [{ startedAt: 'desc' }, { id: 'desc' }],
+        })) as any;
+      },
+      async listRecordingsStartedBefore(before) {
+        return (await prisma.staffCall.findMany({
+          where: { recordingKey: { not: null }, startedAt: { lt: before } },
+        })) as any;
+      },
+    },
+
     emails: {
       async findByMessageId(messageId) {
         return (await prisma.emailMessage.findUnique({ where: { messageId } })) as any;
@@ -1286,6 +1387,14 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           prisma.pushSubscription.deleteMany({ where: { shopperId } }),
           prisma.savedAddress.deleteMany({ where: { shopperId } }),
           prisma.householdCircleMember.deleteMany({ where: { shopperId } }),
+          // The company inbox (ruling 77): the thread, and with it every message, goes too.
+          prisma.inboxThread.deleteMany({
+            where: { accountKind: 'shopper', accountId: shopperId },
+          }),
+          prisma.staffCall.updateMany({
+            where: { accountKind: 'shopper', accountId: shopperId },
+            data: { accountName: 'Closed account' },
+          }),
           prisma.shopper.update({
             where: { id: shopperId },
             data: erasedShopperPatch(shopperId, at) as any,
@@ -1295,6 +1404,11 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       async eraseRunner(runnerId, at) {
         await prisma.$transaction([
           prisma.runnerDocument.deleteMany({ where: { runnerId } }),
+          prisma.inboxThread.deleteMany({ where: { accountKind: 'runner', accountId: runnerId } }),
+          prisma.staffCall.updateMany({
+            where: { accountKind: 'runner', accountId: runnerId },
+            data: { accountName: 'Closed account' },
+          }),
           prisma.runner.update({
             where: { id: runnerId },
             data: erasedRunnerPatch(runnerId, at) as any,

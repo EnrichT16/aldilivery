@@ -22,6 +22,7 @@ import type { Env } from './env.js';
 import { bankSettings } from './lib/bank.js';
 import { auditChange } from './lib/audit.js';
 import { addSecurityHeaders, limiter } from './lib/guard.js';
+import type { CallRecorder } from './lib/call-recording.js';
 import type { CallProvider } from './lib/livekit.js';
 import type { VoiceEngineLink } from './lib/oluoma-voice.js';
 import type { OziBrain } from './lib/language-model.js';
@@ -52,6 +53,7 @@ import { registerOziRoutes } from './routes/ozi.js';
 import { registerShareRoutes } from './routes/share.js';
 import { registerTelephoneRoutes } from './routes/telephone.js';
 import { registerOwnerDeskRoutes } from './routes/owner-desk.js';
+import { registerCompanyInboxRoutes } from './routes/company-inbox.js';
 import { registerVoiceRoutes } from './routes/voice.js';
 import { registerPaymentRoutes } from './routes/payments.js';
 import { registerReimbursementRoutes } from './routes/reimbursements.js';
@@ -120,6 +122,11 @@ export interface AppContext {
   /** LiveKit, for in-app calls (Section F). Null until its three settings are given. */
   calls: CallProvider | null;
   /**
+   * Recording staff calls through LiveKit Egress into S3-compatible storage (ruling 77). Null
+   * until LiveKit and the five RECORDING_S3_* settings are given: calls then are not recorded.
+   */
+  recorder: CallRecorder | null;
+  /**
    * Oluoma Voice, which Ozi speaks and hears through (ruling 53). Null until both its settings
    * are given; the app then uses the phone's own speech.
    */
@@ -173,6 +180,7 @@ export interface BuildAppOptions extends Partial<
     | 'sendText'
     | 'placeCall'
     | 'calls'
+    | 'recorder'
     | 'voice'
     | 'brain'
     | 'openPrices'
@@ -239,6 +247,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     sendText: options.sendText ?? null,
     placeCall: options.placeCall ?? null,
     calls: options.calls ?? null,
+    recorder: options.recorder ?? null,
     voice: options.voice ?? null,
     brain: options.brain ?? null,
     openPrices: options.openPrices ?? null,
@@ -497,6 +506,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerShareRoutes(app);
   await registerTelephoneRoutes(app);
   await registerOwnerDeskRoutes(app);
+  await registerCompanyInboxRoutes(app);
   await registerVoiceRoutes(app);
   await registerPaymentRoutes(app);
   await registerReimbursementRoutes(app);

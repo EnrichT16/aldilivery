@@ -17,6 +17,10 @@
  * did not order lives only in the server's memory for the call (routes/telephone.ts), and Runner
  * document photos are removed as soon as a person has checked them (routes/runner-account.ts).
  *
+ * Staff call recordings (ruling 77): deleted from storage after `companyContact.callRecordingDays`
+ * (90); the call stays in the log, saying the recording was deleted. Messages between the company
+ * and an account are kept as long as the account, and go with it when it is removed.
+ *
  * Runners (ruling 60): a Runner who closed their account in the app, or was removed, has their
  * name, number, where they last were and any document photos removed after the same days to
  * change their mind as a Shopper, once nothing is still owed either way (a job in hand, a
@@ -28,6 +32,7 @@ import type { FastifyBaseLogger } from 'fastify';
 
 import type { AppContext } from '../app.js';
 import type { Order } from '../domain.js';
+import { deleteOldRecordings } from './company-contact.js';
 import { depositHeld } from './runner-leaving.js';
 
 const DAY_MS = 24 * 3600 * 1000;
@@ -67,6 +72,8 @@ export interface RetentionReport {
   exchangesRemoved: number;
   ordersAnonymised: number;
   receiptPhotosRemoved: number;
+  /** Staff call recordings older than `companyContact.callRecordingDays` (90), deleted (ruling 77). */
+  callRecordingsRemoved: number;
 }
 
 function before(at: Date, days: number): Date {
@@ -149,7 +156,7 @@ const RUNNER_UNDER_WAY: readonly Order['status'][] = [
 ];
 
 export async function sweepRetention(
-  ctx: Pick<AppContext, 'repository' | 'now'> & Partial<Pick<AppContext, 'config'>>,
+  ctx: Pick<AppContext, 'repository' | 'now'> & Partial<Pick<AppContext, 'config' | 'recorder'>>,
   log?: FastifyBaseLogger,
 ): Promise<RetentionReport> {
   const at = ctx.now();
@@ -206,5 +213,6 @@ export async function sweepRetention(
       retention.deleteReceiptPhotosBefore(ordersBefore),
     ),
     ordersAnonymised: await step('orders', () => retention.anonymiseOrdersBefore(ordersBefore, at)),
+    callRecordingsRemoved: await step('call recordings', () => deleteOldRecordings(ctx, log)),
   };
 }

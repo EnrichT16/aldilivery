@@ -317,6 +317,31 @@ services:
         scope: RUN_TIME
         value: "off"
 
+      # Recording staff calls (ruling 77) into S3-compatible storage. DigitalOcean Spaces (about
+      # $5 a month) can hold them: a Space, and a Spaces access key. Without all five, calls
+      # still work and are not recorded.
+      - key: RECORDING_S3_ENDPOINT
+        scope: RUN_TIME
+        value: replace_with_the_spaces_endpoint_such_as_lon1.digitaloceanspaces.com
+
+      - key: RECORDING_S3_BUCKET
+        scope: RUN_TIME
+        value: replace_with_the_space_name
+
+      - key: RECORDING_S3_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: replace_with_the_spaces_access_key
+
+      - key: RECORDING_S3_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: replace_with_the_spaces_secret_key
+
+      - key: RECORDING_S3_REGION
+        scope: RUN_TIME
+        value: replace_with_the_region_such_as_lon1
+
 # ---------------------------------------------------------------------------
 # The web app
 # ---------------------------------------------------------------------------

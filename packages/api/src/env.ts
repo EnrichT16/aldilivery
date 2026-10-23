@@ -171,6 +171,17 @@ export interface Env {
   /** Answer simple customer questions by email without the owner. Off unless exactly "on". */
   emailAutoReply: boolean;
   /**
+   * Where staff call recordings are kept (ruling 77): any S3-compatible storage, such as
+   * DigitalOcean Spaces. The endpoint (`lon1.digitaloceanspaces.com`), the bucket, the access
+   * key, its secret and the region. The secret is environment only and never logged. Without all
+   * five, calls still work and the log says "not recorded: recording storage not set up".
+   */
+  recordingS3Endpoint: string | undefined;
+  recordingS3Bucket: string | undefined;
+  recordingS3Key: string | undefined;
+  recordingS3Secret: string | undefined;
+  recordingS3Region: string | undefined;
+  /**
    * Fill an empty catalogue at startup. On by default, because a deployed service with
    * no catalogue looks broken. Set `SEED_ON_START=false` once the catalogue comes from
    * somewhere else.
@@ -323,6 +334,11 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     emailSmtpHost: realValue(source['EMAIL_SMTP_HOST']?.trim() || undefined),
     emailSmtpPort: integer(source['EMAIL_SMTP_PORT'], 465),
     emailAutoReply: source['EMAIL_AUTO_REPLY']?.trim().toLowerCase() === 'on',
+    recordingS3Endpoint: realValue(source['RECORDING_S3_ENDPOINT']?.trim() || undefined),
+    recordingS3Bucket: realValue(source['RECORDING_S3_BUCKET']?.trim() || undefined),
+    recordingS3Key: realValue(source['RECORDING_S3_KEY']?.trim() || undefined),
+    recordingS3Secret: realValue(source['RECORDING_S3_SECRET'] || undefined),
+    recordingS3Region: realValue(source['RECORDING_S3_REGION']?.trim() || undefined),
     seedOnStart: source['SEED_ON_START'] !== 'false',
   };
 }

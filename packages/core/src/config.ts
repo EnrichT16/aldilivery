@@ -338,6 +338,11 @@ export interface StoreConfig {
    * automatic check approves only at `checkConfidence` or above.
    */
   readonly ownerDesk: OwnerDeskSettings;
+  /**
+   * The company inbox and staff calls (ruling 77): how long a message code lasts, and how long a
+   * staff call's recording is kept before the retention sweep deletes it.
+   */
+  readonly companyContact: CompanyContactSettings;
   /** The admin panel (Section Q): who may do what, and how signing in is kept safe. */
   readonly admin: {
     /** A refund above this is the owner's alone to give (Section Q). £25 unless set. */
@@ -364,6 +369,14 @@ export interface OwnerDeskSettings {
   readonly laterAfterMinutes: number;
   readonly lowRatingAtMost: number;
   readonly checkConfidence: number;
+}
+
+/** The company inbox and staff calls (ruling 77). */
+export interface CompanyContactSettings {
+  /** A message code is good for this many minutes, once, for the staff member it was made for. */
+  readonly messageCodeMinutes: number;
+  /** A staff call's recording is kept this many days, then deleted. */
+  readonly callRecordingDays: number;
 }
 
 export class StoreConfigError extends Error {
@@ -722,6 +735,21 @@ function parseOwnerDesk(raw: Unknown): OwnerDeskSettings {
     ),
     lowRatingAtMost: wholeNumber(raw['lowRatingAtMost'] ?? 2, 'ownerDesk.lowRatingAtMost', 1),
     checkConfidence: confidence,
+  };
+}
+
+function parseCompanyContact(raw: Unknown): CompanyContactSettings {
+  return {
+    messageCodeMinutes: wholeNumber(
+      raw['messageCodeMinutes'] ?? 120,
+      'companyContact.messageCodeMinutes',
+      1,
+    ),
+    callRecordingDays: wholeNumber(
+      raw['callRecordingDays'] ?? 90,
+      'companyContact.callRecordingDays',
+      1,
+    ),
   };
 }
 
@@ -1255,6 +1283,9 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       spokenName: str(ownerRaw['spokenName'] ?? 'Mr. Anthony', 'owner.spokenName'),
     },
     ownerDesk: parseOwnerDesk(ownerDeskRaw),
+    companyContact: parseCompanyContact(
+      root['companyContact'] === undefined ? {} : object(root['companyContact'], 'companyContact'),
+    ),
     admin: {
       ownerOnlyRefundAbovePence: wholeNumber(
         admin['ownerOnlyRefundAbovePence'] ?? 2500,

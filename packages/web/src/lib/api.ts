@@ -1277,7 +1277,9 @@ export type StaffArea =
   | 'runners'
   | 'reports'
   | 'accounts'
-  | 'audit';
+  | 'audit'
+  /** The company inbox and staff calls (ruling 77). */
+  | 'messages';
 
 /** Where someone's two-step codes stand (Section Q). */
 export interface StaffTwoStep {
@@ -1359,6 +1361,8 @@ export interface TeamMember {
   lastSignInAt: string | null;
   createdAt: string;
   twoStepOn?: boolean;
+  /** May issue message and call codes, and message and call without one (ruling 77). */
+  canAuthorise?: boolean;
 }
 
 export function fetchTeam(key: string): Promise<{ team: TeamMember[] }> {

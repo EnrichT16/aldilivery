@@ -53,7 +53,7 @@ describe('staff accounts', () => {
       expect.objectContaining({
         name: 'Chidi',
         title: 'Customer care officer',
-        areas: ['problems', 'feedback', 'learning', 'orders'],
+        areas: ['problems', 'feedback', 'learning', 'orders', 'messages'],
         mustChangePassword: true,
       }),
     );
@@ -219,7 +219,7 @@ describe('staff accounts', () => {
     );
     expect(areasOf('customer_care')).toContain('orders');
     expect(areasOf('finance')).toEqual(expect.arrayContaining(['runners', 'reports']));
-    expect(areasOf('onboarding')).toEqual(['documents']);
+    expect(areasOf('onboarding')).toEqual(['documents', 'messages']);
     // Opening a Shopper's account, exporting their data and the audit log: no job has them.
     for (const row of roles) {
       expect(row.areas).not.toContain('accounts');

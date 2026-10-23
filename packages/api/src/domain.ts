@@ -825,6 +825,11 @@ export interface StaffMember {
   sessionVersion: number;
   /** Two-step recovery codes, each hashed, comma separated; one is used up each time. */
   recoveryCodes: string;
+  /**
+   * May issue message and call codes, and send and call without one (ruling 77). Only the owner
+   * grants it, in Team. The owner himself always may.
+   */
+  canAuthorise: boolean;
 }
 
 export type PartnerShopStatus = 'pending' | 'approved' | 'removed';
@@ -1154,7 +1159,11 @@ export type OwnerMatterKind =
   | 'bank_transfer'
   | 'waiting_order'
   | 'find_it'
-  | 'email';
+  | 'email'
+  /** An account replied to a message from the company (ruling 77): to hear. */
+  | 'account_message'
+  /** A staff member asks to send a message without a code (ruling 77): to approve or decline. */
+  | 'message_approval';
 
 /** Approve, decline or later; or only "I have heard it", or later. */
 export type OwnerMatterOptions = 'decide' | 'acknowledge';
@@ -1235,4 +1244,102 @@ export interface OwnerCall {
   answeredAt: Date | null;
   endedAt: Date | null;
   matterCount: number;
+}
+
+/* ------------------------------------------------------------------ the company inbox (ruling 77) */
+
+/** Who the company talks to: every kind of account, never one account to another. */
+export type InboxAccountKind = 'shopper' | 'runner' | 'partner' | 'organisation';
+
+/** One conversation between the company and one account. */
+export interface InboxThread {
+  id: string;
+  accountKind: InboxAccountKind;
+  /** The Shopper, the Runner, the partner shop or the organisation. */
+  accountId: string;
+  createdAt: Date;
+  lastMessageAt: Date;
+}
+
+/** Sent; held waiting for the owner's approval on Ozi's desk; or declined there. */
+export type InboxMessageStatus = 'sent' | 'held' | 'declined';
+
+/**
+ * What let a staff message be sent, or a staff call be made: the sender is the owner or an
+ * authoriser (`self`), a code issued for them (`code`), or the owner's approval on Ozi's desk.
+ */
+export type ContactAuthorisation = 'self' | 'code' | 'desk';
+
+export interface InboxMessage {
+  id: string;
+  threadId: string;
+  /** From the company (a staff member) or from the account. */
+  fromStaff: boolean;
+  /** The staff member who wrote it; null for the account's own replies. */
+  staffId: string | null;
+  /** The staff member's name, or the name of the person on the account who wrote it. */
+  senderName: string;
+  text: string;
+  createdAt: Date;
+  /** When it reached the other side; null while held. */
+  sentAt: Date | null;
+  /** When the other side read it. */
+  readAt: Date | null;
+  status: InboxMessageStatus;
+  /** For a staff message: what authorised it, and whose code or approval it was. */
+  authorisedBy: ContactAuthorisation | null;
+  authorisedByName: string | null;
+}
+
+/** A message code (single use, two hours) or a daily call code (until midnight, UK time). */
+export type StaffCodeKind = 'message' | 'call';
+
+/** A code issued to one staff member. Only its hash is kept, never the code. */
+export interface StaffCode {
+  id: string;
+  kind: StaffCodeKind;
+  staffId: string;
+  codeHash: string;
+  issuedById: string | null;
+  issuedByName: string;
+  createdAt: Date;
+  expiresAt: Date;
+  /** A message code: when it was used up. A call code: when it was entered, for the day. */
+  usedAt: Date | null;
+}
+
+export type StaffCallStatus = 'ringing' | 'live' | 'ended';
+
+/**
+ * What became of a staff call's recording: none yet, recording, saved, not recorded (no storage,
+ * or not answered), failed, or deleted after the days the privacy page says.
+ */
+export type RecordingStatus =
+  'none' | 'recording' | 'saved' | 'not_recorded' | 'failed' | 'deleted';
+
+/** A call from the company to an account, in the app or to their phone (ruling 77). */
+export interface StaffCall {
+  id: string;
+  roomName: string;
+  staffId: string | null;
+  staffName: string;
+  accountKind: InboxAccountKind;
+  accountId: string;
+  /** The account's name, as staff already see it. Never a number. */
+  accountName: string;
+  authorisedBy: ContactAuthorisation;
+  authorisedByName: string | null;
+  status: StaffCallStatus;
+  startedAt: Date;
+  answeredAt: Date | null;
+  endedAt: Date | null;
+  durationSeconds: number;
+  /** Rung on their phone through LiveKit SIP, from the company's number. */
+  phoneRung: boolean;
+  recordingStatus: RecordingStatus;
+  /** Where the recording is in storage. Never shown; played through a short-lived link. */
+  recordingKey: string | null;
+  egressId: string | null;
+  /** Why there is no recording, in words: "not recorded: recording storage not set up". */
+  recordingNote: string | null;
 }

@@ -66,6 +66,12 @@ import type {
   OwnerMatter,
   ReviewPointsSpend,
   ShopReview,
+  InboxAccountKind,
+  InboxMessage,
+  InboxThread,
+  StaffCall,
+  StaffCode,
+  StaffCodeKind,
 } from '../domain.js';
 import type { OrderStatus } from '@aldilivery/core';
 
@@ -801,6 +807,52 @@ export interface Repository {
     findByMessageId(messageId: string): Promise<EmailRecord | null>;
     /** Keeps the record; a second record of the same Message-ID returns the first. */
     record(input: Omit<EmailRecord, 'id'>): Promise<EmailRecord>;
+  };
+
+  /**
+   * The company inbox and staff calls (ruling 77): one thread for each account, its messages
+   * both ways, the codes that authorise staff to message and call (hashed), and every staff call.
+   */
+  companyContact: {
+    findThread(accountKind: InboxAccountKind, accountId: string): Promise<InboxThread | null>;
+    findThreadById(id: string): Promise<InboxThread | null>;
+    /** The one thread for this account; a second call returns the first. */
+    openThread(accountKind: InboxAccountKind, accountId: string): Promise<InboxThread>;
+    /** Newest message first. */
+    listThreads(): Promise<InboxThread[]>;
+    updateThread(
+      id: string,
+      patch: Partial<Pick<InboxThread, 'lastMessageAt'>>,
+    ): Promise<InboxThread>;
+    addMessage(input: Omit<InboxMessage, 'id'>): Promise<InboxMessage>;
+    findMessage(id: string): Promise<InboxMessage | null>;
+    updateMessage(
+      id: string,
+      patch: Partial<Omit<InboxMessage, 'id' | 'threadId'>>,
+    ): Promise<InboxMessage>;
+    /** Oldest first. */
+    listMessages(threadId: string): Promise<InboxMessage[]>;
+    /** Every message staff wrote, newest first: the messages and calls log. */
+    listStaffMessages(limit: number): Promise<InboxMessage[]>;
+    /** Removes the account's thread and every message in it, with the account (erasure). */
+    deleteThreadFor(accountKind: InboxAccountKind, accountId: string): Promise<number>;
+    createCode(input: Omit<StaffCode, 'id'>): Promise<StaffCode>;
+    /** Newest first. */
+    listCodesFor(staffId: string, kind: StaffCodeKind): Promise<StaffCode[]>;
+    updateCode(
+      id: string,
+      patch: Partial<Pick<StaffCode, 'usedAt' | 'expiresAt'>>,
+    ): Promise<StaffCode>;
+    createCall(input: Omit<StaffCall, 'id'>): Promise<StaffCall>;
+    findCall(id: string): Promise<StaffCall | null>;
+    findCallByRoomName(roomName: string): Promise<StaffCall | null>;
+    updateCall(id: string, patch: Partial<Omit<StaffCall, 'id'>>): Promise<StaffCall>;
+    /** Newest first. */
+    listCalls(limit: number): Promise<StaffCall[]>;
+    /** The account's calls, newest first. */
+    listCallsFor(accountKind: InboxAccountKind, accountId: string): Promise<StaffCall[]>;
+    /** Calls started before a moment that still have a recording kept. */
+    listRecordingsStartedBefore(before: Date): Promise<StaffCall[]>;
   };
 
   /** What the admin panel looks up across everybody (Section Q). Read only. */

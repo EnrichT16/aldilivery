@@ -307,6 +307,10 @@ export function Terms(): JSX.Element {
             {storeConfig.accountDeletion.recycleBinDays} days in case you change your mind.
           </li>
           <li>
+            {name} may contact you, as an account holder, through the app: by a message, or by a
+            call, which is recorded.
+          </li>
+          <li>
             We may close an account that is used for fraud or to abuse a Runner or our staff. We
             will tell you why, unless the law stops us.
           </li>

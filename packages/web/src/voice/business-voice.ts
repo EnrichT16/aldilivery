@@ -16,8 +16,12 @@ export type PartnerCommand =
   | { kind: 'payments' }
   | { kind: 'spotlight' }
   | { kind: 'numbers' }
+  | { kind: 'messages' }
   | { kind: 'help' }
   | { kind: 'sign-out' };
+
+/** "Read my messages", "any messages?": the company inbox (ruling 77). */
+const MESSAGES = /\b(messages?|inbox)\b/;
 
 export function understandPartner(said: string): PartnerCommand | null {
   const text = said
@@ -26,6 +30,7 @@ export function understandPartner(said: string): PartnerCommand | null {
     .trim();
   if (/\b(sign me out|sign out|log out)\b/.test(text)) return { kind: 'sign-out' };
   if (/\b(help|what can (you|i) (do|say))\b/.test(text)) return { kind: 'help' };
+  if (MESSAGES.test(text)) return { kind: 'messages' };
   const price = text.match(
     /\b(?:change|set|update|make)\s+(?:the\s+)?price\s+(?:of\s+)?(.+?)\s+(?:to|at)\s+(.+)$/,
   );
@@ -68,7 +73,7 @@ export function partnerHelp(): string {
     'You can say: "add a product", and I will ask you its name, price and best before date; ' +
     '"scan products", to add them with the camera, then "add all" when the list is right; ' +
     '"read my products"; "change the price of" a product "to" an amount; "remove" a product; ' +
-    '"what do I pay"; "my payment history"; "how am I doing"; "my spotlight"; "share my link"; or "sign me out".'
+    '"what do I pay"; "my payment history"; "how am I doing"; "my spotlight"; "share my link"; "read my messages"; or "sign me out".'
   );
 }
 
@@ -81,6 +86,7 @@ export type OrganisationCommand =
   | { kind: 'budget' }
   | { kind: 'upcoming' }
   | { kind: 'offices' }
+  | { kind: 'messages' }
   | { kind: 'help' }
   | { kind: 'sign-out' };
 
@@ -91,6 +97,7 @@ export function understandOrganisation(said: string): OrganisationCommand | null
     .trim();
   if (/\b(sign me out|sign out|log out)\b/.test(text)) return { kind: 'sign-out' };
   if (/\b(help|what can (you|i) (do|say))\b/.test(text)) return { kind: 'help' };
+  if (MESSAGES.test(text)) return { kind: 'messages' };
   if (/\b(sav(e|ed|ing|ings))\b/.test(text)) return { kind: 'saved' };
   if (/\bbudget\b|\b(left|remaining) to spend\b/.test(text)) return { kind: 'budget' };
   if (/\b(coming up|upcoming|next week|future|regular|weekly|repeat)\b/.test(text))
@@ -109,6 +116,6 @@ export function organisationHelp(): string {
   return (
     'You can say: "how much have we spent"; "read the orders", to hear who ordered what and when; ' +
     '"how much have we saved"; "what is left in the budget"; "what is coming up"; ' +
-    '"spending by office"; "read the people we support"; or "sign me out".'
+    '"spending by office"; "read the people we support"; "read my messages"; or "sign me out".'
   );
 }

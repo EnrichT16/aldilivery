@@ -22,7 +22,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
 import type { OwnerMatter } from '../domain.js';
-import { NotFoundError } from '../errors.js';
+import { ForbiddenError, NotFoundError } from '../errors.js';
 import { staffActor } from '../lib/staff.js';
 import { escapeXml, goodbye, say, signedByTwilio } from '../lib/twilio-voice.js';
 import { countWords } from '../services/needs-you.js';
@@ -301,6 +301,16 @@ export async function registerOwnerDeskRoutes(app: FastifyInstance): Promise<voi
       .parse(request.body ?? {});
     const matter = await repository.ownerDesk.findMatter(id);
     if (!matter) throw new NotFoundError('matter');
+    // A staff member's message is approved only by the owner or someone he lets authorise
+    // (ruling 77), never by the person who asked.
+    if (matter.kind === 'message_approval' && choice !== 'later') {
+      const { isAuthoriser } = await import('../services/company-contact.js');
+      if (!(await isAuthoriser(ctx, actor))) {
+        throw new ForbiddenError(
+          'Only the owner, or someone he lets authorise, approves a staff message.',
+        );
+      }
+    }
     const outcome = await decideMatter(ctx, matter, choice, 'panel', actor.name, request.log, {
       actorId: actor.id,
       ip: request.ip ?? '',

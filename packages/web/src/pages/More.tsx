@@ -1,11 +1,25 @@
 import { Link } from 'react-router-dom';
 
+import { useInboxUnread } from '../components/Inbox';
 import { storeConfig } from '../config';
+import { useSession } from '../state/session';
 
 /** Everything beyond the shopping itself, in one place, so the menu stays short. */
 export function More(): JSX.Element {
   const assistant = storeConfig.assistantName;
+  const { shopper } = useSession();
+  // The company inbox (ruling 77): messages from us, with how many are new.
+  const { unread } = useInboxUnread('shopper', Boolean(shopper));
   const links: Array<{ to: string; name: string; about: string }> = [
+    ...(shopper
+      ? [
+          {
+            to: '/messages',
+            name: unread > 0 ? `Messages, ${unread} new` : 'Messages',
+            about: `Messages from ${storeConfig.productName}, and your replies.`,
+          },
+        ]
+      : []),
     { to: '/recipes', name: `${assistant} Recipes`, about: 'Simple, healthy meals, read aloud.' },
     {
       to: '/gifts',

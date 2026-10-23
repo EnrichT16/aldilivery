@@ -1080,6 +1080,8 @@ model StaffMember {
   sessionVersion     Int       @default(0)
   /// Two-step recovery codes, each hashed, comma separated. One is used up each time.
   recoveryCodes      String    @default("")
+  /// May issue message and call codes, and message and call without one (ruling 77).
+  canAuthorise       Boolean   @default(false)
   createdAt          DateTime  @default(now())
 }
 
@@ -1488,4 +1490,86 @@ model EmailMessage {
   processedAt DateTime @default(now())
 
   @@index([processedAt])
+}
+
+/// The company inbox (ruling 77): one conversation between the company and one account, a
+/// Shopper, a Runner, a partner shop or an organisation. Never one account to another.
+model InboxThread {
+  id            String         @id @default(cuid())
+  /// shopper, runner, partner or organisation.
+  accountKind   String
+  accountId     String
+  createdAt     DateTime       @default(now())
+  lastMessageAt DateTime       @default(now())
+  messages      InboxMessage[]
+
+  @@unique([accountKind, accountId])
+  @@index([lastMessageAt])
+}
+
+/// One message, from a staff member (with what authorised it) or from the account.
+model InboxMessage {
+  id               String      @id @default(cuid())
+  threadId         String
+  thread           InboxThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  fromStaff        Boolean
+  staffId          String?
+  senderName       String
+  text             String
+  createdAt        DateTime    @default(now())
+  sentAt           DateTime?
+  readAt           DateTime?
+  /// sent, held (waiting for the owner on Ozi's desk) or declined.
+  status           String      @default("sent")
+  /// self, code or desk.
+  authorisedBy     String?
+  authorisedByName String?
+
+  @@index([threadId, createdAt])
+  @@index([fromStaff, createdAt])
+}
+
+/// A message code or a daily call code issued to one staff member. Only the hash is kept.
+model StaffContactCode {
+  id           String    @id @default(cuid())
+  /// message or call.
+  kind         String
+  staffId      String
+  codeHash     String
+  issuedById   String?
+  issuedByName String
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  usedAt       DateTime?
+
+  @@index([staffId, kind])
+}
+
+/// A call from the company to an account (ruling 77), with its recording if there is one.
+model StaffCall {
+  id               String    @id @default(cuid())
+  roomName         String    @unique
+  staffId          String?
+  staffName        String
+  accountKind      String
+  accountId        String
+  accountName      String
+  /// self, code or desk.
+  authorisedBy     String
+  authorisedByName String?
+  /// ringing, live or ended.
+  status           String    @default("ringing")
+  startedAt        DateTime
+  answeredAt       DateTime?
+  endedAt          DateTime?
+  durationSeconds  Int       @default(0)
+  phoneRung        Boolean   @default(false)
+  /// none, recording, saved, not_recorded, failed or deleted.
+  recordingStatus  String    @default("none")
+  recordingKey     String?
+  egressId         String?
+  recordingNote    String?
+
+  @@index([startedAt])
+  @@index([accountKind, accountId])
 }

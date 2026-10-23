@@ -72,6 +72,8 @@ function publicMember(member: StaffMember) {
     lastSignInAt: member.lastSignInAt,
     createdAt: member.createdAt,
     twoStepOn: member.totpEnabled,
+    // May issue message and call codes, and message and call without one (ruling 77).
+    canAuthorise: member.isOwner || member.canAuthorise,
   };
 }
 
@@ -322,6 +324,32 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
       ...(body.active !== undefined ? { active: body.active } : {}),
     });
     return { member: publicMember(updated) };
+  });
+
+  /**
+   * The owner lets a staff member authorise messages and calls (ruling 77): issue message and
+   * call codes, and message and call without one. The owner's alone to give or take away.
+   */
+  app.post('/staff/team/:id/authorise', async (request) => {
+    const actor = await staffActor(request, 'team');
+    if (!actor.isOwner) {
+      throw new ForbiddenError('Only the owner decides who may authorise messages and calls.');
+    }
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const { canAuthorise } = z.object({ canAuthorise: z.boolean() }).parse(request.body ?? {});
+    const member = await repository.staffMembers.findById(id);
+    if (!member) throw new NotFoundError('staff member');
+    if (member.isOwner) throw new BadRequestError('The owner always may authorise.');
+    if (isViewerRole(member.role)) {
+      throw new BadRequestError('Family and investor accounts only look; they cannot authorise.');
+    }
+    const updated = await repository.staffMembers.update(member.id, { canAuthorise });
+    return {
+      member: publicMember(updated),
+      message: canAuthorise
+        ? `${member.name} may now issue message and call codes, and message and call without one.`
+        : `${member.name} no longer authorises messages and calls.`,
+    };
   });
 
   app.post('/staff/team/:id/reset', async (request) => {

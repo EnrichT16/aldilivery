@@ -168,6 +168,19 @@ export const AUDIT_WORDS: Record<string, string> = {
   'owner-desk.later': 'Put something Ozi rang about to later',
   'automatic-check': 'The automatic check',
   'POST /runners/me/face-match-consent': 'Agreed to, or withdrew, the face comparison',
+  // The company inbox and staff calls (ruling 77).
+  'inbox.sent': 'Sent a message to an account',
+  'inbox.asked': 'Asked the owner to approve a message',
+  'inbox.approved': 'Approved a staff message on the desk',
+  'inbox.refused': 'A message was refused: no valid code',
+  'inbox.read': 'Read an account’s messages',
+  'contact.code-issued': 'Issued a message or call code',
+  'contact.call-code-entered': 'Entered the day’s call code',
+  'call.started': 'Called an account',
+  'call.phone': 'Rang an account’s phone',
+  'call.ended': 'Ended a call',
+  'call.recording-played': 'Played a call recording',
+  'POST /staff/team/:id/authorise': 'Let someone authorise messages and calls, or stopped it',
 };
 
 export function auditWords(action: string): string {
