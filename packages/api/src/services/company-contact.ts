@@ -164,6 +164,28 @@ function checkTries(staffId: string, at: Date): void {
   }
 }
 
+/**
+ * Staff members locked out of message and call codes at this moment, and until when (ruling
+ * 81): five wrong codes, then fifteen minutes.
+ */
+export function codeLockouts(at: Date): Array<{ staffId: string; until: Date }> {
+  const out: Array<{ staffId: string; until: Date }> = [];
+  for (const [staffId, tries] of wrongCodes) {
+    const until = tries.since + WRONG_CODE_WAIT_MS;
+    if (tries.count >= WRONG_CODES && until > at.getTime()) {
+      out.push({ staffId, until: new Date(until) });
+    }
+  }
+  return out;
+}
+
+/** Unlocks a staff member's message and call codes (ruling 81). True if they were locked. */
+export function clearCodeLockout(staffId: string, at: Date): boolean {
+  const locked = codeLockouts(at).some((row) => row.staffId === staffId);
+  wrongCodes.delete(staffId);
+  return locked;
+}
+
 function wrongTry(staffId: string, at: Date): void {
   const tries = wrongCodes.get(staffId);
   wrongCodes.set(staffId, {

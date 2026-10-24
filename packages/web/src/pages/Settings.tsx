@@ -111,9 +111,14 @@ export function Settings(): JSX.Element {
         <p className="m-0 extra">
           Your home address, and any others you send shopping to. Changing them needs your PIN.
         </p>
-        <Link to="/addresses" className="control border-paper bg-paper/10 text-paper">
-          Your addresses
-        </Link>
+        <div className="flex flex-wrap gap-3">
+          <Link to="/addresses" className="control border-paper bg-paper/10 text-paper">
+            Your addresses
+          </Link>
+          <Link to="/addresses?pin=change" className="control border-paper bg-paper/10 text-paper">
+            Change your PIN
+          </Link>
+        </div>
       </section>
 
       <section aria-labelledby="voice-heading" className="space-y-4 max-w-xl">

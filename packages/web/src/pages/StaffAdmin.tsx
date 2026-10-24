@@ -30,6 +30,7 @@ import {
   type StaffTwoStep,
 } from '../lib/api';
 import { AllocateJobs } from '../components/AllocateJobs';
+import { PersonTools } from '../components/Unlock';
 import { money } from '../lib/money';
 
 /**
@@ -824,6 +825,21 @@ export function ShopperAccounts({ staffKey }: { staffKey: string }): JSX.Element
             . Saved addresses: {open.savedAddresses.length}. Regular orders:{' '}
             {open.regularOrders.length}. Complaints: {open.problems.length}.
           </p>
+          {/* Unlocking and resetting (ruling 81): each one audited, and the Shopper texted. */}
+          <h4 className="m-0 font-bold">PIN and signing in</h4>
+          <PersonTools
+            staffKey={staffKey}
+            person={{
+              account: 'shopper',
+              id: account.id,
+              name: account.displayName,
+              phoneEnding: '',
+              hasPin: true,
+              pinLocked: false,
+              signInCodesLocked: false,
+            }}
+            owner
+          />
           <h4 className="m-0 font-bold">Orders</h4>
           {open.orders.length === 0 ? (
             <p className="m-0">None yet.</p>

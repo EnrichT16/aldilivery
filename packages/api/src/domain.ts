@@ -665,6 +665,8 @@ export interface OneTimeCode {
   consumedAt: Date | null;
   attempts: number;
   createdAt: Date;
+  /** When the limits on codes to this number were cleared by staff (ruling 81); null if not. */
+  limitClearedAt?: Date | null;
 }
 
 /** A basket line as it arrives from the web app or, later, from Ozi. */
@@ -916,6 +918,11 @@ export interface StaffMember {
    * grants it, in Team. The owner himself always may.
    */
   canAllocate: boolean;
+  /**
+   * May unlock anybody locked out, and reset a Shopper's PIN or a staff member's password
+   * (ruling 81). Only the owner grants it, in Team. The owner himself always may.
+   */
+  canUnlock: boolean;
 }
 
 export type PartnerShopStatus = 'pending' | 'approved' | 'removed';

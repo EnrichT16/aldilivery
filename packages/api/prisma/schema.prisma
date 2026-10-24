@@ -840,6 +840,9 @@ model OneTimeCode {
   expiresAt  DateTime
   consumedAt DateTime?
   attempts   Int         @default(0)
+  /// When someone allowed to unlock cleared the limits for this number (ruling 81): a code
+  /// with this set no longer counts towards how many may be sent.
+  limitClearedAt DateTime?
 
   createdAt DateTime @default(now())
 
@@ -1155,6 +1158,9 @@ model StaffMember {
   /// May send orders straight to a chosen Runner, outside the queue (ruling 80). The owner's to
   /// give, in Team; the owner always may.
   canAllocate        Boolean   @default(false)
+  /// May unlock anybody locked out, and reset a Shopper's PIN or a staff member's password
+  /// (ruling 81). The owner's to give, in Team; the owner always may.
+  canUnlock          Boolean   @default(false)
   createdAt          DateTime  @default(now())
 }
 
