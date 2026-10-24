@@ -94,6 +94,22 @@ beforeEach(() => {
           hasPin: server.pin !== null,
         });
       }
+      // Changing the PIN, knowing the current one (ruling 81).
+      if (path === '/me/pin/change') {
+        if (body?.['current'] !== server.pin) {
+          return reply(
+            {
+              error: {
+                message:
+                  'That PIN was wrong three times, so it is locked for 15 minutes. This keeps your account safe.',
+              },
+            },
+            429,
+          );
+        }
+        server.pin = String(body?.['pin']);
+        return reply({ message: 'Your PIN is changed. Use the new one from now on.' });
+      }
       if (path === '/me/pin') {
         if (body?.['pin'] === '1234') {
           return reply(
@@ -466,5 +482,72 @@ describe('a PIN tapped on the screen', () => {
     const afterInstructions = spoken.slice(start + 1);
     expect(afterInstructions.join(' ')).not.toMatch(/2059|\b(two|five|zero)\b/);
     expect(document.body.textContent).not.toMatch(/2059/);
+  });
+});
+
+describe('changing the PIN (ruling 81)', () => {
+  it('takes the current PIN and the new one twice, and says it is done without saying either', async () => {
+    server.pin = '2759';
+    const user = userEvent.setup();
+    const view = renderAt('/addresses');
+    await user.click(await screen.findByRole('button', { name: 'Change your PIN' }));
+    await user.type(screen.getByLabelText('Your current PIN'), '2759');
+    await user.type(screen.getByLabelText('Your new PIN'), '8146');
+    await user.type(screen.getByLabelText('The new PIN again'), '8146');
+    const results = await axe.run(view.container);
+    expect(results.violations).toEqual([]);
+    await user.click(screen.getByRole('button', { name: 'Change my PIN' }));
+    expect((await screen.findAllByText(/Your PIN is changed/)).length).toBeGreaterThan(0);
+    expect(server.pin).toBe('8146');
+    expect(server.sent.find((call) => call.path === '/me/pin/change')?.body).toEqual({
+      current: '2759',
+      pin: '8146',
+    });
+    expect(document.body.textContent).not.toMatch(/2759|8146/);
+    expect(engine.spoken.some((s) => /2759|8146/.test(s.text))).toBe(false);
+  });
+
+  it("refuses two new PINs that differ, and shows the lock in the server's own words", async () => {
+    server.pin = '2759';
+    const user = userEvent.setup();
+    renderAt('/addresses');
+    await user.click(await screen.findByRole('button', { name: 'Change your PIN' }));
+    await user.type(screen.getByLabelText('Your current PIN'), '2759');
+    await user.type(screen.getByLabelText('Your new PIN'), '8146');
+    await user.type(screen.getByLabelText('The new PIN again'), '8147');
+    await user.click(screen.getByRole('button', { name: 'Change my PIN' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/were not the same/);
+    expect(server.sent.some((call) => call.path === '/me/pin/change')).toBe(false);
+
+    await user.clear(screen.getByLabelText('Your current PIN'));
+    await user.type(screen.getByLabelText('Your current PIN'), '1111');
+    await user.type(screen.getByLabelText('Your new PIN'), '8146');
+    await user.type(screen.getByLabelText('The new PIN again'), '8146');
+    await user.click(screen.getByRole('button', { name: 'Change my PIN' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/locked for 15 minutes/);
+    expect(server.pin).toBe('2759');
+    // The fields are emptied, so no PIN stays on the screen.
+    expect(screen.getByLabelText('Your current PIN')).toHaveValue('');
+  });
+
+  it('opens with the form when Ozi is asked to change the PIN, and Settings has a way there', async () => {
+    server.pin = '2759';
+    renderAt('/shop');
+    await waitFor(() => {
+      expect(engine.listening).not.toBeNull();
+    });
+    act(() => {
+      engine.hear('Ozi, change my PIN');
+    });
+    expect(await screen.findByLabelText('Your current PIN')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(engine.spoken.map((s) => s.text).join(' ')).toMatch(/form to change your PIN/);
+    });
+  });
+
+  it('says there is no PIN yet when none was chosen, or the team reset it', async () => {
+    renderAt('/addresses');
+    expect(await screen.findByText(/You have not chosen a PIN yet/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Change your PIN' })).toBeNull();
   });
 });

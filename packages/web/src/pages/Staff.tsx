@@ -115,6 +115,8 @@ import {
 import { storeConfig } from '../config';
 import { setTeamAllocator } from '../lib/allocate-api';
 import { setTeamAuthoriser } from '../lib/inbox-api';
+import { setTeamUnlocker, unlockStaff } from '../lib/unlock-api';
+import { LockedOut } from '../components/Unlock';
 import { money } from '../lib/money';
 import { StaffMessages } from './StaffMessages';
 import { useOzi } from '../state/ozi';
@@ -312,7 +314,8 @@ export function Staff(): JSX.Element {
       ? me.isOwner === true
       : key === 'twostep'
         ? me.account && me.isOwner !== true
-        : me.areas.includes(key);
+        : // Needs you now carries the "Locked out" list, for whoever may unlock (ruling 81).
+          me.areas.includes(key) || (key === 'overview' && me.canUnlock === true);
   const freshSession = (token: string): void => {
     remember(KEY, token);
     setKey(token);
@@ -366,6 +369,7 @@ export function Staff(): JSX.Element {
             areas={me.areas}
             address={me.isOwner ? (me.address ?? null) : null}
             canAllocate={me.canAllocate === true}
+            canUnlock={me.canUnlock === true}
             onOpen={setTab}
             onChanged={(text) => {
               setNews(text);
@@ -434,7 +438,12 @@ export function Staff(): JSX.Element {
             {shown === 'partners' && <Partners staffKey={key} onNews={setNews} />}
             {shown === 'partners' && <ShopOfTheMonth staffKey={key} />}
             {shown === 'analytics' && <Analytics staffKey={key} />}
-            {shown === 'overview' && <Overview staffKey={key} onOpen={setTab} />}
+            {shown === 'overview' && me.areas.includes('overview') && (
+              <Overview staffKey={key} onOpen={setTab} />
+            )}
+            {shown === 'overview' && me.canUnlock === true && (
+              <LockedOut staffKey={key} owner={me.isOwner === true} onNews={setNews} />
+            )}
             {shown === 'money' && <Money staffKey={key} />}
             {shown === 'money' && <ReferralRewards staffKey={key} by={by} onNews={setNews} />}
             {shown === 'orders' && (
@@ -471,7 +480,12 @@ export function Staff(): JSX.Element {
             {shown === 'team' && (
               <>
                 {!me.account && <OwnerSetup staffKey={key} onNews={setNews} />}
-                <Team staffKey={key} onNews={setNews} owner={me.isOwner === true} />
+                <Team
+                  staffKey={key}
+                  onNews={setNews}
+                  owner={me.isOwner === true}
+                  canUnlock={me.canUnlock === true}
+                />
               </>
             )}
           </div>
@@ -1937,11 +1951,14 @@ function Team({
   staffKey,
   onNews,
   owner = false,
+  canUnlock = false,
 }: {
   staffKey: string;
   onNews: (text: string) => void;
   /** The owner alone decides who may authorise messages and calls (ruling 77). */
   owner?: boolean;
+  /** May unlock people and reset passwords (ruling 81). */
+  canUnlock?: boolean;
 }): JSX.Element {
   const list = useList(() => fetchTeam(staffKey));
   const roles = useList(fetchStaffRoles);
@@ -2029,6 +2046,7 @@ function Team({
             <p className="m-0">
               Signs in as {member.username}.{' '}
               {member.twoStepOn ? 'Two-step codes on. ' : 'Two-step codes not set up yet. '}
+              {member.lockedOut ? 'Locked out now. ' : ''}
               {member.lastSignInAt
                 ? `Last signed in ${new Date(member.lastSignInAt).toLocaleDateString('en-GB')}.`
                 : 'Has not signed in yet.'}
@@ -2048,19 +2066,44 @@ function Team({
               </select>
             </label>
             <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  void resetTeamPassword(staffKey, member.id)
-                    .then((result) => setPassword(result.message))
-                    .catch((failure: unknown) =>
-                      setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
-                    )
-                }
-                className="control border-paper bg-paper/10 text-paper"
-              >
-                New password<span className="visually-hidden"> for {member.name}</span>
-              </button>
+              {/* Ruling 81: the owner's own account is reset only by the owner himself. */}
+              {canUnlock && (!member.title.includes('owner') || owner) && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void resetTeamPassword(staffKey, member.id)
+                      .then((result) => setPassword(result.message))
+                      .catch((failure: unknown) =>
+                        setProblem(
+                          failure instanceof Error ? failure.message : 'That did not work.',
+                        ),
+                      )
+                  }
+                  className="control border-paper bg-paper/10 text-paper"
+                >
+                  New password<span className="visually-hidden"> for {member.name}</span>
+                </button>
+              )}
+              {canUnlock && member.lockedOut === true && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    void unlockStaff(staffKey, member.id)
+                      .then((result) => {
+                        onNews(result.message);
+                        list.reload();
+                      })
+                      .catch((failure: unknown) =>
+                        setProblem(
+                          failure instanceof Error ? failure.message : 'That did not work.',
+                        ),
+                      )
+                  }
+                  className="control bg-highlight text-on-accent"
+                >
+                  Unlock<span className="visually-hidden"> {member.name}</span>
+                </button>
+              )}
               {member.twoStepOn && !member.title.includes('owner') && (
                 <button
                   type="button"
@@ -2124,6 +2167,29 @@ function Team({
                   className="control border-paper bg-paper/10 text-paper"
                 >
                   {member.canAllocate ? 'Sends jobs to Runners' : 'Let them send jobs to Runners'}
+                  <span className="visually-hidden"> {member.name}</span>
+                </button>
+              )}
+              {/* Unlocking people, and resetting a PIN or a password (ruling 81): his to give. */}
+              {owner && !member.title.includes('owner') && (
+                <button
+                  type="button"
+                  aria-pressed={member.canUnlock === true}
+                  onClick={() =>
+                    void setTeamUnlocker(staffKey, member.id, member.canUnlock !== true)
+                      .then((result) => {
+                        onNews(result.message);
+                        list.reload();
+                      })
+                      .catch((failure: unknown) =>
+                        setProblem(
+                          failure instanceof Error ? failure.message : 'That did not work.',
+                        ),
+                      )
+                  }
+                  className="control border-paper bg-paper/10 text-paper"
+                >
+                  {member.canUnlock ? 'Unlocks people' : 'Let them unlock people'}
                   <span className="visually-hidden"> {member.name}</span>
                 </button>
               )}

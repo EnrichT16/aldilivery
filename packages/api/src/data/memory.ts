@@ -305,6 +305,16 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         }
         return null;
       },
+      async listPinLocked(at) {
+        return [...shoppers.values()]
+          .filter(
+            (shopper) =>
+              shopper.erasedAt === null &&
+              shopper.pinLockedUntil !== null &&
+              shopper.pinLockedUntil.getTime() > at.getTime(),
+          )
+          .map(clone);
+      },
       async listDueForErasure(at) {
         return [...shoppers.values()]
           .filter(
@@ -1357,6 +1367,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           consumedAt: null,
           attempts: 0,
           createdAt: input.createdAt ?? now(),
+          limitClearedAt: null,
         };
         oneTimeCodes.set(code.id, code);
         return clone(code);
@@ -1369,8 +1380,27 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
       async countSince(phone: string, since: Date) {
         return [...oneTimeCodes.values()].filter(
-          (c) => c.phone === phone && c.createdAt.getTime() >= since.getTime(),
+          (c) => c.phone === phone && !c.limitClearedAt && c.createdAt.getTime() >= since.getTime(),
         ).length;
+      },
+      async listSince(since) {
+        return [...oneTimeCodes.values()]
+          .filter((c) => !c.limitClearedAt && c.createdAt.getTime() >= since.getTime())
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async clearLimits(phone, at) {
+        let cleared = 0;
+        for (const [key, code] of oneTimeCodes) {
+          if (code.phone !== phone || code.limitClearedAt) continue;
+          oneTimeCodes.set(key, {
+            ...code,
+            limitClearedAt: at,
+            consumedAt: code.consumedAt ?? at,
+          });
+          cleared += 1;
+        }
+        return cleared;
       },
       async update(key, patch) {
         const existing = oneTimeCodes.get(key);
@@ -1497,6 +1527,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           recoveryCodes: '',
           canAuthorise: false,
           canAllocate: false,
+          canUnlock: false,
         };
         staffMembers.set(row.id, row);
         return clone(row);

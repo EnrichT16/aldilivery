@@ -34,6 +34,13 @@ import {
   fetchStaffOrders,
 } from '../lib/api';
 import { allocateJobs, fetchAllocateBoard, runnerNamed } from '../lib/allocate-api';
+import {
+  fetchLockedOut,
+  findToUnlock,
+  locksNamed,
+  resetShopperPin,
+  unlockLocked,
+} from '../lib/unlock-api';
 import { money } from '../lib/money';
 import { useOzi } from '../state/ozi';
 import { nameHeardIn } from '../voice/name';
@@ -123,6 +130,7 @@ export function StaffVoice({
   areas,
   address = null,
   canAllocate = false,
+  canUnlock = false,
   onOpen,
   onChanged,
   onSignOut,
@@ -136,6 +144,8 @@ export function StaffVoice({
   address?: string | null;
   /** May send orders straight to a chosen Runner (ruling 80). */
   canAllocate?: boolean;
+  /** May unlock people, and reset a PIN or a password (ruling 81). */
+  canUnlock?: boolean;
   /** Show this tab on the screen too. */
   onOpen: (area: StaffArea) => void;
   /** Something was decided: the screen loads its lists again. */
@@ -154,6 +164,7 @@ export function StaffVoice({
     areas,
     address,
     canAllocate,
+    canUnlock,
     onOpen,
     onChanged,
     onSignOut,
@@ -167,6 +178,7 @@ export function StaffVoice({
     areas,
     address,
     canAllocate,
+    canUnlock,
     onOpen,
     onChanged,
     onSignOut,
@@ -362,7 +374,7 @@ export function StaffVoice({
       acknowledge.current = command.kind !== 'help' && command.kind !== 'summary';
       switch (command.kind) {
         case 'help':
-          say(help(mine));
+          say(help(mine, latest.current.canUnlock));
           return true;
         case 'summary':
           void load().then(() => say(opening()));
@@ -667,6 +679,77 @@ export function StaffVoice({
                   ? failure.message
                   : 'The orders could not be loaded just now.',
               ),
+            );
+          return true;
+        }
+        case 'unlock':
+        case 'reset-pin': {
+          // Unlocking someone, or resetting a Shopper's PIN (ruling 81): read back, done only
+          // after a yes, and the result said aloud. Never a PIN, a password or a code.
+          if (!latest.current.canUnlock) {
+            say('Unlocking people is for the owner, and the staff he lets unlock.');
+            return true;
+          }
+          const confirmThen = (question: string, act: () => Promise<string>): void => {
+            latest.current.ozi.listenFor(words(`${question} Say yes to confirm.`), (answer) => {
+              if (!YES.test(answer)) {
+                say('All right, nothing was changed.');
+                return;
+              }
+              act()
+                .then((message) => {
+                  latest.current.onChanged(message);
+                  say(message);
+                })
+                .catch((failure: unknown) =>
+                  say(failure instanceof Error ? failure.message : 'That did not work.'),
+                );
+            });
+          };
+          if (command.kind === 'unlock') {
+            void fetchLockedOut(key)
+              .then(({ lockedOut }) => {
+                const locks = locksNamed(command.name, lockedOut);
+                if (locks.length === 0) {
+                  say(`Nobody called ${command.name} is locked out just now.`);
+                  return;
+                }
+                confirmThen(
+                  `Unlock ${locks.map((lock) => lock.words).join('; and ')}?`,
+                  async () => {
+                    const said: string[] = [];
+                    for (const lock of locks) said.push((await unlockLocked(key, lock)).message);
+                    return said.join(' ');
+                  },
+                );
+              })
+              .catch((failure: unknown) =>
+                say(failure instanceof Error ? failure.message : 'I could not look just now.'),
+              );
+            return true;
+          }
+          void findToUnlock(key, command.name)
+            .then(({ people }) => {
+              const shoppers = people.filter((person) => person.account === 'shopper');
+              if (shoppers.length === 0) {
+                say(`I couldn't find a Shopper called ${command.name}, so nothing was reset.`);
+                return;
+              }
+              if (shoppers.length > 1) {
+                say(
+                  `I found ${shoppers.length} Shoppers called ${command.name}, so nothing was reset. Please choose the right one on Needs you now, under Find someone to unlock or reset.`,
+                );
+                latest.current.onOpen('overview');
+                return;
+              }
+              const shopper = shoppers[0]!;
+              confirmThen(
+                `Reset ${shopper.name}'s PIN? They will choose a new one the next time it is needed, and we text them to say so.`,
+                async () => (await resetShopperPin(key, shopper.id)).message,
+              );
+            })
+            .catch((failure: unknown) =>
+              say(failure instanceof Error ? failure.message : 'I could not look just now.'),
             );
           return true;
         }

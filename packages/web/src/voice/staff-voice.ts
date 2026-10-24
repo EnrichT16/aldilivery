@@ -372,7 +372,40 @@ export type StaffCommand =
    * "Send order 1 2 3 4 to Tomasz", "send all waiting orders to Ayesha" (ruling 80): the numbers
    * are those the Allocate jobs view shows; `all` is every order still waiting for a Runner.
    */
-  | { kind: 'allocate'; orders: number[] | 'all'; runner: string };
+  | { kind: 'allocate'; orders: number[] | 'all'; runner: string }
+  /** "Unlock Yvette" (ruling 81): whatever that person is locked out of. */
+  | { kind: 'unlock'; name: string }
+  /** "Reset Yvette's PIN" (ruling 81): a Shopper chooses a new one the next time. */
+  | { kind: 'reset-pin'; name: string };
+
+/**
+ * "unlock Yvette", "please unlock Kemi", "reset Yvette's PIN", "reset the PIN for Yvette"
+ * (ruling 81). Null when it is not that. "Unlock the screen" and the like are not names.
+ */
+export function unlockCommand(text: string): StaffCommand | null {
+  const said = text
+    .toLowerCase()
+    .replace(/[?.!,]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^(please |ozi |can you |could you )+/, '')
+    .replace(/\s+please$/, '');
+  const reset =
+    said.match(/^reset (.+?)(?:'s|s'|’s)? pin(?: number)?$/) ??
+    said.match(/^reset (?:the )?pin (?:for|of) (.+)$/);
+  if (reset) {
+    const name = (reset[1] ?? '').replace(/^(the )?(shopper |customer )/, '').trim();
+    return name === '' || name === 'my' || name === 'the' ? null : { kind: 'reset-pin', name };
+  }
+  const unlock = said.match(/^unlock (.+)$/);
+  if (!unlock) return null;
+  const name = (unlock[1] ?? '')
+    .replace(/^(the )?(shopper|customer|runner|staff member) /, '')
+    .trim();
+  if (name === '' || /^(it|the (screen|phone|door)|my|me|everyone|everybody)$/.test(name))
+    return null;
+  return { kind: 'unlock', name };
+}
 
 const NUMBER_WORDS: Record<string, number> = {
   one: 1,
@@ -578,6 +611,9 @@ export function understand(said: string): StaffCommand | null {
   // Sending jobs straight to a Runner (ruling 80), before anything that "next" or "back" catches.
   const allocate = allocateCommand(said);
   if (allocate) return allocate;
+  // Unlocking someone, or resetting a Shopper's PIN (ruling 81).
+  const unlock = unlockCommand(said);
+  if (unlock) return unlock;
   if (/\b(help|what can (you|i) (do|say))\b/.test(text)) return { kind: 'help' };
   if (/\b(what'?s waiting|summary|anything new|what'?s new|catch me up|overview)\b/.test(text)) {
     return { kind: 'summary' };
@@ -635,7 +671,7 @@ export function understand(said: string): StaffCommand | null {
 }
 
 /** What Ozi can do here, for this job. */
-export function help(areas: readonly StaffArea[]): string {
+export function help(areas: readonly StaffArea[], canUnlock = false): string {
   const tabs = areas.map((area) => AREA_WORDS[area].tab.toLowerCase());
   return (
     `You can say: "what's waiting", to hear everything; "read me the" and then ${listWords(tabs)}; ` +
@@ -646,6 +682,9 @@ export function help(areas: readonly StaffArea[]): string {
       : '') +
     (areas.includes('orders')
       ? 'If you may allocate jobs, say "send order 1 2 3 to" and a Runner\'s name, or "send all waiting orders to" and a name. '
+      : '') +
+    (canUnlock
+      ? 'To let someone back in, say "unlock" and their name, or "reset" and a Shopper\'s name and "PIN". '
       : '') +
     'I always read a decision back and wait for your yes. Say "sign me out" when you finish.'
   );

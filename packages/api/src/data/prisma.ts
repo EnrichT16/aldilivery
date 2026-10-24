@@ -81,6 +81,11 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       async countJoinedVia(via) {
         return prisma.shopper.count({ where: { joinedVia: via } });
       },
+      async listPinLocked(at) {
+        return (await prisma.shopper.findMany({
+          where: { erasedAt: null, pinLockedUntil: { gt: at } },
+        })) as unknown as Shopper[];
+      },
       async listDueForErasure(at) {
         return (await prisma.shopper.findMany({
           where: { erasedAt: null, deletionScheduledFor: { lte: at } },
@@ -784,10 +789,30 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         })) as any;
       },
       async countSince(phone: string, since: Date) {
-        return prisma.oneTimeCode.count({ where: { phone, createdAt: { gte: since } } });
+        return prisma.oneTimeCode.count({
+          where: { phone, limitClearedAt: null, createdAt: { gte: since } },
+        });
       },
       async update(id, patch) {
         return (await prisma.oneTimeCode.update({ where: { id }, data: patch as any })) as any;
+      },
+      async listSince(since) {
+        return (await prisma.oneTimeCode.findMany({
+          where: { limitClearedAt: null, createdAt: { gte: since } },
+          orderBy: { createdAt: 'asc' },
+        })) as any;
+      },
+      async clearLimits(phone, at) {
+        // Unused codes are used up as well, so a new one is asked for.
+        await prisma.oneTimeCode.updateMany({
+          where: { phone, limitClearedAt: null, consumedAt: null },
+          data: { consumedAt: at },
+        });
+        const { count } = await prisma.oneTimeCode.updateMany({
+          where: { phone, limitClearedAt: null },
+          data: { limitClearedAt: at },
+        });
+        return count;
       },
     },
 

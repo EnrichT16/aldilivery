@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
+import { ChangePin } from '../components/ChangePin';
 import { PinGate } from '../components/PinGate';
 import { storeConfig } from '../config';
 import {
@@ -39,6 +40,8 @@ export function Addresses(): JSX.Element {
   const [news, setNews] = useState('');
   const [adding, setAdding] = useState(params.get('add') === '1');
   const [changingHome, setChangingHome] = useState(false);
+  // "Change my PIN", said to Ozi anywhere, opens this page with the form open (ruling 81).
+  const [changingPin, setChangingPin] = useState(params.get('pin') === 'change');
   const announced = useRef(false);
 
   useEffect(() => {
@@ -64,7 +67,9 @@ export function Addresses(): JSX.Element {
     void ozi.say(
       params.get('add') === '1'
         ? 'Here is the form to add an address. Type it in, then you will need your PIN.'
-        : `This is Your addresses. To add one, press the plus button marked Add an address, or say "${assistant}, add an address".`,
+        : params.get('pin') === 'change'
+          ? 'Here is the form to change your PIN. Type your current PIN, then the new one twice. Make sure nobody can see the screen.'
+          : `This is Your addresses. To add one, press the plus button marked Add an address, or say "${assistant}, add an address".`,
     );
   }, [shopper, ozi, params, assistant]);
 
@@ -133,6 +138,40 @@ export function Addresses(): JSX.Element {
           >
             {home === '' ? 'Add your home address' : 'Change your home address'}
           </button>
+        )}
+      </section>
+
+      <section aria-labelledby="pin-heading" className="space-y-3">
+        <h2 id="pin-heading" className="text-lead font-bold">
+          Your PIN
+        </h2>
+        {!hasPin ? (
+          <p className="m-0">
+            You have not chosen a PIN yet. You choose one the first time it is needed, to save an
+            address or change your home address.
+          </p>
+        ) : changingPin ? (
+          <ChangePin
+            onCancel={() => setChangingPin(false)}
+            onDone={(message) => {
+              setChangingPin(false);
+              setNews(message);
+              void ozi.say(message);
+            }}
+          />
+        ) : (
+          <>
+            <p className="m-0 text-paper/80">
+              If you know your PIN, you can change it here. We text you when it changes.
+            </p>
+            <button
+              type="button"
+              onClick={() => setChangingPin(true)}
+              className="control border-paper bg-paper/10 text-paper"
+            >
+              Change your PIN
+            </button>
+          </>
         )}
       </section>
 

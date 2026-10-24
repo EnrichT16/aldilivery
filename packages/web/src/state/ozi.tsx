@@ -819,6 +819,12 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       mute();
       return;
     }
+    // "Change my PIN" (ruling 81): the addresses page, with the change form open. The PINs are
+    // typed there, never said here, where anything heard could be shown or kept.
+    if (!ordering.busy() && /\b(change|update) (my |the )?pin\b|\bmy new pin\b/.test(words)) {
+      navigate('/addresses?pin=change');
+      return;
+    }
     // "Add an address", "save a new address": the addresses page, with the form open.
     if (!ordering.busy() && /\b(add|save|new)\b.*\baddress\b/.test(words)) {
       navigate('/addresses?add=1');

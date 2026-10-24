@@ -254,6 +254,8 @@ export interface Repository {
     count(): Promise<number>;
     /** Closed accounts whose days to change their mind are over, not yet removed. */
     listDueForErasure(at: Date): Promise<Shopper[]>;
+    /** Shoppers whose PIN is locked after wrong tries, still at this moment (ruling 81). */
+    listPinLocked(at: Date): Promise<Shopper[]>;
     /**
      * Plans the Shopper chose to renew monthly, not cancelled, whose paid month ended by then
      * (payers only, never family members).
@@ -541,6 +543,16 @@ export interface Repository {
     /** How many codes were made for this number since a moment. Limits what a text costs. */
     countSince(phone: string, since: Date): Promise<number>;
     update(id: string, patch: Partial<OneTimeCode>): Promise<OneTimeCode>;
+    /**
+     * Codes made since a moment that still count towards the limits, oldest first: to find the
+     * numbers that have reached them (ruling 81).
+     */
+    listSince(since: Date): Promise<OneTimeCode[]>;
+    /**
+     * Clears the limits on codes to this number (ruling 81): every code made for it stops
+     * counting, and any not yet used is used up, so a new one is asked for. Gives how many.
+     */
+    clearLimits(phone: string, at: Date): Promise<number>;
   };
 
   /** Ozi Finds It. */

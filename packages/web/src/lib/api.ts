@@ -853,6 +853,14 @@ export function choosePin(pin: string): Promise<{ message: string }> {
   });
 }
 
+/** Change the PIN, knowing the current one (ruling 81). Neither is ever kept here. */
+export function changePin(current: string, pin: string): Promise<{ message: string }> {
+  return request<{ message: string }>('/me/pin/change', {
+    method: 'POST',
+    body: JSON.stringify({ current, pin }),
+  });
+}
+
 export function saveAddress(input: {
   address: string;
   label?: string;
@@ -1349,6 +1357,8 @@ export function fetchStaffMe(key: string): Promise<
     twoStep?: StaffTwoStep | null;
     /** May send orders straight to a chosen Runner (ruling 80). */
     canAllocate?: boolean;
+    /** May unlock anybody, and reset a PIN or a password (ruling 81). */
+    canUnlock?: boolean;
   }
 > {
   return staffRequest(key, '/staff/me');
@@ -1390,6 +1400,11 @@ export interface TeamMember {
   canAuthorise?: boolean;
   /** May send orders straight to a chosen Runner, outside the queue (ruling 80). */
   canAllocate?: boolean;
+  /** May unlock anybody, and reset a PIN or a password (ruling 81). */
+  canUnlock?: boolean;
+  /** Locked out of signing in, or of message and call codes, right now (ruling 81). */
+  lockedOut?: boolean;
+  isOwner?: boolean;
 }
 
 export function fetchTeam(key: string): Promise<{ team: TeamMember[] }> {

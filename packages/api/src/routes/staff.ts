@@ -17,6 +17,8 @@ import type { StaffMember } from '../domain.js';
 import { recordAudit } from '../lib/audit.js';
 import { phraseBook } from '../lib/phrases.js';
 import { mayAllocate } from '../services/allocate.js';
+import { codeLockouts } from '../services/company-contact.js';
+import { mayUnlock, requireUnlocker } from '../services/unlock.js';
 import {
   ApiError,
   BadRequestError,
@@ -59,7 +61,7 @@ const usernameSchema = z
 
 const roleSchema = z.string().refine(isStaffRole, { message: 'That is not one of the jobs.' });
 
-function publicMember(member: StaffMember) {
+function publicMember(member: StaffMember, at: Date) {
   const role = isStaffRole(member.role) ? member.role : null;
   return {
     id: member.id,
@@ -77,6 +79,12 @@ function publicMember(member: StaffMember) {
     canAuthorise: member.isOwner || member.canAuthorise,
     // May send orders straight to a chosen Runner, outside the queue (ruling 80).
     canAllocate: member.isOwner || member.canAllocate,
+    // May unlock anybody, and reset a PIN or a password (ruling 81).
+    canUnlock: member.isOwner || member.canUnlock,
+    // Locked out of signing in, or of message and call codes, right now (ruling 81).
+    lockedOut:
+      (member.lockedUntil !== null && member.lockedUntil > at) ||
+      codeLockouts(at).some((row) => row.staffId === member.id),
   };
 }
 
@@ -235,6 +243,8 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
       twoStep,
       // May send orders straight to a chosen Runner (ruling 80).
       canAllocate: await mayAllocate(app.ctx, actor),
+      // May unlock anybody, and reset a PIN or a password (ruling 81).
+      canUnlock: await mayUnlock(app.ctx, actor),
     };
   });
 
@@ -265,7 +275,10 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/staff/team', async (request) => {
     await staffActor(request, 'team');
-    return { team: (await repository.staffMembers.list()).map(publicMember) };
+    const at = now();
+    return {
+      team: (await repository.staffMembers.list()).map((member) => publicMember(member, at)),
+    };
   });
 
   app.post('/staff/team', async (request, reply) => {
@@ -298,7 +311,7 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
     });
     void reply.status(201);
     return {
-      member: publicMember(member),
+      member: publicMember(member, now()),
       password,
       message: `${body.name} can now sign in as ${body.username} with the password ${password}. They choose their own password the first time. This password is shown only once.`,
     };
@@ -328,7 +341,7 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
       ...(body.role ? { role: body.role } : {}),
       ...(body.active !== undefined ? { active: body.active } : {}),
     });
-    return { member: publicMember(updated) };
+    return { member: publicMember(updated, now()) };
   });
 
   /**
@@ -350,7 +363,7 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
     }
     const updated = await repository.staffMembers.update(member.id, { canAuthorise });
     return {
-      member: publicMember(updated),
+      member: publicMember(updated, now()),
       message: canAuthorise
         ? `${member.name} may now issue message and call codes, and message and call without one.`
         : `${member.name} no longer authorises messages and calls.`,
@@ -376,19 +389,51 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
     }
     const updated = await repository.staffMembers.update(member.id, { canAllocate });
     return {
-      member: publicMember(updated),
+      member: publicMember(updated, now()),
       message: canAllocate
         ? `${member.name} may now send orders straight to a chosen Runner.`
         : `${member.name} no longer sends orders straight to Runners.`,
     };
   });
 
-  app.post('/staff/team/:id/reset', async (request) => {
+  /**
+   * The owner lets a staff member unlock anybody, and reset a Shopper's PIN or a staff member's
+   * password (ruling 81), or stops it. The owner's alone to give or take away, as authorising is.
+   */
+  app.post('/staff/team/:id/can-unlock', async (request) => {
     const actor = await staffActor(request, 'team');
+    if (!actor.isOwner) {
+      throw new ForbiddenError('Only the owner decides who may unlock people.');
+    }
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const { canUnlock } = z.object({ canUnlock: z.boolean() }).parse(request.body ?? {});
+    const member = await repository.staffMembers.findById(id);
+    if (!member) throw new NotFoundError('staff member');
+    if (member.isOwner) throw new BadRequestError('The owner always may unlock people.');
+    if (isViewerRole(member.role)) {
+      throw new BadRequestError('Family and investor accounts only look; they cannot unlock.');
+    }
+    const updated = await repository.staffMembers.update(member.id, { canUnlock });
+    return {
+      member: publicMember(updated, now()),
+      message: canUnlock
+        ? `${member.name} may now unlock people, and reset a PIN or a password.`
+        : `${member.name} no longer unlocks people.`,
+    };
+  });
+
+  /**
+   * A temporary password for a staff member, shown once to whoever reset it; they choose their
+   * own at their next sign-in (ruling 81: the owner, and staff he lets unlock). The owner's own
+   * account is reset only by the owner himself, never by anyone else.
+   */
+  app.post('/staff/team/:id/reset', async (request) => {
+    const actor = await staffActor(request);
+    await requireUnlocker(app.ctx, actor);
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const member = await repository.staffMembers.findById(id);
     if (!member) throw new NotFoundError('staff member');
-    if (member.isOwner && !actor.isOwner) {
+    if (member.isOwner && !(actor.isOwner && actor.id === member.id)) {
       throw new ForbiddenError('Only the owner changes the owner’s account.');
     }
     const password = temporaryPassword();
@@ -398,9 +443,16 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
       failedAttempts: 0,
       lockedUntil: null,
     });
+    // Who, whom, what and when; never the password.
+    await recordAudit(request, {
+      action: 'unlock.staff-password-reset',
+      target: `staff=${member.id}`,
+      detail: `${actor.name} gave ${member.name} a temporary password.`,
+    });
     return {
       password,
-      message: `${member.name}'s new password is ${password}. They choose their own the next time they sign in. This is shown only once.`,
+      told: false,
+      message: `${member.name}'s new password is ${password}. They choose their own the next time they sign in. This is shown only once. Staff accounts have no phone number to text, so please give it to them yourself.`,
     };
   });
 

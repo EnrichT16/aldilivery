@@ -98,7 +98,10 @@ export async function registerAddressRoutes(app: FastifyInstance): Promise<void>
     };
   });
 
-  /** Choose a PIN, the first time one is needed. Changing it is a separate, later step. */
+  /**
+   * Choose a PIN, the first time one is needed, or after the owner's team reset it (ruling 81).
+   * Changing a PIN the Shopper knows is `POST /me/pin/change`.
+   */
   app.post('/me/pin', async (request, reply) => {
     const shopper = await me(request);
     const body = z.object({ pin }).parse(request.body);
@@ -116,6 +119,43 @@ export async function registerAddressRoutes(app: FastifyInstance): Promise<void>
     return {
       message:
         'Your PIN is set. You will need it to save an address or change your home address. Keep it to yourself.',
+    };
+  });
+
+  /**
+   * Change the PIN, knowing the current one (ruling 81). Wrong current PINs count towards the
+   * lock, as anywhere else; the new one follows the same rules as the first. The Shopper is
+   * told by text, with no PIN in it, because a spoken PIN can be overheard.
+   */
+  app.post('/me/pin/change', async (request) => {
+    const shopper = await me(request);
+    const body = z.object({ current: pin, pin }).parse(request.body);
+    await checkPin(shopper, body.current);
+    const problem = pinProblem(body.pin);
+    if (problem) throw new BadRequestError(problem);
+    if (body.pin === body.current) {
+      throw new BadRequestError('That is the PIN you have now. Please choose a different one.');
+    }
+    await repository.shoppers.update(shopper.id, {
+      pinHash: hashPin(body.pin, env.authTokenSecret),
+      pinFailedAttempts: 0,
+      pinLockedUntil: null,
+    });
+    if (app.ctx.sendText) {
+      const ring = config.contact.telephoneIsPlaceholder
+        ? 'tell us straight away'
+        : `ring ${config.contact.telephonePlaceholder}`;
+      app.ctx
+        .sendText(
+          shopper.phone,
+          `Your ${config.productName} PIN was changed just now. If that was not you, ${ring}.`,
+        )
+        .catch((failure: unknown) => {
+          request.log.warn({ err: failure }, 'Could not text the PIN changed notice.');
+        });
+    }
+    return {
+      message: 'Your PIN is changed. Use the new one from now on, and keep it to yourself.',
     };
   });
 
