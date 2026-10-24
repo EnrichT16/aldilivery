@@ -98,11 +98,13 @@ export async function turnOn(
   return 'on';
 }
 
-export async function turnOff(): Promise<NotificationState> {
+export async function turnOff(
+  remove: (endpoint: string) => Promise<unknown> = removePushSubscription,
+): Promise<NotificationState> {
   const ready = await registration();
   const subscription = await ready?.pushManager.getSubscription();
   if (subscription) {
-    await removePushSubscription(subscription.endpoint);
+    await remove(subscription.endpoint);
     await subscription.unsubscribe();
   }
   return 'off';

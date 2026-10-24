@@ -295,6 +295,10 @@ model Runner {
   cardAuthorizations CardAuthorization[]
   orders             Order[]
   offers             JobOffer[]
+  /// Jobs the office sent straight to this Runner, outside the queue (ruling 80).
+  allocations        JobAllocation[]
+  /// Devices where this Runner allowed notifications, for a job the office sends (ruling 80).
+  pushSubscriptions  PushSubscription[]
   payouts            RunnerPayout[]
   checks             RunnerCheck[]
   documents          RunnerDocument[]
@@ -594,6 +598,8 @@ model Order {
 
   items              OrderItem[]
   offers             JobOffer[]
+  /// Sent straight to a chosen Runner by the office, outside the queue (ruling 80).
+  allocations        JobAllocation[]
   payout             RunnerPayout?
   questions          ItemQuestion[]
   calls              Call[]
@@ -695,9 +701,45 @@ model JobOffer {
   distanceMiles Float?
   /// Offered from the door of another job, for a pickup nearby (ruling 64), before the queue.
   chained       Boolean         @default(false)
+  /// Sent straight to this Runner by the office (ruling 80): a priority offer, held longer.
+  allocated     Boolean         @default(false)
 
   @@index([orderId, outcome])
   @@index([runnerId])
+}
+
+/// A job the office sent straight to a chosen Runner, outside the queue (ruling 80, Anthony,
+/// 24 October 2026). Queued for the Runner while their hands are full, ordered by when it was
+/// allocated; offered to them alone, held for `allocation.allocatedHoldMinutes`; accepted by
+/// them, or, declined or run out, sent to the backup Runner or back to the queue.
+model JobAllocation {
+  id              String    @id @default(cuid())
+  orderId         String
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  runnerId        String
+  runner          Runner    @relation(fields: [runnerId], references: [id], onDelete: Cascade)
+  /// Who has it next if this Runner says no or the time runs out, if the office chose one.
+  backupRunnerId  String?
+  /// A booked order sent before its offer time, on purpose.
+  allowEarly      Boolean   @default(false)
+  /// queued, offered, accepted, declined, expired or withdrawn.
+  status          String    @default("queued")
+  /// The staff member who sent it (null for the staff key), and their name as it was.
+  allocatedById   String?
+  allocatedByName String
+  allocatedAt     DateTime  @default(now())
+  /// The priority offer made to the Runner, once their hands were free.
+  offerId         String?
+  offeredAt       DateTime?
+  settledAt       DateTime?
+  /// Where the order went when this Runner did not take it: backup or queue.
+  returnedTo      String?
+  /// The allocation this one is the backup of, if it is one.
+  backupOfId      String?
+
+  @@index([runnerId, status])
+  @@index([orderId])
+  @@index([status])
 }
 
 /// The record of money moved to a Runner. One per completed order.
@@ -856,6 +898,9 @@ model PushSubscription {
   /// The staff account that allowed notifications here: the owner letting Ozi ring him in the
   /// app (ruling 79). One device can be both a Shopper's and a staff member's.
   staffId   String?
+  /// The Runner who allowed them, for a job the office sends (ruling 80).
+  runnerId  String?
+  runner    Runner?  @relation(fields: [runnerId], references: [id], onDelete: Cascade)
   endpoint  String   @unique
   p256dh    String
   auth      String
@@ -863,6 +908,7 @@ model PushSubscription {
 
   @@index([shopperId])
   @@index([staffId])
+  @@index([runnerId])
 }
 
 /// An address a Shopper has saved for orders sent somewhere other than home: a child at
@@ -1106,6 +1152,9 @@ model StaffMember {
   recoveryCodes      String    @default("")
   /// May issue message and call codes, and message and call without one (ruling 77).
   canAuthorise       Boolean   @default(false)
+  /// May send orders straight to a chosen Runner, outside the queue (ruling 80). The owner's to
+  /// give, in Team; the owner always may.
+  canAllocate        Boolean   @default(false)
   createdAt          DateTime  @default(now())
 }
 

@@ -113,6 +113,7 @@ import {
   TwoStepRequired,
 } from './StaffAdmin';
 import { storeConfig } from '../config';
+import { setTeamAllocator } from '../lib/allocate-api';
 import { setTeamAuthoriser } from '../lib/inbox-api';
 import { money } from '../lib/money';
 import { StaffMessages } from './StaffMessages';
@@ -364,6 +365,7 @@ export function Staff(): JSX.Element {
             title={me.title}
             areas={me.areas}
             address={me.isOwner ? (me.address ?? null) : null}
+            canAllocate={me.canAllocate === true}
             onOpen={setTab}
             onChanged={(text) => {
               setNews(text);
@@ -435,7 +437,14 @@ export function Staff(): JSX.Element {
             {shown === 'overview' && <Overview staffKey={key} onOpen={setTab} />}
             {shown === 'money' && <Money staffKey={key} />}
             {shown === 'money' && <ReferralRewards staffKey={key} by={by} onNews={setNews} />}
-            {shown === 'orders' && <Orders staffKey={key} by={by} onNews={setNews} />}
+            {shown === 'orders' && (
+              <Orders
+                staffKey={key}
+                by={by}
+                onNews={setNews}
+                canAllocate={me.canAllocate === true}
+              />
+            )}
             {shown === 'runners' && <RunnersNow staffKey={key} />}
             {shown === 'reports' && <Reports staffKey={key} />}
             {shown === 'accounts' && <ShopperAccounts staffKey={key} />}
@@ -2092,6 +2101,29 @@ function Team({
                   className="control border-paper bg-paper/10 text-paper"
                 >
                   {member.canAuthorise ? 'Authorises messages and calls' : 'Let them authorise'}
+                  <span className="visually-hidden"> {member.name}</span>
+                </button>
+              )}
+              {/* Sending jobs straight to a chosen Runner (ruling 80): the owner's to give. */}
+              {owner && !member.title.includes('owner') && (
+                <button
+                  type="button"
+                  aria-pressed={member.canAllocate === true}
+                  onClick={() =>
+                    void setTeamAllocator(staffKey, member.id, member.canAllocate !== true)
+                      .then((result) => {
+                        onNews(result.message);
+                        list.reload();
+                      })
+                      .catch((failure: unknown) =>
+                        setProblem(
+                          failure instanceof Error ? failure.message : 'That did not work.',
+                        ),
+                      )
+                  }
+                  className="control border-paper bg-paper/10 text-paper"
+                >
+                  {member.canAllocate ? 'Sends jobs to Runners' : 'Let them send jobs to Runners'}
                   <span className="visually-hidden"> {member.name}</span>
                 </button>
               )}

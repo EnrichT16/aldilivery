@@ -319,6 +319,17 @@ describe('the live configuration file', () => {
     expect(config.allocation.poolingRadiusMiles).toBe(1);
   });
 
+  it('holds a job the office sends to a chosen Runner for ten minutes (ruling 80)', () => {
+    expect(config.allocation.allocatedHoldMinutes).toBe(10);
+    const raw = goodConfig();
+    const allocation = { ...(raw['allocation'] as Record<string, unknown>) };
+    delete allocation['allocatedHoldMinutes'];
+    raw['allocation'] = allocation;
+    expect(parseStoreConfig(raw).allocation.allocatedHoldMinutes).toBe(10);
+    raw['allocation'] = { ...allocation, allocatedHoldMinutes: 0 };
+    expect(() => parseStoreConfig(raw)).toThrow(/allocation.allocatedHoldMinutes/);
+  });
+
   it('keeps age restricted goods switched off (Rule Six)', () => {
     expect(config.versionOneRestrictions.ageRestrictedGoodsAllowed).toBe(false);
   });

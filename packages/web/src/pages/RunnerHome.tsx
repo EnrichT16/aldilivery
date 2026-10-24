@@ -47,6 +47,7 @@ import { LeaveRunning } from '../components/LeaveRunning';
 import { PayoutChoice } from '../components/PayoutChoice';
 import { RunnerSos } from '../components/RunnerSos';
 import { DemoBanner } from '../components/DemoBanner';
+import { NotifyMe } from '../components/NotifyMe';
 import { TillPayment } from '../components/TillPayment';
 import { buzz, chime } from '../lib/alert';
 import { money } from '../lib/money';
@@ -132,6 +133,9 @@ export function RunnerHome(): JSX.Element {
   // changes and shown in a tidy line.
   const [queue, setQueue] = useState<QueuePosition | null>(null);
   const ozi = useOzi();
+  // For the poll, which is made once: Ozi as it is now.
+  const oziRef = useRef(ozi);
+  oziRef.current = ozi;
   const lastQueueWords = useRef<string | null>(null);
   // Raised by "Cannot find it", which starts the call in the same tap (Section H).
   const [ringNow, setRingNow] = useState(0);
@@ -175,9 +179,12 @@ export function RunnerHome(): JSX.Element {
         setQuestions([]);
       }
       // Offers come while free, and on the way to the door, when the job next door may be
-      // chained to this Runner (ruling 64).
-      if (me.runner.available && (!current.job || current.job.status === 'delivering')) {
-        const offered = (await fetchOfferedJobs()).offers;
+      // chained to this Runner (ruling 64). A job the office sent them (ruling 80) comes even off
+      // shift: it is theirs to take or decline.
+      if (!current.job || current.job.status === 'delivering') {
+        const offered = (await fetchOfferedJobs()).offers.filter(
+          (entry) => me.runner.available || entry.allocated === true,
+        );
         setOffers(offered);
         // A new offer chimes and buzzes, once (16 October 2026), for a phone in a pocket.
         const fresh = offered.filter((entry) => !heardOffers.current.has(entry.offer.id));
@@ -186,6 +193,9 @@ export function RunnerHome(): JSX.Element {
           chime();
           buzz();
         }
+        // Ozi says a job from the office out loud, once (ruling 80).
+        const fromOffice = fresh.find((entry) => entry.allocated && entry.allocatedWords);
+        if (fromOffice?.allocatedWords) void oziRef.current.say(fromOffice.allocatedWords);
       } else {
         setOffers([]);
       }
@@ -455,17 +465,20 @@ export function RunnerHome(): JSX.Element {
                 </button>
               </section>
 
-              {runner.available && offer && (
+              {(runner.available || offer?.allocated === true) && offer && (
                 <JobOffer offer={offer} busy={busy} act={act} onNews={setNews} />
               )}
             </>
           )}
           {/* On the way to the door, the job next door may be offered now (ruling 64). */}
-          {job && job.status === 'delivering' && runner.available && offer && (
-            <JobOffer offer={offer} busy={busy} act={act} onNews={setNews} />
-          )}
+          {job &&
+            job.status === 'delivering' &&
+            (runner.available || offer?.allocated === true) &&
+            offer && <JobOffer offer={offer} busy={busy} act={act} onNews={setNews} />}
           {approved && !job && <TillPayment onNews={setNews} />}
           {approved && <HowYouGetPaid />}
+          {/* So a job the office sends reaches them with the page closed (ruling 80). */}
+          {approved && <NotifyMe as="runner" />}
         </>
       )}
 
@@ -539,12 +552,15 @@ function JobOffer({
         className="space-y-3 max-w-xl border-2 border-highlight rounded-2xl p-4"
       >
         <h2 id="offer-heading" className="text-lead font-bold m-0">
-          {offer.job.split
-            ? offer.job.split.label
-            : offer.chained
-              ? 'Your next job'
-              : 'A job for you'}
+          {offer.allocated
+            ? 'A job from the office'
+            : offer.job.split
+              ? offer.job.split.label
+              : offer.chained
+                ? 'Your next job'
+                : 'A job for you'}
         </h2>
+        {offer.allocated && offer.allocatedWords && <p className="m-0">{offer.allocatedWords}</p>}
         {offer.chained && offer.chainedWords && <p className="m-0">{offer.chainedWords}</p>}
         {offer.job.split && <p className="m-0 font-bold">{offer.job.split.earnWords}</p>}
         {offer.job.split && <p className="m-0">{offer.job.split.rest}</p>}
@@ -575,14 +591,23 @@ function JobOffer({
           type="button"
           disabled={busy}
           onClick={() => {
-            void act(() => declineJob(offer.offer.id), 'No problem. It will go to somebody else.');
+            void act(
+              () => declineJob(offer.offer.id),
+              offer.allocated
+                ? 'No problem. It goes back to the office.'
+                : 'No problem. It will go to somebody else.',
+            );
           }}
           className="control bg-paper/10 text-paper underline"
         >
           Not this one
         </button>
       </section>
-      <p className="m-0 max-w-xl">About {offer.secondsLeft} seconds left to say yes.</p>
+      <p className="m-0 max-w-xl">
+        {offer.secondsLeft > 120
+          ? `About ${Math.round(offer.secondsLeft / 60)} minutes left to say yes.`
+          : `About ${offer.secondsLeft} seconds left to say yes.`}
+      </p>
     </>
   );
 }

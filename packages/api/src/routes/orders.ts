@@ -40,6 +40,7 @@ import {
 import { applyCredit } from '../services/credit.js';
 import { recordOrder } from '../lib/analytics.js';
 import { recordOrderIncome } from '../lib/ledger.js';
+import { offerNextFor } from '../services/allocate.js';
 import { offerOrder, sweepOffers } from '../services/dispatch.js';
 import { alertPayments, bankReference, bankSettings } from '../lib/bank.js';
 import { tellShopper } from '../services/order-updates.js';
@@ -1025,6 +1026,11 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     // moves on. Waiting for the payout would leave it stuck until Stripe Connect exists.
     if (status === 'delivered' && order.runnerId) {
       await repository.runners.update(order.runnerId, { lastJobCompletedAt: at });
+      // Their hands are free: the next job the office sent them, if any, is offered now
+      // (ruling 80), rather than at the next sweep.
+      await offerNextFor(app.ctx, order.runnerId, request.log).catch((failure: unknown) =>
+        request.log.warn({ err: failure }, 'Could not offer the next job from the office'),
+      );
       // Straight to the Runner's own account. If it is not set up yet, nothing is lost: the
       // money is owed, and the payout sweep sends it as soon as it is.
       if (app.ctx.autoPayout) {

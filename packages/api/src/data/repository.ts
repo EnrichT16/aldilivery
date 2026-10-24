@@ -31,6 +31,8 @@ import type {
   HouseholdCircle,
   HouseholdCircleMember,
   ItemQuestion,
+  JobAllocation,
+  JobAllocationStatus,
   JobOffer,
   JobOfferOutcome,
   OneTimeCode,
@@ -208,7 +210,13 @@ export type CreateJobOffer = Pick<
   JobOffer,
   'orderId' | 'runnerId' | 'expiresAt' | 'queuePosition'
 > &
-  Partial<Pick<JobOffer, 'distanceMiles' | 'chained'>>;
+  Partial<Pick<JobOffer, 'distanceMiles' | 'chained' | 'allocated'>>;
+
+export type CreateJobAllocation = Pick<
+  JobAllocation,
+  'orderId' | 'runnerId' | 'allocatedById' | 'allocatedByName' | 'allocatedAt'
+> &
+  Partial<Pick<JobAllocation, 'backupRunnerId' | 'allowEarly' | 'backupOfId'>>;
 
 export type CreateRunnerPayout = Pick<
   RunnerPayout,
@@ -388,10 +396,16 @@ export interface Repository {
      */
     save(
       input: Pick<PushSubscription, 'endpoint' | 'p256dh' | 'auth' | 'createdAt'> &
-        ({ shopperId: string; staffId?: never } | { staffId: string; shopperId?: never }),
+        (
+          | { shopperId: string; staffId?: never; runnerId?: never }
+          | { staffId: string; shopperId?: never; runnerId?: never }
+          | { runnerId: string; shopperId?: never; staffId?: never }
+        ),
     ): Promise<PushSubscription>;
     listForShopper(shopperId: string): Promise<PushSubscription[]>;
     listForStaff(staffId: string): Promise<PushSubscription[]>;
+    /** A Runner's devices, for a job the office sends them (ruling 80). */
+    listForRunner(runnerId: string): Promise<PushSubscription[]>;
     deleteByEndpoint(endpoint: string): Promise<void>;
   };
 
@@ -489,6 +503,22 @@ export interface Repository {
     update(id: string, patch: Partial<JobOffer>): Promise<JobOffer>;
     listForOrder(orderId: string): Promise<JobOffer[]>;
     listByOutcome(outcome: JobOfferOutcome): Promise<JobOffer[]>;
+  };
+
+  /**
+   * Jobs the office sent straight to a chosen Runner, outside the queue (ruling 80). Only ever
+   * added to and moved on; each one is the record of who sent which order to whom, and when.
+   */
+  allocations: {
+    create(input: CreateJobAllocation): Promise<JobAllocation>;
+    findById(id: string): Promise<JobAllocation | null>;
+    update(id: string, patch: Partial<Omit<JobAllocation, 'id'>>): Promise<JobAllocation>;
+    /** Oldest first. */
+    listForOrder(orderId: string): Promise<JobAllocation[]>;
+    /** Oldest first: a Runner's allocated queue is in the order the jobs were sent. */
+    listByStatus(statuses: readonly JobAllocationStatus[]): Promise<JobAllocation[]>;
+    /** The newest first, at most `limit`: what the office sent lately. */
+    listRecent(limit: number): Promise<JobAllocation[]>;
   };
 
   payouts: {

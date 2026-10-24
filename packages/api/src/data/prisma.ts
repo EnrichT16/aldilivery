@@ -14,6 +14,7 @@ import type { OrderStatus } from '@aldilivery/core';
 import type {
   AccountRole,
   CatalogueItem,
+  JobAllocation,
   JobOffer,
   JobOfferOutcome,
   Order,
@@ -406,7 +407,11 @@ export function prismaRepository(prisma: PrismaClient): Repository {
     pushSubscriptions: {
       async save(input) {
         // The device moves to whoever saved it last, of its kind; the other kind's claim stays.
-        const owner = input.staffId ? { staffId: input.staffId } : { shopperId: input.shopperId };
+        const owner = input.staffId
+          ? { staffId: input.staffId }
+          : input.runnerId
+            ? { runnerId: input.runnerId }
+            : { shopperId: input.shopperId };
         return (await prisma.pushSubscription.upsert({
           where: { endpoint: input.endpoint },
           create: {
@@ -424,6 +429,9 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
       async listForStaff(staffId) {
         return (await prisma.pushSubscription.findMany({ where: { staffId } })) as any;
+      },
+      async listForRunner(runnerId) {
+        return (await prisma.pushSubscription.findMany({ where: { runnerId } })) as any;
       },
       async deleteByEndpoint(endpoint) {
         await prisma.pushSubscription.deleteMany({ where: { endpoint } });
@@ -679,6 +687,43 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         return (await prisma.jobOffer.findMany({
           where: { outcome: outcome as any },
         })) as unknown as JobOffer[];
+      },
+    },
+
+    allocations: {
+      async create(input) {
+        return (await prisma.jobAllocation.create({
+          data: { ...input },
+        })) as unknown as JobAllocation;
+      },
+      async findById(id) {
+        return (await prisma.jobAllocation.findUnique({
+          where: { id },
+        })) as unknown as JobAllocation | null;
+      },
+      async update(id, patch) {
+        return (await prisma.jobAllocation.update({
+          where: { id },
+          data: patch as any,
+        })) as unknown as JobAllocation;
+      },
+      async listForOrder(orderId) {
+        return (await prisma.jobAllocation.findMany({
+          where: { orderId },
+          orderBy: { allocatedAt: 'asc' },
+        })) as unknown as JobAllocation[];
+      },
+      async listByStatus(statuses) {
+        return (await prisma.jobAllocation.findMany({
+          where: { status: { in: [...statuses] } },
+          orderBy: { allocatedAt: 'asc' },
+        })) as unknown as JobAllocation[];
+      },
+      async listRecent(limit) {
+        return (await prisma.jobAllocation.findMany({
+          orderBy: { allocatedAt: 'desc' },
+          take: limit,
+        })) as unknown as JobAllocation[];
       },
     },
 

@@ -34,6 +34,7 @@ import type { PlaceCall } from './lib/twilio-voice.js';
 import { verifySession } from './lib/tokens.js';
 import { gitCommit } from './lib/version.js';
 import { registerAdminRoutes } from './routes/admin.js';
+import { registerAllocateRoutes } from './routes/allocate.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerAccountRoutes } from './routes/accounts.js';
 import { registerBasketRoutes } from './routes/basket.js';
@@ -534,6 +535,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerRunnerCardRoutes(app);
   await registerReferralRewardRoutes(app);
   await registerAdminRoutes(app);
+  await registerAllocateRoutes(app);
 }
 
 /**

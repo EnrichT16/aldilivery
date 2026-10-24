@@ -287,10 +287,12 @@ async function stillNeedsOwner(ctx: DeskContext, matter: OwnerMatter): Promise<b
       const found = await order();
       return found?.status === 'confirmed' && found.chargePlan === 'scheduled';
     }
+    // To hear, once: among them a job the office sent that came back (ruling 80).
     case 'shopper_feedback':
     case 'email':
     case 'account_message':
     case 'scheduled_today':
+    case 'allocation_returned':
       return true;
   }
 }

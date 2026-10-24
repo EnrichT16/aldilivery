@@ -16,6 +16,7 @@ import { requireSession, requireStaff } from '../app.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 import { isOfferExpired, poolOrders } from '../services/allocation.js';
 import { collectExtraDelivery } from '../services/basket-orders.js';
+import { officeJobWords, settleAllocatedOffer } from '../services/allocate.js';
 import { canCarry, largeOrderWords, offerOrder } from '../services/dispatch.js';
 import { ensureDoorWord, newDoorWord } from '../services/door-word.js';
 import { drivingPaused } from '../services/insurance.js';
@@ -68,6 +69,13 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
           chainedWords: offer.chained
             ? 'Your next job, near where you are now. Say no if you would rather not, and it goes to the queue.'
             : null,
+          // Sent straight to them by the office (ruling 80): a priority offer, held for them
+          // alone and longer, still theirs to take or decline.
+          allocated: offer.allocated,
+          allocatedWords:
+            offer.allocated && order
+              ? `${officeJobWords(app.ctx, order)} You can still say no; it goes back to the office.`
+              : null,
           job: order
             ? {
                 itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
@@ -150,7 +158,16 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
       throw new ConflictError('That job is no longer open.');
     }
     if (isOfferExpired(offer, at)) {
-      await repository.offers.update(offer.id, { outcome: 'expired', respondedAt: at });
+      const lapsed = await repository.offers.update(offer.id, {
+        outcome: 'expired',
+        respondedAt: at,
+      });
+      if (offer.allocated) {
+        await settleAllocatedOffer(app.ctx, lapsed, 'expired', request.log);
+        throw new ConflictError(
+          'The time to say yes ran out, so the job has gone back to the office. Another will come.',
+        );
+      }
       throw new ConflictError(
         `The sixty seconds ran out and the job has gone to the next Runner. Another will come.`,
       );
@@ -190,7 +207,12 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
       throw new ForbiddenError(largeOrderWords(config, order, runner));
     }
 
-    await repository.offers.update(offer.id, { outcome: 'accepted', respondedAt: at });
+    const taken = await repository.offers.update(offer.id, {
+      outcome: 'accepted',
+      respondedAt: at,
+    });
+    // A job the office sent (ruling 80): recorded as taken.
+    if (offer.allocated) await settleAllocatedOffer(app.ctx, taken, 'accepted', request.log);
 
     assertTransitionAllowed(order.status, 'accepted');
     const updated = await repository.orders.update(order.id, {
@@ -238,7 +260,16 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
       throw new ConflictError('That job is no longer open.');
     }
 
-    await repository.offers.update(offer.id, { outcome: 'declined', respondedAt: now() });
+    const declined = await repository.offers.update(offer.id, {
+      outcome: 'declined',
+      respondedAt: now(),
+    });
+    // A job the office sent (ruling 80): no is a fair answer from a self-employed Runner. It goes
+    // to the backup the office chose, or back to the queue, and the office is told.
+    if (offer.allocated) {
+      await settleAllocatedOffer(app.ctx, declined, 'declined', request.log);
+      return { declined: true, message: 'No problem. It goes back to the office.' };
+    }
     if (app.ctx.autoOffer) {
       await offerOrder(app.ctx, offer.orderId).catch(() => undefined);
     }

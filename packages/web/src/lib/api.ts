@@ -590,6 +590,9 @@ export interface OfferedJob {
   /** Chained from the door of the job in hand (ruling 64): the next job, near where they are. */
   chained?: boolean;
   chainedWords?: string | null;
+  /** Sent straight to them by the office (ruling 80): held for them alone, longer. */
+  allocated?: boolean;
+  allocatedWords?: string | null;
   job: {
     itemCount: number;
     goodsEstimatePence: number;
@@ -1344,6 +1347,8 @@ export function fetchStaffMe(key: string): Promise<
     totpEnabled?: boolean;
     /** Null for the staff key, which has no account. */
     twoStep?: StaffTwoStep | null;
+    /** May send orders straight to a chosen Runner (ruling 80). */
+    canAllocate?: boolean;
   }
 > {
   return staffRequest(key, '/staff/me');
@@ -1383,6 +1388,8 @@ export interface TeamMember {
   twoStepOn?: boolean;
   /** May issue message and call codes, and message and call without one (ruling 77). */
   canAuthorise?: boolean;
+  /** May send orders straight to a chosen Runner, outside the queue (ruling 80). */
+  canAllocate?: boolean;
 }
 
 export function fetchTeam(key: string): Promise<{ team: TeamMember[] }> {

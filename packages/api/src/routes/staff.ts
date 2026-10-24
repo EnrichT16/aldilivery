@@ -16,6 +16,7 @@ import { z } from 'zod';
 import type { StaffMember } from '../domain.js';
 import { recordAudit } from '../lib/audit.js';
 import { phraseBook } from '../lib/phrases.js';
+import { mayAllocate } from '../services/allocate.js';
 import {
   ApiError,
   BadRequestError,
@@ -74,6 +75,8 @@ function publicMember(member: StaffMember) {
     twoStepOn: member.totpEnabled,
     // May issue message and call codes, and message and call without one (ruling 77).
     canAuthorise: member.isOwner || member.canAuthorise,
+    // May send orders straight to a chosen Runner, outside the queue (ruling 80).
+    canAllocate: member.isOwner || member.canAllocate,
   };
 }
 
@@ -230,6 +233,8 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
       totpEnabled: member?.totpEnabled ?? false,
       // Null for the staff key, which has no account and so no two-step codes of its own.
       twoStep,
+      // May send orders straight to a chosen Runner (ruling 80).
+      canAllocate: await mayAllocate(app.ctx, actor),
     };
   });
 
@@ -349,6 +354,32 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
       message: canAuthorise
         ? `${member.name} may now issue message and call codes, and message and call without one.`
         : `${member.name} no longer authorises messages and calls.`,
+    };
+  });
+
+  /**
+   * The owner lets a staff member send orders straight to a chosen Runner, outside the queue
+   * (ruling 80), or stops it. The owner's alone to give or take away, as authorising is.
+   */
+  app.post('/staff/team/:id/allocate', async (request) => {
+    const actor = await staffActor(request, 'team');
+    if (!actor.isOwner) {
+      throw new ForbiddenError('Only the owner decides who may send jobs straight to Runners.');
+    }
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const { canAllocate } = z.object({ canAllocate: z.boolean() }).parse(request.body ?? {});
+    const member = await repository.staffMembers.findById(id);
+    if (!member) throw new NotFoundError('staff member');
+    if (member.isOwner) throw new BadRequestError('The owner always may send jobs to Runners.');
+    if (isViewerRole(member.role)) {
+      throw new BadRequestError('Family and investor accounts only look; they cannot send jobs.');
+    }
+    const updated = await repository.staffMembers.update(member.id, { canAllocate });
+    return {
+      member: publicMember(updated),
+      message: canAllocate
+        ? `${member.name} may now send orders straight to a chosen Runner.`
+        : `${member.name} no longer sends orders straight to Runners.`,
     };
   });
 

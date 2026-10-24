@@ -34,6 +34,7 @@ import type {
   HouseholdCircle,
   HouseholdCircleMember,
   ItemQuestion,
+  JobAllocation,
   JobOffer,
   JobOfferOutcome,
   OneTimeCode,
@@ -75,6 +76,7 @@ import type {
 import type {
   CatalogueSearchOptions,
   CreateCatalogueItem,
+  CreateJobAllocation,
   CreateJobOffer,
   CreateOneTimeCode,
   CreateOrder,
@@ -116,6 +118,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const paymentMethods = new Map<string, PaymentMethod>();
   const orders = new Map<string, Order>();
   const offers = new Map<string, JobOffer>();
+  const allocations = new Map<string, JobAllocation>();
   const payouts = new Map<string, RunnerPayout>();
   const sets = new Map<string, RecurringSet>();
   const oneTimeCodes = new Map<string, OneTimeCode>();
@@ -407,6 +410,10 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       async delete(key) {
         runners.delete(key);
         for (const [offerId, offer] of offers) if (offer.runnerId === key) offers.delete(offerId);
+        for (const [rowId, row] of allocations) if (row.runnerId === key) allocations.delete(rowId);
+        for (const [endpoint, row] of pushSubscriptions) {
+          if (row.runnerId === key) pushSubscriptions.delete(endpoint);
+        }
         for (let i = runnerChecks.length - 1; i >= 0; i -= 1) {
           if (runnerChecks[i]!.runnerId === key) runnerChecks.splice(i, 1);
         }
@@ -731,6 +738,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           createdAt: existing?.createdAt ?? input.createdAt,
           shopperId: input.shopperId ?? existing?.shopperId ?? null,
           staffId: input.staffId ?? existing?.staffId ?? null,
+          runnerId: input.runnerId ?? existing?.runnerId ?? null,
         };
         pushSubscriptions.set(input.endpoint, row);
         return clone(row);
@@ -742,6 +750,11 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
       async listForStaff(staffId) {
         return [...pushSubscriptions.values()].filter((row) => row.staffId === staffId).map(clone);
+      },
+      async listForRunner(runnerId) {
+        return [...pushSubscriptions.values()]
+          .filter((row) => row.runnerId === runnerId)
+          .map(clone);
       },
       async deleteByEndpoint(endpoint) {
         pushSubscriptions.delete(endpoint);
@@ -1163,6 +1176,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           queuePosition: input.queuePosition,
           distanceMiles: input.distanceMiles ?? null,
           chained: input.chained ?? false,
+          allocated: input.allocated ?? false,
         };
         offers.set(offer.id, offer);
         return clone(offer);
@@ -1186,6 +1200,58 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
       async listByOutcome(outcome: JobOfferOutcome) {
         return [...offers.values()].filter((o) => o.outcome === outcome).map(clone);
+      },
+    },
+
+    allocations: {
+      async create(input: CreateJobAllocation): Promise<JobAllocation> {
+        const row: JobAllocation = {
+          id: id(),
+          orderId: input.orderId,
+          runnerId: input.runnerId,
+          backupRunnerId: input.backupRunnerId ?? null,
+          allowEarly: input.allowEarly ?? false,
+          status: 'queued',
+          allocatedById: input.allocatedById,
+          allocatedByName: input.allocatedByName,
+          allocatedAt: input.allocatedAt,
+          offerId: null,
+          offeredAt: null,
+          settledAt: null,
+          returnedTo: null,
+          backupOfId: input.backupOfId ?? null,
+        };
+        allocations.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = allocations.get(key);
+        return found ? clone(found) : null;
+      },
+      async update(key, patch) {
+        const existing = allocations.get(key);
+        if (!existing) throw new NotFoundError('Job allocation', key);
+        const updated = { ...existing, ...patch, id: existing.id };
+        allocations.set(key, updated);
+        return clone(updated);
+      },
+      async listForOrder(orderId) {
+        return [...allocations.values()]
+          .filter((row) => row.orderId === orderId)
+          .sort((a, b) => a.allocatedAt.getTime() - b.allocatedAt.getTime())
+          .map(clone);
+      },
+      async listByStatus(statuses) {
+        return [...allocations.values()]
+          .filter((row) => statuses.includes(row.status))
+          .sort((a, b) => a.allocatedAt.getTime() - b.allocatedAt.getTime())
+          .map(clone);
+      },
+      async listRecent(limit) {
+        return [...allocations.values()]
+          .sort((a, b) => b.allocatedAt.getTime() - a.allocatedAt.getTime())
+          .slice(0, limit)
+          .map(clone);
       },
     },
 
@@ -1430,6 +1496,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           sessionVersion: 0,
           recoveryCodes: '',
           canAuthorise: false,
+          canAllocate: false,
         };
         staffMembers.set(row.id, row);
         return clone(row);

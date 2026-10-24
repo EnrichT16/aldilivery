@@ -106,7 +106,8 @@
   },
   "allocation": {
     "offerHoldSeconds": 60,
-    "poolingRadiusMiles": 1
+    "poolingRadiusMiles": 1,
+    "allocatedHoldMinutes": 10
   },
   "recurringOrders": {
     "noticeMinutesBefore": 30,

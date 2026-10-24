@@ -159,6 +159,11 @@ export interface StoreConfig {
   readonly allocation: {
     readonly offerHoldSeconds: number;
     readonly poolingRadiusMiles: number;
+    /**
+     * A job the office sends straight to a chosen Runner (ruling 80) is held for them alone this
+     * many minutes, longer than a queue offer, before it goes back to the queue (or a backup).
+     */
+    readonly allocatedHoldMinutes: number;
   };
   readonly recurringOrders: {
     readonly noticeMinutesBefore: number;
@@ -1143,6 +1148,11 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       poolingRadiusMiles: positiveNumber(
         allocation['poolingRadiusMiles'],
         'allocation.poolingRadiusMiles',
+      ),
+      allocatedHoldMinutes: wholeNumber(
+        allocation['allocatedHoldMinutes'] ?? 10,
+        'allocation.allocatedHoldMinutes',
+        1,
       ),
     },
     recurringOrders: {
