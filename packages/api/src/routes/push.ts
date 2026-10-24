@@ -1,8 +1,9 @@
 /**
- * A Shopper allowing, or no longer allowing, notifications on a device.
- *
- * Only for Shoppers for now: they are the ones who need to hear about a Runner's question when
- * the page is closed. The address must be one of the browsers' push services; see `lib/push.ts`.
+ * A Shopper allowing, or no longer allowing, notifications on a device: they are the ones who
+ * need to hear about a Runner's question when the page is closed. A Runner may too, so a job the
+ * office sends them reaches them with the page closed (ruling 80). The owner's devices are in
+ * routes/owner-desk.ts. The address must be one of the browsers' push services; see
+ * `lib/push.ts`.
  */
 
 import type { FastifyInstance } from 'fastify';
@@ -41,6 +42,37 @@ export async function registerPushRoutes(app: FastifyInstance): Promise<void> {
     });
     void reply.status(201);
     return { saved: true, message: 'Notifications are on for this device.' };
+  });
+
+  /** "Tell me when the office sends me a job" (ruling 80): this device, for this Runner. */
+  app.post('/runners/me/push-subscriptions', async (request, reply) => {
+    const session = requireSession(request, 'runner');
+    if (!app.ctx.sendPush) {
+      throw new ConflictError('Notifications are not switched on yet.');
+    }
+    const { endpoint, keys } = Subscription.parse(request.body);
+    if (!isPushServiceEndpoint(endpoint)) {
+      throw new BadRequestError('That is not a notification address we can use.');
+    }
+    await repository.pushSubscriptions.save({
+      runnerId: session.accountId,
+      endpoint,
+      p256dh: keys.p256dh,
+      auth: keys.auth,
+      createdAt: now(),
+    });
+    void reply.status(201);
+    return { saved: true, message: 'This device tells you when the office sends you a job.' };
+  });
+
+  app.delete('/runners/me/push-subscriptions', async (request) => {
+    const session = requireSession(request, 'runner');
+    const { endpoint } = z.object({ endpoint: z.string().min(1).max(2048) }).parse(request.body);
+    const mine = await repository.pushSubscriptions.listForRunner(session.accountId);
+    if (mine.some((device) => device.endpoint === endpoint)) {
+      await repository.pushSubscriptions.deleteByEndpoint(endpoint);
+    }
+    return { removed: true, message: 'Notifications are off for this device.' };
   });
 
   app.delete('/push-subscriptions', async (request) => {

@@ -70,12 +70,26 @@ async function tellRunner(
     .catch((failure: unknown) => log.warn({ err: failure }, 'The Runner could not be told.'));
 }
 
-/** Every offer still open on this order is withdrawn. */
-async function withdrawOffers(ctx: Pick<AppContext, 'repository' | 'now'>, orderId: string) {
+/**
+ * Every offer still open on this order is withdrawn, and so is any job the office sent straight
+ * to a Runner for it (ruling 80), queued or offered.
+ */
+export async function withdrawOffers(
+  ctx: Pick<AppContext, 'repository' | 'now'>,
+  orderId: string,
+): Promise<void> {
   const at = ctx.now();
   for (const offer of await ctx.repository.offers.listForOrder(orderId)) {
     if (offer.outcome === 'pending') {
       await ctx.repository.offers.update(offer.id, { outcome: 'superseded', respondedAt: at });
+    }
+  }
+  for (const allocation of await ctx.repository.allocations.listForOrder(orderId)) {
+    if (allocation.status === 'queued' || allocation.status === 'offered') {
+      await ctx.repository.allocations.update(allocation.id, {
+        status: 'withdrawn',
+        settledAt: at,
+      });
     }
   }
 }
@@ -280,6 +294,39 @@ export function mayBeAssigned(runner: Runner): boolean {
 }
 
 /**
+ * Takes an order back from whoever has it, before the shopping is bought: every open offer and
+ * office allocation withdrawn, the spending card released, the order back to paid with nobody,
+ * and the Runner who had it told to stop. Shared by reassigning (below) and by the office
+ * sending it straight to another Runner (services/allocate.ts, ruling 80).
+ */
+export async function releaseRunner(
+  ctx: AppContext,
+  order: Order,
+  log: FastifyBaseLogger,
+): Promise<{ order: Order; runner: Runner | null }> {
+  const { repository } = ctx;
+  const releasedRunner = order.runnerId ? await repository.runners.findById(order.runnerId) : null;
+  await withdrawOffers(ctx, order.id);
+  if (order.payMethodUsed === 'card') await releaseCard(ctx, order.runnerId, order.id, log);
+  const updated = await repository.orders.update(order.id, {
+    status: 'paid',
+    runnerId: null,
+    acceptedAt: null,
+    payMethodUsed: null,
+    cardLimitPence: null,
+  });
+  if (releasedRunner) {
+    await tellRunner(
+      ctx,
+      releasedRunner.id,
+      `Order ${orderReference(order)} has been given to another Runner by the office. Please stop, and do not buy anything for it. Ring us if you already have.`,
+      log,
+    );
+  }
+  return { order: updated, runner: releasedRunner };
+}
+
+/**
  * Release the Runner who has a stuck order, and offer it again: to a named approved Runner, or
  * through the dispatcher's own queue. Not once the till total is in: the shopping has been
  * bought by then, and a person must settle that first.
@@ -320,24 +367,9 @@ export async function reassignOrder(
     }
   }
 
-  const releasedRunner = order.runnerId ? await repository.runners.findById(order.runnerId) : null;
-  await withdrawOffers(ctx, order.id);
-  if (order.payMethodUsed === 'card') await releaseCard(ctx, order.runnerId, order.id, log);
-  let updated = await repository.orders.update(order.id, {
-    status: 'paid',
-    runnerId: null,
-    acceptedAt: null,
-    payMethodUsed: null,
-    cardLimitPence: null,
-  });
-  if (releasedRunner) {
-    await tellRunner(
-      ctx,
-      releasedRunner.id,
-      `Order ${reference} has been given to another Runner by the office. Please stop, and do not buy anything for it. Ring us if you already have.`,
-      log,
-    );
-  }
+  const freed = await releaseRunner(ctx, order, log);
+  const releasedRunner = freed.runner;
+  let updated = freed.order;
 
   let offeredTo: string | null = null;
   if (chosen) {

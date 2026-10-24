@@ -274,6 +274,8 @@ export interface PushSubscription {
    * (ruling 79). One device can be both.
    */
   staffId: string | null;
+  /** The Runner who allowed them, for a job the office sends (ruling 80). */
+  runnerId: string | null;
   endpoint: string;
   p256dh: string;
   auth: string;
@@ -562,6 +564,43 @@ export interface JobOffer {
    * (ruling 64), before the general queue. Declining one counts against nobody.
    */
   chained: boolean;
+  /**
+   * Sent straight to this Runner by the office (ruling 80): a priority offer held only for them,
+   * for `allocation.allocatedHoldMinutes`. Still theirs to accept or decline.
+   */
+  allocated: boolean;
+}
+
+/**
+ * Where a job the office sent straight to a Runner has got to (ruling 80): waiting for their
+ * hands to be free (or for a booked order's offer time), offered to them, taken, said no to,
+ * run out, or withdrawn (sent to someone else, given back to the queue, or the order ended).
+ */
+export type JobAllocationStatus =
+  'queued' | 'offered' | 'accepted' | 'declined' | 'expired' | 'withdrawn';
+
+/** A job the office sent straight to a chosen Runner, outside the queue (ruling 80). */
+export interface JobAllocation {
+  id: string;
+  orderId: string;
+  runnerId: string;
+  /** Who has it next if this Runner says no or the time runs out, if the office chose one. */
+  backupRunnerId: string | null;
+  /** A booked order (ruling 78) sent before its offer time, on purpose. */
+  allowEarly: boolean;
+  status: JobAllocationStatus;
+  /** The staff member who sent it; null for the staff key. */
+  allocatedById: string | null;
+  allocatedByName: string;
+  allocatedAt: Date;
+  /** The priority offer, once the Runner's hands were free. */
+  offerId: string | null;
+  offeredAt: Date | null;
+  settledAt: Date | null;
+  /** Where the order went when this Runner did not take it. */
+  returnedTo: 'backup' | 'queue' | null;
+  /** The allocation this one is the backup of. */
+  backupOfId: string | null;
 }
 
 export interface RunnerPayout {
@@ -872,6 +911,11 @@ export interface StaffMember {
    * grants it, in Team. The owner himself always may.
    */
   canAuthorise: boolean;
+  /**
+   * May send orders straight to a chosen Runner, outside the queue (ruling 80). Only the owner
+   * grants it, in Team. The owner himself always may.
+   */
+  canAllocate: boolean;
 }
 
 export type PartnerShopStatus = 'pending' | 'approved' | 'removed';
@@ -1209,7 +1253,9 @@ export type OwnerMatterKind =
   /** The day's booked orders, in one summary each morning (ruling 78): to hear. */
   | 'scheduled_today'
   /** A booked order's payment on its chosen day could not be taken (ruling 78): to hear. */
-  | 'scheduled_payment';
+  | 'scheduled_payment'
+  /** A job the office sent to a Runner came back: declined or run out (ruling 80): to hear. */
+  | 'allocation_returned';
 
 /** Approve, decline or later; or only "I have heard it", or later. */
 export type OwnerMatterOptions = 'decide' | 'acknowledge';

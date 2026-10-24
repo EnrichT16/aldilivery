@@ -259,7 +259,12 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
     add(order.bankReceivedAt, 'The bank transfer was seen in the business account.');
     for (const offer of await repository.offers.listForOrder(order.id)) {
       const who = await runnerName(offer.runnerId);
-      add(offer.offeredAt, `Offered to ${who}.`);
+      add(
+        offer.offeredAt,
+        offer.allocated
+          ? `Offered to ${who} as a job from the office, held for them alone.`
+          : `Offered to ${who}.`,
+      );
       if (offer.outcome !== 'pending') {
         add(
           offer.respondedAt ?? offer.expiresAt,
@@ -269,6 +274,37 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
             expired: `The offer to ${who} ran out.`,
             superseded: `The offer to ${who} was withdrawn.`,
           }[offer.outcome],
+        );
+      }
+    }
+    // Sent straight to a chosen Runner by the office (ruling 80): who, to whom, and what became
+    // of it.
+    for (const allocation of await repository.allocations.listForOrder(order.id)) {
+      const who = await runnerName(allocation.runnerId);
+      const backup = allocation.backupRunnerId
+        ? `, with ${await runnerName(allocation.backupRunnerId)} as the backup`
+        : '';
+      add(
+        allocation.allocatedAt,
+        allocation.backupOfId
+          ? `Sent to ${who}, the backup ${allocation.allocatedByName} chose.`
+          : `${allocation.allocatedByName} sent it to ${who}${backup}, outside the queue.`,
+      );
+      if (allocation.status === 'declined' || allocation.status === 'expired') {
+        add(
+          allocation.settledAt,
+          `${who} ${allocation.status === 'declined' ? 'said no' : 'did not answer in time'}${
+            allocation.returnedTo === 'backup'
+              ? ', so it went to the backup.'
+              : allocation.returnedTo === 'queue'
+                ? ', so it went back to the queue.'
+                : '.'
+          }`,
+        );
+      } else if (allocation.status === 'withdrawn') {
+        add(
+          allocation.settledAt,
+          `The office's sending to ${who} was withdrawn${allocation.returnedTo === 'queue' ? ', and it went back to the queue' : ''}.`,
         );
       }
     }

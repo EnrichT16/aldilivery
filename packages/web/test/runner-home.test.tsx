@@ -38,6 +38,8 @@ interface State {
   split?: boolean;
   /** The offer is chained from the door of the job in hand (ruling 64). */
   chained?: boolean;
+  /** The offer is a job the office sent straight to them (ruling 80). */
+  allocated?: boolean;
   /** Their place in the fair queue, 0 first (ruling 64). */
   queuePosition?: number;
   /** Agreed to an earlier version of the agreement (16 October 2026). */
@@ -114,7 +116,11 @@ function stubRunnerApi(): void {
             ? [
                 {
                   offer: { id: 'offer-1' },
-                  secondsLeft: 42,
+                  secondsLeft: state.allocated ? 600 : 42,
+                  allocated: state.allocated ?? false,
+                  allocatedWords: state.allocated
+                    ? 'The office has sent you job 7KQ2PX: 3 things, about £3.39 of shopping. You get £5.00. It is held for you alone for 10 minutes. You can still say no; it goes back to the office.'
+                    : null,
                   chained: state.chained ?? false,
                   chainedWords: state.chained
                     ? 'Your next job, near where you are now. Say no if you would rather not, and it goes to the queue.'
@@ -503,6 +509,25 @@ describe('a Runner page', () => {
     await screen.findByRole('button', { name: 'Go on shift' });
     expect(screen.queryByText(/in line/)).not.toBeInTheDocument();
     expect(state.sent.some((r) => r.path === '/runners/me/queue-position')).toBe(false);
+  });
+
+  it('shows a job the office sent, even off shift, held ten minutes, and no sends it back (ruling 80)', async () => {
+    const user = userEvent.setup({ delay: null });
+    state.offered = true;
+    state.allocated = true;
+    stubRunnerApi();
+    renderHome();
+
+    const offer = await screen.findByRole('alert');
+    expect(offer).toHaveTextContent('A job from the office');
+    expect(offer).toHaveTextContent('The office has sent you job 7KQ2PX');
+    expect(offer).toHaveTextContent('You can still say no');
+    expect(screen.getByText('About 10 minutes left to say yes.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Go on shift' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Not this one' }));
+    expect(state.sent.some((r) => r.path === '/jobs/offer-1/decline')).toBe(true);
+    expect(await screen.findByText('No problem. It goes back to the office.')).toBeInTheDocument();
   });
 
   it('offers the next job from the door, and says no costs nothing (ruling 64)', async () => {

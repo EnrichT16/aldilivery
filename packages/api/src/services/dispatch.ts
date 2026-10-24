@@ -67,6 +67,7 @@ import {
 } from './allocation.js';
 import { earnedTodayPence } from './earnings.js';
 import { hasPlusExtras } from './plans.js';
+import { allocatedOrderIds, liveAllocationFor, runnersAwaitingOfficeJobs } from './allocate.js';
 import { activeOrdersByRunner, mayBeOffered, takesPart } from './runner-pool.js';
 import { alertIfSplitPartWaiting, replanStrandedParts, shouldSplit, splitOrder } from './split.js';
 import { canDrive, orderReference } from '../routes/runner-account.js';
@@ -182,6 +183,15 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
       message: 'This order has been split into parts, and each part is offered on its own.',
     };
   }
+  // Sent straight to a chosen Runner by the office (ruling 80): theirs while it is queued for
+  // them or offered to them; it comes back to the queue only if they say no or the time runs out.
+  if (await liveAllocationFor(ctx, order.id)) {
+    return {
+      offer: null,
+      alreadyOffered: false,
+      message: 'The office has sent this order to a chosen Runner.',
+    };
+  }
   if (order.runnerId) throw new ConflictError('That order already has a Runner.');
   if (!OFFERABLE.has(order.status)) {
     // An unpaid, cancelled or refunded order must never reach a Runner, who would spend
@@ -219,6 +229,8 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
     if (offer.orderId !== order.id && !isOfferExpired(offer, at)) holding.add(offer.runnerId);
   }
   const active = await activeOrdersByRunner(ctx);
+  // A Runner with a job from the office waiting for them is kept for it (ruling 80).
+  for (const runnerId of await runnersAwaitingOfficeJobs(ctx, at)) holding.add(runnerId);
   // Nobody is offered a job they could not accept: the Runner agreement comes first (ruling 55),
   // nobody who has left is offered anything, driving waits for in-date insurance (ruling 14),
   // a large order goes only to a Runner who can carry it (rulings 59 and 60), and the demo
@@ -296,7 +308,7 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
   // dispatcher set from its own clock, so the band's minute is measured on one clock.
   const firstAsked =
     existing
-      .filter((offer) => !offer.chained)
+      .filter((offer) => !offer.chained && !offer.allocated)
       .map((offer) => new Date(offer.expiresAt.getTime() - holdSeconds * 1000))
       .sort((a, b) => a.getTime() - b.getTime())[0] ?? at;
   let next: FairPlace | null = null;
@@ -465,6 +477,8 @@ export async function sweepOffers(
   ctx: DispatchContext,
   onError: (orderId: string, failure: unknown) => void = () => undefined,
 ): Promise<number> {
+  // Orders the office sent to a chosen Runner (ruling 80) are theirs, not the queue's.
+  const allocated = await allocatedOrderIds(ctx);
   const waiting = [
     ...(await ctx.repository.orders.listByStatus('paid')),
     ...(await ctx.repository.orders.listByStatus('offered')),
@@ -473,6 +487,7 @@ export async function sweepOffers(
       order.runnerId === null &&
       order.splitAt === null &&
       !order.isDemo &&
+      !allocated.has(order.id) &&
       // A booked order (ruling 78) waits for its day.
       !bookedForLater(order, ctx.now()),
   );

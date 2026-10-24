@@ -25,6 +25,7 @@ import { openPrices } from './lib/open-prices.js';
 import { webPushSender } from './lib/push.js';
 import { callScript, codeMessage, senderName, twilioCaller, twilioSender } from './lib/sms.js';
 import { twilioDialler } from './lib/twilio-voice.js';
+import { sweepAllocations } from './services/allocate.js';
 import { sweepOffers } from './services/dispatch.js';
 import { sweepScheduled } from './services/scheduled.js';
 import { sweepPayouts } from './services/pay-runner.js';
@@ -287,12 +288,23 @@ async function main(): Promise<void> {
 
   // Every few seconds: move offers whose sixty seconds have run out on to the next Runner, and
   // offer any paid order that nobody has yet. A sweep that fails is logged and tried again.
+  // Jobs the office sent to a chosen Runner come first (ruling 80): ones that ran out go to the
+  // backup or back to the queue, and a Runner whose hands are free is offered their next.
   const sweep = setInterval(() => {
-    sweepOffers(app.ctx, (orderId, failure) => {
-      app.log.warn({ orderId, err: failure }, 'Could not offer a waiting order');
-    }).catch((failure: unknown) => {
-      app.log.error({ err: failure }, 'The offer sweep failed');
-    });
+    sweepAllocations(app.ctx, (id, failure) => {
+      app.log.warn({ id, err: failure }, 'Could not move on a job the office sent');
+    })
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, 'The office jobs sweep failed');
+      })
+      .then(() =>
+        sweepOffers(app.ctx, (orderId, failure) => {
+          app.log.warn({ orderId, err: failure }, 'Could not offer a waiting order');
+        }),
+      )
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, 'The offer sweep failed');
+      });
   }, 10_000);
   sweep.unref();
 

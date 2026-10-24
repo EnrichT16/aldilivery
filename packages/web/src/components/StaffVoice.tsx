@@ -33,6 +33,7 @@ import {
   fetchSignups,
   fetchStaffOrders,
 } from '../lib/api';
+import { allocateJobs, fetchAllocateBoard, runnerNamed } from '../lib/allocate-api';
 import { money } from '../lib/money';
 import { useOzi } from '../state/ozi';
 import { nameHeardIn } from '../voice/name';
@@ -53,6 +54,7 @@ import {
   summary,
   understand,
   OWNER_ACKNOWLEDGEMENTS,
+  orderNumbersMeant,
   toOwner,
   waiting,
   type StaffLists,
@@ -120,6 +122,7 @@ export function StaffVoice({
   title,
   areas,
   address = null,
+  canAllocate = false,
   onOpen,
   onChanged,
   onSignOut,
@@ -131,6 +134,8 @@ export function StaffVoice({
   areas: readonly StaffArea[];
   /** The owner only: how he is addressed, "Mr Anthony", and every reply ends with sir. */
   address?: string | null;
+  /** May send orders straight to a chosen Runner (ruling 80). */
+  canAllocate?: boolean;
   /** Show this tab on the screen too. */
   onOpen: (area: StaffArea) => void;
   /** Something was decided: the screen loads its lists again. */
@@ -148,6 +153,7 @@ export function StaffVoice({
     title,
     areas,
     address,
+    canAllocate,
     onOpen,
     onChanged,
     onSignOut,
@@ -160,6 +166,7 @@ export function StaffVoice({
     title,
     areas,
     address,
+    canAllocate,
     onOpen,
     onChanged,
     onSignOut,
@@ -589,6 +596,78 @@ export function StaffVoice({
           void fetchRunnersNow(key)
             .then((data) => say(runnersNowWords(data)))
             .catch(() => say("I couldn't load that just now, so I don't know yet."));
+          return true;
+        }
+        case 'allocate': {
+          // Sending jobs straight to a Runner (ruling 80): read back, sent only after a yes, and
+          // the results said aloud, the ones that could not go with why.
+          if (!mine.includes('orders') || !latest.current.canAllocate) {
+            say(
+              'Sending jobs straight to a Runner is for the owner, and the staff he lets allocate.',
+            );
+            return true;
+          }
+          latest.current.onOpen('orders');
+          void fetchAllocateBoard(key)
+            .then((board) => {
+              const runner = runnerNamed(command.runner, board.runners);
+              if (!runner) {
+                say(`I couldn't find a Runner called ${command.runner}, so nothing was sent.`);
+                return;
+              }
+              const chosen =
+                command.orders === 'all'
+                  ? board.orders.filter(
+                      (order) =>
+                        order.sentTo === null && order.status !== 'accepted' && !order.bookedLater,
+                    )
+                  : orderNumbersMeant(command.orders, board.orders.length)
+                      .map((number) => board.orders.find((order) => order.number === number))
+                      .filter((order): order is (typeof board.orders)[number] => !!order);
+              if (chosen.length === 0) {
+                say(
+                  command.orders === 'all'
+                    ? 'No orders are waiting for a Runner, so nothing was sent.'
+                    : `I couldn't find those order numbers. There ${board.orders.length === 1 ? 'is 1 order' : `are ${board.orders.length} orders`} on the list.`,
+                );
+                return;
+              }
+              const which =
+                chosen.length === 1
+                  ? `order ${chosen[0]!.number}, ${chosen[0]!.reference}`
+                  : `${chosen.length} orders, numbers ${chosen.map((order) => order.number).join(', ')}`;
+              latest.current.ozi.listenFor(
+                words(`Send ${which}, to ${runner.name}? Say yes to confirm.`),
+                (answer) => {
+                  if (!YES.test(answer)) {
+                    say('All right, nothing was sent.');
+                    return;
+                  }
+                  allocateJobs(
+                    key,
+                    chosen.map((order) => ({ orderId: order.id, runnerId: runner.id })),
+                  )
+                    .then((result) => {
+                      latest.current.onChanged(result.message);
+                      say(result.message);
+                    })
+                    .catch((failure: unknown) =>
+                      say(
+                        failure instanceof Error
+                          ? failure.message
+                          : 'That did not work. Nothing was sent.',
+                      ),
+                    );
+                },
+              );
+            })
+            .catch((failure: unknown) =>
+              say(
+                failure instanceof Error
+                  ? failure.message
+                  : 'The orders could not be loaded just now.',
+              ),
+            );
           return true;
         }
         case 'rung-back': {

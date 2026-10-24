@@ -29,6 +29,7 @@ import {
   type StaffOrderDetail,
   type StaffTwoStep,
 } from '../lib/api';
+import { AllocateJobs } from '../components/AllocateJobs';
 import { money } from '../lib/money';
 
 /**
@@ -102,15 +103,62 @@ function fail(set: (text: string) => void): (failure: unknown) => void {
 
 /* ----------------------------------------------------------------------------- orders */
 
+/**
+ * The Orders tab: finding orders and their timelines, and, for the owner and staff he lets
+ * allocate (ruling 80), "Allocate jobs", sending orders straight to chosen Runners.
+ */
 export function Orders({
   staffKey,
   by = 'Staff',
   onNews = () => undefined,
+  canAllocate = false,
 }: {
   staffKey: string;
   /** Whose name goes on a rescue. */
   by?: string;
   onNews?: (news: string) => void;
+  /** May send orders straight to a chosen Runner (ruling 80). */
+  canAllocate?: boolean;
+}): JSX.Element {
+  const [view, setView] = useState<'find' | 'allocate'>('find');
+  if (!canAllocate) return <FindOrders staffKey={staffKey} by={by} onNews={onNews} />;
+  return (
+    <div className="space-y-4">
+      <div role="group" aria-label="Orders views" className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          aria-pressed={view === 'find'}
+          onClick={() => setView('find')}
+          className={`control ${view === 'find' ? 'bg-highlight text-on-accent' : 'border-paper bg-paper/10 text-paper'}`}
+        >
+          Find orders
+        </button>
+        <button
+          type="button"
+          aria-pressed={view === 'allocate'}
+          onClick={() => setView('allocate')}
+          className={`control ${view === 'allocate' ? 'bg-highlight text-on-accent' : 'border-paper bg-paper/10 text-paper'}`}
+        >
+          Allocate jobs
+        </button>
+      </div>
+      {view === 'find' ? (
+        <FindOrders staffKey={staffKey} by={by} onNews={onNews} />
+      ) : (
+        <AllocateJobs staffKey={staffKey} onNews={onNews} />
+      )}
+    </div>
+  );
+}
+
+function FindOrders({
+  staffKey,
+  by,
+  onNews,
+}: {
+  staffKey: string;
+  by: string;
+  onNews: (news: string) => void;
 }): JSX.Element {
   const [filters, setFilters] = useState<{
     view: 'live' | 'past' | 'all';

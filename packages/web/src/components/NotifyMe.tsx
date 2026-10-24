@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { storeConfig } from '../config';
+import { removeRunnerPushSubscription, saveRunnerPushSubscription } from '../lib/allocate-api';
 import { fetchPushPublicKey } from '../lib/api';
 import { notificationState, turnOff, turnOn, type NotificationState } from '../lib/notifications';
 
@@ -12,7 +13,30 @@ import { notificationState, turnOff, turnOn, type NotificationState } from '../l
  * cannot do them: an offer that cannot work is worse than none. Everything it says is in plain
  * words, including what to do when the browser has blocked it.
  */
-export function NotifyMe(): JSX.Element | null {
+const WORDS = {
+  shopper: {
+    heading: 'If your Runner has a question',
+    turnOn: 'Tell me when my Runner has a question',
+    on: 'Done. We will tell you on this device when your Runner has a question.',
+    failed: 'That did not work. Your Runner’s questions will still appear on this page.',
+    blocked: 'so we can only ask you on this page',
+  },
+  // A Runner, for a job the office sends them (ruling 80).
+  runner: {
+    heading: 'When the office sends you a job',
+    turnOn: 'Tell me when the office sends me a job',
+    on: 'Done. We will tell you on this device when the office sends you a job.',
+    failed: 'That did not work. Jobs from the office will still appear on this page.',
+    blocked: 'so jobs from the office appear only on this page',
+  },
+} as const;
+
+export function NotifyMe({ as = 'shopper' }: { as?: 'shopper' | 'runner' }): JSX.Element | null {
+  const words = WORDS[as];
+  // A Shopper's device is kept by the defaults; a Runner's against their own sign-in.
+  const on = (key: string) =>
+    as === 'runner' ? turnOn(key, saveRunnerPushSubscription) : turnOn(key);
+  const off = () => (as === 'runner' ? turnOff(removeRunnerPushSubscription) : turnOff());
   const [publicKey, setPublicKey] = useState<string | null>(null);
   const [state, setState] = useState<NotificationState | null>(null);
   const [working, setWorking] = useState(false);
@@ -47,7 +71,7 @@ export function NotifyMe(): JSX.Element | null {
       setState(result);
       setSaid(result === 'on' || result === 'off' ? done : '');
     } catch {
-      setSaid('That did not work. Your Runner’s questions will still appear on this page.');
+      setSaid(words.failed);
     } finally {
       setWorking(false);
     }
@@ -56,7 +80,7 @@ export function NotifyMe(): JSX.Element | null {
   return (
     <section aria-labelledby="notify-heading" className="space-y-3 max-w-xl">
       <h2 id="notify-heading" className="text-lead font-bold">
-        If your Runner has a question
+        {words.heading}
       </h2>
       {state === 'needs-home-screen' && (
         <p className="m-0">
@@ -67,8 +91,8 @@ export function NotifyMe(): JSX.Element | null {
       )}
       {state === 'blocked' && (
         <p className="m-0">
-          Notifications are blocked for this site in your browser’s settings, so we can only ask you
-          on this page. You can allow them in the settings for this site.
+          Notifications are blocked for this site in your browser’s settings, {words.blocked}. You
+          can allow them in the settings for this site.
         </p>
       )}
       {state === 'off' && (
@@ -81,14 +105,11 @@ export function NotifyMe(): JSX.Element | null {
             type="button"
             disabled={working}
             onClick={() => {
-              void change(
-                () => turnOn(publicKey),
-                'Done. We will tell you on this device when your Runner has a question.',
-              );
+              void change(() => on(publicKey), words.on);
             }}
             className="control w-full bg-paper text-ink text-lead disabled:opacity-70"
           >
-            Tell me when my Runner has a question
+            {words.turnOn}
           </button>
         </>
       )}
@@ -99,7 +120,7 @@ export function NotifyMe(): JSX.Element | null {
             type="button"
             disabled={working}
             onClick={() => {
-              void change(turnOff, 'Notifications are off for this device.');
+              void change(off, 'Notifications are off for this device.');
             }}
             className="control bg-paper/10 text-paper underline disabled:opacity-70"
           >

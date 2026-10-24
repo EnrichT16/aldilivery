@@ -191,6 +191,10 @@ export const AUDIT_WORDS: Record<string, string> = {
   'call.ended': 'Ended a call',
   'call.recording-played': 'Played a call recording',
   'POST /staff/team/:id/authorise': 'Let someone authorise messages and calls, or stopped it',
+  // Sending jobs straight to a chosen Runner (ruling 80).
+  'order.allocated': 'Sent an order straight to a Runner',
+  'POST /staff/orders/allocate': 'Tried to send orders straight to Runners',
+  'POST /staff/team/:id/allocate': 'Let someone send jobs straight to Runners, or stopped it',
 };
 
 export function auditWords(action: string): string {

@@ -367,7 +367,83 @@ export type StaffCommand =
   /** "Read me the cancellations." */
   | { kind: 'cancellations'; period: SpokenPeriod }
   /** "How many Runners are active right now?" */
-  | { kind: 'runners-now' };
+  | { kind: 'runners-now' }
+  /**
+   * "Send order 1 2 3 4 to Tomasz", "send all waiting orders to Ayesha" (ruling 80): the numbers
+   * are those the Allocate jobs view shows; `all` is every order still waiting for a Runner.
+   */
+  | { kind: 'allocate'; orders: number[] | 'all'; runner: string };
+
+const NUMBER_WORDS: Record<string, number> = {
+  one: 1,
+  won: 1,
+  two: 2,
+  too: 2,
+  three: 3,
+  four: 4,
+  for: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  ate: 8,
+  nine: 9,
+  ten: 10,
+  eleven: 11,
+  twelve: 12,
+  thirteen: 13,
+  fourteen: 14,
+  fifteen: 15,
+  sixteen: 16,
+  seventeen: 17,
+  eighteen: 18,
+  nineteen: 19,
+  twenty: 20,
+};
+
+/**
+ * "send order 1 2 3 4 to Tomasz", "give orders one, two and three to Ayesha", "send all waiting
+ * orders to Bola", "allocate jobs 5 and 6 to Kemi". Null when it is not that. The name is the
+ * words after the last "to".
+ */
+export function allocateCommand(text: string): StaffCommand | null {
+  const said = text
+    .toLowerCase()
+    .replace(/[?.!,]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^(please |ozi |can you |could you )+/, '');
+  const match = said.match(/^(?:send|give|allocate|pass)\s+(.+)\s+to\s+(.+?)(?:\s+please)?$/);
+  if (!match) return null;
+  const what = match[1] ?? '';
+  const runner = (match[2] ?? '').replace(/^(runner )/, '').trim();
+  if (!/\b(orders?|jobs?)\b/.test(what) || runner === '') return null;
+  if (/\ball\b/.test(what)) return { kind: 'allocate', orders: 'all', runner };
+  const numbers: number[] = [];
+  for (const word of what.split(/\s+|-/)) {
+    if (/^\d+$/.test(word)) numbers.push(Number(word));
+    else if (NUMBER_WORDS[word] !== undefined) numbers.push(NUMBER_WORDS[word]);
+  }
+  if (numbers.length === 0) return null;
+  return { kind: 'allocate', orders: numbers, runner };
+}
+
+/**
+ * The order numbers meant: a run of digits heard as one number ("1234") larger than the list is
+ * taken digit by digit when every digit is on it. Duplicates are dropped, the order kept.
+ */
+export function orderNumbersMeant(numbers: readonly number[], count: number): number[] {
+  const out: number[] = [];
+  for (const number of numbers) {
+    const digits = String(number).split('').map(Number);
+    const parts =
+      number > count && digits.length > 1 && digits.every((digit) => digit >= 1 && digit <= count)
+        ? digits
+        : [number];
+    for (const part of parts) if (!out.includes(part)) out.push(part);
+  }
+  return out;
+}
 
 /** A stretch of time, as people say it. */
 export type SpokenPeriod =
@@ -499,6 +575,9 @@ export function understand(said: string): StaffCommand | null {
     .replace(/[?.!,]+/g, ' ')
     .trim();
   if (/\b(sign me out|sign out|log out|log me out)\b/.test(text)) return { kind: 'sign-out' };
+  // Sending jobs straight to a Runner (ruling 80), before anything that "next" or "back" catches.
+  const allocate = allocateCommand(said);
+  if (allocate) return allocate;
   if (/\b(help|what can (you|i) (do|say))\b/.test(text)) return { kind: 'help' };
   if (/\b(what'?s waiting|summary|anything new|what'?s new|catch me up|overview)\b/.test(text)) {
     return { kind: 'summary' };
@@ -564,6 +643,9 @@ export function help(areas: readonly StaffArea[]): string {
     '"nobody at fault, refund 2 pounds 50", "write it off", "not found" or "rung back". ' +
     (areas.includes('reports')
       ? 'You can ask "how many signups this month", "what refunds went out yesterday and why" or "read me the cancellations". '
+      : '') +
+    (areas.includes('orders')
+      ? 'If you may allocate jobs, say "send order 1 2 3 to" and a Runner\'s name, or "send all waiting orders to" and a name. '
       : '') +
     'I always read a decision back and wait for your yes. Say "sign me out" when you finish.'
   );
