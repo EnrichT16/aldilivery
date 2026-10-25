@@ -964,6 +964,16 @@ export interface PartnerShop {
   mobile: string;
   email: string;
   approvedAt: Date | null;
+  /** A restaurant, café or takeaway's cuisines, from `browse.cuisines` (ruling 82). */
+  cuisines: string[];
+  /** A shop's specialities, from `browse.shopOrigins` (ruling 82). */
+  specialities: string[];
+  /** A service's categories, from `browse.serviceCategories` (ruling 82). */
+  categories: string[];
+  /** A shop that is a corner shop, convenience store or mini-market: listed under Convenience stores. */
+  convenience: boolean;
+  /** As the provider gave it, for a childminder (ruling 82). Shown, never checked by us. */
+  ofstedNumber: string;
 }
 
 export type ServiceEnquiryKind = 'quote' | 'call_back';

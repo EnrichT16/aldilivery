@@ -53,6 +53,9 @@ const SCREENS: Array<{ name: string; path: string }> = [
   { name: 'the weekly shop, signed out', path: '/weekly-shop' },
   { name: 'shop partners and organisations signing in', path: '/business' },
   { name: 'local shops', path: '/shops' },
+  { name: 'restaurants, cafés and takeaways', path: '/restaurants' },
+  { name: 'convenience stores', path: '/convenience' },
+  { name: 'services', path: '/services' },
   { name: 'a page that does not exist', path: '/nowhere' },
 ];
 

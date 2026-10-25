@@ -2,17 +2,17 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { storeConfig } from '../config';
+import { BrowsePage } from './Browse';
 import {
   fetchCatalogueItem,
   fetchShop,
-  fetchShops,
   rememberJoinedVia,
   sendServiceEnquiry,
   shopPhotoUrl,
-  type PublicShop,
   type PublicShopPage,
   type PublicShopProduct,
 } from '../lib/api';
+import { BROWSE } from '../lib/browse';
 import { useDockHeights } from '../lib/dock';
 import { money, shownPrice, tooDearWords } from '../lib/money';
 import { productEmoji, shopLook } from '../lib/shop-look';
@@ -40,66 +40,12 @@ export function durationWords(minutes: number): string {
 }
 
 /**
- * Local shops, cafés, takeaways and services with their own page (7 October 2026; ruling 65),
- * each with its kind and area, so somebody can see at a glance what is near them.
+ * The Shops page (ruling 82): the shops we have an agreement with, and those we list ourselves,
+ * apart from convenience stores, with the four ways to browse as tabs at the top. Before ruling
+ * 82 this page listed every shop, café, takeaway and service together; each now has its page.
  */
 export function Shops(): JSX.Element {
-  const [shops, setShops] = useState<PublicShop[] | null>(null);
-  useEffect(() => {
-    fetchShops()
-      .then((result) => setShops(result.shops))
-      .catch(() => setShops([]));
-  }, []);
-  return (
-    <div className="space-y-8 max-w-xl">
-      <h1 className="text-display font-bold m-0">Local shops</h1>
-      <p className="m-0">
-        Shops, cafés, takeaways and services on {storeConfig.productName}, with the area each is in.
-        From a shop, a Runner buys it there and brings it to you. From a service, you ask for a
-        quote or a call back.
-      </p>
-      {shops === null ? (
-        <p className="m-0">Finding the shops.</p>
-      ) : shops.length === 0 ? (
-        <p className="m-0">No local shops have their own page yet.</p>
-      ) : (
-        <ul className="list-none m-0 p-0 space-y-3">
-          {shops.map((shop) => (
-            <li key={shop.id}>
-              <Link
-                to={`/shops/${shop.id}`}
-                className="block border-2 border-paper rounded-2xl p-4 text-paper no-underline"
-              >
-                <span className="block text-lead font-bold underline">{shop.name}</span>
-                {(shop.awards ?? []).map((award) => (
-                  <span
-                    key={award}
-                    className="inline-block border-2 border-highlight rounded-2xl px-3 py-1 my-1 mr-2 font-bold"
-                  >
-                    {award}
-                  </span>
-                ))}
-                <span className="block">
-                  {shop.kindWords}
-                  {shop.area ? `, ${shop.area}` : ''}. {shop.about}{' '}
-                  {shop.kind === 'service'
-                    ? `${shop.products} service${shop.products === 1 ? '' : 's'}.`
-                    : shop.products > 0
-                      ? `${shop.products} product${shop.products === 1 ? '' : 's'}.`
-                      : shop.listedByOzi
-                        ? `Listed by ${storeConfig.assistantName}.`
-                        : ''}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
-      <Link to="/business/join" className="control border-paper bg-paper/10 text-paper">
-        Own a shop? Join free
-      </Link>
-    </div>
-  );
+  return <BrowsePage section="shops" />;
 }
 
 /**
@@ -231,10 +177,10 @@ export function ShopPage(): JSX.Element {
           {look.emoji}
         </span>
         <Link
-          to="/shops"
+          to={BROWSE[page.shop.section ?? 'shops'].path}
           className="control absolute top-3 left-3 !rounded-full !px-4 bg-white text-[#0B1F3A] font-bold shadow"
         >
-          <span aria-hidden="true">←</span> All shops
+          <span aria-hidden="true">←</span> All {BROWSE[page.shop.section ?? 'shops'].noun}
         </Link>
       </div>
 
@@ -265,7 +211,30 @@ export function ShopPage(): JSX.Element {
           )}
         </ul>
         {page.shop.about && <p className="m-0">{page.shop.about}</p>}
+        {[
+          ...(page.shop.cuisines ?? []),
+          ...(page.shop.specialities ?? []),
+          ...(page.shop.categories ?? []),
+          ...(page.shop.convenience ? ['Convenience store'] : []),
+        ].length > 0 && (
+          <p className="m-0">
+            {[
+              ...(page.shop.cuisines ?? []),
+              ...(page.shop.specialities ?? []),
+              ...(page.shop.categories ?? []),
+              ...(page.shop.convenience ? ['Convenience store'] : []),
+            ].join(', ')}
+          </p>
+        )}
         {page.shop.address && <p className="m-0 card-muted">{page.shop.address}</p>}
+        {service && (
+          <p className="m-0">
+            {page.shop.ofstedNumber
+              ? `Ofsted registration number, as the provider gave it: ${page.shop.ofstedNumber}. We have not checked it. `
+              : ''}
+            {storeConfig.productName} does not vet service providers beyond what this listing says.
+          </p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">

@@ -40,7 +40,8 @@ import type {
   OrganisationPricing,
   ProcessorModel,
 } from './fees.js';
-import type { PartnerPricing } from './partners.js';
+import type { BrowseSettings } from './browse.js';
+import { excludedServiceKind, type PartnerPricing } from './partners.js';
 
 export type CatalogueSourceMode = 'partner_feed' | 'community';
 
@@ -361,6 +362,13 @@ export interface StoreConfig {
    * `retryEveryMinutes` up to `maxChargeTries` tries, and the reminders' times.
    */
   readonly scheduled: ScheduledSettings;
+  /**
+   * Browsing places by kind (ruling 82): the cuisines a restaurant, café or takeaway chooses
+   * from, the specialities of a shop, the categories of a service (never an excluded kind), the
+   * categories whose providers must give an Ofsted registration number, and where a business
+   * joins, as printed for people.
+   */
+  readonly browse: BrowseSettings;
   /** The admin panel (Section Q): who may do what, and how signing in is kept safe. */
   readonly admin: {
     /** A refund above this is the owner's alone to give (Section Q). £25 unless set. */
@@ -722,6 +730,47 @@ function partnerPricing(raw: Unknown): PartnerPricing {
   };
 }
 
+/** A list of distinct, non-empty words, such as the cuisines in `browse.cuisines`. */
+function wordList(value: unknown, path: string): string[] {
+  if (value === undefined) return [];
+  const list = array(value, path).map((entry, index) => str(entry, `${path}[${index}]`).trim());
+  const seen = new Set<string>();
+  for (const entry of list) {
+    if (entry === '') throw new StoreConfigError(`${path} has an empty entry.`);
+    const key = entry.toLowerCase();
+    if (seen.has(key)) throw new StoreConfigError(`${path} has "${entry}" twice.`);
+    seen.add(key);
+  }
+  return list;
+}
+
+function parseBrowse(raw: Unknown, excluded: readonly string[]): BrowseSettings {
+  const serviceCategories = wordList(raw['serviceCategories'], 'browse.serviceCategories');
+  for (const category of serviceCategories) {
+    const refused = excludedServiceKind(category, excluded);
+    if (refused) {
+      throw new StoreConfigError(
+        `browse.serviceCategories has "${category}", but ${refused} is never listed (extras.partners.excludedServiceKinds).`,
+      );
+    }
+  }
+  const ofstedCategories = wordList(raw['ofstedCategories'], 'browse.ofstedCategories');
+  for (const category of ofstedCategories) {
+    if (!serviceCategories.some((entry) => entry.toLowerCase() === category.toLowerCase())) {
+      throw new StoreConfigError(
+        `browse.ofstedCategories has "${category}", which is not in browse.serviceCategories.`,
+      );
+    }
+  }
+  return {
+    cuisines: wordList(raw['cuisines'], 'browse.cuisines'),
+    shopOrigins: wordList(raw['shopOrigins'], 'browse.shopOrigins'),
+    serviceCategories,
+    ofstedCategories,
+    joinAddress: str(raw['joinAddress'] ?? '/business/join', 'browse.joinAddress'),
+  };
+}
+
 /** A time of day written "HH:MM", such as "21:00"; refuses anything else. */
 function clockTime(value: unknown, path: string): string {
   const text = str(value, path);
@@ -1042,6 +1091,10 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     );
   }
 
+  const partnersParsed = partnerPricing(
+    extras['partners'] === undefined ? {} : object(extras['partners'], 'extras.partners'),
+  );
+
   const supportedCardRegions = array(
     payments['supportedCardRegions'],
     'payments.supportedCardRegions',
@@ -1221,9 +1274,7 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       findItPence: wholeNumber(extras['findItPence'] ?? 200, 'extras.findItPence', 1),
       findItShops: wholeNumber(extras['findItShops'] ?? 3, 'extras.findItShops', 1),
       giftCardPence: giftCardAmounts(extras['giftCardPence'] ?? [1000, 2000, 3000, 5000]),
-      partners: partnerPricing(
-        extras['partners'] === undefined ? {} : object(extras['partners'], 'extras.partners'),
-      ),
+      partners: partnersParsed,
       spotlightPence: wholeNumber(extras['spotlightPence'] ?? 1999, 'extras.spotlightPence', 1),
       spotlightPlusPence: wholeNumber(
         extras['spotlightPlusPence'] ?? 3999,
@@ -1385,6 +1436,10 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     ),
     scheduled: parseScheduled(
       root['scheduled'] === undefined ? {} : object(root['scheduled'], 'scheduled'),
+    ),
+    browse: parseBrowse(
+      root['browse'] === undefined ? {} : object(root['browse'], 'browse'),
+      partnersParsed.excludedServiceKinds,
     ),
     admin: {
       ownerOnlyRefundAbovePence: wholeNumber(

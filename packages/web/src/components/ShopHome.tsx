@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
 import { storeConfig } from '../config';
+import { BrowseNav } from './BrowseNav';
 import { fetchShops, type CatalogueItem, type PublicShop } from '../lib/api';
 import { money, sellable, shownPrice } from '../lib/money';
 import { itemEmoji, shopLook } from '../lib/shop-look';
@@ -27,8 +28,8 @@ const CHIPS: Array<{ emoji: string; words: string; to: string }> = [
   { emoji: '🥫', words: 'Cupboard', to: '/shop?q=tin' },
   { emoji: '🧻', words: 'Household', to: '/shop?q=household' },
   { emoji: '🏪', words: 'Local shops', to: '/shops' },
-  { emoji: '☕', words: 'Cafés and takeaways', to: '/shops' },
-  { emoji: '✂️', words: 'Services', to: '/shops' },
+  { emoji: '☕', words: 'Cafés and takeaways', to: '/restaurants' },
+  { emoji: '✂️', words: 'Services', to: '/services' },
   { emoji: '🏷️', words: 'Offers', to: '/offers' },
   { emoji: '📅', words: 'Weekly shop', to: '/weekly-shop' },
   { emoji: '🍲', words: 'Recipes', to: '/recipes' },
@@ -154,6 +155,9 @@ export function ShopHome({
           <span aria-hidden="true">🎙️</span> Talk to {assistant}
         </button>
       </section>
+
+      {/* Restaurants, Shops, Convenience stores and Services: four large tiles (ruling 82). */}
+      <BrowseNav variant="tiles" />
 
       {search}
 

@@ -210,7 +210,7 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         (product) => product.status === 'approved',
       );
       const text = normalise(
-        `${PARTNER_KIND_WORDS[shop.kind]} ${shop.name} ${shop.about} ${products
+        `${PARTNER_KIND_WORDS[shop.kind]} ${shop.name} ${shop.about} ${[...shop.cuisines, ...shop.specialities, ...shop.categories].join(' ')} ${products
           .map((product) => `${product.name} ${product.tags}`)
           .join(' ')}`,
       );

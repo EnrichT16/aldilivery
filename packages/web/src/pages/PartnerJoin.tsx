@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { BrowseFields, readBrowseFields } from '../components/BrowseFields';
 import { Field } from '../components/FormFields';
 import { storeConfig } from '../config';
 import {
@@ -12,6 +13,7 @@ import {
   rememberBusinessToken,
   requestSignInCode,
   verifySignInCode,
+  type BrowseFields as BrowseFieldValues,
   type PartnerJoinInput,
   type PartnerJoinOptions,
   type PartnerKind,
@@ -104,6 +106,7 @@ export function PartnerJoin(): JSX.Element {
   const [kind, setKind] = useState<PartnerKind>('shop');
   const [plan, setPlan] = useState<PlanChoice>('free');
   const [claimedName, setClaimedName] = useState('');
+  const [claimedFields, setClaimedFields] = useState<Partial<BrowseFieldValues>>({});
   const [errors, setErrors] = useState<Array<{ field: string; message: string }>>([]);
   const [busy, setBusy] = useState(false);
   const [talking, setTalking] = useState(false);
@@ -130,6 +133,12 @@ export function PartnerJoin(): JSX.Element {
         if (!page.shop.claimable) return;
         setClaimedName(page.shop.name);
         setKind(page.shop.kind);
+        setClaimedFields({
+          cuisines: page.shop.cuisines ?? [],
+          specialities: page.shop.specialities ?? [],
+          categories: page.shop.categories ?? [],
+          convenience: page.shop.convenience ?? false,
+        });
         const fill = (id: string, value: string): void => {
           const input = document.getElementById(id) as HTMLInputElement | null;
           if (input && input.value === '') input.value = value;
@@ -169,6 +178,8 @@ export function PartnerJoin(): JSX.Element {
     ...(claimId ? { claimShopId: claimId } : {}),
     ...(kind === 'shop' ? { plan: plan === 'free' ? ('free' as const) : ('plus' as const) } : {}),
     ...(kind === 'shop' && plan === 'pay-now' ? { payNow: true } : {}),
+    // How Shoppers find it (ruling 82): only the fields its kind has.
+    ...readBrowseFields(document, 'join', kind),
   });
 
   const check = (details: PartnerJoinInput): Array<{ field: string; message: string }> => {
@@ -193,6 +204,15 @@ export function PartnerJoin(): JSX.Element {
       });
     if (details.password.length < 10)
       found.push({ field: 'join-password', message: 'A password is at least 10 characters.' });
+    const childminder = (details.categories ?? []).some((category) =>
+      storeConfig.browse.ofstedCategories.includes(category),
+    );
+    if (childminder && !details.ofstedNumber)
+      found.push({
+        field: 'join-ofsted',
+        message:
+          'A childminder must be registered with Ofsted. Please give the registration number.',
+      });
     return found;
   };
 
@@ -483,6 +503,12 @@ export function PartnerJoin(): JSX.Element {
             </div>
           ))}
         </fieldset>
+        <BrowseFields
+          key={`${kind}-${JSON.stringify(claimedFields)}`}
+          kind={kind}
+          prefix="join"
+          initial={claimedFields}
+        />
         {kind === 'shop' && options && (
           <PlanChoiceSection options={options} plan={plan} setPlan={setPlan} />
         )}

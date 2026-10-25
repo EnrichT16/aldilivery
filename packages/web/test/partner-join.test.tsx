@@ -254,7 +254,7 @@ beforeEach(() => {
           201,
         );
       }
-      if (path === '/shops') {
+      if (path === '/shops' || path.startsWith('/shops?')) {
         return reply({
           shops: [
             {
@@ -328,6 +328,8 @@ describe('joining as a shop', () => {
     await user.type(screen.getByLabelText('Mobile number'), '07700 900 222');
     await user.type(screen.getByLabelText('Email address'), 'bola@example.com');
     await user.type(screen.getByLabelText('What do you sell?'), 'Fresh bread every morning.');
+    // What Shoppers find it under (ruling 82), from the lists in config.
+    await user.click(screen.getByLabelText('Turkish'));
     await user.type(screen.getByLabelText('Choose a username'), 'cornerbakery');
     await user.type(screen.getByLabelText('Choose a password'), 'a-long-enough-password');
     await user.click(screen.getByRole('button', { name: 'Join' }));
@@ -359,6 +361,8 @@ describe('joining as a shop', () => {
         password: 'a-long-enough-password',
         plan: 'free',
         phoneProof: 'proof.partner',
+        specialities: ['Turkish'],
+        convenience: false,
       });
     });
     expect(
@@ -475,8 +479,8 @@ describe('paying from the dashboard', () => {
 describe('a Shopper and a service', () => {
   it('sees kinds and areas on the shops list', async () => {
     renderAt('/shops');
-    expect(await screen.findByText(/Shop, ME7\./)).toBeInTheDocument();
-    expect(screen.getByText(/Service, ME4\./)).toBeInTheDocument();
+    expect(await screen.findByText(/Shop, ME7/)).toBeInTheDocument();
+    expect(screen.getByText(/Service, ME4/)).toBeInTheDocument();
     expect(screen.getByText(/Listed by Ozi\./)).toBeInTheDocument();
   });
 

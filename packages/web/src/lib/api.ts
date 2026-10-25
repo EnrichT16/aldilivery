@@ -1929,7 +1929,7 @@ export interface PartnerDashboard extends PartnerExtras {
     status: 'pending' | 'approved' | 'removed';
     active: boolean;
     listed: boolean;
-  };
+  } & Partial<BrowseFields>;
   plan: {
     tier: 'free' | 'plus';
     monthlyPence: number;
@@ -1986,6 +1986,31 @@ export interface PartnerJoinInput {
   plan?: 'free' | 'plus';
   /** Partner Plus paid from today, skipping the free month (ruling 75). */
   payNow?: boolean;
+  cuisines?: string[];
+  specialities?: string[];
+  categories?: string[];
+  convenience?: boolean;
+  ofstedNumber?: string;
+}
+
+/**
+ * What a place is browsed under (ruling 82): its cuisines (a restaurant, café or takeaway), its
+ * specialities and whether it is a convenience store (a shop), its categories and a childminder's
+ * Ofsted number (a service), each chosen from the lists in `browse` in config/store.json.
+ */
+export interface BrowseFields {
+  cuisines: string[];
+  specialities: string[];
+  categories: string[];
+  convenience: boolean;
+  ofstedNumber: string;
+}
+
+/** The partner says how Shoppers find it, on the dashboard (ruling 82). */
+export function savePartnerProfile(
+  input: Partial<BrowseFields> & { about?: string },
+): Promise<{ shop: BrowseFields & { about: string }; message: string }> {
+  return businessRequest('/partner/profile', { method: 'POST', body: JSON.stringify(input) });
 }
 
 /** A shop, café, takeaway or service joins by itself (ruling 65) and is signed in at once. */
@@ -2127,10 +2152,39 @@ export interface PublicShop {
   awards?: string[];
   /** On paid Partner Plus: listed above free shops (ruling 75). */
   partnerPlus?: boolean;
+  /** Which of the four pages it is on (ruling 82). */
+  section?: BrowseSection;
+  cuisines?: string[];
+  specialities?: string[];
+  categories?: string[];
+  convenience?: boolean;
+  /** A childminder's Ofsted registration number, as the provider gave it. Never checked by us. */
+  ofstedNumber?: string;
+  /** In the Shopper's postcode district (true), further away (false), or no postcode (null). */
+  nearYou?: boolean | null;
 }
 
-export function fetchShops(): Promise<{ shops: PublicShop[] }> {
-  return request('/shops');
+export type BrowseSection = 'restaurants' | 'shops' | 'convenience' | 'services';
+
+/** What a browse page asks for (ruling 82): one section, a cuisine, speciality or category, a search, a postcode. */
+export interface ShopsQuery {
+  section?: BrowseSection;
+  cuisine?: string;
+  speciality?: string;
+  category?: string;
+  q?: string;
+  near?: string;
+}
+
+export function fetchShops(
+  query: ShopsQuery = {},
+): Promise<{ shops: PublicShop[]; near?: string | null }> {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (typeof value === 'string' && value.trim() !== '') params.set(key, value.trim());
+  }
+  const search = params.toString();
+  return request(search ? `/shops?${search}` : '/shops');
 }
 
 export interface PublicShopProduct {
@@ -2243,30 +2297,32 @@ export function leaveOrganisation(): Promise<{ message: string }> {
 }
 
 export interface StaffPartners {
-  shops: Array<{
-    id: string;
-    name: string;
-    kind: PartnerKind;
-    kindWords: string;
-    status: 'pending' | 'approved' | 'removed';
-    plan: 'free' | 'plus';
-    freeForever: boolean;
-    source: 'self' | 'staff' | 'ozi' | 'claimed';
-    area: string;
-    address: string;
-    hours: string;
-    contactName: string;
-    email: string;
-    listed: boolean;
-    monthlyPence: number;
-    paidUntil: string | null;
-    paid: boolean;
-    active: boolean;
-    spotlightActive: boolean;
-    live: number;
-    waiting: number;
-    users: Array<{ id: string; name: string; username: string }>;
-  }>;
+  shops: Array<
+    {
+      id: string;
+      name: string;
+      kind: PartnerKind;
+      kindWords: string;
+      status: 'pending' | 'approved' | 'removed';
+      plan: 'free' | 'plus';
+      freeForever: boolean;
+      source: 'self' | 'staff' | 'ozi' | 'claimed';
+      area: string;
+      address: string;
+      hours: string;
+      contactName: string;
+      email: string;
+      listed: boolean;
+      monthlyPence: number;
+      paidUntil: string | null;
+      paid: boolean;
+      active: boolean;
+      spotlightActive: boolean;
+      live: number;
+      waiting: number;
+      users: Array<{ id: string; name: string; username: string }>;
+    } & Partial<BrowseFields>
+  >;
   organisations: Array<{
     id: string;
     name: string;
@@ -2305,7 +2361,7 @@ export function addStaffPartner(
     about: string;
     plan?: 'free' | 'plus';
     paidMonths: number;
-  },
+  } & Partial<BrowseFields>,
 ): Promise<unknown> {
   return staffRequest(key, '/staff/partners', { method: 'POST', body: JSON.stringify(input) });
 }
@@ -2314,7 +2370,7 @@ export function addStaffPartner(
 export function setStaffPartnerState(
   key: string,
   id: string,
-  change: { status?: 'approved' | 'pending' | 'removed'; active?: boolean },
+  change: { status?: 'approved' | 'pending' | 'removed'; active?: boolean } & Partial<BrowseFields>,
 ): Promise<unknown> {
   return staffRequest(key, `/staff/partners/${encodeURIComponent(id)}`, {
     method: 'POST',

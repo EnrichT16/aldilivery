@@ -622,6 +622,11 @@ export interface Repository {
             | 'mobile'
             | 'email'
             | 'approvedAt'
+            | 'cuisines'
+            | 'specialities'
+            | 'categories'
+            | 'convenience'
+            | 'ofstedNumber'
           >
         >,
     ): Promise<PartnerShop>;
