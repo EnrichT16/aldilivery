@@ -1201,6 +1201,16 @@ model PartnerShop {
   mobile         String    @default("")
   email          String    @default("")
   approvedAt     DateTime?
+  /// Ruling 82: a restaurant's cuisines, from browse.cuisines in config/store.json.
+  cuisines       String[]  @default([])
+  /// Ruling 82: a shop's specialities, from browse.shopOrigins.
+  specialities   String[]  @default([])
+  /// Ruling 82: a service's categories, from browse.serviceCategories.
+  categories     String[]  @default([])
+  /// Ruling 82: a corner shop, convenience store or mini-market.
+  convenience    Boolean   @default(false)
+  /// Ruling 82: a childminder's Ofsted registration number, as they gave it. Never checked by us.
+  ofstedNumber   String    @default("")
 }
 
 /// A Shopper asking a service for a quote or a call back (ruling 65). No money moves.

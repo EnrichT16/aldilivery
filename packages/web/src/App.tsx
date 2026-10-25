@@ -39,6 +39,7 @@ import { RunnerHome } from './pages/RunnerHome';
 import { RunnerSignUp } from './pages/RunnerSignUp';
 import { Settings } from './pages/Settings';
 import { ShopPage, Shops } from './pages/Shops';
+import { BrowsePage } from './pages/Browse';
 import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
 import { RunnerAgreement } from './pages/RunnerAgreement';
@@ -188,6 +189,9 @@ export function App(): JSX.Element {
                 <Route path="/partner" element={<PartnerDashboard />} />
                 <Route path="/organisation" element={<OrganisationDashboard />} />
                 <Route path="/shops" element={<Shops />} />
+                <Route path="/restaurants" element={<BrowsePage section="restaurants" />} />
+                <Route path="/convenience" element={<BrowsePage section="convenience" />} />
+                <Route path="/services" element={<BrowsePage section="services" />} />
                 <Route path="/shops/:id" element={<ShopPage />} />
                 <Route path="/join/organisation/:code" element={<JoinOrganisation />} />
                 <Route path="/confirm" element={<Confirm />} />

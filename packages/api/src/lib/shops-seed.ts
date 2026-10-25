@@ -25,6 +25,11 @@ export interface SeedShop {
   postcode: string;
   hours: string;
   about: string;
+  /** Ruling 82: what it is browsed under, from the lists in `browse` in config/store.json. */
+  cuisines: string[];
+  specialities: string[];
+  categories: string[];
+  convenience: boolean;
 }
 
 /** Reads and checks the file, throwing a sentence that says which entry is wrong. */
@@ -35,7 +40,10 @@ export function parseShopsSeed(raw: unknown, file = 'shops-seed.json'): SeedShop
   return list.map((entry, index) => {
     const e = entry as Partial<SeedShop>;
     const where = `${file} entry ${index + 1}${e.key ? ` (${e.key})` : ''}`;
-    const text = (name: keyof SeedShop, required: boolean): string => {
+    const text = (
+      name: Exclude<keyof SeedShop, 'cuisines' | 'specialities' | 'categories' | 'convenience'>,
+      required: boolean,
+    ): string => {
       const value = e[name];
       if (value === undefined && !required) return '';
       if (typeof value !== 'string' || (required && value.trim() === '')) {
@@ -43,6 +51,17 @@ export function parseShopsSeed(raw: unknown, file = 'shops-seed.json'): SeedShop
       }
       return value.trim();
     };
+    const list = (name: 'cuisines' | 'specialities' | 'categories'): string[] => {
+      const value = e[name];
+      if (value === undefined) return [];
+      if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
+        throw new Error(`${where}: ${name} must be a list of words.`);
+      }
+      return value.map((entry) => entry.trim()).filter(Boolean);
+    };
+    if (e.convenience !== undefined && typeof e.convenience !== 'boolean') {
+      throw new Error(`${where}: convenience must be true or false.`);
+    }
     const key = text('key', true);
     if (!/^[a-z0-9-]+$/.test(key))
       throw new Error(`${where}: the key is letters, numbers and dashes.`);
@@ -60,6 +79,10 @@ export function parseShopsSeed(raw: unknown, file = 'shops-seed.json'): SeedShop
       postcode: text('postcode', false),
       hours: text('hours', false),
       about: text('about', false),
+      cuisines: list('cuisines'),
+      specialities: list('specialities'),
+      categories: list('categories'),
+      convenience: e.convenience === true,
     };
   });
 }
@@ -88,7 +111,25 @@ export async function seedShops(
   let added = 0;
   let skipped = 0;
   for (const shop of shops) {
-    if (await repository.partnerShops.findBySeedKey(shop.key)) {
+    const existing = await repository.partnerShops.findBySeedKey(shop.key);
+    if (existing) {
+      // Listed before ruling 82 and still nobody's: what it is browsed under comes from the file.
+      const unset =
+        !existing.convenience &&
+        existing.cuisines.length === 0 &&
+        existing.specialities.length === 0 &&
+        existing.categories.length === 0;
+      const described =
+        shop.convenience ||
+        shop.cuisines.length + shop.specialities.length + shop.categories.length > 0;
+      if (existing.source === 'ozi' && unset && described) {
+        await repository.partnerShops.update(existing.id, {
+          cuisines: shop.cuisines,
+          specialities: shop.specialities,
+          categories: shop.categories,
+          convenience: shop.convenience,
+        });
+      }
       skipped += 1;
       continue;
     }
@@ -107,6 +148,10 @@ export async function seedShops(
       postcode: shop.postcode,
       hours: shop.hours,
       approvedAt: now(),
+      cuisines: shop.cuisines,
+      specialities: shop.specialities,
+      categories: shop.categories,
+      convenience: shop.convenience,
     });
     added += 1;
   }

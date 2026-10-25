@@ -11,13 +11,17 @@ import {
 
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { heardBrowse } from '@aldilivery/core';
+
 import { storeConfig } from '../config';
+import { browseNoun, browsePath, browseQuery, emptyWords, postcodeIn } from '../lib/browse';
 import { inPairs, pairsAloud } from '../lib/phone-aloud';
 import {
   cancelPlan,
   closeAccount,
   fetchMyOrder,
   fetchMyOrders,
+  fetchShops,
   fetchSignInOptions,
   fetchWeeklyShops,
   isUkMobileNumber,
@@ -25,6 +29,7 @@ import {
   listPaymentMethods,
   requestSignInCode,
   verifySignInCode,
+  type BrowseSection,
   type Shopper,
 } from '../lib/api';
 import { addNamedItems, currentOffers, listInWords } from '../lib/extras';
@@ -883,6 +888,13 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       );
       return;
     }
+    // "Find an African restaurant", "Turkish shop near me", "find a plumber" (ruling 82): the
+    // page for that section, filtered, and what is there said out loud, near ones first.
+    const browsing = ordering.busy() ? null : heardBrowse(words, storeConfig.browse);
+    if (browsing) {
+      browseAloud(browsing.section, browsing.filter ?? '');
+      return;
+    }
     // The weekly shop again: "same as last time" puts the last order back in the basket.
     if (!ordering.busy() && REORDER.test(words)) {
       orderAgain();
@@ -915,6 +927,32 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
         );
       }
     })();
+  };
+
+  /**
+   * A section of places, filtered (ruling 82): the page opens at once, and Ozi says how many
+   * there are and how many are near, or, honestly, that there are none yet and how one joins.
+   */
+  const browseAloud = (section: BrowseSection, filter: string): void => {
+    navigate(browsePath(section, filter || null));
+    const near = postcodeIn(accountRef.current.shopper?.deliveryAddress ?? '');
+    const words = browseNoun(section, filter);
+    void fetchShops(browseQuery(section, filter, { near }))
+      .then(({ shops }) => {
+        if (shops.length === 0) {
+          void sayRef.current(emptyWords(section, filter, ''));
+          return;
+        }
+        const nearby = shops.filter((shop) => shop.nearYou === true).length;
+        void sayRef.current(
+          `There ${shops.length === 1 ? 'is 1' : `are ${shops.length}`} ${shops.length === 1 ? words.replace(/s$/, '') : words} on ${storeConfig.assistantName}` +
+            (near ? `, ${nearby} near you` : '') +
+            `. They're on the screen now. Say open and a name to see one.`,
+        );
+      })
+      .catch(() => {
+        void sayRef.current(`Here are the ${words}. They're on the screen now.`);
+      });
   };
 
   const orderAgain = (): void => {

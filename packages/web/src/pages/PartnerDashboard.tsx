@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { BrowseFields, readBrowseFields } from '../components/BrowseFields';
 import { ProductScanner } from '../components/ProductScanner';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { storeConfig } from '../config';
@@ -10,6 +11,7 @@ import {
   confirmPartnerCheckout,
   downloadBusinessStatement,
   fetchPartnerDashboard,
+  savePartnerProfile,
   PARTNER_RECEIPT_KEY,
   rememberBusinessToken,
   removePartnerProduct,
@@ -587,6 +589,69 @@ export function PartnerDashboard(): JSX.Element {
           </ul>
         </section>
       )}
+
+      <section
+        aria-labelledby="found-heading"
+        className="space-y-3 border-2 border-paper/40 rounded-2xl p-4"
+      >
+        <h2 id="found-heading" className="text-lead font-bold m-0">
+          How Shoppers find you
+        </h2>
+        <p className="m-0">
+          {service
+            ? 'Shoppers browse services by kind on the Services page.'
+            : data.shop.kind === 'food'
+              ? 'Shoppers browse restaurants, cafés and takeaways by cuisine on the Restaurants page.'
+              : 'Shoppers browse shops by speciality on the Shops page, and corner shops on the Convenience stores page.'}
+        </p>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            const form = event.currentTarget;
+            setProblem('');
+            void savePartnerProfile({
+              ...readBrowseFields(form, 'profile', data.shop.kind),
+              about: String(new FormData(form).get('profile-about') ?? '').trim(),
+            })
+              .then((result) => {
+                setNews(result.message);
+                void load();
+              })
+              .catch((failure: unknown) =>
+                setProblem(failure instanceof Error ? failure.message : 'That could not be saved.'),
+              );
+          }}
+          className="space-y-4"
+        >
+          <div className="space-y-2">
+            <label htmlFor="profile-about" className="block text-lead font-bold">
+              {service ? 'What you do' : 'What you sell'}, in a sentence
+            </label>
+            <textarea
+              id="profile-about"
+              name="profile-about"
+              rows={3}
+              defaultValue={data.shop.about}
+              className={field}
+            />
+          </div>
+          <BrowseFields
+            key={JSON.stringify([
+              data.shop.cuisines,
+              data.shop.specialities,
+              data.shop.categories,
+              data.shop.convenience,
+              data.shop.ofstedNumber,
+            ])}
+            kind={data.shop.kind}
+            prefix="profile"
+            initial={data.shop}
+          />
+          <button type="submit" className="control bg-highlight text-on-accent">
+            Save how Shoppers find you
+          </button>
+        </form>
+      </section>
 
       <section aria-labelledby="numbers-heading" className="space-y-2">
         <h2 id="numbers-heading" className="text-lead font-bold m-0">

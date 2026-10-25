@@ -17,7 +17,12 @@ import { randomInt } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import {
   basisPointsWords,
+  BROWSE_SECTIONS,
+  chosenFrom,
   commissionPence,
+  matchesBrowseSearch,
+  postcodeNearness,
+  sectionOf,
   allowancePlanWords,
   deliveryFeePence,
   deliveryStepsWords,
@@ -31,6 +36,7 @@ import {
   PARTNER_KINDS,
   postcodeArea,
   productLimit,
+  type PartnerKind,
 } from '@aldilivery/core';
 import { z } from 'zod';
 
@@ -124,6 +130,22 @@ function safeName(name: string): string {
 function paidAmount(order: Order): number {
   return (order.finalTotalPence ?? order.totalEstimatePence) - order.creditAppliedPence;
 }
+
+/**
+ * What a place is browsed under (ruling 82), as a form sends it: chosen from the lists in
+ * `browse` in config/store.json, checked against them by `browseFieldsFor`.
+ */
+const browseFieldsSchema = z.object({
+  cuisines: z.array(z.string().trim().max(60)).max(40).optional(),
+  specialities: z.array(z.string().trim().max(60)).max(40).optional(),
+  categories: z.array(z.string().trim().max(60)).max(40).optional(),
+  convenience: z.boolean().optional(),
+  ofstedNumber: z.string().trim().max(20).optional(),
+});
+type BrowseFieldsInput = z.infer<typeof browseFieldsSchema>;
+
+/** An Ofsted unique reference number as providers write it: "EY123456" or "2345678". */
+const OFSTED_NUMBER = /^[A-Z]{0,2}\d{6,8}$/;
 
 const usernameSchema = z
   .string()
@@ -267,7 +289,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     };
   }
 
-  /** The row every public list and page shows for a shop (ruling 65). */
+  /** The row every public list and page shows for a shop (ruling 65; what it is browsed under, ruling 82). */
   function publicShopRow(shop: PartnerShop) {
     return {
       id: shop.id,
@@ -278,7 +300,80 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       area: postcodeArea(shop.postcode),
       hours: shop.hours,
       listedByOzi: shop.source === 'ozi',
+      section: sectionOf(shop),
+      cuisines: shop.kind === 'food' ? shop.cuisines : [],
+      specialities: shop.kind === 'shop' ? shop.specialities : [],
+      categories: shop.kind === 'service' ? shop.categories : [],
+      convenience: shop.kind === 'shop' && shop.convenience,
+      // As the provider gave it; the page says plainly that nobody here checks it.
+      ofstedNumber: shop.kind === 'service' ? shop.ofstedNumber : '',
     };
+  }
+
+  /** The words a search looks through besides the name and the words about the place. */
+  function browseTags(shop: PartnerShop): string[] {
+    return [...shop.cuisines, ...shop.specialities, ...shop.categories];
+  }
+
+  /**
+   * What a place is browsed under (ruling 82), checked against the lists in config: only the
+   * fields its kind has (a cuisine for food, a speciality and the convenience flag for a shop, a
+   * category and an Ofsted number for a service), anything off the list refused in plain words,
+   * and a childminder's Ofsted registration number required, as the provider gives it.
+   */
+  function browseFieldsFor(
+    kind: PartnerKind,
+    input: BrowseFieldsInput,
+    existing?: PartnerShop,
+  ): Pick<
+    PartnerShop,
+    'cuisines' | 'specialities' | 'categories' | 'convenience' | 'ofstedNumber'
+  > {
+    const browse = config.browse;
+    const pick = (values: string[] | undefined, list: readonly string[], words: string) => {
+      const { chosen, unknown } = chosenFrom(values ?? [], list);
+      if (unknown.length > 0) {
+        throw new BadRequestError(
+          `${unknown.join(', ')} ${unknown.length === 1 ? 'is' : 'are'} not on our list of ${words}. Please choose from the list.`,
+        );
+      }
+      return chosen;
+    };
+    const cuisines =
+      kind !== 'food'
+        ? []
+        : input.cuisines !== undefined
+          ? pick(input.cuisines, browse.cuisines, 'cuisines')
+          : (existing?.cuisines ?? []);
+    const specialities =
+      kind !== 'shop'
+        ? []
+        : input.specialities !== undefined
+          ? pick(input.specialities, browse.shopOrigins, 'shop specialities')
+          : (existing?.specialities ?? []);
+    const categories =
+      kind !== 'service'
+        ? []
+        : input.categories !== undefined
+          ? pick(input.categories, browse.serviceCategories, 'kinds of service')
+          : (existing?.categories ?? []);
+    const convenience = kind === 'shop' && (input.convenience ?? existing?.convenience ?? false);
+    const ofstedNumber =
+      kind !== 'service'
+        ? ''
+        : (input.ofstedNumber ?? existing?.ofstedNumber ?? '').toUpperCase().replace(/\s+/g, '');
+    if (ofstedNumber !== '' && !OFSTED_NUMBER.test(ofstedNumber)) {
+      throw new BadRequestError(
+        'That does not look like an Ofsted registration number. It is 6 to 8 digits, sometimes with letters such as EY in front.',
+      );
+    }
+    const needsOfsted = categories.some((category) => browse.ofstedCategories.includes(category));
+    if (needsOfsted && ofstedNumber === '') {
+      throw new BadRequestError(
+        `A childminder must be registered with Ofsted. Please give your Ofsted registration number. ${config.productName} shows it as you give it.`,
+      );
+    }
+    return { cuisines, specialities, categories, convenience, ofstedNumber };
   }
 
   /** What a joining shop is told about the tiers, from config/store.json. */
@@ -469,6 +564,12 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         status: shop.status,
         active: shop.active,
         listed: listed(shop),
+        section: sectionOf(shop),
+        cuisines: shop.cuisines,
+        specialities: shop.specialities,
+        categories: shop.categories,
+        convenience: shop.convenience,
+        ofstedNumber: shop.ofstedNumber,
       },
       plan: {
         tier: shop.plan,
@@ -520,6 +621,41 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       payments: (await repository.partnerPayments.listForShop(shop.id)).map(publicPayment),
       referrals: await countJoinedVia(`partner:${shop.id}`),
       numbers: await shopNumbers(shop.name),
+    };
+  });
+
+  /**
+   * How Shoppers find the place (ruling 82): its cuisines, specialities or categories from the
+   * lists in config, the convenience flag for a shop, a childminder's Ofsted number, and its
+   * words about itself. The excluded kinds are refused here as on the join form.
+   */
+  app.post('/partner/profile', async (request) => {
+    const shop = await myShop(request);
+    const body = browseFieldsSchema
+      .extend({ about: z.string().trim().max(500).optional() })
+      .parse(request.body ?? {});
+    if (body.about !== undefined) {
+      const refused = excludedServiceKind(
+        `${shop.name} ${body.about}`,
+        partners.excludedServiceKinds,
+      );
+      if (refused) throw new BadRequestError(excludedServiceWords(refused, config.productName));
+    }
+    const updated = await repository.partnerShops.update(shop.id, {
+      ...browseFieldsFor(shop.kind, body, shop),
+      ...(body.about !== undefined ? { about: body.about } : {}),
+    });
+    return {
+      shop: {
+        section: sectionOf(updated),
+        cuisines: updated.cuisines,
+        specialities: updated.specialities,
+        categories: updated.categories,
+        convenience: updated.convenience,
+        ofstedNumber: updated.ofstedNumber,
+        about: updated.about,
+      },
+      message: 'Saved. Shoppers find you under what you chose.',
     };
   });
 
@@ -853,11 +989,57 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
 
   /* ------------------------------------------------------------------ the public shop pages */
 
-  /** Every approved shop, café, takeaway and service, with its kind and area (ruling 65). */
-  app.get('/shops', async () => {
+  /**
+   * Every approved shop, café, takeaway and service, with its kind and area (ruling 65). Since
+   * ruling 82 it can be narrowed to one section (restaurants, shops, convenience, services), a
+   * cuisine, a speciality or a category, and searched; given the Shopper's postcode (or, signed
+   * in, their delivery address), places in the same district come first, marked near, then the
+   * same area letters, then the rest.
+   */
+  app.get('/shops', async (request) => {
+    const query = z
+      .object({
+        section: z.enum(BROWSE_SECTIONS).optional(),
+        cuisine: z.string().trim().max(60).optional(),
+        speciality: z.string().trim().max(60).optional(),
+        category: z.string().trim().max(60).optional(),
+        q: z.string().trim().max(100).optional(),
+        near: z.string().trim().max(10).optional(),
+      })
+      .parse(request.query ?? {});
+    const same = (a: string, b: string): boolean => a.toLowerCase() === b.toLowerCase();
+    const has = (list: string[], wanted: string | undefined): boolean =>
+      !wanted || list.some((entry) => same(entry, wanted));
+    let near = query.near ?? '';
+    if (near === '' && request.session?.role === 'shopper') {
+      const shopper = await repository.shoppers.findById(request.session.accountId);
+      near =
+        /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i.exec(shopper?.deliveryAddress ?? '')?.[0] ??
+        '';
+    }
     // Shops on paid Partner Plus come first, here, on the home page's "Stock up at local shops"
-    // and in search (ruling 75); everyone else keeps the order they joined in.
-    const shops = plusFirst((await repository.partnerShops.list()).filter(listed));
+    // and in search (ruling 75); everyone else keeps the order they joined in. With a postcode,
+    // nearness comes first and Partner Plus first within each distance (ruling 82).
+    const plusOrdered = plusFirst(
+      (await repository.partnerShops.list())
+        .filter(listed)
+        .filter((shop) => !query.section || sectionOf(shop) === query.section)
+        .filter((shop) => has(shop.kind === 'food' ? shop.cuisines : [], query.cuisine))
+        .filter((shop) => has(shop.kind === 'shop' ? shop.specialities : [], query.speciality))
+        .filter((shop) => has(shop.kind === 'service' ? shop.categories : [], query.category))
+        .filter((shop) =>
+          matchesBrowseSearch(
+            { name: shop.name, about: shop.about, tags: browseTags(shop) },
+            query.q ?? '',
+          ),
+        ),
+    );
+    const nearness = new Map(
+      plusOrdered.map((shop) => [shop.id, near ? postcodeNearness(near, shop.postcode) : 2]),
+    );
+    const shops = near
+      ? [...plusOrdered].sort((a, b) => (nearness.get(a.id) ?? 2) - (nearness.get(b.id) ?? 2))
+      : plusOrdered;
     // Shop of the Month, of the Quarter and of the Half Year (ruling 70): a badge with words.
     const awards = await awardTitlesByShop(app.ctx);
     const rows = [];
@@ -872,9 +1054,11 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         products: live.length,
         awards: awards.get(shop.id) ?? [],
         partnerPlus: onPaidPlus(shop),
+        // Ruling 82: "Near you" (the same postcode district) or "Further away"; null with no postcode.
+        nearYou: near ? nearness.get(shop.id) === 0 : null,
       });
     }
-    return { shops: rows };
+    return { shops: rows, near: near ? postcodeArea(near) : null };
   });
 
   app.get('/shops/:id', async (request) => {
@@ -1005,45 +1189,50 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
 
   app.get('/partner/join/options', async () => joinOptions());
 
-  const joinSchema = z.object({
-    name: z.string().trim().min(2, 'Please give the business’s name.').max(120),
-    kind: z.enum(PARTNER_KINDS),
-    address: z.string().trim().min(3, 'Please give the address.').max(300),
-    postcode: z
-      .string()
-      .trim()
-      .min(5, 'Please give the postcode.')
-      .max(10)
-      .regex(
-        /^[A-Za-z]{1,2}\d[A-Za-z\d]?\s*\d[A-Za-z]{2}$/,
-        'That does not look like a UK postcode.',
-      ),
-    hours: z.string().trim().min(2, 'Please give the opening hours.').max(300),
-    contactName: z
-      .string()
-      .trim()
-      .min(2, 'Please give the name of the person to speak to.')
-      .max(80),
-    mobile: z
-      .string()
-      .trim()
-      .min(7, 'Please give a mobile number.')
-      .max(20)
-      .regex(/^[+0-9 ()-]+$/, 'A phone number can only have digits, spaces, brackets and a plus.'),
-    phoneProof: z.string().trim().max(500).optional(),
-    email: z.string().trim().email('Please give an email address.').max(120),
-    about: z.string().trim().max(500).default(''),
-    username: usernameSchema,
-    password: z.string().min(10, 'Please choose a password of at least 10 characters.').max(200),
-    /** A shop Ozi listed, being claimed by its owner. */
-    claimShopId: z.string().min(1).optional(),
-    plan: z.enum(['free', 'plus']).default('free'),
-    /**
-     * Partner Plus only (ruling 75): true when the shop starts and pays today, skipping the free
-     * month, and goes straight to Stripe Checkout; false takes the free month at once.
-     */
-    payNow: z.boolean().default(false),
-  });
+  const joinSchema = z
+    .object({
+      name: z.string().trim().min(2, 'Please give the business’s name.').max(120),
+      kind: z.enum(PARTNER_KINDS),
+      address: z.string().trim().min(3, 'Please give the address.').max(300),
+      postcode: z
+        .string()
+        .trim()
+        .min(5, 'Please give the postcode.')
+        .max(10)
+        .regex(
+          /^[A-Za-z]{1,2}\d[A-Za-z\d]?\s*\d[A-Za-z]{2}$/,
+          'That does not look like a UK postcode.',
+        ),
+      hours: z.string().trim().min(2, 'Please give the opening hours.').max(300),
+      contactName: z
+        .string()
+        .trim()
+        .min(2, 'Please give the name of the person to speak to.')
+        .max(80),
+      mobile: z
+        .string()
+        .trim()
+        .min(7, 'Please give a mobile number.')
+        .max(20)
+        .regex(
+          /^[+0-9 ()-]+$/,
+          'A phone number can only have digits, spaces, brackets and a plus.',
+        ),
+      phoneProof: z.string().trim().max(500).optional(),
+      email: z.string().trim().email('Please give an email address.').max(120),
+      about: z.string().trim().max(500).default(''),
+      username: usernameSchema,
+      password: z.string().min(10, 'Please choose a password of at least 10 characters.').max(200),
+      /** A shop Ozi listed, being claimed by its owner. */
+      claimShopId: z.string().min(1).optional(),
+      plan: z.enum(['free', 'plus']).default('free'),
+      /**
+       * Partner Plus only (ruling 75): true when the shop starts and pays today, skipping the free
+       * month, and goes straight to Stripe Checkout; false takes the free month at once.
+       */
+      payNow: z.boolean().default(false),
+    })
+    .merge(browseFieldsSchema);
 
   /**
    * A shop, café, takeaway or service joins by itself. The mobile is confirmed with a code
@@ -1071,6 +1260,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       partners.excludedServiceKinds,
     );
     if (refused) throw new BadRequestError(excludedServiceWords(refused, config.productName));
+    const browseFields = browseFieldsFor(body.kind, body);
     if (await repository.businessUsers.findByUsername(body.username)) {
       throw new ConflictError('That username is taken. Please choose another.');
     }
@@ -1115,6 +1305,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       contactName: body.contactName,
       mobile,
       email: body.email,
+      ...browseFields,
     };
     const shop = claimed
       ? await repository.partnerShops.update(claimed.id, {
@@ -1749,12 +1940,14 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         /** Months of Partner Plus already paid on paper. */
         paidMonths: z.number().int().min(0).max(24).default(0),
       })
+      .merge(browseFieldsSchema)
       .parse(request.body ?? {});
     const refused = excludedServiceKind(
       `${body.name} ${body.about}`,
       partners.excludedServiceKinds,
     );
     if (refused) throw new BadRequestError(excludedServiceWords(refused, config.productName));
+    const browseFields = browseFieldsFor(body.kind, body);
     // Added by staff from a paper form (ruling 65): the agreement is on paper, so it is approved.
     const plan = body.kind !== 'shop' ? 'free' : body.paidMonths > 0 ? 'plus' : body.plan;
     const shop = await repository.partnerShops.create({
@@ -1777,6 +1970,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       status: 'approved',
       source: 'staff',
       approvedAt: now(),
+      ...browseFields,
     });
     const paid =
       body.paidMonths > 0
@@ -1812,11 +2006,26 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         /** Approve a pending listing, or remove one. */
         status: z.enum(['approved', 'pending', 'removed']).optional(),
       })
+      .merge(browseFieldsSchema)
       .parse(request.body ?? {});
     const shop = await repository.partnerShops.findById(id);
     if (!shop) throw new NotFoundError('partner shop');
     const at = now();
     let updated = shop;
+    // What it is browsed under (ruling 82), set by staff when adding or approving a shop.
+    const browseKeys = [
+      'cuisines',
+      'specialities',
+      'categories',
+      'convenience',
+      'ofstedNumber',
+    ] as const;
+    if (browseKeys.some((key) => body[key] !== undefined)) {
+      updated = await repository.partnerShops.update(
+        shop.id,
+        browseFieldsFor(shop.kind, body, shop),
+      );
+    }
     if (body.status !== undefined) {
       updated = await repository.partnerShops.update(shop.id, {
         status: body.status,

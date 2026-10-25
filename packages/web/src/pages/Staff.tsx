@@ -93,6 +93,7 @@ import {
   type TinyExtraRow,
 } from '../lib/api';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
+import { BrowseFields, readBrowseFields } from '../components/BrowseFields';
 import { ShareCard } from '../components/ShareCard';
 import { StaffVoice } from '../components/StaffVoice';
 import { OziCall } from '../components/OziCall';
@@ -2373,6 +2374,8 @@ function Partners({
   const [problem, setProblem] = useState('');
   const [password, setPassword] = useState('');
   const [photos, setPhotos] = useState<Record<string, string>>({});
+  // The kind chosen on "Add a shop", which decides what it can be browsed under (ruling 82).
+  const [addKind, setAddKind] = useState<'shop' | 'food' | 'service'>('shop');
   const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
   const fail = (failure: unknown): void =>
     setProblem(failure instanceof Error ? failure.message : 'That could not be saved.');
@@ -2620,6 +2623,33 @@ function Partners({
                     </button>
                   ))}
               </div>
+              <details>
+                <summary className="control px-0 text-paper underline">
+                  What Shoppers find it under
+                  <span className="visually-hidden">: {shop.name}</span>
+                </summary>
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void setStaffPartnerState(
+                      staffKey,
+                      shop.id,
+                      readBrowseFields(event.currentTarget, `staff-${shop.id}`, shop.kind),
+                    )
+                      .then(() => {
+                        onNews(`${shop.name}: what Shoppers find it under is saved.`);
+                        list.reload();
+                      })
+                      .catch(fail);
+                  }}
+                  className="space-y-3 pt-2"
+                >
+                  <BrowseFields kind={shop.kind} prefix={`staff-${shop.id}`} initial={shop} />
+                  <button type="submit" className="control bg-highlight text-on-accent">
+                    Save<span className="visually-hidden"> what {shop.name} is found under</span>
+                  </button>
+                </form>
+              </details>
               <form
                 onSubmit={(event) => {
                   const value = values(event);
@@ -2666,6 +2696,7 @@ function Partners({
               telephone: value('shop-telephone'),
               about: value('shop-about'),
               paidMonths: Number(value('shop-months') || '0'),
+              ...readBrowseFields(form, 'add-shop', addKind),
             })
               .then(() => {
                 onNews(`${value('shop-name')} added, from a paper form, and approved.`);
@@ -2691,7 +2722,13 @@ function Partners({
           <label htmlFor="shop-kind" className="block">
             Kind
           </label>
-          <select id="shop-kind" name="shop-kind" className={field} defaultValue="shop">
+          <select
+            id="shop-kind"
+            name="shop-kind"
+            className={field}
+            value={addKind}
+            onChange={(event) => setAddKind(event.target.value as 'shop' | 'food' | 'service')}
+          >
             <option value="shop">Shop</option>
             <option value="food">Café or takeaway</option>
             <option value="service">Service</option>
@@ -2728,6 +2765,7 @@ function Partners({
             A line about the shop, for its page
           </label>
           <input id="shop-about" name="shop-about" className={field} />
+          <BrowseFields key={addKind} kind={addKind} prefix="add-shop" />
           <label htmlFor="shop-months" className="block">
             Months of Partner Plus already paid (0 for a free listing)
           </label>

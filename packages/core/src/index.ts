@@ -136,6 +136,21 @@ export {
 } from './feedback.js';
 
 export {
+  BROWSE_SECTIONS,
+  browseWords,
+  chosenFrom,
+  heardBrowse,
+  matchesBrowseSearch,
+  postcodeLetters,
+  postcodeNearness,
+  searchWords,
+  sectionOf,
+  type BrowseSection,
+  type BrowseSettings,
+  type HeardBrowse,
+} from './browse.js';
+
+export {
   PARTNER_KINDS,
   PARTNER_KIND_WORDS,
   basisPointsWords,
