@@ -136,7 +136,7 @@ describe('the landing page', () => {
       '/runner/agreement',
     );
     renderAt('/runner/agreement');
-    expect(screen.getByRole('heading', { level: 1, name: 'Runner agreement' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Runner Services Agreement' })).toBeInTheDocument();
     expect(screen.getByText(/You can say no to any job, without a reason/)).toBeInTheDocument();
     expect(
       screen.getByText(new RegExp(`${storeConfig.problems.recoveryPercentOfPay}% of each later`)),
@@ -149,10 +149,11 @@ describe('the landing page', () => {
       screen.getByText(/we pay it back to you, straight to your own Stripe/),
     ).toBeInTheDocument();
     expect(screen.getByText(/never comes out of it/)).toBeInTheDocument();
-    // Still a draft on purpose: employment status and a right of substitution need decisions.
-    expect(screen.getByText(/This is a draft/)).toBeInTheDocument();
+    // Issued as the final agreement on 25 October 2026: no draft notice.
+    expect(screen.queryByText(/This is a draft/)).toBeNull();
+    expect(screen.queryByText(/solicitor/i)).toBeNull();
     // Ruling 61: a new version, so every Runner agrees again, with the new terms on the page.
-    expect(screen.getByText(/Version of 10 October 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/Effective from 25 October 2026/)).toBeInTheDocument();
     expect(screen.getByText(/by motorbike up to £70\.00/)).toBeInTheDocument();
     expect(
       screen.getByText(/parts of up to £75\.00 for motorbike riders first/),
