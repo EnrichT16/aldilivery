@@ -9,4 +9,6 @@
 // 2026-10-10 (ruling 61, Anthony): every Runner agrees again, because the agreement now sets
 // out £7 for an order of £120 or more delivered whole, £5 for each part of a split job, how
 // split parts are offered (motorbike first, then foot and bicycle), and the carrying limits.
-export const RUNNER_AGREEMENT_VERSION = '2026-10-10';
+// 2026-10-25 (Anthony): issued as the final agreement — the draft notice removed, the terms
+// numbered, office-sent jobs and the automatic document check described, general terms added.
+export const RUNNER_AGREEMENT_VERSION = '2026-10-25';

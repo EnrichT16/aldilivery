@@ -21,10 +21,10 @@ import { money } from '../lib/money';
  * Runner agrees to this page before their first job; the date, the version below and how they
  * agreed are kept, and no job is offered or accepted until they have.
  *
- * It stays marked as a draft on purpose. Whether a Runner is self-employed in law depends on how
- * the work really happens, and one thing in it still needs Anthony's decision: whether a Runner
- * may send a checked substitute. A solicitor has not yet looked at it. See docs/LEGAL_REVIEW.md.
- * If the app changes how Runners work, this page must change with it, and so must
+ * Issued as the final agreement on 25 October 2026 (Anthony): the draft notice is gone and the
+ * terms are numbered. Whether a Runner is self-employed in law still depends on how the work
+ * really happens, so the page must keep matching the app. If the app changes how Runners work,
+ * this page must change with it, and so must
  * RUNNER_AGREEMENT_VERSION in packages/core, so every Runner is asked to agree again.
  */
 export function RunnerAgreement(): JSX.Element {
@@ -33,6 +33,7 @@ export function RunnerAgreement(): JSX.Element {
   const { runnerPaymentPence, coolBag } = storeConfig.fees;
   const { recoveryPercentOfPay, writeOffUpToPence, instantRefundUpToPence } = storeConfig.problems;
   const holdSeconds = storeConfig.allocation.offerHoldSeconds;
+  const allocatedHoldMinutes = storeConfig.allocation.allocatedHoldMinutes;
   const recoveryPence = Math.floor((runnerPaymentPence * recoveryPercentOfPay) / 100);
   const { maximumOrderGoodsPence } = storeConfig.fees;
   const { maxGoodsPenceByMode, splitAfterMinutes, splitPartMaxPenceByMode } = storeConfig.dispatch;
@@ -43,19 +44,22 @@ export function RunnerAgreement(): JSX.Element {
 
   return (
     <article className="space-y-8 max-w-2xl">
-      <h1 className="text-display font-bold m-0">Runner agreement</h1>
-      <p className="m-0">Version of {versionDate}.</p>
+      <h1 className="text-display font-bold m-0">Runner Services Agreement</h1>
+      <p className="m-0">
+        <strong>Effective from {versionDate}.</strong> Agreement version {RUNNER_AGREEMENT_VERSION}.
+      </p>
       <p className="m-0 border-2 border-paper rounded-2xl p-4">
-        This is a draft. It says how working with us as a Runner works today, and you agree to this
-        version before your first job. A solicitor has not yet looked at it, and whether you may
-        send another checked Runner in your place is still being decided. If anything in it changes,
-        we will tell you and ask you to agree again before your next job.
+        These are the terms on which you provide shopping and delivery services through {name} as an
+        independent, self-employed contractor. Please read them carefully. You accept them by
+        agreeing in the app before your first job, and a record of the version, the date and how you
+        agreed is kept on your account. If these terms change, you will be asked to agree to the new
+        version before your next job.
       </p>
       <DetailsToFollowNotice />
 
       <section aria-labelledby="who" className="space-y-3">
         <h2 id="who" className="text-lead font-bold">
-          Who this agreement is between
+          1. The parties
         </h2>
         <p className="m-0">
           This agreement is between you, the Runner, and {company.name}, which runs {name}
@@ -66,7 +70,7 @@ export function RunnerAgreement(): JSX.Element {
 
       <section aria-labelledby="status" className="space-y-3">
         <h2 id="status" className="text-lead font-bold">
-          You are self-employed
+          2. Your status as a self-employed contractor
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
@@ -90,19 +94,24 @@ export function RunnerAgreement(): JSX.Element {
             uniform.
           </li>
           <li>
-            Because every Runner is checked by us and Shoppers see the Runner&rsquo;s photo at the
-            door, you cannot send somebody else to do a job you have accepted.
+            A job sent to you directly by our office is held for you for {allocatedHoldMinutes}{' '}
+            minutes. You are still free to decline it, with no reason and no effect on you.
           </li>
           <li>
-            The law decides whether somebody is self-employed by how the work really happens, not
-            only by what an agreement says. We have written this to match how the app works.
+            Because every Runner is checked by us and Shoppers see the Runner&rsquo;s photo at the
+            door, you must carry out each job you accept yourself and may not pass it to anybody
+            else.
+          </li>
+          <li>
+            Nothing in this agreement creates employment, worker status, partnership or agency
+            between you and us. You have no authority to make commitments on our behalf.
           </li>
         </ul>
       </section>
 
       <section aria-labelledby="checks" className="space-y-3">
         <h2 id="checks" className="text-lead font-bold">
-          Checks before your first job
+          3. Checks before your first job
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
@@ -111,7 +120,9 @@ export function RunnerAgreement(): JSX.Element {
             called hire and reward, or business use).
           </li>
           <li>
-            A person at {name} looks at each one. Nobody is offered a job until they have passed.
+            We check each one. Documents that are clearly in order are approved straight away; any
+            that are unclear are decided by a person at {name}, never refused automatically. Nobody
+            is offered a job until every check has passed.
           </li>
           <li>
             You must tell us straight away if anything changes, such as a new conviction, losing
@@ -119,15 +130,15 @@ export function RunnerAgreement(): JSX.Element {
             on foot, by bicycle or by public transport.
           </li>
           <li>
-            Some jobs in future, such as handing shopping to the person, will need an enhanced DBS
-            check.
+            We may ask for an enhanced DBS check before offering you certain kinds of job. We will
+            tell you which jobs need it and you are free not to take them.
           </li>
         </ul>
       </section>
 
       <section aria-labelledby="job" className="space-y-3">
         <h2 id="job" className="text-lead font-bold">
-          Doing a job
+          4. Carrying out a job
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>Before you accept, you see the pay and the distance.</li>
@@ -173,7 +184,7 @@ export function RunnerAgreement(): JSX.Element {
 
       <section aria-labelledby="pay" className="space-y-3">
         <h2 id="pay" className="text-lead font-bold">
-          Your pay
+          5. Your pay
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
@@ -228,7 +239,7 @@ export function RunnerAgreement(): JSX.Element {
 
       <section aria-labelledby="bag" className="space-y-3">
         <h2 id="bag" className="text-lead font-bold">
-          The cool bag deposit
+          6. The cool bag deposit
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
@@ -251,7 +262,7 @@ export function RunnerAgreement(): JSX.Element {
 
       <section aria-labelledby="wrong" className="space-y-3">
         <h2 id="wrong" className="text-lead font-bold">
-          When something goes wrong
+          7. When something goes wrong
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
@@ -282,7 +293,7 @@ export function RunnerAgreement(): JSX.Element {
 
       <section aria-labelledby="information" className="space-y-3">
         <h2 id="information" className="text-lead font-bold">
-          Shoppers&rsquo; information
+          8. Confidentiality and Shoppers&rsquo; information
         </h2>
         <p className="m-0">
           You see a Shopper&rsquo;s name, address and door instructions only while you have their
@@ -296,18 +307,20 @@ export function RunnerAgreement(): JSX.Element {
 
       <section aria-labelledby="insurance" className="space-y-3">
         <h2 id="insurance" className="text-lead font-bold">
-          Insurance
+          9. Insurance and responsibility
         </h2>
         <p className="m-0">
           If you drive or ride a motorbike for jobs, you must have insurance that covers delivering
           for payment, and keep it up to date. Ordinary car insurance does not cover this. We
-          recommend you also have your own public liability insurance.
+          recommend you also have your own public liability insurance. You are responsible for your
+          own vehicle, equipment and conduct while carrying out a job, and for complying with the
+          law, including road traffic and food hygiene rules.
         </p>
       </section>
 
       <section aria-labelledby="ending" className="space-y-3">
         <h2 id="ending" className="text-lead font-bold">
-          Stopping, and changes
+          10. Ending this agreement, changes and general terms
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>You can stop being a Runner at any time. Tell us, and we settle your pay.</li>
@@ -320,7 +333,22 @@ export function RunnerAgreement(): JSX.Element {
             We tell you at least 14 days before a change to your pay or to this agreement, unless
             the law makes us change it sooner. You are free to stop if you do not agree.
           </li>
-          <li>This agreement is under the law of England and Wales.</li>
+          <li>
+            This agreement, together with our privacy page, is the whole agreement between you and
+            us about your services as a Runner. If any part of it is found to be unenforceable, the
+            rest still applies.
+          </li>
+          <li>
+            This agreement is governed by the law of England and Wales, and the courts of England
+            and Wales have jurisdiction over any dispute about it.
+          </li>
+          <li>
+            Questions about this agreement: write to us at{' '}
+            {storeConfig.contact.emailIsPlaceholder
+              ? 'our registered office'
+              : storeConfig.contact.email}
+            , or ring {storeConfig.contact.telephonePlaceholder}.
+          </li>
         </ul>
       </section>
 
