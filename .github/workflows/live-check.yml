@@ -54,6 +54,21 @@ jobs:
           grep -i '^content-type' headers.txt || true
           head -c 2500 body.txt; echo
 
+      - name: POST the Stripe webhook address, as Stripe would (unsigned, so a quick 400 is right)
+        run: |
+          for host in www.ozidelivery.co.uk lobster-app-3ilv6.ondigitalocean.app; do
+            echo "== POST https://$host/api/webhooks/stripe"
+            curl -sS -m 40 -o body.txt -D headers.txt \
+              -H 'content-type: application/json; charset=utf-8' \
+              -H 'User-Agent: Stripe/1.0 (+https://stripe.com/docs/webhooks)' \
+              -H 'Stripe-Signature: t=1,v1=0' \
+              --data '{"id":"evt_probe","type":"payment_intent.succeeded","data":{"object":{}}}' \
+              -w 'status=%{http_code} time=%{time_total}s redirect=%{redirect_url}\n' \
+              "https://$host/api/webhooks/stripe" || echo "curl failed: $?"
+            cat headers.txt
+            head -c 600 body.txt; echo
+          done
+
       - name: Is the expected commit live yet?
         env:
           EXPECT: ${{ inputs.expect_commit }}

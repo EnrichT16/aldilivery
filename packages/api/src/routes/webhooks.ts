@@ -51,6 +51,11 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
     try {
       event = payments.constructWebhookEvent(rawBody, signature);
     } catch {
+      // Said in the runtime logs, so a wrong STRIPE_WEBHOOK_SECRET shows up there and not only
+      // as "other errors" in Stripe's emails (27 October 2026).
+      request.log.warn(
+        'A Stripe webhook signature did not check out. Is STRIPE_WEBHOOK_SECRET the signing secret of this live endpoint?',
+      );
       throw new BadRequestError('That signature did not check out.');
     }
 
