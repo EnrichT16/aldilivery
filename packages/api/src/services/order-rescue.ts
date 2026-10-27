@@ -23,6 +23,7 @@ import { canTransition, formatPence } from '@aldilivery/core';
 import type { AppContext } from '../app.js';
 import type { Order, Runner } from '../domain.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
+import { RefundRefusedError } from '../lib/payments.js';
 import { orderReference } from '../routes/admin.js';
 import { offerExpiryAt } from './allocation.js';
 import { releaseExtraDelivery } from './basket-orders.js';
@@ -131,6 +132,7 @@ export async function cancelOrder(
   // The money first, so a refund that the gateway refuses stops the cancellation.
   let refundedPence = 0;
   let bankRefundPence = 0;
+  let noRealPayment = false;
   const paid =
     order.paidBy === 'card'
       ? order.stripePaymentIntentId !== null
@@ -138,12 +140,23 @@ export async function cancelOrder(
   if (paid) {
     const owed = orderTotalPence(order) - (await alreadyRefundedPence(ctx, order));
     if (order.paidBy === 'card' && order.stripePaymentIntentId && owed > 0) {
-      await payments.refundPayment({
-        paymentIntentId: order.stripePaymentIntentId,
-        amountPence: owed,
-        reference: `cancel:${order.id}`,
-      });
-      refundedPence = owed;
+      try {
+        await payments.refundPayment({
+          paymentIntentId: order.stripePaymentIntentId,
+          amountPence: owed,
+          reference: `cancel:${order.id}`,
+        });
+        refundedPence = owed;
+      } catch (failure) {
+        // Stripe's live account has never heard of this payment: no real money was taken (an
+        // order paid while card payments were in test mode), so there is nothing to send back
+        // and the order is simply cancelled. Any other refusal stops the cancellation.
+        if (!(failure instanceof RefundRefusedError && failure.code === 'resource_missing')) {
+          throw refusal(failure, log);
+        }
+        log.warn({ orderId: order.id }, 'Cancelled with no refund: Stripe has no such payment.');
+        noRealPayment = true;
+      }
     } else if (order.paidBy === 'bank' && owed > 0) {
       bankRefundPence = owed;
     }
@@ -214,7 +227,9 @@ export async function cancelOrder(
       ? `Cancelled order ${reference}. ${money(refundedPence)} is going back to the card.`
       : bankRefundPence > 0
         ? `Cancelled order ${reference}. The bank transfer of ${money(bankRefundPence)} is on the till cases, to send back by hand.`
-        : `Cancelled order ${reference}. Nothing was taken.`;
+        : noRealPayment
+          ? `Cancelled order ${reference}. Stripe has no record of a real payment for it, so nothing needed to go back.`
+          : `Cancelled order ${reference}. Nothing was taken.`;
   return { order: updated, refundedPence, bankRefundPence, message };
 }
 
@@ -222,6 +237,22 @@ export interface GoodwillOutcome {
   order: Order;
   reference: string;
   message: string;
+}
+
+/** What staff are told when Stripe refuses a refund, in place of "Something went wrong". */
+function refusal(failure: unknown, log: FastifyBaseLogger): unknown {
+  if (!(failure instanceof RefundRefusedError)) return failure;
+  log.warn({ code: failure.code, err: failure }, 'Stripe refused a refund.');
+  switch (failure.code) {
+    case 'resource_missing':
+      return new ConflictError(
+        'Stripe has no record of this payment on the live account, so no real money was taken for it. It was most likely paid while card payments were in test mode. Cancel the order instead: nothing needs to go back.',
+      );
+    case 'charge_already_refunded':
+      return new ConflictError('Stripe says this payment has already been refunded in full.');
+    default:
+      return new ConflictError(`Stripe did not send the refund. It said: ${failure.message}`);
+  }
 }
 
 /** A goodwill refund of a stated amount, to the card that paid. */
@@ -246,11 +277,15 @@ export async function goodwillRefund(
         : 'Everything this order cost has already gone back.',
     );
   }
-  const result = await payments.refundPayment({
-    paymentIntentId: order.stripePaymentIntentId,
-    amountPence: input.amountPence,
-    reference: `goodwill:${order.id}`,
-  });
+  const result = await payments
+    .refundPayment({
+      paymentIntentId: order.stripePaymentIntentId,
+      amountPence: input.amountPence,
+      reference: `goodwill:${order.id}`,
+    })
+    .catch((failure: unknown) => {
+      throw refusal(failure, log);
+    });
   const updated = await repository.orders.update(order.id, {
     goodwillRefundedPence: order.goodwillRefundedPence + input.amountPence,
   });
