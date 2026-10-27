@@ -45,6 +45,7 @@ import { DocumentsChecklist } from '../components/DocumentsChecklist';
 import { JobNavigation } from '../components/JobNavigation';
 import { LeaveRunning } from '../components/LeaveRunning';
 import { PayoutChoice } from '../components/PayoutChoice';
+import { PhotoChoice } from '../components/PhotoChoice';
 import { RunnerSos } from '../components/RunnerSos';
 import { DemoBanner } from '../components/DemoBanner';
 import { NotifyMe } from '../components/NotifyMe';
@@ -798,25 +799,20 @@ function JobInHand({
               aria-describedby="till-hint"
               className="w-full max-w-xs min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
             />
-            <label className="control bg-paper/10 text-paper underline cursor-pointer focus-within:outline focus-within:outline-4 focus-within:outline-offset-2">
-              {photo ? 'Take the receipt photo again' : 'Take a photo of the receipt'}
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                aria-describedby="receipt-photo-hint"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = '';
-                  void takePhoto(file).then((ready) => {
-                    if (!ready) return;
-                    setPhoto(ready);
-                    setPhotoNote('The photo of the receipt is ready to go with the total.');
-                  });
-                }}
-                className="visually-hidden"
-              />
-            </label>
+            <PhotoChoice
+              takeLabel={photo ? 'Take the receipt photo again' : 'Take a photo of the receipt'}
+              chooseLabel="Choose a photo of the receipt"
+              describedBy="receipt-photo-hint"
+              takeClassName="control bg-paper/10 text-paper underline"
+              chooseClassName="control bg-paper/10 text-paper underline"
+              onFile={(file) => {
+                void takePhoto(file).then((ready) => {
+                  if (!ready) return;
+                  setPhoto(ready);
+                  setPhotoNote('The photo of the receipt is ready to go with the total.');
+                });
+              }}
+            />
             <p id="receipt-photo-hint" className="m-0">
               Optional, but it helps: with a photo, we pay you back larger amounts straight away,
               without waiting for a person to check.
@@ -840,27 +836,22 @@ function JobInHand({
 
         {job.reimbursementStatus === 'waiting' && job.status !== 'shopping' && (
           <>
-            <label className="control bg-paper/10 text-paper underline cursor-pointer focus-within:outline focus-within:outline-4 focus-within:outline-offset-2">
-              Add a photo of the receipt
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                disabled={busy}
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = '';
-                  void takePhoto(file).then((ready) => {
-                    if (!ready) return;
-                    void act(async () => {
-                      const result = await sendReceiptPhoto(job.orderId, ready);
-                      onNews(result.message);
-                    }, '');
-                  });
-                }}
-                className="visually-hidden"
-              />
-            </label>
+            <PhotoChoice
+              takeLabel="Add a photo of the receipt"
+              chooseLabel="Choose a photo of the receipt"
+              disabled={busy}
+              takeClassName="control bg-paper/10 text-paper underline"
+              chooseClassName="control bg-paper/10 text-paper underline"
+              onFile={(file) => {
+                void takePhoto(file).then((ready) => {
+                  if (!ready) return;
+                  void act(async () => {
+                    const result = await sendReceiptPhoto(job.orderId, ready);
+                    onNews(result.message);
+                  }, '');
+                });
+              }}
+            />
             <p role="status" className="m-0">
               {photoNote}
             </p>

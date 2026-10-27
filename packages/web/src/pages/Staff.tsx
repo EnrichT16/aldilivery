@@ -844,6 +844,15 @@ function DocumentReview({
         <p className="m-0">
           Share code: {document.shareCode}. Check it on the government website before accepting.
         </p>
+      ) : photo && document.sentAs === 'PDF' ? (
+        <a
+          href={photo}
+          target="_blank"
+          rel="noreferrer"
+          className="control border-paper bg-paper/10 text-paper"
+        >
+          Open the PDF of {document.name}, sent by {who}
+        </a>
       ) : photo ? (
         <img src={photo} alt={`${document.name}, sent by ${who}`} className="max-w-full" />
       ) : (
@@ -856,7 +865,7 @@ function DocumentReview({
           }}
           className="control border-paper bg-paper/10 text-paper"
         >
-          Show the photo
+          {document.sentAs === 'PDF' ? 'Show the PDF' : 'Show the photo'}
         </button>
       )}
       {document.kind === 'insurance' && (

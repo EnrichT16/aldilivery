@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
+import { PhotoChoice } from '../components/PhotoChoice';
 import { storeConfig } from '../config';
 import { addProblemEvidence, fetchProblems, reportProblem, type ProblemReport } from '../lib/api';
 import { money } from '../lib/money';
@@ -236,29 +237,21 @@ export function ReportProblem({ as = 'runner' }: { as?: 'runner' | 'shopper' }):
             </p>
           )}
 
-          <label className="control border-paper bg-paper/10 text-paper cursor-pointer focus-within:outline focus-within:outline-4 focus-within:outline-offset-2">
-            Take a photo
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              disabled={sending}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                event.target.value = '';
-                if (!file) return;
-                void run(async () => {
-                  const photo = await preparePhoto(file);
-                  return addProblemEvidence(
-                    current.id,
-                    { kind: 'photo', data: photo.base64, contentType: photo.contentType },
-                    as,
-                  );
-                });
-              }}
-              className="visually-hidden"
-            />
-          </label>
+          <PhotoChoice
+            takeLabel="Take a photo"
+            disabled={sending}
+            takeClassName="control border-paper bg-paper/10 text-paper"
+            onFile={(file) => {
+              void run(async () => {
+                const photo = await preparePhoto(file);
+                return addProblemEvidence(
+                  current.id,
+                  { kind: 'photo', data: photo.base64, contentType: photo.contentType },
+                  as,
+                );
+              });
+            }}
+          />
 
           <form
             className="space-y-2"

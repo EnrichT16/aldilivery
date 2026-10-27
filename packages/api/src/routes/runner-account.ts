@@ -51,6 +51,8 @@ const KINDS: RunnerDocumentKind[] = [
   'insurance',
 ];
 const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+/** A document may also come as the PDF it was emailed as (27 October 2026); a face may not. */
+const PDF = 'application/pdf';
 /** A phone photo, made smaller by the app before it is sent, is far below this. */
 const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
 
@@ -98,7 +100,7 @@ function publicDocument(document: RunnerDocument) {
     status: document.status,
     reviewNote: document.reviewNote,
     expiresOn: document.expiresOn,
-    sentAs: document.shareCode ? 'share code' : 'photo',
+    sentAs: document.shareCode ? 'share code' : document.contentType === PDF ? 'PDF' : 'photo',
     createdAt: document.createdAt,
   };
 }
@@ -157,14 +159,28 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
 
     let image: Buffer | null = null;
     if (body.image) {
-      if (!body.contentType || !IMAGE_TYPES.includes(body.contentType)) {
-        throw new BadRequestError('Please send a photo.');
+      const isPdf = body.contentType === PDF && body.kind !== 'face_photo';
+      if (!body.contentType || !(isPdf || IMAGE_TYPES.includes(body.contentType))) {
+        throw new BadRequestError(
+          body.kind === 'face_photo' ? 'Please send a photo.' : 'Please send a photo or a PDF.',
+        );
       }
       image = Buffer.from(body.image, 'base64');
+      if (isPdf && image.subarray(0, 5).toString('latin1') !== '%PDF-') {
+        throw new BadRequestError('That file is not a PDF. Please choose another.');
+      }
       if (image.length === 0)
-        throw new BadRequestError('That photo was empty. Please take it again.');
+        throw new BadRequestError(
+          isPdf
+            ? 'That file was empty. Please choose another.'
+            : 'That photo was empty. Please take it again.',
+        );
       if (image.length > MAX_IMAGE_BYTES) {
-        throw new BadRequestError('That photo is too large. Please take it again.');
+        throw new BadRequestError(
+          isPdf
+            ? 'That file is too large. Please choose one under 6 MB, or take a photo instead.'
+            : 'That photo is too large. Please take it again.',
+        );
       }
     }
     const shareCodeAllowed = body.kind === 'right_to_work' || body.kind === 'dbs';

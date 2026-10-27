@@ -7,7 +7,7 @@
  * done the checks.
  */
 
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
@@ -101,6 +101,34 @@ describe('signing up to run', () => {
     await screen.findByText(/Your right to work in the UK: Thank you/);
     expect(screen.queryByRole('heading', { name: 'Your right to work in the UK' })).toBeNull();
     expect(screen.getByRole('heading', { name: 'Your DBS certificate' })).toBeInTheDocument();
+  });
+
+  it('also lets them choose a photo already on the phone, or a PDF for a document (27 October 2026)', async () => {
+    const user = userEvent.setup({ delay: null });
+    const recorded = renderAt('/runner/sign-up');
+    await user.type(screen.getByLabelText('Your name'), 'Tomasz');
+    await user.type(screen.getByLabelText('Your mobile number'), '07700 900101');
+    await user.click(screen.getByLabelText('I am 18 or over, and I agree to the Runner agreement'));
+    await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
+
+    // The face: a photo only, from the camera or the library.
+    const chooseFace = await screen.findByLabelText('Choose a photo');
+    expect(chooseFace).not.toHaveAttribute('capture');
+    expect(chooseFace).toHaveAttribute('accept', 'image/*');
+
+    // A document: a photo or a PDF, chosen rather than taken.
+    const chooseDbs = screen.getAllByLabelText('Choose a photo or PDF').at(-1)!;
+    expect(chooseDbs).not.toHaveAttribute('capture');
+    expect(chooseDbs).toHaveAttribute('accept', 'image/*,application/pdf');
+    await user.upload(
+      chooseDbs,
+      new File(['%PDF-1.7 certificate'], 'dbs.pdf', { type: 'application/pdf' }),
+    );
+    await waitFor(() =>
+      expect(
+        recorded.find((r) => r.path === '/runners/me/documents' && r.method === 'POST')?.body,
+      ).toMatchObject({ contentType: 'application/pdf' }),
+    );
   });
 
   it('asks, unticked, for consent to compare the face photo with the ID (ruling 74)', async () => {

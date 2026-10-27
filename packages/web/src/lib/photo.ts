@@ -60,3 +60,22 @@ export async function preparePhoto(file: File): Promise<ReadyPhoto> {
     return split(original, file.type || 'image/jpeg');
   }
 }
+
+/**
+ * A PDF chosen from the phone or computer, sent as it is (27 October 2026): a DBS certificate
+ * or an insurance certificate often arrives by email as one. The server takes up to 6 MB.
+ */
+export const MAX_PDF_BYTES = 6 * 1024 * 1024;
+
+export async function preparePdf(file: File): Promise<ReadyPhoto> {
+  if (file.size > MAX_PDF_BYTES) {
+    throw new Error(
+      'That file is too large. Please choose one under 6 MB, or take a photo instead.',
+    );
+  }
+  return split(await asDataUrl(file), 'application/pdf');
+}
+
+export function isPdf(file: File): boolean {
+  return file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+}
