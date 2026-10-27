@@ -12,7 +12,7 @@
  * - typing always works, and the sign-up form never needs the microphone.
  */
 
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -363,6 +363,44 @@ describe('Ozi waits for a tap before it first listens', () => {
     renderAt('/shop');
     fireEvent.click(await screen.findByRole('button', { name: 'Tap to talk' }));
     expect(engine.starts).toBe(1);
+  });
+
+  it('steps aside while a box is typed in, and comes back after (27 October 2026)', async () => {
+    setVoiceEngine(tapEngine());
+    stubApi();
+    renderAt('/runner/sign-up');
+    await screen.findByRole('button', { name: 'Tap to talk' });
+    const box = screen.getByLabelText('Your name');
+    act(() => box.focus());
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Tap to talk' })).toBeNull());
+    act(() => box.blur());
+    expect(await screen.findByRole('button', { name: 'Tap to talk' })).toBeInTheDocument();
+  });
+
+  it('shrinks into the corner once the page is scrolled down, keeping its name', async () => {
+    setVoiceEngine(tapEngine());
+    stubApi();
+    renderAt('/shop');
+    const round = await screen.findByRole('button', { name: 'Tap to talk' });
+    expect(round).toHaveStyle({ width: '124px' });
+    Object.defineProperty(document.documentElement, 'scrollHeight', {
+      configurable: true,
+      value: 4000,
+    });
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 900 });
+    act(() => {
+      window.dispatchEvent(new Event('scroll'));
+    });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Tap to talk' })).toHaveStyle({ width: '60px' }),
+    );
+    Object.defineProperty(window, 'scrollY', { configurable: true, value: 0 });
+    act(() => {
+      window.dispatchEvent(new Event('scroll'));
+    });
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Tap to talk' })).toHaveStyle({ width: '124px' }),
+    );
   });
 
   it('listens by itself again once allowed, and asks for a tap, quietly, if a start is refused', async () => {
