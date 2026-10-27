@@ -8,13 +8,15 @@ import {
   type RunnerDocumentKind,
   type RunnerDocuments,
 } from '../lib/api';
-import { preparePhoto } from '../lib/photo';
+import { isPdf, preparePdf, preparePhoto } from '../lib/photo';
+import { PhotoChoice } from './PhotoChoice';
 
 /**
  * A Runner's documents, sent from the phone (rulings of 2 October 2026). Nobody comes to an office.
  *
  * One row for each thing still needed. Each has a button that opens the camera — the front
- * camera for the face photo, the back one for documents — and, for the right to work and the
+ * camera for the face photo, the back one for documents — and one to choose a photo already on
+ * the phone, or for a document a PDF (27 October 2026); and, for the right to work and the
  * DBS check, a box for a share code instead. Insurance asks for the date it runs out. Below, what
  * has been sent and what a person decided, with the reason if one was turned down.
  */
@@ -175,13 +177,19 @@ function DocumentRow({
     }
   }
 
-  async function onPhoto(file: File | undefined): Promise<void> {
-    if (!file) return;
+  async function onPhoto(file: File): Promise<void> {
     if (kind === 'insurance' && expiresOn === '') {
       onProblem('Please give the date your insurance runs out first.');
       return;
     }
-    const photo = await preparePhoto(file);
+    let photo;
+    try {
+      photo =
+        kind !== 'face_photo' && isPdf(file) ? await preparePdf(file) : await preparePhoto(file);
+    } catch (failure) {
+      onProblem(failure instanceof Error ? failure.message : 'That file could not be read.');
+      return;
+    }
     await send({
       kind,
       image: photo.base64,
@@ -217,25 +225,17 @@ function DocumentRow({
         </div>
       )}
 
-      {/* A real file input inside its label, styled as the big button, with the focus ring on the
-          button when the input has focus. It opens the camera on a phone. */}
-      <label
-        className={`control bg-highlight text-on-accent cursor-pointer focus-within:outline focus-within:outline-4 focus-within:outline-offset-2 ${sending ? 'opacity-70' : ''}`}
-      >
-        {sending ? 'Sending…' : kind === 'face_photo' ? 'Take a photo of my face' : 'Take a photo'}
-        <input
-          type="file"
-          accept="image/*"
-          capture={kind === 'face_photo' ? 'user' : 'environment'}
-          aria-describedby={`${id}-how`}
-          disabled={sending}
-          onChange={(event) => {
-            void onPhoto(event.target.files?.[0]);
-            event.target.value = '';
-          }}
-          className="visually-hidden"
-        />
-      </label>
+      <PhotoChoice
+        takeLabel={
+          sending ? 'Sending…' : kind === 'face_photo' ? 'Take a photo of my face' : 'Take a photo'
+        }
+        chooseLabel={kind === 'face_photo' ? 'Choose a photo' : 'Choose a photo or PDF'}
+        camera={kind === 'face_photo' ? 'user' : 'environment'}
+        accept={kind === 'face_photo' ? 'image/*' : 'image/*,application/pdf'}
+        disabled={sending}
+        describedBy={`${id}-how`}
+        onFile={(file) => void onPhoto(file)}
+      />
 
       {allowsCode && (
         <form

@@ -425,7 +425,7 @@ export interface RunnerDocumentRecord {
   name: string;
   status: 'submitted' | 'accepted' | 'rejected';
   reviewNote: string | null;
-  sentAs: 'photo' | 'share code';
+  sentAs: 'photo' | 'share code' | 'PDF';
   createdAt: string;
 }
 
@@ -1444,7 +1444,7 @@ export interface StaffDocument {
   kind: string;
   name: string;
   status: string;
-  sentAs: 'share code' | 'photo';
+  sentAs: 'share code' | 'photo' | 'PDF';
   shareCode: string | null;
   createdAt: string;
   runner: { id: string; name: string; runnerId: string } | null;

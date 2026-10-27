@@ -32,7 +32,12 @@ import {
 
 import type { AppContext } from '../app.js';
 import type { RunnerDocument } from '../domain.js';
-import { READABLE_IMAGES, type DocumentReading, type ReceiptImage } from '../lib/language-model.js';
+import {
+  READABLE_IMAGES,
+  type DocumentFile,
+  type DocumentReading,
+  type ReceiptImage,
+} from '../lib/language-model.js';
 import { NEVER_FOUND } from '../lib/restricted.js';
 import { documentsNeeded } from '../routes/runner-account.js';
 import {
@@ -65,6 +70,14 @@ export async function checkInBackground(
 
 function readable(contentType: string | null): contentType is ReceiptImage['mediaType'] {
   return (READABLE_IMAGES as readonly string[]).includes(contentType ?? '');
+}
+
+/** The document as the check reads it: a photo, or the PDF it was emailed as. */
+function fileOf(document: Pick<RunnerDocument, 'image' | 'contentType'>): DocumentFile | null {
+  if (document.image && document.contentType === 'application/pdf') {
+    return { data: Buffer.from(document.image).toString('base64'), mediaType: 'application/pdf' };
+  }
+  return photoOf(document);
 }
 
 function photoOf(document: Pick<RunnerDocument, 'image' | 'contentType'>): ReceiptImage | null {
@@ -211,7 +224,7 @@ export async function checkRunnerDocument(
     await toOwner('The automatic check is not switched on, so a person needs to look at it.');
     return;
   }
-  const photo = photoOf(document);
+  const photo = fileOf(document);
   if (!photo) {
     await toOwner('The photo is in a kind the automatic check cannot read.');
     return;

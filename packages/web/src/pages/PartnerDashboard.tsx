@@ -847,7 +847,6 @@ export function PartnerDashboard(): JSX.Element {
               name="product-photo"
               type="file"
               accept="image/*"
-              capture="environment"
               className={field}
             />
           </>

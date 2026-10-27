@@ -259,9 +259,16 @@ export type CheckedDocumentKind =
   | 'driving_licence_back'
   | 'insurance';
 
+/** A Runner's document as sent: a photo, or the PDF it was emailed as (27 October 2026). */
+export interface DocumentFile {
+  /** Base64, without the `data:` prefix. */
+  data: string;
+  mediaType: ReceiptImage['mediaType'] | 'application/pdf';
+}
+
 export interface DocumentCheckInput {
   kind: CheckedDocumentKind;
-  photo: ReceiptImage;
+  photo: DocumentFile;
   /** The name on the Runner's account, to compare with the name on the document. */
   accountName: string;
   /** Today, as YYYY-MM-DD, so "expired" is judged against the right day. */
@@ -721,11 +728,16 @@ export function languageModel(
     },
     async checkDocument(input) {
       try {
-        const image = (photo: ReceiptImage) =>
-          ({
-            type: 'image',
-            source: { type: 'base64', media_type: photo.mediaType, data: photo.data },
-          }) as const;
+        const image = (photo: DocumentFile) =>
+          photo.mediaType === 'application/pdf'
+            ? ({
+                type: 'document',
+                source: { type: 'base64', media_type: 'application/pdf', data: photo.data },
+              } as const)
+            : ({
+                type: 'image',
+                source: { type: 'base64', media_type: photo.mediaType, data: photo.data },
+              } as const);
         const comparing = input.kind === 'face_photo' && input.idPhoto !== undefined;
         const response = await client.messages.create(
           {

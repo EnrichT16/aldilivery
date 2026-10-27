@@ -373,3 +373,40 @@ describe('feedback', () => {
     expect(kept.map((f) => f.runnerId)).toEqual([null, runner.runner.id]);
   });
 });
+
+describe('documents as a PDF (27 October 2026)', () => {
+  const pdf = Buffer.from('%PDF-1.7\n1 0 obj << >> endobj\n%%EOF').toString('base64');
+
+  it('takes a document as the PDF it was emailed as, and says so to staff', async () => {
+    const runner = await signUp(['on_foot']);
+    const response = await send(runner.headers, {
+      kind: 'dbs',
+      image: pdf,
+      contentType: 'application/pdf',
+    });
+    expect(response.statusCode, response.body).toBe(201);
+    const stored = (await harness.repository.runnerDocuments.listSubmitted()).find(
+      (document) => document.runnerId === runner.runner.id,
+    );
+    expect(stored?.contentType).toBe('application/pdf');
+  });
+
+  it('turns away a face sent as a PDF, and a file that only claims to be one', async () => {
+    const runner = await signUp(['on_foot']);
+    const face = await send(runner.headers, {
+      kind: 'face_photo',
+      image: pdf,
+      contentType: 'application/pdf',
+    });
+    expect(face.statusCode).toBe(400);
+    expect(face.json().error.message).toBe('Please send a photo.');
+
+    const pretend = await send(runner.headers, {
+      kind: 'dbs',
+      image: Buffer.from('not a pdf at all').toString('base64'),
+      contentType: 'application/pdf',
+    });
+    expect(pretend.statusCode).toBe(400);
+    expect(pretend.json().error.message).toBe('That file is not a PDF. Please choose another.');
+  });
+});
