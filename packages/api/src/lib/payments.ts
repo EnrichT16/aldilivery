@@ -301,6 +301,21 @@ export function splitName(name: string): { first: string; last: string } {
   return { first: parts.slice(0, -1).join(' '), last: parts[parts.length - 1]! };
 }
 
+/**
+ * Stripe said no to a refund (27 October 2026: a cancel on an old order showed only "Something
+ * went wrong at our end"). `code` is Stripe's own, such as `resource_missing` for a payment the
+ * live account has no record of, or `charge_already_refunded`.
+ */
+export class RefundRefusedError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'RefundRefusedError';
+  }
+}
+
 export function stripeGateway(secretKey: string, webhookSecret: string): PaymentsGateway {
   const stripe = new Stripe(secretKey, {
     apiVersion: STRIPE_API_VERSION as Stripe.LatestApiVersion,
@@ -328,12 +343,19 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
     },
 
     async refundPayment(input) {
-      const refund = await stripe.refunds.create({
-        payment_intent: input.paymentIntentId,
-        amount: input.amountPence,
-        metadata: { reference: input.reference },
-      });
-      return { id: refund.id };
+      try {
+        const refund = await stripe.refunds.create({
+          payment_intent: input.paymentIntentId,
+          amount: input.amountPence,
+          metadata: { reference: input.reference },
+        });
+        return { id: refund.id };
+      } catch (failure) {
+        if (failure instanceof Stripe.errors.StripeError) {
+          throw new RefundRefusedError(failure.code ?? failure.type, failure.message);
+        }
+        throw failure;
+      }
     },
 
     async saveCardForReuse(input) {

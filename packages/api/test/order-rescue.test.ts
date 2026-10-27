@@ -7,6 +7,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { RefundRefusedError } from '../src/lib/payments.js';
 import { countWords, needsYouWords } from '../src/services/needs-you.js';
 import {
   STAFF,
@@ -378,6 +379,22 @@ describe('a goodwill refund', () => {
     expect(given.statusCode, given.body).toBe(200);
   });
 
+  it('says plainly why a goodwill refund did not go, in place of a server error', async () => {
+    const { orderId } = await deliveredOrder(2);
+    harness.payments.refundPayment = async () => {
+      throw new RefundRefusedError('charge_already_refunded', 'Charge has already been refunded.');
+    };
+    const given = await post(`/staff/orders/${orderId}/goodwill`, {
+      amountPence: 300,
+      reason: 'Sorry it came late.',
+      by: 'Kemi',
+    });
+    expect(given.statusCode).toBe(409);
+    expect(given.json().error.message).toBe(
+      'Stripe says this payment has already been refunded in full.',
+    );
+  });
+
   it('has nothing to refund on a bank transfer order', async () => {
     const shopper = await signUpShopper(harness);
     const orderId = await placeOrder(shopper, 2, 'bank');
@@ -454,5 +471,23 @@ describe('giving a stuck order to another Runner', () => {
     const late = await post(`/staff/orders/${orderId}/reassign`, { by: 'Kemi' });
     expect(late.statusCode).toBe(409);
     expect(late.json().error.message).toMatch(/shopping has been bought/);
+  });
+});
+
+describe('when Stripe will not send a refund (27 October 2026)', () => {
+  it('cancels an order Stripe has no record of, with nothing to send back', async () => {
+    const shopper = await signUpShopper(harness);
+    const orderId = await placeOrder(shopper);
+    harness.payments.refundPayment = async () => {
+      throw new RefundRefusedError('resource_missing', 'No such payment_intent');
+    };
+    const cancelled = await post(`/staff/orders/${orderId}/cancel`, {
+      reason: 'No longer needed.',
+      by: 'Anthony',
+    });
+    expect(cancelled.statusCode, cancelled.body).toBe(200);
+    expect(cancelled.json().refundedPence).toBe(0);
+    expect(cancelled.json().message).toMatch(/Stripe has no record of a real payment/);
+    expect((await harness.repository.orders.findById(orderId))?.status).toBe('cancelled');
   });
 });
