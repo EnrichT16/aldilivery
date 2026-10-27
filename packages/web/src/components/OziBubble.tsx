@@ -25,14 +25,50 @@ import { useVoice } from '../state/voice';
  * button it covered the landing page's doors). The bar is at most three lines tall and scrolls
  * inside; the page leaves room for it while it is shown, so it never sits over a control, and
  * "Hide words" puts it away at once.
+ *
+ * It keeps out of the way of forms (27 October 2026: on the Runner's documents it covered the
+ * insurance date and the share code box). While somebody is typing in a box it steps aside
+ * altogether, and comes back when they leave the box. Once the page is scrolled down, away from
+ * the top and the room kept at the foot, it shrinks to a small round microphone tucked into the
+ * corner; its word stays as its name, so a screen reader or voice control still finds it by it.
  */
 
-const SIZE = 124;
+const FULL_SIZE = 124;
+/** Small, while the page is scrolled, and still a comfortable target (WCAG 2.5.5 asks for 44). */
+const COMPACT_SIZE = 60;
+/** Scrolled less than this from the top, or from the foot, it is shown full size. */
+const SCROLL_SLACK_PX = 40;
 /** The room the round button needs at the foot of a page, so nothing ends up under it. */
-export const BUBBLE_ROOM = SIZE + 16;
+export const BUBBLE_ROOM = FULL_SIZE + 16;
 const DRAG_START_PX = 10;
 const ARROW_STEP = 0.05;
 const CAPTION_LINGER_MS = 8000;
+
+/** A box somebody types or picks in, where the button would sit over what they are doing. */
+function isTypingField(element: Element | null): boolean {
+  if (!element || element.closest('[data-ozi]')) return false;
+  if (element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) return true;
+  if (element instanceof HTMLInputElement) {
+    return ![
+      'button',
+      'checkbox',
+      'radio',
+      'file',
+      'submit',
+      'reset',
+      'range',
+      'color',
+      'image',
+    ].includes(element.type);
+  }
+  return element instanceof HTMLElement && element.isContentEditable;
+}
+
+/** Scrolled down into the page, away from the top and from the room kept at the foot. */
+function isScrolledIn(): boolean {
+  const below = document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
+  return window.scrollY > SCROLL_SLACK_PX && below > SCROLL_SLACK_PX;
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -75,6 +111,41 @@ export function OziBubble({ docked = false }: { docked?: boolean } = {}): JSX.El
   const [screenSize, setScreenSize] = useState({ w: window.innerWidth, h: window.innerHeight });
   const bars = useDockHeights();
   const captionRef = useRef<HTMLDivElement>(null);
+  const [typing, setTyping] = useState(() => isTypingField(document.activeElement));
+  const [scrolledIn, setScrolledIn] = useState(false);
+
+  // Out of the way while somebody types in a box, back when they leave it.
+  useEffect(() => {
+    const onFocus = (): void => setTyping(isTypingField(document.activeElement));
+    // Focus has not yet moved on when focusout fires, so look a moment later.
+    const onBlur = (): void => void window.setTimeout(onFocus, 0);
+    document.addEventListener('focusin', onFocus);
+    document.addEventListener('focusout', onBlur);
+    return () => {
+      document.removeEventListener('focusin', onFocus);
+      document.removeEventListener('focusout', onBlur);
+    };
+  }, []);
+
+  // Small while the page is scrolled down into it; full size at the top and at the foot.
+  useEffect(() => {
+    let frame = 0;
+    const onScroll = (): void => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        setScrolledIn(isScrolledIn());
+      });
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onScroll);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, []);
 
   // Follow the screen turning or resizing, so the button never ends up off the edge.
   useEffect(() => {
@@ -93,14 +164,18 @@ export function OziBubble({ docked = false }: { docked?: boolean } = {}): JSX.El
   }, [ozi.said, ozi.talking]);
 
   const shown = dragAt ?? position;
-  // In pixels, kept wholly on the screen with a small margin, wherever it was put.
-  const margin = 8;
-  const left = clamp(shown.x * screenSize.w - SIZE / 2, margin, screenSize.w - SIZE - margin);
+  // Never small while it is being moved, so it stays easy to hold.
+  const compact = scrolledIn && !dragAt;
+  const size = compact ? COMPACT_SIZE : FULL_SIZE;
+  // In pixels, kept wholly on the screen with a small margin, wherever it was put. Small, it
+  // tucks closer into the edge.
+  const margin = compact ? 4 : 8;
+  const left = clamp(shown.x * screenSize.w - size / 2, margin, screenSize.w - size - margin);
   // Never down over the bars at the foot of the screen.
   const top = clamp(
-    shown.y * screenSize.h - SIZE / 2,
+    shown.y * screenSize.h - size / 2,
     margin,
-    Math.max(margin, screenSize.h - SIZE - margin - bars.dock),
+    Math.max(margin, screenSize.h - size - margin - bars.dock),
   );
   const listening = ozi.presence === 'listening';
   const paused = ozi.presence === 'muted';
@@ -131,7 +206,7 @@ export function OziBubble({ docked = false }: { docked?: boolean } = {}): JSX.El
             : `${assistant} is starting.`;
 
   function placeFromPointer(clientX: number, clientY: number): { x: number; y: number } {
-    const half = SIZE / 2;
+    const half = size / 2;
     return {
       x: clamp(clientX, half, window.innerWidth - half) / window.innerWidth,
       y: clamp(clientY, half, window.innerHeight - half) / window.innerHeight,
@@ -241,7 +316,7 @@ export function OziBubble({ docked = false }: { docked?: boolean } = {}): JSX.El
           )}
         </div>
       </div>
-      {!docked && (
+      {!docked && !typing && (
         <button
           type="button"
           aria-describedby="ozi-bubble-hint"
@@ -256,15 +331,15 @@ export function OziBubble({ docked = false }: { docked?: boolean } = {}): JSX.El
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onKeyDown={onKeyDown}
-          style={{ width: SIZE, height: SIZE, borderRadius: '50%', touchAction: 'none' }}
+          style={{ width: size, height: size, borderRadius: '50%', touchAction: 'none' }}
           className={
             listening || ozi.talking
               ? 'control p-0 ozi-beaming !rounded-full flex flex-col items-center justify-center gap-1 font-bold text-on-accent border-4 border-ink bg-listening cursor-grab'
               : 'control p-0 !rounded-full flex flex-col items-center justify-center gap-1 font-bold text-ink border-4 border-dashed border-ink bg-paper cursor-grab'
           }
         >
-          <BubbleGlyph crossed={!listening && !ozi.talking} />
-          <span className="text-base leading-tight">{label}</span>
+          <BubbleGlyph crossed={!listening && !ozi.talking} small={compact} />
+          <span className={compact ? 'visually-hidden' : 'text-base leading-tight'}>{label}</span>
         </button>
       )}
       <p id="ozi-bubble-hint" className="visually-hidden">
@@ -275,13 +350,13 @@ export function OziBubble({ docked = false }: { docked?: boolean } = {}): JSX.El
 }
 
 /** Decorative. The button already says what it is, in words. */
-function BubbleGlyph({ crossed }: { crossed: boolean }): JSX.Element {
+function BubbleGlyph({ crossed, small }: { crossed: boolean; small: boolean }): JSX.Element {
   return (
     <svg
       aria-hidden="true"
       focusable="false"
-      width="36"
-      height="36"
+      width={small ? 28 : 36}
+      height={small ? 28 : 36}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
