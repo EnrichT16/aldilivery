@@ -368,6 +368,12 @@ export interface StoreConfig {
      */
     readonly tinyExtraBelowPence: number;
     readonly splitRunnerPayPence: number;
+    /**
+     * A paid order no Runner has accepted this many minutes after it was paid (or after its
+     * window starts, for a booked order) is cancelled with a full refund (Anthony, 30 October
+     * 2026): 120.
+     */
+    readonly autoRefundAfterMinutes: number;
   };
   /**
    * The owner (ruling 74): how Ozi speaks to him on the telephone, "Mr. Anthony", always.
@@ -1747,6 +1753,11 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       splitRunnerPayPence: wholeNumber(
         dispatch['splitRunnerPayPence'] ?? 500,
         'dispatch.splitRunnerPayPence',
+        1,
+      ),
+      autoRefundAfterMinutes: wholeNumber(
+        dispatch['autoRefundAfterMinutes'] ?? 120,
+        'dispatch.autoRefundAfterMinutes',
         1,
       ),
       fairShareMaxLeadPence: wholeNumber(

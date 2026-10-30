@@ -28,6 +28,7 @@ import { callScript, codeMessage, senderName, twilioCaller, twilioSender } from 
 import { twilioDialler } from './lib/twilio-voice.js';
 import { sweepAllocations } from './services/allocate.js';
 import { sweepOffers } from './services/dispatch.js';
+import { refundUntakenOrders } from './services/order-rescue.js';
 import { sweepScheduled } from './services/scheduled.js';
 import { sweepPayouts } from './services/pay-runner.js';
 import { sweepReimbursements } from './services/reimburse.js';
@@ -309,6 +310,17 @@ async function main(): Promise<void> {
       )
       .catch((failure: unknown) => {
         app.log.error({ err: failure }, 'The offer sweep failed');
+      })
+      // A paid order no Runner has taken in two hours: cancelled with a full refund (30 October
+      // 2026).
+      .then(() => refundUntakenOrders(app.ctx, app.log))
+      .then((cancelled) => {
+        if (cancelled && cancelled.length > 0) {
+          app.log.info({ orders: cancelled.length }, 'Orders no Runner took were refunded');
+        }
+      })
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, 'The no-Runner refund sweep failed');
       });
   }, 10_000);
   sweep.unref();
