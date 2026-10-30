@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
+import { OrganisationConsent } from '../components/OrganisationConsent';
 import { storeConfig } from '../config';
 import { joinOrganisation, rememberJoinedVia } from '../lib/api';
 import { useSession } from '../state/session';
@@ -8,7 +9,8 @@ import { useSession } from '../state/session';
 /**
  * An organisation's share link (7 October 2026): /join/organisation/<code>. Someone already
  * with an account links to it here, after agreeing what it will see; someone new opens an
- * account first, and the link is counted for the organisation.
+ * account first, and the link is counted for the organisation. Since 30 October 2026 the words
+ * say exactly what is shared, from then on only, and who may agree (UK GDPR).
  */
 export function JoinOrganisation(): JSX.Element {
   const { code = '' } = useParams();
@@ -28,8 +30,7 @@ export function JoinOrganisation(): JSX.Element {
       <h1 className="text-display font-bold m-0">Link to an organisation</h1>
       <p className="m-0">
         An organisation that supports you, such as a care home or the council, shared this link.
-        Linking lets them see your {storeConfig.productName} orders and what they cost, so they can
-        help. You can stop it at any time in Settings.
+        Linking your {storeConfig.productName} account lets them help with your shopping.
       </p>
       <p role="status" className="m-0">
         {news}
@@ -48,15 +49,7 @@ export function JoinOrganisation(): JSX.Element {
         </>
       ) : news === '' ? (
         <>
-          <label className="flex items-center gap-3 min-h-control">
-            <input
-              type="checkbox"
-              checked={agreed}
-              onChange={(event) => setAgreed(event.target.checked)}
-              className="w-6 h-6"
-            />
-            I agree that they will see my orders and what they cost.
-          </label>
+          <OrganisationConsent agreed={agreed} onAgreed={setAgreed} />
           <button
             type="button"
             disabled={!agreed}

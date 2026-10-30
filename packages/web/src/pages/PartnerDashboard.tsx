@@ -758,16 +758,11 @@ export function PartnerDashboard(): JSX.Element {
           Runner brings it to their door.
         </p>
         <p className="m-0 break-all">{shareUrl}</p>
-        <label htmlFor="referral-meter" className="block font-bold">
-          {data.referrals} of 100 people have joined through your link
-        </label>
-        <meter
-          id="referral-meter"
-          min={0}
-          max={100}
-          value={Math.min(100, data.referrals)}
-          className="w-full h-6"
-        />
+        {/* Only the count: there is no target to reach (30 October 2026). */}
+        <p className="m-0 font-bold">
+          {data.referrals} {data.referrals === 1 ? 'person has' : 'people have'} joined through your
+          link
+        </p>
         <button
           type="button"
           onClick={() => void share().then((words) => setNews(words))}

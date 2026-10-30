@@ -5,6 +5,12 @@ import { storeConfig } from '../config';
 import { BrowseNav } from './BrowseNav';
 import { fetchShops, type CatalogueItem, type PublicShop } from '../lib/api';
 import { money, sellable, shownPrice } from '../lib/money';
+import {
+  awardWords,
+  NOT_A_PARTNER_WORDS,
+  SHOP_PRICES_WORDS,
+  showsShopPrices,
+} from '../lib/partnership';
 import { itemEmoji, shopLook } from '../lib/shop-look';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
@@ -230,6 +236,11 @@ export function ShopHome({
                     {shop.kindWords}
                     {shop.area ? `, ${shop.area}` : ''}
                   </span>
+                  {shop.listedByOzi && (
+                    <span className="leading-tight text-paper/90 text-[0.85em]">
+                      {NOT_A_PARTNER_WORDS}
+                    </span>
+                  )}
                 </Link>
               </li>
             ))}
@@ -242,9 +253,7 @@ export function ShopHome({
           <SectionHeading id="popular-heading" to="/shop?q=essentials" hidden="everyday essentials">
             Popular right now
           </SectionHeading>
-          <p className="m-0 text-paper/90 extra">
-            Till prices, no mark-up. Prices include the item charge.
-          </p>
+          <p className="m-0 text-paper/90 extra">{SHOP_PRICES_WORDS}.</p>
           <ul className="relative list-none m-0 p-0 flex gap-3 overflow-x-auto pb-3 -mx-1 px-1 snap-x">
             {picks.map((item) => (
               <li
@@ -384,7 +393,11 @@ function SectionHeading({
   );
 }
 
-/** A big card for a shop: a coloured banner with its picture, then its name and its promise. */
+/**
+ * A big card for a shop: a coloured banner with its picture, then its name and its promise. A
+ * shop listed by Ozi says it is not a partner; a café or takeaway sets its own prices, so it has
+ * no shop-prices line (30 October 2026).
+ */
 function StoreCard({ shop }: { shop: PublicShop }): JSX.Element {
   const look = shopLook(shop.kind);
   const award = (shop.awards ?? [])[0];
@@ -403,7 +416,7 @@ function StoreCard({ shop }: { shop: PublicShop }): JSX.Element {
         {award && (
           <span className="absolute top-2 left-2 max-w-[90%] rounded-full bg-white text-[#0B1F3A] font-bold px-3 py-0.5 leading-snug shadow">
             <span aria-hidden="true">🏆 </span>
-            {award}
+            {awardWords(award)}
           </span>
         )}
       </span>
@@ -413,12 +426,15 @@ function StoreCard({ shop }: { shop: PublicShop }): JSX.Element {
           {shop.kindWords}
           {shop.area ? ` · ${shop.area}` : ''}
         </span>
-        <span
-          className="inline-block rounded-full px-3 py-0.5 font-bold leading-snug"
-          style={{ background: shop.kind === 'service' ? '#D6E9FB' : '#CFF5DE' }}
-        >
-          {shop.kind === 'service' ? 'Ask for a quote' : 'Till prices, no mark-up'}
-        </span>
+        {(shop.kind === 'service' || showsShopPrices(shop.kind)) && (
+          <span
+            className="inline-block rounded-full px-3 py-0.5 font-bold leading-snug"
+            style={{ background: shop.kind === 'service' ? '#D6E9FB' : '#CFF5DE' }}
+          >
+            {shop.kind === 'service' ? 'Ask for a quote' : SHOP_PRICES_WORDS}
+          </span>
+        )}
+        {shop.listedByOzi && <span className="block card-muted">{NOT_A_PARTNER_WORDS}</span>}
       </span>
     </Link>
   );
@@ -442,8 +458,10 @@ function SeasonPanel({ now }: { now: Date }): JSX.Element {
           emoji: '🎃',
           title: 'Halloween treats',
           words: `Sweets for the door, pumpkins and party bits. Tell ${assistant} what you need.`,
-          link: 'See the offers',
-          to: '/offers',
+          // The offers page is empty until a shop agrees one, so this searches the shop instead
+          // (30 October 2026).
+          link: 'Search the shop',
+          to: '/shop?q=sweets',
           background: 'linear-gradient(135deg, #FFB25B 0%, #FFE2B8 100%)',
         }
       : season === 'christmas'

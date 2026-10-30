@@ -7,6 +7,7 @@ import {
   type ReviewPointsBalance,
   type ReviewRules,
 } from '../lib/api';
+import { REVIEW_POINTS_WORDS } from '../lib/partnership';
 import { useOzi } from '../state/ozi';
 
 const STAR_WORDS = ['one', 'two', 'three', 'four', 'five'];
@@ -108,6 +109,7 @@ export function ShopReviews({
       <h2 id="shop-reviews-heading" className="text-lead font-bold m-0">
         Rate your shops
       </h2>
+      <p className="m-0">{REVIEW_POINTS_WORDS}</p>
       <p className="m-0" aria-live="polite">
         {balance.words}
         {rules && balance.points < rules.spendFromPoints

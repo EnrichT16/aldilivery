@@ -15,6 +15,15 @@ import {
 import { BROWSE } from '../lib/browse';
 import { useDockHeights } from '../lib/dock';
 import { money, shownPrice, tooDearWords } from '../lib/money';
+import {
+  awardWords,
+  deliveryFromWords,
+  NOT_A_PARTNER_WORDS,
+  REVIEW_POINTS_WORDS,
+  SHOP_PRICES_WORDS,
+  showsShopPrices,
+  TYPICAL_HOURS_WORDS,
+} from '../lib/partnership';
 import { productEmoji, shopLook } from '../lib/shop-look';
 import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
@@ -56,6 +65,10 @@ export function Shops(): JSX.Element {
  * the kinds of product as tabs held at the top, and each product as a row with its picture on
  * the right and "+ Add" on the picture. Once something is in the basket, a pill at the foot says
  * so, with the total, and opens the basket.
+ *
+ * A shop Ozi listed from public details says it is not a partner, and that its hours are typical
+ * ones to check; a national chain's branch never invites a claim. The award badge says whose
+ * award it is, and that reviewers earn points for any honest rating (Anthony, 30 October 2026).
  */
 export function ShopPage(): JSX.Element {
   const { id = '' } = useParams();
@@ -164,7 +177,6 @@ export function ShopPage(): JSX.Element {
   const groups = productGroups(page.products, service ? 'Services' : 'Products');
   const inBasket = (product: PublicShopProduct): number =>
     basket.lines.find((line) => line.item.id === product.catalogueItemId)?.quantity ?? 0;
-  const deliveryFrom = storeConfig.fees.delivery.bands[0]?.payAsYouGoPence ?? 0;
   const showBasketPill = !service && basket.itemCount > 0;
   return (
     <div className="space-y-6 max-w-xl">
@@ -198,18 +210,21 @@ export function ShopPage(): JSX.Element {
               style={{ background: '#FFE9A8' }}
             >
               <span aria-hidden="true">🏆 </span>
-              {award}
+              {awardWords(award)}
             </li>
           ))}
-          {!service && (
+          {showsShopPrices(page.shop.kind) && (
             <li
               className="rounded-full px-3 py-0.5 font-bold leading-snug"
               style={{ background: '#CFF5DE' }}
             >
-              Till prices, no mark-up
+              {SHOP_PRICES_WORDS}
             </li>
           )}
         </ul>
+        {(page.shop.awards ?? []).length > 0 && (
+          <p className="m-0 card-muted">{REVIEW_POINTS_WORDS}</p>
+        )}
         {page.shop.about && <p className="m-0">{page.shop.about}</p>}
         {[
           ...(page.shop.cuisines ?? []),
@@ -240,21 +255,25 @@ export function ShopPage(): JSX.Element {
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl border-2 border-paper/40 p-3">
           <p className="m-0 text-lead font-bold leading-tight">
-            {service ? 'Nothing to pay here' : money(deliveryFrom)}
+            {service ? 'Nothing to pay here' : deliveryFromWords()}
           </p>
           <p className="m-0 text-paper/90 leading-snug">
-            {service ? `Not through ${storeConfig.productName}` : 'Delivery from'}
+            {service
+              ? `Not through ${storeConfig.productName}`
+              : 'Depends on your plan and how much you buy'}
           </p>
         </div>
         <div className="rounded-2xl border-2 border-paper/40 p-3">
           <p className="m-0 font-bold leading-snug">{page.shop.hours || 'Ask the shop'}</p>
-          <p className="m-0 text-paper/90 leading-snug">Opens</p>
+          <p className="m-0 text-paper/90 leading-snug">
+            {page.shop.listedByOzi ? TYPICAL_HOURS_WORDS : 'Opens'}
+          </p>
         </div>
       </div>
 
       {page.shop.listedByOzi && (
         <p className="m-0 border-2 border-paper/40 rounded-2xl p-4">
-          Listed by {storeConfig.assistantName} from public details.
+          {NOT_A_PARTNER_WORDS} Listed by {storeConfig.assistantName} from public details.
           {page.shop.claimable && (
             <>
               {' '}

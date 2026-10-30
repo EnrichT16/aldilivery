@@ -8,7 +8,8 @@ import { useOzi } from '../state/ozi';
 
 /**
  * Offers from local shops we work with (7 October 2026). Only offers agreed in writing with the
- * shop are listed (config/offers.json), so the list may be empty. Shops can ask to work with us.
+ * shop are listed (config/offers.json), so the list may be empty. Shops can ask to work with us,
+ * from the Shop Partner join form (30 October 2026).
  */
 export function Offers(): JSX.Element {
   const offers = currentOffers();
@@ -85,12 +86,9 @@ export function Offers(): JSX.Element {
         </h2>
         <p className="m-0">
           Work with {storeConfig.productName}: your shop&rsquo;s offers, in front of people who shop
-          with us every week, and brought to their door by our Runners.
+          with us, and brought to their door by our Runners.
         </p>
-        <Link
-          to="/organisations?shop=1#enquiry"
-          className="control border-paper bg-paper/10 text-paper"
-        >
+        <Link to="/business/join" className="control border-paper bg-paper/10 text-paper">
           Ask to work with us
         </Link>
       </section>

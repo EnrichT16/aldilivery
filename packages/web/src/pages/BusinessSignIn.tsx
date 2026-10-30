@@ -170,9 +170,9 @@ export function BusinessSignIn(): JSX.Element {
           Not signed up yet?
         </h2>
         <p className="m-0">
-          Shops, cafés, takeaways and services join here, free. Fill in a short form, confirm your
-          mobile with a code, and add your products straight away. Your page goes public once we
-          have checked it.
+          Shops, cafés, takeaways and services join here; a basic listing is free. Fill in a short
+          form, confirm your mobile with a code, and add your products straight away. Your page goes
+          public once we have checked it.
         </p>
         <Link to="/business/join" className="control border-paper bg-paper/10 text-paper">
           Join as a shop
@@ -180,6 +180,18 @@ export function BusinessSignIn(): JSX.Element {
         <Link to="/organisations#enquiry" className="control bg-paper/10 text-paper underline">
           For organisations
         </Link>
+        <p className="m-0">
+          <Link to="/partner/terms" className="inline-flex items-center min-h-control underline">
+            Shop Partner terms
+          </Link>{' '}
+          and{' '}
+          <Link
+            to="/organisation/terms"
+            className="inline-flex items-center min-h-control underline"
+          >
+            Organisation terms
+          </Link>
+        </p>
       </section>
     </div>
   );

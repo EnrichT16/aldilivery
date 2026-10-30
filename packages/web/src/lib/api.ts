@@ -6,6 +6,8 @@
  * stack trace.
  */
 
+import { ORGANISATION_CONSENT_VERSION } from '@aldilivery/core';
+
 import { storeConfig } from '../config';
 import { readRunnerToken, readToken } from './session';
 
@@ -1757,12 +1759,16 @@ export function stopWeeklyShop(id: string): Promise<unknown> {
 }
 
 export function sendOrganisationEnquiry(input: {
+  /** A shop asking from /organisations?shop=1, or an organisation (30 October 2026). */
+  kind?: 'organisation' | 'shop';
   organisation: string;
   contactName: string;
   telephone: string;
   email: string;
   people: string;
   message: string;
+  /** The Organisation terms at /organisation/terms, ticked: needed from an organisation. */
+  termsAgreed?: boolean;
 }): Promise<{ message: string }> {
   return request('/organisations/enquiries', { method: 'POST', body: JSON.stringify(input) });
 }
@@ -1990,6 +1996,8 @@ export interface PartnerJoinInput {
   plan?: 'free' | 'plus';
   /** Partner Plus paid from today, skipping the free month (ruling 75). */
   payNow?: boolean;
+  /** The Shop Partner terms at /partner/terms, ticked (30 October 2026). */
+  termsAgreed: boolean;
   cuisines?: string[];
   specialities?: string[];
   categories?: string[];
@@ -2154,7 +2162,7 @@ export interface PublicShop {
   products: number;
   /** Shop of the Month, of the Quarter or of the Half Year, with words (ruling 70). */
   awards?: string[];
-  /** On paid Partner Plus: listed above free shops (ruling 75). */
+  /** On paid Partner Plus: first among shops at the same distance (ruling 75). */
   partnerPlus?: boolean;
   /** Which of the four pages it is on (ruling 82). */
   section?: BrowseSection;
@@ -2234,7 +2242,8 @@ export interface OrganisationDashboard {
     upcomingWeeklyPence: number;
   };
   byOffice: Array<{ office: string; pence: number }>;
-  people: Array<{ id: string; name: string; office: string }>;
+  /** `agreed` false: linked before consent was recorded, so nothing of theirs is shown. */
+  people: Array<{ id: string; name: string; office: string; agreed?: boolean }>;
   orders: Array<{
     id: string;
     person: string;
@@ -2287,12 +2296,17 @@ export function fetchMyOrganisation(): Promise<{ organisation: { name: string } 
   return request('/me/organisation');
 }
 
+/**
+ * Links the account to an organisation, after the person (or someone with legal authority to act
+ * for them) agreed to the words shown, whose version is sent so the server keeps which words
+ * they saw (30 October 2026, UK GDPR).
+ */
 export function joinOrganisation(
   code: string,
 ): Promise<{ organisation: { name: string }; message: string }> {
   return request('/me/organisation', {
     method: 'POST',
-    body: JSON.stringify({ code, agreed: true }),
+    body: JSON.stringify({ code, agreed: true, version: ORGANISATION_CONSENT_VERSION }),
   });
 }
 

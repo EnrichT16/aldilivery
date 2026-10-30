@@ -318,9 +318,10 @@ export function OrganisationDashboard(): JSX.Element {
           Linking the people you support
         </h2>
         <p className="m-0">
-          Each person, or someone helping them, types your code in their {storeConfig.productName}{' '}
-          Settings. They are told first that you will see their orders and what they cost, and they
-          can stop it at any time.
+          Each person, or someone with legal authority to act for them, types your code in their{' '}
+          {storeConfig.productName} Settings. They are told first exactly what you will see: their
+          name, the office label you give them, their booked weekly shops, and the orders they place
+          from then on with what they cost. They can stop it at any time.
         </p>
         {data.sharePath && (
           <>
@@ -346,16 +347,11 @@ export function OrganisationDashboard(): JSX.Element {
             >
               Share our link
             </button>
-            <label htmlFor="org-meter" className="block font-bold">
-              {data.referrals} of 100 people linked or joined through your link
-            </label>
-            <meter
-              id="org-meter"
-              min={0}
-              max={100}
-              value={Math.min(100, data.referrals)}
-              className="w-full h-6"
-            />
+            {/* Only the count, each person once: there is no target (30 October 2026). */}
+            <p className="m-0 font-bold">
+              {data.referrals} {data.referrals === 1 ? 'person' : 'people'} linked or joined through
+              your link
+            </p>
           </>
         )}
         <p className="m-0 text-lead font-bold">
@@ -387,6 +383,12 @@ export function OrganisationDashboard(): JSX.Element {
               >
                 <label className="block flex-1">
                   <span className="block font-bold">{person.name}</span>
+                  {person.agreed === false && (
+                    <span className="block">
+                      Linked before we asked everyone to agree to the new words, so you see none of
+                      their orders or weekly shops until they link again with your code.
+                    </span>
+                  )}
                   Office or team that looks after them
                   <input name="office" defaultValue={person.office} className={field} />
                 </label>

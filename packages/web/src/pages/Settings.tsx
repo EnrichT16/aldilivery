@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { storeConfig } from '../config';
 import { CloseAccount } from '../components/CloseAccount';
 import { WrongAppWarning } from '../components/GetTheApp';
+import { OrganisationConsent } from '../components/OrganisationConsent';
 import { ShareCard } from '../components/ShareCard';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import {
@@ -365,7 +366,10 @@ function OrganisationLink(): JSX.Element {
       )}
       {linked ? (
         <>
-          <p className="m-0">{linked.name} can see your orders and what they cost.</p>
+          <p className="m-0">
+            {linked.name} can see your name, the office label they give you, your booked weekly
+            shops, and the orders you have placed since you linked, with what they cost.
+          </p>
           <button
             type="button"
             onClick={() =>
@@ -397,9 +401,8 @@ function OrganisationLink(): JSX.Element {
           className="space-y-3"
         >
           <p className="m-0 extra">
-            If a care home, a council or another organisation helps you with your shopping, they may
-            give you a code. Typing it here lets them see the orders you place from then on and what
-            they cost, your booked weekly shops, and the office label on your account.
+            If a care home, a council or another organisation helps you with your shopping, they
+            may give you a code to type here.
           </p>
           <label htmlFor="organisation-code" className="block font-bold">
             The organisation’s code
@@ -410,15 +413,8 @@ function OrganisationLink(): JSX.Element {
             autoComplete="off"
             className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3 uppercase"
           />
-          <label className="flex items-center gap-3 min-h-control">
-            <input
-              type="checkbox"
-              checked={agreed}
-              onChange={(event) => setAgreed(event.target.checked)}
-              className="w-6 h-6"
-            />
-            I agree that they will see my orders and what they cost.
-          </label>
+          {/* The same words as the share link's page (30 October 2026, UK GDPR). */}
+          <OrganisationConsent agreed={agreed} onAgreed={setAgreed} />
           <button
             type="submit"
             disabled={!agreed}
