@@ -111,6 +111,7 @@ export const BLANKS = [
   // Restaurant pricing (Anthony, 30 October 2026), from `restaurants` in the settings: the flat
   // restaurant fee, the smallest restaurant order, and the discount for a Preferred Partner.
   'restaurantFee',
+  'largeRestaurantFee',
   'restaurantMinimum',
   'preferredDiscount',
   'spotlight',
@@ -316,6 +317,7 @@ export function fillIn(
     freeShops: String(config.extras.partners.freeListingCount),
     freeProducts: String(config.extras.partners.freeProductLimit),
     restaurantFee: money(config.restaurants.feePence).replace(/\.00$/, ''),
+    largeRestaurantFee: money(config.restaurants.largeOrderFeePence).replace(/\.00$/, ''),
     restaurantMinimum: money(config.restaurants.minimumOrderPence).replace(/\.00$/, ''),
     preferredDiscount: `${config.restaurants.preferredDiscountPercent}%`,
     spotlight: money(config.extras.spotlightPence),

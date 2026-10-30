@@ -883,24 +883,35 @@ function parseAmbassador(raw: Unknown): AmbassadorSettings {
 }
 
 /**
- * Restaurant pricing (Anthony, 30 October 2026): £12 flat in place of delivery, £10 the smallest
- * order, 20% the discount that makes a Preferred Partner. The fee must cover the Runner's pay on
- * every order it could be charged on (Rule Two): the standard five pounds, and the large-order
- * pay too, since a restaurant order may be that big.
+ * Restaurant pricing (Anthony, 30 October 2026): £10 the smallest order, 20% the discount that
+ * makes a Preferred Partner. Changed 30 October 2026 (Anthony, big restaurant orders): Ozi's share
+ * of the restaurant fee (`ozisSharePence`, £7) is the one figure configured, and the fee is the
+ * Runner's pay plus it: £12 with the standard five pounds, £14 with the large-order £7. So the fee
+ * always covers the Runner's pay (Rule Two), and is refused if set on its own.
  */
-function parseRestaurants(raw: Unknown, runnerPayPence: readonly number[]): RestaurantSettings {
-  const feePence = wholeNumber(raw['feePence'] ?? 1200, 'restaurants.feePence', 1);
-  for (const pay of runnerPayPence) {
-    if (feePence < pay) {
+function parseRestaurants(
+  raw: Unknown,
+  runnerPay: {
+    readonly standardPence: number;
+    readonly largeOrderPence: number;
+    readonly largeOrderFromPence: number;
+  },
+): RestaurantSettings {
+  const ozisSharePence = wholeNumber(raw['ozisSharePence'] ?? 700, 'restaurants.ozisSharePence', 0);
+  const feePence = runnerPay.standardPence + ozisSharePence;
+  const largeOrderFeePence = runnerPay.largeOrderPence + ozisSharePence;
+  // A parsed configuration read back in carries the worked-out fees; anything else is refused,
+  // so the fee can never drift from the Runner's pay plus Ozi's share.
+  for (const [key, worked] of [
+    ['feePence', feePence],
+    ['largeOrderFeePence', largeOrderFeePence],
+    ['largeOrderFromPence', runnerPay.largeOrderFromPence],
+  ] as const) {
+    if (raw[key] !== undefined && raw[key] !== worked) {
       throw new StoreConfigError(
-        `restaurants.feePence (${feePence}) must cover the Runner's pay of ${pay} on every restaurant order (Rule Two).`,
+        `restaurants.${key} is not set on its own: the restaurant fee is the Runner's pay plus restaurants.ozisSharePence.`,
       );
     }
-  }
-  if (raw['ozisSharePence'] !== undefined) {
-    throw new StoreConfigError(
-      "restaurants.ozisSharePence is not set on its own: Ozi's share is the fee less the Runner's pay.",
-    );
   }
   const preferredDiscountPercent = wholeNumber(
     raw['preferredDiscountPercent'] ?? 20,
@@ -918,7 +929,10 @@ function parseRestaurants(raw: Unknown, runnerPayPence: readonly number[]): Rest
     );
   }
   return {
+    ozisSharePence,
     feePence,
+    largeOrderFeePence,
+    largeOrderFromPence: runnerPay.largeOrderFromPence,
     minimumOrderPence: wholeNumber(
       raw['minimumOrderPence'] ?? 1000,
       'restaurants.minimumOrderPence',
@@ -1615,7 +1629,11 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     ),
     restaurants: parseRestaurants(
       root['restaurants'] === undefined ? {} : object(root['restaurants'], 'restaurants'),
-      [RUNNER_PAYMENT_PENCE, largeOrderRunnerPaymentPence],
+      {
+        standardPence: RUNNER_PAYMENT_PENCE,
+        largeOrderPence: largeOrderRunnerPaymentPence,
+        largeOrderFromPence,
+      },
     ),
     versionOneRestrictions: {
       ageRestrictedGoodsAllowed,

@@ -9,6 +9,7 @@ import {
   formatPence,
   productAllowed,
   RESTAURANT_MIXED_WORDS,
+  restaurantFeePence,
   restaurantMinimumWords,
   type BasketPartPricing,
   type BasketPricing,
@@ -168,7 +169,8 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
     // A restaurant order: dishes at shop prices, the item charges, and the flat restaurant fee
     // in place of delivery, on every plan, with no extra delivery charge. One Runner always.
     if (restaurantId !== null) {
-      const feePence = storeConfig.restaurants.feePence;
+      // £14 from £120 of dishes, whose Runner is paid £7 (Anthony, 30 October 2026).
+      const feePence = restaurantFeePence(storeConfig.restaurants, goodsPence);
       return {
         goodsPence,
         itemChargesPence,

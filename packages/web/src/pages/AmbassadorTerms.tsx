@@ -77,9 +77,11 @@ export function AmbassadorTerms(): JSX.Element {
             <strong>{full} of our profit</strong> on every order from a business you introduced, for{' '}
             {rates.months} months from the day we approve that business. Our profit is the item
             charges on a shop&rsquo;s orders. On a restaurant&rsquo;s, caf&eacute;&rsquo;s or
-            takeaway&rsquo;s orders it is the discount the restaurant agreed to give us, plus the
-            item charges on its dishes; restaurants pay us no commission. It is never the delivery
-            fee, and never the restaurant fee.
+            takeaway&rsquo;s orders it is only the discount the restaurant agreed to give us: the
+            shop price less the lower price we pay at the counter. A &pound;10 dish at a 20%
+            discount gives us &pound;2, and you earn {full} of that. A restaurant that gives us no
+            discount earns you nothing. It is never the item charges on a restaurant&rsquo;s dishes,
+            never the delivery fee, and never the restaurant fee.
           </li>
           <li>
             <strong>Each branch is its own business.</strong> The branch you introduced earns you

@@ -7,9 +7,12 @@
  *
  * - Dishes are priced at the restaurant's own shop price. Nothing is added to the dish for the
  *   Shopper beyond the normal item charge, which applies to every dish, unchanged (Rule Three).
- * - A flat restaurant fee (`feePence`, £12) replaces the grocery delivery bands. The Runner's
- *   pay comes out of it as on every delivery (Rule Two); the rest is Ozi's. Ozi's share is never
- *   configured on its own: it is the fee less the Runner's pay, so there is one source of truth.
+ * - A flat restaurant fee replaces the grocery delivery bands. The Runner's pay comes out of it
+ *   as on every delivery (Rule Two); the rest is Ozi's. Changed 30 October 2026 (Anthony, big
+ *   restaurant orders): Ozi's share (`ozisSharePence`, £7) is the one figure configured, and the
+ *   fee is always the Runner's pay plus it, so Ozi always keeps £7: £12 on an ordinary order
+ *   (£5 Runner pay), £14 on an order of £120 or more, whose Runner is paid £7 (Rule Two,
+ *   `fees.largeOrderFromPence`). The fee is never configured on its own.
  * - The smallest restaurant order is `minimumOrderPence` (£10) of dishes at shop prices. Below
  *   it, the order cannot be sent, and the Shopper is told so plainly.
  * - Restaurants pay Ozi no commission. A restaurant may instead agree a discount for Ozi: it
@@ -35,8 +38,14 @@ import {
 
 /** What restaurant pricing reads from config/store.json. */
 export interface RestaurantSettings {
-  /** The flat restaurant fee on every restaurant order, in place of delivery (£12). */
+  /** What Ozi keeps of every restaurant fee (£7): the one configured figure. */
+  readonly ozisSharePence: number;
+  /** The restaurant fee on an ordinary order: the Runner's five pounds plus Ozi's share (£12). */
   readonly feePence: number;
+  /** The restaurant fee on a large order: the large-order Runner pay plus Ozi's share (£14). */
+  readonly largeOrderFeePence: number;
+  /** Dishes at shop prices from which the large-order fee applies (`fees.largeOrderFromPence`). */
+  readonly largeOrderFromPence: number;
   /** The smallest restaurant order, in dishes at shop prices (£10). */
   readonly minimumOrderPence: number;
   /** An agreed discount of at least this makes a restaurant a Preferred Partner (20%). */
@@ -102,12 +111,36 @@ export function shopPriceFromCounterPence(
   return Math.round((counterPaidPence * 100) / (100 - expected.discountPercent));
 }
 
-/** The restaurant fee split: the Runner's pay, and Ozi's share, which is the rest. */
+/**
+ * The restaurant fee for a Runner paid this much: their pay plus Ozi's share, so Ozi always
+ * keeps the same (Anthony, 30 October 2026).
+ */
+export function restaurantFeeForRunnerPay(
+  settings: Pick<RestaurantSettings, 'ozisSharePence'>,
+  runnerPaymentPence: number,
+): number {
+  return runnerPaymentPence + settings.ozisSharePence;
+}
+
+/**
+ * The restaurant fee on this much of dishes at shop prices: £12, or £14 from £120, where the
+ * Runner is paid the large-order £7 (Rule Two).
+ */
+export function restaurantFeePence(
+  settings: Pick<RestaurantSettings, 'feePence' | 'largeOrderFeePence' | 'largeOrderFromPence'>,
+  goodsPence: number,
+): number {
+  return goodsPence >= settings.largeOrderFromPence
+    ? settings.largeOrderFeePence
+    : settings.feePence;
+}
+
+/** The restaurant fee split: the Runner's pay, and Ozi's share, which is always the same. */
 export function restaurantFeeShares(
-  settings: Pick<RestaurantSettings, 'feePence'>,
+  settings: Pick<RestaurantSettings, 'ozisSharePence'>,
   runnerPaymentPence: number,
 ): { runnerPence: number; ozisPence: number } {
-  return { runnerPence: runnerPaymentPence, ozisPence: settings.feePence - runnerPaymentPence };
+  return { runnerPence: runnerPaymentPence, ozisPence: settings.ozisSharePence };
 }
 
 /** Whether a restaurant with this agreed discount is an Ozi Preferred Partner. */
@@ -143,10 +176,13 @@ export const RESTAURANT_MIXED_WORDS =
 
 /** The restaurant fee in one plain phrase, for the screens, the terms and Ozi. */
 export function restaurantFeeWords(
-  settings: Pick<RestaurantSettings, 'feePence' | 'minimumOrderPence'>,
+  settings: Pick<
+    RestaurantSettings,
+    'feePence' | 'largeOrderFeePence' | 'largeOrderFromPence' | 'minimumOrderPence'
+  >,
   formatMoney: (pence: number) => string,
 ): string {
-  return `A restaurant, café or takeaway order has a flat restaurant fee of ${shortMoney(settings.feePence, formatMoney)} in place of delivery, and the smallest order is ${shortMoney(settings.minimumOrderPence, formatMoney)} of dishes.`;
+  return `A restaurant, café or takeaway order has a flat restaurant fee of ${shortMoney(settings.feePence, formatMoney)} in place of delivery (${shortMoney(settings.largeOrderFeePence, formatMoney)} for ${shortMoney(settings.largeOrderFromPence, formatMoney)} of dishes or more), and the smallest order is ${shortMoney(settings.minimumOrderPence, formatMoney)} of dishes.`;
 }
 
 /**
@@ -160,7 +196,7 @@ export function preferredRankingWords(assistantName: string): string {
 
 /**
  * Price a restaurant basket: dishes at shop prices, the normal item charge on every dish, and
- * the flat restaurant fee in place of delivery. No allowance extra: the restaurant fee is the
+ * the flat restaurant fee in place of delivery (£14 from £120 of dishes, £12 below). No allowance extra: the restaurant fee is the
  * whole delivery charge. Refuses a dish over the most any one product may cost, a basket over
  * the most one order carries, and a basket below the smallest restaurant order.
  */
@@ -168,7 +204,10 @@ export function priceRestaurantBasket(
   lines: readonly PricedUnitLine[],
   plan: DeliveryPlan,
   fees: DeliveryFees,
-  settings: Pick<RestaurantSettings, 'feePence' | 'minimumOrderPence'>,
+  settings: Pick<
+    RestaurantSettings,
+    'feePence' | 'largeOrderFeePence' | 'largeOrderFromPence' | 'minimumOrderPence'
+  >,
 ): BasketPricing {
   for (const line of lines) assertProductAllowed(line.shopPricePence, fees);
   const goodsPence = lines.reduce((sum, line) => sum + line.shopPricePence * line.quantity, 0);
@@ -179,24 +218,26 @@ export function priceRestaurantBasket(
     throw new RestaurantBelowMinimumError(goodsPence, settings.minimumOrderPence);
   }
   const itemChargesPence = itemChargesForLines(lines, fees);
+  const feePence = restaurantFeePence(settings, goodsPence);
   return {
     goodsPence,
     itemChargesPence,
-    feePence: settings.feePence,
+    feePence,
     allowanceExtraPence: 0,
-    totalPence: goodsPence + itemChargesPence + settings.feePence,
+    totalPence: goodsPence + itemChargesPence + feePence,
     plan,
   };
 }
 
 /**
- * Ozi's profit on a restaurant order, the base an Ambassador's share is worked from: the
- * restaurant's discount plus the item charges. Never the restaurant fee.
+ * The base an Ambassador's share is worked from on a restaurant order: only the discount Ozi
+ * keeps, the shop price less the counter price. Changed 30 October 2026 (Anthony): never the
+ * item charges, and never the restaurant fee; a restaurant with no discount gives no base. A £10
+ * dish at 20% gives £2, and 2% of that is 4p.
  */
-export function restaurantProfitPence(
+export function restaurantAmbassadorBasePence(
   shopPricePence: number,
   discountPercent: number,
-  itemChargesPence: number,
 ): number {
-  return restaurantDiscountPence(shopPricePence, discountPercent) + itemChargesPence;
+  return restaurantDiscountPence(shopPricePence, discountPercent);
 }

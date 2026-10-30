@@ -220,7 +220,7 @@
     "givenAs": "Amazon voucher"
   },
   "restaurants": {
-    "feePence": 1200,
+    "ozisSharePence": 700,
     "minimumOrderPence": 1000,
     "preferredDiscountPercent": 20,
     "maximumDiscountPercent": 50

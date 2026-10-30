@@ -201,9 +201,11 @@ export function Basket(): JSX.Element {
           <p className="m-0 card-muted">
             A restaurant order from {restaurant.name}: dishes at the restaurant&rsquo;s own prices,
             and a flat restaurant fee of {money(storeConfig.restaurants.feePence)} in place of
-            delivery, on every plan. The smallest restaurant order is{' '}
-            {money(storeConfig.restaurants.minimumOrderPence)}. Every price we show already includes
-            its item charge.
+            delivery, on every plan ({money(storeConfig.restaurants.largeOrderFeePence)} for{' '}
+            {money(storeConfig.restaurants.largeOrderFromPence)} of dishes or more, when your Runner
+            is paid {money(storeConfig.fees.largeOrderRunnerPaymentPence)}). The smallest restaurant
+            order is {money(storeConfig.restaurants.minimumOrderPence)}. Every price we show already
+            includes its item charge.
           </p>
         ) : (
           <p className="m-0 card-muted">

@@ -12,9 +12,9 @@
  *
  * Ambassadors: anybody who chooses to become one, and agrees to the Ambassador terms, can
  * introduce businesses, with no limit on how many. They earn a share of Ozi's profit on each
- * order (the item charges on a shop's orders; on a restaurant's, its agreed discount for Ozi plus
- * the item charges, restaurants paying no commission since 30 October 2026; never the delivery
- * fee or the restaurant fee), 2% unless set, for so many months from when that business was
+ * order (the item charges on a shop's orders; on a restaurant's, only its agreed discount for Ozi,
+ * restaurants paying no commission since 30 October 2026; never the delivery fee, the restaurant
+ * fee, or a restaurant's item charges), 2% unless set, for so many months from when that business was
  * approved. Each branch is its own venture: the branch they introduced earns the full share,
  * another branch of the same business that joined through the same Ambassador's link a quarter
  * of it (ruled 30 October 2026; it was half), and a branch that joined without their link

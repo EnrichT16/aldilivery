@@ -13,6 +13,7 @@ import {
   parseSpokenSchedule,
   preferredRankingWords,
   RESTAURANT_MIXED_WORDS,
+  restaurantFeePence,
   restaurantMinimumWords,
   scheduleAgreementWords,
   ukDay,
@@ -449,7 +450,7 @@ export function useVoiceOrdering(
         return;
       }
       const deliveryPence = restaurant
-        ? storeConfig.restaurants.feePence
+        ? restaurantFeePence(storeConfig.restaurants, goodsPence)
         : deliveryFeePence(goodsPence, plan, storeConfig.fees);
       // The monthly order allowance (ruling 73), counted as the server counts it, and said
       // before the yes. A restaurant order has the restaurant fee instead, and no extra.

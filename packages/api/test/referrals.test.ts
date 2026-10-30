@@ -2,7 +2,7 @@
  * Referral links for everybody, the referral log and reward levels, and Ozi Ambassadors (Anthony,
  * 30 October 2026): links recorded for every kind of account, what "active" means, the 70% rule,
  * levels and the owner told once, the staff page and who may open it, and the Ambassador share
- * (2% of item charges, or of a restaurant's discount plus its item charges, a quarter on another
+ * (2% of item charges, or of a restaurant's discount only, a quarter on another
  * branch, 12 months, 5% of the first Partner Plus payment once, the review over £500 once a
  * month, opt-in and no introducing yourself), and the money made tamper-proof: pending for 30
  * days, following refunds and chargebacks, deductions, only what is available paid, and
@@ -602,25 +602,32 @@ describe('Ozi Ambassadors', () => {
     expect(summary.earnedPence).toBe(60);
   });
 
-  it('earns 2% of a restaurant’s discount plus its item charges, never the restaurant fee', async () => {
+  it('earns 2% of a restaurant’s discount only, never its item charges or the restaurant fee', async () => {
     const ada = await ambassador();
     await optIn(ada.authHeader);
     const cafe = await joinShop({ ambassador: ada.via, kind: 'food', about: 'Breakfasts.' });
     await approve(cafe.id);
-    // Restaurants pay no commission (Anthony, 30 October 2026). Ten £9 dishes, £90, at a 20%
-    // discount: £18 of discount, and £10 of item charges (£1 a dish), so Ozi's profit is £28 and
-    // 2% of it 56p. The £12 restaurant fee is never in it.
+    // Restaurants pay no commission (Anthony, 30 October 2026, changed the same day). Ten £9
+    // dishes, £90, at a 20% discount: £18 of discount, and 2% of it 36p. The £10 of item charges
+    // and the restaurant fee are never in it.
     const [entry] = await creditAmbassadorShares(
       harness.app.ctx,
       await orderFrom(cafe.id, 900, 10, undefined, 20),
     );
-    expect(entry).toEqual(expect.objectContaining({ profitPence: 2800, amountPence: 56 }));
-    // With no discount agreed, the item charges alone: £10, 2% of it 20p.
-    const [plain] = await creditAmbassadorShares(
+    expect(entry).toEqual(expect.objectContaining({ profitPence: 1800, amountPence: 36 }));
+    // The founder's example: one £10 dish at 20%, a £2 margin, 2% of it 4p.
+    const [one] = await creditAmbassadorShares(
       harness.app.ctx,
-      await orderFrom(cafe.id, 900, 10, undefined, 0),
+      await orderFrom(cafe.id, 1000, 1, undefined, 20),
     );
-    expect(plain).toEqual(expect.objectContaining({ profitPence: 1000, amountPence: 20 }));
+    expect(one).toEqual(expect.objectContaining({ profitPence: 200, amountPence: 4 }));
+    // With no discount agreed, nothing.
+    expect(
+      await creditAmbassadorShares(
+        harness.app.ctx,
+        await orderFrom(cafe.id, 900, 10, undefined, 0),
+      ),
+    ).toEqual([]);
   });
 
   it('earns a quarter on another branch through the same link, and nothing on a branch without it', async () => {

@@ -238,6 +238,21 @@ describe('a restaurant order is priced apart from groceries', () => {
       restaurantDiscountPercent: 20,
     });
   });
+
+  it('charges £14 on a big order, whose Runner is paid £7, so Ozi still keeps £7', async () => {
+    // Four £30 dishes: £120, the large-order line (Rule Two). Anthony, 30 October 2026.
+    const { dish } = await restaurant(0, 3000);
+    const priced = await price([{ catalogueItemId: dish, quantity: 4 }]);
+    expect(priced.statusCode, priced.body).toBe(200);
+    expect(priced.json()).toMatchObject({ goodsEstimatePence: 12000, feePence: 1400 });
+    expect(priced.json().explanation).toContain(
+      'The restaurant fee is £14.00, in place of delivery.',
+    );
+    const orderId = await placeOrder(dish, 4, priced.json().totalPence as number);
+    const order = (await harness.repository.orders.findById(orderId))!;
+    expect(order).toMatchObject({ feePence: 1400, runnerPaymentPence: 700 });
+    expect(order.feePence - order.runnerPaymentPence).toBe(700);
+  });
 });
 
 describe('the agreed discount, all the way to the counter', () => {

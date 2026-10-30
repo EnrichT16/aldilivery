@@ -105,7 +105,10 @@ export function Terms(): JSX.Element {
             restaurant&rsquo;s own shop price, with the same item charge on each dish. Instead of
             delivery there is a flat restaurant fee of {money(restaurants.feePence)} an order,
             whatever your plan, with no extra delivery charge; {money(runnerPaymentPence)} of it
-            goes to your Runner. The smallest restaurant order is{' '}
+            goes to your Runner. For {money(restaurants.largeOrderFromPence)} of dishes or more the
+            restaurant fee is {money(restaurants.largeOrderFeePence)}, because your Runner is paid{' '}
+            {money(storeConfig.fees.largeOrderRunnerPaymentPence)}; we keep the same{' '}
+            {money(restaurants.ozisSharePence)} either way. The smallest restaurant order is{' '}
             {money(restaurants.minimumOrderPence)} of dishes at the shop&rsquo;s prices, and we tell
             you before you pay if yours is smaller. A restaurant order comes from one restaurant, on
             its own: dishes cannot go in the same order as other shopping. Some restaurants give us

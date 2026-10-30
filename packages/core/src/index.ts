@@ -176,10 +176,12 @@ export {
   preferredRankingWords,
   priceRestaurantBasket,
   restaurantDiscountPence,
+  restaurantFeeForRunnerPay,
+  restaurantFeePence,
   restaurantFeeShares,
   restaurantFeeWords,
   restaurantMinimumWords,
-  restaurantProfitPence,
+  restaurantAmbassadorBasePence,
   shopPriceFromCounterPence,
   type RestaurantSettings,
 } from './restaurants.js';

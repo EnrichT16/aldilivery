@@ -99,7 +99,10 @@ export const RESTAURANT_SET_WORDS =
 export interface RestaurantLookup {
   /** Catalogue item id to the restaurant it is from, for the dishes in the basket only. */
   of: ReadonlyMap<string, RestaurantRef>;
-  settings: Pick<RestaurantSettings, 'feePence' | 'minimumOrderPence'>;
+  settings: Pick<
+    RestaurantSettings,
+    'feePence' | 'largeOrderFeePence' | 'largeOrderFromPence' | 'minimumOrderPence'
+  >;
   currencySymbol: string;
 }
 

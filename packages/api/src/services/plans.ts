@@ -159,8 +159,11 @@ export function ukMonth(at: Date): string {
  * Whether an order counts towards the monthly allowance (ruling 73): one of the Shopper's own
  * whole orders that was placed (paid) and not cancelled or refunded. A part of a split job is
  * not an order of its own, and a basket kept whole as linked orders counts once, by its first.
+ * A restaurant, café or takeaway order never counts: it has its own restaurant fee and no
+ * allowance (Anthony, 30 October 2026).
  */
 export function countsTowardsAllowance(order: Order): boolean {
+  if (order.restaurantShopId !== null) return false;
   if (order.splitParentId !== null) return false;
   if (order.basketPart !== null && order.basketPart > 1) return false;
   return PAID.has(order.status);

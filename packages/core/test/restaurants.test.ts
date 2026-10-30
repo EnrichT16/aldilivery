@@ -8,7 +8,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseStoreConfig } from '../src/config.js';
-import { BasketOverMaximumError, deliveryFeePence, priceBasket } from '../src/fees.js';
+import {
+  BasketOverMaximumError,
+  deliveryFeePence,
+  priceBasket,
+  runnerPaymentFor,
+} from '../src/fees.js';
 import { formatPence } from '../src/money.js';
 import { loadStoreConfig } from '../src/node.js';
 import {
@@ -18,10 +23,12 @@ import {
   priceRestaurantBasket,
   RestaurantBelowMinimumError,
   restaurantDiscountPence,
+  restaurantFeeForRunnerPay,
+  restaurantFeePence,
   restaurantFeeShares,
   restaurantFeeWords,
   restaurantMinimumWords,
-  restaurantProfitPence,
+  restaurantAmbassadorBasePence,
   shopPriceFromCounterPence,
 } from '../src/restaurants.js';
 import { RUNNER_PAYMENT_PENCE } from '../src/rules.js';
@@ -33,27 +40,44 @@ const money = (pence: number): string => formatPence(pence, config.store.currenc
 describe('the restaurant figures in config/store.json', () => {
   it('are the figures Anthony ruled: £12 fee, £10 smallest order, 20% for Preferred Partner', () => {
     expect(settings).toEqual({
+      ozisSharePence: 700,
       feePence: 1200,
+      largeOrderFeePence: 1400,
+      largeOrderFromPence: 12000,
       minimumOrderPence: 1000,
       preferredDiscountPercent: 20,
       maximumDiscountPercent: 50,
     });
   });
 
-  it("splits the fee £5 to the Runner and £7 to Ozi, Ozi's share worked out, never set", () => {
+  it("splits the fee £5 to the Runner and £7 to Ozi, the fee worked out from Ozi's share", () => {
     expect(restaurantFeeShares(settings, RUNNER_PAYMENT_PENCE)).toEqual({
       runnerPence: 500,
       ozisPence: 700,
     });
-    const raw = JSON.parse(JSON.stringify(config)) as { restaurants: Record<string, unknown> };
-    raw.restaurants['ozisSharePence'] = 700;
-    expect(() => parseStoreConfig(raw)).toThrow(/fee less the Runner's pay/);
+    // A big order's Runner is paid £7, and Ozi still keeps £7 (Anthony, 30 October 2026).
+    expect(restaurantFeeShares(settings, config.fees.largeOrderRunnerPaymentPence)).toEqual({
+      runnerPence: 700,
+      ozisPence: 700,
+    });
+    expect(restaurantFeeForRunnerPay(settings, 500)).toBe(1200);
+    expect(restaurantFeeForRunnerPay(settings, 700)).toBe(1400);
   });
 
-  it("refuses a fee that does not cover the Runner's pay (Rule Two)", () => {
+  it("refuses a restaurant fee set on its own: it is always Runner pay plus Ozi's share", () => {
     const raw = JSON.parse(JSON.stringify(config)) as { restaurants: Record<string, unknown> };
-    raw.restaurants['feePence'] = 400;
-    expect(() => parseStoreConfig(raw)).toThrow(/must cover the Runner's pay/);
+    raw.restaurants['feePence'] = 1300;
+    expect(() => parseStoreConfig(raw)).toThrow(/not set on its own/);
+  });
+
+  it("moves both fees with Ozi's share, so one figure changes both", () => {
+    const raw = JSON.parse(JSON.stringify(config)) as { restaurants: Record<string, unknown> };
+    raw.restaurants = { ...raw.restaurants, ozisSharePence: 800 };
+    delete raw.restaurants['feePence'];
+    delete raw.restaurants['largeOrderFeePence'];
+    const changed = parseStoreConfig(raw).restaurants;
+    expect(changed.feePence).toBe(1300);
+    expect(changed.largeOrderFeePence).toBe(1500);
   });
 });
 
@@ -81,6 +105,28 @@ describe('pricing a restaurant order', () => {
     ).toBe(1200);
   });
 
+  it('charges £14 from £120 of dishes, where the Runner is paid £7, and £12 just below', () => {
+    expect(restaurantFeePence(settings, 11999)).toBe(1200);
+    expect(restaurantFeePence(settings, 12000)).toBe(1400);
+    const big = priceRestaurantBasket(
+      [{ shopPricePence: 3000, quantity: 4 }],
+      'payg',
+      config.fees,
+      settings,
+    );
+    expect(big.feePence).toBe(1400);
+    expect(big.feePence - runnerPaymentFor(big.goodsPence, config.fees)).toBe(700);
+    const justBelow = priceRestaurantBasket(
+      [{ shopPricePence: 5999, quantity: 2 }],
+      'plus',
+      config.fees,
+      settings,
+    );
+    expect(justBelow.goodsPence).toBe(11998);
+    expect(justBelow.feePence).toBe(1200);
+    expect(justBelow.feePence - runnerPaymentFor(justBelow.goodsPence, config.fees)).toBe(700);
+  });
+
   it('refuses a basket below £10, and says so plainly', () => {
     expect(() =>
       priceRestaurantBasket([{ shopPricePence: 999, quantity: 1 }], 'payg', config.fees, settings),
@@ -92,7 +138,9 @@ describe('pricing a restaurant order', () => {
     expect(restaurantMinimumWords(settings, money)).toBe(
       'The smallest restaurant order is £10. Please add something more.',
     );
-    expect(restaurantFeeWords(settings, money)).toContain('flat restaurant fee of £12');
+    expect(restaurantFeeWords(settings, money)).toContain(
+      'flat restaurant fee of £12 in place of delivery (£14 for £120 of dishes or more)',
+    );
   });
 
   it('refuses a restaurant basket over what one order carries', () => {
@@ -134,10 +182,12 @@ describe('the agreed discount', () => {
     expect(shopPriceFromCounterPence(700, { shopPricePence: 1000, discountPercent: 0 })).toBe(700);
   });
 
-  it("makes Ozi's profit the discount plus the item charges, never the fee", () => {
-    // £20 of dishes at 20%: £4 discount, plus £3 of item charges.
-    expect(restaurantProfitPence(2000, 20, 300)).toBe(700);
-    expect(restaurantProfitPence(2000, 0, 300)).toBe(300);
+  it("makes an Ambassador's base the discount alone, never the item charges or the fee", () => {
+    // A £10 dish at 20%: a £2 margin (Anthony, 30 October 2026).
+    expect(restaurantAmbassadorBasePence(1000, 20)).toBe(200);
+    expect(restaurantAmbassadorBasePence(2000, 20)).toBe(400);
+    // No discount, no base.
+    expect(restaurantAmbassadorBasePence(2000, 0)).toBe(0);
   });
 });
 
