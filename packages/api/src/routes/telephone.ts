@@ -38,7 +38,7 @@ import {
   runnerPaymentFor,
 } from '@aldilivery/core';
 
-import type { CatalogueItem } from '../domain.js';
+import type { CatalogueItem, Shopper } from '../domain.js';
 import { isUkMobile, ukPhone } from '../lib/phone.js';
 import { signSession, suggestHandle } from '../lib/tokens.js';
 import {
@@ -66,6 +66,7 @@ import {
   freeMonthEnd,
 } from '../services/plans.js';
 import { answerByText } from '../services/questions.js';
+import { noteWarned, orderAreaState, runnerInviteLink } from '../services/areas.js';
 import { skipByText } from '../services/set-runner.js';
 
 /** A conversation is allowed this long, from its last step, before it must start again. */
@@ -80,6 +81,8 @@ const REMOVE = /^\s*(please\s+)?(take off|remove|take away|cancel|no)\s+(the\s+)
 const PERSON =
   /\b(speak|talk|put me through)\b.*\b(person|human|someone|somebody|team|staff|agent|operator|manager)\b|^\s*(a\s+)?(real\s+)?(person|human|operator|agent)\s*$/i;
 const REPEAT = /\b(repeat|say (that|it) again|come again|pardon|what did you say)\b/i;
+/** "Send the link", "text me the link": the referral link for a driver (30 October 2026). */
+const SEND_LINK = /\b(send|text)\b.*\blink\b/i;
 
 interface Remembered {
   phone: string;
@@ -801,6 +804,42 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
         );
       }
 
+      case 'area': {
+        // No Runner in their area yet (Anthony, 30 October 2026): they were told, and choose.
+        const caller = state.shopperId ? await repository.shoppers.findById(state.shopperId) : null;
+        if (SEND_LINK.test(heard) && caller) {
+          const sent = await textInvite(caller);
+          return reply(
+            response,
+            ask(
+              `${sent ? "I've texted you the link to pass on to a driver." : 'Sorry, I could not text the link just now.'} ${config.areas.goAheadQuestion} Say yes or no.`,
+              next({ ...state, quiet: 0 }, sid),
+            ),
+          );
+        }
+        const answer = parseYesNo(heard);
+        if (answer === 'yes') {
+          return reply(response, await confirmTwiml({ ...state, areaWarned: true }, sid));
+        }
+        if (answer === 'no') {
+          finish(sid);
+          request.oziNote = { brain: 'flow', outcome: 'stopped' };
+          return reply(
+            response,
+            goodbye(
+              'All right. Nothing has been ordered, and nothing has been charged. Thank you for ringing. Goodbye.',
+            ),
+          );
+        }
+        return reply(
+          response,
+          ask(
+            `Sorry, was that a yes or a no? ${config.areas.goAheadQuestion}`,
+            next({ ...state, quiet: 0 }, sid),
+          ),
+        );
+      }
+
       case 'confirm': {
         // "Deliver it on Saturday morning", "take the money on the first at five past midnight"
         // (ruling 78): the booking is changed and the whole order read back again for the yes.
@@ -852,6 +891,45 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     );
   }
 
+  /** Texts the caller their referral link, worded for inviting a driver to sign up as a Runner. */
+  async function textInvite(shopper: Shopper): Promise<boolean> {
+    if (!canLink(shopper.phone) || !app.ctx.sendText) return false;
+    const link = runnerInviteLink(env.primaryOrigin ?? '', shopper.handle);
+    try {
+      await app.ctx.sendText(
+        shopper.phone,
+        `${config.productName}: ${config.areas.inviteDriverWords.replace('{link}', link)}`,
+      );
+      return true;
+    } catch (failure) {
+      app.log.warn({ err: failure }, 'The referral link could not be texted.');
+      return false;
+    }
+  }
+
+  /**
+   * Before the yes (Anthony, 30 October 2026): where the caller's home area has no approved
+   * Runner able to work yet, or is paused, Ozi says so gently and asks whether they would still
+   * like to go ahead. Once a call. Null when there is nothing to say, or no address to go by.
+   */
+  async function areaWarning(
+    state: CallState,
+    sid: string,
+    shopper: Shopper | null,
+  ): Promise<string | null> {
+    if (state.areaWarned || !shopper || shopper.deliveryAddress.trim() === '') return null;
+    const area = await orderAreaState(app.ctx, shopper.deliveryAddress).catch(() => null);
+    if (!area?.warn) return null;
+    await noteWarned(app.ctx, shopper, shopper.deliveryAddress, app.log);
+    const link = canLink(shopper.phone)
+      ? " Or say send the link, and I'll text you a link to pass on to a driver."
+      : '';
+    return ask(
+      `${config.areas.noRunnerWords} ${config.areas.goAheadQuestion} Say yes or no.${link}`,
+      next({ ...state, step: 'area', quiet: 0 }, sid),
+    );
+  }
+
   /** The order read back slowly: everything, the cost, the card and the address. */
   async function confirmTwiml(state: CallState, sid: string, opening = ''): Promise<string> {
     if (state.link) {
@@ -864,6 +942,11 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
           next({ ...state, step: 'items', quiet: 0 }, sid),
         );
       }
+      // Paid by link, the address is given on the payment page; a caller we know is warned by
+      // their home address.
+      const known = state.shopperId ? await repository.shoppers.findById(state.shopperId) : null;
+      const warning = await areaWarning(state, sid, known);
+      if (warning) return warning;
       return ask(
         `${opening ? `${opening} ` : ''}Here is your order. ${words}. ${costWords(priced, allowanceWords)}. You pay what the till says for the shopping. ${state.booking ? `${phoneBookingWords(state.booking, false)} ` : ''}I'll text you a secure link from our payment company to pay and give your delivery address, and your card is kept safely by them for next time. ${state.booking ? 'A Runner is sent on the day once you have paid.' : "A Runner is sent once you've paid."} Shall I send the link? Say yes or no.${state.booking ? '' : ANOTHER_DAY}`,
         next({ ...state, step: 'confirm', agreedTotalPence: priced.totalPence, quiet: 0 }, sid),
@@ -885,6 +968,8 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
         next({ ...state, step: 'items', quiet: 0 }, sid),
       );
     }
+    const warning = await areaWarning(state, sid, shopper);
+    if (warning) return warning;
     const cards = await repository.paymentMethods.listForShopper(shopper.id);
     const card = cards[0];
     return ask(

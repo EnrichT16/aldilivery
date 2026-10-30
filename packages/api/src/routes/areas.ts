@@ -1,10 +1,14 @@
 /**
  * Areas and where Runners are (Anthony, 30 October 2026). See services/areas.ts.
  *
- * - `GET /areas/check?postcode=`: whether we are running in that postcode's area, for anybody,
- *   signed in or not, so Ozi can answer "Say your postcode and I'll tell you whether we're
- *   running in your area yet" truthfully, and the address screen can say so before paying.
- * - `GET /me/area`: the same for the signed-in Shopper's home address.
+ * Every area is open (Anthony, 30 October 2026): nothing here refuses anybody.
+ *
+ * - `GET /areas/check?postcode=`: the area of a postcode, its name, whether it has an approved
+ *   Runner and whether it is paused. The confirmation screen asks it for the address an order is
+ *   going to, to know whether to warn, gently, as the order is placed. Anybody may ask.
+ * - `GET /me/area`: the same for the signed-in Shopper's home address, or `?postcode=` given.
+ * - `POST /me/area/warned`: the screen showed the warning; the Shopper is texted once when a
+ *   Runner joins there.
  * - A Runner's home postcode, and where their phone says they are while on shift.
  * - For staff with the Areas tab: every area with its counts and status, and pausing one.
  */
@@ -23,9 +27,11 @@ import {
   areaState,
   areaSummaries,
   locateLater,
+  noteWarned,
+  openWords,
   runnerArea,
-  runningWords,
   setAreaPaused,
+  type AreaState,
 } from '../services/areas.js';
 
 const NOT_A_POSTCODE = 'That does not look like a UK postcode. Please say it again, like ME7 1AA.';
@@ -53,36 +59,65 @@ export async function registerAreaRoutes(app: FastifyInstance): Promise<void> {
     return runner;
   }
 
-  /** Whether we are running where this postcode is. A whole postcode, or its first half. */
+  /** What the screen is told about an area: never a refusal, only whether to warn. */
+  function areaAnswer(state: AreaState) {
+    return {
+      area: state.area,
+      name: state.name,
+      hasRunner: state.hasRunner,
+      paused: state.paused,
+      warn: state.warn,
+      words: openWords(config, state),
+      ...(state.warn ? { warning: config.areas.noRunnerWords } : {}),
+    };
+  }
+
+  /** The area of this postcode, and whether it has a Runner. A whole postcode, or its first half. */
   app.get('/areas/check', async (request) => {
     const { postcode } = z
       .object({ postcode: z.string().trim().min(1, NOT_A_POSTCODE).max(10) })
       .parse(request.query ?? {});
     const area = areaFor(config, postcode);
     if (!area) throw new BadRequestError(NOT_A_POSTCODE);
-    const state = await areaState(app.ctx, area);
-    return {
-      area: state.area,
-      name: state.name,
-      running: state.running,
-      words: runningWords(config, state),
-    };
+    return areaAnswer(await areaState(app.ctx, area));
   });
 
-  /** Whether we are running at the signed-in Shopper's home address. */
-  app.get('/me/area', async (request) => {
+  async function shopperOf(request: Parameters<typeof requireSession>[0]) {
     const session = requireSession(request, 'shopper');
     const shopper = await repository.shoppers.findById(session.accountId);
     if (!shopper) throw new NotFoundError('account');
-    const area = areaFor(config, shopper.deliveryAddress);
-    if (!area) return { area: null, name: null, running: null, words: null };
-    const state = await areaState(app.ctx, area);
-    return {
-      area: state.area,
-      name: state.name,
-      running: state.running,
-      words: runningWords(config, state),
-    };
+    return shopper;
+  }
+
+  /**
+   * The signed-in Shopper's area: their home address's, or the postcode given (the address this
+   * order goes to). { area, name, hasRunner, paused }, and whether to warn as they order.
+   */
+  app.get('/me/area', async (request) => {
+    const shopper = await shopperOf(request);
+    const { postcode } = z
+      .object({ postcode: z.string().trim().max(10).optional() })
+      .parse(request.query ?? {});
+    const area = areaFor(config, postcode || shopper.deliveryAddress);
+    if (!area) {
+      return { area: null, name: null, hasRunner: null, paused: null, warn: false, words: null };
+    }
+    return areaAnswer(await areaState(app.ctx, area));
+  });
+
+  /** The warning was shown as they ordered: they are texted once when a Runner joins there. */
+  app.post('/me/area/warned', async (request) => {
+    const shopper = await shopperOf(request);
+    const { address } = z
+      .object({ address: z.string().trim().max(300).optional() })
+      .parse(request.body ?? {});
+    const state = await noteWarned(
+      app.ctx,
+      shopper,
+      address || shopper.deliveryAddress,
+      request.log,
+    );
+    return { noted: state?.warn === true };
   });
 
   /* ------------------------------------------------------------------ Runners */
@@ -139,7 +174,10 @@ export async function registerAreaRoutes(app: FastifyInstance): Promise<void> {
     return { areas: await areaSummaries(app.ctx) };
   });
 
-  /** Pause an area, or let it run again. Staff decide; a paused area takes no orders. */
+  /**
+   * Pause an area, or unpause it. Staff decide. A paused area still takes orders (Anthony, 30
+   * October 2026): a Shopper ordering there is warned, as where there is no Runner.
+   */
   app.post('/staff/areas/:area/pause', async (request) => {
     const actor = await staffActor(request, 'areas');
     const { area } = z.object({ area: z.string().trim().min(1).max(20) }).parse(request.params);
@@ -153,10 +191,8 @@ export async function registerAreaRoutes(app: FastifyInstance): Promise<void> {
     return {
       area: state,
       message: body.paused
-        ? `${state.name} is paused. Nobody there can order until it is unpaused.`
-        : state.ready
-          ? `${state.name} is running again.`
-          : `${state.name} is no longer paused. It opens by itself once it has a Runner and a shop.`,
+        ? `${state.name} is paused. Shoppers there can still order, and are warned as they do.`
+        : `${state.name} is no longer paused.`,
     };
   });
 }

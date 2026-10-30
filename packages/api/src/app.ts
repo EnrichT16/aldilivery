@@ -160,12 +160,6 @@ export interface AppContext {
    * reaches the network; areas then come from the postcode's letters alone.
    */
   findPostcode: PostcodeLookup | null;
-  /**
-   * Refuse, before paying, an order to an area that is not running yet, and put the Shopper on
-   * its waiting list (Anthony, 30 October 2026). On in the real server; off unless asked for in
-   * the tests, most of which prove other rules in an area with no Runner signed up yet.
-   */
-  areasGate: boolean;
 }
 
 export interface Session {
@@ -205,7 +199,6 @@ export interface BuildAppOptions extends Partial<
     | 'lookUpPrices'
     | 'backgroundChecks'
     | 'findPostcode'
-    | 'areasGate'
   >
 > {
   config: StoreConfig;
@@ -279,7 +272,6 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     lookUpPrices: options.lookUpPrices ?? false,
     backgroundChecks: options.backgroundChecks ?? false,
     findPostcode: options.findPostcode ?? null,
-    areasGate: options.areasGate ?? true,
   };
 
   app.decorate('ctx', ctx);

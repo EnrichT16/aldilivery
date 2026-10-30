@@ -115,7 +115,9 @@ export function RunnerLocation({
 
 /**
  * Asks a Runner who signed up before areas began for their home postcode (Anthony, 30 October
- * 2026): it gives their area, and jobs are offered only in it.
+ * 2026): it gives their area, and jobs are offered only in it. Made prominent (30 October 2026):
+ * near the top of their Runner page, on every tab, whether or not they are approved yet, and
+ * plain that everything else works without it, only jobs wait for it.
  */
 export function HomePostcode({ onSaved }: { onSaved: (message: string) => void }): JSX.Element {
   const [problem, setProblem] = useState('');
@@ -139,13 +141,18 @@ export function HomePostcode({ onSaved }: { onSaved: (message: string) => void }
   }
 
   return (
-    <section aria-labelledby="home-postcode-heading" className="space-y-3 max-w-xl">
-      <h2 id="home-postcode-heading" className="text-lead font-bold">
-        Your home postcode
+    <section
+      aria-labelledby="home-postcode-heading"
+      aria-describedby="home-postcode-why"
+      className="space-y-3 max-w-xl border-4 border-highlight rounded-2xl p-4"
+    >
+      <h2 id="home-postcode-heading" className="text-lead font-bold m-0">
+        Please add your home postcode
       </h2>
-      <p className="m-0">
-        Jobs are offered in your own area, from the postcode where you live. Please give it before
-        you go on shift.
+      <p id="home-postcode-why" className="m-0">
+        You will not be offered any jobs until your home postcode is saved. Jobs are offered in your
+        own area, from the postcode where you live. Everything else in the app works as normal
+        without it.
       </p>
       <form onSubmit={onSubmit} noValidate className="space-y-3">
         <label htmlFor="homePostcode" className="block font-bold">
@@ -155,7 +162,7 @@ export function HomePostcode({ onSaved }: { onSaved: (message: string) => void }
           id="homePostcode"
           name="homePostcode"
           autoComplete="postal-code"
-          aria-describedby={problem ? 'home-postcode-problem' : undefined}
+          aria-describedby={problem ? 'home-postcode-problem' : 'home-postcode-why'}
           aria-invalid={problem ? true : undefined}
           className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
         />

@@ -6,7 +6,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { twilioSignature } from '../src/lib/twilio-voice.js';
-import { buildTestApp, seedCatalogue, signUpShopper, type TestHarness } from './helpers.js';
+import {
+  buildTestApp,
+  seedCatalogue,
+  signUpRunner,
+  signUpShopper,
+  type TestHarness,
+} from './helpers.js';
 
 const ORIGIN = 'https://shop.example.test';
 const TOKEN = 'twilio-auth-token-for-tests';
@@ -486,5 +492,96 @@ describe('speaking to a person on the same number (ruling 51)', () => {
     const call = { CallSid: 'CP3', From: '+447700900001' };
     const hello = await twilio('/api/webhooks/twilio/voice', call);
     expect(spoken(hello.body)).not.toMatch(/speak to a person/);
+  });
+});
+
+describe('no Runner in the caller’s area yet (30 October 2026)', () => {
+  const NO_RUNNER =
+    "There's no Runner (driver) in your area yet, so we may not be able to deliver this order.";
+
+  async function shopperInMedway() {
+    const shopper = await signUpShopper(harness, { displayName: 'Margaret Ade' });
+    await harness.repository.shoppers.update(shopper.shopperId, {
+      deliveryAddress: '12 Example Street, Gillingham ME7 1AA',
+    });
+    return shopper;
+  }
+
+  /** To the end of the list: what Ozi says after "that's everything". */
+  async function toTheEnd(call: Record<string, string>) {
+    const hello = await twilio('/api/webhooks/twilio/voice', call);
+    const added = await twilio(nextStep(hello.body), {
+      ...call,
+      SpeechResult: 'Two milk and a loaf of bread please',
+    });
+    return twilio(nextStep(added.body), { ...call, SpeechResult: "That's everything." });
+  }
+
+  it('says so before the yes and asks; a yes goes on to the order as normal', async () => {
+    const shopper = await shopperInMedway();
+    const call = { CallSid: 'CAN1', From: '+447700900001', Direction: 'inbound' };
+    const warned = await toTheEnd(call);
+    expect(spoken(warned.body)).toContain(NO_RUNNER);
+    expect(spoken(warned.body)).toContain('Would you still like to go ahead? Say yes or no.');
+    expect(spoken(warned.body)).not.toMatch(/isn't running|not running/i);
+    expect(spoken(warned.body)).not.toContain('Here is your order');
+
+    const readBack = await twilio(nextStep(warned.body), { ...call, SpeechResult: 'Yes' });
+    expect(spoken(readBack.body)).toMatch(/Here is your order\. 2 Semi skimmed milk/);
+    expect(spoken(readBack.body)).not.toContain(NO_RUNNER);
+
+    const sent = await twilio(nextStep(readBack.body), { ...call, SpeechResult: 'Yes please' });
+    expect(spoken(sent.body)).toMatch(/Thank you\. Your order is on its way to a Runner/);
+    const orders = await harness.repository.orders.listForShopper(shopper.shopperId);
+    expect(orders.map((order) => order.status)).toEqual(['paid']);
+    // Texted once when a Runner joins there.
+    expect(await harness.repository.areaWaiting.list()).toMatchObject([
+      { area: 'ME', shopperId: shopper.shopperId },
+    ]);
+  });
+
+  it('ends politely with nothing charged on a no', async () => {
+    const shopper = await shopperInMedway();
+    const call = { CallSid: 'CAN2', From: '+447700900001', Direction: 'inbound' };
+    const warned = await toTheEnd(call);
+    const ended = await twilio(nextStep(warned.body), { ...call, SpeechResult: 'No thank you' });
+    expect(spoken(ended.body)).toBe(
+      'All right. Nothing has been ordered, and nothing has been charged. Thank you for ringing. Goodbye.',
+    );
+    expect(ended.body).toContain('<Hangup/>');
+    expect(await harness.repository.orders.listForShopper(shopper.shopperId)).toHaveLength(0);
+    expect(
+      harness.payments.calls.filter(
+        (c) => c.kind === 'payment_intent' || c.kind === 'saved_card_charge',
+      ),
+    ).toHaveLength(0);
+  });
+
+  it('texts the referral link for a driver on "send the link", then asks again', async () => {
+    const shopper = await shopperInMedway();
+    const handle = (await harness.repository.shoppers.findById(shopper.shopperId))!.handle;
+    const call = { CallSid: 'CAN3', From: '+447700900001', Direction: 'inbound' };
+    const warned = await toTheEnd(call);
+    expect(spoken(warned.body)).toContain("say send the link, and I'll text you a link");
+    const linked = await twilio(nextStep(warned.body), {
+      ...call,
+      SpeechResult: 'Send the link please',
+    });
+    expect(spoken(linked.body)).toContain('texted you the link to pass on to a driver.');
+    expect(spoken(linked.body)).toContain('Would you still like to go ahead? Say yes or no.');
+    const invite = texts.find((text) => text.body.includes('/runner/sign-up'));
+    expect(invite).toMatchObject({ to: '+447700900001' });
+    expect(invite!.body).toContain(`${ORIGIN}/runner/sign-up?via=shopper-${handle}`);
+    const readBack = await twilio(nextStep(linked.body), { ...call, SpeechResult: 'Yes' });
+    expect(spoken(readBack.body)).toMatch(/Here is your order/);
+  });
+
+  it('says nothing about it where the area has a Runner', async () => {
+    await shopperInMedway();
+    await signUpRunner(harness);
+    const call = { CallSid: 'CAN4', From: '+447700900001', Direction: 'inbound' };
+    const readBack = await toTheEnd(call);
+    expect(spoken(readBack.body)).toMatch(/Here is your order/);
+    expect(spoken(readBack.body)).not.toContain(NO_RUNNER);
   });
 });

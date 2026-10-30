@@ -89,6 +89,21 @@ describe('signing up to run', () => {
     ).toBeInTheDocument();
   });
 
+  it('records the Shopper whose referral link for a driver they followed (30 October 2026)', async () => {
+    window.sessionStorage.clear();
+    const user = userEvent.setup({ delay: null });
+    const recorded = renderAt('/runner/sign-up?via=shopper-margaret');
+    await user.type(screen.getByLabelText('Your name'), 'Tomasz');
+    await user.type(screen.getByLabelText('Your mobile number'), '07700 900101');
+    await user.type(screen.getByLabelText('Your home postcode'), 'ME7 1AA');
+    await user.click(screen.getByLabelText('I am 18 or over, and I agree to the Runner agreement'));
+    await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
+    await screen.findByRole('heading', { level: 1, name: 'Thank you, Tomasz' });
+    expect(recorded.find((r) => r.path === '/runners')?.body).toMatchObject({
+      referredBy: 'shopper-margaret',
+    });
+  });
+
   it('sends a photo from the camera, or a share code, and moves on to what is left', async () => {
     const user = userEvent.setup({ delay: null });
     const recorded = renderAt('/runner/sign-up');

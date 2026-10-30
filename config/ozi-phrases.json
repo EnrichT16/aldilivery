@@ -1,5 +1,5 @@
 {
-  "about": "What Ozi says to everyday words (ruling 34). Added to every day (50 a day, ruling 44) by a scheduled task, checked by the tests before it goes live. Each entry: an id, a topic, the words people say ('when'), and replies, one chosen in turn. In replies, {assistant} becomes Ozi's name, {product} the product's name, {motto} the motto, and {fee}, {smallFee}, {smallUpTo}, {middleFee}, {largeUpTo}, {memberFee}, {memberLargeFee}, {plusFee}, {plusLargeFee}, {paygDelivery}, {memberDelivery}, {plusDelivery}, {memberOrders}, {plusOrders}, {familyOrders}, {allowanceExtra}, {allowanceEvery}, {findIts}, {plusFindIts}, {itemCharge}, {membership}, {plusPrice}, {familyPrice}, {orgClient}, {maximum}, {maximumProduct}, {runnerPay}, {largeRunnerPay}, {largeOrderFrom}, {daysAhead}, {telephone}, {companyName}, {companyNumber}, {icoNumber}, {callPrice} and {instantRefund} the figures from config/store.json, so a price is never written here. Ozi only uses these when nothing about an order or the basket was meant, and only when the whole sentence is one of the 'when' phrases or Ozi was called by name. Rules for every addition: never promise a postcode check or say a town is covered in its own words (use the agreed area answer: we run across the UK, area by area, wherever we have Runners and shops); never name a supermarket or shop chain as a partner, or suggest any endorsement; never promise a delivery time (say usually the same day, and the order page shows a best guess); never say \"no mark-up\" (say shop prices, plus a small item charge on each product, plus delivery); and never name any company or technology behind {assistant}, including the makers of any AI. The tests check these.",
+  "about": "What Ozi says to everyday words (ruling 34). Added to every day (50 a day, ruling 44) by a scheduled task, checked by the tests before it goes live. Each entry: an id, a topic, the words people say ('when'), and replies, one chosen in turn. In replies, {assistant} becomes Ozi's name, {product} the product's name, {motto} the motto, and {fee}, {smallFee}, {smallUpTo}, {middleFee}, {largeUpTo}, {memberFee}, {memberLargeFee}, {plusFee}, {plusLargeFee}, {paygDelivery}, {memberDelivery}, {plusDelivery}, {memberOrders}, {plusOrders}, {familyOrders}, {allowanceExtra}, {allowanceEvery}, {findIts}, {plusFindIts}, {itemCharge}, {membership}, {plusPrice}, {familyPrice}, {orgClient}, {maximum}, {maximumProduct}, {runnerPay}, {largeRunnerPay}, {largeOrderFrom}, {daysAhead}, {telephone}, {companyName}, {companyNumber}, {icoNumber}, {callPrice} and {instantRefund} the figures from config/store.json, so a price is never written here. Ozi only uses these when nothing about an order or the basket was meant, and only when the whole sentence is one of the 'when' phrases or Ozi was called by name. Rules for every addition: never promise a postcode check or say a town is covered in its own words (use the agreed area answer: we deliver across the whole UK, and every area is open); never name a supermarket or shop chain as a partner, or suggest any endorsement; never promise a delivery time (say usually the same day, and the order page shows a best guess); never say \"no mark-up\" (say shop prices, plus a small item charge on each product, plus delivery); and never name any company or technology behind {assistant}, including the makers of any AI. The tests check these.",
   "phrases": [
     {
       "id": "thanks",
@@ -1963,8 +1963,8 @@
         "is my area covered"
       ],
       "replies": [
-        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet.",
-        "We run across the UK, area by area, wherever we have Runners and shops."
+        "We deliver across the whole UK, with local Runners (drivers) who live near you. If you know a driver, send them your referral link so they can sign up and deliver in your area.",
+        "We deliver across the whole UK, and every area is open."
       ]
     },
     {
@@ -1976,8 +1976,8 @@
         "do you deliver everywhere"
       ],
       "replies": [
-        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet.",
-        "We run across the UK, area by area, wherever we have Runners and shops."
+        "We deliver across the whole UK, with local Runners (drivers) who live near you. If you know a driver, send them your referral link so they can sign up and deliver in your area.",
+        "We deliver across the whole UK, and every area is open."
       ]
     },
     {
@@ -6071,7 +6071,7 @@
       "topic": "about",
       "when": ["do you work abroad", "can i use you in spain", "does it work overseas"],
       "replies": [
-        "We run across the UK, area by area, wherever we have Runners and shops, but not abroad. Most cards from any country work, though."
+        "We run across the UK, area by area, and every area is open, but not abroad. Most cards from any country work, though."
       ]
     },
     {
@@ -6079,7 +6079,7 @@
       "topic": "about",
       "when": ["do you work in wales", "do you work in scotland", "northern ireland"],
       "replies": [
-        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet."
+        "We deliver across the whole UK, with local Runners (drivers) who live near you. If you know a driver, send them your referral link so they can sign up and deliver in your area."
       ]
     },
     {
@@ -8010,7 +8010,7 @@
       "topic": "runners",
       "when": ["how far do runners travel", "runner distance", "how far will a runner go"],
       "replies": [
-        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet."
+        "We deliver across the whole UK, with local Runners (drivers) who live near you. If you know a driver, send them your referral link so they can sign up and deliver in your area."
       ]
     },
     {
@@ -11373,7 +11373,7 @@
         "do you cover enfield"
       ],
       "replies": [
-        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet."
+        "We deliver across the whole UK, with local Runners (drivers) who live near you. If you know a driver, send them your referral link so they can sign up and deliver in your area."
       ]
     },
     {
@@ -11385,16 +11385,14 @@
         "check my postcode",
         "am i in your area"
       ],
-      "replies": [
-        "Say add my address and give me your postcode. I'll tell you whether we're running in your area yet."
-      ]
+      "replies": ["Say add my address and give me your postcode, or add it on the screen."]
     },
     {
       "id": "s66-areas-how-far-do-you-deliver",
       "topic": "areas",
       "when": ["how far do you deliver", "delivery radius", "how many miles"],
       "replies": [
-        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet."
+        "We deliver across the whole UK, with local Runners (drivers) who live near you. If you know a driver, send them your referral link so they can sign up and deliver in your area."
       ]
     },
     {
@@ -11402,7 +11400,7 @@
       "topic": "areas",
       "when": ["when will you come to my area", "expand to my town", "not in my area yet"],
       "replies": [
-        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet."
+        "We deliver across the whole UK, with local Runners (drivers) who live near you. If you know a driver, send them your referral link so they can sign up and deliver in your area."
       ]
     },
     {
@@ -11427,7 +11425,7 @@
         "i live in a village"
       ],
       "replies": [
-        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet."
+        "We deliver across the whole UK, with local Runners (drivers) who live near you. If you know a driver, send them your referral link so they can sign up and deliver in your area."
       ]
     },
     {
@@ -11464,9 +11462,7 @@
       "id": "s66-areas-do-you-deliver-to-hotels",
       "topic": "areas",
       "when": ["do you deliver to hotels", "hotel delivery", "holiday let"],
-      "replies": [
-        "Yes, if we're running in that area. Add it as an address and choose it on the screen."
-      ]
+      "replies": ["Yes. Add it as an address and choose it on the screen."]
     },
     {
       "id": "s66-areas-do-you-deliver-to-universities",
@@ -11489,7 +11485,7 @@
       "topic": "areas",
       "when": ["which areas are you in", "list your areas", "where exactly do you operate"],
       "replies": [
-        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet."
+        "We deliver across the whole UK, with local Runners (drivers) who live near you. If you know a driver, send them your referral link so they can sign up and deliver in your area."
       ]
     },
     {
@@ -16947,7 +16943,7 @@
       "topic": "delivery",
       "when": ["do you deliver to rural postcodes", "remote", "out in the sticks"],
       "replies": [
-        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet."
+        "We deliver across the whole UK, with local Runners (drivers) who live near you. If you know a driver, send them your referral link so they can sign up and deliver in your area."
       ]
     },
     {

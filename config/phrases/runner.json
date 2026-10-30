@@ -1,5 +1,5 @@
 {
-  "about": "What Ozi says to Runners (ruling 44). Same format as config/ozi-phrases.json. Kept on the server only. Rules for every addition: never promise a postcode check or say a town is covered in its own words (use the agreed area answer: we run across the UK, area by area, wherever we have Runners and shops); never name a supermarket or shop chain as a partner, or suggest any endorsement; never promise a delivery time (say usually the same day, and the order page shows a best guess); never say \"no mark-up\" (say shop prices, plus a small item charge on each product, plus delivery); and never name any company or technology behind {assistant}, including the makers of any AI. The tests check these.",
+  "about": "What Ozi says to Runners (ruling 44). Same format as config/ozi-phrases.json. Kept on the server only. Rules for every addition: never promise a postcode check or say a town is covered in its own words (use the agreed area answer: we deliver across the whole UK, and every area is open); never name a supermarket or shop chain as a partner, or suggest any endorsement; never promise a delivery time (say usually the same day, and the order page shows a best guess); never say \"no mark-up\" (say shop prices, plus a small item charge on each product, plus delivery); and never name any company or technology behind {assistant}, including the makers of any AI. The tests check these.",
   "phrases": [
     {
       "id": "runner-hello",
@@ -2323,7 +2323,7 @@
         "do i have to go anywhere to sign up"
       ],
       "replies": [
-        "No. Everything is done in the app. We run across the UK, area by area, wherever we have Runners and shops.",
+        "No. Everything is done in the app. We deliver across the whole UK, and every area is open.",
         "No office visit. You sign up and send documents from your phone."
       ]
     },
@@ -3311,7 +3311,7 @@
       "topic": "about",
       "when": ["where do we deliver", "which areas", "is it only medway"],
       "replies": [
-        "We run across the UK, area by area, wherever we have Runners and shops.",
+        "We deliver across the whole UK, and every area is open.",
         "Across the UK, area by area."
       ]
     },

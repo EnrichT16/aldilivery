@@ -77,7 +77,7 @@ export function goodbye(text: string): string {
 
 /* ------------------------------------------------------------------ the conversation */
 
-export type Step = 'consent' | 'name' | 'offer' | 'items' | 'confirm';
+export type Step = 'consent' | 'name' | 'offer' | 'items' | 'area' | 'confirm';
 
 export interface CallState {
   step: Step;
@@ -95,6 +95,11 @@ export interface CallState {
   link?: boolean;
   /** The total read back to them, which their yes agreed to. */
   agreedTotalPence?: number;
+  /**
+   * They heard that their area has no Runner yet and said they would still like to go ahead
+   * (Anthony, 30 October 2026), so they are not asked again on this call.
+   */
+  areaWarned?: boolean;
   /**
    * Booked for a later day (ruling 78), as the caller said it: "deliver it on Saturday morning",
    * and, for a saved card, "take the money on the first at five past midnight".

@@ -176,7 +176,6 @@ async function main(): Promise<void> {
     lookUpPrices: true,
     // Postcodes become places with postcodes.io when saved (Anthony, 30 October 2026); no key.
     findPostcode: postcodesIo(),
-    areasGate: true,
     // The automatic check (ruling 74) runs in the background: nobody waits for it.
     backgroundChecks: true,
     repository,
@@ -382,15 +381,16 @@ async function main(): Promise<void> {
   }, 60_000);
   setSweep.unref();
 
-  // Every minute: an area's waiting list is texted once when the area starts (Anthony, 30
-  // October 2026), never in the quiet hours.
+  // Every minute: Shoppers warned there was no Runner in their area are texted once when one
+  // joins there (Anthony, 30 October 2026), never in the quiet hours.
   let areasRunning = false;
   const areaSweep = setInterval(() => {
     if (areasRunning) return;
     areasRunning = true;
     sweepAreas(app.ctx, app.log)
       .then((texted) => {
-        if (texted > 0) app.log.info({ texted }, 'Area waiting lists texted');
+        if (texted > 0)
+          app.log.info({ texted }, 'Shoppers texted that a Runner has joined in their area');
       })
       .catch((failure: unknown) => {
         app.log.error({ err: failure }, 'The area sweep failed');

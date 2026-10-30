@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   checkSchedule,
@@ -12,6 +12,7 @@ import {
 
 import { moneyIn, moneyOut } from '../lib/alert';
 
+import { NoRunnerWarning } from '../components/NoRunnerWarning';
 import { NotifyMe } from '../components/NotifyMe';
 import { OverOneRunner } from '../components/OverOneRunner';
 import { PinGate } from '../components/PinGate';
@@ -23,6 +24,7 @@ import {
   fetchBankTransferEnabled,
   fetchAddresses,
   listPaymentMethods,
+  markAreaWarned,
   priceBasketRemotely,
   saveAddress,
   updateMe,
@@ -135,19 +137,25 @@ export function Confirm(): JSX.Element {
   const [confirmedAddress, setConfirmedAddress] = useState<string | null>(null);
   const addressConfirmed = confirmedAddress !== null && confirmedAddress === address.trim();
   /**
-   * Areas (Anthony, 30 October 2026): whether we run at this address yet, asked as soon as it is
-   * shown, so a Shopper somewhere we do not run yet is told honestly before paying, and nothing
-   * is taken. The server refuses such an order too, and puts them on the area's waiting list.
+   * Every area is open (Anthony, 30 October 2026). Where the address this order goes to has no
+   * approved Runner yet, or its area is paused, a gentle warning is shown as an alert dialog once
+   * the address is confirmed, once for each order attempt (each address), and said by Ozi. It
+   * never stops the order: "OK, I understand" goes back to it, and the button to pay is never
+   * greyed out because of it. Asked as soon as the address is shown; shown nowhere else.
    */
-  const [notRunning, setNotRunning] = useState<string | null>(null);
+  const [noRunner, setNoRunner] = useState(false);
+  const [warningOpen, setWarningOpen] = useState(false);
+  const warnedFor = useRef<string | null>(null);
+  const payButton = useRef<HTMLButtonElement | null>(null);
+  const [areaNews, setAreaNews] = useState('');
   const postcode = postcodeIn(address);
   useEffect(() => {
-    setNotRunning(null);
+    setNoRunner(false);
     if (postcode === '') return undefined;
     let cancelled = false;
     checkArea(postcode)
       .then((result) => {
-        if (!cancelled && result.running === false) setNotRunning(result.words);
+        if (!cancelled && result.warn === true) setNoRunner(true);
       })
       .catch(() => undefined);
     return () => {
@@ -155,6 +163,22 @@ export function Confirm(): JSX.Element {
     };
   }, [postcode]);
   const ozi = useOzi();
+  /** Shows the warning, unless it was shown already for this address. True when it opened. */
+  const warnOnce = useCallback(
+    (where: string): boolean => {
+      if (!noRunner || where === '' || warnedFor.current === where) return false;
+      warnedFor.current = where;
+      setWarningOpen(true);
+      void ozi.say(storeConfig.areas.noRunnerWords);
+      // So they are texted once when a Runner joins there. Nothing waits for it.
+      markAreaWarned(where).catch(() => undefined);
+      return true;
+    },
+    [noRunner, ozi],
+  );
+  useEffect(() => {
+    if (addressConfirmed) warnOnce(address.trim());
+  }, [addressConfirmed, address, warnOnce]);
   const spokenFor = useRef<string | null>(null);
 
   const home = book?.home ?? shopper?.deliveryAddress ?? '';
@@ -258,7 +282,6 @@ export function Confirm(): JSX.Element {
     if (overMaximum) {
       return `Your shopping is more than one basket holds, ${money(storeConfig.fees.maximumBasketGoodsPence)}. Please go back to your basket and take some things out.`;
     }
-    if (notRunning !== null) return notRunning;
     if (address.trim() === '' || !addressConfirmed) return 'Please confirm the address first';
     if (!card && !byBank && !byFamily) return 'Please add a card or choose bank transfer';
     if (overOneRunner && !keepEverything) {
@@ -298,6 +321,9 @@ export function Confirm(): JSX.Element {
       void ozi.say(missing);
       return;
     }
+    // The warning comes before paying, once, if it has not been shown yet for this address (the
+    // area's answer came after the address was confirmed). The next press pays.
+    if (warnOnce(address.trim())) return;
 
     setSending(true);
     setError('');
@@ -712,14 +738,6 @@ export function Confirm(): JSX.Element {
                 {address === '' ? 'You have not given us an address yet.' : address}
               </p>
             )}
-            {notRunning !== null && (
-              <p
-                role="alert"
-                className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0"
-              >
-                {notRunning} Nothing will be taken.
-              </p>
-            )}
             {address.trim() !== '' &&
               (addressConfirmed ? (
                 <p role="status" className="m-0 font-bold">
@@ -884,7 +902,14 @@ export function Confirm(): JSX.Element {
         By sending it, you ask us to start now. You lose the right to cancel once it is delivered.
       </p>
 
+      {areaNews !== '' && (
+        <p role="status" className="m-0">
+          {areaNews}
+        </p>
+      )}
+
       <button
+        ref={payButton}
         type="button"
         disabled={sending}
         onClick={() => {
@@ -898,6 +923,17 @@ export function Confirm(): JSX.Element {
       <Link to="/basket" className="control border-paper bg-paper/10 text-paper">
         Go back and change something
       </Link>
+
+      {warningOpen && (
+        <NoRunnerWarning
+          onNews={setAreaNews}
+          onClose={() => {
+            setWarningOpen(false);
+            // Back to the order: the button to pay is next.
+            window.setTimeout(() => payButton.current?.focus(), 0);
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 {
-  "about": "What Ozi says to investors (ruling 44). Kept on the server only. Rules for every addition: never promise a postcode check or say a town is covered in its own words (use the agreed area answer: we run across the UK, area by area, wherever we have Runners and shops); never name a supermarket or shop chain as a partner, or suggest any endorsement; never promise a delivery time (say usually the same day, and the order page shows a best guess); never say \"no mark-up\" (say shop prices, plus a small item charge on each product, plus delivery); and never name any company or technology behind {assistant}, including the makers of any AI. The tests check these.",
+  "about": "What Ozi says to investors (ruling 44). Kept on the server only. Rules for every addition: never promise a postcode check or say a town is covered in its own words (use the agreed area answer: we deliver across the whole UK, and every area is open); never name a supermarket or shop chain as a partner, or suggest any endorsement; never promise a delivery time (say usually the same day, and the order page shows a best guess); never say \"no mark-up\" (say shop prices, plus a small item charge on each product, plus delivery); and never name any company or technology behind {assistant}, including the makers of any AI. The tests check these.",
   "phrases": [
     {
       "id": "investor-hello",
@@ -174,7 +174,7 @@
       "topic": "growth",
       "when": ["where does it operate", "regions"],
       "replies": [
-        "Across the UK, area by area, wherever there are Runners and shops. Other countries would come later, as separate marketplaces.",
+        "Across the UK, area by area, and every area is open. Other countries would come later, as separate marketplaces.",
         "Across the UK, area by area."
       ]
     },
@@ -2691,9 +2691,7 @@
       "id": "investor-is-there-insurance",
       "topic": "risk",
       "when": ["is there insurance", "company insurance", "liability cover"],
-      "replies": [
-        "Please ask the founder about that."
-      ]
+      "replies": ["Please ask the founder about that."]
     },
     {
       "id": "investor-what-isnt-proven-yet",
@@ -3401,7 +3399,7 @@
       "topic": "business",
       "when": ["what stage is the company at", "is it early stage", "how mature is it"],
       "replies": [
-        "The service is built and runs across the UK, area by area, wherever there are Runners and shops. For detail on the company's stage, please ask the founder.",
+        "The service is built and runs across the UK, area by area, and every area is open. For detail on the company's stage, please ask the founder.",
         "Please ask the founder for the latest."
       ]
     },

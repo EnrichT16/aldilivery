@@ -15,7 +15,7 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '.
 import { NOT_A_UK_NUMBER, ukPhone } from '../lib/phone.js';
 import { newReferralCode } from '../lib/referral.js';
 import { hashCode, signSession, suggestHandle, verifyPhoneProof } from '../lib/tokens.js';
-import { locateLater, runningWords, waitIfNotRunning } from '../services/areas.js';
+import { locateLater } from '../services/areas.js';
 import { sweepOffers } from '../services/dispatch.js';
 import {
   activePlan,
@@ -81,8 +81,11 @@ const runnerSchema = z.object({
     .min(1, 'Please choose at least one way you will deliver.')
     .max(5)
     .optional(),
-  /** The ID of whoever invited them, from the link they followed. */
-  referredBy: z.string().trim().max(20).optional(),
+  /**
+   * Whoever invited them, from the link they followed: a Runner's ID, or a Shopper's referral
+   * link for a driver, "shopper-<handle>" (30 October 2026).
+   */
+  referredBy: z.string().trim().max(60).optional(),
   stripeConnectedAccountId: z.string().trim().max(120).optional(),
   /** Agreeing to the Runner agreement as they sign up (ruling 55). Or later, before a job. */
   agreement: agreementSchema.optional(),
@@ -158,11 +161,8 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
     if (input.joinedVia) {
       await repository.shoppers.update(shopper.id, { joinedVia: input.joinedVia });
     }
-    // Their area (Anthony, 30 October 2026): signing up always works; somewhere we are not running
-    // yet, they are told so now and go on its waiting list.
-    const area = shopper.deliveryAddress
-      ? await waitIfNotRunning(app.ctx, shopper, shopper.deliveryAddress)
-      : null;
+    // Every area is open (Anthony, 30 October 2026): signing up says nothing about Runners in
+    // their area. Any warning comes only as they place an order.
     locateLater(app.ctx, shopper.deliveryAddress, request.log);
 
     const expiresAt = Math.floor(now().getTime() / 1000) + env.authTokenTtlHours * 3600;
@@ -175,11 +175,23 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
     return {
       shopper: await publicShopper(app.ctx, shopper),
       token,
-      area: area
-        ? { name: area.name, running: area.running, words: runningWords(config, area) }
-        : null,
     };
   });
+
+  /**
+   * Who invited a new Runner, as kept on `Runner.referredBy`: a Runner's ID ("R4K7Q2AB"), or
+   * "shopper:<handle>" for a Shopper who sent their referral link to a driver because their area
+   * had no Runner yet (Anthony, 30 October 2026). Anything unknown is not kept.
+   */
+  async function runnerReferrer(given: string): Promise<string | null> {
+    const shopper = /^shopper[:-]([A-Za-z0-9_-]{1,40})$/.exec(given);
+    if (shopper) {
+      const found = await repository.shoppers.findByHandle(shopper[1] ?? '');
+      return found && !found.erasedAt ? `shopper:${found.handle}` : null;
+    }
+    if (given.length > 20) return null;
+    return (await repository.runners.findByReferralCode(given.toUpperCase()))?.referralCode ?? null;
+  }
 
   app.post('/runners', async (request, reply) => {
     const input = runnerSchema.parse(request.body);
@@ -195,10 +207,7 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       input.vehicleType ??
       travelModes.find((mode) => !MOTOR_MODES.includes(mode)) ??
       (travelModes[0] as (typeof travelModes)[number]);
-    const referrer = input.referredBy
-      ? ((await repository.runners.findByReferralCode(input.referredBy.toUpperCase()))
-          ?.referralCode ?? null)
-      : null;
+    const referrer = input.referredBy ? await runnerReferrer(input.referredBy) : null;
 
     const agreed = input.agreement ? agreementRecord(input.agreement, now()) : {};
     const runner = await repository.runners.create({
@@ -281,10 +290,7 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       );
     }
     const shopper = await repository.shoppers.update(session.accountId, patch);
-    if (patch.deliveryAddress) {
-      await waitIfNotRunning(app.ctx, shopper, patch.deliveryAddress);
-      locateLater(app.ctx, patch.deliveryAddress, request.log);
-    }
+    if (patch.deliveryAddress) locateLater(app.ctx, patch.deliveryAddress, request.log);
     return { shopper: await publicShopper(app.ctx, shopper) };
   });
 

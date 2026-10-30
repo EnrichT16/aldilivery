@@ -1,6 +1,7 @@
 /**
- * Areas and where Runners are, on the screen (Anthony, 30 October 2026): a Shopper somewhere we
- * do not run yet is told before paying and cannot pay; a Runner's location is shared while on
+ * Areas and where Runners are, on the screen (Anthony, 30 October 2026): every area is open (6
+ * November 2026), and a Shopper where there is no Runner yet is warned gently only as they order,
+ * and may still pay; a Runner's location is shared while on
  * shift and on a job, never off shift, with a note said once, and a kind word when it is refused;
  * and the staff Areas page, with its pause button, and where Runners on a job were last seen.
  */
@@ -12,7 +13,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
-import { RunnerLocation } from '../src/components/RunnerLocation';
+import { HomePostcode, RunnerLocation } from '../src/components/RunnerLocation';
 import { storeConfig } from '../src/config';
 import { Areas, RunnersNow } from '../src/pages/StaffAdmin';
 import { FAKE_CARD, FAKE_SHOPPER, stubApi, type RecordedRequest } from './setup';
@@ -45,46 +46,201 @@ function stubPaths(
   return recorded;
 }
 
-describe('a Shopper where we are not running yet', () => {
-  it('is told before paying, and the order is not sent', async () => {
+describe('a Shopper where there is no Runner yet (30 October 2026)', () => {
+  const RUNNER_LINK = 'https://example.test/runner/sign-up?via=shopper-margaret';
+
+  /** The usual stub, with the area of the address answering as asked. */
+  function stubArea(warn: boolean): RecordedRequest[] {
     const recorded = stubApi({ shopper: FAKE_SHOPPER, paymentMethods: [FAKE_CARD] });
     const base = globalThis.fetch;
     vi.stubGlobal(
       'fetch',
       vi.fn(async (url: string, init?: RequestInit) => {
-        if (String(url).includes('/areas/check')) {
-          recorded.push({
-            method: 'GET',
-            path: '/areas/check',
-            body: undefined,
-          } as RecordedRequest);
+        const path = String(url)
+          .replace(/^https?:\/\/[^/]+/, '')
+          .replace(/^\/api(?=\/|$)/, '');
+        const method = init?.method ?? 'GET';
+        if (path.startsWith('/areas/check')) {
+          recorded.push({ method, path: '/areas/check', body: undefined } as RecordedRequest);
           return reply({
             area: 'LS',
             name: 'Leeds',
-            running: false,
-            words: storeConfig.areas.notRunningWords,
+            hasRunner: !warn,
+            paused: false,
+            warn,
+            words: storeConfig.areas.openWords.replace('{area}', 'Leeds'),
+            ...(warn ? { warning: storeConfig.areas.noRunnerWords } : {}),
+          });
+        }
+        if (path === '/me/area/warned') {
+          recorded.push({
+            method,
+            path,
+            body: init?.body ? JSON.parse(String(init.body)) : undefined,
+          } as RecordedRequest);
+          return reply({ noted: true });
+        }
+        if (path === '/share') {
+          recorded.push({ method, path, body: undefined } as RecordedRequest);
+          return reply({
+            link: 'https://example.test/join?via=shopper-margaret',
+            joined: 2,
+            runnerLink: RUNNER_LINK,
           });
         }
         return base(url, init);
       }),
     );
-    const user = userEvent.setup({ delay: null });
+    return recorded;
+  }
+
+  async function toConfirm(user: ReturnType<typeof userEvent.setup>): Promise<void> {
     render(
       <MemoryRouter initialEntries={['/shop']}>
         <App />
       </MemoryRouter>,
     );
     await user.click(await screen.findByRole('button', { name: /Add Semi skimmed milk/ }));
+    // Browsing and the basket never warn.
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     await user.click(screen.getByRole('link', { name: 'Basket' }));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     await user.click(screen.getByRole('link', { name: 'Check and send my order' }));
+  }
 
-    const told = await screen.findByText(new RegExp(storeConfig.areas.notRunningWords));
-    expect(told).toHaveAttribute('role', 'alert');
-    expect(told).toHaveTextContent('Nothing will be taken.');
-    const yes = screen.queryByRole('button', { name: 'Yes, this is the right address' });
-    if (yes) await user.click(yes);
+  async function confirmAddress(user: ReturnType<typeof userEvent.setup>): Promise<void> {
+    await user.click(await screen.findByRole('button', { name: 'Yes, this is the right address' }));
+  }
+
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, 'share');
+  });
+
+  it('warns as an alert dialog only when ordering; "OK, I understand" lets them pay', async () => {
+    const recorded = stubArea(true);
+    const user = userEvent.setup({ delay: null });
+    await toConfirm(user);
+    await waitFor(() => expect(recorded.some((r) => r.path === '/areas/check')).toBe(true));
+    // Not before the address is confirmed: the order is not being placed yet.
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    // No "not running" words anywhere.
+    expect(document.body).not.toHaveTextContent(/isn't running|not running/i);
+
+    await confirmAddress(user);
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveAttribute('aria-modal', 'true');
+    expect(dialog).toHaveAccessibleName('Before you send your order');
+    expect(dialog).toHaveAccessibleDescription(storeConfig.areas.noRunnerWords);
+    // Focus moves into it.
+    expect(within(dialog).getByRole('button', { name: 'OK, I understand' })).toHaveFocus();
+    // The button to pay is never greyed out by it.
+    expect(screen.getByRole('button', { name: 'Send my order and pay' })).toBeEnabled();
+    // Noted, so they are texted once when a Runner joins.
+    await waitFor(() =>
+      expect(recorded.filter((r) => r.path === '/me/area/warned')).toHaveLength(1),
+    );
+
+    await user.click(within(dialog).getByRole('button', { name: 'OK, I understand' }));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Send my order and pay' })).toHaveFocus(),
+    );
+
     await user.click(screen.getByRole('button', { name: 'Send my order and pay' }));
-    expect(recorded.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(false);
+    await waitFor(() =>
+      expect(recorded.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(true),
+    );
+    // Once for this order: it did not come back.
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(recorded.filter((r) => r.path === '/me/area/warned')).toHaveLength(1);
+  });
+
+  it('is shown once for the order, not on every change on the screen', async () => {
+    stubArea(true);
+    const user = userEvent.setup({ delay: null });
+    await toConfirm(user);
+    await confirmAddress(user);
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    // Something else on the screen changes: no second warning.
+    const asap = screen.queryAllByRole('radio')[0];
+    if (asap) await user.click(asap);
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('is not shown where the area has a Runner, and nothing blocks the order', async () => {
+    const recorded = stubArea(false);
+    const user = userEvent.setup({ delay: null });
+    await toConfirm(user);
+    await waitFor(() => expect(recorded.some((r) => r.path === '/areas/check')).toBe(true));
+    await confirmAddress(user);
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Send my order and pay' }));
+    await waitFor(() =>
+      expect(recorded.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(true),
+    );
+  });
+
+  it('sends the referral link for a driver with the share sheet, then goes back to the order', async () => {
+    const share = vi.fn(async () => Promise.resolve());
+    Object.defineProperty(navigator, 'share', { value: share, configurable: true });
+    stubArea(true);
+    const user = userEvent.setup({ delay: null });
+    await toConfirm(user);
+    await confirmAddress(user);
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Send my referral link' }));
+    await waitFor(() => expect(share).toHaveBeenCalledTimes(1));
+    expect(share).toHaveBeenCalledWith({
+      title: storeConfig.productName,
+      text: storeConfig.areas.inviteDriverWords.replace('{link}', RUNNER_LINK),
+      url: RUNNER_LINK,
+    });
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(screen.getByRole('button', { name: 'Send my order and pay' })).toBeEnabled();
+  });
+
+  it('copies the link where there is no share sheet', async () => {
+    stubArea(true);
+    const user = userEvent.setup({ delay: null });
+    // After user-event's own clipboard is put in place.
+    const writeText = vi.fn(async () => Promise.resolve());
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+    await toConfirm(user);
+    await confirmAddress(user);
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Send my referral link' }));
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        storeConfig.areas.inviteDriverWords.replace('{link}', RUNNER_LINK),
+      ),
+    );
+    expect(await screen.findByText(/Your referral link is copied/)).toHaveAttribute(
+      'role',
+      'status',
+    );
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('has no accessibility problems', async () => {
+    stubArea(true);
+    const user = userEvent.setup({ delay: null });
+    await toConfirm(user);
+    await confirmAddress(user);
+    const dialog = await screen.findByRole('alertdialog');
+    const results = await axe.run(dialog);
+    expect(results.violations).toEqual([]);
+  });
+});
+
+describe('a Runner with no home postcode yet', () => {
+  it('is asked plainly and prominently, and told only jobs wait for it', () => {
+    render(<HomePostcode onSaved={() => undefined} />);
+    const region = screen.getByRole('region', { name: 'Please add your home postcode' });
+    expect(region).toHaveAccessibleDescription(
+      /You will not be offered any jobs until your home postcode is saved\..*Everything else in the app works as normal without it\./,
+    );
+    expect(within(region).getByLabelText('Home postcode')).toBeInTheDocument();
   });
 });
 
@@ -174,8 +330,8 @@ describe('sharing where a Runner is', () => {
 });
 
 const AREA = {
-  ready: true,
-  needs: [],
+  hasRunner: true,
+  warn: false,
   shoppers: 12,
   runnersApproved: 2,
   runnersWaiting: 1,
@@ -200,18 +356,17 @@ describe('the Areas page', () => {
               area: 'ME',
               name: 'Medway',
               paused,
-              running: !paused,
-              statusWords: paused ? 'Paused' : 'Ready',
+              warn: paused,
+              statusWords: paused ? 'Paused' : 'Has a Runner (driver)',
             },
             {
               ...AREA,
               area: 'M',
               name: 'Manchester',
-              ready: false,
+              hasRunner: false,
               paused: false,
-              running: false,
-              needs: ['shop'],
-              statusWords: 'Not ready yet (needs: a shop)',
+              warn: true,
+              statusWords: 'No Runner (driver) yet',
               ordersThisWeek: 0,
               waitingList: 5,
             },
@@ -230,7 +385,7 @@ describe('the Areas page', () => {
 
     const medway = (await screen.findByRole('heading', { level: 3, name: 'Medway (ME)' }))
       .parentElement!;
-    expect(within(medway).getByText('Ready')).toBeInTheDocument();
+    expect(within(medway).getByText('Has a Runner (driver)')).toBeInTheDocument();
     expect(within(medway).getByText('12 Shoppers')).toBeInTheDocument();
     expect(
       within(medway).getByText('2 approved Runners, 1 waiting for approval'),
@@ -241,8 +396,12 @@ describe('the Areas page', () => {
       level: 3,
       name: 'Manchester (M)',
     }).parentElement!;
-    expect(within(manchester).getByText('Not ready yet (needs: a shop)')).toBeInTheDocument();
-    expect(within(manchester).getByText('5 on the waiting list')).toBeInTheDocument();
+    expect(within(manchester).getByText('No Runner (driver) yet')).toBeInTheDocument();
+    expect(
+      within(manchester).getByText('5 warned there was no Runner, to be texted when one joins'),
+    ).toBeInTheDocument();
+    // Every area is open: no readiness, and no word of not running.
+    expect(container).not.toHaveTextContent(/Not ready|isn't running|not running|takes no orders/);
 
     await user.click(within(medway).getByRole('button', { name: 'Pause Medway' }));
     await waitFor(() => expect(news).toHaveBeenCalledWith('Medway is paused.'));

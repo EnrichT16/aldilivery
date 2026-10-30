@@ -144,7 +144,10 @@ export interface Runner {
   travelModes: VehicleType[];
   /** Their own ID, shown to them and used in the invitation link they share. */
   referralCode: string;
-  /** The ID of whoever invited them, if anyone did. */
+  /**
+   * Who invited them, if anyone did: a Runner's ID, or "shopper:<handle>" for a Shopper who sent
+   * their referral link to a driver (30 October 2026).
+   */
   referredBy: string | null;
   /** A person has seen their driving licence and found it valid. */
   drivingLicenceVerified: boolean;
@@ -1509,11 +1512,17 @@ export interface AreaRecord {
   area: string;
   pausedAt: Date | null;
   pausedBy: string | null;
-  /** When it first started running, which is when its waiting list was texted. */
+  /**
+   * When it first had an approved Runner, which is when the Shoppers warned there was none were
+   * texted (30 October 2026; every area is open, so it no longer means it began taking orders).
+   */
   startedAt: Date | null;
 }
 
-/** A Shopper waiting for Ozi to start in their area, texted once when it does. */
+/**
+ * A Shopper warned, as they ordered, that their area had no Runner yet (30 October 2026), texted
+ * once when one joins. The table kept its first name, the waiting list.
+ */
 export interface AreaWaiting {
   id: string;
   area: string;

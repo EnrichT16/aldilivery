@@ -586,16 +586,35 @@ export function saveHomePostcode(
   );
 }
 
-/** Whether we are running in a postcode's area yet (Anthony, 30 October 2026). */
+/**
+ * A postcode's area (Anthony, 30 October 2026). Every area is open: nothing here ever refuses an
+ * order. `warn` is true where there is no approved Runner yet, or the area is paused, and the
+ * confirmation screen then warns gently as the order is placed, and only then.
+ */
 export interface AreaCheck {
   area: string;
   name: string;
-  running: boolean;
+  hasRunner: boolean;
+  paused: boolean;
+  warn: boolean;
+  /** "Yes, we deliver in …", for anybody who asks. */
   words: string;
+  /** The warning's words, when `warn`. */
+  warning?: string;
 }
 
 export function checkArea(postcode: string): Promise<AreaCheck> {
   return request<AreaCheck>(`/areas/check?${new URLSearchParams({ postcode }).toString()}`);
+}
+
+/** The signed-in Shopper's home area, or the area of the postcode given. */
+export function fetchMyArea(postcode?: string): Promise<AreaCheck | { area: null; warn: false }> {
+  return request(`/me/area${postcode ? `?${new URLSearchParams({ postcode }).toString()}` : ''}`);
+}
+
+/** The warning was shown as they ordered: texted once when a Runner joins there. */
+export function markAreaWarned(address: string): Promise<{ noted: boolean }> {
+  return request('/me/area/warned', { method: 'POST', body: JSON.stringify({ address }) });
 }
 
 export interface RunnerPay {
@@ -3046,6 +3065,11 @@ export function fetchMemoryExport(key: string): Promise<{ count: number; lines: 
 export interface ShareLink {
   link: string;
   joined: number;
+  /**
+   * A Shopper's referral link for a driver (30 October 2026): it opens Runner sign-up, with the
+   * Shopper recorded as the one who invited them.
+   */
+  runnerLink?: string;
 }
 
 /** A Shopper's own link. */
@@ -3536,10 +3560,11 @@ export function fetchRunnersNow(key: string): Promise<RunnersNow> {
 export interface AreaRow {
   area: string;
   name: string;
-  ready: boolean;
+  /** An approved Runner able to work lives there (30 October 2026: every area is open). */
+  hasRunner: boolean;
   paused: boolean;
-  running: boolean;
-  needs: Array<'runner' | 'shop'>;
+  /** Shoppers ordering there are warned gently: no Runner, or paused. */
+  warn: boolean;
   statusWords: string;
   shoppers: number;
   runnersApproved: number;
@@ -3547,6 +3572,7 @@ export interface AreaRow {
   shopsApproved: number;
   shopsWaiting: number;
   organisations: number;
+  /** Shoppers warned there was no Runner, to be texted once when one joins. */
   waitingList: number;
   ordersToday: number;
   ordersThisWeek: number;

@@ -57,8 +57,10 @@ export function Terms(): JSX.Element {
           self-employed people who work with us; we are responsible to you for the service.
         </p>
         <p className="m-0">
-          We run across the UK, area by area. Before you pay, we tell you if we are not running in
-          your area yet.
+          {/* Every area is open (Anthony, 30 October 2026). */}
+          We run across the UK, area by area, and every area is open. If there is no Runner in your
+          area yet, we tell you as you place your order, before you pay, and you choose whether to
+          go ahead.
         </p>
         <p className="m-0">
           Our service is for adults. You must be 18 or over to open an account, and the shopping is

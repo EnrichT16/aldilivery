@@ -20,8 +20,10 @@ import { storeConfig } from '../config';
 import {
   askOzi,
   createOrder,
+  fetchMyArea,
   fetchShops,
   listPaymentMethods,
+  markAreaWarned,
   priceBasketRemotely,
   recordExchange,
   searchCatalogue,
@@ -55,6 +57,8 @@ import {
  *   Ozi reads the basket back, with the shopping, the delivery fee and the total.
  *   Ozi says the delivery address aloud — the registered home address, always, for a voice
  *   order — and waits for a yes (Section D).
+ *   Where their area has no Runner (driver) yet, or is paused, Ozi says so gently and asks
+ *   whether they would still like to go ahead (30 October 2026). It never stops the order.
  *   Ozi asks to send it and charge the card. A yes sends it.
  *
  * Two separate yeses, the address and the payment, and nothing is ever sent without both.
@@ -624,6 +628,21 @@ export function useVoiceOrdering(
     [say, reset, navigate, ceiling],
   );
 
+  /**
+   * The gentle warning before the final yes, when the home area has no Runner yet or is paused
+   * (30 October 2026), with the question; '' when there is nothing to say or it cannot be asked.
+   */
+  const noRunnerWarning = useCallback(async (home: string): Promise<string> => {
+    try {
+      const area = await fetchMyArea();
+      if (!area.warn) return '';
+      markAreaWarned(home).catch(() => undefined);
+      return `${storeConfig.areas.noRunnerWords} ${storeConfig.areas.goAheadQuestion} `;
+    } catch {
+      return '';
+    }
+  }, []);
+
   const handle = useCallback(
     async (text: string): Promise<boolean> => {
       const current = stage.current;
@@ -821,7 +840,13 @@ export function useVoiceOrdering(
             lastFour: current.lastFour,
             statement,
           };
-          await say(`${statement} Say yes to send it and pay, or no to stop. ${ANOTHER_DAY}`);
+          // Every area is open (Anthony, 30 October 2026). Where their home area has no Runner
+          // yet, or is paused, Ozi says so gently before the final yes, once for this order, and
+          // they choose; nothing is stopped. It is never said earlier than this.
+          const warning = await noRunnerWarning(current.home);
+          await say(
+            `${warning}${statement} Say yes to send it and pay, or no to stop. ${ANOTHER_DAY}`,
+          );
           return true;
         }
 
@@ -923,7 +948,19 @@ export function useVoiceOrdering(
         }
       }
     },
-    [say, offerAccount, reset, next, navigate, ceiling, shop, chatter, refresh, rebook],
+    [
+      say,
+      offerAccount,
+      reset,
+      next,
+      navigate,
+      ceiling,
+      shop,
+      chatter,
+      refresh,
+      rebook,
+      noRunnerWarning,
+    ],
   );
 
   const expectOrder = useCallback(() => {
