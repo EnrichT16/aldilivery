@@ -36,7 +36,8 @@ const START = new Date('2026-10-30T11:00:00.000Z');
 /** Places a stand-in postcodes.io knows. */
 const PLACES: Record<string, { latitude: number; longitude: number }> = {
   'ME7 1AA': { latitude: 51.3891, longitude: 0.5469 },
-  'ME7 2BB': { latitude: 51.38, longitude: 0.55 },
+  // About four miles off: outside the near band (dispatch.nearBandMiles), inside the radius.
+  'ME7 2BB': { latitude: 51.33, longitude: 0.55 },
   'M1 1AE': { latitude: 53.4808, longitude: -2.2426 },
   'B1 1AA': { latitude: 52.4862, longitude: -1.8904 },
 };
@@ -288,6 +289,40 @@ describe('a Shopper where we are not running yet', () => {
   });
 });
 
+describe('a telephone order paid by link where we are not running yet', () => {
+  it('gives the money straight back, closes the order and puts them on the waiting list', async () => {
+    const shopper = await signUpShopper(harness, { phone: '+447700900888' });
+    await harness.repository.shoppers.update(shopper.shopperId, { deliveryAddress: '' });
+    const order = await harness.repository.orders.create({
+      shopperId: shopper.shopperId,
+      status: 'confirmed',
+      goodsEstimatePence: 89,
+      feePence: 1099,
+      totalEstimatePence: 1239,
+      deliveryAddress: '',
+      items: [],
+    });
+    const before = harness.payments.calls.filter((call) => call.kind === 'refund').length;
+    // The rehearsal payment page gives an Aberdeen (AB) address, where nobody runs yet.
+    const paid = await harness.app.inject({
+      method: 'POST',
+      url: '/webhooks/stripe',
+      headers: { 'content-type': 'application/json', 'stripe-signature': 'rehearsal' },
+      payload: JSON.stringify({
+        id: 'evt_link_far',
+        type: 'checkout.session.completed',
+        data: { object: { id: 'cs_rehearsal_far', metadata: { orderId: order.id } } },
+      }),
+    });
+    expect(paid.statusCode, paid.body).toBe(200);
+    const after = await harness.repository.orders.findById(order.id);
+    expect(after?.status).toBe('cancelled');
+    const refunds = harness.payments.calls.filter((call) => call.kind === 'refund');
+    expect(refunds).toHaveLength(before + 1);
+    expect(refunds.at(-1)!.input).toMatchObject({ amountPence: 1239 });
+  });
+});
+
 describe('postcodes into places', () => {
   it('asks postcodes.io once when a postcode is saved, and keeps the answer', async () => {
     expect(await locatePostcode(harness.app.ctx, '12 Example Street, ME7 1AA')).toEqual(
@@ -436,7 +471,7 @@ describe('local jobs', () => {
     const shopper = await signUpShopper(harness);
     await locatePostcode(harness.app.ctx, 'ME7 2BB');
     await locatePostcode(harness.app.ctx, 'ME7 1AA');
-    // Said it was next door two hours ago; lives a mile off.
+    // Said it was next door two hours ago; lives four miles off.
     const stale = await signUpRunner(harness, {
       name: 'Stale',
       phone: '+447700900102',
