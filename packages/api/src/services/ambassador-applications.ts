@@ -69,7 +69,8 @@ function latestByKind(
   documents: readonly AmbassadorDocument[],
 ): Map<AmbassadorDocumentKind, AmbassadorDocument> {
   const latest = new Map<AmbassadorDocumentKind, AmbassadorDocument>();
-  for (const document of documents) if (!latest.has(document.kind)) latest.set(document.kind, document);
+  for (const document of documents)
+    if (!latest.has(document.kind)) latest.set(document.kind, document);
   return latest;
 }
 
@@ -86,7 +87,9 @@ export function documentsStillNeeded(
 }
 
 /** The words for a document, as the person sees it: "Your photo ID, the front (Passport)". */
-export function documentName(document: Pick<AmbassadorDocument, 'kind' | 'idType' | 'addressType'>) {
+export function documentName(
+  document: Pick<AmbassadorDocument, 'kind' | 'idType' | 'addressType'>,
+) {
   const base = AMBASSADOR_DOCUMENT_WORDS[document.kind];
   if (document.idType) return `${base} (${AMBASSADOR_ID_WORDS[document.idType]})`;
   if (document.addressType) return `${base} (${AMBASSADOR_ADDRESS_WORDS[document.addressType]})`;
@@ -196,8 +199,10 @@ export async function sendAmbassadorDocument(
   let shareCode: string | null = null;
   if (input.kind === 'share_code') {
     const code = (input.shareCode ?? '').toUpperCase().replace(/\s+/g, '');
-    if (code.length < 6) throw new BadRequestError('Please type the share code. It is 9 letters and numbers.');
-    if (code.length > 20) throw new BadRequestError('That share code is too long. Please check it.');
+    if (code.length < 6)
+      throw new BadRequestError('Please type the share code. It is 9 letters and numbers.');
+    if (code.length > 20)
+      throw new BadRequestError('That share code is too long. Please check it.');
     shareCode = code;
   } else {
     if (!input.image) throw new BadRequestError('Please send a photo.');
@@ -208,19 +213,26 @@ export async function sendAmbassadorDocument(
       );
     }
     image = Buffer.from(input.image, 'base64');
-    if (image.length === 0) throw new BadRequestError('That file was empty. Please choose another.');
+    if (image.length === 0)
+      throw new BadRequestError('That file was empty. Please choose another.');
     if (isPdf && image.subarray(0, 5).toString('latin1') !== '%PDF-') {
       throw new BadRequestError('That file is not a PDF. Please choose another.');
     }
     if (image.length > MAX_BYTES) {
-      throw new BadRequestError('That file is too large. Please choose one under 6 MB, or take a photo.');
+      throw new BadRequestError(
+        'That file is too large. Please choose one under 6 MB, or take a photo.',
+      );
     }
   }
   if (input.kind === 'photo_id_front' && !input.idType) {
-    throw new BadRequestError('Please say which photo ID it is: a passport, driving licence or residence card.');
+    throw new BadRequestError(
+      'Please say which photo ID it is: a passport, driving licence or residence card.',
+    );
   }
   if (input.kind === 'proof_of_address' && !input.addressType) {
-    throw new BadRequestError('Please say what the letter is: a utility bill, a bank letter or a council tax letter.');
+    throw new BadRequestError(
+      'Please say what the letter is: a utility bill, a bank letter or a council tax letter.',
+    );
   }
   let current = agreement;
   if (input.kind === 'photo_id_front' && input.idType && input.idType !== agreement.idType) {
@@ -233,7 +245,10 @@ export async function sendAmbassadorDocument(
     accountKind: current.accountKind,
     accountId: current.accountId,
     kind: input.kind,
-    idType: input.kind === 'photo_id_front' || input.kind === 'photo_id_back' ? (current.idType ?? input.idType ?? null) : null,
+    idType:
+      input.kind === 'photo_id_front' || input.kind === 'photo_id_back'
+        ? (current.idType ?? input.idType ?? null)
+        : null,
     addressType: input.kind === 'proof_of_address' ? (input.addressType ?? null) : null,
     image,
     contentType: image ? (input.contentType ?? null) : null,

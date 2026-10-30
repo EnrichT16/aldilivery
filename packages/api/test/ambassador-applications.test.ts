@@ -12,7 +12,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { DocumentCheckInput, DocumentReading, OziBrain } from '../src/lib/language-model.js';
 import { sweepRetention } from '../src/services/retention.js';
-import { buildTestApp, signUpShopper, STAFF, type TestHarness, type TestAppOptions } from './helpers.js';
+import {
+  buildTestApp,
+  signUpShopper,
+  STAFF,
+  type TestHarness,
+  type TestAppOptions,
+} from './helpers.js';
 
 let harness: TestHarness;
 
@@ -41,7 +47,10 @@ function clearReading(input: DocumentCheckInput): DocumentReading {
   return {
     kindMatches: true,
     readable: true,
-    nameOnDocument: input.kind === 'face_photo' || input.kind === 'ambassador_card_back' ? null : 'OBI, ADA NGOZI',
+    nameOnDocument:
+      input.kind === 'face_photo' || input.kind === 'ambassador_card_back'
+        ? null
+        : 'OBI, ADA NGOZI',
     expiresOn: input.kind === 'ambassador_passport' ? '2031-05-01' : null,
     dbsRecordsSomething: null,
     clearRealFace: input.kind === 'face_photo' ? true : null,
@@ -92,7 +101,12 @@ function sendDocument(headers: Record<string, string>, payload: object) {
 async function sendEverything(headers: Record<string, string>) {
   for (const payload of [
     { kind: 'photo_id_front', idType: 'passport', image: PHOTO, contentType: 'image/jpeg' },
-    { kind: 'proof_of_address', addressType: 'council_tax', image: PDF, contentType: 'application/pdf' },
+    {
+      kind: 'proof_of_address',
+      addressType: 'council_tax',
+      image: PDF,
+      contentType: 'application/pdf',
+    },
     { kind: 'face_photo', image: PHOTO, contentType: 'image/jpeg' },
   ]) {
     const sent = await sendDocument(headers, payload);
@@ -165,11 +179,13 @@ describe('applying to be an Ozi Ambassador', () => {
     );
     // A link used now ties nothing.
     const early = await joinShop({ ambassador: ada.via });
-    expect((await harness.repository.partnerShops.findById(early.shop.id))?.ambassadorId).toBeNull();
+    expect(
+      (await harness.repository.partnerShops.findById(early.shop.id))?.ambassadorId,
+    ).toBeNull();
 
     // The documents, read by the automatic check and marked checked.
     await sendEverything(ada.authHeader);
-    let application = (await get('/ambassador/application', ada.authHeader)).json().application;
+    const application = (await get('/ambassador/application', ada.authHeader)).json().application;
     expect(application).toEqual(
       expect.objectContaining({
         status: 'documents_checked',
@@ -189,7 +205,11 @@ describe('applying to be an Ozi Ambassador', () => {
 
     // Approve is refused before the chat.
     const id = (await agreementOf(ada.shopperId)).id;
-    const tooSoon = await post(`/staff/ambassador-applications/${id}/approve`, { by: 'Anthony' }, STAFF);
+    const tooSoon = await post(
+      `/staff/ambassador-applications/${id}/approve`,
+      { by: 'Anthony' },
+      STAFF,
+    );
     expect(tooSoon.statusCode).toBe(409);
     expect(tooSoon.json().error.message).toBe('Please record the chat with the founder first.');
 
@@ -199,11 +219,18 @@ describe('applying to be an Ozi Ambassador', () => {
       STAFF,
     );
     expect(chat.statusCode, chat.body).toBe(200);
-    expect((await agreementOf(ada.shopperId))).toEqual(
-      expect.objectContaining({ status: 'chat_done', chatNotes: 'Knows lots of cafés in Chatham.' }),
+    expect(await agreementOf(ada.shopperId)).toEqual(
+      expect.objectContaining({
+        status: 'chat_done',
+        chatNotes: 'Knows lots of cafés in Chatham.',
+      }),
     );
 
-    const approved = await post(`/staff/ambassador-applications/${id}/approve`, { by: 'Anthony' }, STAFF);
+    const approved = await post(
+      `/staff/ambassador-applications/${id}/approve`,
+      { by: 'Anthony' },
+      STAFF,
+    );
     expect(approved.statusCode, approved.body).toBe(200);
     expect(approved.json().message).toMatch(/^Ada Obi is approved as an Ozi Ambassador, by /);
 
@@ -274,7 +301,10 @@ describe('applying to be an Ozi Ambassador', () => {
         checkIssuedOn: '2026-06-01',
       }),
     );
-    const matters = await harness.repository.ownerDesk.findMattersFor('ambassador_document', letter.id);
+    const matters = await harness.repository.ownerDesk.findMattersFor(
+      'ambassador_document',
+      letter.id,
+    );
     expect(matters[0]?.summary).toBe(
       "Ambassador applicant Ada Obi's proof of address needs you. It is not dated within the last 3 months.",
     );
@@ -287,13 +317,17 @@ describe('applying to be an Ozi Ambassador', () => {
     );
     expect(rejected.statusCode, rejected.body).toBe(200);
     const application = (await get('/ambassador/application', ada.authHeader)).json().application;
-    expect(application.stillNeeded.map((row: { kind: string }) => row.kind)).toContain('proof_of_address');
+    expect(application.stillNeeded.map((row: { kind: string }) => row.kind)).toContain(
+      'proof_of_address',
+    );
     expect(
-      application.documents.find((row: { kind: string }) => row.kind === 'proof_of_address').reviewNote,
+      application.documents.find((row: { kind: string }) => row.kind === 'proof_of_address')
+        .reviewNote,
     ).toBe('Please send a letter from the last 3 months.');
     // Settled on the desk: Ozi does not ring about it any more.
     expect(
-      (await harness.repository.ownerDesk.findMattersFor('ambassador_document', letter.id))[0]?.status,
+      (await harness.repository.ownerDesk.findMattersFor('ambassador_document', letter.id))[0]
+        ?.status,
     ).toBe('handled');
   });
 
@@ -324,8 +358,13 @@ describe('applying to be an Ozi Ambassador', () => {
     // Without agreeing first, nothing is taken.
     const bea = await applicant('Bea', '+447700900501');
     expect(
-      (await sendDocument(bea.authHeader, { kind: 'face_photo', image: PHOTO, contentType: 'image/jpeg' }))
-        .statusCode,
+      (
+        await sendDocument(bea.authHeader, {
+          kind: 'face_photo',
+          image: PHOTO,
+          contentType: 'image/jpeg',
+        })
+      ).statusCode,
     ).toBe(400);
   });
 
@@ -335,11 +374,17 @@ describe('applying to be an Ozi Ambassador', () => {
     const ada = await applicant();
     await agree(ada.authHeader);
     await sendEverything(ada.authHeader);
-    const code = await sendDocument(ada.authHeader, { kind: 'share_code', shareCode: 'W12 345 678' });
+    const code = await sendDocument(ada.authHeader, {
+      kind: 'share_code',
+      shareCode: 'W12 345 678',
+    });
     expect(code.statusCode, code.body).toBe(201);
     const agreement = await agreementOf(ada.shopperId);
     expect(agreement.status).toBe('documents_sent');
-    const told = await harness.repository.ownerDesk.findMattersFor('ambassador_application', agreement.id);
+    const told = await harness.repository.ownerDesk.findMattersFor(
+      'ambassador_application',
+      agreement.id,
+    );
     expect(told).toHaveLength(1);
     expect(told[0]).toEqual(
       expect.objectContaining({
@@ -347,9 +392,9 @@ describe('applying to be an Ozi Ambassador', () => {
         options: 'acknowledge',
       }),
     );
-    const shareCode = (await harness.repository.ambassadorDocuments.listForAgreement(agreement.id)).find(
-      (row) => row.kind === 'share_code',
-    )!;
+    const shareCode = (
+      await harness.repository.ambassadorDocuments.listForAgreement(agreement.id)
+    ).find((row) => row.kind === 'share_code')!;
     expect(shareCode.shareCode).toBe('W12345678');
     expect(shareCode.checkNote).toMatch(/share code, which the automatic check cannot verify/);
   });
@@ -362,14 +407,23 @@ describe('the staff Ambassadors page', () => {
     await agree(ada.authHeader);
     expect((await get('/staff/ambassador-applications')).statusCode).toBe(403);
     expect(
-      (await get('/staff/ambassador-applications', await staffToken('customer_care', 'kemi'))).statusCode,
+      (await get('/staff/ambassador-applications', await staffToken('customer_care', 'kemi')))
+        .statusCode,
     ).toBe(403);
     expect(
-      (await get('/staff/ambassador-applications', await staffToken('partnerships', 'sade'))).statusCode,
+      (await get('/staff/ambassador-applications', await staffToken('partnerships', 'sade')))
+        .statusCode,
     ).toBe(403);
-    const manager = await get('/staff/ambassador-applications', await staffToken('operations_manager', 'tolu'));
+    const manager = await get(
+      '/staff/ambassador-applications',
+      await staffToken('operations_manager', 'tolu'),
+    );
     expect(manager.statusCode, manager.body).toBe(200);
-    const groups = manager.json().groups as Array<{ status: string; words: string; applications: Array<{ name: string }> }>;
+    const groups = manager.json().groups as Array<{
+      status: string;
+      words: string;
+      applications: Array<{ name: string }>;
+    }>;
     expect(groups.map((group) => group.words)).toEqual([
       'Applied',
       'Documents sent',
@@ -393,18 +447,28 @@ describe('the staff Ambassadors page', () => {
     const id = (await agreementOf(ada.shopperId)).id;
     const detail = (await get(`/staff/ambassador-applications/${id}`, STAFF)).json().application;
     expect(detail).toEqual(
-      expect.objectContaining({ name: 'Ada Obi', status: 'documents_checked', canRecordChat: true, canApprove: false }),
+      expect.objectContaining({
+        name: 'Ada Obi',
+        status: 'documents_checked',
+        canRecordChat: true,
+        canApprove: false,
+      }),
     );
     const pdf = detail.documents.find((row: { sentAs: string }) => row.sentAs === 'PDF');
-    expect(pdf).toEqual(expect.objectContaining({ checkPassed: true, checkIssuedOn: '2026-10-01', hasFile: true }));
+    expect(pdf).toEqual(
+      expect.objectContaining({ checkPassed: true, checkIssuedOn: '2026-10-01', hasFile: true }),
+    );
     const file = await get(`/staff/ambassador-documents/${pdf.id}/file`, STAFF);
     expect(file.statusCode).toBe(200);
     expect(file.headers['content-type']).toBe('application/pdf');
     expect(file.headers['cache-control']).toBe('no-store');
-    expect((await get(`/staff/ambassador-documents/${pdf.id}/file`, ada.authHeader)).statusCode).toBe(403);
+    expect(
+      (await get(`/staff/ambassador-documents/${pdf.id}/file`, ada.authHeader)).statusCode,
+    ).toBe(403);
 
     expect(
-      (await post(`/staff/ambassador-applications/${id}/decline`, { by: 'Anthony' }, STAFF)).statusCode,
+      (await post(`/staff/ambassador-applications/${id}/decline`, { by: 'Anthony' }, STAFF))
+        .statusCode,
     ).toBe(400);
     const declined = await post(
       `/staff/ambassador-applications/${id}/decline`,
@@ -417,7 +481,8 @@ describe('the staff Ambassadors page', () => {
       expect.objectContaining({
         status: 'declined',
         reason: 'We are not taking Ambassadors in your area yet.',
-        message: 'Your application was not approved. We are not taking Ambassadors in your area yet.',
+        message:
+          'Your application was not approved. We are not taking Ambassadors in your area yet.',
       }),
     );
     expect((await agreementOf(ada.shopperId)).stoppedAt).toEqual(harness.now());
@@ -440,7 +505,11 @@ describe('the staff Ambassadors page', () => {
     const withdraw = await post('/ambassador/withdraw', {}, ada.authHeader);
     expect(withdraw.json().error.message).toMatch(/suspended/);
     // Approved again: they had their chat before, so the founder may lift it.
-    const again = await post(`/staff/ambassador-applications/${id}/approve`, { by: 'Anthony' }, STAFF);
+    const again = await post(
+      `/staff/ambassador-applications/${id}/approve`,
+      { by: 'Anthony' },
+      STAFF,
+    );
     expect(again.statusCode, again.body).toBe(200);
     expect((await get('/ambassador/toolkit', ada.authHeader)).statusCode).toBe(200);
   });
@@ -460,12 +529,20 @@ describe('Ambassadors who opted in before applications', () => {
     });
     const mine = (await get('/referrals/me', ada.authHeader)).json().ambassador;
     expect(mine).toEqual(
-      expect.objectContaining({ status: 'documents_needed', statusWords: 'Documents needed', approved: false }),
+      expect.objectContaining({
+        status: 'documents_needed',
+        statusWords: 'Documents needed',
+        approved: false,
+      }),
     );
-    expect(mine.applicationMessage).toMatch(/Your Ambassador link keeps working and your earnings keep adding up/);
+    expect(mine.applicationMessage).toMatch(
+      /Your Ambassador link keeps working and your earnings keep adding up/,
+    );
     expect(mine.link).toMatch(/\/business\/join\?ambassador=shopper-/);
     const shop = await joinShop({ ambassador: ada.via });
-    expect((await harness.repository.partnerShops.findById(shop.shop.id))?.ambassadorId).toBe(ada.shopperId);
+    expect((await harness.repository.partnerShops.findById(shop.shop.id))?.ambassadorId).toBe(
+      ada.shopperId,
+    );
 
     const toolkit = await get('/ambassador/toolkit', ada.authHeader);
     expect(toolkit.statusCode).toBe(403);
@@ -487,10 +564,15 @@ describe('Ambassadors who opted in before applications', () => {
     });
     const withdraw = await post('/ambassador/withdraw', {}, ada.authHeader);
     expect(withdraw.statusCode).toBe(409);
-    expect(withdraw.json().error.message).toMatch(/please send your documents and have a short chat/);
+    expect(withdraw.json().error.message).toMatch(
+      /please send your documents and have a short chat/,
+    );
     expect((await get('/referrals/me', ada.authHeader)).json().ambassador.canWithdraw).toBe(false);
     // Staff cannot mark them paid either, until approved.
-    expect((await post(`/staff/ambassadors/shopper/${ada.shopperId}/paid`, { by: 'Anthony' }, STAFF)).statusCode).toBe(409);
+    expect(
+      (await post(`/staff/ambassadors/shopper/${ada.shopperId}/paid`, { by: 'Anthony' }, STAFF))
+        .statusCode,
+    ).toBe(409);
 
     // Sending their documents never stops the link on the way.
     await sendEverything(ada.authHeader);
@@ -498,8 +580,16 @@ describe('Ambassadors who opted in before applications', () => {
     expect(agreement.status).toBe('documents_needed');
     expect(agreement.documentsCheckedAt).toEqual(harness.now());
     expect((await get('/referrals/me', ada.authHeader)).json().ambassador.link).toBeTruthy();
-    await post(`/staff/ambassador-applications/${agreement.id}/chat-done`, { by: 'Anthony' }, STAFF);
-    const approved = await post(`/staff/ambassador-applications/${agreement.id}/approve`, { by: 'Anthony' }, STAFF);
+    await post(
+      `/staff/ambassador-applications/${agreement.id}/chat-done`,
+      { by: 'Anthony' },
+      STAFF,
+    );
+    const approved = await post(
+      `/staff/ambassador-applications/${agreement.id}/approve`,
+      { by: 'Anthony' },
+      STAFF,
+    );
     expect(approved.statusCode, approved.body).toBe(200);
     expect((await get('/ambassador/toolkit', ada.authHeader)).statusCode).toBe(200);
     expect((await get('/referrals/me', ada.authHeader)).json().ambassador.canWithdraw).toBe(true);
@@ -515,13 +605,21 @@ describe('the Ambassador Toolkit', () => {
     expect(toolkit).toEqual(
       expect.objectContaining({
         firstName: 'Ada',
-        businessLink: expect.stringMatching(new RegExp(`/business/join\\?ambassador=shopper-${ada.handle}$`)),
+        businessLink: expect.stringMatching(
+          new RegExp(`/business/join\\?ambassador=shopper-${ada.handle}$`),
+        ),
         shopperLink: expect.stringMatching(new RegExp(`/join\\?via=shopper-${ada.handle}$`)),
-        runnerLink: expect.stringMatching(new RegExp(`/runner/sign-up\\?via=shopper-${ada.handle}$`)),
+        runnerLink: expect.stringMatching(
+          new RegExp(`/runner/sign-up\\?via=shopper-${ada.handle}$`),
+        ),
       }),
     );
     expect(toolkit.businesses).toEqual([
-      expect.objectContaining({ id: shop.shop.id, statusWords: 'Waiting for approval', shopLink: expect.stringMatching(new RegExp(`/shops/${shop.shop.id}$`)) }),
+      expect.objectContaining({
+        id: shop.shop.id,
+        statusWords: 'Waiting for approval',
+        shopLink: expect.stringMatching(new RegExp(`/shops/${shop.shop.id}$`)),
+      }),
     ]);
   });
 });
@@ -549,13 +647,25 @@ describe('Sign up this business now', () => {
     await build();
     const ada = await approvedAmbassador();
     // The owner must agree, in their own name.
-    const unsigned = await post('/ambassador/businesses', { ...business, ownerAgrees: false }, ada.authHeader);
+    const unsigned = await post(
+      '/ambassador/businesses',
+      { ...business, ownerAgrees: false },
+      ada.authHeader,
+    );
     expect(unsigned.statusCode).toBe(400);
     expect(unsigned.body).toMatch(/I am the owner or manager|owner or manager and you agree/);
-    const noTerms = await post('/ambassador/businesses', { ...business, termsAgreed: false }, ada.authHeader);
+    const noTerms = await post(
+      '/ambassador/businesses',
+      { ...business, termsAgreed: false },
+      ada.authHeader,
+    );
     expect(noTerms.statusCode).toBe(400);
     // Within the caps.
-    const tooMuch = await post('/ambassador/businesses', { ...business, agreedMarkupPercent: 500 }, ada.authHeader);
+    const tooMuch = await post(
+      '/ambassador/businesses',
+      { ...business, agreedMarkupPercent: 500 },
+      ada.authHeader,
+    );
     expect(tooMuch.statusCode).toBe(400);
 
     const made = await post('/ambassador/businesses', business, ada.authHeader);
@@ -579,13 +689,20 @@ describe('Sign up this business now', () => {
       }),
     );
     // The owner can sign in with the sign-in they chose.
-    const owner = await post('/business/sign-in', { username: 'mamaput', password: 'a-long-enough-password' });
+    const owner = await post('/business/sign-in', {
+      username: 'mamaput',
+      password: 'a-long-enough-password',
+    });
     expect(owner.statusCode, owner.body).toBe(200);
     // A referral too, as an Ambassador's link is.
-    expect((await harness.repository.referrals.findFor('partner', shop.id))?.referrerId).toBe(ada.shopperId);
+    expect((await harness.repository.referrals.findFor('partner', shop.id))?.referrerId).toBe(
+      ada.shopperId,
+    );
     // The owner is told on the desk, with the reference.
     const matter = (await harness.repository.ownerDesk.findMattersFor('partner_shop', shop.id))[0];
-    expect(matter?.summary).toContain(`signed up by Ozi Ambassador Ada Obi, agreement ${body.reference}`);
+    expect(matter?.summary).toContain(
+      `signed up by Ozi Ambassador Ada Obi, agreement ${body.reference}`,
+    );
 
     // The sheet's details, for the Ambassador who signed it up only.
     const sheet = await get(`/ambassador/agreements/${body.reference}`, ada.authHeader);
@@ -601,16 +718,24 @@ describe('Sign up this business now', () => {
       }),
     );
     const bea = await applicant('Bea', '+447700900501');
-    expect((await get(`/ambassador/agreements/${body.reference}`, bea.authHeader)).statusCode).toBe(403);
+    expect((await get(`/ambassador/agreements/${body.reference}`, bea.authHeader)).statusCode).toBe(
+      403,
+    );
   });
 
   it('refuses an owner whose phone or email is the Ambassador’s own', async () => {
     await build();
     const ada = await approvedAmbassador();
-    const own = await post('/ambassador/businesses', { ...business, mobile: '07700 900500' }, ada.authHeader);
+    const own = await post(
+      '/ambassador/businesses',
+      { ...business, mobile: '07700 900500' },
+      ada.authHeader,
+    );
     expect(own.statusCode).toBe(409);
     expect(own.json().error.message).toMatch(/An Ambassador cannot introduce their own business/);
-    expect((await harness.repository.partnerShops.list()).filter((row) => row.name === business.name)).toEqual([]);
+    expect(
+      (await harness.repository.partnerShops.list()).filter((row) => row.name === business.name),
+    ).toEqual([]);
   });
 
   it('is for approved Ambassadors only', async () => {
@@ -623,7 +748,9 @@ describe('Sign up this business now', () => {
   it('is approved by staff only with the sheet’s reference, which confirms the mark-up and discount', async () => {
     await build();
     const ada = await approvedAmbassador();
-    const { shop, reference } = (await post('/ambassador/businesses', business, ada.authHeader)).json();
+    const { shop, reference } = (
+      await post('/ambassador/businesses', business, ada.authHeader)
+    ).json();
 
     // A forged or copied sheet: the public check says so, and nothing is approved without it.
     const forged = (await get('/partner-agreements/OZA-AAAA-BBBB')).json();
@@ -636,7 +763,11 @@ describe('Sign up this business now', () => {
 
     const without = await post(`/staff/partners/${shop.id}`, { status: 'approved' }, STAFF);
     expect(without.statusCode).toBe(400);
-    const wrong = await post(`/staff/partners/${shop.id}`, { status: 'approved', agreementReference: 'OZA-AAAA-BBBB' }, STAFF);
+    const wrong = await post(
+      `/staff/partners/${shop.id}`,
+      { status: 'approved', agreementReference: 'OZA-AAAA-BBBB' },
+      STAFF,
+    );
     expect(wrong.statusCode).toBe(409);
     expect(wrong.json().error.message).toBe(
       'That reference does not match the agreement for this business. Nothing was approved.',
@@ -651,10 +782,18 @@ describe('Sign up this business now', () => {
     expect(desk.json().matter.status).toBe('open');
     expect((await harness.repository.partnerShops.findById(shop.id))?.status).toBe('pending');
 
-    const approved = await post(`/staff/partners/${shop.id}`, { status: 'approved', agreementReference: reference }, STAFF);
+    const approved = await post(
+      `/staff/partners/${shop.id}`,
+      { status: 'approved', agreementReference: reference },
+      STAFF,
+    );
     expect(approved.statusCode, approved.body).toBe(200);
     expect(approved.json().shop).toEqual(
-      expect.objectContaining({ status: 'approved', agreedMarkupPercent: 30, agreedDiscountPercent: 20 }),
+      expect.objectContaining({
+        status: 'approved',
+        agreedMarkupPercent: 30,
+        agreedDiscountPercent: 20,
+      }),
     );
   });
 });
@@ -669,9 +808,10 @@ describe('"Did someone introduce you? Their code (optional)" at sign-up', () => 
       introducedBy: ada.handle,
     });
     expect(shopper.statusCode, shopper.body).toBe(201);
-    expect((await harness.repository.referrals.findFor('shopper', shopper.json().shopper.id))?.referrerId).toBe(
-      ada.shopperId,
-    );
+    expect(
+      (await harness.repository.referrals.findFor('shopper', shopper.json().shopper.id))
+        ?.referrerId,
+    ).toBe(ada.shopperId);
     const runner = await post('/runners', {
       name: 'Dan',
       phone: '+447700900602',
@@ -682,11 +822,15 @@ describe('"Did someone introduce you? Their code (optional)" at sign-up', () => 
     });
     expect(runner.statusCode, runner.body).toBe(201);
     const runnerId = runner.json().runner.id as string;
-    expect((await harness.repository.referrals.findFor('runner', runnerId))?.referrerId).toBe(ada.shopperId);
+    expect((await harness.repository.referrals.findFor('runner', runnerId))?.referrerId).toBe(
+      ada.shopperId,
+    );
     // A Runner ID works too, typed in small letters.
     const code = runner.json().runner.referralCode as string;
     const shop = await joinShop({ introducedBy: code.toLowerCase() });
-    expect((await harness.repository.referrals.findFor('partner', shop.shop.id))?.referrerId).toBe(runnerId);
+    expect((await harness.repository.referrals.findFor('partner', shop.shop.id))?.referrerId).toBe(
+      runnerId,
+    );
 
     // Their own code: nothing is recorded.
     const self = await post('/runners', {
@@ -700,16 +844,24 @@ describe('"Did someone introduce you? Their code (optional)" at sign-up', () => 
     expect(self.statusCode, self.body).toBe(201);
     expect(await harness.repository.referrals.findFor('runner', self.json().runner.id)).toBeNull();
     // A code that is nobody's: the sign-up still works, with nothing recorded.
-    const nobody = await post('/shoppers', { displayName: 'Cy', phone: '+447700900603', introducedBy: 'not-a-code' });
+    const nobody = await post('/shoppers', {
+      displayName: 'Cy',
+      phone: '+447700900603',
+      introducedBy: 'not-a-code',
+    });
     expect(nobody.statusCode).toBe(201);
-    expect(await harness.repository.referrals.findFor('shopper', nobody.json().shopper.id)).toBeNull();
+    expect(
+      await harness.repository.referrals.findFor('shopper', nobody.json().shopper.id),
+    ).toBeNull();
   });
 
   it('ties an approved Ambassador when a business types their code', async () => {
     await build();
     const ada = await approvedAmbassador();
     const shop = await joinShop({ introducedBy: ada.handle });
-    expect((await harness.repository.partnerShops.findById(shop.shop.id))?.ambassadorId).toBe(ada.shopperId);
+    expect((await harness.repository.partnerShops.findById(shop.shop.id))?.ambassadorId).toBe(
+      ada.shopperId,
+    );
     expect(shop.message).toMatch(/introduced by Ada Obi, an Ozi Ambassador/);
   });
 });
@@ -721,7 +873,11 @@ describe('how long Ambassador documents are kept', () => {
     await agree(ada.authHeader);
     await sendEverything(ada.authHeader);
     const id = (await agreementOf(ada.shopperId)).id;
-    await post(`/staff/ambassador-applications/${id}/decline`, { by: 'Anthony', reason: 'Not now.' }, STAFF);
+    await post(
+      `/staff/ambassador-applications/${id}/decline`,
+      { by: 'Anthony', reason: 'Not now.' },
+      STAFF,
+    );
 
     harness.setNow(new Date('2027-11-09T10:00:00.000Z'));
     expect((await sweepRetention(harness.app.ctx)).ambassadorDocumentsRemoved).toBe(0);
@@ -744,13 +900,17 @@ describe('how long Ambassador documents are kept', () => {
     harness.setNow(new Date('2029-01-01T10:00:00.000Z'));
     await sweepRetention(harness.app.ctx);
     expect(
-      (await harness.repository.ambassadorDocuments.listForAgreement(beaAgreement.id)).every((row) => row.image !== null),
+      (await harness.repository.ambassadorDocuments.listForAgreement(beaAgreement.id)).every(
+        (row) => row.image !== null,
+      ),
     ).toBe(true);
 
     // Removed with the account.
     await harness.repository.retention.eraseShopper(bea.shopperId, harness.now());
     expect(
-      (await harness.repository.ambassadorDocuments.listForAgreement(beaAgreement.id)).every((row) => row.image === null),
+      (await harness.repository.ambassadorDocuments.listForAgreement(beaAgreement.id)).every(
+        (row) => row.image === null,
+      ),
     ).toBe(true);
   });
 });

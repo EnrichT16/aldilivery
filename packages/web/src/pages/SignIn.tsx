@@ -39,7 +39,12 @@ export function SignIn({ as: role = 'shopper' }: { as?: 'shopper' | 'runner' }):
   // Where to go afterwards: back to the order if that is where they came from. Only a path on
   // this site, never an address somewhere else.
   const requested = params.get('next') ?? '';
-  const next = asRunner ? '/runner/home' : /^\/[a-z-]*$/.test(requested) ? requested : '/shop';
+  // Two parts at most, so applying to be an Ambassador (/ambassador/apply) comes back too.
+  const next = asRunner
+    ? '/runner/home'
+    : /^\/[a-z-]*(\/[a-z-]+)?$/.test(requested)
+      ? requested
+      : '/shop';
 
   const [available, setAvailable] = useState<boolean | null>(null);
   const [byCall, setByCall] = useState(false);

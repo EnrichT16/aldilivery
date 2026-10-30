@@ -160,6 +160,8 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
         businesses: summary.businesses.map((business) => ({
           name: business.name,
           approved: business.approved,
+          // The Ambassador dashboard's "My businesses" (30 October 2026): what each has earned.
+          earnedPence: business.earnedPence,
         })),
         earnedPence: summary.earnedPence,
         pendingPence: summary.pendingPence,
@@ -167,10 +169,7 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
         paidPence: summary.paidPence,
         deductions: summary.deductions.map((line) => ({ at: line.at, words: line.words })),
         canWithdraw:
-          agreement !== null &&
-          approved &&
-          !ambassadorTermsChanged(agreement) &&
-          summary.payable,
+          agreement !== null && approved && !ambassadorTermsChanged(agreement) && summary.payable,
         bankReady: agreement ? await ambassadorBankReady(app.ctx, kind, id) : false,
         withdrawals: withdrawals.slice(0, 5).map((row) => ({
           id: row.id,
@@ -246,8 +245,7 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
     await checkInBackground(app.ctx, request.log, () =>
       checkAmbassadorDocument(app.ctx, document.id, request.log),
     );
-    const latest =
-      (await app.ctx.repository.ambassadorDocuments.findById(document.id)) ?? document;
+    const latest = (await app.ctx.repository.ambassadorDocuments.findById(document.id)) ?? document;
     const current = (await ambassadorAgreement(app.ctx, kind, id)) ?? agreement;
     void reply.status(201);
     return {

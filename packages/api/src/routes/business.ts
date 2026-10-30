@@ -1727,7 +1727,11 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         payNow: z.literal(false).default(false),
         agreedMarkupPercent: markupSchema.default(0),
         agreedDiscountPercent: discountSchema.default(0),
-        ownerName: z.string().trim().min(2, 'Please type your name, as the owner or manager.').max(80),
+        ownerName: z
+          .string()
+          .trim()
+          .min(2, 'Please type your name, as the owner or manager.')
+          .max(80),
         ownerAgrees: z.literal(true, {
           errorMap: () => ({
             message: 'Please tick to say you are the owner or manager and you agree.',
@@ -1750,7 +1754,13 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     const proposedMarkupPercent = markupFor(body.kind, body.agreedMarkupPercent);
     const proposedDiscountPercent = discountFor(body.kind, body.agreedDiscountPercent);
     const reference = await newAgreementReference();
-    const { ownerName, ownerAgrees: _agrees, agreedMarkupPercent: _m, agreedDiscountPercent: _d, ...join } = body;
+    const {
+      ownerName,
+      ownerAgrees: _agrees,
+      agreedMarkupPercent: _m,
+      agreedDiscountPercent: _d,
+      ...join
+    } = body;
     const joined = await joinPartner({ ...join, payNow: false }, request.log, {
       kind,
       id,
@@ -1794,9 +1804,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     if (!agreement || agreement.status !== 'approved') {
       throw new ForbiddenError('The Ambassador Toolkit is for approved Ozi Ambassadors.');
     }
-    const { reference } = z
-      .object({ reference: z.string().trim().max(20) })
-      .parse(request.params);
+    const { reference } = z.object({ reference: z.string().trim().max(20) }).parse(request.params);
     const shop = await repository.partnerShops.findByAgreementReference(reference.toUpperCase());
     if (!shop || shop.ambassadorKind !== kind || shop.ambassadorId !== id) {
       throw new NotFoundError('agreement');
@@ -1824,9 +1832,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
    * where it stands. Only the business's name and whether it is approved, never anybody's details.
    */
   app.get('/partner-agreements/:reference', async (request) => {
-    const { reference } = z
-      .object({ reference: z.string().trim().max(20) })
-      .parse(request.params);
+    const { reference } = z.object({ reference: z.string().trim().max(20) }).parse(request.params);
     const shop = await repository.partnerShops.findByAgreementReference(reference.toUpperCase());
     if (!shop) return { found: false, reference: reference.toUpperCase() };
     return {

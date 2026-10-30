@@ -24,7 +24,18 @@ import { SHOP_PRICES_WORDS } from '../lib/partnership';
  * checked before Shoppers see it, and what each side sees. Every figure comes from
  * config/store.json, so a price changed there changes here.
  */
-export function PartnerTerms(): JSX.Element {
+export function PartnerTerms({
+  embedded = false,
+}: {
+  /**
+   * Shown inside another page ("Sign up this business now", 30 October 2026): its headings one
+   * level down, so the page keeps one main heading.
+   */
+  embedded?: boolean;
+} = {}): JSX.Element {
+  const H1 = embedded ? 'h3' : 'h1';
+  const H2 = embedded ? 'h4' : 'h2';
+  const H3 = embedded ? 'h5' : 'h3';
   const name = storeConfig.productName;
   const assistant = storeConfig.assistantName;
   const { partners, spotlightPence, spotlightPlusPence, spotlightPerWeek, spotlightPlusPerWeek } =
@@ -36,7 +47,9 @@ export function PartnerTerms(): JSX.Element {
 
   return (
     <article className="space-y-8 max-w-2xl">
-      <h1 className="text-display font-bold m-0">Shop Partner terms</h1>
+      <H1 className={embedded ? 'text-lead font-bold m-0' : 'text-display font-bold m-0'}>
+        Shop Partner terms
+      </H1>
       <p className="m-0 text-lead">
         These are the terms between us and a shop, café, takeaway or service listed on {name}. If
         you would like them read to you, or in another format, ring us.
@@ -44,9 +57,9 @@ export function PartnerTerms(): JSX.Element {
       <DetailsToFollowNotice />
 
       <section aria-labelledby="who" className="space-y-3">
-        <h2 id="who" className="text-lead font-bold">
+        <H2 id="who" className="text-lead font-bold">
           Who we are
-        </h2>
+        </H2>
         <p className="m-0">
           {name} is run by {company.name}. In these terms, &ldquo;we&rdquo; and &ldquo;us&rdquo;
           means that company, and &ldquo;you&rdquo; means the business that joins.
@@ -55,9 +68,9 @@ export function PartnerTerms(): JSX.Element {
       </section>
 
       <section aria-labelledby="joining" className="space-y-3">
-        <h2 id="joining" className="text-lead font-bold">
+        <H2 id="joining" className="text-lead font-bold">
           Joining
-        </h2>
+        </H2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
             You join with a short form and confirm your mobile with a code. You can add products
@@ -76,16 +89,16 @@ export function PartnerTerms(): JSX.Element {
       </section>
 
       <section aria-labelledby="plans" className="space-y-3">
-        <h2 id="plans" className="text-lead font-bold">
+        <H2 id="plans" className="text-lead font-bold">
           What a shop gets
-        </h2>
-        <h3 className="font-bold m-0">A basic listing</h3>
+        </H2>
+        <H3 className="font-bold m-0">A basic listing</H3>
         <p className="m-0">
           Your name, address, opening hours and up to {partners.freeProductLimit} products, without
           photos. The first {partners.freeListingCount} shops to join get it free, with no monthly
           fee. Once those have all gone, we say so on the form and do not offer it.
         </p>
-        <h3 className="font-bold m-0">Partner Plus</h3>
+        <H3 className="font-bold m-0">Partner Plus</H3>
         <p className="m-0">
           {money(partners.plusMonthlyPence)} a month
           {partners.plusFirstMonthFree ? ', with the first month free, taken once' : ''}. Your full
@@ -93,7 +106,7 @@ export function PartnerTerms(): JSX.Element {
           their ratings, for shops whose Partner Plus is paid; Spotlight on top if you want it; and
           first place among shops at the same distance, in search and on the shops list.
         </p>
-        <h3 className="font-bold m-0">Spotlight and Spotlight Plus</h3>
+        <H3 className="font-bold m-0">Spotlight and Spotlight Plus</H3>
         <p className="m-0">
           For shops on paid Partner Plus: {money(spotlightPence)} a month for Spotlight, or{' '}
           {money(spotlightPlusPence)} for Spotlight Plus. When a Shopper searches for something you
@@ -106,9 +119,9 @@ export function PartnerTerms(): JSX.Element {
       </section>
 
       <section aria-labelledby="restaurants" className="space-y-3">
-        <h2 id="restaurants" className="text-lead font-bold">
+        <H2 id="restaurants" className="text-lead font-bold">
           Restaurants, cafés and takeaways
-        </h2>
+        </H2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
             You pay {name} no commission and no monthly fee on orders placed through {name}.
@@ -164,9 +177,9 @@ export function PartnerTerms(): JSX.Element {
       </section>
 
       <section aria-labelledby="money" className="space-y-3">
-        <h2 id="money" className="text-lead font-bold">
+        <H2 id="money" className="text-lead font-bold">
           Fees and paying
-        </h2>
+        </H2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
             Partner Plus, Spotlight and Spotlight Plus are paid from your dashboard, a month or more
@@ -190,9 +203,9 @@ export function PartnerTerms(): JSX.Element {
       </section>
 
       <section aria-labelledby="yours" className="space-y-3">
-        <h2 id="yours" className="text-lead font-bold">
+        <H2 id="yours" className="text-lead font-bold">
           What you are responsible for
-        </h2>
+        </H2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
             Your products, prices and opening hours are accurate, and you keep them up to date from
@@ -208,9 +221,9 @@ export function PartnerTerms(): JSX.Element {
       </section>
 
       <section aria-labelledby="removing" className="space-y-3">
-        <h2 id="removing" className="text-lead font-bold">
+        <H2 id="removing" className="text-lead font-bold">
           Taking things off, and removing a listing
-        </h2>
+        </H2>
         <ul className="m-0 ps-6 space-y-2">
           <li>You can take any product off at any time from your dashboard.</li>
           <li>To close your listing, ring us and we take it off.</li>
@@ -222,9 +235,9 @@ export function PartnerTerms(): JSX.Element {
       </section>
 
       <section aria-labelledby="data" className="space-y-3">
-        <h2 id="data" className="text-lead font-bold">
+        <H2 id="data" className="text-lead font-bold">
           What each side shares
-        </h2>
+        </H2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
             You give us your business&rsquo;s name, address, postcode and hours, a contact name, a
@@ -251,9 +264,9 @@ export function PartnerTerms(): JSX.Element {
       </section>
 
       <section aria-labelledby="law" className="space-y-3">
-        <h2 id="law" className="text-lead font-bold">
+        <H2 id="law" className="text-lead font-bold">
           Changes, and the law that applies
-        </h2>
+        </H2>
         <p className="m-0">
           If we change these terms, we tell you before the change takes effect, and ask you to agree
           to the new version on your dashboard. Your listing stays live while you read them; changes

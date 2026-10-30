@@ -204,6 +204,8 @@ export function PartnerJoin(): JSX.Element {
     ...(kind === 'shop' ? { plan: plan === 'free' ? ('free' as const) : ('plus' as const) } : {}),
     ...(kind === 'shop' && plan === 'pay-now' ? { payNow: true } : {}),
     termsAgreed,
+    // "Did someone introduce you?" (30 October 2026): counted when no link was used.
+    ...(field('join-introduced') ? { introducedBy: field('join-introduced') } : {}),
     // How Shoppers find it (ruling 82): only the fields its kind has.
     ...readBrowseFields(document, 'join', kind),
   });
@@ -614,6 +616,12 @@ export function PartnerJoin(): JSX.Element {
           hint={`At least 10 characters. Nobody at ${storeConfig.productName} will know it.`}
           type="password"
           autoComplete="new-password"
+        />
+        <Field
+          id="join-introduced"
+          label="Did someone introduce you? Their code (optional)"
+          hint="If an Ozi Ambassador, a Runner or a customer told you about us, type the code from their link. You can leave this empty."
+          autoComplete="off"
         />
         <div className="space-y-2">
           <div className="flex items-center gap-3 min-h-control">

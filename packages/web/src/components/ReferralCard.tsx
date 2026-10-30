@@ -3,17 +3,14 @@ import { Link, useLocation } from 'react-router-dom';
 
 import { storeConfig } from '../config';
 import {
-  ambassadorBankLink,
   becomeAmbassador,
   businessToken,
   fetchMyReferrals,
   markReferralNewsHeard,
-  withdrawAmbassadorEarnings,
   type MyReferrals,
   type ReferralAs,
 } from '../lib/api';
-import { money } from '../lib/money';
-import { ambassadorEarningWords } from '../lib/partnership';
+import { EDUCATION_NOTE } from '../lib/ambassador';
 import { readRunnerToken } from '../lib/session';
 import { TermsChanged } from './TermsChanged';
 import { useOzi } from '../state/ozi';
@@ -28,13 +25,9 @@ import { useSession } from '../state/session';
  * copied where there is none), how many joined through it and how many are active, their
  * progress towards the next reward level, the levels, and any voucher earned. Never who joined.
  *
- * "Introduce a business": what being an Ozi Ambassador means and pays, the rates from
- * config/store.json, and a "Become an Ozi Ambassador" button with the terms to agree to first.
- * Once they have agreed, their Ambassador link, the businesses they introduced and whether each
- * is approved, and their money in three parts (ruled 30 October 2026): pending (waiting for the
- * refund window to pass), available and paid, with any refund taken off as its own line. Never a
- * shop's orders. Available money of at least the minimum can be withdrawn to their bank, set up
- * on Stripe's own form.
+ * "Earn as an Ozi Ambassador" (since applications began, 30 October 2026): one line and "Find
+ * out more", which opens /ambassador to apply. Their money, businesses and withdrawals are on the
+ * Ambassador dashboard at /ambassador/home.
  */
 
 async function share(link: string, text: string, onNews: (words: string) => void): Promise<void> {
@@ -51,8 +44,87 @@ async function share(link: string, text: string, onNews: (words: string) => void
 }
 
 /** The education note (Anthony, 30 October 2026): never a condition, and never blocks anything. */
-export const AMBASSADOR_EDUCATION =
-  'Businesses only earn when there are Runners (drivers) to deliver and Shoppers to order. Introduce Runners and Shoppers too, with your referral link, and the businesses you bring will earn more, and so will you.';
+export const AMBASSADOR_EDUCATION = EDUCATION_NOTE;
+
+/**
+ * "Earn as an Ozi Ambassador" (Anthony, 30 October 2026), on every dashboard: what it is in one
+ * line, and "Find out more", which opens /ambassador. Since applications began, nobody becomes an
+ * Ambassador here: they apply there. An approved Ambassador opens their Ambassador dashboard; one
+ * who is applying sees where it is; one who opted in before applications ("documents needed") is
+ * told plainly that their link and earnings carry on and the Toolkit and withdrawals wait.
+ */
+function AmbassadorCard({
+  as,
+  ambassador,
+  onNews,
+  onChanged,
+}: {
+  as: ReferralAs;
+  ambassador: MyReferrals['ambassador'];
+  onNews: (words: string) => void;
+  onChanged: () => void;
+}): JSX.Element {
+  const approved = ambassador.approved === true;
+  return (
+    <section
+      aria-labelledby="ambassador-heading"
+      className="space-y-3 border-2 border-highlight rounded-2xl p-4"
+    >
+      <h2 id="ambassador-heading" className="text-lead font-bold m-0">
+        Earn as an Ozi Ambassador
+      </h2>
+      <p className="m-0">Introduce restaurants and shops to Ozi and earn from their orders.</p>
+      {ambassador.joined && !approved && ambassador.statusWords && (
+        <p className="m-0 font-bold">Your application: {ambassador.statusWords}.</p>
+      )}
+      {ambassador.joined && !approved && ambassador.applicationMessage && (
+        <p className="m-0">{ambassador.applicationMessage}</p>
+      )}
+      {ambassador.joined && ambassador.termsChanged && (
+        <TermsChanged
+          words={ambassador.termsChangedWords ?? ''}
+          termsName="Ozi Ambassador terms"
+          termsPath={ambassador.termsPath}
+          onAgree={async () => {
+            await becomeAmbassador(as, ambassador.termsVersion);
+            onNews('Thank you. You have agreed to the new Ozi Ambassador terms.');
+            onChanged();
+          }}
+        />
+      )}
+      {ambassador.link && (
+        <div className="space-y-2">
+          <p className="m-0">Your Introduce a business link:</p>
+          <p className="m-0 break-all">{ambassador.link}</p>
+          <button
+            type="button"
+            onClick={() => {
+              const link = ambassador.link ?? '';
+              void share(
+                link,
+                `Join ${storeConfig.productName} as a partner business: ${link}`,
+                onNews,
+              );
+            }}
+            className="control bg-highlight text-on-accent"
+          >
+            Share my Introduce a business link
+          </button>
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2">
+        {ambassador.joined && (
+          <Link to={`/ambassador/home?as=${as}`} className="control bg-highlight text-on-accent">
+            Open my Ambassador dashboard
+          </Link>
+        )}
+        <Link to={`/ambassador?as=${as}`} className="control border-paper bg-paper/10 text-paper">
+          Find out more
+        </Link>
+      </div>
+    </section>
+  );
+}
 
 export function ReferralCard({
   as,
@@ -62,10 +134,6 @@ export function ReferralCard({
   onNews: (words: string) => void;
 }): JSX.Element | null {
   const [data, setData] = useState<MyReferrals | null>(null);
-  const [agreed, setAgreed] = useState(false);
-  const [problem, setProblem] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [withdrawProblem, setWithdrawProblem] = useState('');
 
   const load = useCallback(() => {
     fetchMyReferrals(as)
@@ -80,52 +148,6 @@ export function ReferralCard({
   if (!data) return null;
   const { referrals, ambassador } = data;
   const product = storeConfig.productName;
-
-  function join(): void {
-    if (!agreed) {
-      setProblem('Please tick to agree to the Ozi Ambassador terms first.');
-      return;
-    }
-    setProblem('');
-    setBusy(true);
-    becomeAmbassador(as, ambassador.termsVersion)
-      .then((result) => {
-        onNews(result.message);
-        load();
-      })
-      .catch((failure: unknown) =>
-        setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
-      )
-      .finally(() => setBusy(false));
-  }
-
-  /** Stripe's own form for their bank details: they never pass through us. */
-  function setUpBank(): void {
-    setWithdrawProblem('');
-    setBusy(true);
-    ambassadorBankLink(as)
-      .then((link) => {
-        window.location.assign(link.url);
-      })
-      .catch((failure: unknown) =>
-        setWithdrawProblem(failure instanceof Error ? failure.message : 'That did not work.'),
-      )
-      .finally(() => setBusy(false));
-  }
-
-  function withdraw(): void {
-    setWithdrawProblem('');
-    setBusy(true);
-    withdrawAmbassadorEarnings(as)
-      .then((result) => {
-        onNews(result.message);
-        load();
-      })
-      .catch((failure: unknown) =>
-        setWithdrawProblem(failure instanceof Error ? failure.message : 'That did not work.'),
-      )
-      .finally(() => setBusy(false));
-  }
 
   return (
     <div className="space-y-8 max-w-xl">
@@ -181,165 +203,7 @@ export function ReferralCard({
         </p>
       </section>
 
-      <section aria-labelledby="ambassador-heading" className="space-y-3">
-        <h2 id="ambassador-heading" className="text-lead font-bold m-0">
-          Introduce a business
-        </h2>
-        <p className="m-0">
-          As an Ozi Ambassador, you act as an independent marketer for {product}, introducing local
-          shops, cafés and restaurants. The more businesses you introduce, the more you earn.
-        </p>
-        <ul className="m-0 ps-6 space-y-1">
-          <li>
-            A share of what we keep on every order from a business you introduce, for{' '}
-            {ambassador.months} months from when we approve it.
-          </li>
-          <li>{ambassadorEarningWords().restaurant}</li>
-          <li>{ambassadorEarningWords().grocery}</li>
-          <li>{ambassadorEarningWords().branch}</li>
-          <li>A one-off {ambassador.planShareWords} of its first Partner Plus payment.</li>
-          <li>
-            What you earn on an order waits {ambassador.holdDays} days after delivery, in case of a
-            refund, then you can be paid it.
-          </li>
-          <li>
-            Paid once {ambassador.payoutMinimumWords} is available: monthly, or when you ask to
-            withdraw it to your bank.
-          </li>
-        </ul>
-        <p className="m-0">{AMBASSADOR_EDUCATION}</p>
-        <p className="m-0">
-          <Link to={ambassador.termsPath} className="underline">
-            Read the Ozi Ambassador terms
-          </Link>
-        </p>
-
-        {!ambassador.joined && (
-          <div className="space-y-3">
-            <div className="flex items-start gap-3">
-              <input
-                id="ambassador-terms"
-                type="checkbox"
-                checked={agreed}
-                onChange={(event) => setAgreed(event.target.checked)}
-                className="w-8 h-8 shrink-0"
-              />
-              <label htmlFor="ambassador-terms" className="m-0 font-bold">
-                I have read and agree to the Ozi Ambassador terms
-              </label>
-            </div>
-            {problem !== '' && (
-              <p
-                role="alert"
-                className="m-0 border-2 border-paper bg-paper text-ink p-4 rounded-2xl"
-              >
-                {problem}
-              </p>
-            )}
-            <button
-              type="button"
-              disabled={busy}
-              onClick={join}
-              className="control bg-highlight text-on-accent"
-            >
-              {busy ? 'One moment…' : 'Become an Ozi Ambassador'}
-            </button>
-          </div>
-        )}
-
-        {ambassador.joined && ambassador.termsChanged && (
-          <TermsChanged
-            words={ambassador.termsChangedWords ?? ''}
-            termsName="Ozi Ambassador terms"
-            termsPath={ambassador.termsPath}
-            onAgree={async () => {
-              await becomeAmbassador(as, ambassador.termsVersion);
-              onNews('Thank you. You have agreed to the new Ozi Ambassador terms.');
-              load();
-            }}
-          />
-        )}
-
-        {ambassador.joined && ambassador.link && (
-          <div className="space-y-3">
-            <p className="m-0">Your Introduce a business link:</p>
-            <p className="m-0 break-all">{ambassador.link}</p>
-            <button
-              type="button"
-              onClick={() => {
-                const link = ambassador.link ?? '';
-                void share(link, `Join ${product} as a partner business: ${link}`, onNews);
-              }}
-              className="control bg-highlight text-on-accent"
-            >
-              Share my Introduce a business link
-            </button>
-            <h3 className="font-bold m-0">Businesses you introduced</h3>
-            {ambassador.businesses.length === 0 ? (
-              <p className="m-0">None yet.</p>
-            ) : (
-              <ul className="m-0 ps-6 space-y-1">
-                {ambassador.businesses.map((business, index) => (
-                  <li key={`${business.name}-${index}`}>
-                    {business.name}: {business.approved ? 'approved' : 'waiting for approval'}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <h3 className="font-bold m-0">Your Ambassador earnings</h3>
-            <ul className="m-0 ps-6 space-y-1">
-              <li>
-                Pending (waiting for the refund window to pass): {money(ambassador.pendingPence)}
-              </li>
-              <li>Available: {money(ambassador.availablePence)}</li>
-              <li>Paid: {money(ambassador.paidPence)}</li>
-            </ul>
-            {ambassador.deductions.map((line, index) => (
-              <p key={`${line.at}-${index}`} className="m-0">
-                {line.words}
-              </p>
-            ))}
-            {withdrawProblem !== '' && (
-              <p
-                role="alert"
-                className="m-0 border-2 border-paper bg-paper text-ink p-4 rounded-2xl"
-              >
-                {withdrawProblem}
-              </p>
-            )}
-            {!ambassador.bankReady && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={setUpBank}
-                className="control bg-paper/10 text-paper border-paper"
-              >
-                Set up my bank details with Stripe
-              </button>
-            )}
-            {ambassador.bankReady && ambassador.canWithdraw && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={withdraw}
-                className="control bg-highlight text-on-accent"
-              >
-                Withdraw {money(ambassador.availablePence)} to my bank
-              </button>
-            )}
-            {ambassador.withdrawals.length > 0 && (
-              <>
-                <h3 className="font-bold m-0">Your withdrawals</h3>
-                <ul className="m-0 ps-6 space-y-1">
-                  {ambassador.withdrawals.map((row) => (
-                    <li key={row.id}>{row.words}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
-        )}
-      </section>
+      <AmbassadorCard as={as} ambassador={ambassador} onNews={onNews} onChanged={load} />
     </div>
   );
 }

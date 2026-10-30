@@ -5,9 +5,10 @@ import { storeConfig } from '../config';
 import { ambassadorEarningWords } from '../lib/partnership';
 
 /**
- * The Ozi Ambassador terms, in plain words (Anthony, 30 October 2026), agreed with a tick box and
- * the "Become an Ozi Ambassador" button on a dashboard; the server keeps when, and which version
- * (AMBASSADOR_TERMS_VERSION in packages/core).
+ * The Ozi Ambassador terms, in plain words (Anthony, 30 October 2026), agreed with a tick box as
+ * the first step of applying at /ambassador/apply; the server keeps when, and which version
+ * (AMBASSADOR_TERMS_VERSION in packages/core). Changed the same day for applications: approval
+ * only after the documents are checked and a short chat, and we may decline or suspend.
  *
  * Written only from what the service really does (services/ambassadors.ts). Every figure comes
  * from `ambassador` in config/store.json, so a change of rate there changes these words too.
@@ -46,13 +47,30 @@ export function AmbassadorTerms(): JSX.Element {
 
       <section aria-labelledby="choosing" className="space-y-3">
         <h2 id="choosing" className="text-lead font-bold">
-          Choosing to be an Ambassador
+          Applying to be an Ambassador
         </h2>
         <p className="m-0">
-          Being an Ambassador is your choice. You become one by pressing &ldquo;Become an Ozi
-          Ambassador&rdquo; on your dashboard and agreeing to these terms. We keep the time you
-          agreed and which version of these terms you saw. Only then do you get your
-          &ldquo;Introduce a business&rdquo; link.
+          Being an Ambassador is your choice. To Become an Ozi Ambassador you apply on our
+          Ambassador page: you agree to these terms, and we keep the time you agreed and which
+          version of these terms you saw. Then you send us a photo ID, a proof of address from the
+          last {rates.addressWithinMonths} months and a photo of your face, and we have a short chat
+          with you.
+        </p>
+        <p className="m-0">
+          We approve you only after we have checked your documents and had that chat. Only then do
+          you get your &ldquo;Introduce a business&rdquo; link, the Ambassador Toolkit and your
+          earnings. We may decline an application, and we tell you why. We may suspend an Ambassador
+          at any time, for example while we look into a complaint; while you are suspended your
+          link, the Toolkit and withdrawals stop.
+        </p>
+        <p className="m-0">
+          If you became an Ambassador before applications began, your link keeps working and your
+          earnings keep adding up. The Toolkit and withdrawals open once you have sent your
+          documents, had the chat and been approved.
+        </p>
+        <p className="m-0">
+          We keep your documents while you are an Ambassador and for {rates.documentsKeptMonths}{' '}
+          months after you stop, as our privacy notice says.
         </p>
       </section>
 

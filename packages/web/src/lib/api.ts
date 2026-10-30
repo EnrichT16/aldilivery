@@ -281,6 +281,8 @@ export interface RegisterShopperInput {
   substitutionDefault?: SubstitutionChoice;
   /** From verifying the code sent to the number, once numbers are confirmed at sign-up. */
   phoneProof?: string;
+  /** "Did someone introduce you? Their code (optional)" (30 October 2026). */
+  introducedBy?: string;
 }
 
 /**
@@ -451,6 +453,8 @@ export interface RegisterRunnerInput {
   adult: true;
   /** Where they live, which gives their area: they are offered jobs only there. */
   homePostcode: string;
+  /** "Did someone introduce you? Their code (optional)" (30 October 2026). */
+  introducedBy?: string;
 }
 
 /**
@@ -1477,7 +1481,9 @@ export type StaffArea =
   | 'areas'
   | 'referrals'
   /** Checkout insights: why people do not pay (30 October 2026). */
-  | 'insights';
+  | 'insights'
+  /** Ozi Ambassador applications (30 October 2026). */
+  | 'ambassadors';
 
 /** Where someone's two-step codes stand (Section Q). */
 export interface StaffTwoStep {
@@ -2202,6 +2208,8 @@ export interface PartnerJoinInput {
   categories?: string[];
   convenience?: boolean;
   ofstedNumber?: string;
+  /** "Did someone introduce you? Their code (optional)" (30 October 2026). */
+  introducedBy?: string;
 }
 
 /**
@@ -2564,6 +2572,13 @@ export interface StaffPartners {
       agreedDiscountPercent?: number;
       /** The agreed mark-up on its prices, a whole percentage (30 October 2026). */
       agreedMarkupPercent?: number;
+      /**
+       * Signed up by an Ozi Ambassador (30 October 2026): the reference on its printed agreement
+       * sheet, needed to approve it, and the mark-up and discount proposed for staff to confirm.
+       */
+      agreementReference?: string | null;
+      proposedMarkupPercent?: number | null;
+      proposedDiscountPercent?: number | null;
       preferredPartner?: boolean;
     } & Partial<BrowseFields>
   >;
@@ -2623,6 +2638,8 @@ export function setStaffPartnerState(
     active?: boolean;
     /** "A branch of" another listing of the same business, or null for none (30 October 2026). */
     branchOfShopId?: string | null;
+    /** The reference on its agreement sheet, to approve a business an Ambassador signed up. */
+    agreementReference?: string;
   } & Partial<BrowseFields>,
 ): Promise<unknown> {
   return staffRequest(key, `/staff/partners/${encodeURIComponent(id)}`, {
@@ -3366,6 +3383,17 @@ export interface MyReferrals {
   };
   ambassador: {
     joined: boolean;
+    /**
+     * Their application (Anthony, 30 October 2026): applied, documents sent, documents checked,
+     * chat done, approved, declined, suspended, or documents needed for those who opted in before.
+     * Missing from an older server.
+     */
+    status?: AmbassadorStatus | null;
+    statusWords?: string | null;
+    approved?: boolean;
+    applicationMessage?: string | null;
+    homePath?: string;
+    applyPath?: string;
     agreedAt: string | null;
     termsVersion: string;
     /** Agreed to older Ambassador terms (30 October 2026): asked to agree again. */
@@ -3380,7 +3408,7 @@ export interface MyReferrals {
     /** Days an earning waits, pending, after the order is delivered. */
     holdDays: number;
     payoutMinimumWords: string;
-    businesses: Array<{ name: string; approved: boolean }>;
+    businesses: Array<{ name: string; approved: boolean; earnedPence?: number }>;
     earnedPence: number;
     /** Waiting for the refund window to pass. */
     pendingPence: number;
@@ -3425,14 +3453,250 @@ export function withdrawAmbassadorEarnings(
   return referralRequest(as, '/ambassador/withdraw', { method: 'POST', body: '{}' });
 }
 
-/** "Become an Ozi Ambassador": agreeing to the Ambassador terms of this version. */
+/**
+ * Applying to be an Ozi Ambassador, step one: agreeing to the Ambassador terms of this version
+ * (since 30 October 2026 an application, not an instant opt-in). Also how somebody on older terms
+ * agrees to the new ones.
+ */
 export function becomeAmbassador(
   as: ReferralAs,
   termsVersion: string,
-): Promise<{ link: string; message: string }> {
+): Promise<{ link: string | null; message: string; application?: AmbassadorApplication }> {
   return referralRequest(as, '/ambassador/join', {
     method: 'POST',
     body: JSON.stringify({ termsAgreed: true, termsVersion }),
+  });
+}
+
+export type AmbassadorStatus =
+  | 'applied'
+  | 'documents_sent'
+  | 'documents_checked'
+  | 'chat_done'
+  | 'approved'
+  | 'declined'
+  | 'suspended'
+  | 'documents_needed';
+
+export type AmbassadorDocumentKind =
+  'photo_id_front' | 'photo_id_back' | 'proof_of_address' | 'face_photo' | 'share_code';
+
+export type AmbassadorIdType = 'passport' | 'driving_licence' | 'residence_card';
+export type AmbassadorAddressType = 'utility_bill' | 'bank_letter' | 'council_tax';
+
+/** Their own Ambassador application, as they see it (30 October 2026). */
+export interface AmbassadorApplication {
+  status: AmbassadorStatus;
+  statusWords: string;
+  idType: AmbassadorIdType | null;
+  stillNeeded: Array<{ kind: AmbassadorDocumentKind; name: string }>;
+  documents: Array<{
+    id: string;
+    kind: AmbassadorDocumentKind;
+    name: string;
+    status: 'submitted' | 'accepted' | 'rejected';
+    reviewNote: string | null;
+    sentAs: string;
+    createdAt: string;
+  }>;
+  documentsIn: boolean;
+  chatDone: boolean;
+  reason: string | null;
+  approved: boolean;
+  message: string;
+}
+
+export function fetchAmbassadorApplication(
+  as: ReferralAs,
+): Promise<{ application: AmbassadorApplication | null }> {
+  return referralRequest(as, '/ambassador/application');
+}
+
+export function sendAmbassadorDocument(
+  as: ReferralAs,
+  input: {
+    kind: AmbassadorDocumentKind;
+    idType?: AmbassadorIdType;
+    addressType?: AmbassadorAddressType;
+    image?: string;
+    contentType?: string;
+    shareCode?: string;
+  },
+): Promise<{ application: AmbassadorApplication; message: string }> {
+  return referralRequest(as, '/ambassador/documents', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/** The Ambassador Toolkit's own links, for approved Ambassadors only (30 October 2026). */
+export interface AmbassadorToolkit {
+  name: string;
+  firstName: string;
+  businessLink: string;
+  shopperLink: string;
+  runnerLink: string;
+  businesses: Array<{
+    id: string;
+    name: string;
+    approved: boolean;
+    statusWords: string;
+    shopLink: string;
+    agreementReference: string | null;
+  }>;
+}
+
+export function fetchAmbassadorToolkit(as: ReferralAs): Promise<AmbassadorToolkit> {
+  return referralRequest(as, '/ambassador/toolkit');
+}
+
+export interface SignUpBusinessInput {
+  name: string;
+  kind: 'shop' | 'food' | 'service';
+  address: string;
+  postcode: string;
+  hours: string;
+  contactName: string;
+  mobile: string;
+  email: string;
+  username: string;
+  password: string;
+  agreedMarkupPercent: number;
+  agreedDiscountPercent: number;
+  termsAgreed: true;
+  ownerAgrees: true;
+  ownerName: string;
+  phoneProof?: string;
+}
+
+/** "Sign up this business now", with the owner present (30 October 2026). */
+export function signUpBusinessNow(
+  as: ReferralAs,
+  input: SignUpBusinessInput,
+): Promise<{ reference: string; message: string; shop: { id: string } }> {
+  return referralRequest(as, '/ambassador/businesses', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/** The printed Shop Partner agreement sheet's details, for the Ambassador who signed it up. */
+export interface AgreementSheet {
+  reference: string;
+  business: string;
+  kindWords: string;
+  address: string;
+  postcode: string;
+  ownerName: string;
+  agreedAt: string | null;
+  termsVersion: string | null;
+  markupPercent: number;
+  discountPercent: number;
+  status: string;
+  ambassadorName: string;
+  checkLink: string;
+}
+
+export function fetchAgreementSheet(as: ReferralAs, reference: string): Promise<AgreementSheet> {
+  return referralRequest(as, `/ambassador/agreements/${encodeURIComponent(reference)}`);
+}
+
+/** Anyone: whether a Shop Partner agreement with this reference is real, and where it stands. */
+export function checkPartnerAgreement(
+  reference: string,
+): Promise<{ found: boolean; reference: string; business?: string; statusWords?: string }> {
+  return request(`/partner-agreements/${encodeURIComponent(reference)}`);
+}
+
+/* The staff Ambassadors page (30 October 2026). */
+
+export interface StaffAmbassadorApplicationRow {
+  id: string;
+  kind: string;
+  kindWords: string;
+  accountId: string;
+  name: string;
+  area: string;
+  status: AmbassadorStatus;
+  statusWords: string;
+  agreedAt: string;
+  documentsSentAt: string | null;
+  documentsCheckedAt: string | null;
+  chatDoneAt: string | null;
+  waitingDocuments: number;
+}
+
+export interface StaffAmbassadorApplication extends StaffAmbassadorApplicationRow {
+  termsVersion: string;
+  idType: AmbassadorIdType | null;
+  chatDoneBy: string | null;
+  chatNotes: string;
+  decidedAt: string | null;
+  decidedBy: string | null;
+  decisionReason: string | null;
+  approvedAt: string | null;
+  stillNeeded: Array<{ kind: AmbassadorDocumentKind; name: string }>;
+  canRecordChat: boolean;
+  canApprove: boolean;
+  documents: Array<{
+    id: string;
+    kind: AmbassadorDocumentKind;
+    name: string;
+    status: 'submitted' | 'accepted' | 'rejected';
+    reviewNote: string | null;
+    sentAs: string;
+    createdAt: string;
+    shareCode: string | null;
+    hasFile: boolean;
+    contentType: string | null;
+    checkedAt: string | null;
+    checkPassed: boolean | null;
+    checkNote: string | null;
+    checkName: string | null;
+    checkIssuedOn: string | null;
+    reviewedBy: string | null;
+    reviewedAt: string | null;
+  }>;
+}
+
+export function fetchStaffAmbassadorApplications(key: string): Promise<{
+  groups: Array<{
+    status: AmbassadorStatus;
+    words: string;
+    applications: StaffAmbassadorApplicationRow[];
+  }>;
+}> {
+  return staffRequest(key, '/staff/ambassador-applications');
+}
+
+export function fetchStaffAmbassadorApplication(
+  key: string,
+  id: string,
+): Promise<{ application: StaffAmbassadorApplication }> {
+  return staffRequest(key, `/staff/ambassador-applications/${encodeURIComponent(id)}`);
+}
+
+export function reviewAmbassadorDocument(
+  key: string,
+  id: string,
+  review: { decision: 'accept' | 'reject'; by: string; note?: string },
+): Promise<unknown> {
+  return staffRequest(key, `/staff/ambassador-documents/${encodeURIComponent(id)}/review`, {
+    method: 'POST',
+    body: JSON.stringify(review),
+  });
+}
+
+/** "Chat done", "Approve", "Decline" or "Suspend" on one application. */
+export function decideAmbassadorApplication(
+  key: string,
+  id: string,
+  action: 'chat-done' | 'approve' | 'decline' | 'suspend',
+  body: { by: string; notes?: string; reason?: string },
+): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/ambassador-applications/${encodeURIComponent(id)}/${action}`, {
+    method: 'POST',
+    body: JSON.stringify(body),
   });
 }
 

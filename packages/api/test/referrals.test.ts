@@ -569,7 +569,7 @@ describe('Ozi Ambassadors', () => {
     );
 
     const mine = (await get('/referrals/me', ada.authHeader)).json().ambassador;
-    expect(mine.businesses).toEqual([{ name: tied!.name, approved: false }]);
+    expect(mine.businesses).toEqual([{ name: tied!.name, approved: false, earnedPence: 0 }]);
   });
 
   it('cannot introduce their own business: the same phone or email', async () => {

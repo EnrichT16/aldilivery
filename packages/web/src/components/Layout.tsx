@@ -176,6 +176,12 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
                 Cookies
               </Link>
             </li>
+            <li>
+              {/* For anyone, signed in or not (Anthony, 30 October 2026). */}
+              <Link to="/ambassador" className="control px-0 text-paper underline">
+                Become an Ozi Ambassador
+              </Link>
+            </li>
           </ul>
           <SocialLinks />
           <CompanyLine />

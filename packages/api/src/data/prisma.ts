@@ -272,7 +272,11 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         })) as any;
       },
       async eraseFor(accountKind, accountId, at) {
-        const kept = { accountKind, accountId, OR: [{ image: { not: null } }, { shareCode: { not: null } }] };
+        const kept = {
+          accountKind,
+          accountId,
+          OR: [{ image: { not: null } }, { shareCode: { not: null } }],
+        };
         await prisma.ambassadorDocument.updateMany({
           where: { ...kept, erasedAt: null },
           data: { erasedAt: at },
