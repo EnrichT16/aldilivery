@@ -586,9 +586,9 @@ export function RunnersNow({ staffKey }: { staffKey: string }): JSX.Element {
 
 /**
  * The Areas tab (Anthony, 30 October 2026): every UK area anybody is in, most active first, with
- * its Shoppers, Runners, shops, organisations, waiting list and orders, whether it is running,
- * and a button to pause it or let it run again. Each area is a heading of its own, so a screen
- * reader can move from one to the next.
+ * its Shoppers, Runners, shops, organisations, Shoppers warned there was no Runner, and orders,
+ * whether it has a Runner (every area is open, 30 October 2026), and a button to pause it or
+ * unpause it. Each area is a heading of its own, so a screen reader can move from one to the next.
  */
 export function Areas({
   staffKey,
@@ -623,10 +623,13 @@ export function Areas({
       <h2 id="areas-heading" className="text-lead font-bold">
         Areas
       </h2>
+      {/* Every area is open (Anthony, 30 October 2026): the status only says whether it has a
+          Runner. Nothing here stops anybody ordering. */}
       <p className="m-0 extra">
-        Each UK postcode area, London as one. An area opens by itself once it has an approved Runner
-        and a shop. A paused area takes no orders; people there can still sign up, and go on its
-        waiting list.
+        Each UK postcode area, London as one. Every area is open, and nobody is ever refused for
+        where they are. Jobs go to Runners in the same area, nearest first. Where there is no Runner
+        yet, or an area is paused, Shoppers are warned gently as they order, and can still go ahead;
+        they are texted once when a Runner joins.
       </p>
       <Failure text={list.problem} />
       <Failure text={problem} />
@@ -659,7 +662,7 @@ export function Areas({
                 <li>
                   {area.organisations} {area.organisations === 1 ? 'organisation' : 'organisations'}
                 </li>
-                <li>{area.waitingList} on the waiting list</li>
+                <li>{area.waitingList} warned there was no Runner, to be texted when one joins</li>
                 <li>
                   {area.ordersToday} {area.ordersToday === 1 ? 'order' : 'orders'} today,{' '}
                   {area.ordersThisWeek} this week

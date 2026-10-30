@@ -1715,8 +1715,9 @@ model PostcodePlace {
   lookedUpAt DateTime @default(now())
 }
 
-/// An area's own record (Anthony, 30 October 2026): paused by staff, and when it first started,
-/// which is when its waiting list was texted. An area with no record is simply not paused.
+/// An area's own record (Anthony, 30 October 2026): paused by staff, and when it first had an
+/// approved Runner, which is when the Shoppers warned there was none were texted. Every area is
+/// open; a paused one still takes orders. An area with no record is simply not paused.
 model Area {
   id        String    @id @default(cuid())
   area      String    @unique
@@ -1726,8 +1727,9 @@ model Area {
   updatedAt DateTime  @updatedAt
 }
 
-/// Somebody waiting for Ozi to start in their area (Anthony, 30 October 2026), texted once when
-/// it does. Goes with their account when it is closed.
+/// A Shopper warned, as they ordered, that their area had no Runner (driver) yet (Anthony, 30
+/// October 2026), texted once when one joins there. Still called the waiting list. Goes with
+/// their account when it is closed.
 model AreaWaiting {
   id        String    @id @default(cuid())
   area      String

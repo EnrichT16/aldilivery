@@ -12,6 +12,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { dayWords, parseSpokenDay } from '@aldilivery/core';
 
 import { App } from '../src/App';
+import { storeConfig } from '../src/config';
 import { setVoiceEngine } from '../src/voice';
 import {
   parseChoice,
@@ -72,6 +73,8 @@ function stubShop(
     suggest?: (name: string) => unknown;
     /** What the language model hears in a sentence the phrase book had nothing for (ruling 69). */
     oziHears?: (text: string) => { kind: string; items: unknown[]; reply: string | null } | null;
+    /** The home area has no Runner yet (30 October 2026). */
+    noRunner?: boolean;
   } = {},
 ): Sent[] {
   const sent: Sent[] = [];
@@ -133,6 +136,16 @@ function stubShop(
         });
       }
       if (path === '/orders/current') return reply({ order: null });
+      if (path === '/me/area') {
+        return reply({
+          area: 'LS',
+          name: 'Leeds',
+          hasRunner: !options.noRunner,
+          paused: false,
+          warn: options.noRunner === true,
+        });
+      }
+      if (path === '/me/area/warned') return reply({ noted: true });
       // The server's phrase book (ruling 49): nothing is a whole phrase, and a sentence looked
       // within is answered only when the test says so; otherwise the server keeps it to learn.
       if (path === '/ozi/known') return reply({ fingerprints: [] });
@@ -151,6 +164,10 @@ function stubShop(
     }),
   );
   return sent;
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function renderApp() {
@@ -358,6 +375,42 @@ describe('ordering by voice alone', () => {
       },
     });
     expect(await screen.findByRole('heading', { name: 'Your order' })).toBeInTheDocument();
+  });
+
+  it('says gently, before the final yes, that there is no Runner yet, and a yes still sends it', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const sent = stubShop({ noRunner: true });
+    renderApp();
+    // Never earlier than the final yes: not while choosing, nor at the address.
+    const readBack = await say(engine, 'Ozi, three bananas please');
+    expect(readBack).not.toContain(storeConfig.areas.noRunnerWords);
+    expect(readBack).toMatch(/Is that right\?$/);
+    expect(sent.some((r) => r.path === '/me/area')).toBe(false);
+
+    const asked = await say(engine, 'yes');
+    expect(asked).toMatch(
+      new RegExp(
+        `^${escapeRegExp(storeConfig.areas.noRunnerWords)} Would you still like to go ahead\\? Shall I send your order and pay now`,
+      ),
+    );
+    expect(asked).not.toMatch(/isn't running|not running/i);
+    await waitFor(() =>
+      expect(sent.some((r) => r.method === 'POST' && r.path === '/me/area/warned')).toBe(true),
+    );
+    expect(sent.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(false);
+
+    expect(await say(engine, 'yes please')).toMatch(/^Thank you\. Your order is on its way/);
+    expect(sent.some((r) => r.method === 'POST' && r.path === '/orders')).toBe(true);
+  });
+
+  it('says nothing of it where the area has a Runner', async () => {
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    stubShop();
+    renderApp();
+    await say(engine, 'Ozi, three bananas please');
+    expect(await say(engine, 'yes')).toMatch(/^Shall I send your order and pay now/);
   });
 
   it('books a later day and a payday by voice, saying both before the one yes (ruling 78)', async () => {

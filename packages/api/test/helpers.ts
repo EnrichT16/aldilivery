@@ -142,11 +142,6 @@ export interface TestAppOptions {
   recorder?: CallRecorder;
   /** Postcodes into places (30 October 2026). Off unless a test hands in a stand-in: no network. */
   findPostcode?: PostcodeLookup;
-  /**
-   * Refuse orders where we are not running yet (30 October 2026). Off unless asked for: most
-   * tests prove other rules with no Runner signed up in the order's area.
-   */
-  areasGate?: boolean;
 }
 
 export async function buildTestApp(
@@ -192,7 +187,6 @@ export async function buildTestApp(
     ...(options.placeCall ? { placeCall: options.placeCall } : {}),
     ...(options.recorder ? { recorder: options.recorder } : {}),
     ...(options.findPostcode ? { findPostcode: options.findPostcode } : {}),
-    areasGate: options.areasGate ?? false,
     deliverCode:
       options.deliverCode ??
       (async (phone, code) => {

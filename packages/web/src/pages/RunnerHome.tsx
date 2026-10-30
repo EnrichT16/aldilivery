@@ -329,6 +329,18 @@ export function RunnerHome(): JSX.Element {
         </p>
       )}
 
+      {/* Areas (Anthony, 30 October 2026): jobs come from their own area, nearest first. A Runner
+          with no home postcode yet is asked here, above the tabs, on every tab, approved or not
+          (30 October 2026); nothing else waits for it. */}
+      {!runner.isDemo && !runner.homePostcode?.trim() && (
+        <HomePostcode
+          onSaved={(message) => {
+            setNews(message);
+            void refresh();
+          }}
+        />
+      )}
+
       <nav aria-label="Your Runner pages">
         <ul className="chip-row list-none m-0 p-0">
           {TABS.map((item) => (
@@ -379,15 +391,6 @@ export function RunnerHome(): JSX.Element {
                   const result = await setTravelMode(mode);
                   setNews(result.message);
                 }, '');
-              }}
-            />
-          )}
-          {/* Areas (Anthony, 30 October 2026): jobs come from their own area, nearest first. */}
-          {approved && !runner.homePostcode && (
-            <HomePostcode
-              onSaved={(message) => {
-                setNews(message);
-                void refresh();
               }}
             />
           )}

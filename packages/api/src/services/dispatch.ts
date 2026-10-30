@@ -366,16 +366,19 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
 
 /**
  * Whether a Runner may be offered a job at this address, by area (Anthony, 30 October 2026): only
- * in their own area, from their home postcode. A Runner who has not given one yet is in no area.
- * An address with no postcode to go by (only orders from before areas) is not held back by area.
+ * in their own area, from their home postcode. A Runner who has not given one yet is in no area
+ * and is offered no jobs at all (30 October 2026), though the rest of the app works for them. An
+ * address with no postcode to go by (only orders from before areas) is not held back by area.
  */
 export function inJobArea(
   config: AppContext['config'],
   runner: Runner,
   order: Pick<Order, 'deliveryAddress'>,
 ): boolean {
+  const home = runnerArea(config, runner);
+  if (home === null) return false;
   const area = areaFor(config, order.deliveryAddress);
-  return area === null || runnerArea(config, runner) === area;
+  return area === null || home === area;
 }
 
 /** A Runner on shift with a job in hand, and the orders in hand. */

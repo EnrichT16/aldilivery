@@ -12,12 +12,14 @@ import type { FastifyInstance } from 'fastify';
 
 import { UnauthorisedError } from '../errors.js';
 import { staffActor } from '../lib/staff.js';
+import { runnerInviteLink } from '../services/areas.js';
 
 export async function registerShareRoutes(app: FastifyInstance): Promise<void> {
   const { repository, env } = app.ctx;
 
   app.get('/share', async (request) => {
     let via: string;
+    let handle: string | null = null;
     const staff = request.headers['x-staff-token'] ?? request.headers['x-staff-key'];
     if (staff) {
       const actor = await staffActor(request);
@@ -26,6 +28,7 @@ export async function registerShareRoutes(app: FastifyInstance): Promise<void> {
       const shopper = await repository.shoppers.findById(request.session.accountId);
       if (!shopper) throw new UnauthorisedError();
       via = `shopper:${shopper.handle}`;
+      handle = shopper.handle;
     } else {
       throw new UnauthorisedError('Please sign in to get your share link.');
     }
@@ -33,6 +36,9 @@ export async function registerShareRoutes(app: FastifyInstance): Promise<void> {
     return {
       link: `${origin}/join?via=${via.replace(':', '-')}`,
       joined: await repository.shoppers.countJoinedVia(via),
+      // A Shopper's link for a driver, opening Runner sign-up with them recorded as the referrer
+      // (Anthony, 30 October 2026), sent when their area has no Runner yet.
+      ...(handle ? { runnerLink: runnerInviteLink(origin, handle) } : {}),
     };
   });
 }

@@ -1,14 +1,15 @@
 /**
- * Areas (Anthony, 30 October 2026). Ozi runs across the whole UK, area by area, and any area can
- * start first, with no waiting for Medway. An area is a UK postcode area (the letters a postcode
- * starts with; the London postcode areas are one area, London), from `areas` in
- * `config/store.json`.
+ * Areas (Anthony, 30 October 2026). Ozi runs across the whole UK. An area is a UK postcode area
+ * (the letters a postcode starts with; the London postcode areas are one area, London), from
+ * `areas` in `config/store.json`.
  *
- * An area runs on its own once it has its triangle: Shoppers, an approved Runner able to work, and
- * a shop. It opens by itself when it has a Runner and a shop, and staff with the Areas tab can
- * pause it. In an area that is not running, people can still sign up; a Shopper is told plainly,
- * before paying, and nothing is taken. They go on the area's waiting list, and are texted once
- * when it starts, never in the quiet hours.
+ * Every area is open (Anthony, 30 October 2026): nobody is ever refused or held back because of
+ * where they are. Areas are kept for staff to see, and for sending jobs to local Runners (same
+ * area, nearest first, in services/dispatch.ts). Staff with the Areas tab can pause one; that
+ * blocks nothing either. When a Shopper places an order, and only then, they are warned gently if
+ * their delivery area has no approved Runner able to work yet, or is paused, and choose for
+ * themselves whether to go ahead. Anybody warned is texted once when a Runner joins there, never
+ * in the quiet hours.
  *
  * Postcodes are turned into places with postcodes.io when they are saved, and kept; never asked
  * on every request, and a failure never stops a sign-up or an order: the area still comes from
@@ -170,20 +171,17 @@ function isOpenShop(shop: PartnerShop): boolean {
   return shop.status === 'approved' && shop.active && shop.kind !== 'service';
 }
 
-/* ------------------------------------------------------------------ whether an area runs */
-
-export type AreaNeed = 'runner' | 'shop';
+/* ------------------------------------------------------------------ whether an area has a Runner */
 
 export interface AreaState {
   area: string;
   name: string;
-  /** It has an approved Runner able to work and a shop. */
-  ready: boolean;
+  /** It has an approved Runner able to work (`ableToWork`) who lives there. */
+  hasRunner: boolean;
+  /** Staff paused it. It still takes orders; a Shopper ordering there is warned. */
   paused: boolean;
-  /** Ready and not paused: orders are taken. */
-  running: boolean;
-  /** What it still needs to be ready. */
-  needs: AreaNeed[];
+  /** No Runner, or paused: a Shopper placing an order there is warned, and never stopped. */
+  warn: boolean;
 }
 
 /** Everything the area rules look at, read once. */
@@ -213,78 +211,84 @@ async function readFacts(ctx: AreasContext): Promise<AreaFacts> {
 
 function stateFrom(ctx: AreasContext, facts: AreaFacts, area: string): AreaState {
   const { config } = ctx;
-  const runner = facts.runners.some((r) => ableToWork(r) && runnerArea(config, r) === area);
-  const listed = new Set(facts.shops.map((shop) => shop.seedKey).filter(Boolean));
-  const shop =
-    facts.shops.some((s) => isOpenShop(s) && areaFor(config, s.postcode) === area) ||
-    facts.seed.some(
-      (s) => s.kind !== 'service' && !listed.has(s.key) && areaFor(config, s.postcode) === area,
-    );
-  const needs: AreaNeed[] = [
-    ...(runner ? [] : ['runner' as const]),
-    ...(shop ? [] : ['shop' as const]),
-  ];
+  const hasRunner = facts.runners.some((r) => ableToWork(r) && runnerArea(config, r) === area);
   const paused = facts.paused.get(area) === true;
-  return {
-    area,
-    name: areaCalled(config, area),
-    ready: needs.length === 0,
-    paused,
-    running: needs.length === 0 && !paused,
-    needs,
-  };
+  return { area, name: areaCalled(config, area), hasRunner, paused, warn: !hasRunner || paused };
 }
 
-/** Whether an area is ready, paused and running, and what it still needs. */
+/** Whether an area has a Runner, and whether it is paused. */
 export async function areaState(ctx: AreasContext, area: string): Promise<AreaState> {
   return stateFrom(ctx, await readFacts(ctx), area);
 }
 
-/** "Not ready yet (needs: a Runner / a shop)": for staff. */
-export function areaStatusWords(state: AreaState): string {
-  if (state.paused) return 'Paused';
-  if (state.ready) return 'Ready';
-  const needs = state.needs.map((need) => (need === 'runner' ? 'a Runner' : 'a shop'));
-  return `Not ready yet (needs: ${needs.join(' / ')})`;
+/** "Has a Runner (driver)", "No Runner (driver) yet" or "Paused": for staff, from config. */
+export function areaStatusWords(config: AppContext['config'], state: AreaState): string {
+  if (state.paused) return config.areas.statusPaused;
+  return state.hasRunner ? config.areas.statusHasRunner : config.areas.statusNoRunner;
 }
 
-/** What a Shopper is told about whether we run where they are. */
-export function runningWords(config: AppContext['config'], state: AreaState): string {
-  return state.running
-    ? config.areas.runningWords.replace('{area}', state.name)
-    : config.areas.notRunningWords.replace('{area}', state.name);
+/** What a Shopper who asks whether we deliver in an area is told: always yes. */
+export function openWords(config: AppContext['config'], state: AreaState): string {
+  return config.areas.openWords.replace('{area}', state.name);
 }
 
-/* ------------------------------------------------------------------ the waiting list */
+/* ------------------------------------------------------------------ the warning */
 
 /**
- * Puts a Shopper on the waiting list of the area of this address, when it is not running. Once
- * per area; returns the area's state, or null when the address has no postcode to go by.
+ * A Shopper's referral link for a driver (30 October 2026): it opens Runner sign-up, and the new
+ * Runner is recorded as referred by this Shopper (`Runner.referredBy`, "shopper:<handle>").
  */
-export async function waitIfNotRunning(
+export function runnerInviteLink(origin: string, handle: string): string {
+  return `${origin}/runner/sign-up?via=shopper-${encodeURIComponent(handle)}`;
+}
+
+/**
+ * The warning for an order to this address, as it is placed (30 October 2026): the area's state,
+ * with `warn` when it has no Runner or is paused. Null when the address has no postcode to go by,
+ * which is never warned about.
+ */
+export async function orderAreaState(
   ctx: AreasContext,
-  shopper: Pick<Shopper, 'id'>,
   address: string,
 ): Promise<AreaState | null> {
   const area = areaFor(ctx.config, address);
-  if (!area) return null;
-  const state = await areaState(ctx, area);
-  if (!state.running) {
-    await ctx.repository.areaWaiting.add({
-      area,
-      shopperId: shopper.id,
-      postcode: postcodeIn(address),
-      createdAt: ctx.now(),
-    });
-  }
-  return state;
+  return area ? areaState(ctx, area) : null;
 }
 
 /**
- * Texts each area's waiting list once when the area is running (Anthony, 30 October 2026), with
- * the existing texts (sendText), never in the quiet hours. Run on a timer by the server. Each
- * person is marked texted whether or not the text went, as the owner's alerts are, so a number
- * that cannot be texted is not tried every minute for ever. Returns how many were texted.
+ * Notes that a Shopper was warned, as they ordered, that this address's area has no Runner yet,
+ * so they are texted once when one joins. Once per area; does nothing where there is no warning.
+ * Never throws: noting it must never stop an order.
+ */
+export async function noteWarned(
+  ctx: AreasContext,
+  shopper: Pick<Shopper, 'id' | 'isDemo'>,
+  address: string,
+  log?: FastifyBaseLogger,
+): Promise<AreaState | null> {
+  try {
+    const state = await orderAreaState(ctx, address);
+    if (state?.warn && !shopper.isDemo) {
+      await ctx.repository.areaWaiting.add({
+        area: state.area,
+        shopperId: shopper.id,
+        postcode: postcodeIn(address),
+        createdAt: ctx.now(),
+      });
+    }
+    return state;
+  } catch (failure) {
+    log?.warn({ err: failure }, 'Could not note that a Shopper was warned about their area.');
+    return null;
+  }
+}
+
+/**
+ * Texts each Shopper who was warned there was no Runner, once, when their area has an approved
+ * Runner and is not paused (30 October 2026), with the existing texts (sendText), never in the
+ * quiet hours. Run on a timer by the server. Each person is marked texted whether or not the text
+ * went, as the owner's alerts are, so a number that cannot be texted is not tried every minute for
+ * ever. Returns how many were texted.
  */
 export async function sweepAreas(ctx: AreasContext, log?: FastifyBaseLogger): Promise<number> {
   const { repository, config } = ctx;
@@ -299,21 +303,21 @@ export async function sweepAreas(ctx: AreasContext, log?: FastifyBaseLogger): Pr
   let texted = 0;
   for (const [area, rows] of byArea) {
     const state = stateFrom(ctx, facts, area);
-    if (!state.running) continue;
+    if (state.warn) continue;
     const record = await repository.areas.find(area);
     if (!record?.startedAt) await repository.areas.save(area, { startedAt: at });
     // Without Twilio nothing can be texted: they wait, rather than being marked as told.
     if (quiet || !ctx.sendText) continue;
-    const words = config.areas.startedWords.replace('{area}', state.name);
+    const words = config.areas.runnerJoinedWords.replace('{area}', state.name);
     for (const row of rows) {
       const shopper = await repository.shoppers.findById(row.shopperId);
       await repository.areaWaiting.markTexted(row.id, at);
       if (!shopper || shopper.erasedAt) continue;
       try {
-        await ctx.sendText(shopper.phone, words);
+        await ctx.sendText(shopper.phone, `${config.productName}: ${words}`);
         texted += 1;
       } catch (failure) {
-        log?.warn({ err: failure, area }, 'A waiting-list text did not go.');
+        log?.warn({ err: failure, area }, 'A "Runner has joined" text did not go.');
       }
     }
   }
@@ -330,6 +334,7 @@ export interface AreaSummary extends AreaState {
   shopsApproved: number;
   shopsWaiting: number;
   organisations: number;
+  /** Shoppers warned there was no Runner, to be texted when one joins. */
   waitingList: number;
   ordersToday: number;
   ordersThisWeek: number;
@@ -432,6 +437,7 @@ export async function areaSummaries(ctx: AreasContext): Promise<AreaSummary[]> {
     const counts = row(organisationArea(config, organisation, shoppers));
     if (counts) counts.organisations += 1;
   }
+  // Warned there was no Runner, and not yet texted that one has joined.
   for (const entry of waiting) {
     const counts = row(entry.area);
     if (counts) counts.waitingList += 1;
@@ -450,7 +456,7 @@ export async function areaSummaries(ctx: AreasContext): Promise<AreaSummary[]> {
     return {
       ...state,
       ...counts,
-      statusWords: areaStatusWords(state),
+      statusWords: areaStatusWords(config, state),
       pausedBy: record?.pausedAt ? (record.pausedBy ?? null) : null,
       pausedAt: record?.pausedAt ?? null,
       startedAt: record?.startedAt ?? null,

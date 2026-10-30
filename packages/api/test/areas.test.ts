@@ -1,9 +1,9 @@
 /**
  * Areas, Runner location and local jobs, and the last checks before a job (Anthony, 30 October
- * 2026). Ozi runs across the UK area by area: an area runs once it has an approved Runner and a
- * shop, unless staff pause it. Somewhere not running, a Shopper is told before paying, nothing is
- * taken, and they are texted once when it starts. Jobs go only to Runners in the same area,
- * nearest first. Nobody is offered a job before their face photo is accepted.
+ * 2026). Every area is open (30 October 2026): nobody is refused for where they are. Where there
+ * is no approved Runner yet, or the area is paused, a Shopper is warned only as they order, and is
+ * texted once when a Runner joins. Jobs go only to Runners in the same area, nearest first.
+ * Nobody is offered a job before their face photo is accepted.
  *
  * No test here reaches the network: postcodes.io is a stand-in.
  */
@@ -16,7 +16,7 @@ import type { Order } from '../src/domain.js';
 import { STAFF_ROLES } from '../src/lib/staff.js';
 import { areaWarning } from '../src/services/allocate.js';
 import { locatePostcode, sweepAreas } from '../src/services/areas.js';
-import { offerOrder } from '../src/services/dispatch.js';
+import { inJobArea, offerOrder } from '../src/services/dispatch.js';
 import { mayBeAssigned } from '../src/services/order-rescue.js';
 import { mayBeOffered } from '../src/services/runner-pool.js';
 import { decideRunnerDocument } from '../src/services/runner-documents.js';
@@ -46,11 +46,10 @@ let harness: TestHarness;
 let texts: Array<{ to: string; body: string }>;
 let lookups: string[];
 
-async function build(options: { areasGate?: boolean; failLookups?: boolean } = {}) {
+async function build(options: { failLookups?: boolean } = {}) {
   texts = [];
   lookups = [];
   return buildTestApp(START, {
-    areasGate: options.areasGate ?? true,
     sendText: async (to, body) => {
       texts.push({ to, body });
     },
@@ -114,70 +113,80 @@ describe('what an area is', () => {
 
   it('is called by its configured name, or by its letters when it has none', async () => {
     const known = await get('/areas/check?postcode=M1%201AE');
-    expect(known.json()).toMatchObject({ area: 'M', name: 'Manchester', running: false });
+    expect(known.json()).toMatchObject({ area: 'M', name: 'Manchester', hasRunner: false });
     const unknown = await get('/areas/check?postcode=ZZ1%201ZZ');
     expect(unknown.json()).toMatchObject({ area: 'ZZ', name: 'ZZ' });
     expect((await get('/areas/check?postcode=hello')).statusCode).toBe(400);
   });
 });
 
-describe('whether an area is running', () => {
-  it('opens by itself once it has an approved Runner and a shop, and says so truthfully', async () => {
+describe('every area is open', () => {
+  it('says yes to anybody asking, and only whether there is a Runner yet', async () => {
     // Medway has shops from config/shops-seed.json, but no Runner yet.
     let check = (await get('/areas/check?postcode=ME7%201AA')).json();
-    expect(check).toMatchObject({ area: 'ME', name: 'Medway', running: false });
-    expect(check.words).toBe(harness.config.areas.notRunningWords);
+    expect(check).toMatchObject({
+      area: 'ME',
+      name: 'Medway',
+      hasRunner: false,
+      paused: false,
+      warn: true,
+    });
+    expect(check.words).toBe(harness.config.areas.openWords.replace('{area}', 'Medway'));
+    expect(check.warning).toBe(harness.config.areas.noRunnerWords);
+    expect(JSON.stringify(check)).not.toMatch(/isn't running|not running/i);
 
     // A Runner waiting for approval does not count.
     await signUpRunner(harness, { verified: false });
-    expect((await get('/areas/check?postcode=ME7%201AA')).json().running).toBe(false);
+    expect((await get('/areas/check?postcode=ME7%201AA')).json().hasRunner).toBe(false);
 
     await signUpRunner(harness, { phone: '+447700900102' });
     check = (await get('/areas/check?postcode=ME7%201AA')).json();
-    expect(check.running).toBe(true);
-    expect(check.words).toContain('Medway');
+    expect(check).toMatchObject({ hasRunner: true, warn: false });
+    expect(check.warning).toBeUndefined();
 
-    // Manchester has a Runner but no shop yet.
+    // Manchester has a Runner and no shop: a shop is not needed for anything any more.
     await signUpRunner(harness, { phone: '+447700900103', homePostcode: 'M1 1AE' });
-    expect((await get('/areas/check?postcode=M1%201AE')).json().running).toBe(false);
-    await harness.repository.partnerShops.create({
-      name: 'Corner shop',
-      address: '1 Market Street',
-      postcode: 'M1 1AE',
-      telephone: '',
-      about: '',
-      monthlyPence: 0,
-      status: 'approved',
+    expect((await get('/areas/check?postcode=M1%201AE')).json()).toMatchObject({
+      hasRunner: true,
+      warn: false,
     });
-    expect((await get('/areas/check?postcode=M1%201AE')).json().running).toBe(true);
   });
 
-  it('can be paused and unpaused by staff with the Areas tab, which is shown with its counts', async () => {
+  it('can be paused and unpaused by staff with the Areas tab, which warns but blocks nothing', async () => {
     await signUpRunner(harness);
     await signUpRunner(harness, { phone: '+447700900102', verified: false });
     await signUpShopper(harness);
-    expect((await get('/areas/check?postcode=ME7%201AA')).json().running).toBe(true);
+    expect((await get('/areas/check?postcode=ME7%201AA')).json().warn).toBe(false);
 
     const paused = await post('/staff/areas/ME/pause', { paused: true, by: 'Kemi' }, STAFF);
     expect(paused.statusCode, paused.body).toBe(200);
-    expect(paused.json().message).toContain('Medway is paused');
-    expect((await get('/areas/check?postcode=ME7%201AA')).json().running).toBe(false);
+    expect(paused.json().message).toBe(
+      'Medway is paused. Shoppers there can still order, and are warned as they do.',
+    );
+    expect((await get('/areas/check?postcode=ME7%201AA')).json()).toMatchObject({
+      hasRunner: true,
+      paused: true,
+      warn: true,
+    });
 
     const list = (await get('/staff/areas', STAFF)).json().areas;
     const medway = list.find((row: { area: string }) => row.area === 'ME');
     expect(medway).toMatchObject({
       name: 'Medway',
       paused: true,
-      ready: true,
+      hasRunner: true,
       statusWords: 'Paused',
       runnersApproved: 1,
       runnersWaiting: 1,
       pausedBy: 'Kemi',
     });
     expect(medway.shopsApproved).toBeGreaterThan(0);
+    expect(medway).not.toHaveProperty('ready');
+    expect(medway).not.toHaveProperty('running');
 
-    await post('/staff/areas/ME/pause', { paused: false, by: 'Kemi' }, STAFF);
-    expect((await get('/areas/check?postcode=ME7%201AA')).json().running).toBe(true);
+    const unpaused = await post('/staff/areas/ME/pause', { paused: false, by: 'Kemi' }, STAFF);
+    expect(unpaused.json().message).toBe('Medway is no longer paused.');
+    expect((await get('/areas/check?postcode=ME7%201AA')).json().warn).toBe(false);
 
     // Only staff whose job has the Areas tab.
     expect(STAFF_ROLES.founder.areas).toContain('areas');
@@ -186,7 +195,7 @@ describe('whether an area is running', () => {
     expect((await get('/staff/areas')).statusCode).not.toBe(200);
   });
 
-  it('lists the most active areas first, with what each still needs', async () => {
+  it('lists the most active areas first, each with whether it has a Runner', async () => {
     const shopper = await signUpShopper(harness);
     await signUpRunner(harness, { homePostcode: 'M1 1AE' });
     await paidOrder(shopper, '1 Market Street, Manchester M1 1AE');
@@ -200,14 +209,12 @@ describe('whether an area is running', () => {
       ordersThisWeek: number;
     }>;
     expect(list[0]).toMatchObject({ area: 'M', ordersToday: 2, ordersThisWeek: 2 });
-    expect(list[0]!.statusWords).toBe('Not ready yet (needs: a shop)');
-    expect(list.find((row) => row.area === 'ME')!.statusWords).toBe(
-      'Not ready yet (needs: a Runner)',
-    );
+    expect(list[0]!.statusWords).toBe('Has a Runner (driver)');
+    expect(list.find((row) => row.area === 'ME')!.statusWords).toBe('No Runner (driver) yet');
   });
 });
 
-describe('a Shopper where we are not running yet', () => {
+describe('a Shopper where there is no Runner yet', () => {
   async function placeOrder(shopper: SignedInShopper, address: string) {
     const items = await seedCatalogue(harness.repository);
     return post(
@@ -231,43 +238,67 @@ describe('a Shopper where we are not running yet', () => {
     );
   }
 
-  it('can sign up, is told before paying, pays nothing, and is texted once when it starts', async () => {
+  it('signs up with no word about Runners or areas: the warning is only for ordering', async () => {
     const signedUp = await post('/shoppers', {
       displayName: 'Margaret',
       phone: '+447700900001',
       deliveryAddress: '12 Example Street, Gillingham ME7 1AA',
     });
     expect(signedUp.statusCode, signedUp.body).toBe(201);
-    expect(signedUp.json().area).toMatchObject({ name: 'Medway', running: false });
-    expect(signedUp.json().area.words).toBe(harness.config.areas.notRunningWords);
-    expect(signedUp.json().area.words).toContain("isn't running in your area yet");
+    expect(signedUp.json()).not.toHaveProperty('area');
+    expect(signedUp.body).not.toContain(harness.config.areas.noRunnerWords);
+    expect(signedUp.body).not.toMatch(/isn't running|not running/i);
 
+    // Changing an address is not ordering either: nobody is noted as warned.
     const shopper = await signUpShopper(harness, { phone: '+447700900002' });
-    const refused = await placeOrder(shopper, '3 Other Road, Chatham ME4 4AA');
-    expect(refused.statusCode).toBe(409);
-    expect(refused.json().error.message).toContain("isn't running in your area yet");
-    expect(refused.json().error.message).toContain('Nothing has been charged');
-    expect(harness.payments.calls.filter((call) => call.kind === 'payment_intent')).toHaveLength(0);
+    await harness.app.inject({
+      method: 'PATCH',
+      url: '/me',
+      headers: shopper.authHeader,
+      payload: { deliveryAddress: '1 Market Street, Manchester M1 1AE' },
+    });
+    expect(await harness.repository.areaWaiting.list()).toHaveLength(0);
+  });
 
-    // Nothing is texted while it is not running.
+  it('is never refused: the order is sent and paid, and they are texted once when a Runner joins', async () => {
+    const shopper = await signUpShopper(harness, { phone: '+447700900002' });
+    const placed = await placeOrder(shopper, '3 Other Road, Chatham ME4 4AA');
+    expect(placed.statusCode, placed.body).toBe(201);
+    expect(placed.body).not.toMatch(/isn't running|not running|Nothing has been charged/i);
+    expect(
+      harness.payments.calls.filter((call) => call.kind === 'payment_intent').length,
+    ).toBeGreaterThan(0);
+    const waiting = await harness.repository.areaWaiting.list();
+    expect(waiting).toMatchObject([{ area: 'ME', shopperId: shopper.shopperId }]);
+
+    // Warned on the screen as well: still once.
+    await post('/me/area/warned', { address: '3 Other Road, Chatham ME4 4AA' }, shopper.authHeader);
+    expect(await harness.repository.areaWaiting.list()).toHaveLength(1);
+
+    // Nothing is texted while there is no Runner.
     expect(await sweepAreas(harness.app.ctx)).toBe(0);
 
-    // A Runner is approved: Medway opens, and each person waiting is texted once.
+    // A Runner is approved: each Shopper warned there is texted once.
     await signUpRunner(harness);
-    expect(await sweepAreas(harness.app.ctx)).toBe(2);
-    expect(texts.map((text) => text.to).sort()).toEqual(['+447700900001', '+447700900002']);
-    expect(texts[0]!.body).toContain('started in Medway');
+    const joined = () =>
+      texts.filter((text) =>
+        text.body.includes('A Runner (driver) has joined in your area. You can order now.'),
+      );
+    expect(await sweepAreas(harness.app.ctx)).toBe(1);
+    expect(joined()).toEqual([
+      {
+        to: '+447700900002',
+        body: `${harness.config.productName}: A Runner (driver) has joined in your area. You can order now.`,
+      },
+    ]);
     expect(await sweepAreas(harness.app.ctx)).toBe(0);
-    expect(texts).toHaveLength(2);
-
-    // And now the order goes.
-    expect((await placeOrder(shopper, '3 Other Road, Chatham ME4 4AA')).statusCode).toBe(201);
+    expect(joined()).toHaveLength(1);
   });
 
   it('is not texted in the quiet hours, only after them', async () => {
     const shopper = await signUpShopper(harness);
     expect((await placeOrder(shopper, '12 Example Street, Gillingham ME7 1AA')).statusCode).toBe(
-      409,
+      201,
     );
     await signUpRunner(harness);
     harness.setNow(new Date('2026-10-30T22:30:00.000Z'));
@@ -276,7 +307,22 @@ describe('a Shopper where we are not running yet', () => {
     expect(await sweepAreas(harness.app.ctx)).toBe(1);
   });
 
-  it('says whether we run at the signed-in Shopper’s home', async () => {
+  it('is not texted while the area is paused, even with a Runner', async () => {
+    await signUpRunner(harness);
+    await post('/staff/areas/ME/pause', { paused: true, by: 'Kemi' }, STAFF);
+    const shopper = await signUpShopper(harness);
+    const warned = await post(
+      '/me/area/warned',
+      { address: '12 Example Street, Gillingham ME7 1AA' },
+      shopper.authHeader,
+    );
+    expect(warned.json()).toEqual({ noted: true });
+    expect(await sweepAreas(harness.app.ctx)).toBe(0);
+    await post('/staff/areas/ME/pause', { paused: false, by: 'Kemi' }, STAFF);
+    expect(await sweepAreas(harness.app.ctx)).toBe(1);
+  });
+
+  it('can ask about its own area: { area, name, hasRunner, paused }', async () => {
     const shopper = await signUpShopper(harness);
     await harness.app.inject({
       method: 'PATCH',
@@ -285,12 +331,22 @@ describe('a Shopper where we are not running yet', () => {
       payload: { deliveryAddress: '1 Market Street, Manchester M1 1AE' },
     });
     const mine = (await get('/me/area', shopper.authHeader)).json();
-    expect(mine).toMatchObject({ area: 'M', name: 'Manchester', running: false });
+    expect(mine).toMatchObject({
+      area: 'M',
+      name: 'Manchester',
+      hasRunner: false,
+      paused: false,
+      warn: true,
+    });
+    // Or of the address an order goes to.
+    await signUpRunner(harness);
+    const there = (await get('/me/area?postcode=ME7%201AA', shopper.authHeader)).json();
+    expect(there).toMatchObject({ area: 'ME', hasRunner: true, warn: false });
   });
 });
 
-describe('a telephone order paid by link where we are not running yet', () => {
-  it('gives the money straight back, closes the order and puts them on the waiting list', async () => {
+describe('a telephone order paid by link where there is no Runner yet', () => {
+  it('goes ahead as normal: paid, not given back, not cancelled', async () => {
     const shopper = await signUpShopper(harness, { phone: '+447700900888' });
     await harness.repository.shoppers.update(shopper.shopperId, { deliveryAddress: '' });
     const order = await harness.repository.orders.create({
@@ -303,7 +359,7 @@ describe('a telephone order paid by link where we are not running yet', () => {
       items: [],
     });
     const before = harness.payments.calls.filter((call) => call.kind === 'refund').length;
-    // The rehearsal payment page gives an Aberdeen (AB) address, where nobody runs yet.
+    // The rehearsal payment page gives an Aberdeen (AB) address, where there is no Runner yet.
     const paid = await harness.app.inject({
       method: 'POST',
       url: '/webhooks/stripe',
@@ -316,10 +372,44 @@ describe('a telephone order paid by link where we are not running yet', () => {
     });
     expect(paid.statusCode, paid.body).toBe(200);
     const after = await harness.repository.orders.findById(order.id);
-    expect(after?.status).toBe('cancelled');
-    const refunds = harness.payments.calls.filter((call) => call.kind === 'refund');
-    expect(refunds).toHaveLength(before + 1);
-    expect(refunds.at(-1)!.input).toMatchObject({ amountPence: 1239 });
+    expect(after?.status).toBe('paid');
+    expect(after?.deliveryAddress).toMatch(/AB\d/);
+    expect(harness.payments.calls.filter((call) => call.kind === 'refund')).toHaveLength(before);
+  });
+});
+
+describe('a Shopper inviting a driver', () => {
+  it('has a referral link that lands on Runner sign-up and records them on the new Runner', async () => {
+    await harness.close();
+    harness = await buildTestApp(START, { env: { primaryOrigin: 'https://shop.example.test' } });
+    const shopper = await signUpShopper(harness);
+    const handle = (await harness.repository.shoppers.findById(shopper.shopperId))!.handle;
+    const share = (await get('/share', shopper.authHeader)).json();
+    expect(share.runnerLink).toBe(`https://shop.example.test/runner/sign-up?via=shopper-${handle}`);
+
+    const response = await post('/runners', {
+      name: 'Tomasz',
+      phone: '+447700900101',
+      adult: true,
+      homePostcode: 'ME7 1AA',
+      referredBy: `shopper-${handle}`,
+    });
+    expect(response.statusCode, response.body).toBe(201);
+    const runner = await harness.repository.runners.findById(response.json().runner.id);
+    expect(runner?.referredBy).toBe(`shopper:${handle}`);
+
+    // A handle nobody has is not kept.
+    const stranger = await post('/runners', {
+      name: 'Jo',
+      phone: '+447700900102',
+      adult: true,
+      homePostcode: 'ME7 1AA',
+      referredBy: 'shopper-nobody-at-all',
+    });
+    expect(stranger.statusCode).toBe(201);
+    expect(
+      (await harness.repository.runners.findById(stranger.json().runner.id))?.referredBy,
+    ).toBeNull();
   });
 });
 
@@ -465,6 +555,12 @@ describe('local jobs', () => {
     const order = await paidOrder(shopper, '12 Example Street, Gillingham ME7 1AA');
     const result = await offerOrder(harness.app.ctx, order.id);
     expect(result.offer).toBeNull();
+    // With no home postcode they get no jobs at all, not even at an address with no postcode.
+    const runner = await harness.repository.runners.findById(noHome.runnerId);
+    if (!runner) throw new Error('missing runner');
+    expect(inJobArea(harness.app.ctx.config, runner, { deliveryAddress: 'The Old Mill' })).toBe(
+      false,
+    );
   });
 
   it('uses the home postcode’s place when the live position is old', async () => {

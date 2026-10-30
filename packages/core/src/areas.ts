@@ -6,7 +6,11 @@
  * names do not know is called by its letters.
  *
  * The pure rules live here: finding a postcode in an address, its area, and the area's name.
- * Whether an area is running (a Runner, a shop, not paused) is the server's to say.
+ * Whether an area has a Runner, or is paused, is the server's to say.
+ *
+ * Every area is open (Anthony, 30 October 2026): nobody is ever refused because of where they
+ * are. Where there is no Runner yet, or the area is paused, a Shopper is warned gently as they
+ * place an order, and only then, and chooses for themselves whether to go ahead.
  */
 
 import { postcodeArea } from './partners.js';
@@ -16,13 +20,27 @@ export interface AreaSettings {
   readonly names: Readonly<Record<string, string>>;
   /** Areas run as one: "London" is E, EC, N, NW, SE, SW, W and WC. The key is the area's code. */
   readonly groups: Readonly<Record<string, readonly string[]>>;
-  /** What a Shopper in an area that is running is told when they ask. {area} is its name. */
-  readonly runningWords: string;
-  /** What a Shopper in an area that is not running yet is told, before paying. */
-  readonly notRunningWords: string;
-  /** The text the waiting list gets, once, when their area starts. {area} is its name. */
-  readonly startedWords: string;
-  /** No waiting-list texts between these times (UK time), so nobody is woken. */
+  /** What a Shopper who asks whether we deliver in an area is told. {area} is its name. */
+  readonly openWords: string;
+  /**
+   * The gentle warning, said and shown only as a Shopper places an order, when their delivery
+   * area has no approved Runner able to work yet, or is paused. It never stops the order.
+   */
+  readonly noRunnerWords: string;
+  /** Asked after the warning on the telephone and by voice: "Would you still like to go ahead?" */
+  readonly goAheadQuestion: string;
+  /** The warning's two buttons: carry on, or send the referral link to a driver. */
+  readonly noRunnerOkButton: string;
+  readonly noRunnerShareButton: string;
+  /** What the referral link is sent with, inviting a driver to sign up. {link} is the link. */
+  readonly inviteDriverWords: string;
+  /** The one text a warned Shopper gets when a Runner is approved in their area. */
+  readonly runnerJoinedWords: string;
+  /** The status of an area on the staff Areas page. */
+  readonly statusHasRunner: string;
+  readonly statusNoRunner: string;
+  readonly statusPaused: string;
+  /** No "a Runner has joined" texts between these times (UK time), so nobody is woken. */
   readonly textQuietFrom: string;
   readonly textQuietUntil: string;
   /** A Runner's live position older than this is not trusted; their home postcode is used. */

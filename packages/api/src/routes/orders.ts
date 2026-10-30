@@ -41,7 +41,7 @@ import { applyCredit } from '../services/credit.js';
 import { recordOrder } from '../lib/analytics.js';
 import { recordOrderIncome } from '../lib/ledger.js';
 import { offerNextFor } from '../services/allocate.js';
-import { locatePostcode, waitIfNotRunning } from '../services/areas.js';
+import { locatePostcode, noteWarned } from '../services/areas.js';
 import { offerOrder, sweepOffers } from '../services/dispatch.js';
 import { alertPayments, bankReference, bankSettings } from '../lib/bank.js';
 import { tellShopper } from '../services/order-updates.js';
@@ -456,18 +456,10 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     const shopper = await repository.shoppers.findById(session.accountId);
     if (!shopper) throw new NotFoundError('account');
 
-    // Areas (Anthony, 30 October 2026): somewhere we are not running yet, the Shopper is told so
-    // before anything is taken, and goes on the area's waiting list, texted when it starts.
-    if (app.ctx.areasGate && !shopper.isDemo) {
-      const area = await waitIfNotRunning(app.ctx, shopper, parsed.deliveryAddress);
-      if (area && !area.running) {
-        throw new ConflictError(`${config.areas.notRunningWords} Nothing has been charged.`, {
-          notRunning: true,
-          area: area.area,
-          areaName: area.name,
-        });
-      }
-    }
+    // Every area is open (Anthony, 30 October 2026): an order is never refused for its area. Where
+    // there is no Runner yet, or the area is paused, the Shopper was warned as they ordered and
+    // chose to go ahead; they are texted once when a Runner joins there.
+    await noteWarned(app.ctx, shopper, parsed.deliveryAddress, request.log);
     // Where it goes, for finding the nearest Runner: the place of its postcode, kept when the
     // address was saved, unless the screen sent one.
     const place =

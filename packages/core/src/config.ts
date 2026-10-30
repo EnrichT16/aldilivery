@@ -384,9 +384,9 @@ export interface StoreConfig {
   readonly browse: BrowseSettings;
   /**
    * Areas (Anthony, 30 October 2026): what each UK postcode area is called, the areas run as one
-   * (London), what a Shopper in an area not running yet is told before paying, the text their
-   * waiting list gets when it starts and the hours it is never sent, and how a Runner's position
-   * is shared and trusted.
+   * (London), the gentle warning given as a Shopper orders where there is no Runner yet, the text
+   * they get when a Runner joins and the hours it is never sent, the staff status words, and how
+   * a Runner's position is shared and trusted.
    */
   readonly areas: AreaSettings;
   /** The admin panel (Section Q): who may do what, and how signing in is kept safe. */
@@ -818,19 +818,39 @@ function parseAreas(raw: Unknown): AreaSettings {
   return {
     names,
     groups,
-    runningWords: str(
-      raw['runningWords'] ?? 'Yes, we are running in {area}.',
-      'areas.runningWords',
+    openWords: str(
+      raw['openWords'] ?? 'Yes, we deliver in {area}. You can order now.',
+      'areas.openWords',
     ),
-    notRunningWords: str(
-      raw['notRunningWords'] ??
-        "We aren't running in your area yet. We'll text you the moment it starts.",
-      'areas.notRunningWords',
+    noRunnerWords: str(
+      raw['noRunnerWords'] ??
+        "There's no Runner (driver) in your area yet, so we may not be able to deliver this order. If you know a driver, send them your referral link so they can sign up and deliver for you.",
+      'areas.noRunnerWords',
     ),
-    startedWords: str(
-      raw['startedWords'] ?? 'Good news: we have started in {area}.',
-      'areas.startedWords',
+    goAheadQuestion: str(
+      raw['goAheadQuestion'] ?? 'Would you still like to go ahead?',
+      'areas.goAheadQuestion',
     ),
+    noRunnerOkButton: str(raw['noRunnerOkButton'] ?? 'OK, I understand', 'areas.noRunnerOkButton'),
+    noRunnerShareButton: str(
+      raw['noRunnerShareButton'] ?? 'Send my referral link',
+      'areas.noRunnerShareButton',
+    ),
+    inviteDriverWords: str(
+      raw['inviteDriverWords'] ??
+        "There's no Runner (driver) near me yet. If you drive, you could sign up as a Runner and deliver in our area: {link}",
+      'areas.inviteDriverWords',
+    ),
+    runnerJoinedWords: str(
+      raw['runnerJoinedWords'] ?? 'A Runner (driver) has joined in your area. You can order now.',
+      'areas.runnerJoinedWords',
+    ),
+    statusHasRunner: str(
+      raw['statusHasRunner'] ?? 'Has a Runner (driver)',
+      'areas.statusHasRunner',
+    ),
+    statusNoRunner: str(raw['statusNoRunner'] ?? 'No Runner (driver) yet', 'areas.statusNoRunner'),
+    statusPaused: str(raw['statusPaused'] ?? 'Paused', 'areas.statusPaused'),
     textQuietFrom: clockTime(raw['textQuietFrom'] ?? '21:00', 'areas.textQuietFrom'),
     textQuietUntil: clockTime(raw['textQuietUntil'] ?? '09:00', 'areas.textQuietUntil'),
     livePositionMinutes: wholeNumber(

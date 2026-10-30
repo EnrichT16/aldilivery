@@ -38,7 +38,10 @@ export function RunnerSignUp(): JSX.Element {
   const [done, setDone] = useState<{ name: string; phone: string } | null>(null);
   const [news, setNews] = useState('');
   const [params] = useSearchParams();
-  const referredBy = params.get('ref') ?? readReferral() ?? undefined;
+  // A Runner's link (`?ref=R…`), or a Shopper's referral link for a driver (`?via=shopper-…`,
+  // 30 October 2026), so whoever invited them is recorded on the new Runner.
+  const fromShopper = /^shopper-[A-Za-z0-9_-]{1,40}$/.exec(params.get('via') ?? '')?.[0];
+  const referredBy = params.get('ref') ?? fromShopper ?? readReferral() ?? undefined;
   const summary = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

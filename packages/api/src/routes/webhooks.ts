@@ -26,8 +26,7 @@ import {
   recordTransaction,
   releaseCard,
 } from '../services/runner-card.js';
-import { waitIfNotRunning } from '../services/areas.js';
-import { tellShopper, tellShopperWords } from '../services/order-updates.js';
+import { tellShopper } from '../services/order-updates.js';
 
 interface PaymentIntentLike {
   id?: string;
@@ -35,7 +34,7 @@ interface PaymentIntentLike {
 }
 
 export async function registerWebhookRoutes(app: FastifyInstance): Promise<void> {
-  const { repository, payments, now, config } = app.ctx;
+  const { repository, payments, now } = app.ctx;
 
   app.post('/webhooks/stripe', async (request: FastifyRequest, reply) => {
     const signature = request.headers['stripe-signature'];
@@ -191,37 +190,8 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
             region: paid.country ? cardRegionFor(paid.country) : null,
             isDefault: cards.length === 0,
           }));
-        // A telephone order paid by link gives its address only on Stripe's page. Somewhere we are
-        // not running yet (Anthony, 30 October 2026), the money goes straight back, and the
-        // Shopper is told and put on the area's waiting list, texted when it starts.
-        const goesTo =
-          order.deliveryAddress.trim() !== ''
-            ? order.deliveryAddress
-            : paid.address || shopper.deliveryAddress;
-        if (app.ctx.areasGate && !shopper.isDemo) {
-          const area = await waitIfNotRunning(app.ctx, shopper, goesTo);
-          if (area && !area.running) {
-            await payments.refundPayment({
-              paymentIntentId: paid.paymentIntentId,
-              amountPence: order.totalEstimatePence,
-              reference: `not-running:${order.id}`,
-            });
-            const closed = await repository.orders.update(order.id, {
-              status: 'cancelled',
-              stripePaymentIntentId: paid.paymentIntentId,
-              deliveryAddress: goesTo,
-              cancelledAt: now(),
-              cancelReason: `Not running in ${area.name} yet; the payment was given back.`,
-            });
-            await tellShopperWords(
-              app.ctx,
-              closed,
-              `${config.areas.notRunningWords} Your payment has been given back in full.`,
-              request.log,
-            );
-            break;
-          }
-        }
+        // Every area is open (Anthony, 30 October 2026): a telephone order paid by link goes ahead
+        // wherever its address is, with no Runner there or not. It is never given back for its area.
         const updated = await repository.orders.update(order.id, {
           status: 'paid',
           stripePaymentIntentId: paid.paymentIntentId,

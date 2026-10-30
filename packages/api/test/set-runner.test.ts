@@ -111,6 +111,30 @@ describe('a Set that sends itself', () => {
     expect(texts).toHaveLength(1);
   });
 
+  it('is never held back for its area: sent where there is no Runner yet (30 October 2026)', async () => {
+    const response = await harness.app.inject({
+      method: 'POST',
+      url: '/sets',
+      headers: shopper.authHeader,
+      payload: {
+        name: 'Weekly shop',
+        // Medway, where no Runner has signed up in this test.
+        deliveryAddress: '12 Example Street, Gillingham ME7 1AA',
+        frequency: 'weekly',
+        dayOfWeek: 3,
+        timeOfDay: '09:00',
+        paymentMethodId: shopper.paymentMethodId,
+        lines: [{ catalogueItemId: items.milk, quantity: 2 }],
+        autoSend: { confirmed: true, statement: AGREED },
+      },
+    });
+    expect(response.statusCode, response.body).toBe(201);
+    await sweepAt('2026-09-16T08:29:00.000Z');
+    const outcomes = await sweepAt('2026-09-16T09:00:30.000Z');
+    expect(outcomes).toEqual([expect.objectContaining({ kind: 'placed' })]);
+    expect(charges()).toHaveLength(1);
+  });
+
   it('places the order and pays with the saved card, with the agreement written on it first', async () => {
     await createSet(true);
     await sweepAt('2026-09-16T08:29:00.000Z');

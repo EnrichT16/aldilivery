@@ -344,7 +344,7 @@
     "ofstedCategories": ["Nanny and childminder"]
   },
   "areas": {
-    "about": "Areas (Anthony, 30 October 2026). Ozi runs across the whole UK, area by area, and any area can start first. An area is a UK postcode area, the letters a postcode starts with; an area missing from 'names' is called by its letters. 'groups' are areas run as one: the London postcode areas are one area, London. An area opens by itself once it has an approved Runner able to work and a shop; staff can pause it. 'runningWords' is what a Shopper asking about a running area is told, 'notRunningWords' what a Shopper in an area not running yet is told before paying, and 'startedWords' the one text their waiting list gets when it starts ({area} is its name), never sent between 'textQuietFrom' and 'textQuietUntil' (UK time). A Runner's live position older than 'livePositionMinutes' is not trusted, and their home postcode is used. The Runner app shares where they are every 'shareOnShiftSeconds' while on shift, and every 'shareOnJobSeconds' at most while they have a job in hand.",
+    "about": "Areas (Anthony, 30 October 2026). Ozi Delivery runs across the whole UK, and every area is open: nobody is ever refused because of where they are. An area is a UK postcode area, the letters a postcode starts with; an area missing from 'names' is called by its letters. 'groups' are areas run as one: the London postcode areas are one area, London. Areas are kept for staff to see and for sending jobs to local Runners, same area, nearest first; staff can pause one. 'openWords' is what a Shopper asking about an area is told ({area} is its name). 'noRunnerWords' is the gentle warning given only as a Shopper places an order, on the confirmation screen, by voice and on the telephone, when their delivery area has no approved Runner able to work yet or is paused; it never stops the order. 'goAheadQuestion' is asked after it by voice and on the telephone, and 'noRunnerOkButton' and 'noRunnerShareButton' are its two buttons on the screen. 'inviteDriverWords' goes with the Shopper's referral link to a driver ({link} is the link). 'runnerJoinedWords' is the one text a warned Shopper gets when a Runner is approved in their area, never sent between 'textQuietFrom' and 'textQuietUntil' (UK time). 'statusHasRunner', 'statusNoRunner' and 'statusPaused' are the status words on the staff Areas page. A Runner's live position older than 'livePositionMinutes' is not trusted, and their home postcode is used. The Runner app shares where they are every 'shareOnShiftSeconds' while on shift, and every 'shareOnJobSeconds' at most while they have a job in hand.",
     "names": {
       "AB": "Aberdeen",
       "AL": "St Albans",
@@ -467,9 +467,16 @@
     "groups": {
       "London": ["E", "EC", "N", "NW", "SE", "SW", "W", "WC"]
     },
-    "runningWords": "Yes, Ozi Delivery is running in {area}. You can order now.",
-    "notRunningWords": "Ozi Delivery isn't running in your area yet. We'll text you the moment it starts.",
-    "startedWords": "Good news: Ozi Delivery has started in {area}. You can order now in the app, or by talking to Ozi.",
+    "openWords": "Yes, Ozi Delivery delivers in {area}. You can order now.",
+    "noRunnerWords": "There's no Runner (driver) in your area yet, so we may not be able to deliver this order. If you know a driver, send them your referral link so they can sign up and deliver for you.",
+    "goAheadQuestion": "Would you still like to go ahead?",
+    "noRunnerOkButton": "OK, I understand",
+    "noRunnerShareButton": "Send my referral link",
+    "inviteDriverWords": "I order my shopping with Ozi Delivery, and there's no Runner (driver) near me yet. If you drive, you could sign up as a Runner and deliver in our area: {link}",
+    "runnerJoinedWords": "A Runner (driver) has joined in your area. You can order now.",
+    "statusHasRunner": "Has a Runner (driver)",
+    "statusNoRunner": "No Runner (driver) yet",
+    "statusPaused": "Paused",
     "textQuietFrom": "21:00",
     "textQuietUntil": "09:00",
     "livePositionMinutes": 15,

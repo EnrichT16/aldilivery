@@ -29,7 +29,6 @@ import { recordOrder } from '../lib/analytics.js';
 import { cardAccepted } from '../lib/card-region.js';
 import { priceLines } from './basket.js';
 import { allowanceFor, deliveryPlanFor } from './plans.js';
-import { waitIfNotRunning } from './areas.js';
 import { applyCredit } from './credit.js';
 import { offerOrder } from './dispatch.js';
 import { tellShopperById } from './order-updates.js';
@@ -266,12 +265,8 @@ export async function placeSetOrder(
       `it came to ${money(priced.goodsPence)}, over the limit you set of ${money(shopper.budgetCapPence ?? 0)}.`,
     );
   }
-  // Areas (Anthony, 30 October 2026): nothing is sent, or taken, where we are not running now.
-  if (ctx.areasGate) {
-    const area = await waitIfNotRunning(ctx, shopper, set.deliveryAddress);
-    if (area && !area.running)
-      return notPlaced('area not running', ctx.config.areas.notRunningWords);
-  }
+  // Every area is open (Anthony, 30 October 2026): a regular order is never held back for its
+  // area. Where there is no Runner yet, the existing paths apply if nobody takes it.
 
   const at = ctx.now();
   const order = await repository.orders.create({
