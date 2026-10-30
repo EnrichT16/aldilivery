@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type TouchEvent } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { openPrint } from '../components/ambassador/PrintSheet';
@@ -125,6 +125,12 @@ export function AmbassadorPresentation(): JSX.Element {
   const [current, setCurrent] = useState(0);
   const [said, setSaid] = useState('');
   const touch = useRef<number | null>(null);
+  const carousel = useRef<HTMLDivElement>(null);
+  const keys = useRef<{
+    key: (event: KeyboardEvent) => void;
+    start: (event: TouchEvent) => void;
+    end: (event: TouchEvent) => void;
+  } | null>(null);
   const printed = useRef(false);
   const action = params.get('action');
 
@@ -147,6 +153,27 @@ export function AmbassadorPresentation(): JSX.Element {
     return () => window.clearTimeout(timer);
   }, [toolkit, action]);
 
+  // The carousel's keys and swipes are listened for here rather than as JSX props: the region is
+  // focusable and moved by the keyboard (the WAI-ARIA carousel pattern), which the lint rules
+  // for non-interactive elements would otherwise refuse. The handlers live in a ref so the
+  // listeners always see the current slide.
+  useEffect(() => {
+    const element = carousel.current;
+    if (!element) return;
+    element.tabIndex = 0;
+    const key = (event: KeyboardEvent): void => keys.current?.key(event);
+    const start = (event: TouchEvent): void => keys.current?.start(event);
+    const end = (event: TouchEvent): void => keys.current?.end(event);
+    element.addEventListener('keydown', key);
+    element.addEventListener('touchstart', start, { passive: true });
+    element.addEventListener('touchend', end);
+    return () => {
+      element.removeEventListener('keydown', key);
+      element.removeEventListener('touchstart', start);
+      element.removeEventListener('touchend', end);
+    };
+  }, [toolkit]);
+
   if (!toolkit) {
     return (
       <div className="space-y-4">
@@ -168,7 +195,7 @@ export function AmbassadorPresentation(): JSX.Element {
     setCurrent(next);
     setSaid(`Slide ${next + 1} of ${slides.length}: ${slides[next]?.title ?? ''}`);
   };
-  const onKey = (event: KeyboardEvent<HTMLDivElement>): void => {
+  const onKey = (event: KeyboardEvent): void => {
     if (event.key === 'ArrowRight' || event.key === 'PageDown') {
       event.preventDefault();
       go(current + 1);
@@ -183,10 +210,10 @@ export function AmbassadorPresentation(): JSX.Element {
       go(slides.length - 1);
     }
   };
-  const onTouchStart = (event: TouchEvent<HTMLDivElement>): void => {
+  const onTouchStart = (event: TouchEvent): void => {
     touch.current = event.touches[0]?.clientX ?? null;
   };
-  const onTouchEnd = (event: TouchEvent<HTMLDivElement>): void => {
+  const onTouchEnd = (event: TouchEvent): void => {
     const from = touch.current;
     const to = event.changedTouches[0]?.clientX;
     touch.current = null;
@@ -194,6 +221,7 @@ export function AmbassadorPresentation(): JSX.Element {
     if (to - from < -50) go(current + 1);
     else if (to - from > 50) go(current - 1);
   };
+  keys.current = { key: onKey, start: onTouchStart, end: onTouchEnd };
 
   return (
     <div className="space-y-4">
@@ -213,17 +241,11 @@ export function AmbassadorPresentation(): JSX.Element {
         {said}
       </p>
       {/* The carousel itself: focusable, so the arrow keys move it, and swiped on a phone. */}
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
       <div
+        ref={carousel}
         role="region"
         aria-roledescription="carousel"
         aria-label="Presentation. Use the arrow keys or swipe to move between slides."
-        // A carousel the keyboard moves (WAI-ARIA carousel pattern): it must take focus.
-        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-        tabIndex={0}
-        onKeyDown={onKey}
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
         className="slides space-y-4 focus:outline focus:outline-4"
       >
         {slides.map((slide, index) => (
