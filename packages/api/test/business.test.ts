@@ -4,6 +4,7 @@
  * the people who chose to link to them.
  */
 
+import { ORGANISATION_CONSENT_VERSION } from '@aldilivery/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
@@ -293,6 +294,136 @@ describe('organisations', () => {
       await harness.app.inject({ method: 'GET', url: '/organisation/dashboard', headers })
     ).json();
     expect(after.people).toEqual([]);
+  });
+
+  it('see only orders placed after the person agreed, with when and which words kept (UK GDPR)', async () => {
+    const { created, headers } = await organisation();
+    const items = await seedCatalogue(harness.repository);
+    const person = await signUpShopper(harness, { displayName: 'Mrs Chair' });
+    // An order from before they linked: never the organisation's to see.
+    await placeOrder(person, items.milk, 1099);
+
+    harness.setNow(new Date('2026-10-07T11:00:00.000Z'));
+    const stale = await harness.app.inject({
+      method: 'POST',
+      url: '/me/organisation',
+      headers: person.authHeader,
+      payload: { code: created.joinCode, agreed: true, version: 'an-older-screen' },
+    });
+    expect(stale.statusCode).toBe(409);
+    const joined = await harness.app.inject({
+      method: 'POST',
+      url: '/me/organisation',
+      headers: person.authHeader,
+      payload: { code: created.joinCode, agreed: true, version: ORGANISATION_CONSENT_VERSION },
+    });
+    expect(joined.statusCode, joined.body).toBe(200);
+    expect(joined.json().message).toMatch(
+      /your name, the office label they give you, the weekly shops you have booked, and the orders you place from now on with what they cost/,
+    );
+    expect(joined.json().message).toMatch(/Membership price/);
+    const stored = await harness.repository.shoppers.findById(person.shopperId);
+    expect(stored?.organisationConsentAt).toEqual(new Date('2026-10-07T11:00:00.000Z'));
+    expect(stored?.organisationConsentVersion).toBe(ORGANISATION_CONSENT_VERSION);
+
+    harness.setNow(new Date('2026-10-07T12:00:00.000Z'));
+    await placeOrder(person, items.milk, 799);
+    const dashboard = (
+      await harness.app.inject({ method: 'GET', url: '/organisation/dashboard', headers })
+    ).json();
+    expect(dashboard.orders).toHaveLength(1);
+    expect(dashboard.orders[0]).toEqual(expect.objectContaining({ paidPence: 1149 }));
+    expect(dashboard.totals.spentAllTimePence).toBe(1149);
+    expect(dashboard.people).toEqual([
+      expect.objectContaining({ name: 'Mrs Chair', agreed: true }),
+    ]);
+    const pdf = (
+      await harness.app.inject({ method: 'GET', url: '/organisation/statement.pdf', headers })
+    ).rawPayload.toString('latin1');
+    expect(pdf).toContain('over 1 order');
+
+    // Leaving clears the consent: linking again starts again from that moment.
+    await harness.app.inject({
+      method: 'POST',
+      url: '/me/organisation/leave',
+      headers: person.authHeader,
+    });
+    expect(
+      (await harness.repository.shoppers.findById(person.shopperId))?.organisationConsentAt,
+    ).toBeNull();
+  });
+
+  it('see nothing of somebody linked before consent was recorded, not even their weekly shop', async () => {
+    const { created, headers } = await organisation();
+    const items = await seedCatalogue(harness.repository);
+    const person = await signUpShopper(harness, { displayName: 'Mr Lamp' });
+    await placeOrder(person, items.milk, 1099);
+    await harness.repository.sets.create({
+      shopperId: person.shopperId,
+      name: 'Weekly shop',
+      deliveryAddress: '12 Example Street, Gillingham',
+      frequency: 'weekly',
+      dayOfWeek: 2,
+      timeOfDay: '10:00',
+      nextFireAt: new Date('2026-10-13T10:00:00.000Z'),
+      items: [{ name: 'Milk', quantity: 2, estimatedPricePence: 125 }],
+    });
+    // Linked the old way, with no moment of consent kept.
+    await harness.repository.shoppers.update(person.shopperId, { organisationId: created.id });
+    const dashboard = (
+      await harness.app.inject({ method: 'GET', url: '/organisation/dashboard', headers })
+    ).json();
+    expect(dashboard.people).toEqual([expect.objectContaining({ name: 'Mr Lamp', agreed: false })]);
+    expect(dashboard.orders).toEqual([]);
+    expect(dashboard.upcoming).toEqual([]);
+  });
+
+  it('count each person once, linked and joined by the link alike', async () => {
+    const { created, headers } = await organisation();
+    const both = await signUpShopper(harness, { displayName: 'Both' });
+    await harness.repository.shoppers.update(both.shopperId, {
+      joinedVia: `organisation:${created.joinCode}`,
+    });
+    await harness.app.inject({
+      method: 'POST',
+      url: '/me/organisation',
+      headers: both.authHeader,
+      payload: { code: created.joinCode, agreed: true },
+    });
+    const joinedOnly = await signUpShopper(harness, {
+      displayName: 'Joined only',
+      phone: '+447700900444',
+    });
+    await harness.repository.shoppers.update(joinedOnly.shopperId, {
+      joinedVia: `organisation:${created.joinCode}`,
+    });
+    const linkedOnly = await signUpShopper(harness, {
+      displayName: 'Linked only',
+      phone: '+447700900555',
+    });
+    await harness.app.inject({
+      method: 'POST',
+      url: '/me/organisation',
+      headers: linkedOnly.authHeader,
+      payload: { code: created.joinCode, agreed: true },
+    });
+    const dashboard = (
+      await harness.app.inject({ method: 'GET', url: '/organisation/dashboard', headers })
+    ).json();
+    expect(dashboard.referrals).toBe(3);
+  });
+
+  it('a statement names the company behind the service, from config', async () => {
+    const { headers } = await organisation();
+    const pdf = (
+      await harness.app.inject({ method: 'GET', url: '/organisation/statement.pdf', headers })
+    ).rawPayload.toString('latin1');
+    const { store } = harness.config;
+    // The lines wrap in the PDF, so each detail is looked for on its own.
+    expect(pdf).toContain(store.legalEntityName);
+    expect(pdf).toContain(store.companyNumber);
+    expect(pdf).toContain(store.registeredIn);
+    expect(pdf).toContain(`Registered office: ${store.registeredOffice}`);
   });
 
   it('an organisation cannot reach a partner shop’s dashboard', async () => {

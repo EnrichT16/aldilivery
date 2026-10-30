@@ -90,7 +90,21 @@ describe('the landing page', () => {
   it('shows the privacy page without a draft mark, with what the law asks it to say', () => {
     renderAt('/privacy');
     expect(screen.queryByText(/This is a draft/)).toBeNull();
-    expect(screen.getByText(/Calls are not recorded/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Calls between you and your Runner are not recorded/),
+    ).toBeInTheDocument();
+    // Corrected on 30 October 2026: the recipients, and nothing named that we do not use.
+    expect(screen.getByText(/A provider of automated language processing/)).toBeInTheDocument();
+    expect(screen.getByText(/Our email provider/)).toBeInTheDocument();
+    expect(screen.queryByText(/language model/)).toBeNull();
+    expect(screen.queryByText(/cannot be turned back into you/)).toBeNull();
+    expect(
+      screen.getByText(/seven years, longer than the six years tax law\s+requires/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Businesses and organisations' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/last\s+reviewed on 30 October 2026/)).toBeInTheDocument();
     expect(
       screen.getAllByText(new RegExp(storeConfig.store.legalEntityName)).length,
     ).toBeGreaterThan(0);
@@ -111,6 +125,43 @@ describe('the landing page', () => {
     expect(footer?.textContent).toMatch(/Registered office:/);
   });
 
+  it('says in the footer that we have no partnership with any shop, and credits Open Prices', () => {
+    renderAt('/shop');
+    const footer = document.querySelector('footer');
+    expect(footer?.textContent).toContain(
+      `${storeConfig.productName} is an independent service. We do not have a partnership with any shop we list yet.`,
+    );
+    expect(footer?.textContent).not.toContain(`shops at ${storeConfig.store.displayName}`);
+    expect(footer?.textContent).toContain('not supplied by the shops');
+    expect(footer?.textContent).toContain(
+      'Prices include data from Open Prices by Open Food Facts (ODbL)',
+    );
+  });
+
+  it('warns that any Ozi app in the app stores is not us, on the first screen, Help and About', () => {
+    for (const path of ['/', '/help', '/about']) {
+      const { unmount } = renderAt(path);
+      expect(
+        screen.getByText(
+          `${storeConfig.productName} is not in the app stores yet. Any '${storeConfig.assistantName}' app you find there is not us. Use ${storeConfig.contact.website}.`,
+        ),
+      ).toBeInTheDocument();
+      unmount();
+    }
+  });
+
+  it('warns Runners too, naming the icon saved on the home screen', () => {
+    for (const path of ['/runner', '/runner/sign-up']) {
+      const { unmount } = renderAt(path);
+      expect(
+        screen.getByText(
+          `${storeConfig.productName} is not in the app stores yet. Any '${storeConfig.assistantName}' app you find there is not us. Use ${storeConfig.contact.website}, or the ${storeConfig.assistantName} icon saved on your home screen.`,
+        ),
+      ).toBeInTheDocument();
+      unmount();
+    }
+  });
+
   it('says how to cancel, and keeps consumer rights, in the terms', () => {
     renderAt('/terms');
     expect(screen.queryByText(/This is a draft/)).toBeNull();
@@ -119,6 +170,17 @@ describe('the landing page', () => {
       screen.getByText(/We never limit our responsibility for death or injury/),
     ).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Help and adjustments' })).toBeInTheDocument();
+    // Corrected on 30 October 2026 (Anthony).
+    expect(
+      screen.getByText(/We are not connected with any other business called/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/We run across the UK, area by area/)).toBeInTheDocument();
+    expect(screen.getByText(/a fair part of the delivery fee/)).toBeInTheDocument();
+    expect(screen.getByText(/law of England and Wales/)).toBeInTheDocument();
+    expect(
+      screen.getByText(new RegExp(`We remind you ${storeConfig.extras.freeMonthReminderDaysBefore} days`)),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/These terms were last reviewed on 30 October 2026/)).toBeInTheDocument();
   });
 
   it('lists what is kept on the device, with no tracking cookies', () => {
@@ -141,19 +203,30 @@ describe('the landing page', () => {
     expect(
       screen.getByText(new RegExp(`${storeConfig.problems.recoveryPercentOfPay}% of each later`)),
     ).toBeInTheDocument();
+    // Corrected on 30 October 2026: what may be taken from pay, and how paying back works.
     expect(
-      screen.getByText(/Nothing is ever taken from your pay automatically/),
+      screen.getByText(/Nothing is taken from your pay except the cool bag deposit/),
     ).toBeInTheDocument();
-    // Paying at the till is decided (ruling 55): the Runner is paid back straight away.
+    expect(screen.queryByText(/never left out of pocket/)).toBeNull();
     expect(
-      screen.getByText(/we pay it back to you, straight to your own Stripe/),
+      screen.getAllByText(/Paid back straight away when you send a photo of the receipt/)[0],
     ).toBeInTheDocument();
+    expect(screen.getByText(/You must be 18 or over\. We check your right to work/)).toBeInTheDocument();
+    expect(screen.getByText(/For a car, motorbike or van/)).toBeInTheDocument();
+    // The enhanced DBS check is optional, for closer-help jobs not offered yet.
+    expect(
+      screen.getAllByText(/^Optional: an enhanced DBS check\. .*These closer-help jobs are not offered yet\.$/)
+        .length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText(/public liability/)).toBeNull();
+    expect(screen.queryByText(/public transport/)).toBeNull();
+    expect(screen.getByText(/for the\s+instant payout fee of 1%/)).toBeInTheDocument();
     expect(screen.getByText(/never comes out of it/)).toBeInTheDocument();
     // Issued as the final agreement on 25 October 2026: no draft notice.
     expect(screen.queryByText(/This is a draft/)).toBeNull();
     expect(screen.queryByText(/solicitor/i)).toBeNull();
     // Ruling 61: a new version, so every Runner agrees again, with the new terms on the page.
-    expect(screen.getByText(/Effective from 25 October 2026/)).toBeInTheDocument();
+    expect(screen.getByText(/Effective from 30 October 2026/)).toBeInTheDocument();
     expect(screen.getByText(/by motorbike up to £70\.00/)).toBeInTheDocument();
     expect(
       screen.getByText(/parts of up to £75\.00 for motorbike riders first/),
@@ -414,7 +487,17 @@ describe('the confirmation screen', () => {
     await user.click(screen.getByRole('link', { name: 'Basket' }));
     await user.click(screen.getByRole('link', { name: 'Check and send my order' }));
 
-    expect(screen.getByText(/the only thing that will ever take a payment/i)).toBeInTheDocument();
+    expect(screen.getByText(/We never take money you haven.t agreed to/i)).toBeInTheDocument();
+    // What saying yes covers, from config (Anthony, 30 October 2026).
+    expect(screen.getByText(/we take up to £5\.00 more, or a fifth of the estimate/)).toBeInTheDocument();
+    expect(screen.getByText(/an extra Runner.s delivery fee of £13\.50/)).toBeInTheDocument();
+    expect(screen.getByText(/renews each month/)).toBeInTheDocument();
+    expect(screen.getByText(/charged on its date/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'By sending it, you ask us to start now. You lose the right to cancel once it is delivered.',
+      ),
+    ).toBeInTheDocument();
     // The shopping with its item charges in, then the parts, then delivery (ruling 58).
     expect(
       screen.getByText(
@@ -578,10 +661,12 @@ describe('Rule Nine, on the screen', () => {
     return Array.from(document.querySelectorAll('p, li, td')).map((node) => node.textContent ?? '');
   }
 
-  it('takes the store name and the product name from configuration', () => {
+  it('takes the product name from configuration, and names no supermarket we have no partnership with', () => {
     renderAt('/just-looking');
     const text = readableText();
-    expect(text.some(mentionsStoreName)).toBe(true);
+    // There is no agreement with the store in config, so the page never says we shop there
+    // (Anthony, 30 October 2026).
+    expect(text.some(mentionsStoreName)).toBe(false);
     expect(text.some((line) => line.includes(storeConfig.productName))).toBe(true);
   });
 

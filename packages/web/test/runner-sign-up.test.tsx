@@ -35,17 +35,23 @@ describe('signing up to run', () => {
     );
   });
 
-  it('says before anything is filled in that a person checks documents first', () => {
+  it('says before anything is filled in how documents are checked', () => {
     renderAt('/runner/sign-up');
     expect(
-      screen.getByText(/checks your right to work in the UK and a DBS check/),
+      screen.getByText(/we check your\s+right to work in the UK and a DBS check/),
     ).toBeInTheDocument();
+    // The automatic check approves only what is clearly in order (30 October 2026).
+    expect(
+      screen.getByText(/Our automatic check approves documents that are clearly in order/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/for a car, motorbike or van your licence/)).toBeInTheDocument();
   });
 
   it('asks for a name and mobile with real labels, and every way they might deliver', () => {
     renderAt('/runner/sign-up');
     expect(screen.getByLabelText('Your name')).toHaveAccessibleDescription(/documents/);
     expect(screen.getByLabelText('Your mobile number')).toHaveAttribute('type', 'tel');
+    expect(screen.getByLabelText('Your home postcode')).toHaveAccessibleDescription(/own area/);
     const group = screen.getByRole('group', { name: 'How will you deliver?' });
     expect(group).toHaveAccessibleDescription(/switch any day/);
     expect(screen.getByLabelText('Walking')).toBeChecked();
@@ -58,6 +64,7 @@ describe('signing up to run', () => {
 
     await user.type(screen.getByLabelText('Your name'), 'Tomasz');
     await user.type(screen.getByLabelText('Your mobile number'), '07700 900101');
+    await user.type(screen.getByLabelText('Your home postcode'), 'ME7 1AA');
     await user.click(screen.getByLabelText('Bicycle or electric bike'));
     await user.click(screen.getByLabelText('Car'));
     await user.click(screen.getByLabelText('I am 18 or over, and I agree to the Runner agreement'));
@@ -72,6 +79,9 @@ describe('signing up to run', () => {
       travelModes: ['on_foot', 'bicycle', 'car'],
       referredBy: 'RABCD234',
       agreement: { accepted: true, version: RUNNER_AGREEMENT_VERSION, channel: 'button' },
+      // The 18 or over tick, and where they live, kept by the server (30 October 2026).
+      adult: true,
+      homePostcode: 'ME7 1AA',
     });
     expect(screen.getByRole('heading', { name: 'Now, your documents' })).toBeInTheDocument();
     expect(
@@ -84,6 +94,7 @@ describe('signing up to run', () => {
     const recorded = renderAt('/runner/sign-up');
     await user.type(screen.getByLabelText('Your name'), 'Tomasz');
     await user.type(screen.getByLabelText('Your mobile number'), '07700 900101');
+    await user.type(screen.getByLabelText('Your home postcode'), 'ME7 1AA');
     await user.click(screen.getByLabelText('I am 18 or over, and I agree to the Runner agreement'));
     await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
 
@@ -108,6 +119,7 @@ describe('signing up to run', () => {
     const recorded = renderAt('/runner/sign-up');
     await user.type(screen.getByLabelText('Your name'), 'Tomasz');
     await user.type(screen.getByLabelText('Your mobile number'), '07700 900101');
+    await user.type(screen.getByLabelText('Your home postcode'), 'ME7 1AA');
     await user.click(screen.getByLabelText('I am 18 or over, and I agree to the Runner agreement'));
     await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
 
@@ -136,6 +148,7 @@ describe('signing up to run', () => {
     const recorded = renderAt('/runner/sign-up');
     await user.type(screen.getByLabelText('Your name'), 'Tomasz');
     await user.type(screen.getByLabelText('Your mobile number'), '07700 900101');
+    await user.type(screen.getByLabelText('Your home postcode'), 'ME7 1AA');
     await user.click(screen.getByLabelText('I am 18 or over, and I agree to the Runner agreement'));
     await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
 
@@ -157,6 +170,7 @@ describe('signing up to run', () => {
     renderAt('/runner/sign-up');
     await user.type(screen.getByLabelText('Your name'), 'Tomasz');
     await user.type(screen.getByLabelText('Your mobile number'), '07700 900101');
+    await user.type(screen.getByLabelText('Your home postcode'), 'ME7 1AA');
     await user.click(screen.getByLabelText('I am 18 or over, and I agree to the Runner agreement'));
     await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
     await screen.findByRole('heading', { level: 1, name: 'Thank you, Tomasz' });
@@ -175,7 +189,8 @@ describe('signing up to run', () => {
     await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
 
     const problems = await screen.findByRole('alert');
-    expect(problems).toHaveTextContent('There are 3 problems to fix');
+    expect(problems).toHaveTextContent('There are 4 problems to fix');
+    expect(problems).toHaveTextContent('Please give your home postcode.');
     expect(problems).toHaveTextContent('agree to the Runner agreement');
     expect(problems).toHaveFocus();
   });
@@ -185,6 +200,7 @@ describe('signing up to run', () => {
     const recorded = renderAt('/runner/sign-up');
     await user.type(screen.getByLabelText('Your name'), 'Tomasz');
     await user.type(screen.getByLabelText('Your mobile number'), '07700 900101');
+    await user.type(screen.getByLabelText('Your home postcode'), 'ME7 1AA');
     await user.click(screen.getByRole('button', { name: 'Sign me up to run' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(

@@ -4,6 +4,7 @@ import {
   checkSchedule,
   largeOrderShopperWords,
   needsVehicle,
+  postcodeIn,
   runnerPaymentFor,
   scheduleAgreementWords,
   ukDay,
@@ -17,6 +18,7 @@ import { PinGate } from '../components/PinGate';
 import { startingBooking, WhenItComes, type Booking } from '../components/WhenItComes';
 import { storeConfig } from '../config';
 import {
+  checkArea,
   createOrder,
   fetchBankTransferEnabled,
   fetchAddresses,
@@ -66,9 +68,14 @@ export function Confirm(): JSX.Element {
     allowanceExtraPence: number;
     totalPence: number;
   } | null>(null);
+  // If that price could not be worked out, say so and try again on the next press, rather than
+  // waiting for ever (30 October 2026: a booking for next month stuck on "One moment").
+  const [monthFailed, setMonthFailed] = useState(false);
+  const [monthTry, setMonthTry] = useState(0);
   useEffect(() => {
     if (!otherMonth) return;
     let cancelled = false;
+    setMonthFailed(false);
     priceBasketRemotely(
       lines.map((line) => ({ catalogueItemId: line.item.id, quantity: line.quantity })),
       booking.deliveryDay,
@@ -81,11 +88,13 @@ export function Confirm(): JSX.Element {
           totalPence: price.totalPence,
         });
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setMonthFailed(true);
+      });
     return () => {
       cancelled = true;
     };
-  }, [otherMonth, booking.deliveryDay, lines]);
+  }, [otherMonth, booking.deliveryDay, lines, monthTry]);
   const monthApplies = otherMonth && monthPrice?.day === booking.deliveryDay;
   const pricing = monthApplies
     ? {
@@ -125,6 +134,26 @@ export function Confirm(): JSX.Element {
    */
   const [confirmedAddress, setConfirmedAddress] = useState<string | null>(null);
   const addressConfirmed = confirmedAddress !== null && confirmedAddress === address.trim();
+  /**
+   * Areas (Anthony, 30 October 2026): whether we run at this address yet, asked as soon as it is
+   * shown, so a Shopper somewhere we do not run yet is told honestly before paying, and nothing
+   * is taken. The server refuses such an order too, and puts them on the area's waiting list.
+   */
+  const [notRunning, setNotRunning] = useState<string | null>(null);
+  const postcode = postcodeIn(address);
+  useEffect(() => {
+    setNotRunning(null);
+    if (postcode === '') return undefined;
+    let cancelled = false;
+    checkArea(postcode)
+      .then((result) => {
+        if (!cancelled && result.running === false) setNotRunning(result.words);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [postcode]);
   const ozi = useOzi();
   const spokenFor = useRef<string | null>(null);
 
@@ -229,6 +258,7 @@ export function Confirm(): JSX.Element {
     if (overMaximum) {
       return `Your shopping is more than one basket holds, ${money(storeConfig.fees.maximumBasketGoodsPence)}. Please go back to your basket and take some things out.`;
     }
+    if (notRunning !== null) return notRunning;
     if (address.trim() === '' || !addressConfirmed) return 'Please confirm the address first';
     if (!card && !byBank && !byFamily) return 'Please add a card or choose bank transfer';
     if (overOneRunner && !keepEverything) {
@@ -240,7 +270,11 @@ export function Confirm(): JSX.Element {
       }
       const check = checkSchedule(choice, new Date(), storeConfig.scheduled);
       if (!check.ok) return check.message;
-      if (otherMonth && !monthApplies) return 'One moment: working out the price for that month.';
+      if (otherMonth && !monthApplies) {
+        return monthFailed
+          ? 'We could not work out the price for that month. Please press the button again to try once more.'
+          : 'One moment: working out the price for that month.';
+      }
     }
     return null;
   }
@@ -258,6 +292,8 @@ export function Confirm(): JSX.Element {
     const byBank = payingByBank();
     const missing = whatIsMissing();
     if (missing !== null) {
+      // The price for next month could not be had: this press asks again.
+      if (later && otherMonth && !monthApplies && monthFailed) setMonthTry((n) => n + 1);
       setError(missing);
       void ozi.say(missing);
       return;
@@ -676,6 +712,14 @@ export function Confirm(): JSX.Element {
                 {address === '' ? 'You have not given us an address yet.' : address}
               </p>
             )}
+            {notRunning !== null && (
+              <p
+                role="alert"
+                className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0"
+              >
+                {notRunning} Nothing will be taken.
+              </p>
+            )}
             {address.trim() !== '' &&
               (addressConfirmed ? (
                 <p role="status" className="m-0 font-bold">
@@ -786,14 +830,28 @@ export function Confirm(): JSX.Element {
         <h2 id="promise-heading" className="text-lead font-bold">
           Before you press it
         </h2>
+        {/* What saying yes covers, listed once, every figure from config (Rule Nine). The
+            charges that follow stay automatic; the Shopper is told of each here, before they
+            agree (Anthony, 30 October 2026). */}
         <p className="m-0">
-          Pressing the button below is the only thing that will ever take a payment. Nothing before
-          it has charged you a penny, and nothing after it will charge you again without asking.
+          We never take money you haven&rsquo;t agreed to. Nothing before the button below has
+          charged you a penny. Pressing it means you agree to pay, and to our terms. Saying yes also
+          covers:
         </p>
-        <p className="m-0">
-          Pressing it means you agree to pay, and to our terms. You pay what the till says. You can
-          cancel free until your Runner starts shopping.
-        </p>
+        <ul className="m-0 ps-6 space-y-2">
+          <li>
+            the difference at the till. If the shopping comes to more than the estimate, we take up
+            to {money(storeConfig.receipts.tillExtraFloorPence)} more, or a fifth of the estimate if
+            that is more. If it comes to less, we give the difference back to your card.
+          </li>
+          <li>
+            if your basket is split between Runners, an extra Runner&rsquo;s delivery fee of{' '}
+            {money(storeConfig.fees.extraRunnerDeliveryPence)} for each one.
+          </li>
+          <li>any plan you have chosen, which renews each month until you stop it.</li>
+          <li>a booked or weekly order, which is charged on its date.</li>
+        </ul>
+        <p className="m-0">You can cancel free until your Runner starts shopping.</p>
         <Link to="/terms" className="control bg-paper/10 text-paper underline">
           Read our terms
         </Link>
@@ -821,6 +879,9 @@ export function Confirm(): JSX.Element {
       <p className="m-0">
         <span className="visually-hidden">You are agreeing to this: </span>
         {statement}
+      </p>
+      <p className="m-0">
+        By sending it, you ask us to start now. You lose the right to cancel once it is delivered.
       </p>
 
       <button

@@ -5,6 +5,7 @@ import { BrowseNav } from '../components/BrowseNav';
 import { storeConfig } from '../config';
 import { fetchShops, type BrowseSection, type PublicShop } from '../lib/api';
 import { BROWSE, browseNoun, browseQuery, emptyWords, listEntry, postcodeIn } from '../lib/browse';
+import { NOT_A_PARTNER_WORDS, TYPICAL_HOURS_WORDS } from '../lib/partnership';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
 
@@ -154,9 +155,16 @@ export function BrowsePage({ section }: { section: BrowseSection }): JSX.Element
                 </span>
               </button>
             </h3>
+            {/* Said on the card itself, open or closed (30 October 2026). */}
+            {place.listedByOzi && <p className="m-0 px-4 pb-4">{NOT_A_PARTNER_WORDS}</p>}
             <div id={panel} hidden={!expanded} className="px-4 pb-4 space-y-2">
               {place.about && <p className="m-0">{place.about}</p>}
-              {place.hours && <p className="m-0">Open: {place.hours}</p>}
+              {place.hours && (
+                <p className="m-0">
+                  {place.listedByOzi ? `${TYPICAL_HOURS_WORDS}: ` : 'Open: '}
+                  {place.hours}
+                </p>
+              )}
               {place.ofstedNumber ? (
                 <p className="m-0">
                   Ofsted registration number, as the provider gave it: {place.ofstedNumber}.{' '}

@@ -1,5 +1,5 @@
 {
-  "about": "What Ozi says to everyday words (ruling 34). Added to every day (50 a day, ruling 44) by a scheduled task, checked by the tests before it goes live. Each entry: an id, a topic, the words people say ('when'), and replies, one chosen in turn. In replies, {assistant} becomes Ozi's name, {product} the product's name, {motto} the motto, and {fee}, {smallFee}, {smallUpTo}, {middleFee}, {largeUpTo}, {memberFee}, {memberLargeFee}, {plusFee}, {plusLargeFee}, {paygDelivery}, {memberDelivery}, {plusDelivery}, {memberOrders}, {plusOrders}, {familyOrders}, {allowanceExtra}, {allowanceEvery}, {findIts}, {plusFindIts}, {itemCharge}, {membership}, {plusPrice}, {familyPrice}, {orgClient}, {maximum}, {maximumProduct}, {runnerPay}, {callPrice} and {instantRefund} the figures from config/store.json, so a price is never written here. Ozi only uses these when nothing about an order or the basket was meant, and only when the whole sentence is one of the 'when' phrases or Ozi was called by name.",
+  "about": "What Ozi says to everyday words (ruling 34). Added to every day (50 a day, ruling 44) by a scheduled task, checked by the tests before it goes live. Each entry: an id, a topic, the words people say ('when'), and replies, one chosen in turn. In replies, {assistant} becomes Ozi's name, {product} the product's name, {motto} the motto, and {fee}, {smallFee}, {smallUpTo}, {middleFee}, {largeUpTo}, {memberFee}, {memberLargeFee}, {plusFee}, {plusLargeFee}, {paygDelivery}, {memberDelivery}, {plusDelivery}, {memberOrders}, {plusOrders}, {familyOrders}, {allowanceExtra}, {allowanceEvery}, {findIts}, {plusFindIts}, {itemCharge}, {membership}, {plusPrice}, {familyPrice}, {orgClient}, {maximum}, {maximumProduct}, {runnerPay}, {largeRunnerPay}, {largeOrderFrom}, {daysAhead}, {telephone}, {companyName}, {companyNumber}, {icoNumber}, {callPrice} and {instantRefund} the figures from config/store.json, so a price is never written here. Ozi only uses these when nothing about an order or the basket was meant, and only when the whole sentence is one of the 'when' phrases or Ozi was called by name. Rules for every addition: never promise a postcode check or say a town is covered in its own words (use the agreed area answer: we run across the UK, area by area, wherever we have Runners and shops); never name a supermarket or shop chain as a partner, or suggest any endorsement; never promise a delivery time (say usually the same day, and the order page shows a best guess); never say \"no mark-up\" (say shop prices, plus a small item charge on each product, plus delivery); and never name any company or technology behind {assistant}, including the makers of any AI. The tests check these.",
   "phrases": [
     {
       "id": "thanks",
@@ -92,7 +92,7 @@
       ],
       "replies": [
         "If you pay as you go, delivery is {paygDelivery}. Members pay {memberDelivery}; Plus and Family {plusDelivery}. You pay what the till says for the shopping itself.",
-        "It's {smallFee} up to {smallUpTo} of shopping, {middleFee} up to {largeUpTo} and {fee} above, on pay as you go; from {memberFee} for members; from {plusFee} on Plus. {runnerPay} always goes to your Runner."
+        "It's {smallFee} up to {smallUpTo} of shopping, {middleFee} up to {largeUpTo} and {fee} above, on pay as you go; from {memberFee} for members; from {plusFee} on Plus. Your Runner gets {runnerPay} a standard delivery, {largeRunnerPay} for big orders."
       ]
     },
     {
@@ -180,7 +180,7 @@
       "topic": "payment",
       "when": ["can i pay cash", "do you take cash", "cash on delivery"],
       "replies": [
-        "Not at the moment. Every order is paid by a card saved first, so your Runner never handles money at your door."
+        "No cash. You can pay by card, by a payment link texted to you, or by bank transfer, so your Runner never handles money at your door."
       ]
     },
     {
@@ -287,7 +287,25 @@
       "topic": "shopping",
       "when": ["which shop", "where do you shop", "what shop is it", "which supermarket"],
       "replies": [
-        "Your Runner shops at our listed shop, and you pay the shelf price. More shops are coming."
+        "Your Runner buys from the shops on the list for your area, and you pay the shelf price. More shops are coming."
+      ]
+    },
+    {
+      "id": "shopper-are-you-the-supermarket",
+      "topic": "about",
+      "when": [
+        "are you tesco",
+        "are you part of tesco",
+        "are you the supermarket",
+        "are you part of the supermarket",
+        "are you the supermarket's service",
+        "is this the supermarket's delivery",
+        "does the supermarket endorse you",
+        "are you endorsed by the supermarket",
+        "are you partnered with the supermarket"
+      ],
+      "replies": [
+        "No. {product} is an independent service. We don't have a partnership with any supermarket yet."
       ]
     },
     {
@@ -430,8 +448,8 @@
       "topic": "delivery",
       "when": ["can i choose a time", "delivery slot"],
       "replies": [
-        "Choosing a time slot isn't available yet. Your Runner comes as soon as they can.",
-        "Not yet. As soon as possible."
+        "Yes. You can book up to {daysAhead} days ahead, in a time window. Say the day, like deliver it on Saturday morning.",
+        "Yes, up to {daysAhead} days ahead, in a time window."
       ]
     },
     {
@@ -440,7 +458,7 @@
       "when": ["pay at the door"],
       "replies": [
         "No, payment is taken by card when you order. A family member or carer can add the card for you.",
-        "Card only, when you order."
+        "No cash. Card, a payment link texted to you, or bank transfer."
       ]
     },
     {
@@ -607,7 +625,7 @@
       "topic": "shopping",
       "when": ["batteries", "light bulb", "charging cable"],
       "replies": [
-        "Yes, everyday essentials like batteries and light bulbs come the same day. Say I'd like batteries.",
+        "Yes, everyday essentials like batteries and light bulbs, usually the same day. Say I'd like batteries.",
         "Say I'd like, then what you need."
       ]
     },
@@ -676,7 +694,7 @@
       "topic": "app",
       "when": ["install the app", "download the app"],
       "replies": [
-        "Add this website to your home screen now. The phone apps are coming soon.",
+        "Add this website to your home screen now. The phone apps are coming soon. Any {assistant} app in the stores now is not us; use www.ozidelivery.co.uk.",
         "Add to home screen for now."
       ]
     },
@@ -702,7 +720,10 @@
       "id": "shopper-where-are-you-based",
       "topic": "about",
       "when": ["where are you based", "where is {product}"],
-      "replies": ["We start in Medway, Kent, and are growing.", "Medway, Kent."]
+      "replies": [
+        "We're a company registered in England and Wales, and we run across the UK, area by area.",
+        "Across the UK, area by area."
+      ]
     },
     {
       "id": "shopper-can-i-work-for-you",
@@ -953,7 +974,7 @@
         "do you speak igbo"
       ],
       "replies": [
-        "I speak English for now. Welsh and other languages are planned. What can I get for you today?",
+        "I speak English for now; more languages are planned. What can I get for you today?",
         "Just English at the moment, but more languages are on the way. How can I help with your shopping?"
       ]
     },
@@ -967,8 +988,8 @@
         "are you artificial intelligence"
       ],
       "replies": [
-        "I'm a shopping assistant, here to help you get what you need. What would you like today?",
-        "I'm good at shopping, and that's what I'm here for. What can I find for you?"
+        "I'm a computer voice assistant, not a person. I'm here to help you get what you need. What would you like today?",
+        "I'm a computer voice assistant, not a person, and shopping is what I'm here for. What can I find for you?"
       ]
     },
     {
@@ -1064,7 +1085,7 @@
       "when": ["where do i start", "how do i begin", "what do i do first", "how do i get started"],
       "replies": [
         "Start by telling me one thing you need, like milk or bread. I'll add it to your basket and ask what else.",
-        "First, make sure you have an account with a card saved. Then just tell me your shopping."
+        "First, make sure you have an account. Then just tell me your shopping."
       ]
     },
     {
@@ -1113,8 +1134,8 @@
         "is there an android app"
       ],
       "replies": [
-        "For now it's a website you can add to your home screen. The phone apps are coming soon. Shall we do some shopping?",
-        "It works in your phone's browser today, and the phone apps are on their way."
+        "For now it's a website you can add to your home screen. The phone apps are coming soon. Any {assistant} app in the stores now is not us; use www.ozidelivery.co.uk.",
+        "It works in your phone's browser today, and the phone apps are on their way. Any {assistant} app in the stores now is not us."
       ]
     },
     {
@@ -1209,7 +1230,7 @@
       "topic": "account",
       "when": ["do i need an account", "can i just look", "do i have to sign up"],
       "replies": [
-        "You can look around without one. To order, you need an account with a card saved, so a Runner can be sent.",
+        "You can look around without one. To order, you need an account; then you can pay by card, by a payment link texted to you, or by bank transfer.",
         "Looking is free. When you're ready to order, I can open an account with you just by talking."
       ]
     },
@@ -1582,8 +1603,8 @@
       "topic": "ordering",
       "when": ["can i order for tomorrow", "can i order for next week", "deliver it tomorrow"],
       "replies": [
-        "Choosing a time isn't available yet; Runners come as soon as they can. For a regular day each week, say set up my weekly shop.",
-        "Orders go out straight away for now. If you shop on the same day each week, the weekly shop can help."
+        "Yes. You can book up to {daysAhead} days ahead, in a time window. Say the day, like deliver it on Saturday morning.",
+        "Yes, up to {daysAhead} days ahead. If you shop on the same day each week, the weekly shop can help."
       ]
     },
     {
@@ -1809,8 +1830,8 @@
         "can i pay by invoice"
       ],
       "replies": [
-        "For now it's a card saved with the payment company, or Apple Pay or Google Pay. No cash or cheques.",
-        "Card only for now, with Apple Pay and Google Pay too. A family member can add one for you."
+        "Yes, by bank transfer. You can also pay by card, with Apple Pay or Google Pay, or by a payment link texted to you. No cash or cheques.",
+        "You can pay by card, by a payment link texted to you, or by bank transfer. A family member can add a card for you."
       ]
     },
     {
@@ -1823,7 +1844,7 @@
         "free trial"
       ],
       "replies": [
-        "Every order is paid before a Runner goes to the shop, so a card has to be saved first. It's kept by the payment company, never by us.",
+        "Every order is paid before a Runner goes to the shop. You can pay by card, by a payment link texted to you, or by bank transfer. Cards are kept by the payment company, never by us.",
         "A Runner is only sent once the shopping is paid for. It keeps everything safe and simple."
       ]
     },
@@ -1847,7 +1868,7 @@
       "when": ["is it expensive", "is it worth it", "it's too dear", "that's a lot"],
       "replies": [
         "You pay the shop's own prices, with a small item charge on each product, from {itemCharge}, already in the prices I tell you, and delivery from {plusFee} to {fee}, depending on your plan and the size of the shop.",
-        "The shopping costs what the till says, plus the item charges shown in every price. Delivery is {smallFee}, {middleFee} or {fee} on pay as you go, by the size of the shop, and {runnerPay} of it goes to your Runner."
+        "The shopping costs what the till says, plus the item charges shown in every price. Delivery is {smallFee}, {middleFee} or {fee} on pay as you go, by the size of the shop. Your Runner gets {runnerPay} a standard delivery, {largeRunnerPay} for big orders."
       ]
     },
     {
@@ -1855,7 +1876,7 @@
       "topic": "prices",
       "when": ["why is delivery so much", "why does delivery cost that", "delivery is too dear"],
       "replies": [
-        "A real person goes to the shop, chooses your shopping and carries it to your door. {runnerPay} of the fee always goes to them.",
+        "A real person goes to the shop, chooses your shopping and carries it to your door. They get {runnerPay} a standard delivery, {largeRunnerPay} for big orders.",
         "The fee pays a checked local Runner to shop and carry for you, and keeps the service running."
       ]
     },
@@ -1887,8 +1908,8 @@
       "topic": "runners",
       "when": ["should i tip", "do i tip the runner", "can i give a tip", "how much should i tip"],
       "replies": [
-        "There's no need to tip. Your Runner gets {runnerPay} of every delivery fee. A thank you at the door is always welcome.",
-        "Tips are never expected, and I'll never ask for one. Your Runner is paid from the delivery fee."
+        "Tipping isn't available yet. Your Runner gets {runnerPay} a standard delivery, {largeRunnerPay} for big orders. A thank you at the door is always welcome.",
+        "Tipping isn't available yet, and I'll never ask for one. Your Runner is paid from the delivery fee."
       ]
     },
     {
@@ -1942,8 +1963,8 @@
         "is my area covered"
       ],
       "replies": [
-        "We're starting in Medway, in Kent, and growing. Save your address, and I'll tell you if a Runner can reach you.",
-        "Medway, Kent, for now. More places are coming."
+        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet.",
+        "We run across the UK, area by area, wherever we have Runners and shops."
       ]
     },
     {
@@ -1955,8 +1976,8 @@
         "do you deliver everywhere"
       ],
       "replies": [
-        "We start in Medway, Kent, and are growing to other places. If you're elsewhere, please check back soon.",
-        "Only Medway for now. We'll grow as more Runners join."
+        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet.",
+        "We run across the UK, area by area, wherever we have Runners and shops."
       ]
     },
     {
@@ -2084,7 +2105,7 @@
       ],
       "replies": [
         "Yes. Every Runner has their right to work checked, a photo, and a DBS check before they take any job.",
-        "Every Runner is checked before they start. They're local people, trained to help."
+        "Every Runner is checked before they start. They're local people, here to help."
       ]
     },
     {
@@ -2133,8 +2154,8 @@
         "does the runner get paid"
       ],
       "replies": [
-        "Your Runner gets {runnerPay} from every delivery fee, always, whatever the shopping.",
-        "{runnerPay} of every delivery goes to the Runner, every time."
+        "Your Runner gets {runnerPay} a standard delivery, {largeRunnerPay} for big orders.",
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders, goes to the Runner."
       ]
     },
     {
@@ -2653,7 +2674,7 @@
         "my daughter is a student"
       ],
       "replies": [
-        "You can save their hall address and send shopping there from your account, by touch. A local Runner buys it and takes it the same day.",
+        "You can save their hall address and send shopping there from your account, by touch. A local Runner buys it and takes it, usually the same day.",
         "Save their address with your PIN, then choose it at the checkout. Fresh food is no problem."
       ]
     },
@@ -2745,8 +2766,8 @@
         "can family see my orders"
       ],
       "replies": [
-        "A plan for family and carers to follow orders is being built. For now, the Shopper can add you to a call with their Runner, and you can shop for them from your own account.",
-        "Not yet, but it's on its way. Meanwhile, you can join their Runner calls when they add you."
+        "Yes, with Family and Carer. The person who pays sees every order, can approve bigger ones, and gets a weekly summary. Say plans to join.",
+        "Yes. Join Family and Carer, then add them with your family code."
       ]
     },
     {
@@ -3935,8 +3956,8 @@
       "topic": "shopping",
       "when": ["everyday essentials", "do you sell light bulbs", "can you get a charger"],
       "replies": [
-        "Yes, everyday essentials like batteries, light bulbs and charging cables come the same day, instead of waiting for a parcel.",
-        "Those are everyday essentials, brought the same day. Tell me which you need."
+        "Yes, everyday essentials like batteries, light bulbs and charging cables, usually the same day, instead of waiting for a parcel.",
+        "Those are everyday essentials, usually brought the same day. Tell me which you need."
       ]
     },
     {
@@ -5120,7 +5141,7 @@
       "topic": "small talk",
       "when": ["do you get paid", "how much do you earn", "do you work for free"],
       "replies": [
-        "I do not get paid. Your Runner does, {runnerPay} for each delivery, plus more on big orders."
+        "I do not get paid. Your Runner does: {runnerPay} a standard delivery, {largeRunnerPay} for big orders."
       ]
     },
     {
@@ -5386,7 +5407,7 @@
       "id": "s66-about-how-new-are-you",
       "topic": "about",
       "when": ["how new are you", "how long have you been going", "when did you start"],
-      "replies": ["We are new, starting in one area and growing. {motto}"]
+      "replies": ["We are new, and we run across the UK, area by area. {motto}"]
     },
     {
       "id": "s66-about-are-you-british",
@@ -5735,7 +5756,7 @@
       "id": "s66-about-what-languages",
       "topic": "about",
       "when": ["what languages", "do you do other languages", "is it in english only"],
-      "replies": ["English for now. Welsh is next, then Igbo, Hausa, Yoruba and Swahili."]
+      "replies": ["English for now; more languages are planned."]
     },
     {
       "id": "s66-about-what-is-the-green-button",
@@ -5904,7 +5925,7 @@
         "item fee"
       ],
       "replies": [
-        "A small charge on every product, {itemCharge} on most, a little more on dearer items. It pays your Runner."
+        "A small charge on every product, {itemCharge} on most, a little more on dearer items. It pays for the service: picking, checking and running {product}."
       ]
     },
     {
@@ -6049,14 +6070,16 @@
       "id": "s66-about-do-you-work-abroad",
       "topic": "about",
       "when": ["do you work abroad", "can i use you in spain", "does it work overseas"],
-      "replies": ["UK only for now. Cards from any country work, though."]
+      "replies": [
+        "We run across the UK, area by area, wherever we have Runners and shops, but not abroad. Most cards from any country work, though."
+      ]
     },
     {
       "id": "s66-about-do-you-work-in-wales",
       "topic": "about",
       "when": ["do you work in wales", "do you work in scotland", "northern ireland"],
       "replies": [
-        "We are starting in one area of England and growing across the UK. Say your postcode and I will check."
+        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet."
       ]
     },
     {
@@ -6180,14 +6203,16 @@
       "topic": "about",
       "when": ["do you do same day", "same day delivery"],
       "replies": [
-        "Yes. Orders go to a Runner straight away, and most arrive the same day, often within a couple of hours."
+        "Yes. Orders go to a Runner straight away, and arrive usually the same day; your order page shows a best guess."
       ]
     },
     {
       "id": "s66-about-can-i-book-a-delivery",
       "topic": "about",
       "when": ["can i book a delivery", "book ahead", "order in advance"],
-      "replies": ["Not yet for a single time. You can set a weekly shop for a chosen day."]
+      "replies": [
+        "Yes. You can book up to {daysAhead} days ahead, in a time window. Say the day, like deliver it on Saturday morning."
+      ]
     },
     {
       "id": "s66-about-what-is-a-large-order",
@@ -6319,7 +6344,7 @@
       "topic": "about",
       "when": ["is it insured", "what if something goes wrong on the way", "insurance"],
       "replies": [
-        "Problems are put right by us: a refund or a replacement. Runners who drive carry their own insurance."
+        "If something goes wrong with an order, say report a problem and we put it right. For anything else, say \"person\" and our customer service team will help."
       ]
     },
     {
@@ -6396,7 +6421,7 @@
         "okugard brain"
       ],
       "replies": [
-        "That is the company's own language model, planned for the questions my phrase book cannot answer."
+        "That is our own assistant technology, still being built, for the questions my phrase book cannot answer."
       ]
     },
     {
@@ -6404,7 +6429,7 @@
       "topic": "about",
       "when": ["are you a chatbot", "are you made by a big tech company", "are you an ai model"],
       "replies": [
-        "I am {assistant}, built for this service. I answer from phrases written and checked by people."
+        "I'm {assistant}, a computer voice assistant built for {product}. Most of my answers are written by people; for anything else I do my best, and a person checks anything important."
       ]
     },
     {
@@ -6412,7 +6437,7 @@
       "topic": "about",
       "when": ["do you use artificial intelligence", "is this ai", "how clever is this"],
       "replies": [
-        "I use speech recognition to hear you, and answers written and checked by people. Nothing is made up."
+        "I'm {assistant}, a computer voice assistant built for {product}. Most of my answers are written by people; for anything else I do my best, and a person checks anything important."
       ]
     },
     {
@@ -6641,7 +6666,7 @@
         "item charge explained"
       ],
       "replies": [
-        "It pays your Runner for the picking and carrying. Each product carries its own small share."
+        "It pays for the service: picking, checking and running {product}. Each product carries its own small share."
       ]
     },
     {
@@ -6724,9 +6749,7 @@
       "id": "s66-prices-do-i-pay-the-runner-extra",
       "topic": "prices",
       "when": ["do i pay the runner extra", "does the runner cost extra", "runner fee"],
-      "replies": [
-        "No. The Runner is paid out of the delivery and item charges. You pay nothing more."
-      ]
+      "replies": ["No. The Runner is paid out of the delivery charge. You pay nothing more."]
     },
     {
       "id": "s66-prices-is-delivery-cheaper-if-i-order-more",
@@ -6800,7 +6823,9 @@
       "id": "s66-prices-how-much-is-a-runner-paid",
       "topic": "prices",
       "when": ["how much is a runner paid", "what does my runner earn", "runner pay"],
-      "replies": ["A Runner is paid {runnerPay} for each delivery, and more for big orders."]
+      "replies": [
+        "A Runner is paid {runnerPay} a standard delivery, {largeRunnerPay} for big orders."
+      ]
     },
     {
       "id": "s66-prices-how-much-is-the-call",
@@ -6925,7 +6950,7 @@
         "are you good value"
       ],
       "replies": [
-        "No markup on the shopping, no surge pricing, plain fees said aloud. Judge for yourself."
+        "Shop prices, plus a small item charge on each product that I always tell you, plus delivery. No surge pricing. Judge for yourself."
       ]
     },
     {
@@ -7199,7 +7224,7 @@
         "what's the item charge for"
       ],
       "replies": [
-        "The item charge pays your Runner for each thing they pick and carry, on top of their {runnerPay} a delivery."
+        "It pays for the service: picking, checking and running {product}. Your Runner is paid from the delivery: {runnerPay} a standard delivery, {largeRunnerPay} for big orders."
       ]
     },
     {
@@ -7809,7 +7834,7 @@
       "topic": "runners",
       "when": ["can i be a runner with a motorbike", "motorbike runner", "scooter runner"],
       "replies": [
-        "Yes, with a licence and business insurance that a person checks. Motorbikes carry a little more than a bike."
+        "Yes, with a licence and business insurance. Motorbikes carry a little more than a bike."
       ]
     },
     {
@@ -7821,7 +7846,7 @@
         "what insurance does a runner need"
       ],
       "replies": [
-        "Only if you drive or ride: a car, van, motorbike or scooter needs business use or courier insurance, checked by a person."
+        "Only if you drive or ride: a car, van, motorbike or scooter needs business use or courier insurance."
       ]
     },
     {
@@ -7862,7 +7887,7 @@
       "topic": "runners",
       "when": ["how are runners paid", "how does runner pay work", "runner payment"],
       "replies": [
-        "{runnerPay} for each delivery, more for big orders, paid to their own bank account. Shopping money is paid back at once."
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders, paid to their own bank account. Shopping money is paid back straight away with a receipt photo; large or unclear amounts are checked by a person first."
       ]
     },
     {
@@ -7940,7 +7965,7 @@
       "topic": "runners",
       "when": ["is there runner training", "do runners get trained", "runner training"],
       "replies": [
-        "Yes, short modules in the app: safety at the door, handling food, substitutions and more."
+        "Short optional lessons are coming soon in the app: safety at the door, handling food, substitutions and more."
       ]
     },
     {
@@ -7985,7 +8010,7 @@
       "topic": "runners",
       "when": ["how far do runners travel", "runner distance", "how far will a runner go"],
       "replies": [
-        "Runners work within about ten miles of the shops we list. Say your postcode and I check for you."
+        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet."
       ]
     },
     {
@@ -8024,7 +8049,7 @@
       "topic": "runners",
       "when": ["do runners get expenses", "fuel money for runners", "runner mileage"],
       "replies": [
-        "The pay per delivery covers the trip. Shopping money is paid back in full at once."
+        "The pay per delivery covers the trip. Shopping money is paid back straight away with a receipt photo; large or unclear amounts are checked by a person first."
       ]
     },
     {
@@ -8040,7 +8065,7 @@
       "topic": "runners",
       "when": ["can i become a runner today", "start as a runner now", "how quickly can i start"],
       "replies": [
-        "Sign up takes minutes. Jobs are offered once a person has checked your documents, usually within a day or two."
+        "Sign up takes minutes. Jobs are offered once your documents are approved: clear ones by our automatic check, anything unclear by a person."
       ]
     },
     {
@@ -8125,7 +8150,7 @@
       "id": "s66-runners-can-i-tip-in-the-app",
       "topic": "runners",
       "when": ["can i tip in the app", "tip my runner", "tipping"],
-      "replies": ["Not yet. Tipping after delivery is planned. A kind review helps them meanwhile."]
+      "replies": ["Tipping isn't available yet. A kind review helps your Runner."]
     },
     {
       "id": "s66-runners-can-i-see-runner-reviews",
@@ -8206,7 +8231,7 @@
       "topic": "runners",
       "when": ["do runners have to wear masks", "runner hygiene", "food safety runners"],
       "replies": [
-        "Runners complete food handling training and carry a cool bag. Say contactless if you prefer no contact."
+        "Runners carry a cool bag, and shopping stays bagged from till to door. Say contactless if you prefer no contact."
       ]
     },
     {
@@ -8932,7 +8957,7 @@
       "topic": "organisations",
       "when": ["can a hospital use this", "nhs discharge shopping", "hospital partner"],
       "replies": [
-        "Yes. Hospitals can look after shopping for people going home, with their own sign-in."
+        "Hospitals can join as organisations, with their own sign-in. Organisations such as care providers and councils can join as organisations; we have no NHS or council partnership yet."
       ]
     },
     {
@@ -9471,7 +9496,7 @@
       "id": "s66-accessibility-can-i-change-the-language-of-the-voice",
       "topic": "accessibility",
       "when": ["can i change the language of the voice", "voice in welsh", "welsh"],
-      "replies": ["English for now. Welsh is next, then Igbo, Hausa, Yoruba and Swahili."]
+      "replies": ["English for now; more languages are planned."]
     },
     {
       "id": "s66-accessibility-does-it-work-on-an-old-phone",
@@ -10130,9 +10155,7 @@
       "id": "s66-safety-is-the-food-kept-safe",
       "topic": "safety",
       "when": ["is the food kept safe", "food safety", "cold chain"],
-      "replies": [
-        "Chilled and frozen food travels in a cool bag, and Runners complete food handling training."
-      ]
+      "replies": ["Chilled and frozen food travels in a cool bag."]
     },
     {
       "id": "s66-safety-what-if-i-have-an-allergy",
@@ -10366,9 +10389,7 @@
       "id": "s66-payments-what-ways-can-i-pay",
       "topic": "payments",
       "when": ["what ways can i pay", "payment options", "how can i pay", "ways to pay"],
-      "replies": [
-        "By card saved to your account, or by bank transfer when it is switched on. Never cash."
-      ]
+      "replies": ["By card, by a payment link texted to you, or by bank transfer. Never cash."]
     },
     {
       "id": "s66-payments-can-i-pay-by-card",
@@ -10382,13 +10403,13 @@
       "id": "s66-payments-can-i-pay-with-a-debit-card",
       "topic": "payments",
       "when": ["can i pay with a debit card", "debit card", "do you take debit cards"],
-      "replies": ["Yes. Debit or credit, from any country."]
+      "replies": ["Yes. Debit or credit, and most cards from any country work."]
     },
     {
       "id": "s66-payments-can-i-pay-with-a-credit-card",
       "topic": "payments",
       "when": ["can i pay with a credit card", "credit card"],
-      "replies": ["Yes. Credit or debit, from any country."]
+      "replies": ["Yes. Credit or debit, and most cards from any country work."]
     },
     {
       "id": "s66-payments-can-i-pay-with-my-phone-wallet",
@@ -10416,7 +10437,7 @@
         "overseas card"
       ],
       "replies": [
-        "Yes. Cards from any country work. Your bank may charge its own fee for spending in pounds."
+        "Yes. Most cards from any country work. Your bank may charge its own fee for spending in pounds."
       ]
     },
     {
@@ -10666,21 +10687,19 @@
       "id": "s66-payments-do-you-take-american-cards",
       "topic": "payments",
       "when": ["do you take american cards", "us card", "card from america"],
-      "replies": ["Yes. Cards from any country work."]
+      "replies": ["Yes. Most cards from any country work."]
     },
     {
       "id": "s66-payments-do-you-take-european-cards",
       "topic": "payments",
       "when": ["do you take european cards", "card from europe", "euro card"],
-      "replies": ["Yes. Any country's card works; you pay in pounds."]
+      "replies": ["Yes. Most cards from any country work; you pay in pounds."]
     },
     {
       "id": "s66-payments-do-you-take-african-cards",
       "topic": "payments",
       "when": ["do you take african cards", "card from nigeria", "ghana card"],
-      "replies": [
-        "Yes. Cards from any country work, including Nigeria and Ghana. You pay in pounds."
-      ]
+      "replies": ["Yes. Most cards from any country work. You pay in pounds."]
     },
     {
       "id": "s66-payments-what-currency-do-i-pay-in",
@@ -10820,7 +10839,7 @@
         "i don't have a card"
       ],
       "replies": [
-        "Pay by bank transfer when it is switched on, or ask someone you trust to save their card for you."
+        "Yes. Pay by bank transfer or by a payment link texted to you, or ask someone you trust to save their card for you."
       ]
     },
     {
@@ -10910,1428 +10929,451 @@
       ]
     },
     {
-      "id": "s66-areas-do-you-deliver-in-london",
-      "topic": "areas",
-      "when": ["do you deliver in london", "are you in london", "do you cover london"],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether London is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-manchester",
+      "id": "s66-areas-do-you-deliver-to-my-town",
       "topic": "areas",
       "when": [
+        "do you deliver in london",
+        "are you in london",
+        "do you cover london",
         "do you deliver to manchester",
         "do you deliver in manchester",
         "are you in manchester",
-        "do you cover manchester"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Manchester is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-birmingham",
-      "topic": "areas",
-      "when": [
+        "do you cover manchester",
         "do you deliver to birmingham",
         "do you deliver in birmingham",
         "are you in birmingham",
-        "do you cover birmingham"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Birmingham is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-leeds",
-      "topic": "areas",
-      "when": [
+        "do you cover birmingham",
         "do you deliver to leeds",
         "do you deliver in leeds",
         "are you in leeds",
-        "do you cover leeds"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Leeds is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-liverpool",
-      "topic": "areas",
-      "when": [
+        "do you cover leeds",
         "do you deliver to liverpool",
         "do you deliver in liverpool",
         "are you in liverpool",
-        "do you cover liverpool"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Liverpool is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-sheffield",
-      "topic": "areas",
-      "when": [
+        "do you cover liverpool",
         "do you deliver to sheffield",
         "do you deliver in sheffield",
         "are you in sheffield",
-        "do you cover sheffield"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Sheffield is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-bristol",
-      "topic": "areas",
-      "when": [
+        "do you cover sheffield",
         "do you deliver to bristol",
         "do you deliver in bristol",
         "are you in bristol",
-        "do you cover bristol"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Bristol is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-newcastle",
-      "topic": "areas",
-      "when": [
+        "do you cover bristol",
         "do you deliver to newcastle",
         "do you deliver in newcastle",
         "are you in newcastle",
-        "do you cover newcastle"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Newcastle is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-nottingham",
-      "topic": "areas",
-      "when": [
+        "do you cover newcastle",
         "do you deliver to nottingham",
         "do you deliver in nottingham",
         "are you in nottingham",
-        "do you cover nottingham"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Nottingham is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-leicester",
-      "topic": "areas",
-      "when": [
+        "do you cover nottingham",
         "do you deliver to leicester",
         "do you deliver in leicester",
         "are you in leicester",
-        "do you cover leicester"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Leicester is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-coventry",
-      "topic": "areas",
-      "when": [
+        "do you cover leicester",
         "do you deliver to coventry",
         "do you deliver in coventry",
         "are you in coventry",
-        "do you cover coventry"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Coventry is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-bradford",
-      "topic": "areas",
-      "when": [
+        "do you cover coventry",
         "do you deliver to bradford",
         "do you deliver in bradford",
         "are you in bradford",
-        "do you cover bradford"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Bradford is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-cardiff",
-      "topic": "areas",
-      "when": [
+        "do you cover bradford",
         "do you deliver to cardiff",
         "do you deliver in cardiff",
         "are you in cardiff",
-        "do you cover cardiff"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Cardiff is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-glasgow",
-      "topic": "areas",
-      "when": [
+        "do you cover cardiff",
         "do you deliver to glasgow",
         "do you deliver in glasgow",
         "are you in glasgow",
-        "do you cover glasgow"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Glasgow is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-edinburgh",
-      "topic": "areas",
-      "when": [
+        "do you cover glasgow",
         "do you deliver to edinburgh",
         "do you deliver in edinburgh",
         "are you in edinburgh",
-        "do you cover edinburgh"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Edinburgh is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-belfast",
-      "topic": "areas",
-      "when": [
+        "do you cover edinburgh",
         "do you deliver to belfast",
         "do you deliver in belfast",
         "are you in belfast",
-        "do you cover belfast"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Belfast is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-swansea",
-      "topic": "areas",
-      "when": [
+        "do you cover belfast",
         "do you deliver to swansea",
         "do you deliver in swansea",
         "are you in swansea",
-        "do you cover swansea"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Swansea is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-aberdeen",
-      "topic": "areas",
-      "when": [
+        "do you cover swansea",
         "do you deliver to aberdeen",
         "do you deliver in aberdeen",
         "are you in aberdeen",
-        "do you cover aberdeen"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Aberdeen is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-dundee",
-      "topic": "areas",
-      "when": [
+        "do you cover aberdeen",
         "do you deliver to dundee",
         "do you deliver in dundee",
         "are you in dundee",
-        "do you cover dundee"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Dundee is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-brighton",
-      "topic": "areas",
-      "when": [
+        "do you cover dundee",
         "do you deliver to brighton",
         "do you deliver in brighton",
         "are you in brighton",
-        "do you cover brighton"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Brighton is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-southampton",
-      "topic": "areas",
-      "when": [
+        "do you cover brighton",
         "do you deliver to southampton",
         "do you deliver in southampton",
         "are you in southampton",
-        "do you cover southampton"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Southampton is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-portsmouth",
-      "topic": "areas",
-      "when": [
+        "do you cover southampton",
         "do you deliver to portsmouth",
         "do you deliver in portsmouth",
         "are you in portsmouth",
-        "do you cover portsmouth"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Portsmouth is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-reading",
-      "topic": "areas",
-      "when": [
+        "do you cover portsmouth",
         "do you deliver to reading",
         "do you deliver in reading",
         "are you in reading",
-        "do you cover reading"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Reading is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-oxford",
-      "topic": "areas",
-      "when": [
+        "do you cover reading",
         "do you deliver to oxford",
         "do you deliver in oxford",
         "are you in oxford",
-        "do you cover oxford"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Oxford is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-cambridge",
-      "topic": "areas",
-      "when": [
+        "do you cover oxford",
         "do you deliver to cambridge",
         "do you deliver in cambridge",
         "are you in cambridge",
-        "do you cover cambridge"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Cambridge is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-norwich",
-      "topic": "areas",
-      "when": [
+        "do you cover cambridge",
         "do you deliver to norwich",
         "do you deliver in norwich",
         "are you in norwich",
-        "do you cover norwich"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Norwich is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-ipswich",
-      "topic": "areas",
-      "when": [
+        "do you cover norwich",
         "do you deliver to ipswich",
         "do you deliver in ipswich",
         "are you in ipswich",
-        "do you cover ipswich"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Ipswich is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-colchester",
-      "topic": "areas",
-      "when": [
+        "do you cover ipswich",
         "do you deliver to colchester",
         "do you deliver in colchester",
         "are you in colchester",
-        "do you cover colchester"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Colchester is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-chelmsford",
-      "topic": "areas",
-      "when": [
+        "do you cover colchester",
         "do you deliver to chelmsford",
         "do you deliver in chelmsford",
         "are you in chelmsford",
-        "do you cover chelmsford"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Chelmsford is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-southend",
-      "topic": "areas",
-      "when": [
+        "do you cover chelmsford",
         "do you deliver to southend",
         "do you deliver in southend",
         "are you in southend",
-        "do you cover southend"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Southend is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-maidstone",
-      "topic": "areas",
-      "when": [
+        "do you cover southend",
         "do you deliver to maidstone",
         "do you deliver in maidstone",
         "are you in maidstone",
-        "do you cover maidstone"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Maidstone is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-canterbury",
-      "topic": "areas",
-      "when": [
+        "do you cover maidstone",
         "do you deliver to canterbury",
         "do you deliver in canterbury",
         "are you in canterbury",
-        "do you cover canterbury"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Canterbury is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-ashford",
-      "topic": "areas",
-      "when": [
+        "do you cover canterbury",
         "do you deliver to ashford",
         "do you deliver in ashford",
         "are you in ashford",
-        "do you cover ashford"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Ashford is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-dover",
-      "topic": "areas",
-      "when": [
+        "do you cover ashford",
         "do you deliver to dover",
         "do you deliver in dover",
         "are you in dover",
-        "do you cover dover"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Dover is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-folkestone",
-      "topic": "areas",
-      "when": [
+        "do you cover dover",
         "do you deliver to folkestone",
         "do you deliver in folkestone",
         "are you in folkestone",
-        "do you cover folkestone"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Folkestone is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-margate",
-      "topic": "areas",
-      "when": [
+        "do you cover folkestone",
         "do you deliver to margate",
         "do you deliver in margate",
         "are you in margate",
-        "do you cover margate"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Margate is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-ramsgate",
-      "topic": "areas",
-      "when": [
+        "do you cover margate",
         "do you deliver to ramsgate",
         "do you deliver in ramsgate",
         "are you in ramsgate",
-        "do you cover ramsgate"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Ramsgate is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-dartford",
-      "topic": "areas",
-      "when": [
+        "do you cover ramsgate",
         "do you deliver to dartford",
         "do you deliver in dartford",
         "are you in dartford",
-        "do you cover dartford"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Dartford is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-gravesend",
-      "topic": "areas",
-      "when": [
+        "do you cover dartford",
         "do you deliver to gravesend",
         "do you deliver in gravesend",
         "are you in gravesend",
-        "do you cover gravesend"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Gravesend is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-sittingbourne",
-      "topic": "areas",
-      "when": [
+        "do you cover gravesend",
         "do you deliver to sittingbourne",
         "do you deliver in sittingbourne",
         "are you in sittingbourne",
-        "do you cover sittingbourne"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Sittingbourne is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-faversham",
-      "topic": "areas",
-      "when": [
+        "do you cover sittingbourne",
         "do you deliver to faversham",
         "do you deliver in faversham",
         "are you in faversham",
-        "do you cover faversham"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Faversham is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-tonbridge",
-      "topic": "areas",
-      "when": [
+        "do you cover faversham",
         "do you deliver to tonbridge",
         "do you deliver in tonbridge",
         "are you in tonbridge",
-        "do you cover tonbridge"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Tonbridge is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-tunbridge-wells",
-      "topic": "areas",
-      "when": [
+        "do you cover tonbridge",
         "do you deliver to tunbridge wells",
         "do you deliver in tunbridge wells",
         "are you in tunbridge wells",
-        "do you cover tunbridge wells"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Tunbridge Wells is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-sevenoaks",
-      "topic": "areas",
-      "when": [
+        "do you cover tunbridge wells",
         "do you deliver to sevenoaks",
         "do you deliver in sevenoaks",
         "are you in sevenoaks",
-        "do you cover sevenoaks"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Sevenoaks is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-bromley",
-      "topic": "areas",
-      "when": [
+        "do you cover sevenoaks",
         "do you deliver to bromley",
         "do you deliver in bromley",
         "are you in bromley",
-        "do you cover bromley"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Bromley is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-croydon",
-      "topic": "areas",
-      "when": [
+        "do you cover bromley",
         "do you deliver to croydon",
         "do you deliver in croydon",
         "are you in croydon",
-        "do you cover croydon"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Croydon is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-rochester",
-      "topic": "areas",
-      "when": [
+        "do you cover croydon",
         "do you deliver to rochester",
         "do you deliver in rochester",
         "are you in rochester",
-        "do you cover rochester"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Rochester is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-chatham",
-      "topic": "areas",
-      "when": [
+        "do you cover rochester",
         "do you deliver to chatham",
         "do you deliver in chatham",
         "are you in chatham",
-        "do you cover chatham"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Chatham is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-gillingham",
-      "topic": "areas",
-      "when": [
+        "do you cover chatham",
         "do you deliver to gillingham",
         "do you deliver in gillingham",
         "are you in gillingham",
-        "do you cover gillingham"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Gillingham is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-strood",
-      "topic": "areas",
-      "when": [
+        "do you cover gillingham",
         "do you deliver to strood",
         "do you deliver in strood",
         "are you in strood",
-        "do you cover strood"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Strood is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-rainham",
-      "topic": "areas",
-      "when": [
+        "do you cover strood",
         "do you deliver to rainham",
         "do you deliver in rainham",
         "are you in rainham",
-        "do you cover rainham"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Rainham is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-medway",
-      "topic": "areas",
-      "when": [
+        "do you cover rainham",
         "do you deliver to medway",
         "do you deliver in medway",
         "are you in medway",
-        "do you cover medway"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Medway is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-kent",
-      "topic": "areas",
-      "when": [
+        "do you cover medway",
         "do you deliver to kent",
         "do you deliver in kent",
         "are you in kent",
-        "do you cover kent"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Kent is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-essex",
-      "topic": "areas",
-      "when": [
+        "do you cover kent",
         "do you deliver to essex",
         "do you deliver in essex",
         "are you in essex",
-        "do you cover essex"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Essex is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-surrey",
-      "topic": "areas",
-      "when": [
+        "do you cover essex",
         "do you deliver to surrey",
         "do you deliver in surrey",
         "are you in surrey",
-        "do you cover surrey"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Surrey is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-sussex",
-      "topic": "areas",
-      "when": [
+        "do you cover surrey",
         "do you deliver to sussex",
         "do you deliver in sussex",
         "are you in sussex",
-        "do you cover sussex"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Sussex is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-hampshire",
-      "topic": "areas",
-      "when": [
+        "do you cover sussex",
         "do you deliver to hampshire",
         "do you deliver in hampshire",
         "are you in hampshire",
-        "do you cover hampshire"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Hampshire is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-devon",
-      "topic": "areas",
-      "when": [
+        "do you cover hampshire",
         "do you deliver to devon",
         "do you deliver in devon",
         "are you in devon",
-        "do you cover devon"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Devon is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-cornwall",
-      "topic": "areas",
-      "when": [
+        "do you cover devon",
         "do you deliver to cornwall",
         "do you deliver in cornwall",
         "are you in cornwall",
-        "do you cover cornwall"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Cornwall is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-yorkshire",
-      "topic": "areas",
-      "when": [
+        "do you cover cornwall",
         "do you deliver to yorkshire",
         "do you deliver in yorkshire",
         "are you in yorkshire",
-        "do you cover yorkshire"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Yorkshire is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-milton-keynes",
-      "topic": "areas",
-      "when": [
+        "do you cover yorkshire",
         "do you deliver to milton keynes",
         "do you deliver in milton keynes",
         "are you in milton keynes",
-        "do you cover milton keynes"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Milton Keynes is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-luton",
-      "topic": "areas",
-      "when": [
+        "do you cover milton keynes",
         "do you deliver to luton",
         "do you deliver in luton",
         "are you in luton",
-        "do you cover luton"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Luton is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-watford",
-      "topic": "areas",
-      "when": [
+        "do you cover luton",
         "do you deliver to watford",
         "do you deliver in watford",
         "are you in watford",
-        "do you cover watford"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Watford is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-slough",
-      "topic": "areas",
-      "when": [
+        "do you cover watford",
         "do you deliver to slough",
         "do you deliver in slough",
         "are you in slough",
-        "do you cover slough"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Slough is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-guildford",
-      "topic": "areas",
-      "when": [
+        "do you cover slough",
         "do you deliver to guildford",
         "do you deliver in guildford",
         "are you in guildford",
-        "do you cover guildford"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Guildford is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-crawley",
-      "topic": "areas",
-      "when": [
+        "do you cover guildford",
         "do you deliver to crawley",
         "do you deliver in crawley",
         "are you in crawley",
-        "do you cover crawley"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Crawley is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-basingstoke",
-      "topic": "areas",
-      "when": [
+        "do you cover crawley",
         "do you deliver to basingstoke",
         "do you deliver in basingstoke",
         "are you in basingstoke",
-        "do you cover basingstoke"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Basingstoke is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-swindon",
-      "topic": "areas",
-      "when": [
+        "do you cover basingstoke",
         "do you deliver to swindon",
         "do you deliver in swindon",
         "are you in swindon",
-        "do you cover swindon"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Swindon is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-gloucester",
-      "topic": "areas",
-      "when": [
+        "do you cover swindon",
         "do you deliver to gloucester",
         "do you deliver in gloucester",
         "are you in gloucester",
-        "do you cover gloucester"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Gloucester is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-cheltenham",
-      "topic": "areas",
-      "when": [
+        "do you cover gloucester",
         "do you deliver to cheltenham",
         "do you deliver in cheltenham",
         "are you in cheltenham",
-        "do you cover cheltenham"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Cheltenham is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-bath",
-      "topic": "areas",
-      "when": [
+        "do you cover cheltenham",
         "do you deliver to bath",
         "do you deliver in bath",
         "are you in bath",
-        "do you cover bath"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Bath is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-exeter",
-      "topic": "areas",
-      "when": [
+        "do you cover bath",
         "do you deliver to exeter",
         "do you deliver in exeter",
         "are you in exeter",
-        "do you cover exeter"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Exeter is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-plymouth",
-      "topic": "areas",
-      "when": [
+        "do you cover exeter",
         "do you deliver to plymouth",
         "do you deliver in plymouth",
         "are you in plymouth",
-        "do you cover plymouth"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Plymouth is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-bournemouth",
-      "topic": "areas",
-      "when": [
+        "do you cover plymouth",
         "do you deliver to bournemouth",
         "do you deliver in bournemouth",
         "are you in bournemouth",
-        "do you cover bournemouth"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Bournemouth is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-poole",
-      "topic": "areas",
-      "when": [
+        "do you cover bournemouth",
         "do you deliver to poole",
         "do you deliver in poole",
         "are you in poole",
-        "do you cover poole"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Poole is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-salisbury",
-      "topic": "areas",
-      "when": [
+        "do you cover poole",
         "do you deliver to salisbury",
         "do you deliver in salisbury",
         "are you in salisbury",
-        "do you cover salisbury"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Salisbury is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-winchester",
-      "topic": "areas",
-      "when": [
+        "do you cover salisbury",
         "do you deliver to winchester",
         "do you deliver in winchester",
         "are you in winchester",
-        "do you cover winchester"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Winchester is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-derby",
-      "topic": "areas",
-      "when": [
+        "do you cover winchester",
         "do you deliver to derby",
         "do you deliver in derby",
         "are you in derby",
-        "do you cover derby"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Derby is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-stoke",
-      "topic": "areas",
-      "when": [
+        "do you cover derby",
         "do you deliver to stoke",
         "do you deliver in stoke",
         "are you in stoke",
-        "do you cover stoke"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Stoke is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-wolverhampton",
-      "topic": "areas",
-      "when": [
+        "do you cover stoke",
         "do you deliver to wolverhampton",
         "do you deliver in wolverhampton",
         "are you in wolverhampton",
-        "do you cover wolverhampton"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Wolverhampton is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-hull",
-      "topic": "areas",
-      "when": [
+        "do you cover wolverhampton",
         "do you deliver to hull",
         "do you deliver in hull",
         "are you in hull",
-        "do you cover hull"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Hull is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-york",
-      "topic": "areas",
-      "when": [
+        "do you cover hull",
         "do you deliver to york",
         "do you deliver in york",
         "are you in york",
-        "do you cover york"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether York is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-middlesbrough",
-      "topic": "areas",
-      "when": [
+        "do you cover york",
         "do you deliver to middlesbrough",
         "do you deliver in middlesbrough",
         "are you in middlesbrough",
-        "do you cover middlesbrough"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Middlesbrough is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-sunderland",
-      "topic": "areas",
-      "when": [
+        "do you cover middlesbrough",
         "do you deliver to sunderland",
         "do you deliver in sunderland",
         "are you in sunderland",
-        "do you cover sunderland"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Sunderland is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-durham",
-      "topic": "areas",
-      "when": [
+        "do you cover sunderland",
         "do you deliver to durham",
         "do you deliver in durham",
         "are you in durham",
-        "do you cover durham"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Durham is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-carlisle",
-      "topic": "areas",
-      "when": [
+        "do you cover durham",
         "do you deliver to carlisle",
         "do you deliver in carlisle",
         "are you in carlisle",
-        "do you cover carlisle"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Carlisle is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-lancaster",
-      "topic": "areas",
-      "when": [
+        "do you cover carlisle",
         "do you deliver to lancaster",
         "do you deliver in lancaster",
         "are you in lancaster",
-        "do you cover lancaster"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Lancaster is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-preston",
-      "topic": "areas",
-      "when": [
+        "do you cover lancaster",
         "do you deliver to preston",
         "do you deliver in preston",
         "are you in preston",
-        "do you cover preston"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Preston is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-blackpool",
-      "topic": "areas",
-      "when": [
+        "do you cover preston",
         "do you deliver to blackpool",
         "do you deliver in blackpool",
         "are you in blackpool",
-        "do you cover blackpool"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Blackpool is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-bolton",
-      "topic": "areas",
-      "when": [
+        "do you cover blackpool",
         "do you deliver to bolton",
         "do you deliver in bolton",
         "are you in bolton",
-        "do you cover bolton"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Bolton is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-wigan",
-      "topic": "areas",
-      "when": [
+        "do you cover bolton",
         "do you deliver to wigan",
         "do you deliver in wigan",
         "are you in wigan",
-        "do you cover wigan"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Wigan is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-warrington",
-      "topic": "areas",
-      "when": [
+        "do you cover wigan",
         "do you deliver to warrington",
         "do you deliver in warrington",
         "are you in warrington",
-        "do you cover warrington"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Warrington is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-chester",
-      "topic": "areas",
-      "when": [
+        "do you cover warrington",
         "do you deliver to chester",
         "do you deliver in chester",
         "are you in chester",
-        "do you cover chester"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Chester is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-stockport",
-      "topic": "areas",
-      "when": [
+        "do you cover chester",
         "do you deliver to stockport",
         "do you deliver in stockport",
         "are you in stockport",
-        "do you cover stockport"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Stockport is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-oldham",
-      "topic": "areas",
-      "when": [
+        "do you cover stockport",
         "do you deliver to oldham",
         "do you deliver in oldham",
         "are you in oldham",
-        "do you cover oldham"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Oldham is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-rochdale",
-      "topic": "areas",
-      "when": [
+        "do you cover oldham",
         "do you deliver to rochdale",
         "do you deliver in rochdale",
         "are you in rochdale",
-        "do you cover rochdale"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Rochdale is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-huddersfield",
-      "topic": "areas",
-      "when": [
+        "do you cover rochdale",
         "do you deliver to huddersfield",
         "do you deliver in huddersfield",
         "are you in huddersfield",
-        "do you cover huddersfield"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Huddersfield is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-wakefield",
-      "topic": "areas",
-      "when": [
+        "do you cover huddersfield",
         "do you deliver to wakefield",
         "do you deliver in wakefield",
         "are you in wakefield",
-        "do you cover wakefield"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Wakefield is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-doncaster",
-      "topic": "areas",
-      "when": [
+        "do you cover wakefield",
         "do you deliver to doncaster",
         "do you deliver in doncaster",
         "are you in doncaster",
-        "do you cover doncaster"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Doncaster is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-lincoln",
-      "topic": "areas",
-      "when": [
+        "do you cover doncaster",
         "do you deliver to lincoln",
         "do you deliver in lincoln",
         "are you in lincoln",
-        "do you cover lincoln"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Lincoln is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-peterborough",
-      "topic": "areas",
-      "when": [
+        "do you cover lincoln",
         "do you deliver to peterborough",
         "do you deliver in peterborough",
         "are you in peterborough",
-        "do you cover peterborough"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Peterborough is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-northampton",
-      "topic": "areas",
-      "when": [
+        "do you cover peterborough",
         "do you deliver to northampton",
         "do you deliver in northampton",
         "are you in northampton",
-        "do you cover northampton"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Northampton is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-bedford",
-      "topic": "areas",
-      "when": [
+        "do you cover northampton",
         "do you deliver to bedford",
         "do you deliver in bedford",
         "are you in bedford",
-        "do you cover bedford"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Bedford is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-stevenage",
-      "topic": "areas",
-      "when": [
+        "do you cover bedford",
         "do you deliver to stevenage",
         "do you deliver in stevenage",
         "are you in stevenage",
-        "do you cover stevenage"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Stevenage is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-hertford",
-      "topic": "areas",
-      "when": [
+        "do you cover stevenage",
         "do you deliver to hertford",
         "do you deliver in hertford",
         "are you in hertford",
-        "do you cover hertford"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Hertford is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-harlow",
-      "topic": "areas",
-      "when": [
+        "do you cover hertford",
         "do you deliver to harlow",
         "do you deliver in harlow",
         "are you in harlow",
-        "do you cover harlow"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Harlow is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-basildon",
-      "topic": "areas",
-      "when": [
+        "do you cover harlow",
         "do you deliver to basildon",
         "do you deliver in basildon",
         "are you in basildon",
-        "do you cover basildon"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Basildon is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-romford",
-      "topic": "areas",
-      "when": [
+        "do you cover basildon",
         "do you deliver to romford",
         "do you deliver in romford",
         "are you in romford",
-        "do you cover romford"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Romford is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-ilford",
-      "topic": "areas",
-      "when": [
+        "do you cover romford",
         "do you deliver to ilford",
         "do you deliver in ilford",
         "are you in ilford",
-        "do you cover ilford"
-      ],
-      "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Ilford is covered."
-      ]
-    },
-    {
-      "id": "s66-areas-do-you-deliver-to-enfield",
-      "topic": "areas",
-      "when": [
+        "do you cover ilford",
         "do you deliver to enfield",
         "do you deliver in enfield",
         "are you in enfield",
         "do you cover enfield"
       ],
       "replies": [
-        "We are growing across the UK, area by area. Say your postcode on the address screen and I tell you at once whether Enfield is covered."
+        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet."
       ]
     },
     {
@@ -12344,7 +11386,7 @@
         "am i in your area"
       ],
       "replies": [
-        "Say add my address and give me your postcode. I tell you straight away whether a Runner can reach you."
+        "Say add my address and give me your postcode. I'll tell you whether we're running in your area yet."
       ]
     },
     {
@@ -12352,7 +11394,7 @@
       "topic": "areas",
       "when": ["how far do you deliver", "delivery radius", "how many miles"],
       "replies": [
-        "Runners work within about ten miles of the shops we list. Say your postcode and I check for you."
+        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet."
       ]
     },
     {
@@ -12360,7 +11402,7 @@
       "topic": "areas",
       "when": ["when will you come to my area", "expand to my town", "not in my area yet"],
       "replies": [
-        "We grow area by area as Runners join. Leave your postcode and I will tell you when we reach you."
+        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet."
       ]
     },
     {
@@ -12384,7 +11426,9 @@
         "village delivery",
         "i live in a village"
       ],
-      "replies": ["If a listed shop is within about ten miles, yes. Say your postcode and I check."]
+      "replies": [
+        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet."
+      ]
     },
     {
       "id": "s66-areas-do-you-deliver-to-flats",
@@ -12421,7 +11465,7 @@
       "topic": "areas",
       "when": ["do you deliver to hotels", "hotel delivery", "holiday let"],
       "replies": [
-        "Yes, if the address is covered. Add it as an address and choose it on the screen."
+        "Yes, if we're running in that area. Add it as an address and choose it on the screen."
       ]
     },
     {
@@ -12436,14 +11480,16 @@
       "id": "s66-areas-do-you-deliver-abroad",
       "topic": "areas",
       "when": ["do you deliver abroad", "overseas delivery", "ireland"],
-      "replies": ["UK only."]
+      "replies": [
+        "We run across the UK only. We cover Northern Ireland as part of the UK, area by area, but not the Republic of Ireland."
+      ]
     },
     {
       "id": "s66-areas-which-areas-are-you-in",
       "topic": "areas",
       "when": ["which areas are you in", "list your areas", "where exactly do you operate"],
       "replies": [
-        "We started in Medway in Kent and are growing. Say your postcode and I tell you whether you are covered."
+        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet."
       ]
     },
     {
@@ -12456,7 +11502,7 @@
         "how long until it comes"
       ],
       "replies": [
-        "Usually within a couple of hours, often less. Your order page shows a best guess that updates as your Runner goes."
+        "Usually the same day; your order page shows a best guess that updates as your Runner goes."
       ]
     },
     {
@@ -12477,7 +11523,7 @@
       "topic": "times",
       "when": ["can i get it within the hour", "one hour delivery", "an hour"],
       "replies": [
-        "Often, for a small shop with a Runner nearby. I cannot promise an hour, but the order page shows the best guess."
+        "I can't promise an hour. Orders come usually the same day; your order page shows a best guess."
       ]
     },
     {
@@ -12485,7 +11531,7 @@
       "topic": "times",
       "when": ["can i pick a delivery time", "choose a time", "time slot", "book a slot"],
       "replies": [
-        "Not yet for a single order. You can set a weekly shop for a chosen day, and timed slots are planned."
+        "Yes. You can book up to {daysAhead} days ahead, in a time window. Say the day, like deliver it on Saturday morning."
       ]
     },
     {
@@ -12501,7 +11547,7 @@
       "topic": "times",
       "when": ["can i order for tomorrow morning", "tomorrow", "next day"],
       "replies": [
-        "Place the order tomorrow when you are ready and it comes within a couple of hours. A weekly shop can be set for any day."
+        "Yes. When you order, say deliver it tomorrow morning, and it is booked for that window."
       ]
     },
     {
@@ -12616,7 +11662,7 @@
       "topic": "times",
       "when": ["how long does the shopping part take", "how long in the shop", "shopping time"],
       "replies": [
-        "Usually twenty minutes to half an hour for an ordinary list, longer when the shop is busy."
+        "It depends on the list and the shop. Orders come usually the same day; your order page shows a best guess."
       ]
     },
     {
@@ -12658,7 +11704,7 @@
       "topic": "times",
       "when": ["can i order a week ahead", "advance order", "schedule for next week"],
       "replies": [
-        "Set a weekly shop for the day you want. One off orders for a future time are planned."
+        "Yes, up to {daysAhead} days ahead, in a time window. Say the day, like deliver it next Friday afternoon. A weekly shop suits a regular day."
       ]
     },
     {
@@ -12690,7 +11736,7 @@
       "topic": "times",
       "when": ["will it come before lunch", "before noon", "by midday"],
       "replies": [
-        "Order in the morning and it usually comes within a couple of hours. The order page shows the best guess."
+        "I can't promise a time. Orders come usually the same day; your order page shows a best guess. You can also book a morning window."
       ]
     },
     {
@@ -13421,7 +12467,7 @@
       "topic": "home screen",
       "when": ["do i need the app store", "is it in the app store", "app store version"],
       "replies": [
-        "Not yet. Add it from your browser today. Versions for the app stores are on their way."
+        "Not yet. Add it from your browser today; app store versions are on their way. Any {assistant} app in the stores now is not us; use www.ozidelivery.co.uk."
       ]
     },
     {
@@ -13429,7 +12475,7 @@
       "topic": "home screen",
       "when": ["when will the app store version come", "proper app soon", "play store app"],
       "replies": [
-        "Soon. The company is enrolling with the app stores. Until then, Get the app works just as well."
+        "Soon. The company is enrolling with the app stores. Any {assistant} app in the stores now is not us; use www.ozidelivery.co.uk."
       ]
     },
     {
@@ -13670,7 +12716,7 @@
       "id": "s66-home-screen-can-i-change-the-app-language",
       "topic": "home screen",
       "when": ["can i change the app language", "app in another language", "language setting"],
-      "replies": ["English for now. Welsh is next, then Igbo, Hausa, Yoruba and Swahili."]
+      "replies": ["English for now; more languages are planned."]
     },
     {
       "id": "s66-home-screen-how-do-i-close-the-app",
@@ -15655,7 +14701,7 @@
       "topic": "general",
       "when": ["can i trust what you say", "are you telling the truth", "are you sure about that"],
       "replies": [
-        "My answers are written and checked by people. If I am ever wrong, tell me and a person corrects it."
+        "Most of my answers are written by people, and a person checks anything important. If I am ever wrong, tell me and a person corrects it."
       ]
     },
     {
@@ -15894,7 +14940,7 @@
       "topic": "general",
       "when": ["what day is my delivery", "which day will it come", "delivery day"],
       "replies": [
-        "Orders come the same day, soon after you send them. A weekly shop comes on the day you chose."
+        "Orders usually come the same day, unless you book a later day. A weekly shop comes on the day you chose."
       ]
     },
     {
@@ -16066,7 +15112,7 @@
         "order from another country"
       ],
       "replies": [
-        "Yes. Sign in from anywhere, save her UK address, and choose it on the screen. Cards from any country work."
+        "Yes. Sign in from anywhere, save her UK address, and choose it on the screen. Most cards from any country work."
       ]
     },
     {
@@ -16345,7 +15391,7 @@
       "id": "s66-small-talk-say-something-in-igbo",
       "topic": "small talk",
       "when": ["say something in igbo", "igbo"],
-      "replies": ["Not yet, but it is on the way, with Welsh, Hausa, Yoruba and Swahili."]
+      "replies": ["Not yet. English for now; more languages are planned."]
     },
     {
       "id": "s66-about-how-is-this-different-from-a-delivery-ap",
@@ -16520,7 +15566,7 @@
       "topic": "about",
       "when": ["is it a council service", "is it from the nhs", "government scheme"],
       "replies": [
-        "No. We are an independent company, though councils and the health service can use us as organisations."
+        "No. We are an independent company. Organisations such as care providers and councils can join as organisations; we have no NHS or council partnership yet."
       ]
     },
     {
@@ -16552,7 +15598,7 @@
       "topic": "prices",
       "when": ["is there a price promise", "price match", "cheapest guarantee"],
       "replies": [
-        "You pay what the till says, with no markup on the shopping. Our fees are plain and said aloud."
+        "No price match, but no surprises: Shop prices, plus a small item charge on each product that I always tell you, plus delivery."
       ]
     },
     {
@@ -16585,7 +15631,7 @@
       "id": "s66-prices-does-delivery-include-the-tip",
       "topic": "prices",
       "when": ["does delivery include the tip", "is a tip included", "tipping included"],
-      "replies": ["No tip is included or expected. Tipping after delivery is planned as an option."]
+      "replies": ["No tip is included or expected. Tipping isn't available yet."]
     },
     {
       "id": "s66-prices-can-i-see-a-breakdown",
@@ -17642,7 +16688,7 @@
       "topic": "safety",
       "when": ["is the company insured", "public liability", "company insurance"],
       "replies": [
-        "Public liability insurance is part of the launch checklist. Problems with orders are put right by us regardless."
+        "That's one for our customer service team. Say \"person\", or ring us on {telephone}."
       ]
     },
     {
@@ -17663,9 +16709,7 @@
       "id": "s66-safety-is-the-food-handled-safely",
       "topic": "safety",
       "when": ["is the food handled safely", "food handling", "hygiene"],
-      "replies": [
-        "Runners complete food handling training and carry a cool bag. Shopping stays bagged from till to door."
-      ]
+      "replies": ["Runners carry a cool bag. Shopping stays bagged from till to door."]
     },
     {
       "id": "s66-payments-why-do-you-hold-money-on-my-card",
@@ -17902,7 +16946,9 @@
       "id": "s66-delivery-do-you-deliver-to-rural-postcodes",
       "topic": "delivery",
       "when": ["do you deliver to rural postcodes", "remote", "out in the sticks"],
-      "replies": ["Within about ten miles of a listed shop, yes. Say your postcode and I check."]
+      "replies": [
+        "We run across the UK, area by area, wherever we have Runners and shops. Say your postcode and I'll tell you whether we're running in your area yet."
+      ]
     },
     {
       "id": "s66-delivery-how-do-you-choose-the-runner",
@@ -18897,7 +17943,7 @@
       "id": "s66-using-how-do-i-tip",
       "topic": "using",
       "when": ["how do i tip", "leave a tip", "add a tip"],
-      "replies": ["Not yet in the app. Tipping after delivery is planned."]
+      "replies": ["Tipping isn't available yet."]
     },
     {
       "id": "s66-using-how-do-i-change-my-delivery-plan",

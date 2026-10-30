@@ -2,12 +2,12 @@
  * A Runner's own account (rulings of 2 October 2026; docs/BUILD_PROMPT.md, Section M).
  *
  * - Documents, photographed with the phone and sent from the app: a face photo, the right to
- *   work, a DBS certificate, and for a car or motorbike the driving licence and insurance. A
+ *   work, a DBS certificate, and for a car, motorbike or van the driving licence and insurance. A
  *   share code can be given instead of a photo for the right to work and the DBS check. A person
  *   decides each one; the photo is then removed, apart from the face photo, which the Shopper
  *   sees at the door. Nobody comes to an office.
  * - How they travel. Walking or cycling can be chosen at any time, instantly, with nothing more
- *   needed. A car or motorbike needs a licence and insurance a person has accepted, still in date.
+ *   needed. A car, motorbike or van needs a licence and insurance a person has accepted, still in date.
  * - Their dashboard: what they have earned today, this week and in all, big and plain; every job
  *   with its date, area, pay and order reference; and their payouts.
  * - Their own ID and the link they share, and a way to tell us things.
@@ -65,7 +65,7 @@ export function documentsNeeded(travelModes: VehicleType[]): RunnerDocumentKind[
   return needed;
 }
 
-/** Whether a car or motorbike is allowed today: a licence and in-date insurance, both accepted. */
+/** Whether a car, motorbike or van is allowed today: a licence and in-date insurance, both accepted. */
 export function canDrive(runner: Runner, today: Date): boolean {
   return (
     runner.drivingLicenceVerified &&
@@ -271,7 +271,7 @@ export async function registerRunnerAccountRoutes(app: FastifyInstance): Promise
       throw new ConflictError(
         runner.drivingLicenceVerified || runner.motorInsuranceUntil
           ? 'Your insurance has run out, or has not been checked yet. You can deliver walking or by bicycle today.'
-          : 'Before you can deliver by car or motorbike, we need to check your driving licence and insurance. You can deliver walking or by bicycle today.',
+          : 'Before you can deliver by car, motorbike or van, we need to check your driving licence and insurance. You can deliver walking or by bicycle today.',
         { needs: 'licence_and_insurance' },
       );
     }

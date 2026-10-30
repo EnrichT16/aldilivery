@@ -24,6 +24,7 @@ import {
   NotFoundError,
 } from '../errors.js';
 import { PIN_ATTEMPTS, PIN_LOCK_MINUTES, hashPin, pinMatches, pinProblem } from '../lib/pin.js';
+import { locateLater, waitIfNotRunning } from '../services/areas.js';
 import { notifyShopper } from '../services/notify.js';
 
 const address = z
@@ -171,6 +172,7 @@ export async function registerAddressRoutes(app: FastifyInstance): Promise<void>
       address: body.address,
       createdAt: now(),
     });
+    locateLater(app.ctx, body.address, request.log);
     void reply.status(201);
     return {
       address: { id: saved.id, label: saved.label, address: saved.address },
@@ -193,6 +195,9 @@ export async function registerAddressRoutes(app: FastifyInstance): Promise<void>
     const body = z.object({ address, pin }).parse(request.body);
     await checkPin(shopper, body.pin);
     await repository.shoppers.update(shopper.id, { deliveryAddress: body.address });
+    // A new home somewhere we are not running yet goes on that area's waiting list.
+    await waitIfNotRunning(app.ctx, shopper, body.address);
+    locateLater(app.ctx, body.address, request.log);
 
     // Told every time, on every way we have, because a spoken PIN can be overheard.
     const notice = `${config.productName}: the home address on your account was changed just now. If that was not you, ring us straight away.`;

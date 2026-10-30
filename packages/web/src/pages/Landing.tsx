@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 
 import { DoorButton } from '../components/DoorButton';
-import { GetTheApp } from '../components/GetTheApp';
+import { GetTheApp, WrongAppWarning } from '../components/GetTheApp';
 import { storeConfig } from '../config';
 import { rememberJoinedVia } from '../lib/api';
 import { inPairs } from '../lib/phone-aloud';
@@ -136,6 +136,8 @@ export function Landing(): JSX.Element {
       <div className="flex-1" aria-hidden="true" />
 
       <GetTheApp compact />
+      {/* Another app called Ozi is in the app stores; ours is not yet (Anthony, 30 October 2026). */}
+      <WrongAppWarning />
 
       <section aria-labelledby="telephone-heading" className="w-full max-w-xl text-center">
         <h2 id="telephone-heading" className="visually-hidden">

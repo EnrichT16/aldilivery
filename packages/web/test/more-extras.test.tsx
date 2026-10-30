@@ -3,12 +3,13 @@
  * organisation enquiries (7 October 2026): every price asked before it is taken.
  */
 
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
+import { storeConfig } from '../src/config';
 import { serverDay } from '../src/components/WeeklyReminder';
 import { setVoiceEngine } from '../src/voice';
 import { fakeEngine, type FakeEngine } from './fake-voice';
@@ -346,21 +347,97 @@ describe('the weekly shop', () => {
 
 describe('offers and organisations', () => {
   it('says plainly when there are no offers, and lets a shop ask to work with us', async () => {
-    const user = userEvent.setup({ delay: null });
     renderAt('/offers');
     expect(await screen.findByText(/There are no offers just now/)).toBeInTheDocument();
-    await user.click(screen.getByRole('link', { name: 'Ask to work with us' }));
+    expect(
+      screen.getByText(/in front of people who shop with us, and brought/),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/every week/)).toBeNull();
+    // A shop asking goes to the Shop Partner join form (30 October 2026).
+    expect(screen.getByRole('link', { name: 'Ask to work with us' })).toHaveAttribute(
+      'href',
+      '/business/join',
+    );
+  });
+
+  it('a shop asking from the organisations page is sent as a shop, with no organisation terms', async () => {
+    const user = userEvent.setup({ delay: null });
+    renderAt('/organisations?shop=1');
     expect(
       await screen.findByRole('heading', { name: 'Ask to work with us as a shop' }),
     ).toBeInTheDocument();
+    expect(screen.queryByLabelText('I agree to the Organisation terms')).toBeNull();
     await user.type(screen.getByLabelText('The shop’s name'), 'Corner Shop');
     await user.type(screen.getByLabelText('Your name'), 'Jo');
     await user.type(screen.getByLabelText('A telephone number'), '01634 000000');
     await user.click(screen.getByRole('button', { name: 'Send' }));
     expect(await screen.findByText(/will ring you within two working days/)).toBeInTheDocument();
     expect(posted('/organisations/enquiries')[0]?.body).toEqual(
-      expect.objectContaining({ organisation: 'Corner Shop', telephone: '01634 000000' }),
+      expect.objectContaining({
+        kind: 'shop',
+        organisation: 'Corner Shop',
+        telephone: '01634 000000',
+      }),
     );
+  });
+
+  it('tells an organisation only what exists, the price from config, and needs its terms agreed', async () => {
+    const user = userEvent.setup({ delay: null });
+    renderAt('/organisations');
+    expect(
+      await screen.findByRole('heading', { name: 'Or tell us about your organisation' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/One invoice/)).toBeNull();
+    expect(screen.queryByText(/Regular rounds/)).toBeNull();
+    expect(screen.queryByText(/ordered by them, by you/)).toBeNull();
+    expect(
+      screen.getByText(
+        /£10\.00 a month for each person you support, paid by you\. Every 51st person is £5\.00\./,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Read the Organisation terms' })).toHaveAttribute(
+      'href',
+      '/organisation/terms',
+    );
+    await user.type(screen.getByLabelText('Your organisation’s name'), 'Medway Care');
+    await user.type(screen.getByLabelText('Your name'), 'Ada');
+    await user.type(screen.getByLabelText('A telephone number'), '01634 000000');
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    expect(
+      await screen.findByText('Please tick to agree to the Organisation terms.'),
+    ).toBeInTheDocument();
+    expect(posted('/organisations/enquiries')).toHaveLength(0);
+    await user.click(screen.getByLabelText('I agree to the Organisation terms'));
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    expect(await screen.findByText(/will ring you within two working days/)).toBeInTheDocument();
+    expect(posted('/organisations/enquiries')[0]?.body).toEqual(
+      expect.objectContaining({
+        kind: 'organisation',
+        termsAgreed: true,
+        organisation: 'Medway Care',
+      }),
+    );
+  });
+
+  it('has Shop Partner and Organisation terms pages, with the company behind them', async () => {
+    renderAt('/partner/terms');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Shop Partner terms' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText(new RegExp(storeConfig.store.legalEntityName)).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText(/They owe 10% of the goods in each order/)).toBeInTheDocument();
+    expect(screen.getByText(/law of England and Wales/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/insur/i);
+    cleanup();
+    renderAt('/organisation/terms');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Organisation terms' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/£10\.00 a month for each person linked to you/)).toBeInTheDocument();
+    expect(screen.getByText(/law of England and Wales/)).toBeInTheDocument();
+    expect(document.body.textContent).not.toMatch(/insur/i);
   });
 
   it('keeps the menu short, with everything else under More', async () => {

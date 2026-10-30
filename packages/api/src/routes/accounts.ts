@@ -7,7 +7,7 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import { formatPence, RUNNER_PAYMENT_PENCE } from '@aldilivery/core';
+import { formatPence, RUNNER_PAYMENT_PENCE, tidyPostcode } from '@aldilivery/core';
 import { z } from 'zod';
 
 import { phoneConfirmedAtSignUp, requireSession, type AppContext } from '../app.js';
@@ -15,6 +15,7 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '.
 import { NOT_A_UK_NUMBER, ukPhone } from '../lib/phone.js';
 import { newReferralCode } from '../lib/referral.js';
 import { hashCode, signSession, suggestHandle, verifyPhoneProof } from '../lib/tokens.js';
+import { locateLater, runningWords, waitIfNotRunning } from '../services/areas.js';
 import { sweepOffers } from '../services/dispatch.js';
 import {
   activePlan,
@@ -85,6 +86,17 @@ const runnerSchema = z.object({
   stripeConnectedAccountId: z.string().trim().max(120).optional(),
   /** Agreeing to the Runner agreement as they sign up (ruling 55). Or later, before a job. */
   agreement: agreementSchema.optional(),
+  /** The tick "I am 18 or over" (Anthony, 30 October 2026): required, and kept with its time. */
+  adult: z.literal(true, {
+    errorMap: () => ({ message: 'Please tick to say you are 18 or over.' }),
+  }),
+  /** Where they live, which gives their area: they are only offered jobs there (30 October 2026). */
+  homePostcode: z
+    .string()
+    .trim()
+    .max(10)
+    .refine((value) => tidyPostcode(value) !== '', 'Please give your home postcode, like ME7 1AA.')
+    .transform((value) => tidyPostcode(value)),
 });
 
 const profileSchema = z.object({
@@ -146,6 +158,12 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
     if (input.joinedVia) {
       await repository.shoppers.update(shopper.id, { joinedVia: input.joinedVia });
     }
+    // Their area (Anthony, 30 October 2026): signing up always works; somewhere we are not running
+    // yet, they are told so now and go on its waiting list.
+    const area = shopper.deliveryAddress
+      ? await waitIfNotRunning(app.ctx, shopper, shopper.deliveryAddress)
+      : null;
+    locateLater(app.ctx, shopper.deliveryAddress, request.log);
 
     const expiresAt = Math.floor(now().getTime() / 1000) + env.authTokenTtlHours * 3600;
     const token = signSession(
@@ -154,7 +172,13 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
     );
 
     void reply.status(201);
-    return { shopper: await publicShopper(app.ctx, shopper), token };
+    return {
+      shopper: await publicShopper(app.ctx, shopper),
+      token,
+      area: area
+        ? { name: area.name, running: area.running, words: runningWords(config, area) }
+        : null,
+    };
   });
 
   app.post('/runners', async (request, reply) => {
@@ -165,7 +189,7 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
     }
 
     const travelModes = [...new Set(input.travelModes ?? [input.vehicleType ?? 'on_foot'])];
-    // They start walking or cycling if they can; a car or motorbike waits for the licence and
+    // They start walking or cycling if they can; a car, motorbike or van waits for the licence and
     // insurance to be checked.
     const firstMode =
       input.vehicleType ??
@@ -191,7 +215,11 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       rightToWorkVerified: false,
       criminalRecordCheckVerified: false,
       available: false,
+      homePostcode: input.homePostcode,
+      adultConfirmedAt: now(),
     });
+    // Its place is looked up in the background: a sign-up never waits for it.
+    locateLater(app.ctx, input.homePostcode, request.log);
 
     const expiresAt = Math.floor(now().getTime() / 1000) + env.authTokenTtlHours * 3600;
     const token = signSession(
@@ -253,6 +281,10 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       );
     }
     const shopper = await repository.shoppers.update(session.accountId, patch);
+    if (patch.deliveryAddress) {
+      await waitIfNotRunning(app.ctx, shopper, patch.deliveryAddress);
+      locateLater(app.ctx, patch.deliveryAddress, request.log);
+    }
     return { shopper: await publicShopper(app.ctx, shopper) };
   });
 
@@ -290,7 +322,7 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
     }
     if (body.available && MOTOR_MODES.includes(current.vehicleType) && !canDrive(current, now())) {
       throw new ConflictError(
-        'Before you can deliver by car or motorbike, we need your driving licence and insurance checked and in date. Switch to walking or bicycle to start now.',
+        'Before you can deliver by car, motorbike or van, we need your driving licence and insurance checked and in date. Switch to walking or bicycle to start now.',
         { needs: 'licence_and_insurance' },
       );
     }

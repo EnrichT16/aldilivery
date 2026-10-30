@@ -3,10 +3,12 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { RUNNER_AGREEMENT_VERSION } from '@aldilivery/core';
 
 import { DocumentsChecklist } from '../components/DocumentsChecklist';
+import { WrongAppWarning } from '../components/GetTheApp';
 import { Field } from '../components/FormFields';
 import { storeConfig } from '../config';
 import { registerRunner, type VehicleType } from '../lib/api';
 import { readReferral } from '../lib/referral';
+import { DOCUMENT_CHECK_WORDS, ENHANCED_DBS_OPTIONAL } from '../lib/runner-words';
 import { writeRunnerToken } from '../lib/session';
 
 const WAYS: Array<{ value: VehicleType; label: string }> = [
@@ -22,9 +24,10 @@ const WAYS: Array<{ value: VehicleType; label: string }> = [
  *
  * First a name, a mobile number, and every way they might deliver — tick all, so switching
  * later needs nothing new. Then, straight away, the documents, photographed with the phone:
- * a face photo, the right to work, a DBS certificate, and for a car or motorbike the licence
- * and insurance. Whether somebody may deliver is decided by a person looking at those, never by
- * a form, and the screen says so before anybody fills anything in.
+ * a face photo, the right to work, a DBS certificate, and for a car, motorbike or van the
+ * licence and insurance. The automatic check approves only documents that are clearly in order;
+ * anything unclear is looked at by a person, and the screen says so before anybody fills
+ * anything in (Anthony, 30 October 2026).
  *
  * Built the same way as the Shopper sign-up: real labels, hints joined to their fields,
  * problems listed in words at the top, taking focus.
@@ -49,6 +52,7 @@ export function RunnerSignUp(): JSX.Element {
     const data = new FormData(event.currentTarget);
     const name = String(data.get('runnerName') ?? '').trim();
     const phone = String(data.get('runnerPhone') ?? '').trim();
+    const homePostcode = String(data.get('homePostcode') ?? '').trim();
     const travelModes = data.getAll('travelModes').map(String) as VehicleType[];
     const agreed = data.get('agreement') === 'yes';
 
@@ -56,6 +60,9 @@ export function RunnerSignUp(): JSX.Element {
     if (name === '') found.push({ field: 'runnerName', message: 'Please tell us your name.' });
     if (phone === '') {
       found.push({ field: 'runnerPhone', message: 'Please give us your mobile number.' });
+    }
+    if (homePostcode === '') {
+      found.push({ field: 'homePostcode', message: 'Please give your home postcode.' });
     }
     if (travelModes.length === 0) {
       found.push({
@@ -84,6 +91,9 @@ export function RunnerSignUp(): JSX.Element {
         ...(referredBy ? { referredBy } : {}),
         // Kept with the date and the version, before any job (ruling 55).
         agreement: { accepted: true, version: RUNNER_AGREEMENT_VERSION, channel: 'button' },
+        // The same tick says they are 18 or over; the server keeps it with its time.
+        adult: true,
+        homePostcode,
       });
       // Kept as the Runner's own sign-in, so any Shopper signed in here stays signed in.
       writeRunnerToken(result.token);
@@ -113,8 +123,8 @@ export function RunnerSignUp(): JSX.Element {
           </h2>
           <p className="m-0">
             Take a photo of each with this phone. There is no need to scan anything or come to an
-            office. A person at {storeConfig.productName} checks each one, and nobody is offered a
-            job until they have. You can stop and carry on later from your Runner page.
+            office. {DOCUMENT_CHECK_WORDS} Nobody is offered a job until their documents are
+            approved. You can stop and carry on later from your Runner page.
           </p>
         </section>
         <DocumentsChecklist onNews={setNews} />
@@ -130,10 +140,13 @@ export function RunnerSignUp(): JSX.Element {
       <h1 className="text-display font-bold m-0">Sign up to run</h1>
       <p className="m-0 max-w-xl">
         This takes a few minutes, all on your phone. First your name, number and how you will
-        deliver; then photos of your documents. Before you can be offered any job, a person at{' '}
-        {storeConfig.productName} checks your right to work in the UK and a DBS check, and for a car
-        or motorbike your licence and insurance.
+        deliver; then photos of your documents. Before you can be offered any job, we check your
+        right to work in the UK and a DBS check, and for a car, motorbike or van your licence and
+        insurance. {DOCUMENT_CHECK_WORDS}
       </p>
+      <p className="m-0 max-w-xl">{ENHANCED_DBS_OPTIONAL}</p>
+      {/* Another app called Ozi is in the app stores; ours is not yet (Anthony, 30 October 2026). */}
+      <WrongAppWarning homeScreen />
 
       {errors.length > 0 && (
         <div
@@ -177,13 +190,19 @@ export function RunnerSignUp(): JSX.Element {
           type="tel"
           autoComplete="tel"
         />
+        <Field
+          id="homePostcode"
+          label="Your home postcode"
+          hint="Jobs are offered in your own area, from where you live, like ME7 1AA."
+          autoComplete="postal-code"
+        />
 
         <fieldset className="space-y-2 border-0 p-0 m-0" aria-describedby="ways-hint">
           <legend className="text-lead font-bold mb-2">How will you deliver?</legend>
           <p id="ways-hint" className="m-0 text-paper/90">
             Tick every way you might use. You can switch any day in your settings. Walking and
-            cycling need no insurance; a car or motorbike needs a licence and insurance that covers
-            delivery work.
+            cycling need no insurance; a car, motorbike or van needs a licence and insurance that
+            covers delivery work.
           </p>
           {WAYS.map((way) => (
             <div key={way.value} className="flex items-center gap-3 min-h-control">
@@ -204,8 +223,8 @@ export function RunnerSignUp(): JSX.Element {
 
         <p className="m-0">
           The Runner agreement says how you are paid, that you pay at the till with your own card
-          and we pay you back straight away, and what happens if something goes wrong. Please read
-          it before you agree.
+          and how we pay you back, and what happens if something goes wrong. Please read it before
+          you agree.
         </p>
         {/* A new tab, so what has been typed here is still here afterwards (16 October 2026). */}
         <a

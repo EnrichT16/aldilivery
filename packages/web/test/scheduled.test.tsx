@@ -57,16 +57,20 @@ function stubWithBooked(extra: (method: string, path: string, body: unknown) => 
 describe('choosing a later day at checkout', () => {
   it('sends the day, the window and the payday, with the words agreed to', async () => {
     const recorded = stubWithBooked((method, path) =>
-      method === 'POST' && path === '/orders'
-        ? reply(
-            {
-              order: { id: 'order-1', status: 'confirmed', totalEstimatePence: 0, feePence: 0 },
-              scheduled: true,
-              message: 'Thank you. Your order is booked.',
-            },
-            201,
-          )
-        : null,
+      // A day in next month is priced again for that month (its own allowance), so the test
+      // passes whatever today's date is.
+      method === 'POST' && path === '/basket/price'
+        ? reply({ totalPence: 1739, allowanceExtraPence: 0 })
+        : method === 'POST' && path === '/orders'
+          ? reply(
+              {
+                order: { id: 'order-1', status: 'confirmed', totalEstimatePence: 0, feePence: 0 },
+                scheduled: true,
+                message: 'Thank you. Your order is booked.',
+              },
+              201,
+            )
+          : null,
     );
     const user = userEvent.setup({ delay: null });
     renderAt('/shop');

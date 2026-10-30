@@ -90,6 +90,47 @@ describe('the phrase files', () => {
     }
   });
 
+  it('never promises what the founder has ruled out, so a day’s additions cannot either', () => {
+    const files = ['ozi-phrases.json', ...PHRASE_ACCOUNTS.slice(1).map((a) => `phrases/${a}.json`)];
+    const ruledOut: Array<[RegExp, string]> = [
+      // Coverage in its own words: the agreed area answer is the only one.
+      [/\b[A-Z][a-z]+ is covered\b|whether (you are|it is) covered/, 'a town promised'],
+      [/\b(ten|\d+) miles\b/i, 'a distance promised'],
+      // No supermarket or chain named, as a partner or otherwise.
+      [
+        new RegExp(
+          `\\b(${config.store.displayName}|tesco|sainsbury'?s?|lidl|asda|morrisons|waitrose|iceland|co-?op|m&s|marks and spencer)\\b`,
+          'i',
+        ),
+        'a supermarket named',
+      ],
+      // Times: usually the same day, with the order page's best guess.
+      [
+        /couple of hours|within (an|the|one) hour|twenty minutes|half an hour for/i,
+        'a time promised',
+      ],
+      [/\bmark-?ups?\b/i, '"no mark-up"'],
+      // The company and technology behind the assistant are never named.
+      [/claude|anthropic|openai|chat ?gpt|\bgpt\b|gemini|language model/i, 'an AI maker named'],
+      [/never goes down/i, 'pay that never goes down'],
+    ];
+    for (const file of files) {
+      const raw = JSON.parse(readFileSync(join(folder, file), 'utf8')) as {
+        phrases: Array<{ id: string; when: string[]; replies: string[] }>;
+      };
+      for (const phrase of raw.phrases) {
+        for (const reply of phrase.replies) {
+          for (const [pattern, what] of ruledOut) {
+            expect(reply, `${file} ${phrase.id} has ${what}: ${reply}`).not.toMatch(pattern);
+          }
+        }
+        if (file === 'phrases/owner.json') {
+          for (const when of phrase.when) expect(when, phrase.id).not.toMatch(/claude|anthropic/i);
+        }
+      }
+    }
+  });
+
   it('listens for each phrase in one place only within an account', () => {
     for (const account of PHRASE_ACCOUNTS.filter((a) => a !== 'owner')) {
       const seen = new Map<string, string>();
@@ -139,6 +180,45 @@ describe('answering an everyday phrase', () => {
     expect(phraseReply('How much is delivery?', 0, 'exact', 'shopper', config, book)).toMatch(
       /^If you pay as you go, delivery is £10\.99 for shopping up to £30\.00, £12\.99 up to £60\.00, and £14\.99 over £60\.00\. Members pay £7\.99 for shopping up to £60\.00, and £9\.99 over £60\.00; Plus and Family £6\.99 for shopping up to £60\.00, and £8\.99 over £60\.00\./,
     );
+  });
+
+  it('fills in big-order Runner pay, days ahead and the business details from the settings', () => {
+    const money = (pence: number) => `£${(pence / 100).toFixed(2)}`;
+    expect(
+      fillIn(
+        '{runnerPay} a standard delivery, {largeRunnerPay} for big orders, from {largeOrderFrom}.',
+        config,
+        book.ownerAddress,
+      ),
+    ).toBe(
+      `${money(config.fees.runnerPaymentPence)} a standard delivery, ${money(config.fees.largeOrderRunnerPaymentPence)} for big orders, from ${money(config.fees.largeOrderFromPence)}.`,
+    );
+    expect(fillIn('Up to {daysAhead} days ahead.', config, book.ownerAddress)).toBe(
+      `Up to ${config.scheduled.maxDaysAhead} days ahead.`,
+    );
+    expect(
+      fillIn('{telephone} {companyName} {companyNumber} {icoNumber}', config, book.ownerAddress),
+    ).toBe(
+      `${config.contact.telephonePlaceholder} ${config.store.legalEntityName} ${config.store.companyNumber} ${config.store.icoRegistrationNumber}`,
+    );
+    expect(phraseReply('how much does the runner get', 0, 'exact', 'shopper', config, book)).toBe(
+      `Your Runner gets ${money(config.fees.runnerPaymentPence)} a standard delivery, ${money(config.fees.largeOrderRunnerPaymentPence)} for big orders.`,
+    );
+    expect(phraseReply('can i choose a time', 0, 'exact', 'shopper', config, book)).toMatch(
+      new RegExp(`up to ${config.scheduled.maxDaysAhead} days ahead`),
+    );
+  });
+
+  it('says plainly that it is independent of every supermarket', () => {
+    for (const said of [
+      'are you the supermarket',
+      'are you part of tesco',
+      'does the supermarket endorse you',
+    ]) {
+      expect(phraseReply(said, 0, 'exact', 'shopper', config, book)).toBe(
+        `No. ${config.productName} is an independent service. We don't have a partnership with any supermarket yet.`,
+      );
+    }
   });
 
   it('says the monthly order allowance from the settings, never written in (ruling 73)', () => {

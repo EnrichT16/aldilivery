@@ -150,6 +150,8 @@ export {
   type HeardBrowse,
 } from './browse.js';
 
+export { areaName, areaOf, postcodeIn, tidyPostcode, type AreaSettings } from './areas.js';
+
 export {
   PARTNER_KINDS,
   PARTNER_KIND_WORDS,
@@ -164,6 +166,16 @@ export {
   type PartnerPlan,
   type PartnerPricing,
 } from './partners.js';
+
+export {
+  ORGANISATION_AUTHORITY_WORDS,
+  ORGANISATION_CONSENT_VERSION,
+  ORGANISATION_SHARED_THINGS,
+  ORGANISATION_TERMS_VERSION,
+  SHOP_PARTNER_TERMS_VERSION,
+  organisationConsentWords,
+  type OrganisationConsentWords,
+} from './organisations.js';
 
 export {
   DELIVERY_WINDOWS,

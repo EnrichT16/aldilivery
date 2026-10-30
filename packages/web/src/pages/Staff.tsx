@@ -105,6 +105,7 @@ import {
   WaitingDeposits,
 } from '../components/StaffRunnerSafety';
 import {
+  Areas,
   AuditLog,
   Orders,
   Reports,
@@ -155,6 +156,7 @@ export const TABS: Array<{ key: TabKey; label: string; group: TabGroup }> = [
   { key: 'problems', label: 'Problems', group: 'today' },
   { key: 'orders', label: 'Orders', group: 'today' },
   { key: 'runners', label: 'Runners', group: 'today' },
+  { key: 'areas', label: 'Areas', group: 'today' },
   { key: 'finds', label: 'Finds It', group: 'today' },
   { key: 'learning', label: 'Learning', group: 'today' },
   { key: 'money', label: 'Money', group: 'money' },
@@ -456,6 +458,7 @@ export function Staff(): JSX.Element {
               />
             )}
             {shown === 'runners' && <RunnersNow staffKey={key} />}
+            {shown === 'areas' && <Areas staffKey={key} by={by} onNews={setNews} />}
             {shown === 'reports' && <Reports staffKey={key} />}
             {shown === 'accounts' && <ShopperAccounts staffKey={key} />}
             {shown === 'messages' && <StaffMessages staffKey={key} onNews={setNews} />}

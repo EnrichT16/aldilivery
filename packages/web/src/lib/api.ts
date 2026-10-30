@@ -6,6 +6,8 @@
  * stack trace.
  */
 
+import { ORGANISATION_CONSENT_VERSION } from '@aldilivery/core';
+
 import { storeConfig } from '../config';
 import { readRunnerToken, readToken } from './session';
 
@@ -362,6 +364,10 @@ export interface RegisterRunnerInput {
   referredBy?: string;
   /** Agreeing to the Runner agreement as they sign up (ruling 55). */
   agreement?: { accepted: true; version: string; channel: 'button' | 'voice' };
+  /** The tick "I am 18 or over", kept by the server with its time (30 October 2026). */
+  adult: true;
+  /** Where they live, which gives their area: they are offered jobs only there. */
+  homePostcode: string;
 }
 
 /**
@@ -397,6 +403,10 @@ export interface RunnerAccount {
   agreementVersion?: string | null;
   /** The app store reviewers' demo Runner (ruling 60). */
   isDemo?: boolean;
+  /** Where they live, which gives their area (30 October 2026). Empty until given. */
+  homePostcode?: string;
+  /** When a person accepted their face photo; null until then. */
+  facePhotoAcceptedAt?: string | null;
 }
 
 /** Agreeing to the Runner agreement before the first job (ruling 55). */
@@ -553,6 +563,41 @@ export function setRunnerAvailability(available: boolean): Promise<{ runner: Run
   );
 }
 
+/** Where the Runner's phone says they are, while on shift or on a job (30 October 2026). */
+export function shareRunnerLocation(where: {
+  latitude: number;
+  longitude: number;
+}): Promise<{ kept: boolean }> {
+  return request<{ kept: boolean }>(
+    '/runners/me/location',
+    { method: 'POST', body: JSON.stringify(where) },
+    'runner',
+  );
+}
+
+/** The Runner's home postcode, which gives their area: they are offered jobs only there. */
+export function saveHomePostcode(
+  postcode: string,
+): Promise<{ homePostcode: string; area: string | null; message: string }> {
+  return request<{ homePostcode: string; area: string | null; message: string }>(
+    '/runners/me/home-postcode',
+    { method: 'PUT', body: JSON.stringify({ postcode }) },
+    'runner',
+  );
+}
+
+/** Whether we are running in a postcode's area yet (Anthony, 30 October 2026). */
+export interface AreaCheck {
+  area: string;
+  name: string;
+  running: boolean;
+  words: string;
+}
+
+export function checkArea(postcode: string): Promise<AreaCheck> {
+  return request<AreaCheck>(`/areas/check?${new URLSearchParams({ postcode }).toString()}`);
+}
+
 export interface RunnerPay {
   setup: 'not_started' | 'incomplete' | 'ready';
   totalEarnedPence: number;
@@ -598,6 +643,8 @@ export interface OfferedJob {
     goodsEstimatePence: number;
     runnerPaymentPence: number;
     distanceMiles: number | null;
+    /** The Shop Partners whose things are in it, by name; empty for the shops on the list. */
+    shopNames?: string[];
     split?: SplitJob | null;
   } | null;
 }
@@ -655,6 +702,8 @@ export interface CurrentJob {
   doorWord?: string | null;
   /** A part of a split job (ruling 60). */
   split?: SplitJob | null;
+  /** The Shop Partners whose things are in it, by name; empty for the shops on the list. */
+  shopNames?: string[];
   items: Array<{ id: string; name: string; quantity: number; estimatedPricePence: number }>;
 }
 
@@ -1310,7 +1359,9 @@ export type StaffArea =
   | 'accounts'
   | 'audit'
   /** The company inbox and staff calls (ruling 77). */
-  | 'messages';
+  | 'messages'
+  /** Each UK area, whether it is running, and pausing it (30 October 2026). */
+  | 'areas';
 
 /** Where someone's two-step codes stand (Section Q). */
 export interface StaffTwoStep {
@@ -1753,12 +1804,16 @@ export function stopWeeklyShop(id: string): Promise<unknown> {
 }
 
 export function sendOrganisationEnquiry(input: {
+  /** A shop asking from /organisations?shop=1, or an organisation (30 October 2026). */
+  kind?: 'organisation' | 'shop';
   organisation: string;
   contactName: string;
   telephone: string;
   email: string;
   people: string;
   message: string;
+  /** The Organisation terms at /organisation/terms, ticked: needed from an organisation. */
+  termsAgreed?: boolean;
 }): Promise<{ message: string }> {
   return request('/organisations/enquiries', { method: 'POST', body: JSON.stringify(input) });
 }
@@ -1986,6 +2041,8 @@ export interface PartnerJoinInput {
   plan?: 'free' | 'plus';
   /** Partner Plus paid from today, skipping the free month (ruling 75). */
   payNow?: boolean;
+  /** The Shop Partner terms at /partner/terms, ticked (30 October 2026). */
+  termsAgreed: boolean;
   cuisines?: string[];
   specialities?: string[];
   categories?: string[];
@@ -2150,7 +2207,7 @@ export interface PublicShop {
   products: number;
   /** Shop of the Month, of the Quarter or of the Half Year, with words (ruling 70). */
   awards?: string[];
-  /** On paid Partner Plus: listed above free shops (ruling 75). */
+  /** On paid Partner Plus: first among shops at the same distance (ruling 75). */
   partnerPlus?: boolean;
   /** Which of the four pages it is on (ruling 82). */
   section?: BrowseSection;
@@ -2230,7 +2287,8 @@ export interface OrganisationDashboard {
     upcomingWeeklyPence: number;
   };
   byOffice: Array<{ office: string; pence: number }>;
-  people: Array<{ id: string; name: string; office: string }>;
+  /** `agreed` false: linked before consent was recorded, so nothing of theirs is shown. */
+  people: Array<{ id: string; name: string; office: string; agreed?: boolean }>;
   orders: Array<{
     id: string;
     person: string;
@@ -2283,12 +2341,17 @@ export function fetchMyOrganisation(): Promise<{ organisation: { name: string } 
   return request('/me/organisation');
 }
 
+/**
+ * Links the account to an organisation, after the person (or someone with legal authority to act
+ * for them) agreed to the words shown, whose version is sent so the server keeps which words
+ * they saw (30 October 2026, UK GDPR).
+ */
 export function joinOrganisation(
   code: string,
 ): Promise<{ organisation: { name: string }; message: string }> {
   return request('/me/organisation', {
     method: 'POST',
-    body: JSON.stringify({ code, agreed: true }),
+    body: JSON.stringify({ code, agreed: true, version: ORGANISATION_CONSENT_VERSION }),
   });
 }
 
@@ -3450,6 +3513,12 @@ export interface RunnerNowRow {
   earnedTodayPence: number;
   earnedWeekPence: number;
   earnedAllTimePence: number;
+  /**
+   * On a job: when their phone last shared where they are, and a maps link to it (30 October
+   * 2026). Null when it never has.
+   */
+  lastSeenAt?: string | null;
+  mapsLink?: string | null;
 }
 
 export interface RunnersNow {
@@ -3461,6 +3530,43 @@ export interface RunnersNow {
 
 export function fetchRunnersNow(key: string): Promise<RunnersNow> {
   return staffRequest(key, '/staff/runners/now');
+}
+
+/** One UK area on the Areas page (Anthony, 30 October 2026). */
+export interface AreaRow {
+  area: string;
+  name: string;
+  ready: boolean;
+  paused: boolean;
+  running: boolean;
+  needs: Array<'runner' | 'shop'>;
+  statusWords: string;
+  shoppers: number;
+  runnersApproved: number;
+  runnersWaiting: number;
+  shopsApproved: number;
+  shopsWaiting: number;
+  organisations: number;
+  waitingList: number;
+  ordersToday: number;
+  ordersThisWeek: number;
+  pausedBy: string | null;
+}
+
+export function fetchStaffAreas(key: string): Promise<{ areas: AreaRow[] }> {
+  return staffRequest(key, '/staff/areas');
+}
+
+export function pauseStaffArea(
+  key: string,
+  area: string,
+  paused: boolean,
+  by: string,
+): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/areas/${encodeURIComponent(area)}/pause`, {
+    method: 'POST',
+    body: JSON.stringify({ paused, by }),
+  });
 }
 
 export interface SignupBucket {

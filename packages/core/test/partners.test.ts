@@ -15,6 +15,8 @@ import {
   productLimit,
 } from '../src/partners.js';
 import { parseStoreConfig } from '../src/config.js';
+import { formatPence } from '../src/money.js';
+import { ORGANISATION_CONSENT_VERSION, organisationConsentWords } from '../src/organisations.js';
 import { loadStoreConfig } from '../src/node.js';
 
 const config = loadStoreConfig();
@@ -86,5 +88,41 @@ describe('the rules', () => {
     expect(postcodeArea('me71er')).toBe('ME7');
     expect(postcodeArea('SW1A 1AA')).toBe('SW1A');
     expect(postcodeArea('')).toBe('');
+  });
+});
+
+describe('what a person agrees to when linking to an organisation (30 October 2026)', () => {
+  const money = (pence: number): string => formatPence(pence, '£');
+  const words = organisationConsentWords(
+    'Medway Care',
+    config.extras.organisations,
+    config.fees,
+    money,
+  );
+
+  it('lists exactly what is shared, from now on only', () => {
+    expect(words.intro).toBe('Linking lets Medway Care see:');
+    expect(words.shared).toEqual([
+      'your name',
+      'the office label they give you, saying which office or team looks after you',
+      'the weekly shops you have booked',
+      'the orders you place from now on, and what each one costs',
+    ]);
+    expect(words.notShared).toMatch(/never see orders from before you link/);
+  });
+
+  it('says the organisation pays its own fee, and the delivery is the Membership price, from config', () => {
+    expect(words.fee).toBe(
+      'Medway Care pays us its own fee for you, £10.00 a month. You still pay for your own shopping.',
+    );
+    expect(words.delivery).toMatch(/^Your delivery becomes the Membership price: £7\.99/);
+  });
+
+  it('says who may agree, and has a version for the record', () => {
+    expect(words.authority).toBe(
+      'Only you, or someone with legal authority to act for you, such as a Lasting Power of Attorney, may agree to this.',
+    );
+    expect(words.tick).toBe('I agree that Medway Care will see these things from now on.');
+    expect(ORGANISATION_CONSENT_VERSION).toMatch(/^organisation-consent-\d{4}-\d{2}-\d{2}$/);
   });
 });

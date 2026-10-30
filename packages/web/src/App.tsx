@@ -26,8 +26,10 @@ import { Orders } from './pages/Orders';
 import { PayByBank } from './pages/PayByBank';
 import { OrganisationDashboard } from './pages/OrganisationDashboard';
 import { Organisations } from './pages/Organisations';
+import { OrganisationTerms } from './pages/OrganisationTerms';
 import { PartnerDashboard } from './pages/PartnerDashboard';
 import { PartnerJoin } from './pages/PartnerJoin';
+import { PartnerTerms } from './pages/PartnerTerms';
 import { ReportProblem } from './pages/ReportProblem';
 import { Plus } from './pages/Plus';
 import { Cookies } from './pages/Cookies';
@@ -188,6 +190,8 @@ export function App(): JSX.Element {
                 <Route path="/business/join" element={<PartnerJoin />} />
                 <Route path="/partner" element={<PartnerDashboard />} />
                 <Route path="/organisation" element={<OrganisationDashboard />} />
+                <Route path="/partner/terms" element={<PartnerTerms />} />
+                <Route path="/organisation/terms" element={<OrganisationTerms />} />
                 <Route path="/shops" element={<Shops />} />
                 <Route path="/restaurants" element={<BrowsePage section="restaurants" />} />
                 <Route path="/convenience" element={<BrowsePage section="convenience" />} />

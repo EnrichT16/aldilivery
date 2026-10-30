@@ -43,10 +43,17 @@ import { AgreeByVoice } from '../components/AgreeByVoice';
 import { CallControls } from '../components/CallControls';
 import { DocumentsChecklist } from '../components/DocumentsChecklist';
 import { JobNavigation } from '../components/JobNavigation';
+import { WrongAppWarning } from '../components/GetTheApp';
+import {
+  DOCUMENT_CHECK_WORDS,
+  ENHANCED_DBS_OPTIONAL,
+  PAID_BACK_PROMISE,
+} from '../lib/runner-words';
 import { LeaveRunning } from '../components/LeaveRunning';
 import { PayoutChoice } from '../components/PayoutChoice';
 import { PhotoChoice } from '../components/PhotoChoice';
 import { RunnerSos } from '../components/RunnerSos';
+import { HomePostcode, RunnerLocation } from '../components/RunnerLocation';
 import { DemoBanner } from '../components/DemoBanner';
 import { NotifyMe } from '../components/NotifyMe';
 import { TillPayment } from '../components/TillPayment';
@@ -144,8 +151,11 @@ export function RunnerHome(): JSX.Element {
   // Offers already chimed for, so a new one sounds once and a look every few seconds is silent.
   const heardOffers = useRef(new Set<string>());
 
+  // Every check, the face photo included (Anthony, 30 October 2026).
   const approved = runner
-    ? runner.rightToWorkVerified && runner.criminalRecordCheckVerified
+    ? runner.rightToWorkVerified &&
+      runner.criminalRecordCheckVerified &&
+      runner.facePhotoAcceptedAt !== null
     : false;
 
   const refresh = useCallback(async () => {
@@ -372,14 +382,24 @@ export function RunnerHome(): JSX.Element {
               }}
             />
           )}
+          {/* Areas (Anthony, 30 October 2026): jobs come from their own area, nearest first. */}
+          {approved && !runner.homePostcode && (
+            <HomePostcode
+              onSaved={(message) => {
+                setNews(message);
+                void refresh();
+              }}
+            />
+          )}
+          {approved && <RunnerLocation onShift={runner.available} onJob={job !== null} />}
           {!approved ? (
             <section aria-labelledby="checks-heading" className="space-y-3 max-w-xl">
               <h2 id="checks-heading" className="text-lead font-bold">
                 Waiting for your checks
               </h2>
               <p className="m-0">
-                Send your documents below; a person checks them, usually within a few days. You can
-                go on shift once both of these are done.
+                Send your documents below. {DOCUMENT_CHECK_WORDS} You can go on shift once all of
+                these are done.
               </p>
               <ul className="m-0 ps-6 space-y-2">
                 <li>
@@ -387,9 +407,12 @@ export function RunnerHome(): JSX.Element {
                   {runner.rightToWorkVerified ? 'done' : 'not yet'}.
                 </li>
                 <li>
-                  Criminal record check: {runner.criminalRecordCheckVerified ? 'done' : 'not yet'}.
+                  Basic criminal record check (DBS):{' '}
+                  {runner.criminalRecordCheckVerified ? 'done' : 'not yet'}.
                 </li>
+                <li>Face photo: {runner.facePhotoAcceptedAt ? 'done' : 'not yet'}.</li>
               </ul>
+              <p className="m-0">{ENHANCED_DBS_OPTIONAL}</p>
               <DocumentsChecklist onNews={setNews} />
             </section>
           ) : job ? (
@@ -529,6 +552,13 @@ export function placeInLine(position: number): string {
   return ordinal ? `${ordinal} in line` : `Number ${position + 1} in line`;
 }
 
+/** Where the shopping comes from: the Shop Partners by name, or "the shops on the list". */
+function fromShops(names: readonly string[] | undefined): string {
+  if (!names || names.length === 0) return 'the shops on the list';
+  if (names.length === 1) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1] ?? ''}`;
+}
+
 /**
  * A job being offered: a summary, the seconds left, yes or no. Arrives as an alert, so a screen
  * reader says it the moment it appears. A chained offer (ruling 64) says it is the next job, near
@@ -566,7 +596,8 @@ function JobOffer({
         {offer.job.split && <p className="m-0 font-bold">{offer.job.split.earnWords}</p>}
         {offer.job.split && <p className="m-0">{offer.job.split.rest}</p>}
         <p className="m-0">
-          From {storeConfig.store.displayName}
+          {/* No supermarket partnership: the shops by name when known (Anthony, 30 October 2026). */}
+          From {fromShops(offer.job.shopNames)}
           {offer.job.distanceMiles !== null
             ? `, ${offer.job.distanceMiles.toFixed(1)} miles ${offer.chained ? 'from this door' : 'away'}`
             : ''}
@@ -693,7 +724,7 @@ function JobInHand({
           </p>
           <p className="m-0">
             If the card is declined, pay with your own card instead and put in the till total as
-            usual: we pay you back straight away.
+            usual. {PAID_BACK_PROMISE}
           </p>
         </div>
       )}
@@ -754,6 +785,7 @@ function JobInHand({
 
       <JobNavigation
         address={job.deliveryAddress}
+        shopNames={job.shopNames}
         mode={travelling}
         stage={job.status === 'accepted' || job.status === 'shopping' ? 'to-shop' : 'to-door'}
       />
@@ -781,7 +813,7 @@ function JobInHand({
             <p id="till-hint" className="m-0 text-paper/90">
               {byCard
                 ? `The total on the receipt, in pounds and pence. The shop was paid with your ${storeConfig.assistantName} card, and we check the two match.`
-                : 'The total on the receipt, in pounds and pence. The Shopper is charged exactly this, and we pay it back to you straight away.'}
+                : `The total on the receipt, in pounds and pence. The Shopper pays the till total, within the limits in our terms. ${PAID_BACK_PROMISE}`}
             </p>
             {tillError !== '' && (
               <p
@@ -814,8 +846,9 @@ function JobInHand({
               }}
             />
             <p id="receipt-photo-hint" className="m-0">
-              Optional, but it helps: with a photo, we pay you back larger amounts straight away,
-              without waiting for a person to check.
+              Optional, but it helps: without a photo, anything over{' '}
+              {money(storeConfig.receipts.photoNeededAbovePence)} waits for a person to check before
+              we pay you back.
             </p>
             <p role="status" className="m-0">
               {photoNote}
@@ -958,7 +991,7 @@ function HowYouGetPaid(): JSX.Element {
           </p>
           {pay.setup === 'ready' ? (
             <p role={back ? 'status' : undefined} className="m-0">
-              Your pay goes straight to your own bank account, through our payment company, Stripe.
+              Your pay goes to your Stripe account, then to your bank on your payout schedule.
             </p>
           ) : (
             <>
@@ -991,7 +1024,7 @@ function HowYouGetPaid(): JSX.Element {
 
 /**
  * How they are delivering today (ruling, 2 October 2026). Walking or cycling can be chosen at
- * any time, whatever they signed up with. A car or motorbike needs their licence and insurance
+ * any time, whatever they signed up with. A car, motorbike or van needs their licence and insurance
  * checked and in date; the server says so if not.
  */
 function TravelToday({
@@ -1107,7 +1140,7 @@ function AgreeFirst({
       <p className="m-0">
         {changed
           ? 'The Runner agreement has changed. Please read it and agree before your next job. No job is offered to you until you have agreed.'
-          : 'Please read the Runner agreement and say you agree to it. It says how you are paid, that we pay you back for the shopping straight away, and what happens if something goes wrong. No job is offered to you until you have agreed.'}
+          : 'Please read the Runner agreement and say you agree to it. It says how you are paid, how we pay you back for the shopping, and what happens if something goes wrong. No job is offered to you until you have agreed.'}
       </p>
       <Link to="/runner/agreement" className="control bg-paper/10 text-paper underline">
         Read the Runner agreement
@@ -1232,7 +1265,8 @@ function Money({ dashboard }: { dashboard: RunnerDashboard | null }): JSX.Elemen
 
 /**
  * Training (T11). The modules are being written; this is where they will be, each spoken and
- * written, with a record when passed. Some jobs will only be offered after the ones they need.
+ * written, with a record when passed. They are optional: no job waits for them (Anthony, 30
+ * October 2026).
  */
 const MODULES = [
   'Guiding and handing over to a blind or partially sighted person',
@@ -1254,8 +1288,9 @@ function Training(): JSX.Element {
         Training
       </h2>
       <p className="m-0">
-        Short lessons, read aloud and written, to help you do this job well and grow. They are being
-        written now. Each one will show here with a mark when you have passed it.
+        Short optional lessons, read aloud and written, to help you do this job well and grow. They
+        are being written now, and no job depends on them. Each one will show here with a mark when
+        you have finished it.
       </p>
       <ol className="m-0 ps-6 space-y-2">
         {MODULES.map((module) => (
@@ -1295,6 +1330,8 @@ function More({
 
   return (
     <div className="space-y-8 max-w-xl">
+      {/* Another app called Ozi is in the app stores; ours is not yet (Anthony, 30 October 2026). */}
+      <WrongAppWarning homeScreen />
       {dashboard && (
         <section aria-labelledby="id-heading" className="space-y-3">
           <h2 id="id-heading" className="text-lead font-bold">

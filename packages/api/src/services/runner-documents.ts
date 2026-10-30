@@ -59,6 +59,12 @@ export async function decideRunnerDocument(
     ...(document.kind === 'face_photo' && accept ? {} : { image: null, contentType: null }),
   });
 
+  // Nobody is offered a job until their face photo is accepted, as the Runner agreement says
+  // (Anthony, 30 October 2026). The latest decision on it stands.
+  if (document.kind === 'face_photo') {
+    await repository.runners.update(document.runnerId, { facePhotoAcceptedAt: accept ? at : null });
+  }
+
   if (accept) {
     const evidence = `${KIND_WORDS[document.kind]}, ${document.shareCode ? `share code ending ${document.shareCode.slice(-4)}` : 'photo'}, seen in the app`;
     if (document.kind === 'right_to_work' || document.kind === 'dbs') {

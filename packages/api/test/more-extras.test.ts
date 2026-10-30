@@ -3,6 +3,7 @@
  * price agreed first. The monthly plans (ruling 58) are proved in plans.test.ts.
  */
 
+import { ORGANISATION_TERMS_VERSION } from '@aldilivery/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { normaliseGiftCode } from '../src/routes/extras.js';
@@ -227,6 +228,7 @@ describe('organisations', () => {
         contactName: 'Jo',
         telephone: '01634 000000',
         people: 'About 40',
+        termsAgreed: true,
       },
     });
     expect(sent.statusCode, sent.body).toBe(201);
@@ -246,5 +248,48 @@ describe('organisations', () => {
       headers: STAFF,
     });
     expect(handled.json().enquiry.handled).toBe(true);
+    // The Organisation terms were agreed, with the moment and the version kept.
+    const stored = (await harness.repository.organisationEnquiries.list())[0];
+    expect(stored).toEqual(
+      expect.objectContaining({
+        kind: 'organisation',
+        termsAgreedAt: harness.now(),
+        termsVersion: ORGANISATION_TERMS_VERSION,
+      }),
+    );
+  });
+
+  it('needs the Organisation terms agreed before an organisation asks', async () => {
+    const refused = await harness.app.inject({
+      method: 'POST',
+      url: '/organisations/enquiries',
+      payload: {
+        organisation: 'Medway Sight Support',
+        contactName: 'Jo',
+        telephone: '01634 000000',
+      },
+    });
+    expect(refused.statusCode).toBe(400);
+    expect(refused.json().error.message).toMatch(/agree to the Organisation terms/);
+    expect(await harness.repository.organisationEnquiries.list()).toEqual([]);
+  });
+
+  it('tells the owner a shop asking is a shop, not an organisation', async () => {
+    const sent = await harness.app.inject({
+      method: 'POST',
+      url: '/organisations/enquiries',
+      payload: {
+        kind: 'shop',
+        organisation: 'Rainham Greengrocer',
+        contactName: 'Sam',
+        telephone: '01634 111111',
+      },
+    });
+    expect(sent.statusCode, sent.body).toBe(201);
+    const [matter] = await harness.repository.ownerDesk.listUnsettled();
+    expect(matter!.summary).toMatch(/^A new shop, Rainham Greengrocer, asked to work with us\./);
+    expect(matter!.summary).not.toMatch(/organisation/);
+    const [stored] = await harness.repository.organisationEnquiries.list();
+    expect(stored).toEqual(expect.objectContaining({ kind: 'shop', termsAgreedAt: null }));
   });
 });

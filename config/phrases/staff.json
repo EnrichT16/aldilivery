@@ -1,5 +1,5 @@
 {
-  "about": "What Ozi says to staff in the admin panel (ruling 44). Kept on the server only.",
+  "about": "What Ozi says to staff in the admin panel (ruling 44). Kept on the server only. Rules for every addition: never promise a postcode check or say a town is covered in its own words (use the agreed area answer: we run across the UK, area by area, wherever we have Runners and shops); never name a supermarket or shop chain as a partner, or suggest any endorsement; never promise a delivery time (say usually the same day, and the order page shows a best guess); never say \"no mark-up\" (say shop prices, plus a small item charge on each product, plus delivery); and never name any company or technology behind {assistant}, including the makers of any AI. The tests check these.",
   "phrases": [
     {
       "id": "staff-hello",
@@ -320,7 +320,10 @@
       "id": "staff-runner-pay",
       "topic": "rules",
       "when": ["runner pay", "what do runners earn"],
-      "replies": ["{runnerPay} a job.", "Runners earn {runnerPay} every job."]
+      "replies": [
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders.",
+        "Runners earn {runnerPay} a standard delivery, {largeRunnerPay} for big orders."
+      ]
     },
     {
       "id": "staff-nothing-is-waiting",
@@ -2853,7 +2856,7 @@
       "when": ["why no cash", "can runners carry cash"],
       "replies": [
         "Cash is never handled. All payments are by card, through the app.",
-        "Card only, through the app."
+        "No cash: card, a payment link by text, or bank transfer."
       ]
     },
     {
@@ -3176,8 +3179,8 @@
       "topic": "runners",
       "when": ["how do runners get paid", "when are runners paid"],
       "replies": [
-        "Runners earn {runnerPay} a job. Ask the founder about how payouts work.",
-        "{runnerPay} a job."
+        "Runners earn {runnerPay} a standard delivery, {largeRunnerPay} for big orders. Ask the founder about how payouts work.",
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders."
       ]
     },
     {

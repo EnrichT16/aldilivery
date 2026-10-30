@@ -41,6 +41,7 @@ import { applyCredit } from '../services/credit.js';
 import { recordOrder } from '../lib/analytics.js';
 import { recordOrderIncome } from '../lib/ledger.js';
 import { offerNextFor } from '../services/allocate.js';
+import { locatePostcode, waitIfNotRunning } from '../services/areas.js';
 import { offerOrder, sweepOffers } from '../services/dispatch.js';
 import { alertPayments, bankReference, bankSettings } from '../lib/bank.js';
 import { tellShopper } from '../services/order-updates.js';
@@ -450,10 +451,32 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
 
   app.post('/orders', async (request, reply) => {
     const session = requireSession(request, 'shopper');
-    const input = createOrderSchema.parse(request.body);
+    const parsed = createOrderSchema.parse(request.body);
 
     const shopper = await repository.shoppers.findById(session.accountId);
     if (!shopper) throw new NotFoundError('account');
+
+    // Areas (Anthony, 30 October 2026): somewhere we are not running yet, the Shopper is told so
+    // before anything is taken, and goes on the area's waiting list, texted when it starts.
+    if (app.ctx.areasGate && !shopper.isDemo) {
+      const area = await waitIfNotRunning(app.ctx, shopper, parsed.deliveryAddress);
+      if (area && !area.running) {
+        throw new ConflictError(`${config.areas.notRunningWords} Nothing has been charged.`, {
+          notRunning: true,
+          area: area.area,
+          areaName: area.name,
+        });
+      }
+    }
+    // Where it goes, for finding the nearest Runner: the place of its postcode, kept when the
+    // address was saved, unless the screen sent one.
+    const place =
+      parsed.latitude !== undefined && parsed.longitude !== undefined
+        ? null
+        : await locatePostcode(app.ctx, parsed.deliveryAddress, request.log);
+    const input = place
+      ? { ...parsed, latitude: place.latitude, longitude: place.longitude }
+      : parsed;
 
     // The demo account (ruling 60) orders with its demo card only: nothing is ever charged.
     if (shopper.isDemo && (input.payBy !== 'card' || input.schedule?.pay === 'bank')) {

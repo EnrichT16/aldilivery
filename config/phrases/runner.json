@@ -1,5 +1,5 @@
 {
-  "about": "What Ozi says to Runners (ruling 44). Same format as config/ozi-phrases.json. Kept on the server only.",
+  "about": "What Ozi says to Runners (ruling 44). Same format as config/ozi-phrases.json. Kept on the server only. Rules for every addition: never promise a postcode check or say a town is covered in its own words (use the agreed area answer: we run across the UK, area by area, wherever we have Runners and shops); never name a supermarket or shop chain as a partner, or suggest any endorsement; never promise a delivery time (say usually the same day, and the order page shows a best guess); never say \"no mark-up\" (say shop prices, plus a small item charge on each product, plus delivery); and never name any company or technology behind {assistant}, including the makers of any AI. The tests check these.",
   "phrases": [
     {
       "id": "runner-hello",
@@ -27,8 +27,8 @@
       "topic": "pay",
       "when": ["how much do i get paid", "what do i earn per job", "how much is a job"],
       "replies": [
-        "You earn {runnerPay} for every job, whatever the size of the basket.",
-        "Every job pays you {runnerPay}. It never goes down."
+        "You earn {runnerPay} a standard delivery, {largeRunnerPay} for big orders.",
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders. Each offer shows its pay."
       ]
     },
     {
@@ -37,7 +37,7 @@
       "when": ["when do i get paid", "when is payday", "when will i be paid"],
       "replies": [
         "You're paid for each job once it's delivered, to your own Stripe account.",
-        "After each delivery, your {runnerPay} goes to your Stripe account."
+        "After each delivery, your pay for it goes to your Stripe account."
       ]
     },
     {
@@ -66,10 +66,7 @@
       "id": "runner-what-about-tips",
       "topic": "pay",
       "when": ["what about tips", "can shoppers tip me", "do i get tips"],
-      "replies": [
-        "Tips aren't switched on yet. When they are, every penny of a tip will be yours.",
-        "Not yet. Tips are planned, and they'll go to you in full."
-      ]
+      "replies": ["Tipping isn't available yet.", "Not yet. Tipping isn't available."]
     },
     {
       "id": "runner-how-do-i-go-on-shift",
@@ -260,7 +257,7 @@
       "topic": "documents",
       "when": ["do i need a dbs", "what is dbs"],
       "replies": [
-        "Yes. A DBS check shows you're safe to work with the people we help.",
+        "Yes. A DBS check shows any unspent convictions.",
         "A basic DBS certificate, or its share code."
       ]
     },
@@ -677,8 +674,8 @@
       "topic": "offers",
       "when": ["what does the offer show", "what's in the offer", "what does a job offer tell me"],
       "replies": [
-        "How many things are on the list, about how much shopping, how far away, and your pay of {runnerPay}.",
-        "The number of things, roughly what the shopping costs, the distance, and what you earn: {runnerPay}."
+        "How many things are on the list, about how much shopping, how far away, and your pay for the job.",
+        "The number of things, roughly what the shopping costs, the distance, and what you earn for it."
       ]
     },
     {
@@ -695,8 +692,8 @@
       "topic": "offers",
       "when": ["what does this job pay", "how much is this job", "what will i get for this one"],
       "replies": [
-        "This job pays {runnerPay}, like every standard delivery.",
-        "{runnerPay}, the same as every standard job, whatever is in the basket."
+        "The offer shows this job's pay: {runnerPay} a standard delivery, {largeRunnerPay} for big orders.",
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders. The offer shows which."
       ]
     },
     {
@@ -1305,7 +1302,7 @@
       "when": ["do i have to enter the total first", "why do i enter the total before leaving"],
       "replies": [
         "Yes. The till total goes in before you set off, because that's what the Shopper is charged.",
-        "It must go in before I am on my way. The Shopper pays exactly that amount."
+        "It must go in before I am on my way. The Shopper pays the till total, within the limits in our terms."
       ]
     },
     {
@@ -1393,7 +1390,7 @@
       ],
       "replies": [
         "The till total for the shopping, the item charges, and delivery. You pay the shop only the till total.",
-        "What the till says, the item charges, and delivery. Of every delivery, {runnerPay} is yours."
+        "What the till says, the item charges, and delivery. You get {runnerPay} a standard delivery, {largeRunnerPay} for big orders."
       ]
     },
     {
@@ -1521,7 +1518,7 @@
       "topic": "delivery",
       "when": ["i've delivered it", "job done", "all delivered", "it's delivered"],
       "replies": [
-        "Press I have delivered it. You've earned {runnerPay} for this one.",
+        "Press I have delivered it, and this one's pay is yours.",
         "Well done. Press I have delivered it, and you're free for the next job."
       ]
     },
@@ -1755,7 +1752,7 @@
         "they're trying to give me a tip"
       ],
       "replies": [
-        "Thank them kindly, but we never take cash. Tips aren't switched on yet.",
+        "Thank them kindly, but we never take cash. Tipping isn't available yet.",
         "Say thank you warmly, and explain you can't take cash. Their kindness is the tip."
       ]
     },
@@ -1910,8 +1907,8 @@
       "topic": "pay",
       "when": ["do big orders pay more", "is it more for a heavy basket", "do small jobs pay less"],
       "replies": [
-        "No. Every job pays {runnerPay}, whatever the basket.",
-        "The same {runnerPay} every time, big shop or small."
+        "Yes. A standard delivery pays {runnerPay}, and a big order {largeRunnerPay}.",
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders."
       ]
     },
     {
@@ -1919,8 +1916,8 @@
       "topic": "pay",
       "when": ["what's my pay per job", "how much per delivery", "what's the rate"],
       "replies": [
-        "{runnerPay} for every standard delivery.",
-        "Each job pays you {runnerPay}, untouched by the size of the basket."
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders.",
+        "Each standard delivery pays you {runnerPay}, and a big order {largeRunnerPay}."
       ]
     },
     {
@@ -1932,8 +1929,8 @@
         "where does the delivery fee go"
       ],
       "replies": [
-        "Whatever delivery the Shopper pays, {runnerPay} of it is yours.",
-        "From every delivery, {runnerPay} goes to you."
+        "Whatever delivery the Shopper pays, you get {runnerPay} a standard delivery, {largeRunnerPay} for big orders.",
+        "From every delivery, you get {runnerPay}, or {largeRunnerPay} for big orders."
       ]
     },
     {
@@ -2064,18 +2061,15 @@
       "id": "runner-tips-when",
       "topic": "pay",
       "when": ["when will tips start", "will tips come", "are tips coming"],
-      "replies": [
-        "Tips are planned. When they're switched on, every penny of a tip will be yours.",
-        "Not yet. When they come, Shoppers can choose to tip, and it all goes to you."
-      ]
+      "replies": ["Tipping isn't available yet.", "Not yet. Tipping isn't available."]
     },
     {
       "id": "runner-waiting-paid",
       "topic": "pay",
       "when": ["do i get paid for waiting", "is waiting time paid"],
       "replies": [
-        "You earn {runnerPay} per job. Take the time each Shopper needs.",
-        "The pay is per job, {runnerPay}. Patience at the door is part of the care."
+        "You earn per job: {runnerPay} a standard delivery, {largeRunnerPay} for big orders. Take the time each Shopper needs.",
+        "The pay is per job, not per minute. Patience at the door is part of the care."
       ]
     },
     {
@@ -2098,8 +2092,8 @@
       "topic": "pay",
       "when": ["do you pay for petrol", "do i get mileage", "do you pay travel costs"],
       "replies": [
-        "Your pay for each job is {runnerPay}. There's no separate travel payment.",
-        "Each job pays {runnerPay}, with no extra for travel."
+        "Your pay is {runnerPay} a standard delivery, {largeRunnerPay} for big orders. There's no separate travel payment.",
+        "Each job pays {runnerPay}, or {largeRunnerPay} for big orders, with no extra for travel."
       ]
     },
     {
@@ -2107,8 +2101,8 @@
       "topic": "pay",
       "when": ["are there bonuses", "do you pay bonuses", "can i earn more"],
       "replies": [
-        "Every job pays {runnerPay}, the same every time. The more jobs you take, the more you earn.",
-        "Your earnings grow with each job you do, at {runnerPay} a time."
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders. The more jobs you take, the more you earn.",
+        "Your earnings grow with each job you do."
       ]
     },
     {
@@ -2129,7 +2123,7 @@
       "topic": "payouts",
       "when": ["am i paid per job", "is it paid per delivery"],
       "replies": [
-        "Yes. Each delivered job earns {runnerPay}, sent through Stripe to your bank.",
+        "Yes. Each delivered job earns {runnerPay}, or {largeRunnerPay} for big orders, sent through Stripe to your bank.",
         "Per job. Your Money tab lists each payout with its order reference."
       ]
     },
@@ -2183,8 +2177,7 @@
       "topic": "documents",
       "when": ["basic or enhanced dbs", "what kind of dbs", "do i need an enhanced dbs"],
       "replies": [
-        "A basic DBS is needed by every Runner. An enhanced one, with the adults' barred list, is needed for some jobs, such as handing to the person.",
-        "Basic for everyone. Enhanced only for certain jobs, which will say so."
+        "Every Runner needs a basic DBS check. An enhanced DBS check is optional: only if you want closer-help jobs, going inside a Shopper's home to carry shopping in or put it away. Those jobs aren't offered yet."
       ]
     },
     {
@@ -2201,8 +2194,8 @@
       "topic": "documents",
       "when": ["i already have a dbs", "can i use my old dbs"],
       "replies": [
-        "Send it in the app, the certificate or its share code, and staff will check it.",
-        "Add it under your documents on the More tab. Staff will say if it's suitable."
+        "Send it in the app, the certificate or its share code. Our automatic check approves documents that are clearly in order; anything unclear is looked at by a person.",
+        "Add it under your documents on the More tab. Anything unclear is looked at by a person."
       ]
     },
     {
@@ -2254,8 +2247,8 @@
       "topic": "documents",
       "when": ["do i need a driving licence", "driving licence check", "what do drivers need"],
       "replies": [
-        "Only for a car or motorbike: photos front and back, plus a DVLA check code, and insurance for business use.",
-        "For driving: your licence, a DVLA check code, your registration, and business insurance."
+        "Only for a car or motorbike: photos of your licence, front and back, and insurance for business use.",
+        "For driving: your licence, front and back, and business insurance."
       ]
     },
     {
@@ -2263,8 +2256,8 @@
       "topic": "documents",
       "when": ["what is a dvla check code", "dvla code"],
       "replies": [
-        "It's a code from the DVLA's view your driving licence service on gov.uk, so your licence can be checked.",
-        "Get it from gov.uk, under view or share your driving licence."
+        "It's a code from the DVLA's view your driving licence service on gov.uk. We don't ask for one: drivers send their licence, front and back, plus insurance.",
+        "We don't need it. Just your licence, front and back, and your insurance."
       ]
     },
     {
@@ -2272,8 +2265,8 @@
       "topic": "documents",
       "when": ["do you check my mot", "road tax", "why do you need my registration"],
       "replies": [
-        "Your registration number lets MOT and road tax be checked automatically.",
-        "So MOT and tax can be checked without more paperwork from you."
+        "We don't check MOT or road tax, and we don't ask for your registration. Drivers send their licence, front and back, plus insurance.",
+        "No. For driving, just your licence, front and back, and your insurance."
       ]
     },
     {
@@ -2330,7 +2323,7 @@
         "do i have to go anywhere to sign up"
       ],
       "replies": [
-        "No. Everything is done in the app, anywhere in the UK.",
+        "No. Everything is done in the app. We run across the UK, area by area, wherever we have Runners and shops.",
         "No office visit. You sign up and send documents from your phone."
       ]
     },
@@ -2697,8 +2690,8 @@
       "topic": "problems",
       "when": ["how long until a decision", "when will i hear back", "how long does a report take"],
       "replies": [
-        "Staff aim to decide within two working days, and five at the most.",
-        "Usually within two working days. Never more than five."
+        "Staff aim to decide within two working days.",
+        "Usually within two working days."
       ]
     },
     {
@@ -3191,7 +3184,7 @@
       "topic": "encouragement",
       "when": ["i did my first delivery", "first job done", "i finished my first job"],
       "replies": [
-        "Congratulations! The first is the hardest. You've earned {runnerPay}.",
+        "Congratulations! The first is the hardest, and you've earned your first pay.",
         "Brilliant. That's your first of many."
       ]
     },
@@ -3287,7 +3280,7 @@
       "topic": "training",
       "when": ["what training is there", "training modules", "do i have to do training"],
       "replies": [
-        "Short lessons are coming: guiding a blind Shopper, food hygiene and the cool box, working alone safely, and more. Some jobs will need them.",
+        "Short lessons are coming soon: guiding a blind Shopper, food hygiene and the cool box, working alone safely, and more. They're optional.",
         "Your Training tab lists them. They're being written now, each read aloud and written."
       ]
     },
@@ -3317,7 +3310,10 @@
       "id": "runner-where-deliver",
       "topic": "about",
       "when": ["where do we deliver", "which areas", "is it only medway"],
-      "replies": ["We start in Medway.", "Medway first, with more areas to come."]
+      "replies": [
+        "We run across the UK, area by area, wherever we have Runners and shops.",
+        "Across the UK, area by area."
+      ]
     },
     {
       "id": "runner-errands",
@@ -3395,8 +3391,8 @@
       "topic": "documents",
       "when": ["who checks my documents", "who approves runners"],
       "replies": [
-        "Our Runner onboarding staff check them, in the admin panel.",
-        "A member of our team checks each one."
+        "Our automatic check approves documents that are clearly in order; anything unclear is looked at by a person.",
+        "The automatic check, and a person for anything unclear."
       ]
     },
     {
@@ -3488,8 +3484,8 @@
       "topic": "training",
       "when": ["do i need training to start", "do i need to pass anything"],
       "replies": [
-        "Some jobs will only be offered after the lessons they need.",
-        "Not for ordinary jobs yet. Some jobs will need lessons later."
+        "No. The lessons are optional, and coming soon.",
+        "Not to start. The lessons are optional and coming soon."
       ]
     },
     {
@@ -3497,8 +3493,7 @@
       "topic": "documents",
       "when": ["what is the barred list", "what is the adults barred list"],
       "replies": [
-        "It's a list of people barred from certain work with adults. An enhanced DBS check looks at it.",
-        "An enhanced DBS check includes it. It's needed for some jobs."
+        "It's a list of people barred from certain work with adults. A basic DBS check, which every Runner needs, doesn't include it. An enhanced check does, and that's optional, only for closer-help jobs inside a Shopper's home, which aren't offered yet."
       ]
     },
     {
@@ -3713,7 +3708,7 @@
       "topic": "pay",
       "when": ["will my pay go down", "can you cut my pay"],
       "replies": [
-        "Your pay is {runnerPay} for every standard delivery, untouched by the size of the basket.",
+        "Your pay is {runnerPay} a standard delivery, {largeRunnerPay} for big orders.",
         "{runnerPay} per standard job. Shoppers' extras never come out of it."
       ]
     },
@@ -3961,7 +3956,7 @@
       "topic": "joining",
       "when": ["insurance for runners"],
       "replies": [
-        "Only if you drive or ride. A car, van, motorbike or scooter needs business use or courier insurance that a person accepts."
+        "Only if you drive or ride. A car, van, motorbike or scooter needs business use or courier insurance."
       ]
     },
     {
@@ -4012,7 +4007,7 @@
       "topic": "joining",
       "when": ["do i've to do training"],
       "replies": [
-        "Short modules on your Training tab: the door, handling food, substitutions and safety. Do them before your first job."
+        "Short lessons are coming soon on your Training tab: the door, handling food, substitutions and safety. They're optional."
       ]
     },
     {
@@ -4020,7 +4015,7 @@
       "topic": "pay",
       "when": ["what is the pay", "what's the pay", "pay per delivery"],
       "replies": [
-        "{runnerPay} for each delivery, more for big orders. Shopping money is paid back at once."
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders. Shopping money is paid back straight away with a receipt photo; large or unclear amounts are checked by a person first."
       ]
     },
     {
@@ -4028,7 +4023,7 @@
       "topic": "pay",
       "when": ["payout day", "when's payday"],
       "replies": [
-        "Weekly by default, straight to your bank account. You can choose daily or instant, for a small fee, in Settings."
+        "Weekly by default, straight to your bank account. You can choose daily or instant, for a small fee, on the Money tab."
       ]
     },
     {
@@ -4040,7 +4035,7 @@
         "who pays for the shopping"
       ],
       "replies": [
-        "You pay with the card on your phone, loaded for the order. If you ever pay yourself, the till total is paid back at once."
+        "You pay with the card on your phone, loaded for the order. If you ever pay yourself, you're paid back straight away with a receipt photo; large or unclear amounts are checked by a person first."
       ]
     },
     {
@@ -4067,7 +4062,7 @@
         "till wouldn't take the card"
       ],
       "replies": [
-        "Check the total is within the loaded amount. If it still fails, pay yourself if you can; you are paid back at once."
+        "Check the total is within the loaded amount. If it still fails, pay yourself if you can; you're paid back straight away with a receipt photo; large or unclear amounts are checked by a person first."
       ]
     },
     {
@@ -4088,9 +4083,7 @@
       "id": "r66-pay-large-order-pay",
       "topic": "pay",
       "when": ["large order pay", "extra for big jobs"],
-      "replies": [
-        "Yes. A large order pays more than the usual {runnerPay}, and a very large one delivered whole pays more still."
-      ]
+      "replies": ["Yes. A big order pays {largeRunnerPay} instead of the standard {runnerPay}."]
     },
     {
       "id": "r66-pay-how-do-i-see-what-i-earned",
@@ -4127,7 +4120,7 @@
       "topic": "pay",
       "when": ["tax on my pay", "self assessment"],
       "replies": [
-        "You work for yourself, so your tax is your own. Your earnings history is there to download."
+        "You work for yourself, so your tax is your own. Your Jobs tab lists every job with its date and pay."
       ]
     },
     {

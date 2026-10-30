@@ -19,6 +19,8 @@ import { FAKE_SHOPPER } from './setup';
 
 let sent: Array<{ method: string; path: string; body: unknown; headers: Record<string, string> }>;
 let dashboard: PartnerDashboard;
+/** How many free listings the join options say are left. */
+let freeLeft: number;
 
 const BAKERY_DASHBOARD: PartnerDashboard = {
   shop: {
@@ -47,7 +49,7 @@ const BAKERY_DASHBOARD: PartnerDashboard = {
     productsListed: 0,
     canAddProduct: true,
     words:
-      'Free listing: your name, address, hours and up to 10 products. Partner Plus, £14.99 a month, adds the full catalogue with photos, offers, Shop of the Month and a place above free shops, with the first month free.',
+      'Free listing: your name, address, hours and up to 10 products. Partner Plus, £14.99 a month, adds the full catalogue with photos, Shop of the Month, and first place among shops at the same distance, with the first month free.',
   },
   commission: null,
   enquiries: [],
@@ -68,6 +70,7 @@ const BAKERY_DASHBOARD: PartnerDashboard = {
 beforeEach(() => {
   sent = [];
   dashboard = BAKERY_DASHBOARD;
+  freeLeft = 97;
   window.sessionStorage.clear();
   window.localStorage.clear();
   window.localStorage.setItem('ozidelivery.voice.settings', JSON.stringify({ introHeard: true }));
@@ -95,7 +98,7 @@ beforeEach(() => {
             { kind: 'food', words: 'Café or takeaway' },
             { kind: 'service', words: 'Service' },
           ],
-          freeListingsLeft: 97,
+          freeListingsLeft: freeLeft,
           freeProductLimit: 10,
           plusMonthlyPence: 1499,
           plusFirstMonthFree: true,
@@ -306,8 +309,9 @@ describe('joining as a shop', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Join as a shop' }),
     ).toBeInTheDocument();
+    expect(await screen.findByText(/for the next 97 shops to join/)).toBeInTheDocument();
     expect(
-      await screen.findByText(/with no monthly fee, for the next 97 shops to join/),
+      screen.getByText('Shops: a basic listing, free, with no monthly fee'),
     ).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'What each plan gives a shop' })).toBeInTheDocument();
     expect(screen.getByText(/10% of each order placed through/)).toBeInTheDocument();
@@ -332,6 +336,17 @@ describe('joining as a shop', () => {
     await user.click(screen.getByLabelText('Turkish'));
     await user.type(screen.getByLabelText('Choose a username'), 'cornerbakery');
     await user.type(screen.getByLabelText('Choose a password'), 'a-long-enough-password');
+    // The Shop Partner terms must be agreed first (30 October 2026).
+    await user.click(screen.getByRole('button', { name: 'Join' }));
+    expect(
+      await screen.findByRole('link', { name: 'Please tick to agree to the Shop Partner terms.' }),
+    ).toBeInTheDocument();
+    expect(sent.some((r) => r.path === '/auth/request-code')).toBe(false);
+    expect(screen.getByRole('link', { name: 'Read the Shop Partner terms' })).toHaveAttribute(
+      'href',
+      '/partner/terms',
+    );
+    await user.click(screen.getByLabelText('I agree to the Shop Partner terms'));
     await user.click(screen.getByRole('button', { name: 'Join' }));
 
     expect(
@@ -360,6 +375,7 @@ describe('joining as a shop', () => {
         username: 'cornerbakery',
         password: 'a-long-enough-password',
         plan: 'free',
+        termsAgreed: true,
         phoneProof: 'proof.partner',
         specialities: ['Turkish'],
         convenience: false,
@@ -376,6 +392,11 @@ describe('joining as a shop', () => {
     const user = userEvent.setup({ delay: null });
     renderAt('/shops/seed-1');
     expect(await screen.findByText(/Listed by Ozi from public details/)).toBeInTheDocument();
+    // Not a partner, said plainly, and its hours are typical ones to check (30 October 2026).
+    expect(
+      screen.getByText(/We don't have a partnership with this shop yet\./),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Typical hours, please check with the shop')).toBeInTheDocument();
     await user.click(screen.getByRole('link', { name: 'Claim this shop' }));
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Claim Big Shop Gillingham' }),
@@ -482,6 +503,8 @@ describe('a Shopper and a service', () => {
     expect(await screen.findByText(/Shop, ME7/)).toBeInTheDocument();
     expect(screen.getByText(/Service, ME4/)).toBeInTheDocument();
     expect(screen.getByText(/Listed by Ozi\./)).toBeInTheDocument();
+    // The card says so for the shop Ozi listed, and only for that one.
+    expect(screen.getAllByText("We don't have a partnership with this shop yet.")).toHaveLength(1);
   });
 
   it('asks for a quote from the service’s page, and nothing is paid here', async () => {
@@ -535,17 +558,22 @@ describe('choosing free or paid at sign-up (ruling 75)', () => {
     expect(row('Products')).toHaveTextContent('Up to 10');
     expect(row('Products')).toHaveTextContent('Your full catalogue');
     expect(row('Photos of your products')).toHaveTextContent(/NoYes/);
-    expect(row('Offers')).toHaveTextContent(/NoYes/);
+    // Offers do not exist yet, so they are not promised (30 October 2026).
+    expect(within(table).queryByRole('rowheader', { name: 'Offers' })).toBeNull();
     expect(row('Shop of the Month')).toHaveTextContent('Not eligible');
-    expect(row('In search and on the shops list')).toHaveTextContent('Above free shops');
+    expect(row('In search and on the shops list')).toHaveTextContent(
+      'First among shops at the same distance',
+    );
     expect(
       within(table).getByRole('rowheader', { name: /Spotlight \(£19\.99\) and Spotlight Plus/ }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/free listings may be reviewed as paid shops join/),
-    ).toBeInTheDocument();
+    // One rule everywhere: free, with no monthly fee, and never "may be taken off".
+    expect(screen.queryByText(/may be reviewed|taken off/)).toBeNull();
+    expect(screen.getByText(/A basic listing is free, with no monthly fee\./)).toBeInTheDocument();
     const group = screen.getByRole('group', { name: 'Which plan would you like?' });
-    expect(within(group).getByRole('radio', { name: 'Basic listing, free' })).toBeChecked();
+    expect(
+      within(group).getByRole('radio', { name: 'Basic listing, free, with no monthly fee' }),
+    ).toBeChecked();
     expect(
       within(group).getByRole('radio', { name: /Partner Plus: start with the free month/ }),
     ).toBeInTheDocument();
@@ -576,6 +604,7 @@ describe('choosing free or paid at sign-up (ruling 75)', () => {
     await user.type(screen.getByLabelText('Email address'), 'bola@example.com');
     await user.type(screen.getByLabelText('Choose a username'), 'cornerbakery');
     await user.type(screen.getByLabelText('Choose a password'), 'a-long-enough-password');
+    await user.click(screen.getByLabelText('I agree to the Shop Partner terms'));
     await user.click(screen.getByRole('button', { name: 'Join' }));
     await user.type(await screen.findByLabelText('The code from the text'), '123456');
     await user.click(screen.getByRole('button', { name: 'Confirm and join' }));
@@ -609,9 +638,43 @@ describe('choosing free or paid at sign-up (ruling 75)', () => {
       excludedServiceKinds: [],
       mobileConfirmed: true,
     });
-    expect(question).toMatch(/up to 10 products, with no photos and no offers/);
+    expect(question).toMatch(/free, with no monthly fee: .*up to 10 products, with no photos\./);
+    expect(question).not.toMatch(/offers/);
     expect(question).toMatch(/Partner Plus is £14\.99 a month/);
+    expect(question).toMatch(/first among shops at the same distance/);
     expect(question).toMatch(/Say free, free month, or pay now\.$/);
+    // Once the free listings have all gone, Ozi says so and offers only Partner Plus.
+    const gone = planQuestion({
+      kinds: [],
+      freeListingsLeft: 0,
+      freeProductLimit: 10,
+      plusMonthlyPence: 1499,
+      plusFirstMonthFree: true,
+      foodCommissionWords: '10%',
+      spotlightPence: 1999,
+      spotlightPlusPence: 3999,
+      excludedServiceKinds: [],
+      mobileConfirmed: true,
+    });
+    expect(gone).toMatch(/free basic listings have all gone/);
+    expect(gone).toMatch(/Say free month, or pay now\.$/);
+  });
+
+  it('hides the free choice once the free listings have all gone, and says so', async () => {
+    freeLeft = 0;
+    renderAt('/business/join');
+    const group = await screen.findByRole('group', { name: 'Which plan would you like?' });
+    expect(
+      await screen.findByText(/The free basic listings have all gone, so we cannot offer one now/),
+    ).toBeInTheDocument();
+    expect(within(group).queryByRole('radio', { name: /Basic listing/ })).toBeNull();
+    await waitFor(() =>
+      expect(
+        within(group).getByRole('radio', { name: /Partner Plus: start with the free month/ }),
+      ).toBeChecked(),
+    );
+    expect(screen.getByText('Shops: the free basic listings have all gone')).toBeInTheDocument();
+    expect(screen.queryByText(/for the next 0 shops/)).toBeNull();
   });
 });
 

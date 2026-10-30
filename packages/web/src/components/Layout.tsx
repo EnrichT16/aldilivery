@@ -140,11 +140,16 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
 
       <footer className="px-5 py-6 border-t-2 border-paper/25">
         <div className="mx-auto w-full max-w-3xl space-y-2">
+          {/* No supermarket partnership: we list many shops and have an agreement with none of
+              them yet, so the footer says so plainly (Anthony, 30 October 2026). */}
           <p className="m-0 extra">
-            {storeConfig.productName} shops at {storeConfig.store.displayName}. Your Runner pays the
-            shelf price and you are charged what the till says.
+            {storeConfig.productName} is an independent service. We do not have a partnership with
+            any shop we list yet. Shop prices plus a small item charge, always shown.
           </p>
           <p className="m-0 text-paper/80 extra">{storeConfig.store.catalogueSource.attribution}</p>
+          <p className="m-0 text-paper/80 extra">
+            Prices include data from Open Prices by Open Food Facts (ODbL).
+          </p>
           <ul className="flex flex-wrap gap-2 list-none m-0 p-0">
             <li>
               <Link to="/about" className="control px-0 text-paper underline">

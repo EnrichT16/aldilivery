@@ -33,7 +33,9 @@ export function pressSos(
   );
 }
 
-export function sendSosLocation(location: Whereabouts): Promise<{ sos: SosState }> {
+export function sendSosLocation(
+  location: Whereabouts,
+): Promise<{ sos: SosState; message?: string }> {
   return request(
     '/runners/me/sos/location',
     { method: 'POST', body: JSON.stringify(location) },
@@ -41,12 +43,27 @@ export function sendSosLocation(location: Whereabouts): Promise<{ sos: SosState 
   );
 }
 
-export function fetchSos(): Promise<{ sos: SosState | null; call999: string }> {
+export function fetchSos(): Promise<{
+  sos: SosState | null;
+  call999: string;
+  message?: string | null;
+}> {
   return request('/runners/me/sos', undefined, 'runner');
 }
 
 export function endMySos(): Promise<{ sos: SosState | null; message: string }> {
   return request('/runners/me/sos/end', { method: 'POST', body: '{}' }, 'runner');
+}
+
+/**
+ * What the Runner is told about the office, from what really happened (Anthony, 30 October
+ * 2026): "told" only once the alert went, and "where you are" only once it is known.
+ */
+export function sosWords(sos: Pick<SosState, 'alerted' | 'located'>): string {
+  if (!sos.alerted) return 'We could not reach the office. Please call 999.';
+  return sos.located
+    ? 'We have been told, with where you are.'
+    : 'We have been told. We do not know where you are yet.';
 }
 
 /* ------------------------------------------------------------------ payouts */

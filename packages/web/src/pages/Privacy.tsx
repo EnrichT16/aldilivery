@@ -5,7 +5,10 @@ import { storeConfig } from '../config';
 
 /**
  * The privacy notice, in plain words (UK GDPR Articles 13 and 14, and the Data Protection Act
- * 2018). Reviewed against the law on 9 October 2026 (ruling 54, docs/LEGAL_REVIEW.md).
+ * 2018). Reviewed against the law on 9 October 2026 (ruling 54, docs/LEGAL_REVIEW.md), and
+ * corrected after an audit on 30 October 2026: which calls are recorded, the automated language
+ * service and our email provider among the recipients, what organisations see, and a section for
+ * businesses and organisations (Anthony, 30 October 2026).
  *
  * Every fact here must stay true to the code: when a new kind of information is collected, or a
  * new company handles it, this page changes too. Company details come from config/store.json;
@@ -82,8 +85,8 @@ export function Privacy(): JSX.Element {
           </li>
           <li>
             <strong>In-app calls</strong>: who called whom and for how long, to charge the right
-            amount. Calls are not recorded. Nobody&rsquo;s telephone number is shown to anyone.
-            Reason: a contract.
+            amount. Calls between you and your Runner are not recorded. Nobody&rsquo;s telephone
+            number is shown to anyone. Reason: a contract.
           </li>
           <li>
             <strong>Ordering by telephone</strong>: the number you ring from and the name you give,
@@ -151,35 +154,38 @@ export function Privacy(): JSX.Element {
           &ldquo;Muted&rdquo;, it is not listening at all.
         </p>
         <p className="m-0">
-          We never keep recordings of your voice, and we do not use your voice to recognise who you
-          are. We use the words to find the things you ask for. If {assistant} cannot answer
-          something you said, we may keep those words, with names, numbers and addresses taken out,
-          so a person can teach {assistant} a better answer. Reason: a contract, and our legitimate
-          interest in making {assistant} understand people better.
+          We never keep recordings of what you say to {assistant}, and we do not use your voice to
+          recognise who you are. Voice notes you choose to send with a problem, and calls from us,
+          are different: they are kept, as this page says above. We use the words to find the things
+          you ask for. If {assistant} cannot answer something you said, we may keep those words,
+          with names, numbers and addresses taken out, so a person can teach {assistant} a better
+          answer. Reason: a contract, and our legitimate interest in making {assistant} understand
+          people better.
         </p>
         <p className="m-0">
           We also keep what you said to {assistant} and what {assistant} said back, in the app, on
           the telephone and by text, so that our team can check {assistant}&rsquo;s answers and
           correct the wrong ones, and so that {assistant} can be taught from real conversations.
           Before anything is kept, telephone numbers, card numbers, codes, email addresses and
-          postcodes are blanked out, and the conversation is marked only with a code that cannot be
-          turned back into you. Exchanges nobody has checked are deleted after six months; checked
-          ones after three years. Reason: our legitimate interest in making {assistant}
+          postcodes are blanked out, and the conversation is marked only with a code instead of your
+          name. Exchanges nobody has checked are deleted after six months; checked ones after three
+          years. Reason: our legitimate interest in making {assistant}
           understand people better.
         </p>
         <p className="m-0">
           When {assistant}&rsquo;s own phrase book cannot make sense of a sentence, the words of
-          that one sentence, and the names of the things in your basket, are sent to a language
-          model run for us by a specialist provider, to be understood. Nothing else about you goes
-          with them, and the provider does not use what we send to train its models. Reason: a
-          contract, and our legitimate interest in understanding what you ask for.
+          that one sentence, and the names of the things in your basket, are sent to an automated
+          language service run for us by a specialist provider, to be understood. Nothing else about
+          you goes with them, and the provider does not use it to train its systems and keeps it
+          only briefly. Reason: a contract, and our legitimate interest in understanding what you
+          ask for.
         </p>
         <p className="m-0">
           To keep our prices close to the shelf, the photo of the till receipt a Runner takes is
-          read by the same language model, which is given only the photo and the names of the things
-          on the order. What it reads is kept as the price of each thing, with the shop and the
-          date, and never with your name or address. Reason: our legitimate interest in giving you
-          honest prices.
+          read by the same automated language service, which is given only the photo and the names
+          of the things on the order. What it reads is kept as the price of each thing, with the
+          shop and the date, and never with your name or address. Reason: our legitimate interest in
+          giving you honest prices.
         </p>
       </section>
 
@@ -203,8 +209,8 @@ export function Privacy(): JSX.Element {
             people at risk, and we keep a written policy on how we handle it.
           </li>
           <li>
-            For a car or motorbike, we check your driving licence and insurance. Reason: the law,
-            and Shoppers&rsquo; safety.
+            For a car, motorbike or van, we check your driving licence and insurance. Reason: the
+            law, and Shoppers&rsquo; safety.
           </li>
           <li>
             Photos of your documents are deleted as soon as they have been checked. We keep a record
@@ -220,7 +226,7 @@ export function Privacy(): JSX.Element {
             withdraw by unticking the box at any time. The automatic check can approve a document,
             but it never turns one down: anything unclear, and every decision against you, is made
             by a person, our owner. The photo is sent to the service that runs the check only to be
-            read, and that service does not keep it or learn from it.
+            read, and that service does not use it to train its systems and keeps it only briefly.
           </li>
           <li>
             While you are on shift, we use where you are to offer you jobs nearby. We keep only
@@ -253,9 +259,28 @@ export function Privacy(): JSX.Element {
             records, and the record of your checks for two years.
           </li>
           <li>
-            Jobs are offered by a fair rotation: nearest first, then whoever has waited longest. A
-            computer does the sharing out, but whether you may deliver at all, and any decision that
-            you were responsible for a problem, is always made by a person.
+            Jobs go first to available Runners in your area, nearest first. A computer does the
+            sharing out, but whether you may deliver at all, and any decision that you were
+            responsible for a problem, is always made by a person.
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="businesses" className="space-y-3">
+        <h2 id="businesses" className="text-lead font-bold">
+          Businesses and organisations
+        </h2>
+        <ul className="m-0 ps-6 space-y-2">
+          <li>
+            If you are the contact for a shop partner, we keep your name, mobile number and email
+            address, to run your listing and reach you about it. Photos of product labels you scan
+            are read by the automated language service, to fill in the product details. Reason: our
+            agreement with your shop.
+          </li>
+          <li>
+            If you work for an organisation that arranges shopping for people, we keep your name and
+            how to reach you, and what you do on the organisation&rsquo;s pages, so the right people
+            see the right orders. Reason: our agreement with your organisation.
           </li>
         </ul>
       </section>
@@ -268,10 +293,10 @@ export function Privacy(): JSX.Element {
           To understand and improve the service, we keep a separate record of each purchase,
           delivery and search, without your name, telephone number or address: which shop, when, the
           postcode district (such as ME7), what kinds of things, how much, and your age group if you
-          chose to give one in Settings. You appear in it only as a code that cannot be turned back
-          into your name. The law still counts this as information about you, so we tell you about
-          it. Reason: our legitimate interest in understanding and improving the service. You can
-          ask us to stop including you at any time, and we will.
+          chose to give one in Settings. You appear in it only as a code instead of your name. The
+          law still counts this as information about you, so we tell you about it. Reason: our
+          legitimate interest in understanding and improving the service. You can ask us to stop
+          including you at any time, and we will.
         </p>
         <p className="m-0">
           We may share or sell figures added up across many people, for example to show a shop what
@@ -306,13 +331,22 @@ export function Privacy(): JSX.Element {
             The notification services built into phones and browsers (Google, Apple and Mozilla), if
             you turn notifications on.
           </li>
+          <li>
+            A provider of automated language processing, based in the United States, which reads
+            some of what you say or send to {assistant}, receipt and document photos, and the start
+            of emails to us.
+          </li>
+          <li>Our email provider, which carries the emails you send us and we send you.</li>
         </ul>
         <p className="m-0">
           Your Runner sees what they need to do the job: your name, your shopping, your address and
           your door instructions, until the job is done. Shops do not receive your details from us.
-          If an organisation, such as a council or care provider, arranges your shopping, it sees
-          the orders it arranges. We share information with the police, HM Revenue and Customs or a
-          court only when the law requires it.
+          A local service provider you contact through {name}, such as a plumber or a cleaner, sees
+          only the contact details you choose to give them. If you link your account to an
+          organisation, such as a council or care provider, it sees the orders you place after
+          linking, your booked weekly shops and the office label on your account. We share
+          information with the police, HM Revenue and Customs or a court only when the law requires
+          it.
         </p>
         <p className="m-0">
           Some of these companies are based in the United States, or may reach your information from
@@ -329,7 +363,8 @@ export function Privacy(): JSX.Element {
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
-            Order, payment and call records: seven years, as tax law requires, then made anonymous.
+            Order, payment and call records: seven years, longer than the six years tax law
+            requires, then made anonymous.
           </li>
           <li>
             Your account: until you close it, in Settings or by asking {assistant}. When you close
@@ -414,7 +449,7 @@ export function Privacy(): JSX.Element {
         <p className="m-0">
           If we change how we use your information, we will change this page first, and tell you in
           the app or by text before a change that matters to you takes effect. This page was last
-          reviewed on 9 October 2026.
+          reviewed on 30 October 2026.
         </p>
       </section>
 

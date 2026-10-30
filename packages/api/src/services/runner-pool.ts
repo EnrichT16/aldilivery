@@ -41,18 +41,33 @@ export async function runnersWithJobInHand(ctx: PoolContext): Promise<Set<string
 }
 
 /**
- * On shift and allowed to be offered a job: checked, the Runner agreement agreed (ruling 55), not
- * left, not the demo Runner, and not driving while their insurance is paused (ruling 14).
+ * On shift and allowed to be offered a job: checked, the face photo accepted (Anthony, 30 October
+ * 2026: the Runner agreement says nobody is offered a job until every check has passed), the
+ * Runner agreement agreed (ruling 55), not left, not the demo Runner, and not driving while their
+ * insurance is paused (ruling 14).
  */
 export function mayBeOffered(runner: Runner, at: Date): boolean {
   return (
     runner.available &&
-    runner.rightToWorkVerified &&
-    runner.criminalRecordCheckVerified &&
+    checksPassed(runner) &&
     !runner.isDemo &&
     hasAgreed(runner) &&
     !runner.leftAt &&
     !drivingPaused(runner, at)
+  );
+}
+
+/** Every check a person makes before any job: right to work, DBS, and the face photo. */
+export function checksPassed(
+  runner: Pick<
+    Runner,
+    'rightToWorkVerified' | 'criminalRecordCheckVerified' | 'facePhotoAcceptedAt'
+  >,
+): boolean {
+  return (
+    runner.rightToWorkVerified &&
+    runner.criminalRecordCheckVerified &&
+    runner.facePhotoAcceptedAt !== null
   );
 }
 

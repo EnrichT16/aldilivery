@@ -160,7 +160,7 @@ describe('registration', () => {
     const response = await harness.app.inject({
       method: 'POST',
       url: '/runners',
-      payload: { name: 'Tomasz', phone: '+447700900101' },
+      payload: { name: 'Tomasz', phone: '+447700900101', adult: true, homePostcode: 'ME7 1AA' },
     });
     const body = response.json() as {
       runner: { rightToWorkVerified: boolean; criminalRecordCheckVerified: boolean };
@@ -299,22 +299,25 @@ describe('Rule Ten: no card numbers, anywhere', () => {
    * Shoppers pay with the cards they have, including ones from home (ruling, 2 October 2026):
    * a Nigerian, Ghanaian, Kenyan, Zimbabwean, Sierra Leonean, Indian or American card is taken.
    */
-  it.each(['NG', 'GH', 'KE', 'ZW', 'SL', 'IN', 'US'])('takes a card issued in %s', async (country) => {
-    const signUp = await harness.app.inject({
-      method: 'POST',
-      url: '/shoppers',
-      payload: { displayName: 'Margaret', phone: '+447700900001' },
-    });
-    const { token } = signUp.json() as { token: string };
+  it.each(['NG', 'GH', 'KE', 'ZW', 'SL', 'IN', 'US'])(
+    'takes a card issued in %s',
+    async (country) => {
+      const signUp = await harness.app.inject({
+        method: 'POST',
+        url: '/shoppers',
+        payload: { displayName: 'Margaret', phone: '+447700900001' },
+      });
+      const { token } = signUp.json() as { token: string };
 
-    const response = await harness.app.inject({
-      method: 'POST',
-      url: '/payment-methods',
-      headers: { authorization: `Bearer ${token}` },
-      payload: { stripePaymentMethodId: 'pm_test_visa', lastFour: '4242', region: country },
-    });
-    expect(response.statusCode, response.body).toBe(201);
-  });
+      const response = await harness.app.inject({
+        method: 'POST',
+        url: '/payment-methods',
+        headers: { authorization: `Bearer ${token}` },
+        payload: { stripePaymentMethodId: 'pm_test_visa', lastFour: '4242', region: country },
+      });
+      expect(response.statusCode, response.body).toBe(201);
+    },
+  );
 
   it('still refuses a card from outside the list, if the store is ever set to a list', () => {
     expect(cardAccepted(['UK', 'EU'], 'NG')).toBe(false);

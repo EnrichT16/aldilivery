@@ -26,16 +26,25 @@ import type { Order } from '../domain.js';
 import { tellShopperWords } from './order-updates.js';
 import { askOwner, matterWords } from './owner-desk.js';
 
+/**
+ * The floor of the till limit when no config is to hand. The real figure is config
+ * receipts.tillExtraFloorPence (Rule Nine), passed in wherever the server has its config; this
+ * is only that setting's default (Anthony, 30 October 2026).
+ */
 export const EXTRA_FLOOR_PENCE = 500;
 export const EXTRA_SHARE = 0.2;
 
 /**
  * The most the till may come to over the shopping estimate before a person must decide: the
- * larger of £5 or a fifth of the estimate. The same limit caps what a Runner is paid back for
- * the shopping without a person looking first (ruling 55, services/reimburse.ts).
+ * larger of the floor (config receipts.tillExtraFloorPence, £5 by default) or a fifth of the
+ * estimate. The same limit caps what a Runner is paid back for the shopping without a person
+ * looking first (ruling 55, services/reimburse.ts).
  */
-export function tillLimitPence(goodsEstimatePence: number): number {
-  return Math.max(EXTRA_FLOOR_PENCE, Math.round(goodsEstimatePence * EXTRA_SHARE));
+export function tillLimitPence(
+  goodsEstimatePence: number,
+  floorPence: number = EXTRA_FLOOR_PENCE,
+): number {
+  return Math.max(floorPence, Math.round(goodsEstimatePence * EXTRA_SHARE));
 }
 
 export type TillOutcome =
@@ -143,7 +152,7 @@ async function settleTillOnCard(
     return { kind: 'refunded', pence };
   }
 
-  const limit = tillLimitPence(order.goodsEstimatePence);
+  const limit = tillLimitPence(order.goodsEstimatePence, ctx.config.receipts.tillExtraFloorPence);
   if (difference > limit) {
     await alertOwner(
       `order ${order.id} came to ${money(difference)} more than estimated, over the ${money(limit)} taken automatically. Please decide.`,

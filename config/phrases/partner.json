@@ -1,5 +1,5 @@
 {
-  "about": "What Ozi says to Shop Partners (ruling 44). Kept on the server only.",
+  "about": "What Ozi says to Shop Partners (ruling 44). Kept on the server only. Rules for every addition: never promise a postcode check or say a town is covered in its own words (use the agreed area answer: we run across the UK, area by area, wherever we have Runners and shops); never name a supermarket or shop chain as a partner, or suggest any endorsement; never promise a delivery time (say usually the same day, and the order page shows a best guess); never say \"no mark-up\" (say shop prices, plus a small item charge on each product, plus delivery); and never name any company or technology behind {assistant}, including the makers of any AI. The tests check these.",
   "phrases": [
     {
       "id": "partner-hello",
@@ -3658,7 +3658,7 @@
       "topic": "about",
       "when": ["how long does delivery take", "same day delivery", "how fast is delivery"],
       "replies": [
-        "It depends on the Runner and the order. Everyday essentials are brought the same day.",
+        "It depends on the Runner and the order. Most orders come the same day.",
         "Usually soon after a Runner takes the job."
       ]
     },

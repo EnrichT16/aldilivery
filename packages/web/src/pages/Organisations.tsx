@@ -3,6 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 import { Field } from '../components/FormFields';
 import { sendOrganisationEnquiry } from '../lib/api';
+import { money, planDeliveryWords } from '../lib/money';
+import { ordinal } from '../lib/partnership';
 
 import { storeConfig } from '../config';
 
@@ -10,6 +12,11 @@ import { storeConfig } from '../config';
  * For organisations: councils, charities, care providers and businesses arranging shopping for
  * the people they support (docs/BUILD_PROMPT.md, Sections Q and T2). Accounts for them are set up
  * by a person at Ozi, not by a form, so this page says what is offered and how to start.
+ *
+ * Since 30 October 2026 it promises only what the organisation's area really does (no single
+ * invoice, no ordering on someone's behalf, no rounds), shows the price from config, and an
+ * organisation agrees to the Organisation terms before asking. A shop asking here says it is a
+ * shop, so the owner hears "a new shop".
  */
 export function Organisations(): JSX.Element {
   const { telephonePlaceholder, telephoneIsPlaceholder } = storeConfig.contact;
@@ -18,14 +25,22 @@ export function Organisations(): JSX.Element {
   const [sent, setSent] = useState('');
   const [problem, setProblem] = useState('');
   const [busy, setBusy] = useState(false);
+  const [termsAgreed, setTermsAgreed] = useState(false);
+  const pricing = storeConfig.extras.organisations;
 
   const send = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     const value = (name: string): string => String(data.get(name) ?? '').trim();
+    if (!shop && !termsAgreed) {
+      setProblem('Please tick to agree to the Organisation terms.');
+      return;
+    }
     setBusy(true);
     setProblem('');
     sendOrganisationEnquiry({
+      kind: shop ? 'shop' : 'organisation',
+      ...(shop ? {} : { termsAgreed }),
       organisation: value('enquiry-organisation'),
       contactName: value('enquiry-name'),
       telephone: value('enquiry-telephone'),
@@ -52,11 +67,33 @@ export function Organisations(): JSX.Element {
           What we can do with you
         </h2>
         <ul className="m-0 ps-6 space-y-2">
-          <li>Shopping for the people you support, ordered by them, by you, or by telephone.</li>
-          <li>One invoice to your organisation, instead of payments from each person.</li>
-          <li>Reports on deliveries for the people you are responsible for.</li>
-          <li>Regular rounds for sheltered housing and similar schemes.</li>
+          <li>
+            Each person you support orders their own shopping, by talking to{' '}
+            {storeConfig.assistantName}, by tapping, or by telephone, and pays for it as usual.
+          </li>
+          <li>
+            Once they link to you with your code, their delivery is the Membership price:{' '}
+            {planDeliveryWords('membership')}.
+          </li>
+          <li>
+            Your own area shows the orders they place from then on, what they cost, their booked
+            weekly shops and what you have spent, by office, with a statement to download.
+          </li>
+          <li>Only the person, or someone with legal authority to act for them, links to you.</li>
         </ul>
+      </section>
+      <section aria-labelledby="price-heading" className="space-y-3 max-w-xl">
+        <h2 id="price-heading" className="text-lead font-bold">
+          What it costs
+        </h2>
+        <p className="m-0">
+          {money(pricing.clientMonthlyPence)} a month for each person you support, paid by you.
+          Every {ordinal(pricing.discountEveryNthClient)} person is{' '}
+          {money(pricing.discountedClientMonthlyPence)}.
+        </p>
+        <Link to="/organisation/terms" className="inline-flex items-center min-h-control underline">
+          Read the Organisation terms
+        </Link>
       </section>
       <section aria-labelledby="start-heading" className="space-y-3 max-w-xl">
         <h2 id="start-heading" className="text-lead font-bold">
@@ -138,6 +175,21 @@ export function Organisations(): JSX.Element {
               hint="What you need, in your own words."
               multiline
             />
+            {!shop && (
+              <div className="flex items-center gap-3 min-h-control">
+                <input
+                  type="checkbox"
+                  id="enquiry-terms"
+                  checked={termsAgreed}
+                  onChange={(event) => setTermsAgreed(event.target.checked)}
+                  aria-required="true"
+                  className="h-6 w-6 shrink-0"
+                />
+                <label htmlFor="enquiry-terms" className="m-0 font-bold">
+                  I agree to the Organisation terms
+                </label>
+              </div>
+            )}
             <button
               type="submit"
               disabled={busy}

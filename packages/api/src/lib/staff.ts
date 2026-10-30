@@ -58,7 +58,12 @@ export type StaffArea =
    * messages and calls log. Every message and call by staff needs a code, unless the owner or
    * someone he lets authorise makes it.
    */
-  | 'messages';
+  | 'messages'
+  /**
+   * Areas (Anthony, 30 October 2026): each UK area's Shoppers, Runners, shops and orders, whether
+   * it is running, and pausing it.
+   */
+  | 'areas';
 
 export type StaffRole =
   | 'founder'
@@ -91,6 +96,7 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
       'runners',
       'reports',
       'messages',
+      'areas',
     ],
   },
   operations_manager: {
@@ -107,6 +113,7 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
       'runners',
       'reports',
       'messages',
+      'areas',
     ],
   },
   onboarding: { title: 'Runner onboarding officer', areas: ['documents', 'messages'] },

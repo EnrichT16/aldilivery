@@ -13,12 +13,15 @@ import type { OrderStatus } from '@aldilivery/core';
 
 import type {
   AccountRole,
+  AreaRecord,
+  AreaWaiting,
   CatalogueItem,
   JobAllocation,
   JobOffer,
   JobOfferOutcome,
   Order,
   OrderItem,
+  PostcodePlace,
   RecurringSet,
   Runner,
   Shopper,
@@ -1415,6 +1418,65 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    postcodes: {
+      async find(postcode) {
+        return (await prisma.postcodePlace.findUnique({
+          where: { postcode },
+        })) as unknown as PostcodePlace | null;
+      },
+      async findMany(postcodes) {
+        if (postcodes.length === 0) return [];
+        return (await prisma.postcodePlace.findMany({
+          where: { postcode: { in: [...postcodes] } },
+        })) as unknown as PostcodePlace[];
+      },
+      async save(place) {
+        const { postcode, ...rest } = place;
+        return (await prisma.postcodePlace.upsert({
+          where: { postcode },
+          create: place,
+          update: rest,
+        })) as unknown as PostcodePlace;
+      },
+    },
+
+    areas: {
+      async list() {
+        return (await prisma.area.findMany()) as unknown as AreaRecord[];
+      },
+      async find(area) {
+        return (await prisma.area.findUnique({ where: { area } })) as unknown as AreaRecord | null;
+      },
+      async save(area, patch) {
+        return (await prisma.area.upsert({
+          where: { area },
+          create: { ...patch, area },
+          update: patch,
+        })) as unknown as AreaRecord;
+      },
+    },
+
+    areaWaiting: {
+      async add(input) {
+        return (await prisma.areaWaiting.upsert({
+          where: { area_shopperId: { area: input.area, shopperId: input.shopperId } },
+          create: input,
+          update: {},
+        })) as unknown as AreaWaiting;
+      },
+      async list() {
+        return (await prisma.areaWaiting.findMany({
+          orderBy: { createdAt: 'asc' },
+        })) as unknown as AreaWaiting[];
+      },
+      async markTexted(id, at) {
+        return (await prisma.areaWaiting.update({
+          where: { id },
+          data: { textedAt: at },
+        })) as unknown as AreaWaiting;
+      },
+    },
+
     admin: {
       async listOrders(where) {
         const rows = await prisma.order.findMany({
@@ -1477,6 +1539,7 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           prisma.pushSubscription.deleteMany({ where: { shopperId } }),
           prisma.savedAddress.deleteMany({ where: { shopperId } }),
           prisma.householdCircleMember.deleteMany({ where: { shopperId } }),
+          prisma.areaWaiting.deleteMany({ where: { shopperId } }),
           // The company inbox (ruling 77): the thread, and with it every message, goes too.
           prisma.inboxThread.deleteMany({
             where: { accountKind: 'shopper', accountId: shopperId },

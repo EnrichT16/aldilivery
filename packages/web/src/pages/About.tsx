@@ -28,7 +28,9 @@ export function About(): JSX.Element {
         </h2>
         <ol className="m-0 space-y-2">
           <li>Say or tap what you need. {assistantName} reads it back to you.</li>
-          <li>You say yes. A Runner buys it, and you pay what the till says.</li>
+          <li>
+            You say yes. A Runner buys it. Shop prices plus a small item charge, always shown.
+          </li>
           <li>
             It comes to your door. Delivery is from {deliveryRangeWords()}, depending on your plan
             and the value of the shop, and every price you see already includes its small item

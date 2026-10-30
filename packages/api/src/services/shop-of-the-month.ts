@@ -10,9 +10,9 @@
  *   delivery credit at `pencePerPoint`, applied to the next order the way gift card credit is.
  *   Points have no cash value.
  * - Shop of the Month, of the Quarter and of the Half Year: among approved Shop Partners on
- *   Partner Plus, with at least `shopOfTheMonthMinimumReviews` reviews in the period, ranked by
- *   a balanced score: (reviews × mean + prior × global mean) / (reviews + prior), so a shop
- *   with two five-star reviews does not beat one with forty at 4.8.
+ *   paid Partner Plus, with at least `shopOfTheMonthMinimumReviews` reviews in the period,
+ *   ranked by a balanced score: (reviews × mean + prior × global mean) / (reviews + prior), so
+ *   a shop with two five-star reviews does not beat one with forty at 4.8.
  *
  * Every figure comes from `feedback.reviews` in config/store.json. Nothing here names a shop.
  */
@@ -88,9 +88,19 @@ export function monthKey(at: Date): string {
   return `${at.getUTCFullYear()}-${String(at.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-/** Approved, not paused, and on Partner Plus: the shops that can win (ruling 65). */
-export function eligibleForAward(shop: PartnerShop): boolean {
-  return shop.status === 'approved' && shop.active && shop.plan === 'plus';
+/**
+ * Approved, not paused, and on Partner Plus with the month paid: the shops that can win (ruling
+ * 65). A shop marked Plus whose month has run out, or was never paid, cannot (Anthony, 30
+ * October 2026).
+ */
+export function eligibleForAward(shop: PartnerShop, at: Date): boolean {
+  return (
+    shop.status === 'approved' &&
+    shop.active &&
+    shop.plan === 'plus' &&
+    shop.paidUntil !== null &&
+    shop.paidUntil.getTime() > at.getTime()
+  );
 }
 
 /**
@@ -318,15 +328,16 @@ export function balancedScore(
 
 /** The standings for a period, from the reviews that count (not void) of eligible shops. */
 export async function standingsFor(
-  ctx: Pick<AppContext, 'repository' | 'config'>,
+  ctx: Pick<AppContext, 'repository' | 'config' | 'now'>,
   period: Period,
 ): Promise<Standings> {
   const { repository, config } = ctx;
+  const at = ctx.now();
   const minimumReviews = config.feedback.reviews.shopOfTheMonthMinimumReviews;
   const prior = config.feedback.reviews.shopOfTheMonthPriorWeight;
   const shops = new Map(
     (await repository.partnerShops.list())
-      .filter(eligibleForAward)
+      .filter((shop) => eligibleForAward(shop, at))
       .map((shop) => [shop.id, shop] as const),
   );
   const reviews = (await repository.shopReviews.listBetween(period.since, period.until)).filter(

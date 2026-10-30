@@ -13,6 +13,9 @@ import {
   fetchPriceFreshness,
   fetchRefunds,
   fetchRunnersNow,
+  fetchStaffAreas,
+  pauseStaffArea,
+  type AreaRow,
   fetchShopperAccount,
   fetchSignups,
   fetchStaffOrder,
@@ -80,6 +83,15 @@ function when(at: string): string {
   return new Date(at).toLocaleString('en-GB', {
     day: 'numeric',
     month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+/** "14:05", UK time: when a Runner was last seen. */
+function clock(at: string): string {
+  return new Date(at).toLocaleTimeString('en-GB', {
+    timeZone: 'Europe/London',
     hour: '2-digit',
     minute: '2-digit',
   });
@@ -536,6 +548,25 @@ export function RunnersNow({ staffKey }: { staffKey: string }): JSX.Element {
                   </th>
                   <td className="border-b border-paper/40 p-2">
                     {row.job ? `On order ${row.job.reference}` : row.onShift ? 'On shift' : 'Off'}
+                    {/* Where a Runner on a job was last seen (Anthony, 30 October 2026). */}
+                    {row.job && (
+                      <>
+                        {'. '}
+                        {row.lastSeenAt ? `Last seen at ${clock(row.lastSeenAt)}` : 'Not seen yet'}
+                        {row.mapsLink && (
+                          <>
+                            {', '}
+                            <a href={row.mapsLink} target="_blank" rel="noopener noreferrer">
+                              open in maps
+                              <span className="visually-hidden">
+                                {' '}
+                                for {row.name} (opens in a new tab)
+                              </span>
+                            </a>
+                          </>
+                        )}
+                      </>
+                    )}
                   </td>
                   <td className="border-b border-paper/40 p-2">{row.jobsToday}</td>
                   <td className="border-b border-paper/40 p-2">{money(row.earnedTodayPence)}</td>
@@ -546,6 +577,105 @@ export function RunnersNow({ staffKey }: { staffKey: string }): JSX.Element {
             </tbody>
           </table>
         </>
+      )}
+    </section>
+  );
+}
+
+/* ----------------------------------------------------------------------------- areas */
+
+/**
+ * The Areas tab (Anthony, 30 October 2026): every UK area anybody is in, most active first, with
+ * its Shoppers, Runners, shops, organisations, waiting list and orders, whether it is running,
+ * and a button to pause it or let it run again. Each area is a heading of its own, so a screen
+ * reader can move from one to the next.
+ */
+export function Areas({
+  staffKey,
+  by = 'Staff',
+  onNews = () => undefined,
+}: {
+  staffKey: string;
+  /** Whose name goes on a pause. */
+  by?: string;
+  onNews?: (news: string) => void;
+}): JSX.Element {
+  const list = useLoad(() => fetchStaffAreas(staffKey));
+  const [problem, setProblem] = useState('');
+  const [busy, setBusy] = useState('');
+  const areas = list.data?.areas ?? null;
+
+  function togglePause(area: AreaRow): void {
+    if (busy !== '') return;
+    setBusy(area.area);
+    setProblem('');
+    pauseStaffArea(staffKey, area.area, !area.paused, by)
+      .then((result) => {
+        onNews(result.message);
+        list.reload();
+      })
+      .catch(fail(setProblem))
+      .finally(() => setBusy(''));
+  }
+
+  return (
+    <section aria-labelledby="areas-heading" className="space-y-4 max-w-3xl">
+      <h2 id="areas-heading" className="text-lead font-bold">
+        Areas
+      </h2>
+      <p className="m-0 extra">
+        Each UK postcode area, London as one. An area opens by itself once it has an approved Runner
+        and a shop. A paused area takes no orders; people there can still sign up, and go on its
+        waiting list.
+      </p>
+      <Failure text={list.problem} />
+      <Failure text={problem} />
+      {areas && areas.length === 0 && <p className="m-0">Nobody has signed up in any area yet.</p>}
+      {areas && areas.length > 0 && (
+        <ul className="list-none m-0 p-0 space-y-4">
+          {areas.map((area) => (
+            <li key={area.area} className="border-2 border-paper rounded-2xl p-4 space-y-2">
+              <h3 className="text-lead font-bold m-0">
+                {area.name}
+                {area.name !== area.area && <span className="font-normal"> ({area.area})</span>}
+              </h3>
+              <p className="m-0 font-bold">
+                {area.statusWords}
+                {area.paused && area.pausedBy ? `, by ${area.pausedBy}` : ''}
+              </p>
+              <ul className="m-0 ps-6">
+                <li>
+                  {area.shoppers} {area.shoppers === 1 ? 'Shopper' : 'Shoppers'}
+                </li>
+                <li>
+                  {area.runnersApproved} approved{' '}
+                  {area.runnersApproved === 1 ? 'Runner' : 'Runners'}, {area.runnersWaiting} waiting
+                  for approval
+                </li>
+                <li>
+                  {area.shopsApproved} approved {area.shopsApproved === 1 ? 'shop' : 'shops'},{' '}
+                  {area.shopsWaiting} waiting
+                </li>
+                <li>
+                  {area.organisations} {area.organisations === 1 ? 'organisation' : 'organisations'}
+                </li>
+                <li>{area.waitingList} on the waiting list</li>
+                <li>
+                  {area.ordersToday} {area.ordersToday === 1 ? 'order' : 'orders'} today,{' '}
+                  {area.ordersThisWeek} this week
+                </li>
+              </ul>
+              <button
+                type="button"
+                disabled={busy === area.area}
+                onClick={() => togglePause(area)}
+                className="control border-paper bg-paper/10 text-paper disabled:opacity-70"
+              >
+                {area.paused ? `Unpause ${area.name}` : `Pause ${area.name}`}
+              </button>
+            </li>
+          ))}
+        </ul>
       )}
     </section>
   );

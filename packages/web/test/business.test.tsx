@@ -6,6 +6,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { ORGANISATION_CONSENT_VERSION } from '@aldilivery/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
@@ -125,7 +126,7 @@ beforeEach(() => {
             productsListed: 1,
             canAddProduct: true,
             words:
-              'Partner Plus, £14.99 a month, paid until 7 November 2026: the full catalogue with photos, offers and Shop of the Month.',
+              'Partner Plus, £14.99 a month, paid until 7 November 2026: the full catalogue with photos, Shop of the Month, and first place among shops at the same distance.',
           },
           commission: null,
           enquiries: [],
@@ -237,7 +238,7 @@ beforeEach(() => {
             productName: 'Sourdough loaf',
             pricePence: 350,
             catalogueItemId: 'c1',
-            words: 'Advert: Sourdough loaf is in stock at Corner Bakery, about £3.50.',
+            words: 'Advert: Sourdough loaf is sold at Corner Bakery, about £3.50.',
           },
         });
       }
@@ -310,9 +311,10 @@ describe('a Shop Partner', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Spotlight, 1 month, £19\.99/)).toBeInTheDocument();
     expect(screen.getByText(/Mentioned 4 times this month/)).toBeInTheDocument();
-    expect(
-      screen.getByRole('meter', { name: '7 of 100 people have joined through your link' }),
-    ).toHaveAttribute('value', '7');
+    // Only the count: no "of 100" target (30 October 2026).
+    expect(screen.getByText('7 people have joined through your link')).toBeInTheDocument();
+    expect(screen.queryByRole('meter')).toBeNull();
+    expect(screen.queryByText(/of 100/)).toBeNull();
     expect(screen.getByRole('button', { name: 'Download my statement (PDF)' })).toBeInTheDocument();
     await waitFor(() => {
       expect(spoken(engine)).toMatch(
@@ -381,14 +383,31 @@ describe('an organisation', () => {
     const button = await screen.findByRole('button', { name: 'Link my account' });
     expect(button).toBeDisabled();
     await user.type(screen.getByLabelText('The organisation’s code'), 'k7m3qx');
+    // Exactly what is shared, the fee and the delivery price, and who may agree (UK GDPR).
+    expect(screen.getByText('your name')).toBeInTheDocument();
+    expect(screen.getByText(/the office label they give you/)).toBeInTheDocument();
+    expect(screen.getByText('the weekly shops you have booked')).toBeInTheDocument();
+    expect(
+      screen.getByText('the orders you place from now on, and what each one costs'),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/pays us its own fee for you, £10\.00 a month/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Your delivery becomes the Membership price: £7\.99/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Only you, or someone with legal authority to act for you, such as a Lasting Power of Attorney, may agree to this.',
+      ),
+    ).toBeInTheDocument();
     await user.click(
-      screen.getByLabelText('I agree that they will see my orders and what they cost.'),
+      screen.getByLabelText('I agree that the organisation will see these things from now on.'),
     );
     await user.click(button);
     expect(await screen.findByText(/now linked to Medway Care Home/)).toBeInTheDocument();
     expect(sent.find((r) => r.path === '/me/organisation' && r.method === 'POST')?.body).toEqual({
       code: 'k7m3qx',
       agreed: true,
+      version: ORGANISATION_CONSENT_VERSION,
     });
   });
 });
@@ -439,10 +458,10 @@ describe('Spotlight, age group and share links for Shoppers', () => {
     renderAt('/shop?q=bread');
     expect(await screen.findByText('White sliced bread, 800g')).toBeInTheDocument();
     const advert = await screen.findByRole('complementary', { name: 'Advert' });
-    expect(advert).toHaveTextContent('Sourdough loaf is in stock at Corner Bakery, about £3.50.');
+    expect(advert).toHaveTextContent('Sourdough loaf is sold at Corner Bakery, about £3.50.');
     expect(advert).toHaveTextContent('Corner Bakery pays for this mention.');
     await waitFor(() =>
-      expect(spoken(engine)).toContain('Advert: Sourdough loaf is in stock at Corner Bakery'),
+      expect(spoken(engine)).toContain('Advert: Sourdough loaf is sold at Corner Bakery'),
     );
   });
 

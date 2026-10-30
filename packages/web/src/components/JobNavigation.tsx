@@ -1,4 +1,3 @@
-import { storeConfig } from '../config';
 import { directionsLink, isApplePhone, type TravelMode } from '../lib/runner-api';
 
 /**
@@ -6,29 +5,35 @@ import { directionsLink, isApplePhone, type TravelMode } from '../lib/runner-api
  * opens the phone's own maps app: Apple Maps on an iPhone, Google Maps on everything else, the
  * way the Runner is travelling today.
  *
- * The shop is the store named in config/store.json (Rule Nine), found near wherever the Runner
- * is. The door is the Shopper's address, which the server gives only to the Runner who has the
+ * The shop is the Shop Partner whose things are in the order, by name, when there is one; and
+ * otherwise a search for a supermarket near wherever the Runner is. We have no partnership with
+ * any supermarket, so none is named (Anthony, 30 October 2026). The door is the Shopper's address, which the server gives only to the Runner who has the
  * job, only while it is in hand (`GET /jobs/current`); old jobs show the area alone. Nothing is
  * kept on the phone, and the address goes only to the maps app the Runner opens.
  */
 export function JobNavigation({
   address,
+  shopNames = [],
   mode,
   stage,
 }: {
   address: string;
+  /** The Shop Partners whose things are in the order: the first is the one to go to. */
+  shopNames?: readonly string[];
   mode: TravelMode;
   /** Shopping first, then the door: the next one is shown first. */
   stage: 'to-shop' | 'to-door';
 }): JSX.Element {
   const apple = isApplePhone();
-  const shop = storeConfig.store.displayName;
+  const partner = shopNames[0];
   const links = [
     {
       key: 'shop',
       label: `Directions to the shop`,
-      hint: `Opens your maps app to the nearest ${shop}.`,
-      href: directionsLink(shop, mode, apple),
+      hint: partner
+        ? `Opens your maps app to the shop, ${partner}.`
+        : 'Opens your maps app to the shop, searching for a supermarket near you.',
+      href: directionsLink(partner ?? 'supermarket', mode, apple),
     },
     {
       key: 'door',

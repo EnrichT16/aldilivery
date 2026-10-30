@@ -69,6 +69,8 @@ export function planReimbursement(input: {
   tillNeedsPerson: string | null;
   /** Whether a photo of the receipt came with it, and above what a pay-back needs one. */
   receiptPhoto?: { has: boolean; neededAbovePence: number };
+  /** The floor of the till limit, config receipts.tillExtraFloorPence. */
+  tillExtraFloorPence?: number;
 }): { pence: number; waitReason: string | null } {
   const pence = Math.min(input.receiptTotalPence, input.maximumGoodsPence);
   if (input.tillNeedsPerson) return { pence, waitReason: input.tillNeedsPerson };
@@ -77,7 +79,7 @@ export function planReimbursement(input: {
   }
   if (
     input.receiptTotalPence >
-    input.goodsEstimatePence + tillLimitPence(input.goodsEstimatePence)
+    input.goodsEstimatePence + tillLimitPence(input.goodsEstimatePence, input.tillExtraFloorPence)
   ) {
     return { pence, waitReason: 'over the limit' };
   }
@@ -142,6 +144,7 @@ export async function startReimbursement(
       has: (await ctx.repository.receiptPhotos.findByOrderId(order.id)) !== null,
       neededAbovePence: ctx.config.receipts.photoNeededAbovePence,
     },
+    tillExtraFloorPence: ctx.config.receipts.tillExtraFloorPence,
   });
 
   if (plan.waitReason !== null) {

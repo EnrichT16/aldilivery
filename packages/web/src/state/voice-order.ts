@@ -744,7 +744,7 @@ export function useVoiceOrdering(
           pending.current = items;
           const shopNote =
             shopAskedFor && !shopAskedFor.toLowerCase().includes(shop.toLowerCase())
-              ? `We don't list ${shopAskedFor} yet, so I'll look in ${shop}. `
+              ? `We don't list ${shopAskedFor} yet, so I'll look in our shared price list. `
               : '';
           await next(shopNote);
           return true;

@@ -7,12 +7,13 @@ import {
   showCardDetails,
   type RunnerCardView,
 } from '../lib/runner-card';
+import { PAID_BACK_PROMISE } from '../lib/runner-words';
 import { prepareCardEntry } from '../lib/stripe';
 
 /**
  * "How you pay at the till" (Anthony, 9 October 2026): the spending card first and recommended,
- * so no Runner needs their own money to do a job; their own card, paid back straight away
- * (ruling 55), second. While the card is switched off on the server, only their own card is
+ * so no Runner needs their own money to do a job; their own card, paid back (ruling 55), second.
+ * How paying back works is said once, in lib/runner-words.ts (Anthony, 30 October 2026). While the card is switched off on the server, only their own card is
  * offered, with a line saying the card is coming soon.
  *
  * Setting up the card: the cardholder terms accepted (kept with the date and internet address,
@@ -50,7 +51,7 @@ export function TillPayment({ onNews }: { onNews: (news: string) => void }): JSX
   }
 
   const name = view.cardName;
-  const ownWords = 'My own card, paid back straight away';
+  const ownWords = 'My own card, and we pay you back';
 
   return (
     <section aria-labelledby="till-pay-heading" className="space-y-3 max-w-xl">
@@ -66,10 +67,7 @@ export function TillPayment({ onNews }: { onNews: (news: string) => void }): JSX
       {!view.enabled ? (
         <>
           <p className="m-0">{ownWords}.</p>
-          <p className="m-0 extra">
-            Pay at the till with your own card. When you put in the till total, we pay it back to
-            your account straight away.
-          </p>
+          <p className="m-0 extra">Pay at the till with your own card. {PAID_BACK_PROMISE}</p>
           <p className="m-0">The {name} is coming soon.</p>
         </>
       ) : (

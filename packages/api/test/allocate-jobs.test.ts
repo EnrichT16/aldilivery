@@ -10,7 +10,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { Order } from '../src/domain.js';
-import { sweepAllocations } from '../src/services/allocate.js';
+import { fromShopsWords, sweepAllocations } from '../src/services/allocate.js';
 import { sweepOffers } from '../src/services/dispatch.js';
 import {
   STAFF,
@@ -231,6 +231,9 @@ describe('how the Runner gets it', () => {
     const text = texts.find((row) => row.to === '+447700900101');
     expect(text?.body).toMatch(/The office has sent you job/);
     expect(text?.body).toMatch(/You get £5\.00/);
+    // No supermarket is named: we have no partnership with one (Anthony, 30 October 2026).
+    expect(text?.body).toMatch(/of shopping, from the shops on the list\./);
+    expect(text?.body).not.toContain(`from ${harness.config.store.displayName}`);
     const shopperAccount = await harness.repository.shoppers.findById(shopper.shopperId);
     expect(text?.body).not.toContain(shopperAccount!.phone);
     expect(text?.body).not.toContain(order.deliveryAddress);
@@ -542,5 +545,13 @@ describe('what is refused, and why', () => {
       texts.find((row) => row.to === '+447700900101' && /given to another Runner/.test(row.body)),
     ).toBeDefined();
     expect((await harness.repository.orders.findById(orderId))!.runnerId).toBeNull();
+  });
+});
+
+describe('where a job comes from, in words (30 October 2026)', () => {
+  it('names the Shop Partners when there are any, and otherwise the shops on the list', () => {
+    expect(fromShopsWords([])).toBe('the shops on the list');
+    expect(fromShopsWords(['Mama Africa Foods'])).toBe('Mama Africa Foods');
+    expect(fromShopsWords(['A', 'B', 'C'])).toBe('A, B and C');
   });
 });

@@ -29,12 +29,14 @@ import { ForbiddenError } from '../errors.js';
 import { isViewerRole, type StaffActor } from '../lib/staff.js';
 import { orderReference } from '../routes/admin.js';
 import { distanceMiles, isOfferExpired, offerExpiryAt } from './allocation.js';
+import { areaCalled, areaFor, runnerArea } from './areas.js';
 import { canCarry, largeOrderWords, offerOrder } from './dispatch.js';
 import { mayBeAssigned, releaseRunner, withdrawOffers } from './order-rescue.js';
 import { askOwner, ukDate } from './owner-desk.js';
 import { tellShopperWords } from './order-updates.js';
 import { activeOrdersByRunner } from './runner-pool.js';
 import { bookedWords } from './scheduled.js';
+import { shopsInOrder } from './shop-of-the-month.js';
 
 type Ctx = AppContext;
 
@@ -94,6 +96,11 @@ export interface AssignmentResult {
   place?: number;
   /** Refused: why, in plain words, such as "it has been bought already". */
   reason?: string;
+  /**
+   * Allocated, but worth a second look: the Runner is in a different area from the order
+   * (Anthony, 30 October 2026). Still sent, because staff decide.
+   */
+  warning?: string;
   allocationId?: string;
 }
 
@@ -151,6 +158,22 @@ export function runnerRefusal(ctx: Pick<Ctx, 'config'>, runner: Runner, order: O
   return null;
 }
 
+/**
+ * A warning when the Runner's own area is not the order's (Anthony, 30 October 2026): the queue
+ * never offers a job in another area, but the office may send one, because staff decide.
+ */
+export function areaWarning(ctx: Pick<Ctx, 'config'>, runner: Runner, order: Order): string | null {
+  const orderArea = areaFor(ctx.config, order.deliveryAddress);
+  if (!orderArea) return null;
+  const theirs = runnerArea(ctx.config, runner);
+  if (theirs === orderArea) return null;
+  const name = firstName(runner.name);
+  const where = areaCalled(ctx.config, orderArea);
+  return theirs
+    ? `${name} is in ${areaCalled(ctx.config, theirs)}, and this order is in ${where}`
+    : `${name} has not given a home postcode, so may not be in ${where}, where this order is`;
+}
+
 /** The order's office allocation still live, queued or offered, if there is one. */
 export async function liveAllocationFor(
   ctx: Pick<Ctx, 'repository'>,
@@ -197,12 +220,35 @@ async function handsFull(ctx: Ctx, runnerId: string, at: Date): Promise<boolean>
   );
 }
 
+/**
+ * Where the shopping comes from, in words. We have no partnership with any supermarket, so a
+ * job never names one: it names the Shop Partners whose things are in it, when there are any,
+ * and otherwise says "the shops on the list" (Anthony, 30 October 2026).
+ */
+export function fromShopsWords(shopNames: readonly string[]): string {
+  if (shopNames.length === 0) return 'the shops on the list';
+  if (shopNames.length === 1) return shopNames[0]!;
+  return `${shopNames.slice(0, -1).join(', ')} and ${shopNames[shopNames.length - 1]!}`;
+}
+
+/** The names of the Shop Partners whose things are in an order: none for an ordinary shop. */
+export async function orderShopNames(
+  ctx: Pick<Ctx, 'repository'>,
+  order: Order,
+): Promise<string[]> {
+  return (await shopsInOrder(ctx, order)).map((shop) => shop.name);
+}
+
 /** The job, as the Runner is told it: never the customer's name, address or number. */
-export function officeJobWords(ctx: Pick<Ctx, 'config'>, order: Order): string {
+export function officeJobWords(
+  ctx: Pick<Ctx, 'config'>,
+  order: Order,
+  shopNames: readonly string[] = [],
+): string {
   const money = (pence: number) => formatPence(pence, ctx.config.store.currencySymbol);
   const things = order.items.reduce((sum, item) => sum + item.quantity, 0);
   const minutes = ctx.config.allocation.allocatedHoldMinutes;
-  return `The office has sent you job ${orderReference(order)}: ${things} ${things === 1 ? 'thing' : 'things'}, about ${money(order.goodsEstimatePence)} of shopping, from ${ctx.config.store.displayName}. You get ${money(order.runnerPaymentPence)}. It is held for you alone for ${minutes} minutes. Take it or say no on your Runner page.`;
+  return `The office has sent you job ${orderReference(order)}: ${things} ${things === 1 ? 'thing' : 'things'}, about ${money(order.goodsEstimatePence)} of shopping, from ${fromShopsWords(shopNames)}. You get ${money(order.runnerPaymentPence)}. It is held for you alone for ${minutes} minutes. Take it or say no on your Runner page.`;
 }
 
 /** Notification and text to the Runner. Never stops the offer: the Runner page shows it too. */
@@ -213,7 +259,7 @@ async function tellRunnerOfJob(
   offer: JobOffer,
   log?: FastifyBaseLogger,
 ): Promise<void> {
-  const words = officeJobWords(ctx, order);
+  const words = officeJobWords(ctx, order, await orderShopNames(ctx, order));
   if (ctx.sendPush) {
     try {
       for (const device of await ctx.repository.pushSubscriptions.listForRunner(runner.id)) {
@@ -352,6 +398,8 @@ async function allocateOne(
     }
     const cannot = runnerRefusal(ctx, runner, order, at);
     if (cannot) return refuse(cannot);
+    const warning = areaWarning(ctx, runner, order);
+    const warned = warning ? { warning } : {};
     let backup: Runner | null = null;
     if (assignment.backupRunnerId) {
       if (assignment.backupRunnerId === runner.id) {
@@ -395,10 +443,11 @@ async function allocateOne(
     await offerNextFor(ctx, runner.id, log);
     const now = (await repository.allocations.findById(allocation.id)) ?? allocation;
     if (now.status === 'offered') {
-      return { ...base, result: 'allocated', state: 'offered', allocationId: now.id };
+      return { ...base, ...warned, result: 'allocated', state: 'offered', allocationId: now.id };
     }
     return {
       ...base,
+      ...warned,
       result: 'allocated',
       state: 'queued',
       place: await placeInQueue(ctx, now),
@@ -463,6 +512,12 @@ export function allocationMessage(results: readonly AssignmentResult[]): string 
     text += sent.length > 0 ? `; ${refused.length} could not be: ${why}.` : `: ${why}.`;
   } else {
     text += '.';
+  }
+  // A different area (Anthony, 30 October 2026): sent, and said, so staff can think again.
+  for (const row of sent) {
+    if (row.warning) {
+      text += ` Please check: ${row.warning}${row.reference ? ` (order ${row.reference})` : ''}.`;
+    }
   }
   for (const entry of byRunner.values()) {
     if (entry.waiting === 0) continue;

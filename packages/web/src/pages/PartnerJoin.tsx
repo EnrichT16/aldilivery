@@ -46,7 +46,8 @@ export function heardKind(said: string): PartnerKind | null {
 /**
  * The three ways a shop can start (ruling 75): a free basic listing; Partner Plus with the free
  * first month; or Partner Plus paid from today, when Anthony has agreed the shop pays from the
- * start, which goes straight to Stripe Checkout after the form.
+ * start, which goes straight to Stripe Checkout after the form. Once the free listings have all
+ * gone, the first is not offered at all, and the form says so (30 October 2026).
  */
 export type PlanChoice = 'free' | 'free-month' | 'pay-now';
 
@@ -63,14 +64,29 @@ export function heardPlan(said: string): PlanChoice | null {
   return null;
 }
 
-/** Ozi's plan question, with the comparison read briefly, every figure from config. */
+/** Whether a free basic listing can still be chosen: none once they have all gone. */
+export function freeListingOffered(options: PartnerJoinOptions | null): boolean {
+  return options === null || options.freeListingsLeft > 0;
+}
+
+/**
+ * Ozi's plan question, with the comparison read briefly, every figure from config. Once the
+ * free listings have all gone, it says so and offers only Partner Plus (30 October 2026).
+ */
 export function planQuestion(options: PartnerJoinOptions | null): string {
   const limit = options?.freeProductLimit ?? 10;
   const price = options ? money(options.plusMonthlyPence) : 'a monthly fee';
   const freeMonth = options?.plusFirstMonthFree ?? true;
+  const plus = `Partner Plus is ${price} a month: your full catalogue with photos, Shop of the Month and Spotlight, and you come first among shops at the same distance. `;
+  if (!freeListingOffered(options)) {
+    return (
+      `Which plan would you like? The free basic listings have all gone, so it is Partner Plus. ${plus}` +
+      (freeMonth ? 'Say free month, or pay now.' : 'Say pay now.')
+    );
+  }
   return (
-    `Which plan would you like? The basic listing is free: your name, address, hours and up to ${limit} products, with no photos and no offers. ` +
-    `Partner Plus is ${price} a month: your full catalogue with photos, offers, Shop of the Month and Spotlight, and you are listed above free shops. ` +
+    `Which plan would you like? The basic listing is free, with no monthly fee: your name, address, hours and up to ${limit} products, with no photos. ` +
+    plus +
     (freeMonth ? 'Say free, free month, or pay now.' : 'Say free, or pay now.')
   );
 }
@@ -105,6 +121,7 @@ export function PartnerJoin(): JSX.Element {
   const [options, setOptions] = useState<PartnerJoinOptions | null>(null);
   const [kind, setKind] = useState<PartnerKind>('shop');
   const [plan, setPlan] = useState<PlanChoice>('free');
+  const [termsAgreed, setTermsAgreed] = useState(false);
   const [claimedName, setClaimedName] = useState('');
   const [claimedFields, setClaimedFields] = useState<Partial<BrowseFieldValues>>({});
   const [errors, setErrors] = useState<Array<{ field: string; message: string }>>([]);
@@ -121,7 +138,15 @@ export function PartnerJoin(): JSX.Element {
 
   useEffect(() => {
     fetchPartnerJoinOptions()
-      .then(setOptions)
+      .then((found) => {
+        setOptions(found);
+        // The free listings have all gone: the free choice is not offered (30 October 2026).
+        if (!freeListingOffered(found)) {
+          setPlan((was) =>
+            was === 'free' ? (found.plusFirstMonthFree ? 'free-month' : 'pay-now') : was,
+          );
+        }
+      })
       .catch(() => undefined);
   }, []);
 
@@ -178,6 +203,7 @@ export function PartnerJoin(): JSX.Element {
     ...(claimId ? { claimShopId: claimId } : {}),
     ...(kind === 'shop' ? { plan: plan === 'free' ? ('free' as const) : ('plus' as const) } : {}),
     ...(kind === 'shop' && plan === 'pay-now' ? { payNow: true } : {}),
+    termsAgreed,
     // How Shoppers find it (ruling 82): only the fields its kind has.
     ...readBrowseFields(document, 'join', kind),
   });
@@ -204,6 +230,11 @@ export function PartnerJoin(): JSX.Element {
       });
     if (details.password.length < 10)
       found.push({ field: 'join-password', message: 'A password is at least 10 characters.' });
+    if (!details.termsAgreed)
+      found.push({
+        field: 'join-terms',
+        message: 'Please tick to agree to the Shop Partner terms.',
+      });
     const childminder = (details.categories ?? []).some((category) =>
       storeConfig.browse.ofstedCategories.includes(category),
     );
@@ -308,7 +339,7 @@ export function PartnerJoin(): JSX.Element {
       if (!question) {
         setTalking(false);
         void live.current.ozi.say(
-          'I have filled in the form. Type your email address, choose a username and a password on the screen, then press Join. For your privacy, I never ask for a password out loud.',
+          'I have filled in the form. Type your email address, choose a username and a password on the screen, read the Shop Partner terms and tick to agree, then press Join. For your privacy, I never ask for a password out loud.',
         );
         document.getElementById('join-email')?.focus();
         return;
@@ -330,6 +361,8 @@ export function PartnerJoin(): JSX.Element {
           if (chosen === 'free-month' && live.current.options?.plusFirstMonthFree === false) {
             chosen = 'pay-now';
           }
+          // The free listings have all gone: asked again, never quietly put on Partner Plus.
+          if (chosen === 'free' && !freeListingOffered(live.current.options)) chosen = null;
           if (!chosen) return ask(index);
           setPlan(chosen);
           void live.current.ozi.say(
@@ -389,11 +422,18 @@ export function PartnerJoin(): JSX.Element {
           </h2>
           <ul className="m-0 ps-6 space-y-1">
             <li>
-              <strong>Shops: a basic listing, free</strong>
-              {options.freeListingsLeft > 0
-                ? `, with no monthly fee, for the next ${options.freeListingsLeft} shops to join`
-                : ''}
-              ; or <strong>Partner Plus, {money(options.plusMonthlyPence)} a month</strong>
+              {freeListingOffered(options) ? (
+                <>
+                  <strong>Shops: a basic listing, free, with no monthly fee</strong>, for the next{' '}
+                  {options.freeListingsLeft} shops to join; or{' '}
+                </>
+              ) : (
+                <>
+                  <strong>Shops: the free basic listings have all gone</strong>, so a shop joins
+                  on{' '}
+                </>
+              )}
+              <strong>Partner Plus, {money(options.plusMonthlyPence)} a month</strong>
               {options.plusFirstMonthFree ? ', first month free' : ''}. You choose below, and the
               two are compared side by side.
             </li>
@@ -540,7 +580,7 @@ export function PartnerJoin(): JSX.Element {
         <Field
           id="join-mobile"
           label="Mobile number"
-          hint="We text a code to it now, and ring it only about your listing. It is never shown to anyone."
+          hint="We text a code to it now, and ring it only about your listing. It is never shown to Shoppers."
           type="tel"
           autoComplete="tel"
         />
@@ -570,6 +610,25 @@ export function PartnerJoin(): JSX.Element {
           type="password"
           autoComplete="new-password"
         />
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 min-h-control">
+            <input
+              type="checkbox"
+              id="join-terms"
+              checked={termsAgreed}
+              onChange={(event) => setTermsAgreed(event.target.checked)}
+              required
+              aria-required="true"
+              className="h-6 w-6 shrink-0"
+            />
+            <label htmlFor="join-terms" className="m-0 font-bold">
+              I agree to the Shop Partner terms
+            </label>
+          </div>
+          <Link to="/partner/terms" className="inline-flex items-center min-h-control underline">
+            Read the Shop Partner terms
+          </Link>
+        </div>
         <button
           type="submit"
           disabled={busy}
@@ -608,7 +667,6 @@ function PlanChoiceSection({
       'Yes',
     ],
     ['Photos of your products', 'No', 'Yes'],
-    ['Offers', 'No', 'Yes'],
     ['Shop of the Month', 'Not eligible', 'Eligible'],
     [
       `Spotlight (${money(options.spotlightPence)}) and Spotlight Plus (${money(options.spotlightPlusPence)}) a month, on top`,
@@ -616,10 +674,17 @@ function PlanChoiceSection({
       'Available',
     ],
     ['“Stock up at local shops” on the home page', 'After Partner Plus shops', 'Given priority'],
-    ['In search and on the shops list', 'Below Partner Plus shops', 'Above free shops'],
+    [
+      'In search and on the shops list',
+      'After Partner Plus shops at the same distance',
+      'First among shops at the same distance',
+    ],
   ];
+  const freeOffered = freeListingOffered(options);
   const choices: Array<{ value: PlanChoice; label: string }> = [
-    { value: 'free', label: 'Basic listing, free' },
+    ...(freeOffered
+      ? [{ value: 'free' as const, label: 'Basic listing, free, with no monthly fee' }]
+      : []),
     ...(options.plusFirstMonthFree
       ? [
           {
@@ -650,7 +715,7 @@ function PlanChoiceSection({
                 What you get
               </th>
               <th scope="col" className="p-2 border-b-2 border-paper align-bottom">
-                Basic listing (free)
+                Basic listing (free{freeOffered ? '' : ', all gone'})
               </th>
               <th scope="col" className="p-2 border-b-2 border-paper align-bottom">
                 Partner Plus ({price} a month)
@@ -670,10 +735,16 @@ function PlanChoiceSection({
           </tbody>
         </table>
       </div>
-      <p className="m-0">
-        Please know that free listings may be reviewed as paid shops join, and some may be taken off
-        then. You can move to Partner Plus at any time to keep your place.
-      </p>
+      {freeOffered ? (
+        <p className="m-0">
+          A basic listing is free, with no monthly fee. You can move to Partner Plus at any time.
+        </p>
+      ) : (
+        <p role="status" className="m-0 border-2 border-paper rounded-2xl p-3">
+          The free basic listings have all gone, so we cannot offer one now. You can choose Partner
+          Plus below, or ring us.
+        </p>
+      )}
       <fieldset className="space-y-2 border-0 p-0 m-0">
         <legend id="join-plan" className="text-lead font-bold">
           Which plan would you like?

@@ -4,7 +4,9 @@
  * and addresses live in that file, never here.
  *
  * Each is listed by Ozi, is not a partner, and has no products of its own: the community
- * catalogue applies, and its public page invites the owner to claim it. The seed runs at
+ * catalogue applies, and its public page invites the owner to claim it, unless it is a branch
+ * of a national chain (`chain: true`), whose page never does: a branch manager cannot sign up
+ * for the whole company (Anthony, 30 October 2026). The seed runs at
  * start-up only when there are no shops at all, and from the admin panel's button at any time;
  * either way a shop is added once only, by its key.
  */
@@ -30,6 +32,8 @@ export interface SeedShop {
   specialities: string[];
   categories: string[];
   convenience: boolean;
+  /** A branch of a national chain: its page has no "Claim this shop" (30 October 2026). */
+  chain: boolean;
 }
 
 /** Reads and checks the file, throwing a sentence that says which entry is wrong. */
@@ -41,7 +45,10 @@ export function parseShopsSeed(raw: unknown, file = 'shops-seed.json'): SeedShop
     const e = entry as Partial<SeedShop>;
     const where = `${file} entry ${index + 1}${e.key ? ` (${e.key})` : ''}`;
     const text = (
-      name: Exclude<keyof SeedShop, 'cuisines' | 'specialities' | 'categories' | 'convenience'>,
+      name: Exclude<
+        keyof SeedShop,
+        'cuisines' | 'specialities' | 'categories' | 'convenience' | 'chain'
+      >,
       required: boolean,
     ): string => {
       const value = e[name];
@@ -61,6 +68,9 @@ export function parseShopsSeed(raw: unknown, file = 'shops-seed.json'): SeedShop
     };
     if (e.convenience !== undefined && typeof e.convenience !== 'boolean') {
       throw new Error(`${where}: convenience must be true or false.`);
+    }
+    if (e.chain !== undefined && typeof e.chain !== 'boolean') {
+      throw new Error(`${where}: chain must be true or false.`);
     }
     const key = text('key', true);
     if (!/^[a-z0-9-]+$/.test(key))
@@ -83,6 +93,7 @@ export function parseShopsSeed(raw: unknown, file = 'shops-seed.json'): SeedShop
       specialities: list('specialities'),
       categories: list('categories'),
       convenience: e.convenience === true,
+      chain: e.chain === true,
     };
   });
 }
@@ -122,6 +133,11 @@ export async function seedShops(
       const described =
         shop.convenience ||
         shop.cuisines.length + shop.specialities.length + shop.categories.length > 0;
+      // Still nobody's, and the file's words about it have changed (an unchecked sentence taken
+      // out, 30 October 2026): the page says what the file says now.
+      if (existing.source === 'ozi' && existing.about !== shop.about) {
+        await repository.partnerShops.update(existing.id, { about: shop.about });
+      }
       if (existing.source === 'ozi' && unset && described) {
         await repository.partnerShops.update(existing.id, {
           cuisines: shop.cuisines,

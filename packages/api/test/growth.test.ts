@@ -81,7 +81,7 @@ describe('Spotlight and Spotlight Plus', () => {
     expect(first).toEqual(
       expect.objectContaining({
         shopName: 'Corner Bakery',
-        words: 'Advert: Sourdough loaf is in stock at Corner Bakery, about £3.50.',
+        words: 'Advert: Sourdough loaf is sold at Corner Bakery, about £3.50.',
       }),
     );
     // Once a week to the same Shopper, and never for something the shop does not sell.

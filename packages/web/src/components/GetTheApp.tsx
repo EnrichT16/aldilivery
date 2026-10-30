@@ -100,6 +100,39 @@ function AndroidSteps(): JSX.Element {
 }
 
 /**
+ * The wrong-app warning. Another app called "Ozi", from a different business in another
+ * country, is in the app stores, and ours is not there yet, so we say so wherever people look
+ * for the app (Anthony, 30 October 2026). Not shown inside our own store app, where it would
+ * not be true.
+ */
+export function wrongAppWords(homeScreen = false): string {
+  const { productName, assistantName } = storeConfig;
+  const site = storeConfig.contact.website;
+  const use =
+    site === ''
+      ? homeScreen
+        ? ` Use the ${assistantName} icon saved on your home screen.`
+        : ''
+      : homeScreen
+        ? ` Use ${site}, or the ${assistantName} icon saved on your home screen.`
+        : ` Use ${site}.`;
+  return `${productName} is not in the app stores yet. Any '${assistantName}' app you find there is not us.${use}`;
+}
+
+/**
+ * The warning on the page. `homeScreen` adds the icon saved on the home screen: for Runners, and
+ * for people already using the installed app (Anthony, 30 October 2026).
+ */
+export function WrongAppWarning({
+  homeScreen = false,
+}: {
+  homeScreen?: boolean;
+}): JSX.Element | null {
+  if (runningInStoreApp()) return null;
+  return <p className="m-0 max-w-xl font-bold">{wrongAppWords(homeScreen)}</p>;
+}
+
+/**
  * Get the app (ruling 50). The website is the app: on Android, in Chrome, one press puts it on
  * the home screen; on an iPhone, Safari's Share button, then Add to Home Screen. Both sets of
  * steps are written out, the reader's own phone first, so a relative helping on a different
@@ -179,6 +212,7 @@ export function GetTheApp({ compact = false }: { compact?: boolean }): JSX.Eleme
             It works on any phone, straight from the website, and it is free. The App Store and
             Google Play versions are coming soon.
           </p>
+          <WrongAppWarning />
         </div>
       )}
     </section>

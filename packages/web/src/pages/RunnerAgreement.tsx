@@ -5,6 +5,11 @@ import { RUNNER_AGREEMENT_VERSION } from '@aldilivery/core';
 
 import { storeConfig } from '../config';
 import { money } from '../lib/money';
+import {
+  DOCUMENT_CHECK_WORDS,
+  ENHANCED_DBS_OPTIONAL,
+  PAID_BACK_PROMISE,
+} from '../lib/runner-words';
 
 /**
  * The Runner agreement, in plain words (ruling 54, docs/LEGAL_REVIEW.md).
@@ -14,10 +19,15 @@ import { money } from '../lib/money';
  * declined or left to run out, with no reason and no effect on their place in the rotation
  * (`POST /jobs/:offerId/decline` and `services/allocation.ts`); the pay is a flat figure per
  * delivery (Rule Two); the cool bag deposit and the recovery rate come from config/store.json;
- * nothing is ever deducted without a written decision by a person.
+ * nothing is taken from pay except the cool bag deposit and money owed after a written decision
+ * by a person.
  *
  * Paying at the till was decided on 9 October 2026 (ruling 55): the Runner pays with their own
- * card and is paid back the accepted till total straight away (`services/reimburse.ts`). A
+ * card and is paid back the accepted till total, straight away when it is within the limits and
+ * after a person checks it when it is not (`services/reimburse.ts`). Corrected after an audit on
+ * 30 October 2026: 18 or over, vans, the automatic document check, paying back, the instant
+ * payout fee, what may be taken from pay, the enhanced DBS check made clearly optional, and no
+ * mention of the company's own insurance (Anthony, 30 October 2026). A
  * Runner agrees to this page before their first job; the date, the version below and how they
  * agreed are kept, and no job is offered or accepted until they have.
  *
@@ -115,24 +125,20 @@ export function RunnerAgreement(): JSX.Element {
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
-            Your right to work in the UK, a basic DBS check, and a face photo. For a car or
-            motorbike, your driving licence and insurance that covers delivering for payment (often
-            called hire and reward, or business use).
+            You must be 18 or over. We check your right to work in the UK, a basic DBS check, and a
+            face photo. For a car, motorbike or van, your driving licence and insurance that covers
+            delivering for payment (often called hire and reward, or business use).
           </li>
           <li>
-            We check each one. Documents that are clearly in order are approved straight away; any
-            that are unclear are decided by a person at {name}, never refused automatically. Nobody
-            is offered a job until every check has passed.
+            {DOCUMENT_CHECK_WORDS} Nothing is refused automatically. Nobody is offered a job until
+            every check has passed.
           </li>
           <li>
             You must tell us straight away if anything changes, such as a new conviction, losing
             your licence or your insurance ending. Without vehicle insurance you can still deliver
-            on foot, by bicycle or by public transport.
+            on foot or by bicycle.
           </li>
-          <li>
-            We may ask for an enhanced DBS check before offering you certain kinds of job. We will
-            tell you which jobs need it and you are free not to take them.
-          </li>
+          <li>{ENHANCED_DBS_OPTIONAL}</li>
         </ul>
       </section>
 
@@ -163,9 +169,8 @@ export function RunnerAgreement(): JSX.Element {
             app. Never swap anything they have not agreed to. If they do not answer, leave it out.
           </li>
           <li>
-            You pay at the till for the Shopper&rsquo;s shopping with your own card. As soon as you
-            put the till total into the app, we pay it back to you, straight to your own Stripe
-            account. You are never left out of pocket for a Shopper&rsquo;s shopping.
+            You pay at the till for the Shopper&rsquo;s shopping with your own card, and we pay it
+            back to your own Stripe account. {PAID_BACK_PROMISE}
           </li>
           <li>Type the till total exactly as it is on the receipt, and keep the receipt.</li>
           <li>
@@ -206,18 +211,21 @@ export function RunnerAgreement(): JSX.Element {
             Your pay goes to your own Stripe account, and from there to your bank. Stripe&rsquo;s
             own terms apply to that account. We send it after each delivery. Stripe then pays it
             into your bank once a week, on a Friday, or every day if you choose that on your Money
-            tab. If you need it sooner, you can take an instant payout to a debit card; Stripe
-            charges a small fee for that, which you pay, and you are shown it before anything is
-            sent.
+            tab. If you need it sooner, you can take an instant payout to a debit card, for the
+            instant payout fee of {storeConfig.runners.instantPayoutFeeBasisPoints / 100}% (at least{' '}
+            {money(storeConfig.runners.instantPayoutFeeMinimumPence)}), which you pay. You are shown
+            it before anything is sent.
           </li>
           <li>
             Paying you back for the shopping is separate from your pay, and never comes out of it.
             We pay back the till total straight away when it is close to what the Shopper was told:
-            up to the estimate plus {money(500)} or a fifth of the estimate, whichever is more. If
-            the till came to more than that, or to more than {money(maximumOrderGoodsPence)}, the
-            most one order carries, a person at {name} checks it first, the same day where we can,
-            and then pays it back. We pay back what the till says, never more, and you are told in
-            plain words each time.
+            up to the estimate plus {money(storeConfig.receipts.tillExtraFloorPence)} or a fifth of
+            the estimate, whichever is more. Without a photo of the receipt, anything over{' '}
+            {money(storeConfig.receipts.photoNeededAbovePence)} is checked first. If the till came
+            to more than that limit, or to more than {money(maximumOrderGoodsPence)}, the most one
+            order carries, a person at {name} checks it first, usually the same day, and then pays
+            it back. You are always paid back in full once checked. We pay back what the till says,
+            never more, and you are told in plain words each time.
           </li>
           <li>
             If your Stripe account is not ready, the money is owed to you, shown on your Runner
@@ -273,10 +281,11 @@ export function RunnerAgreement(): JSX.Element {
             Small refunds of {money(instantRefundUpToPence)} or less are never counted against you.
           </li>
           <li>
-            Nothing is ever taken from your pay automatically. A person looks at the evidence,
-            including anything you send from the job&rsquo;s &ldquo;Report a problem&rdquo; page,
-            and decides. You are told the decision and the reason in writing, and you can answer it
-            and ask for it to be looked at again.
+            Nothing is taken from your pay except the cool bag deposit held back under section 6,
+            and money owed after a written decision. A person looks at the evidence, including
+            anything you send from the job&rsquo;s &ldquo;Report a problem&rdquo; page, and decides.
+            You are told the decision and the reason in writing, and you can answer it and ask for
+            it to be looked at again.
           </li>
           <li>
             Only if a person decides you were responsible: {recoveryPercentOfPay}% of each later
@@ -307,14 +316,13 @@ export function RunnerAgreement(): JSX.Element {
 
       <section aria-labelledby="insurance" className="space-y-3">
         <h2 id="insurance" className="text-lead font-bold">
-          9. Insurance and responsibility
+          9. Your vehicle insurance and responsibility
         </h2>
         <p className="m-0">
-          If you drive or ride a motorbike for jobs, you must have insurance that covers delivering
-          for payment, and keep it up to date. Ordinary car insurance does not cover this. We
-          recommend you also have your own public liability insurance. You are responsible for your
-          own vehicle, equipment and conduct while carrying out a job, and for complying with the
-          law, including road traffic and food hygiene rules.
+          If you drive a car or van, or ride a motorbike, for jobs, you must have insurance that
+          covers delivering for payment, and keep it up to date. Ordinary car insurance does not
+          cover this. You are responsible for your own vehicle, equipment and conduct while carrying
+          out a job, and for complying with the law, including road traffic and food hygiene rules.
         </p>
       </section>
 

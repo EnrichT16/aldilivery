@@ -16,7 +16,7 @@ import { requireSession, requireStaff } from '../app.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 import { isOfferExpired, poolOrders } from '../services/allocation.js';
 import { collectExtraDelivery } from '../services/basket-orders.js';
-import { officeJobWords, settleAllocatedOffer } from '../services/allocate.js';
+import { officeJobWords, orderShopNames, settleAllocatedOffer } from '../services/allocate.js';
 import { canCarry, largeOrderWords, offerOrder } from '../services/dispatch.js';
 import { ensureDoorWord, newDoorWord } from '../services/door-word.js';
 import { drivingPaused } from '../services/insurance.js';
@@ -24,6 +24,7 @@ import { tellShopper } from '../services/order-updates.js';
 import { assertTransitionAllowed } from '../services/orders.js';
 import { AGREE_FIRST, hasAgreed } from '../services/runner-agreement.js';
 import { loadCardForOrder } from '../services/runner-card.js';
+import { checksPassed } from '../services/runner-pool.js';
 import { splitView, syncSplitParent } from '../services/split.js';
 
 export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
@@ -60,6 +61,8 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
         // A large order is not shown to a Runner who has since switched to a way of travelling
         // that cannot carry it (rulings 59 and 60); it lapses and goes on to one who can.
         if (order && runner && !canCarry(config, runner, order, at)) return null;
+        // The Shop Partners whose things are in it, by name; none means the shops on the list.
+        const shopNames = order ? await orderShopNames(app.ctx, order) : [];
         return {
           offer,
           secondsLeft: Math.max(0, Math.round((offer.expiresAt.getTime() - at.getTime()) / 1000)),
@@ -74,7 +77,7 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
           allocated: offer.allocated,
           allocatedWords:
             offer.allocated && order
-              ? `${officeJobWords(app.ctx, order)} You can still say no; it goes back to the office.`
+              ? `${officeJobWords(app.ctx, order, shopNames)} You can still say no; it goes back to the office.`
               : null,
           job: order
             ? {
@@ -82,6 +85,7 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
                 goodsEstimatePence: order.goodsEstimatePence,
                 runnerPaymentPence: order.runnerPaymentPence,
                 distanceMiles: offer.distanceMiles,
+                shopNames,
                 // A part of a split job (ruling 60): labelled, with its own pay, shown before
                 // anyone says yes, and only its own items.
                 split: splitView(config, order),
@@ -119,6 +123,8 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
             goodsEstimatePence: order.goodsEstimatePence,
             receiptTotalPence: order.receiptTotalPence,
             runnerPaymentPence: order.runnerPaymentPence,
+            // The Shop Partners whose things are in it, for the directions to the shop.
+            shopNames: await orderShopNames(app.ctx, order),
             // A part of a split job: which part, and that another Runner brings the rest.
             split: splitView(config, order),
             // Paying them back for the shopping (ruling 55): how much, and where it has got to.
@@ -190,7 +196,8 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
 
     const runner = await repository.runners.findById(session.accountId);
     if (!runner) throw new NotFoundError('account');
-    if (!runner.rightToWorkVerified || !runner.criminalRecordCheckVerified) {
+    // Every check, the face photo included (Anthony, 30 October 2026).
+    if (!checksPassed(runner)) {
       throw new ForbiddenError('We still need to finish your checks before you can take a job.');
     }
     // The agreement, with its pay-back and recovery terms, comes before any job (ruling 55).
@@ -199,7 +206,7 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
     // Driving waits for in-date insurance, checked by a person (ruling 14).
     if (drivingPaused(runner, at)) {
       throw new ForbiddenError(
-        'Your motor insurance has run out, so jobs by car or motorbike are paused. Switch to walking or bicycle, or send your new certificate.',
+        'Your motor insurance has run out, so jobs by car, motorbike or van are paused. Switch to walking or bicycle, or send your new certificate.',
       );
     }
     // A large order goes only to a Runner who can carry it (rulings 59 and 60).

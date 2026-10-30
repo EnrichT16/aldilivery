@@ -53,8 +53,15 @@ export function cardSwitchedOn(ctx: Pick<AppContext, 'env'>): boolean {
 }
 
 /** What the card is loaded with for an order: estimate plus the margin, never over the whole-order goods cap (shop prices only: item charges go to the business). */
-export function cardLimitFor(goodsEstimatePence: number, maximumGoodsPence: number): number {
-  return Math.min(goodsEstimatePence + tillLimitPence(goodsEstimatePence), maximumGoodsPence);
+export function cardLimitFor(
+  goodsEstimatePence: number,
+  maximumGoodsPence: number,
+  tillExtraFloorPence?: number,
+): number {
+  return Math.min(
+    goodsEstimatePence + tillLimitPence(goodsEstimatePence, tillExtraFloorPence),
+    maximumGoodsPence,
+  );
 }
 
 /** How this Runner pays at the till today, given whether the card is switched on at all. */
@@ -166,7 +173,7 @@ export async function choosePayMethod(
     message:
       method === 'card'
         ? `Done. You pay at the till with your ${cardName(ctx)}, loaded for each order. None of your own money is needed.`
-        : 'Done. You pay at the till with your own card, and we pay you back straight away when the till total is in.',
+        : 'Done. You pay at the till with your own card, and we pay you back straight away when you send a photo of the receipt. Large or unclear amounts are checked by a person first.',
   };
 }
 
@@ -220,13 +227,17 @@ export async function loadCardForOrder(
     payMethodUsed: 'own',
     cardLimitPence: null,
     message:
-      'Pay at the till with your own card. We pay you back straight away when the till total is in.',
+      'Pay at the till with your own card. We pay you back straight away when you send a photo of the receipt. Large or unclear amounts are checked by a person first.',
   };
   if (payMethodNow(ctx, runner) !== 'card' || !runner.issuingCardId) {
     await ctx.repository.orders.update(order.id, { payMethodUsed: 'own' });
     return own;
   }
-  const limit = cardLimitFor(order.goodsEstimatePence, mostOneOrderCarries(ctx.config, order));
+  const limit = cardLimitFor(
+    order.goodsEstimatePence,
+    mostOneOrderCarries(ctx.config, order),
+    ctx.config.receipts.tillExtraFloorPence,
+  );
   try {
     await ctx.payments.loadCard({
       cardId: runner.issuingCardId,
@@ -238,7 +249,7 @@ export async function loadCardForOrder(
     await ctx.repository.orders.update(order.id, { payMethodUsed: 'own' });
     return {
       ...own,
-      message: `We could not load your ${cardName(ctx)} just now, so please pay with your own card this time. We pay you back straight away when the till total is in.`,
+      message: `We could not load your ${cardName(ctx)} just now, so please pay with your own card this time. We pay you back straight away when you send a photo of the receipt. Large or unclear amounts are checked by a person first.`,
     };
   }
   await ctx.repository.runners.update(runner.id, { cardStatus: 'active' });

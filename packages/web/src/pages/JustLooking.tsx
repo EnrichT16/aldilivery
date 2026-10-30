@@ -24,13 +24,12 @@ export function JustLooking(): JSX.Element {
           In plain words
         </h2>
         <p className="m-0 max-w-xl">
-          You tell us what shopping you want. A Runner, who is a real person nearby, goes to{' '}
-          {storeConfig.store.displayName}, buys it at the ordinary shelf price, and brings it to
-          your door. You pay for the shopping, with a small item charge on each product, and
-          delivery.
+          You tell us what shopping you want. A Runner, who is a real person nearby, goes to the
+          shop, buys it at the ordinary shelf price, and brings it to your door. You pay for the
+          shopping, with a small item charge on each product, and delivery.
         </p>
         <p className="m-0 max-w-xl">
-          We will never take a payment without asking you first, and we never keep your card number.
+          We never take money you haven't agreed to, and we never keep your card number.
         </p>
       </section>
 

@@ -11,4 +11,9 @@
 // split parts are offered (motorbike first, then foot and bicycle), and the carrying limits.
 // 2026-10-25 (Anthony): issued as the final agreement — the draft notice removed, the terms
 // numbered, office-sent jobs and the automatic document check described, general terms added.
-export const RUNNER_AGREEMENT_VERSION = '2026-10-25';
+// 2026-10-30 (Anthony): every Runner agrees again, because the agreement was corrected after an
+// audit: 18 or over, vans with cars and motorbikes, the automatic document check, how paying
+// back works, the instant payout fee, and that nothing is taken from pay except the cool bag
+// deposit and money owed after a written decision; the enhanced DBS and public transport lines
+// removed.
+export const RUNNER_AGREEMENT_VERSION = '2026-10-30';

@@ -111,6 +111,19 @@ describe('how much is paid back', () => {
     expect(plan(2501)).toEqual({ pence: 2501, waitReason: 'over the limit' });
   });
 
+  it('takes the £5 floor from config, receipts.tillExtraFloorPence (30 October 2026)', () => {
+    const withFloor = (tillExtraFloorPence: number) =>
+      planReimbursement({
+        receiptTotalPence: 1800,
+        goodsEstimatePence: 1000,
+        maximumGoodsPence: 6000,
+        tillNeedsPerson: null,
+        tillExtraFloorPence,
+      });
+    expect(withFloor(500).waitReason).toBe('over the limit');
+    expect(withFloor(1000).waitReason).toBeNull();
+  });
+
   it('waits for a person whenever the till does', () => {
     expect(plan(1900, 'bank transfer')).toEqual({ pence: 1900, waitReason: 'bank transfer' });
   });
@@ -444,7 +457,7 @@ describe('the Runner agreement, before the first job', () => {
   });
 
   it('asks every Runner who agreed to the 9 October version to agree again (ruling 61)', async () => {
-    expect(RUNNER_AGREEMENT_VERSION).toBe('2026-10-25');
+    expect(RUNNER_AGREEMENT_VERSION).toBe('2026-10-30');
     await harness.repository.runners.update(runner.runnerId, {
       agreementVersion: '2026-10-09',
       agreementAcceptedAt: new Date('2026-10-09T09:00:00.000Z'),

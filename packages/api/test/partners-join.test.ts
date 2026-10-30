@@ -5,8 +5,10 @@
  * services with enquiries and the kinds never listed; the shops Ozi lists itself and their claiming.
  */
 
+import { SHOP_PARTNER_TERMS_VERSION } from '@aldilivery/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { recordOrder } from '../src/lib/analytics.js';
 import { loadShopsSeed, parseShopsSeed, seedShops } from '../src/lib/shops-seed.js';
 import { seedShopsOnStartup } from '../src/data/startup-seed.js';
 import { memoryRepository } from '../src/data/memory.js';
@@ -86,6 +88,7 @@ const BAKERY = {
   about: 'Fresh bread every morning.',
   username: 'cornerbakery',
   password: 'a-long-enough-password',
+  termsAgreed: true,
 };
 
 async function join(
@@ -118,7 +121,7 @@ describe('a shop joining by itself', () => {
     expect(body.shop).toEqual(
       expect.objectContaining({ status: 'pending', plan: 'free', freeForever: true }),
     );
-    expect(body.message).toMatch(/Your basic listing is free\./);
+    expect(body.message).toMatch(/Your basic listing is free, with no monthly fee\./);
 
     const headers = { 'x-business-token': body.token as string };
     const dashboard = await harness.app.inject({
@@ -194,7 +197,7 @@ describe('a shop joining by itself', () => {
     expect(audited.filter((row) => row.action === 'POST /staff/partners/:id')).toHaveLength(4);
   });
 
-  it('gives the first free listings for ever, then Partner Plus with the first month free', async () => {
+  it('gives the first free listings for ever, then says so and never moves a shop to Partner Plus by itself', async () => {
     const { freeListingCount } = harness.config.extras.partners;
     for (let n = 0; n < freeListingCount; n += 1) {
       const added = await staff('POST', '/staff/partners', { name: `Shop ${n}`, plan: 'free' });
@@ -205,13 +208,44 @@ describe('a shop joining by itself', () => {
     ).json();
     expect(options.freeListingsLeft).toBe(0);
 
-    const joined = await join();
+    // Asking for the free listing once they have gone (30 October 2026): refused in plain
+    // words, and nothing set up, rather than quietly put on Partner Plus without paying.
+    const before = (await harness.repository.partnerShops.list()).length;
+    const refused = await join();
+    expect(refused.statusCode, refused.body).toBe(409);
+    expect(refused.json().error.message).toMatch(/free listings have all gone/);
+    expect(refused.json().error.message).toMatch(/Nothing has been set up/);
+    expect(refused.json().error.message).toMatch(/£14\.99 a month, with the first month free/);
+    expect((await harness.repository.partnerShops.list()).length).toBe(before);
+    expect(await harness.repository.businessUsers.findByUsername(BAKERY.username)).toBeNull();
+
+    // Choosing Partner Plus is the shop's own choice: the free month, recorded as such.
+    const joined = await join({ plan: 'plus' });
     expect(joined.statusCode, joined.body).toBe(201);
     expect(joined.json().shop).toEqual(
       expect.objectContaining({ plan: 'plus', freeForever: false }),
     );
-    expect(joined.json().message).toMatch(/free listings have all gone/);
-    expect(joined.json().message).toMatch(/£14\.99 a month, with the first month free/);
+    expect(joined.json().message).not.toMatch(/free listings have all gone/);
+    expect(joined.json().message).toMatch(/first month is free/);
+  });
+
+  it('needs the Shop Partner terms agreed, and keeps when and which version', async () => {
+    const { termsAgreed: _ticked, ...unticked } = BAKERY;
+    void _ticked;
+    const phoneProof = await proveMobile(BAKERY.mobile);
+    const refused = await harness.app.inject({
+      method: 'POST',
+      url: '/partner/join',
+      payload: { ...unticked, phoneProof },
+    });
+    expect(refused.statusCode).toBe(400);
+    expect(refused.json().error.message).toMatch(/agree to the Shop Partner terms/);
+
+    const joined = await join();
+    expect(joined.statusCode, joined.body).toBe(201);
+    const shop = await harness.repository.partnerShops.findById(joined.json().shop.id as string);
+    expect(shop?.termsAgreedAt).toEqual(harness.now());
+    expect(shop?.termsVersion).toBe(SHOP_PARTNER_TERMS_VERSION);
   });
 
   it('refuses the kinds of service never listed, in plain words', async () => {
@@ -412,6 +446,105 @@ describe('a café or takeaway', () => {
       headers,
     });
     expect(pdf.rawPayload.toString('latin1')).toContain('10% owed: £1.25');
+    // The statement says who it is from: the company's details from config (30 October 2026).
+    const { store } = harness.config;
+    expect(pdf.rawPayload.toString('latin1')).toContain(store.legalEntityName);
+    expect(pdf.rawPayload.toString('latin1')).toContain(store.companyNumber);
+    expect(pdf.rawPayload.toString('latin1')).toContain(store.registeredIn);
+    expect(pdf.rawPayload.toString('latin1')).toContain(store.registeredOffice);
+  });
+
+  it('is owed commission on its own orders by its id, never on another place of the same name', async () => {
+    const joined = await join({
+      name: 'Rainham Café',
+      kind: 'food',
+      about: 'Breakfasts and lunches.',
+      username: 'rainhamcafe',
+      mobile: '07700 900 555',
+    });
+    expect(joined.statusCode, joined.body).toBe(201);
+    const headers = { 'x-business-token': joined.json().token as string };
+    const shopId = joined.json().shop.id as string;
+    const row = {
+      at: harness.now(),
+      kind: 'order_paid' as const,
+      shopperKey: 'k1',
+      runnerKey: null,
+      shop: 'Rainham Café',
+      area: 'ME8',
+      toArea: 'ME8',
+      ageBand: null,
+      viaOrganisation: false,
+      itemCount: 1,
+      categories: '',
+      query: null,
+      travelMode: null,
+    };
+    // Its own order, by id; another place of the same name, by its id; and an older row with
+    // only the name, which still counts.
+    await harness.repository.analytics.record({ ...row, partnerShopId: shopId, goodsPence: 1000 });
+    await harness.repository.analytics.record({
+      ...row,
+      partnerShopId: 'another-shop',
+      goodsPence: 9000,
+    });
+    await harness.repository.analytics.record({ ...row, goodsPence: 500 });
+    const dashboard = (
+      await harness.app.inject({ method: 'GET', url: '/partner/dashboard', headers })
+    ).json();
+    expect(dashboard.commission).toEqual(
+      expect.objectContaining({ ordersThisMonth: 2, goodsThisMonthPence: 1500 }),
+    );
+    expect(dashboard.numbers).toEqual(expect.objectContaining({ purchasesThisMonth: 2 }));
+  });
+
+  it('has its id on each order recorded for analysis, from the product bought', async () => {
+    const joined = await join({
+      name: 'Rainham Café',
+      kind: 'food',
+      about: 'Breakfasts and lunches.',
+      username: 'rainhamcafe',
+      mobile: '07700 900 555',
+    });
+    const shopId = joined.json().shop.id as string;
+    const product = await harness.repository.partnerProducts.create({
+      partnerShopId: shopId,
+      name: 'Bacon roll',
+      pricePence: 350,
+      tags: '',
+      expiresOn: null,
+      photo: null,
+      photoType: null,
+    });
+    const item = await harness.repository.catalogue.create({
+      name: 'Bacon roll (Rainham Café)',
+      category: 'From Rainham Café',
+      estimatedPricePence: 350,
+      source: 'partner_feed',
+      externalRef: `partner:${product.id}`,
+    });
+    const shopper = await harness.repository.shoppers.create({
+      displayName: 'Margaret',
+      phone: '+447700900999',
+      handle: 'margaret-test',
+    });
+    const order = await harness.repository.orders.create({
+      shopperId: shopper.id,
+      status: 'paid',
+      goodsEstimatePence: 350,
+      feePence: 1099,
+      totalEstimatePence: 1549,
+      deliveryAddress: '1 High Street, Rainham ME8 7JE',
+      items: [{ catalogueItemId: item.id, name: item.name, quantity: 1, estimatedPricePence: 350 }],
+    });
+    await recordOrder(harness.app.ctx, order, 'order_paid');
+    const [event] = await harness.repository.analytics.list({
+      since: new Date(0),
+      kind: 'order_paid',
+    });
+    expect(event).toEqual(
+      expect.objectContaining({ shop: 'Rainham Café', partnerShopId: shopId, goodsPence: 350 }),
+    );
   });
 });
 
@@ -574,6 +707,21 @@ describe('the shops Ozi lists itself', () => {
     expect(() => parseShopsSeed({ shops: [{ key: 'Bad Key', name: 'x', address: 'y' }] })).toThrow(
       /letters, numbers and dashes/,
     );
+
+    // A national chain's branch is marked so (30 October 2026); and when the file's words about
+    // a shop change, an unclaimed listing takes the new words on the next seeding.
+    expect(seed.map((shop) => shop.chain)).toEqual([false, false]);
+    const chained = parseShopsSeed({
+      shops: [{ key: 'first-shop', name: 'First Shop', address: '1 High Street', chain: true }],
+    });
+    expect(chained[0]!.chain).toBe(true);
+    expect(chained[0]!.about).toBe('');
+    expect(() =>
+      parseShopsSeed({ shops: [{ key: 'x', name: 'x', address: 'y', chain: 'yes' }] }),
+    ).toThrow(/chain must be true or false/);
+    await seedShops(repository, chained);
+    const first = (await repository.partnerShops.list()).find((shop) => shop.name === 'First Shop');
+    expect(first!.about).toBe('');
   });
 
   it('come from the real config file through the staff button, idempotently, and can be claimed', async () => {
@@ -587,8 +735,25 @@ describe('the shops Ozi lists itself', () => {
     const shops = (await harness.app.inject({ method: 'GET', url: '/shops' })).json().shops;
     expect(shops.length).toBe(first.json().added);
     expect(shops.every((shop: { listedByOzi: boolean }) => shop.listedByOzi)).toBe(true);
-    // The first shop in the config file, whatever it is called: names live there, not here.
-    const [firstSeed] = loadShopsSeed();
+    // A national chain's branch is never claimable (30 October 2026): a branch manager cannot
+    // sign up for the whole company. Names live in the config file, not here.
+    const chainSeed = loadShopsSeed().find((seed) => seed.chain);
+    const chain = shops.find((shop: { name: string }) => shop.name === chainSeed!.name);
+    const chainPage = (
+      await harness.app.inject({ method: 'GET', url: `/shops/${chain.id}` })
+    ).json();
+    expect(chainPage.shop).toEqual(
+      expect.objectContaining({ claimable: false, listedByOzi: true }),
+    );
+    const chainClaim = await join({
+      name: chain.name,
+      username: 'branchmanager',
+      mobile: '07700 900 555',
+      claimShopId: chain.id,
+    });
+    expect(chainClaim.statusCode).toBe(409);
+    // The first shop in the config file that is not a chain's, whatever it is called.
+    const firstSeed = loadShopsSeed().find((seed) => !seed.chain);
     const seeded = shops.find((shop: { name: string }) => shop.name === firstSeed!.name);
     expect(seeded).toEqual(expect.objectContaining({ kind: 'shop', area: 'ME7', products: 0 }));
     const page = (await harness.app.inject({ method: 'GET', url: `/shops/${seeded.id}` })).json();

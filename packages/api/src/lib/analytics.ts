@@ -46,12 +46,29 @@ export async function recordOrder(
       order.items.map((item) => item.catalogueItemId ?? '').filter(Boolean),
     );
     const categoryOf = new Map(items.map((item) => [item.id, item.category]));
+    // A Shop Partner's product is in the catalogue as "partner:<product id>": the sure way to
+    // the shop's id, kept on the row so commission is matched by id (30 October 2026).
+    const partnerShopOf = new Map<string, string>();
+    for (const item of items) {
+      if (!item.externalRef?.startsWith('partner:')) continue;
+      const product = await repository.partnerProducts.findById(item.externalRef.slice(8));
+      if (product) partnerShopOf.set(item.id, product.partnerShopId);
+    }
     // Each Shop Partner's things are under "From <shop>"; everything else is the main store.
-    const byShop = new Map<string, { count: number; pence: number; categories: Set<string> }>();
+    const byShop = new Map<
+      string,
+      { count: number; pence: number; categories: Set<string>; partnerShopId: string | null }
+    >();
     for (const item of order.items) {
       const category = categoryOf.get(item.catalogueItemId ?? '') ?? 'Other';
       const shop = category.startsWith('From ') ? category.slice(5) : config.store.displayName;
-      const entry = byShop.get(shop) ?? { count: 0, pence: 0, categories: new Set<string>() };
+      const entry = byShop.get(shop) ?? {
+        count: 0,
+        pence: 0,
+        categories: new Set<string>(),
+        partnerShopId: null,
+      };
+      entry.partnerShopId ??= partnerShopOf.get(item.catalogueItemId ?? '') ?? null;
       entry.count += item.quantity;
       entry.pence += item.estimatedPricePence * item.quantity;
       entry.categories.add(category);
@@ -64,6 +81,7 @@ export async function recordOrder(
         shopperKey: personKey(order.shopperId, env.authTokenSecret),
         runnerKey: order.runnerId ? personKey(order.runnerId, env.authTokenSecret) : null,
         shop,
+        partnerShopId: entry.partnerShopId,
         area: null,
         toArea: district(order.deliveryAddress),
         ageBand: shopper?.ageBand ?? null,

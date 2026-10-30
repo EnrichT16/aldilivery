@@ -31,6 +31,7 @@ import { canCarry, offerOrder } from './dispatch.js';
 import { tellShopperWords } from './order-updates.js';
 import { hasAgreed } from './runner-agreement.js';
 import { releaseCard } from './runner-card.js';
+import { checksPassed } from './runner-pool.js';
 import { syncSplitParent } from './split.js';
 
 /** What the Shopper was charged, less gift card money, which went back to the card already. */
@@ -317,15 +318,9 @@ function firstName(name: string | null | undefined): string | null {
   return name ? (name.trim().split(/\s+/)[0] ?? null) : null;
 }
 
-/** May this Runner be given a job by a person: approved, agreed, still with us. */
+/** May this Runner be given a job by a person: every check passed, agreed, still with us. */
 export function mayBeAssigned(runner: Runner): boolean {
-  return (
-    runner.rightToWorkVerified &&
-    runner.criminalRecordCheckVerified &&
-    hasAgreed(runner) &&
-    !runner.leftAt &&
-    !runner.isDemo
-  );
+  return checksPassed(runner) && hasAgreed(runner) && !runner.leftAt && !runner.isDemo;
 }
 
 /**

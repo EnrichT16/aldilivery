@@ -11,7 +11,8 @@ import { yesOrNo } from '../state/voice-sign-up';
  * no, and asks again if it did not hear either. Only a clear yes agrees, and it is kept as a
  * spoken yes (channel "voice") with the date and the version, exactly as the tick is.
  *
- * The whole agreement is still one tap away, and "stop" stops at any point.
+ * The whole agreement is still one tap away, and "stop" stops at any point. The words match
+ * the agreement as corrected on 30 October 2026 (Anthony, 30 October 2026).
  */
 
 const STOP = /\b(stop|cancel|never mind|not now)\b/i;
@@ -22,10 +23,10 @@ export function agreementSummary(): string {
   const { recoveryPercentOfPay } = storeConfig.problems;
   return [
     `Here is the Runner agreement in short.`,
-    `You are paid ${money(runnerPaymentPence)} for every delivery, whatever the basket, and ${money(storeConfig.fees.largeOrderRunnerPaymentPence)} for an order of ${money(storeConfig.fees.largeOrderFromPence)} or more delivered whole.`,
-    `You pay at the till with your own card, and we pay you back the till total straight away.`,
+    `You are paid ${money(runnerPaymentPence)} for a standard delivery, and ${money(storeConfig.fees.largeOrderRunnerPaymentPence)} for an order of ${money(storeConfig.fees.largeOrderFromPence)} or more delivered whole.`,
+    `You pay at the till with your own card. We pay you back straight away when you send a photo of the receipt. Large or unclear amounts are checked by a person first, usually the same day, and you are always paid back in full once checked.`,
     `We hold back a little of your first payments, up to ${money(coolBag.depositPence)}, as a cool bag deposit, and pay it all back after your ${coolBag.releaseAfterCompletedDeliveries}th delivery, or when you stop.`,
-    `Nothing is ever taken from your pay automatically. Only if a person decides you were responsible for a refund, ${recoveryPercentOfPay}% of later jobs' pay goes towards it.`,
+    `Nothing is taken from your pay except the cool bag deposit, and money owed after a written decision. Only if a person decides you were responsible for a refund, ${recoveryPercentOfPay}% of later jobs' pay goes towards it.`,
     `You decline any job you like, and you can stop at any time.`,
     `The whole agreement is on the screen if you want to hear it read.`,
   ].join(' ');

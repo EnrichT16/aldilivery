@@ -61,6 +61,8 @@ export interface StaffLists {
   audit?: never[];
   /** The company inbox (ruling 77): its own page, not a list Ozi reads here. */
   messages?: never[];
+  /** Areas (30 October 2026): a screen of figures, not a list Ozi reads here. */
+  areas?: never[];
 }
 
 /** Parts that are figures or screens rather than things waiting for somebody. */
@@ -75,6 +77,7 @@ const NOT_WAITING: readonly StaffArea[] = [
   'accounts',
   'audit',
   'messages',
+  'areas',
 ];
 
 /** What each part is called aloud, as one and as many. */
@@ -114,6 +117,7 @@ export const AREA_WORDS: Record<StaffArea, { one: string; many: string; tab: str
   accounts: { one: 'Shopper account', many: 'Shopper accounts', tab: 'Shopper accounts' },
   audit: { one: 'audit entry', many: 'audit entries', tab: 'Audit log' },
   messages: { one: 'message', many: 'messages', tab: 'Messages' },
+  areas: { one: 'area', many: 'areas', tab: 'Areas' },
 };
 
 /** The items of one part that are still waiting for somebody. */
@@ -227,6 +231,7 @@ function firstNoun(areas: readonly StaffArea[], lists: StaffLists): string {
     accounts: 'Shopper accounts',
     audit: 'audit log',
     messages: 'messages',
+    areas: 'areas',
   }[area];
 }
 
@@ -336,6 +341,7 @@ export function readItem(area: StaffArea, item: unknown, position: string): stri
     case 'accounts':
     case 'audit':
     case 'messages':
+    case 'areas':
       return '';
     case 'team': {
       const row = item as TeamMember;
