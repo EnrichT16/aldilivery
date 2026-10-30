@@ -9,7 +9,7 @@ import type { FastifyInstance } from 'fastify';
 import { formatPence, isDay, needsVehicle, overOneRunnerWords } from '@aldilivery/core';
 import { z } from 'zod';
 
-import { priceLinesInParts, type PricedBasketInParts } from '../services/basket.js';
+import { priceLinesInParts, restaurantsOf, type PricedBasketInParts } from '../services/basket.js';
 import { largeOrderShopperWords } from '../services/dispatch.js';
 import { allowanceFor, deliveryPlanFor, type AllowanceStanding } from '../services/plans.js';
 import { middayOf } from '../services/scheduled.js';
@@ -62,7 +62,17 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
     // Throws on an age restricted item (Rule Six), on a product over the most one product may
     // cost, and on a basket over the most one basket holds (ruling 61: £450). Over one order
     // (£150), it is priced both ways the Shopper may choose (basketChoice).
-    const priced = priceLinesInParts(lines, items, config.fees, plan, allowance?.extraPence ?? 0);
+    // A restaurant order (Anthony, 30 October 2026): the flat restaurant fee in place of
+    // delivery, the smallest order, and never mixed with other shopping.
+    const restaurants = await restaurantsOf(app.ctx, items);
+    const priced = priceLinesInParts(
+      lines,
+      items,
+      config.fees,
+      plan,
+      allowance?.extraPence ?? 0,
+      restaurants,
+    );
 
     const symbol = config.store.currencySymbol;
     if (priced.parts.length > 1) return basketChoice(priced, allowance);
@@ -78,8 +88,13 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
       allowanceExtraPence: priced.allowanceExtraPence,
       totalPence: priced.totalPence,
       deliveryPlan: priced.plan,
-      ...allowanceFields(allowance),
+      ...allowanceFields(priced.restaurant ? null : allowance),
       carNeeded,
+      // The restaurant it is from, or null for groceries. The counter price is the Runner's and
+      // Ozi's business, so it is not told to the Shopper: they see and pay shop prices.
+      restaurant: priced.restaurant
+        ? { shopId: priced.restaurant.shopId, name: priced.restaurant.name }
+        : null,
       lines: priced.lines,
       // Said in words as well as pence, so a screen reader, a large text setting or a
       // future voice reply all have something plain to read out.
@@ -93,8 +108,10 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
       },
       explanation: [
         `The shopping is about ${formatPence(shopping, symbol)}, with the item charges included: ${formatPence(priced.goodsPence, symbol)} at the shop's prices and ${formatPence(priced.itemChargesPence, symbol)} of item charges.`,
-        `Delivery is ${formatPence(priced.feePence, symbol)}.`,
-        ...(allowance?.words ? [allowance.words] : []),
+        priced.restaurant
+          ? `The restaurant fee is ${formatPence(priced.feePence, symbol)}, in place of delivery.`
+          : `Delivery is ${formatPence(priced.feePence, symbol)}.`,
+        ...(allowance?.words && !priced.restaurant ? [allowance.words] : []),
         `So about ${formatPence(priced.totalPence, symbol)} altogether.`,
         'You pay what the till says for the shopping, so the total may change a little.',
         ...(carNeeded ? [largeOrderShopperWords(config, priced.goodsPence)] : []),

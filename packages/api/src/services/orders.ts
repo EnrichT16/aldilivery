@@ -7,7 +7,12 @@
  * test, and every path to a payment goes through it.
  */
 
-import { canTransition, type OrderStatus } from '@aldilivery/core';
+import {
+  canTransition,
+  counterPricePence,
+  shopPriceFromCounterPence,
+  type OrderStatus,
+} from '@aldilivery/core';
 
 import { BadRequestError, ConfirmationRequiredError, ConflictError } from '../errors.js';
 
@@ -66,6 +71,24 @@ export interface Repricing {
   differenceFromEstimatePence: number;
 }
 
+/** What the order says about a restaurant, if it is from one (Anthony, 30 October 2026). */
+interface RestaurantSide {
+  goodsEstimatePence: number;
+  restaurantShopId?: string | null;
+  restaurantDiscountPercent?: number;
+}
+
+/**
+ * What the till is expected to say: the shopping at shop prices, or, for a restaurant that agreed
+ * a discount for Ozi, the shop prices less that discount, which is what the Runner pays at the
+ * counter. Every check on the Runner's side reads this: what they are told to pay, the till
+ * total check, what their spending card is loaded with and what they are paid back.
+ */
+export function tillExpectedPence(order: RestaurantSide): number {
+  if (!order.restaurantShopId) return order.goodsEstimatePence;
+  return counterPricePence(order.goodsEstimatePence, order.restaurantDiscountPercent ?? 0);
+}
+
 /**
  * Reprice an order to the receipt the Runner actually got at the till.
  *
@@ -75,11 +98,15 @@ export interface Repricing {
  * which goes to the shop. The maximum basket is not applied here: it was checked when the order
  * was placed, and a shelf price a few pence above the estimate must never stop an order that is
  * already in the Runner's hands.
+ *
+ * A restaurant order (Anthony, 30 October 2026): the receipt is what the Runner paid at the
+ * counter, the shop prices less the discount the restaurant agreed for Ozi. The Shopper still
+ * pays shop prices: the shop-price value of what was paid (exactly the shop prices agreed to,
+ * when it was exactly what was expected). Ozi keeps the difference between the two.
  */
 export function repriceToReceipt(
   receiptTotalPence: number,
-  order: {
-    goodsEstimatePence: number;
+  order: RestaurantSide & {
     itemChargesPence: number;
     feePence: number;
     allowanceExtraPence?: number;
@@ -90,15 +117,18 @@ export function repriceToReceipt(
   }
 
   const receiptFeePence = order.feePence;
+  const shopGoodsPence = order.restaurantShopId
+    ? shopPriceFromCounterPence(receiptTotalPence, {
+        shopPricePence: order.goodsEstimatePence,
+        discountPercent: order.restaurantDiscountPercent ?? 0,
+      })
+    : receiptTotalPence;
   return {
     receiptTotalPence,
     receiptFeePence,
     finalTotalPence:
-      receiptTotalPence +
-      order.itemChargesPence +
-      receiptFeePence +
-      (order.allowanceExtraPence ?? 0),
-    differenceFromEstimatePence: order.goodsEstimatePence - receiptTotalPence,
+      shopGoodsPence + order.itemChargesPence + receiptFeePence + (order.allowanceExtraPence ?? 0),
+    differenceFromEstimatePence: tillExpectedPence(order) - receiptTotalPence,
   };
 }
 

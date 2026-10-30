@@ -12,7 +12,9 @@
  * - Shop of the Month, of the Quarter and of the Half Year: among approved Shop Partners on
  *   paid Partner Plus, with at least `shopOfTheMonthMinimumReviews` reviews in the period,
  *   ranked by a balanced score: (reviews × mean + prior × global mean) / (reviews + prior), so
- *   a shop with two five-star reviews does not beat one with forty at 4.8.
+ *   a shop with two five-star reviews does not beat one with forty at 4.8. An Ozi Preferred
+ *   Partner has Partner Plus free, so it can win too, and wins a tie on the score (Anthony, 30
+ *   October 2026): the Shoppers' ratings still decide, and the preference only settles a draw.
  *
  * Every figure comes from `feedback.reviews` in config/store.json. Nothing here names a shop.
  */
@@ -21,6 +23,7 @@ import type { FastifyBaseLogger } from 'fastify';
 
 import type { AppContext } from '../app.js';
 import type { Order, PartnerShop, ShopReview } from '../domain.js';
+import { preferredPartner } from '../lib/partner-standing.js';
 
 const DAY_MS = 24 * 3600 * 1000;
 
@@ -91,9 +94,14 @@ export function monthKey(at: Date): string {
 /**
  * Approved, not paused, and on Partner Plus with the month paid: the shops that can win (ruling
  * 65). A shop marked Plus whose month has run out, or was never paid, cannot (Anthony, 30
- * October 2026).
+ * October 2026). An Ozi Preferred Partner has Partner Plus free, so it can.
  */
-export function eligibleForAward(shop: PartnerShop, at: Date): boolean {
+export function eligibleForAward(
+  shop: PartnerShop,
+  at: Date,
+  config: AppContext['config'],
+): boolean {
+  if (preferredPartner(shop, config)) return true;
   return (
     shop.status === 'approved' &&
     shop.active &&
@@ -304,6 +312,8 @@ export interface Standing {
   score: number;
   /** Enough reviews in the period to win. */
   qualifies: boolean;
+  /** An Ozi Preferred Partner: it wins a tie on the score. */
+  preferred: boolean;
 }
 
 export interface Standings {
@@ -337,7 +347,7 @@ export async function standingsFor(
   const prior = config.feedback.reviews.shopOfTheMonthPriorWeight;
   const shops = new Map(
     (await repository.partnerShops.list())
-      .filter((shop) => eligibleForAward(shop, at))
+      .filter((shop) => eligibleForAward(shop, at, config))
       .map((shop) => [shop.id, shop] as const),
   );
   const reviews = (await repository.shopReviews.listBetween(period.since, period.until)).filter(
@@ -360,12 +370,14 @@ export async function standingsFor(
         average: Math.round(mean * 10) / 10,
         score: Math.round(balancedScore(stars.length, mean, globalMean, prior) * 100) / 100,
         qualifies: stars.length >= minimumReviews,
+        preferred: preferredPartner(shops.get(shopId)!, config),
       };
     })
     .sort(
       (a, b) =>
         Number(b.qualifies) - Number(a.qualifies) ||
         b.score - a.score ||
+        Number(b.preferred) - Number(a.preferred) ||
         b.reviews - a.reviews ||
         a.shop.name.localeCompare(b.shop.name),
     );

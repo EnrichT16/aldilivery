@@ -190,6 +190,38 @@ describe('the retention periods on the privacy page', () => {
     expect((await sweepRetention(harness.app.ctx)).analyticsRemoved).toBe(1);
   });
 
+  it('removes the record of checkouts not completed after 12 months, keeping other figures', async () => {
+    const row = {
+      shopperKey: 'someone',
+      runnerKey: null,
+      shop: null,
+      area: null,
+      toArea: 'ME7',
+      ageBand: null,
+      viaOrganisation: false,
+      itemCount: 2,
+      goodsPence: 1500,
+      categories: '',
+      query: null,
+      travelMode: null,
+    };
+    await harness.repository.analytics.record({
+      ...row,
+      at: START,
+      kind: 'checkout_viewed',
+      totalPence: 2800,
+    });
+    await harness.repository.analytics.record({ ...row, at: START, kind: 'order_paid' });
+    harness.setNow(later(364));
+    expect((await sweepRetention(harness.app.ctx)).checkoutEventsRemoved).toBe(0);
+    harness.setNow(later(366));
+    const report = await sweepRetention(harness.app.ctx);
+    expect(report.checkoutEventsRemoved).toBe(1);
+    expect(report.analyticsRemoved).toBe(0);
+    const left = await harness.repository.analytics.list({ since: new Date(0) });
+    expect(left.map((event) => event.kind)).toEqual(['order_paid']);
+  });
+
   it('makes orders anonymous after seven years, keeping the money, and removes the receipt photo', async () => {
     const orderId = await placeOrder();
     // The in-memory store stamps an order with the real clock, not the test's; pinned to the

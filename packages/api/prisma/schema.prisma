@@ -468,6 +468,11 @@ model Order {
   /// 0. In the total; not shop goods; kept by the business, never the Runner's.
   allowanceExtraPence Int    @default(0)
   totalEstimatePence Int
+  /// A restaurant, café or takeaway order (Anthony, 30 October 2026): the partner it is from, and
+  /// the discount it agreed for Ozi when the order was placed. The Shopper pays shop prices; the
+  /// Runner pays the restaurant the discounted amount at the counter; Ozi keeps the difference.
+  restaurantShopId          String?
+  restaurantDiscountPercent Int     @default(0)
   /// Which delivery price applied: "payg", "membership" or "plus".
   deliveryPlan       String  @default("payg")
   /// Family and Carer: who pays (the payer's card, "one card pays"), and an order above the
@@ -1250,6 +1255,10 @@ model PartnerShop {
   ambassadorId   String?
   /// Another listing of the same business, marked by staff: each branch is its own venture.
   branchOfShopId String?
+  /// A restaurant's agreed discount for Ozi, a whole percentage (Anthony, 30 October 2026): it
+  /// sells to Ozi at its shop price less this. 0 for none, and for every shop and service. At
+  /// restaurants.preferredDiscountPercent or more it is an Ozi Preferred Partner.
+  agreedDiscountPercent Int @default(0)
 
   @@index([ambassadorKind, ambassadorId])
 }
@@ -1369,6 +1378,19 @@ model AnalyticsEvent {
   categories      String   @default("")
   query           String?
   travelMode      String?
+  /// Checkout insights (Anthony, 30 October 2026): on checkout_viewed and checkout_paid rows, the
+  /// breakdown the Shopper was shown (goodsPence above, then these), whether it was a restaurant
+  /// order, whether the no-Runner warning was shown, a returning Shopper or a new one, and how
+  /// they ordered (web, voice or phone). On a checkout_reason row, the answer they tapped. Never
+  /// a card detail.
+  itemChargesPence Int?
+  feePence         Int?
+  totalPence       Int?
+  restaurant       Boolean?
+  noRunnerWarning  Boolean?
+  returning        Boolean?
+  channel          String?
+  answer           String?
 
   @@index([at])
   @@index([kind, at])

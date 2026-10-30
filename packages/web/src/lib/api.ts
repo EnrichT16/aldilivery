@@ -16,12 +16,19 @@ export interface CatalogueItem {
   name: string;
   category: string;
   estimatedPricePence: number;
+  /**
+   * The restaurant, café or takeaway a dish is from (Anthony, 30 October 2026), or null for
+   * everything else. A basket of one restaurant's dishes is a restaurant order.
+   */
+  restaurant?: { shopId: string; name: string } | null;
 }
 
 export interface CatalogueResult {
   items: CatalogueItem[];
   attribution: string;
   source: string;
+  /** Said with the results when a Preferred Partner's dish is ranked first (CMA). */
+  ranking?: string | null;
 }
 
 /**
@@ -144,7 +151,12 @@ export function searchCatalogue(query: string): Promise<CatalogueResult> {
  */
 export type ItemSuggestion =
   | { outcome: 'found' | 'added'; item: CatalogueItem }
-  | { outcome: 'shops'; reply: string; shops: Array<{ id: string; name: string }> }
+  | {
+      outcome: 'shops';
+      reply: string;
+      /** Ozi Preferred Partners first, each marked (30 October 2026). */
+      shops: Array<{ id: string; name: string; preferred?: boolean }>;
+    }
   | { outcome: 'refused'; reply: string }
   | { outcome: 'unknown' };
 
@@ -163,6 +175,44 @@ export interface BasketPrice {
   allowanceExtraPence?: number;
   totalPence: number;
   explanation: string[];
+}
+
+/**
+ * Checkout insights (30 October 2026): the Confirm page says it was reached, with the breakdown it
+ * showed. Never a card detail. A failure never stops the checkout.
+ */
+export function recordCheckoutViewed(view: {
+  goodsPence: number;
+  itemChargesPence: number;
+  feePence: number;
+  totalPence: number;
+  restaurant: boolean;
+  area: string;
+  noRunnerWarning: boolean;
+  channel: 'web' | 'voice';
+}): Promise<{ recorded: boolean }> {
+  return request('/checkout/viewed', { method: 'POST', body: JSON.stringify(view) });
+}
+
+export type CheckoutReason = 'price' | 'looking' | 'no_runner' | 'other';
+
+/** Whether to ask "Can we ask what stopped you?" now: at most once a day, said by the server. */
+export function askWhyStopped(): Promise<{
+  ask: boolean;
+  question: string;
+  answers: Array<{ answer: CheckoutReason; label: string }>;
+}> {
+  return request('/checkout/why/ask', { method: 'POST', body: JSON.stringify({}) });
+}
+
+/** The answer tapped. Skipping sends nothing. */
+export function answerWhyStopped(input: {
+  answer: CheckoutReason;
+  restaurant: boolean;
+  totalPence: number;
+  area: string;
+}): Promise<{ recorded: boolean; message: string }> {
+  return request('/checkout/why', { method: 'POST', body: JSON.stringify(input) });
 }
 
 export function priceBasketRemotely(
@@ -748,7 +798,10 @@ export interface CurrentJob {
   deliveryAddress: string;
   doorstepProtocol: string;
   substitutionDefault: SubstitutionChoice;
+  /** What to pay at the till: for a restaurant with an agreed discount, the counter price. */
   goodsEstimatePence: number;
+  /** A restaurant order (30 October 2026): what to pay at the counter, in plain words. */
+  counterWords?: string | null;
   receiptTotalPence: number | null;
   runnerPaymentPence: number;
   /** Paying them back for the shopping (ruling 55): how much, and where it has got to. */
@@ -1422,7 +1475,9 @@ export type StaffArea =
   | 'messages'
   /** Each UK area, whether it is running, and pausing it (30 October 2026). */
   | 'areas'
-  | 'referrals';
+  | 'referrals'
+  /** Checkout insights: why people do not pay (30 October 2026). */
+  | 'insights';
 
 /** Where someone's two-step codes stand (Section Q). */
 export interface StaffTwoStep {
@@ -1962,6 +2017,14 @@ function businessRequest<T>(path: string, init?: RequestInit): Promise<T> {
   return request<T>(path, { ...init, headers: { 'x-business-token': businessToken() } });
 }
 
+/** An Ozi Preferred Partner takes its free Spotlight week for this month (30 October 2026). */
+export function takeFreeSpotlightWeek(): Promise<{ until: string; message: string }> {
+  return businessRequest('/partner/spotlight/free-week', {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
 export interface BusinessMe {
   kind: 'partner' | 'organisation';
   name: string;
@@ -2031,12 +2094,17 @@ export interface ServiceEnquiryRow {
   contact?: string;
 }
 
-export interface PartnerCommission {
-  basisPoints: number;
-  words: string;
+/**
+ * A restaurant, café or takeaway's own figures (Anthony, 30 October 2026): no commission, ever;
+ * its agreed discount for Ozi, whether it is a Preferred Partner, and this month's orders.
+ */
+export interface PartnerRestaurant {
+  discountPercent: number;
+  preferred: boolean;
+  preferredDiscountPercent: number;
   ordersThisMonth: number;
   goodsThisMonthPence: number;
-  owedThisMonthPence: number;
+  words: string;
 }
 
 export interface PartnerDashboard extends PartnerExtras {
@@ -2067,7 +2135,7 @@ export interface PartnerDashboard extends PartnerExtras {
     canAddProduct: boolean;
     words: string;
   };
-  commission: PartnerCommission | null;
+  restaurant: PartnerRestaurant | null;
   enquiries: ServiceEnquiryRow[];
   counts: { live: number; waiting: number; notAccepted: number };
   products: PartnerProductRow[];
@@ -2081,7 +2149,9 @@ export interface PartnerJoinOptions {
   freeProductLimit: number;
   plusMonthlyPence: number;
   plusFirstMonthFree: boolean;
-  foodCommissionWords: string;
+  /** Restaurants: the flat restaurant fee and smallest order, in words (30 October 2026). */
+  restaurantWords: string;
+  preferredDiscountPercent: number;
   spotlightPence: number;
   spotlightPlusPence: number;
   excludedServiceKinds: string[];
@@ -2294,6 +2364,8 @@ export interface PublicShop {
   awards?: string[];
   /** On paid Partner Plus: first among shops at the same distance (ruling 75). */
   partnerPlus?: boolean;
+  /** An Ozi Preferred Partner (30 October 2026): listed first, with a badge. */
+  preferredPartner?: boolean;
   /** Which of the four pages it is on (ruling 82). */
   section?: BrowseSection;
   cuisines?: string[];
@@ -2320,7 +2392,7 @@ export interface ShopsQuery {
 
 export function fetchShops(
   query: ShopsQuery = {},
-): Promise<{ shops: PublicShop[]; near?: string | null }> {
+): Promise<{ shops: PublicShop[]; near?: string | null; ranking?: string | null }> {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
     if (typeof value === 'string' && value.trim() !== '') params.set(key, value.trim());
@@ -2471,6 +2543,9 @@ export interface StaffPartners {
       users: Array<{ id: string; name: string; username: string }>;
       /** Another listing of the same business it is a branch of (30 October 2026), or null. */
       branchOfShopId?: string | null;
+      /** A restaurant's agreed discount for Ozi, a whole percentage (30 October 2026). */
+      agreedDiscountPercent?: number;
+      preferredPartner?: boolean;
     } & Partial<BrowseFields>
   >;
   organisations: Array<{
@@ -2484,7 +2559,9 @@ export interface StaffPartners {
   freeListingCount: number;
   freeListed: number;
   freeProductLimit: number;
-  foodCommissionWords: string;
+  restaurantWords: string;
+  preferredDiscountPercent: number;
+  maximumDiscountPercent: number;
   spotlightPence: number;
   spotlightPlusPence: number;
   /** How many shops config/shops-seed.json names. */
@@ -2607,6 +2684,8 @@ export interface PartnerExtras {
     level: 'none' | 'spotlight' | 'plus';
     until: string | null;
     mentionsThisMonth: number;
+    /** An Ozi Preferred Partner's free Spotlight week this month, still to take. */
+    freeWeekLeft?: boolean;
     prices: {
       spotlightPence: number;
       plusPence: number;
@@ -2648,6 +2727,87 @@ export interface Advert {
 
 export function fetchAdvert(query: string): Promise<{ advert: Advert | null }> {
   return request(`/spotlight?q=${encodeURIComponent(query)}`);
+}
+
+/** Staff set a restaurant's agreed discount for Ozi, a whole percentage (30 October 2026). */
+export function setStaffPartnerDiscount(
+  key: string,
+  id: string,
+  agreedDiscountPercent: number,
+): Promise<unknown> {
+  return staffRequest(key, `/staff/partners/${encodeURIComponent(id)}`, {
+    method: 'POST',
+    body: JSON.stringify({ agreedDiscountPercent }),
+  });
+}
+
+/** Staff give a Preferred Partner its free Spotlight week for this month (30 October 2026). */
+export function grantFreeSpotlightWeek(key: string, id: string): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/partners/${encodeURIComponent(id)}/free-spotlight-week`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+/** One restaurant partner on the staff list (30 October 2026). */
+export interface StaffRestaurantRow {
+  id: string;
+  name: string;
+  area: string;
+  listed: boolean;
+  discountPercent: number;
+  preferredPartner: boolean;
+  ordersLast30Days: number;
+}
+
+export type StaffRestaurantSort = 'name' | 'discount' | 'preferred' | 'orders';
+
+export interface StaffRestaurants {
+  restaurants: StaffRestaurantRow[];
+  sort: StaffRestaurantSort;
+  order: 'asc' | 'desc';
+  preferredDiscountPercent: number;
+  withDiscount: number;
+  withoutDiscount: number;
+  preferred: number;
+}
+
+export function fetchStaffRestaurants(
+  key: string,
+  sort: StaffRestaurantSort,
+  order: 'asc' | 'desc',
+): Promise<StaffRestaurants> {
+  return staffRequest(key, `/staff/restaurants?sort=${sort}&order=${order}`);
+}
+
+/** One row of the Checkout insights page. */
+export interface InsightRow {
+  label: string;
+  viewed: number;
+  paid: number;
+  abandoned: number;
+  paidPercent: number | null;
+}
+
+export interface CheckoutInsights {
+  days: number;
+  periods: number[];
+  viewed: number;
+  paid: number;
+  abandoned: number;
+  paidPercent: number | null;
+  byTotal: InsightRow[];
+  byKind: InsightRow[];
+  byArea: InsightRow[];
+  byWarning: InsightRow[];
+  byShopper: InsightRow[];
+  byChannel: InsightRow[];
+  reasons: Array<{ answer: string; label: string; count: number }>;
+  summary: string;
+}
+
+export function fetchCheckoutInsights(key: string, days: number): Promise<CheckoutInsights> {
+  return staffRequest(key, `/staff/checkout-insights?days=${days}`);
 }
 
 export function recordStaffPartnerPayment(

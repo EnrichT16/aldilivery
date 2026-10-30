@@ -142,6 +142,26 @@ export class BasketTooLargeError extends ApiError {
   }
 }
 
+/**
+ * A restaurant basket below the smallest restaurant order (Anthony, 30 October 2026). It cannot
+ * be sent; the words come from `restaurantMinimumWords` in core, every figure from config.
+ */
+export class RestaurantMinimumError extends ApiError {
+  constructor(message: string, goodsPence: number, minimumPence: number) {
+    super(422, 'restaurant_minimum', message, { goodsPence, minimumPence });
+  }
+}
+
+/**
+ * Restaurant dishes with other shopping, or dishes from two restaurants, in one basket (Anthony,
+ * 30 October 2026): each restaurant order goes on its own. The words are `RESTAURANT_MIXED_WORDS`.
+ */
+export class RestaurantMixedError extends ApiError {
+  constructor(message: string) {
+    super(422, 'restaurant_mixed', message);
+  }
+}
+
 /** One product dearer than any one product may be (ruling 58: no single product over £60). */
 export class ProductTooDearError extends ApiError {
   constructor(names: string[], maximumPence: number) {

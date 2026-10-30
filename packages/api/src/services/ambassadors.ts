@@ -12,9 +12,10 @@
  *
  * - 2% (`profitShare`, ruled at 2%) of Ozi's profit on every order from that business, for 12
  *   months from when it was approved. Ozi's profit is the item charges on a shop's order (the
- *   item charges on that shop's things in it), or the commission on a café's or restaurant's
- *   (10% of the goods, the commission routes/business.ts shows the café, matched by its
- *   partnerShopId). Never the delivery fee. Only approved businesses with real orders earn.
+ *   item charges on that shop's things in it). On a restaurant's, café's or takeaway's order it
+ *   is the restaurant's agreed discount for Ozi plus the item charges on its dishes (Anthony, 30
+ *   October 2026: restaurants pay no commission any more). Never the delivery fee, and never
+ *   the restaurant fee. Only approved businesses with real orders earn.
  * - Each branch (each listing) is its own venture. The branch the Ambassador introduced earns the
  *   full share; another branch of the same business that joined through the same Ambassador's
  *   link earns `branchShareFactor` (a quarter, ruled 30 October 2026; it was half) of it; a
@@ -60,9 +61,10 @@ import {
   ambassadorPlanSharePence,
   ambassadorShareEnds,
   ambassadorSharePence,
-  commissionPence,
   formatPence,
   itemChargePence,
+  isRestaurantKind,
+  restaurantProfitPence,
   rewardWords,
   withinAmbassadorMonths,
 } from '@aldilivery/core';
@@ -171,10 +173,10 @@ export async function tieAmbassador(
 
 /**
  * Ozi's profit on one order from each Shop Partner in it, from the order's final state: the item
- * charges on that shop's things as the Shopper was charged them, or a café's or restaurant's
- * commission on what the Runner really paid for them at the till (`actualPricePence`, the
- * estimate only where no till price was given). Never the delivery fee. Things the Runner could
- * not get are left out.
+ * charges on that shop's things as the Shopper was charged them; for a restaurant, café or
+ * takeaway, its agreed discount for Ozi on the dishes at shop prices (the discount agreed when
+ * the order was placed) plus those item charges (Anthony, 30 October 2026). Never the delivery
+ * fee or the restaurant fee. Things the Runner could not get are left out.
  */
 export async function profitByShop(
   ctx: Pick<AppContext, 'repository' | 'config'>,
@@ -195,9 +197,9 @@ export async function profitByShop(
   for (const item of items) {
     const shopId = shopOf.get(item.catalogueItemId ?? '');
     if (!shopId) continue;
-    // As the receipt has it: the shop price paid, and the item charge on the price shown.
+    // The dishes at the shop prices the Shopper paid, and the item charge on the price shown.
     const line = lines.get(shopId) ?? { goods: 0, charges: 0 };
-    line.goods += (item.actualPricePence ?? item.estimatedPricePence) * item.quantity;
+    line.goods += item.estimatedPricePence * item.quantity;
     line.charges += itemChargePence(item.estimatedPricePence, config.fees) * item.quantity;
     lines.set(shopId, line);
   }
@@ -205,10 +207,12 @@ export async function profitByShop(
   for (const [shopId, line] of lines) {
     const shop = await repository.partnerShops.findById(shopId);
     if (!shop) continue;
-    const profitPence =
-      shop.kind === 'food'
-        ? commissionPence(line.goods, config.extras.partners.foodCommissionBasisPoints)
-        : line.charges;
+    // The discount agreed when the order was placed; an order from before restaurant pricing
+    // has none, so its profit is the item charges alone.
+    const discount = order.restaurantShopId === shopId ? order.restaurantDiscountPercent : 0;
+    const profitPence = isRestaurantKind(shop.kind)
+      ? restaurantProfitPence(line.goods, discount, line.charges)
+      : line.charges;
     result.set(shopId, { shop, profitPence });
   }
   return result;

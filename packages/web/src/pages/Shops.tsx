@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { preferredRankingWords } from '@aldilivery/core';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { storeConfig } from '../config';
@@ -19,6 +20,8 @@ import {
   awardWords,
   deliveryFromWords,
   NOT_A_PARTNER_WORDS,
+  PREFERRED_PARTNER_WORDS,
+  restaurantFeeShortWords,
   REVIEW_POINTS_WORDS,
   SHOP_PRICES_WORDS,
   showsShopPrices,
@@ -172,6 +175,8 @@ export function ShopPage(): JSX.Element {
     );
   }
   const service = page.shop.kind === 'service';
+  // A restaurant, café or takeaway (30 October 2026): its orders have the restaurant fee.
+  const food = page.shop.kind === 'food';
   const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
   const look = shopLook(page.shop.kind);
   const groups = productGroups(page.products, service ? 'Services' : 'Products');
@@ -213,6 +218,15 @@ export function ShopPage(): JSX.Element {
               {awardWords(award)}
             </li>
           ))}
+          {page.shop.preferredPartner && (
+            <li
+              className="rounded-full px-3 py-0.5 font-bold leading-snug"
+              style={{ background: '#FFE9A8' }}
+            >
+              <span aria-hidden="true">★ </span>
+              {PREFERRED_PARTNER_WORDS}
+            </li>
+          )}
           {showsShopPrices(page.shop.kind) && (
             <li
               className="rounded-full px-3 py-0.5 font-bold leading-snug"
@@ -224,6 +238,9 @@ export function ShopPage(): JSX.Element {
         </ul>
         {(page.shop.awards ?? []).length > 0 && (
           <p className="m-0 card-muted">{REVIEW_POINTS_WORDS}</p>
+        )}
+        {page.shop.preferredPartner && (
+          <p className="m-0 card-muted">{preferredRankingWords(storeConfig.assistantName)}</p>
         )}
         {page.shop.about && <p className="m-0">{page.shop.about}</p>}
         {[
@@ -255,12 +272,18 @@ export function ShopPage(): JSX.Element {
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl border-2 border-paper/40 p-3">
           <p className="m-0 text-lead font-bold leading-tight">
-            {service ? 'Nothing to pay here' : deliveryFromWords()}
+            {service
+              ? 'Nothing to pay here'
+              : food
+                ? restaurantFeeShortWords()
+                : deliveryFromWords()}
           </p>
           <p className="m-0 text-paper/90 leading-snug">
             {service
               ? `Not through ${storeConfig.productName}`
-              : 'Depends on your plan and how much you buy'}
+              : food
+                ? `In place of delivery, on every plan. Smallest order ${money(storeConfig.restaurants.minimumOrderPence)}`
+                : 'Depends on your plan and how much you buy'}
           </p>
         </div>
         <div className="rounded-2xl border-2 border-paper/40 p-3">

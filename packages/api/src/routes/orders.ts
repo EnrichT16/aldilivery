@@ -30,7 +30,12 @@ import {
 } from '../errors.js';
 import type { Order, PaymentMethod, Shopper } from '../domain.js';
 import { cardAccepted } from '../lib/card-region.js';
-import { priceLinesInParts, type PricedBasketInParts } from '../services/basket.js';
+import {
+  priceLinesInParts,
+  restaurantsOf,
+  type PricedBasketInParts,
+  type RestaurantLookup,
+} from '../services/basket.js';
 import {
   alertTinyExtras,
   basketGroup,
@@ -210,13 +215,18 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     catalogueItems: Parameters<typeof priceLinesInParts>[1],
     plan: Parameters<typeof priceLinesInParts>[3],
     allowanceExtraPence: number,
+    restaurants: RestaurantLookup,
   ): PricedBasketInParts {
+    // A restaurant order (Anthony, 30 October 2026) is priced with the flat restaurant fee and
+    // its smallest order, and is refused when mixed with other shopping, before anything is
+    // written or charged.
     const priced = priceLinesInParts(
       input.lines,
       catalogueItems,
       config.fees,
       plan,
       allowanceExtraPence,
+      restaurants,
     );
     if (priced.parts.length > 1 && !input.keepEverything) {
       const money = (pence: number) => formatPence(pence, symbol);
@@ -271,6 +281,14 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
           // Ruling 73: the extra delivery charge past the monthly allowance, on the first only.
           allowanceExtraPence: part.allowanceExtraPence,
           totalEstimatePence: part.totalPence,
+          // A restaurant order keeps its restaurant and the discount agreed now, so the Runner
+          // pays the discounted amount at the counter (Anthony, 30 October 2026).
+          ...(priced.restaurant
+            ? {
+                restaurantShopId: priced.restaurant.shopId,
+                restaurantDiscountPercent: priced.restaurant.discountPercent,
+              }
+            : {}),
           ...(linked
             ? {
                 ...(created[0] ? { basketGroupId: created[0].id } : {}),
@@ -362,6 +380,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       catalogueItems,
       await deliveryPlanFor(app.ctx, shopper, now()),
       allowance.extraPence,
+      await restaurantsOf(app.ctx, catalogueItems),
     );
     const booking = bookingFor(input, priced.parts.length);
     if (!input.overrideBudgetCap && exceedsBudgetCap(priced.goodsPence, shopper.budgetCapPence)) {
@@ -371,7 +390,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     }
     if (input.confirmation.agreedTotalPence !== priced.totalPence) {
       throw new BadRequestError(
-        `The price changed while you were deciding. It is now ${formatPence(priced.totalPence, symbol)}.${allowance.extraPence > 0 && allowance.words ? ` ${allowance.words}` : ''} Nothing has been charged. Please check it and confirm again.`,
+        `The price changed while you were deciding. It is now ${formatPence(priced.totalPence, symbol)}.${priced.allowanceExtraPence > 0 && allowance.words ? ` ${allowance.words}` : ''} Nothing has been charged. Please check it and confirm again.`,
         { agreedTotalPence: input.confirmation.agreedTotalPence, totalPence: priced.totalPence },
       );
     }
@@ -539,6 +558,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       catalogueItems,
       await deliveryPlanFor(app.ctx, shopper, now()),
       allowance.extraPence,
+      await restaurantsOf(app.ctx, catalogueItems),
     );
     const booking = bookingFor(input, priced.parts.length);
 
@@ -553,7 +573,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     // different amount from the one they confirmed.
     if (input.confirmation.agreedTotalPence !== priced.totalPence) {
       throw new BadRequestError(
-        `The price changed while you were deciding. It is now ${formatPence(priced.totalPence, symbol)}.${allowance.extraPence > 0 && allowance.words ? ` ${allowance.words}` : ''} Nothing has been charged. Please check it and confirm again.`,
+        `The price changed while you were deciding. It is now ${formatPence(priced.totalPence, symbol)}.${priced.allowanceExtraPence > 0 && allowance.words ? ` ${allowance.words}` : ''} Nothing has been charged. Please check it and confirm again.`,
         { agreedTotalPence: input.confirmation.agreedTotalPence, totalPence: priced.totalPence },
       );
     }

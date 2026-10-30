@@ -39,6 +39,7 @@ import {
   type PhraseAccount,
   type PhraseBook,
 } from '../lib/phrases.js';
+import { rankedForListing } from '../lib/partner-standing.js';
 import { staffActor } from '../lib/staff.js';
 
 const body = z.object({
@@ -159,9 +160,14 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
   };
 
   /** The shops whose pages are public right now (ruling 65). */
+  /** Listed shops, Ozi Preferred Partners first (Anthony, 30 October 2026), then the rest. */
   async function listedShops(): Promise<PartnerShop[]> {
-    return (await repository.partnerShops.list()).filter(
-      (shop) => shop.active && shop.status === 'approved',
+    return rankedForListing(
+      (await repository.partnerShops.list()).filter(
+        (shop) => shop.active && shop.status === 'approved',
+      ),
+      now(),
+      config,
     );
   }
 

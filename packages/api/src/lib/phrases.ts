@@ -16,7 +16,6 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import {
-  basisPointsWords,
   deliverySteps,
   ordinalWord,
   deliveryStepsWords,
@@ -109,7 +108,11 @@ export const BLANKS = [
   'partnerPlus',
   'freeShops',
   'freeProducts',
-  'foodCommission',
+  // Restaurant pricing (Anthony, 30 October 2026), from `restaurants` in the settings: the flat
+  // restaurant fee, the smallest restaurant order, and the discount for a Preferred Partner.
+  'restaurantFee',
+  'restaurantMinimum',
+  'preferredDiscount',
   'spotlight',
   'spotlightPlus',
   // Review points and Shop of the Month (ruling 70), from feedback.reviews in the settings.
@@ -312,7 +315,9 @@ export function fillIn(
     partnerPlus: money(config.extras.partners.plusMonthlyPence),
     freeShops: String(config.extras.partners.freeListingCount),
     freeProducts: String(config.extras.partners.freeProductLimit),
-    foodCommission: basisPointsWords(config.extras.partners.foodCommissionBasisPoints),
+    restaurantFee: money(config.restaurants.feePence).replace(/\.00$/, ''),
+    restaurantMinimum: money(config.restaurants.minimumOrderPence).replace(/\.00$/, ''),
+    preferredDiscount: `${config.restaurants.preferredDiscountPercent}%`,
     spotlight: money(config.extras.spotlightPence),
     spotlightPlus: money(config.extras.spotlightPlusPence),
     reviewPoints: String(config.feedback.reviews.pointsPerReview),

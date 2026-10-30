@@ -13,6 +13,7 @@ import {
 import { moneyIn, moneyOut } from '../lib/alert';
 
 import { NoRunnerWarning } from '../components/NoRunnerWarning';
+import { leftCheckout } from '../components/WhyStopped';
 import { NotifyMe } from '../components/NotifyMe';
 import { OverOneRunner } from '../components/OverOneRunner';
 import { PinGate } from '../components/PinGate';
@@ -26,6 +27,7 @@ import {
   listPaymentMethods,
   markAreaWarned,
   priceBasketRemotely,
+  recordCheckoutViewed,
   saveAddress,
   updateMe,
   type AddressBook,
@@ -53,10 +55,16 @@ import { useSession } from '../state/session';
  * server prices the basket again from its own catalogue and refuses the whole order if the
  * figure has moved. A price that changed while somebody was deciding is a reason to ask
  * again, not a reason to charge a different amount.
+ *
+ * Every figure is on this page before the button: the shopping at shop prices, the item charges,
+ * delivery or the restaurant fee, any extra delivery charge, and the total (Anthony, 30 October
+ * 2026, checked for the checkout insights). Reaching it is recorded with that breakdown, the kind
+ * of order, the area, the no-Runner warning and new or returning; leaving it without paying lets
+ * "Can we ask what stopped you?" be asked, once a day at most (components/WhyStopped.tsx).
  */
 export function Confirm(): JSX.Element {
   const basket = useBasket();
-  const { lines, overMaximum, overOneRunner, parts, clear } = basket;
+  const { lines, overMaximum, overOneRunner, parts, clear, restaurant, restaurantProblem } = basket;
   /**
    * When it comes, and when the money is taken (ruling 78). Today unless the Shopper chooses a
    * later day. A day in another month counts towards that month's allowance (ruling 73), so the
@@ -144,6 +152,8 @@ export function Confirm(): JSX.Element {
    * greyed out because of it. Asked as soon as the address is shown; shown nowhere else.
    */
   const [noRunner, setNoRunner] = useState(false);
+  /** The area's answer is in (or there is no postcode to ask about): for the checkout insights. */
+  const [areaKnown, setAreaKnown] = useState(false);
   const [warningOpen, setWarningOpen] = useState(false);
   const warnedFor = useRef<string | null>(null);
   const payButton = useRef<HTMLButtonElement | null>(null);
@@ -151,13 +161,19 @@ export function Confirm(): JSX.Element {
   const postcode = postcodeIn(address);
   useEffect(() => {
     setNoRunner(false);
-    if (postcode === '') return undefined;
+    if (postcode === '') {
+      setAreaKnown(true);
+      return undefined;
+    }
     let cancelled = false;
     checkArea(postcode)
       .then((result) => {
         if (!cancelled && result.warn === true) setNoRunner(true);
       })
-      .catch(() => undefined);
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setAreaKnown(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -269,8 +285,58 @@ export function Confirm(): JSX.Element {
   const bookingWords = later ? ` ${scheduleAgreementWords(choice, storeConfig.scheduled)}` : '';
   const baseStatement = overOneRunner
     ? `Send my order and pay. About ${money(pricing.totalPence)} altogether, as ${parts.length} orders each with its own Runner: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}, of which ${money(extraDeliveryPence)} for further Runners is ${bankOn && payBy === 'bank' && !(Boolean(shopper?.familyOwnerId) && shopper?.activePlan === 'family') ? 'given back as credit if they are not needed' : 'taken only when each collects'}${allowanceExtra}.`
-    : `Send my order and pay. About ${money(pricing.totalPence)} altogether: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}${allowanceExtra}.`;
+    : restaurant
+      ? `Send my order and pay. About ${money(pricing.totalPence)} altogether: the dishes from ${restaurant.name} about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and the restaurant fee ${money(pricing.feePence)}, in place of delivery.`
+      : `Send my order and pay. About ${money(pricing.totalPence)} altogether: the shopping about ${money(pricing.goodsPence + pricing.itemChargesPence)} with item charges of ${money(pricing.itemChargesPence)} included, and delivery ${money(pricing.feePence)}${allowanceExtra}.`;
   const statement = `${baseStatement}${bookingWords}`;
+
+  /**
+   * Checkout insights (30 October 2026): this checkout is recorded once, when the page has the
+   * Shopper, the basket and the area's answer, with everything it shows. Never a card detail.
+   */
+  const viewedOnce = useRef(false);
+  const shown = useRef({ pricing, restaurant, address, noRunner });
+  shown.current = { pricing, restaurant, address, noRunner };
+  useEffect(() => {
+    if (viewedOnce.current || !shopper || lines.length === 0 || placed || !areaKnown) return;
+    viewedOnce.current = true;
+    const now = shown.current;
+    recordCheckoutViewed({
+      goodsPence: now.pricing.goodsPence,
+      itemChargesPence: now.pricing.itemChargesPence,
+      feePence: now.pricing.feePence + now.pricing.allowanceExtraPence,
+      totalPence: now.pricing.totalPence,
+      restaurant: now.restaurant !== null,
+      area: now.address.trim(),
+      noRunnerWarning: now.noRunner,
+      channel: 'web',
+    }).catch(() => undefined);
+  }, [shopper, lines.length, placed, areaKnown]);
+
+  // Left without paying, or back to the basket: the small question may be asked, once a day.
+  const leaving = useRef({ placed: false });
+  leaving.current.placed = placed !== null;
+  useEffect(
+    () => () => {
+      if (!viewedOnce.current || leaving.current.placed) return;
+      const now = shown.current;
+      leftCheckout({
+        restaurant: now.restaurant !== null,
+        totalPence: now.pricing.totalPence,
+        area: now.address.trim(),
+      });
+    },
+    [],
+  );
+
+  // A restaurant order that cannot go as it is (30 October 2026) is said by Ozi, once.
+  const restaurantSaid = useRef<string | null>(null);
+  useEffect(() => {
+    if (restaurantProblem && restaurantSaid.current !== restaurantProblem) {
+      void ozi.say(restaurantProblem);
+    }
+    restaurantSaid.current = restaurantProblem;
+  }, [restaurantProblem, ozi]);
 
   /**
    * The button is never greyed out (review of 16 October 2026): a disabled button says nothing
@@ -279,6 +345,8 @@ export function Confirm(): JSX.Element {
   function whatIsMissing(): string | null {
     const card = cards?.find((method) => method.isDefault) ?? cards?.[0];
     const byBank = payingByBank();
+    // A restaurant order (30 October 2026): never mixed, and never below the smallest order.
+    if (restaurantProblem) return restaurantProblem;
     if (overMaximum) {
       return `Your shopping is more than one basket holds, ${money(storeConfig.fees.maximumBasketGoodsPence)}. Please go back to your basket and take some things out.`;
     }
@@ -546,20 +614,33 @@ export function Confirm(): JSX.Element {
           charges included: {money(pricing.goodsPence)} at the shop&rsquo;s prices and{' '}
           {money(pricing.itemChargesPence)} of item charges.
         </p>
-        <p className="m-0">Delivery, {money(pricing.feePence)}.</p>
+        {restaurant ? (
+          <p className="m-0">
+            Restaurant fee, {money(pricing.feePence)}, in place of delivery: a restaurant order from{' '}
+            {restaurant.name}.
+          </p>
+        ) : (
+          <p className="m-0">Delivery, {money(pricing.feePence)}.</p>
+        )}
         {pricing.allowanceExtraPence > 0 && (
           <p className="m-0">Extra delivery charge, {money(pricing.allowanceExtraPence)}.</p>
         )}
         {allowanceWords && <p className="m-0 font-bold">{allowanceWords}</p>}
         <p className="m-0 text-lead font-bold">Altogether, about {money(pricing.totalPence)}.</p>
+        {restaurantProblem && (
+          <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
+            {restaurantProblem}
+          </p>
+        )}
         <p className="m-0">
-          {deliveryWords(pricing.plan)} You pay what the till says for the shopping, so this may
-          change a little.
+          {restaurant
+            ? `The restaurant fee is the same on every plan. You pay ${restaurant.name}'s own prices for the dishes, so this may change a little if something is not available.`
+            : `${deliveryWords(pricing.plan)} You pay what the till says for the shopping, so this may change a little.`}
           {!overOneRunner && (
             <>
               {' '}
               Your Runner gets {money(runnerPaymentFor(pricing.goodsPence, storeConfig.fees))} of
-              the delivery.
+              the {restaurant ? 'restaurant fee' : 'delivery'}.
             </>
           )}
         </p>

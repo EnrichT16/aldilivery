@@ -18,6 +18,7 @@ import {
   removePartnerProduct,
   setPartnerPrice,
   startPartnerCheckout,
+  takeFreeSpotlightWeek,
   type PartnerDashboard as Dashboard,
   type PartnerProductRow,
 } from '../lib/api';
@@ -55,7 +56,8 @@ const RECEIPT = PARTNER_RECEIPT_KEY;
 /**
  * A Shop Partner's own area (7 October 2026; ruling 65): what they pay and paying it here, their
  * products or services and prices, adding one with a photo (checked by us before Shoppers see it),
- * a café's commission, a service's enquiries, and a link to share. Ozi helps here too, with this
+ * a restaurant's agreed discount and its Preferred Partner standing (no commission, Anthony, 30
+ * October 2026), a service's enquiries, and a link to share. Ozi helps here too, with this
  * dashboard's own commands only.
  */
 export function PartnerDashboard(): JSX.Element {
@@ -446,7 +448,10 @@ export function PartnerDashboard(): JSX.Element {
 
   const service = data.shop.kind === 'service';
   // Spotlight is bought here by a shop on paid Partner Plus, through the plan's own Checkout.
-  const spotlightOpen = data.shop.kind === 'shop' && data.plan.tier === 'plus' && data.plan.paid;
+  // An Ozi Preferred Partner has Partner Plus free (30 October 2026), so it may buy Spotlight too.
+  const spotlightOpen =
+    (data.shop.kind === 'shop' && data.plan.tier === 'plus' && data.plan.paid) ||
+    data.restaurant?.preferred === true;
   return (
     <div className="space-y-8 max-w-2xl">
       <h1 className="text-display font-bold m-0">{data.shop.name}</h1>
@@ -523,20 +528,28 @@ export function PartnerDashboard(): JSX.Element {
         )}
       </section>
 
-      {data.commission && (
+      {data.restaurant && (
         <section
-          aria-labelledby="commission-heading"
+          aria-labelledby="restaurant-heading"
           className="space-y-2 border-2 border-paper rounded-2xl p-4"
         >
-          <h2 id="commission-heading" className="text-lead font-bold m-0">
-            Commission this month
+          <h2 id="restaurant-heading" className="text-lead font-bold m-0">
+            {data.restaurant.preferred
+              ? `${storeConfig.assistantName} Preferred Partner`
+              : `Your price for ${storeConfig.assistantName}`}
           </h2>
           <p className="m-0">
-            {data.commission.ordersThisMonth} order
-            {data.commission.ordersThisMonth === 1 ? '' : 's'} through {storeConfig.productName},{' '}
-            {money(data.commission.goodsThisMonthPence)} of food and drink. {data.commission.words}{' '}
-            owed: <strong>{money(data.commission.owedThisMonthPence)}</strong>. It is on your
-            statement too.
+            No commission: you owe {storeConfig.productName} nothing on your orders.{' '}
+            {data.restaurant.words}
+          </p>
+          <p className="m-0">
+            This month: {data.restaurant.ordersThisMonth} order
+            {data.restaurant.ordersThisMonth === 1 ? '' : 's'} through {storeConfig.productName},{' '}
+            {money(data.restaurant.goodsThisMonthPence)} of food and drink at your shop prices.
+          </p>
+          <p className="m-0">
+            To agree a discount, or change it, ring us on {storeConfig.contact.telephonePlaceholder}
+            .
           </p>
         </section>
       )}
@@ -694,6 +707,34 @@ export function PartnerDashboard(): JSX.Element {
             {data.spotlight.mentionsThisMonth === 1 ? '' : 's'} this month. Each mention is called
             an advert, after {storeConfig.assistantName}'s own answer.
           </p>
+        )}
+        {data.spotlight.freeWeekLeft && (
+          <div className="space-y-2">
+            <p className="m-0">
+              As a {storeConfig.assistantName} Preferred Partner you have a free Spotlight week this
+              month. Nothing is charged for it.
+            </p>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setProblem('');
+                void takeFreeSpotlightWeek()
+                  .then((result) => {
+                    setNews(result.message);
+                    void load();
+                  })
+                  .catch((failure: unknown) =>
+                    setProblem(
+                      failure instanceof Error ? failure.message : 'That could not be done.',
+                    ),
+                  );
+              }}
+              className="control bg-highlight text-on-accent disabled:opacity-70"
+            >
+              Start my free Spotlight week
+            </button>
+          </div>
         )}
         {spotlightOpen && (
           <div className="flex flex-wrap gap-2">

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
 import { GetTheApp } from '../components/GetTheApp';
@@ -5,6 +6,7 @@ import { OverOneRunner } from '../components/OverOneRunner';
 import { storeConfig } from '../config';
 import { deliveryWords, money, shownPrice } from '../lib/money';
 import { useBasket } from '../state/basket';
+import { useOzi } from '../state/ozi';
 import { tint } from '../components/ShopHome';
 import { itemEmoji } from '../lib/shop-look';
 
@@ -21,8 +23,26 @@ import { itemEmoji } from '../lib/shop-look';
  * one, the number, More); "+ Add items"; the costs on their own card; and one wide button on.
  */
 export function Basket(): JSX.Element {
-  const { lines, pricing, overMaximum, overOneRunner, parts, setQuantity, remove, allowanceWords } =
-    useBasket();
+  const {
+    lines,
+    pricing,
+    overMaximum,
+    overOneRunner,
+    parts,
+    setQuantity,
+    remove,
+    allowanceWords,
+    restaurant,
+    restaurantProblem,
+  } = useBasket();
+  // What stops a restaurant order going (Anthony, 30 October 2026) is said by Ozi as well as
+  // shown: once each time it changes.
+  const ozi = useOzi();
+  const said = useRef<string | null>(null);
+  useEffect(() => {
+    if (restaurantProblem && said.current !== restaurantProblem) void ozi.say(restaurantProblem);
+    said.current = restaurantProblem;
+  }, [restaurantProblem, ozi]);
 
   if (lines.length === 0) {
     return (
@@ -156,7 +176,7 @@ export function Basket(): JSX.Element {
             </tr>
             <tr>
               <th scope="row" className="text-left font-normal py-2">
-                Delivery
+                {restaurant ? 'Restaurant fee, in place of delivery' : 'Delivery'}
               </th>
               <td className="text-right py-2">{money(pricing.feePence)}</td>
             </tr>
@@ -177,10 +197,20 @@ export function Basket(): JSX.Element {
           </tbody>
         </table>
 
-        <p className="m-0 card-muted">
-          {deliveryWords(pricing.plan)} There is no charge for a small order, no charge for being
-          busy, and no smallest order. Every price we show already includes its item charge.
-        </p>
+        {restaurant ? (
+          <p className="m-0 card-muted">
+            A restaurant order from {restaurant.name}: dishes at the restaurant&rsquo;s own prices,
+            and a flat restaurant fee of {money(storeConfig.restaurants.feePence)} in place of
+            delivery, on every plan. The smallest restaurant order is{' '}
+            {money(storeConfig.restaurants.minimumOrderPence)}. Every price we show already includes
+            its item charge.
+          </p>
+        ) : (
+          <p className="m-0 card-muted">
+            {deliveryWords(pricing.plan)} There is no charge for a small order, no charge for being
+            busy, and no smallest order. Every price we show already includes its item charge.
+          </p>
+        )}
         {allowanceWords && <p className="m-0 font-bold">{allowanceWords}</p>}
         <p className="m-0 card-muted">
           You pay what the till says for the shopping, so the total may change a little.
@@ -189,7 +219,11 @@ export function Basket(): JSX.Element {
 
       {overOneRunner && <OverOneRunner parts={parts} />}
 
-      {overMaximum ? (
+      {restaurantProblem ? (
+        <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
+          {restaurantProblem}
+        </p>
+      ) : overMaximum ? (
         <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
           This comes to about {money(pricing.goodsPence)} of shopping at the shop&rsquo;s prices,
           and one basket holds up to {money(storeConfig.fees.maximumBasketGoodsPence)}, brought by

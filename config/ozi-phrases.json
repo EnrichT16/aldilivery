@@ -1,5 +1,5 @@
 {
-  "about": "What Ozi says to everyday words (ruling 34). Added to every day (50 a day, ruling 44) by a scheduled task, checked by the tests before it goes live. Each entry: an id, a topic, the words people say ('when'), and replies, one chosen in turn. In replies, {assistant} becomes Ozi's name, {product} the product's name, {motto} the motto, and {fee}, {smallFee}, {smallUpTo}, {middleFee}, {largeUpTo}, {memberFee}, {memberLargeFee}, {plusFee}, {plusLargeFee}, {paygDelivery}, {memberDelivery}, {plusDelivery}, {memberOrders}, {plusOrders}, {familyOrders}, {allowanceExtra}, {allowanceEvery}, {findIts}, {plusFindIts}, {itemCharge}, {membership}, {plusPrice}, {familyPrice}, {orgClient}, {maximum}, {maximumProduct}, {runnerPay}, {largeRunnerPay}, {largeOrderFrom}, {daysAhead}, {telephone}, {companyName}, {companyNumber}, {icoNumber}, {callPrice} and {instantRefund} the figures from config/store.json, so a price is never written here. Ozi only uses these when nothing about an order or the basket was meant, and only when the whole sentence is one of the 'when' phrases or Ozi was called by name. Rules for every addition: never promise a postcode check or say a town is covered in its own words (use the agreed area answer: we deliver across the whole UK, and every area is open); never name a supermarket or shop chain as a partner, or suggest any endorsement; never promise a delivery time (say usually the same day, and the order page shows a best guess); never say \"no mark-up\" (say shop prices, plus a small item charge on each product, plus delivery); and never name any company or technology behind {assistant}, including the makers of any AI. The tests check these.",
+  "about": "What Ozi says to everyday words (ruling 34). Added to every day (50 a day, ruling 44) by a scheduled task, checked by the tests before it goes live. Each entry: an id, a topic, the words people say ('when'), and replies, one chosen in turn. In replies, {assistant} becomes Ozi's name, {product} the product's name, {motto} the motto, and {fee}, {smallFee}, {smallUpTo}, {middleFee}, {largeUpTo}, {memberFee}, {memberLargeFee}, {plusFee}, {plusLargeFee}, {paygDelivery}, {memberDelivery}, {plusDelivery}, {memberOrders}, {plusOrders}, {familyOrders}, {allowanceExtra}, {allowanceEvery}, {findIts}, {plusFindIts}, {itemCharge}, {membership}, {plusPrice}, {familyPrice}, {orgClient}, {maximum}, {maximumProduct}, {runnerPay}, {largeRunnerPay}, {largeOrderFrom}, {daysAhead}, {telephone}, {companyName}, {companyNumber}, {icoNumber}, {callPrice}, {instantRefund}, {restaurantFee}, {restaurantMinimum} and {preferredDiscount} the figures from config/store.json, so a price is never written here. Ozi only uses these when nothing about an order or the basket was meant, and only when the whole sentence is one of the 'when' phrases or Ozi was called by name. Rules for every addition: never promise a postcode check or say a town is covered in its own words (use the agreed area answer: we deliver across the whole UK, and every area is open); never name a supermarket or shop chain as a partner, or suggest any endorsement; never promise a delivery time (say usually the same day, and the order page shows a best guess); never say \"no mark-up\" (say shop prices, plus a small item charge on each product, plus delivery); and never name any company or technology behind {assistant}, including the makers of any AI. The tests check these.",
   "phrases": [
     {
       "id": "thanks",
@@ -3089,7 +3089,7 @@
       "when": ["i own a shop", "can my shop join", "list my shop", "become a partner"],
       "replies": [
         "Lovely. Every shop can join free: choose the Shop Partner door on the first screen, then Join as a shop. The first {freeShops} shops are listed free for ever, with up to {freeProducts} products; Partner Plus, {partnerPlus} a month, adds the full catalogue with photos.",
-        "Shops, cafés, takeaways and services join from the Shop Partner door on the first screen. A basic listing is free; a café or takeaway pays {foodCommission} on orders through {product} instead of a monthly fee."
+        "Shops, cafés, takeaways and services join from the Shop Partner door on the first screen. A basic listing is free; a restaurant, café or takeaway pays no commission and no monthly fee, and may agree a discount for {product} instead."
       ]
     },
     {
@@ -8483,7 +8483,7 @@
       "topic": "shops",
       "when": ["can takeaways join", "takeaway partners", "do you deliver takeaway food"],
       "replies": [
-        "Takeaways can join as partners and pay a share of each order instead of a monthly plan. The partnerships team sets it up."
+        "Takeaways can join as partners, with no commission and no monthly plan. A takeaway may agree a discount for us instead. The partnerships team sets it up."
       ]
     },
     {
@@ -8496,7 +8496,7 @@
         "how do takeaways pay"
       ],
       "replies": [
-        "A takeaway pays a share of each order that comes through the app, rather than a monthly plan."
+        "A takeaway pays no commission and no monthly plan. It may agree a discount for us instead: it sells to us a little below its shop price, and you still pay the shop price."
       ]
     },
     {
@@ -8598,7 +8598,7 @@
       "topic": "shops",
       "when": ["do shops pay commission", "commission on groceries", "shop percentage"],
       "replies": [
-        "Grocery shops pay nothing to be listed. Takeaways pay a share per order. Partners pay a monthly plan."
+        "Grocery shops pay nothing to be listed. Restaurants and takeaways pay no commission. Shops on Partner Plus pay a monthly plan."
       ]
     },
     {
@@ -18062,6 +18062,32 @@
       ],
       "replies": [
         "Earnings wait {ambassadorHold} after each delivery, in case of a refund. Then they are available, and once {ambassadorMinimum} is available you can withdraw it to your bank in Settings."
+      ]
+    },
+    {
+      "id": "shopper-restaurant-fee",
+      "topic": "shopping",
+      "when": [
+        "how much is restaurant delivery",
+        "what is the restaurant fee",
+        "how much is takeaway delivery",
+        "how much to order from a restaurant"
+      ],
+      "replies": [
+        "A restaurant, café or takeaway order has a flat restaurant fee of {restaurantFee} in place of delivery. Dishes are at the restaurant's own prices, plus a small item charge on each. The smallest restaurant order is {restaurantMinimum}.",
+        "{restaurantFee} for a restaurant order, whatever your plan, and the smallest order is {restaurantMinimum} of dishes."
+      ]
+    },
+    {
+      "id": "shopper-what-is-a-preferred-partner",
+      "topic": "shopping",
+      "when": [
+        "what is a preferred partner",
+        "why is this restaurant first",
+        "what does preferred partner mean"
+      ],
+      "replies": [
+        "Preferred Partners, who give {assistant} a better price, are shown first. You pay the restaurant's own prices either way."
       ]
     }
   ]

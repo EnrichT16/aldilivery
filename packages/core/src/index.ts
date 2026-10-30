@@ -69,6 +69,7 @@ export {
   parseStoreConfig,
   StoreConfigError,
   type StoreConfig,
+  type CheckoutInsightSettings,
   type CatalogueSourceMode,
   type OwnerDeskSettings,
   type CompanyContactSettings,
@@ -156,7 +157,6 @@ export {
   PARTNER_KINDS,
   PARTNER_KIND_WORDS,
   basisPointsWords,
-  commissionPence,
   excludedServiceKind,
   excludedServiceWords,
   freeListingAvailable,
@@ -166,6 +166,23 @@ export {
   type PartnerPlan,
   type PartnerPricing,
 } from './partners.js';
+
+export {
+  RESTAURANT_MIXED_WORDS,
+  RestaurantBelowMinimumError,
+  counterPricePence,
+  isPreferredPartner,
+  isRestaurantKind,
+  preferredRankingWords,
+  priceRestaurantBasket,
+  restaurantDiscountPence,
+  restaurantFeeShares,
+  restaurantFeeWords,
+  restaurantMinimumWords,
+  restaurantProfitPence,
+  shopPriceFromCounterPence,
+  type RestaurantSettings,
+} from './restaurants.js';
 
 export {
   ORGANISATION_AUTHORITY_WORDS,

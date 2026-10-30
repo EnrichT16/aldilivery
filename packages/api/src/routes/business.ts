@@ -4,9 +4,10 @@
  * A shop, café, takeaway or service joins by itself from the "Shop Partner" door, confirming its
  * mobile with a code, and gets its sign-in at once; its page goes public once a person approves
  * it. A basic listing is free for ever for the first shops to join; Partner Plus is paid from the
- * dashboard through Stripe Checkout; a café or takeaway pays a commission on orders placed
- * through the app instead; a service lists services and takes enquiries, with no money through
- * us. Ozi lists well-known shops itself, which their owners can claim. Each new product is
+ * dashboard through Stripe Checkout; a restaurant, café or takeaway pays no commission and no
+ * monthly fee, and may agree a discount for Ozi instead, which at the configured percentage makes
+ * it an Ozi Preferred Partner (Anthony, 30 October 2026; it paid a 10% commission before); a
+ * service lists services and takes enquiries, with no money through us. Ozi lists well-known shops itself, which their owners can claim. Each new product is
  * approved by a person before Shoppers see it. An organisation signs in to see what the people
  * it supports have ordered, who in the organisation looks after them, what it has spent and
  * saved, and what is coming. Each kind of account has its own sign-in and sees only its own things.
@@ -16,10 +17,10 @@ import { randomInt } from 'node:crypto';
 
 import type { FastifyInstance } from 'fastify';
 import {
-  basisPointsWords,
   BROWSE_SECTIONS,
   chosenFrom,
-  commissionPence,
+  preferredRankingWords,
+  restaurantFeeWords,
   matchesBrowseSearch,
   postcodeNearness,
   sectionOf,
@@ -71,7 +72,13 @@ import { textPdf } from '../lib/pdf.js';
 import { isUkMobile, ukPhone } from '../lib/phone.js';
 import { NEVER_FOUND } from '../lib/restricted.js';
 import { loadShopsSeed, seedShops } from '../lib/shops-seed.js';
-import { chooseAdvert, spotlightActive } from '../lib/spotlight.js';
+import {
+  chooseAdvert,
+  freeSpotlightWeekLeft,
+  spotlightActive,
+  takeFreeSpotlightWeek,
+} from '../lib/spotlight.js';
+import { plusPaid, preferredPartner, rankedForListing } from '../lib/partner-standing.js';
 import { awardTitlesByShop } from '../services/shop-of-the-month.js';
 import { checkInBackground, checkPartnerProduct } from '../services/auto-check.js';
 import { askOwner, settleMattersFor } from '../services/owner-desk.js';
@@ -155,6 +162,12 @@ type BrowseFieldsInput = z.infer<typeof browseFieldsSchema>;
 /** An Ofsted unique reference number as providers write it: "EY123456" or "2345678". */
 const OFSTED_NUMBER = /^[A-Z]{0,2}\d{6,8}$/;
 
+/** A restaurant's agreed discount for Ozi, as staff type it: a whole percentage. */
+const discountSchema = z
+  .number()
+  .int('Please give the discount as a whole percentage, such as 20.')
+  .min(0, 'A discount cannot be below 0%.');
+
 const usernameSchema = z
   .string()
   .trim()
@@ -237,11 +250,36 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     return repository.shoppers.countJoinedVia(via);
   }
 
+  /**
+   * Partner Plus is paid: a month paid and running, or free as an Ozi Preferred Partner while it
+   * keeps its discount (Anthony, 30 October 2026), never charged.
+   */
   function planPaid(shop: PartnerShop): boolean {
-    return shop.active && shop.paidUntil !== null && shop.paidUntil.getTime() > now().getTime();
+    return plusPaid(shop, now(), config);
+  }
+
+  /** An Ozi Preferred Partner: a restaurant whose agreed discount is at least the configured one. */
+  function preferred(shop: PartnerShop): boolean {
+    return preferredPartner(shop, config);
   }
 
   const partners = config.extras.partners;
+
+  /**
+   * A restaurant's agreed discount, checked: only a restaurant, café or takeaway has one, and no
+   * more than `restaurants.maximumDiscountPercent`, so a slip of the keys gives nothing away.
+   */
+  function discountFor(kind: PartnerKind, percent: number): number {
+    if (percent === 0) return 0;
+    if (kind !== 'food') {
+      throw new BadRequestError('Only a restaurant, café or takeaway agrees a discount.');
+    }
+    const most = config.restaurants.maximumDiscountPercent;
+    if (percent > most) {
+      throw new BadRequestError(`A discount of more than ${most}% is not taken. Please check it.`);
+    }
+    return percent;
+  }
 
   /** Approved by a person and not paused: its page is public (ruling 65). */
   function listed(shop: PartnerShop): boolean {
@@ -264,11 +302,6 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
    */
   function onPaidPlus(shop: PartnerShop): boolean {
     return shop.kind === 'shop' && shop.plan === 'plus' && planPaid(shop);
-  }
-
-  /** Paid Partner Plus shops first, everyone else after, each group in its own order. */
-  function plusFirst(shops: PartnerShop[]): PartnerShop[] {
-    return [...shops.filter(onPaidPlus), ...shops.filter((shop) => !onPaidPlus(shop))];
   }
 
   /**
@@ -310,20 +343,38 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     return productLimit({ kind: shop.kind, plan: shop.plan, plusPaid: planPaid(shop) }, partners);
   }
 
-  /** What a café or takeaway owes on this month's orders placed through the app (ruling 65). */
-  async function commissionFor(shop: PartnerShop) {
+  /**
+   * A restaurant, café or takeaway's own figures (Anthony, 30 October 2026): no commission is
+   * owed, ever. Its agreed discount for Ozi, whether it is a Preferred Partner, and this month's
+   * orders through the app at its shop prices.
+   */
+  async function restaurantFor(shop: PartnerShop) {
     if (shop.kind !== 'food') return null;
     const events = (
       await repository.analytics.list({ since: monthStart(), kind: 'order_paid' })
     ).filter((event) => eventForShop(event, shop));
     const goodsPence = events.reduce((sum, event) => sum + event.goodsPence, 0);
     return {
-      basisPoints: partners.foodCommissionBasisPoints,
-      words: basisPointsWords(partners.foodCommissionBasisPoints),
+      discountPercent: shop.agreedDiscountPercent ?? 0,
+      preferred: preferred(shop),
+      preferredDiscountPercent: config.restaurants.preferredDiscountPercent,
       ordersThisMonth: events.length,
       goodsThisMonthPence: goodsPence,
-      owedThisMonthPence: commissionPence(goodsPence, partners.foodCommissionBasisPoints),
+      words: restaurantStandingWords(shop),
     };
+  }
+
+  /** A restaurant's standing in plain words, for its dashboard, its statement and Ozi. */
+  function restaurantStandingWords(shop: PartnerShop): string {
+    const discount = shop.agreedDiscountPercent ?? 0;
+    const level = config.restaurants.preferredDiscountPercent;
+    const name = config.assistantName;
+    if (discount === 0) {
+      return `You have not agreed a discount for ${name}, so our Runners pay your full shop price at the counter. Agree a discount of ${level}% or more and you become a ${name} Preferred Partner, listed first.`;
+    }
+    return preferred(shop)
+      ? `You have agreed a ${discount}% discount for ${name}, so our Runners pay your shop price less ${discount}%, in full at the counter. You are a ${name} Preferred Partner: listed first, Partner Plus free while you keep the discount, and a free Spotlight week each month.`
+      : `You have agreed a ${discount}% discount for ${name}, so our Runners pay your shop price less ${discount}%, in full at the counter. At ${level}% or more you would be a ${name} Preferred Partner, listed first.`;
   }
 
   function publicEnquiry(
@@ -356,6 +407,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       listedByOzi: shop.source === 'ozi',
       section: sectionOf(shop),
       cuisines: shop.kind === 'food' ? shop.cuisines : [],
+      // An Ozi Preferred Partner (Anthony, 30 October 2026): listed first, with a badge.
+      preferredPartner: preferred(shop),
       specialities: shop.kind === 'shop' ? shop.specialities : [],
       categories: shop.kind === 'service' ? shop.categories : [],
       convenience: shop.kind === 'shop' && shop.convenience,
@@ -439,7 +492,9 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       freeProductLimit: partners.freeProductLimit,
       plusMonthlyPence: partners.plusMonthlyPence,
       plusFirstMonthFree: partners.plusFirstMonthFree,
-      foodCommissionWords: basisPointsWords(partners.foodCommissionBasisPoints),
+      // Restaurants (Anthony, 30 October 2026): no commission, an optional discount for Ozi.
+      restaurantWords: restaurantFeeWords(config.restaurants, money),
+      preferredDiscountPercent: config.restaurants.preferredDiscountPercent,
       spotlightPence: config.extras.spotlightPence,
       spotlightPlusPence: config.extras.spotlightPlusPence,
       excludedServiceKinds: partners.excludedServiceKinds,
@@ -450,7 +505,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
   /** The plan in one plain sentence, for the screen and for Ozi. */
   function planWords(shop: PartnerShop, limit: number | null): string {
     if (shop.kind === 'food') {
-      return `No monthly fee. ${basisPointsWords(partners.foodCommissionBasisPoints)} of each order placed through ${config.productName} is owed as commission, shown here and on your statement.`;
+      return `No monthly fee and no commission. ${restaurantStandingWords(shop)}`;
     }
     if (shop.kind === 'service') {
       return `Free listing. Shoppers ask you for a quote or a call back here; no payment goes through ${config.productName} for services yet.`;
@@ -638,7 +693,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         canAddProduct: limit === null || listedCount < limit,
         words: planWords(shop, limit),
       },
-      commission: await commissionFor(shop),
+      restaurant: await restaurantFor(shop),
       enquiries:
         shop.kind === 'service'
           ? await Promise.all(
@@ -659,7 +714,9 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       products: products.map(publicProduct),
       sharePath: `/shops/${shop.id}`,
       spotlight: {
-        level: spotlightActive(shop, now()) ? shop.spotlight : 'none',
+        level: spotlightActive(shop, now(), config) ? shop.spotlight : 'none',
+        // An Ozi Preferred Partner's free Spotlight week this calendar month, still to take.
+        freeWeekLeft: await freeSpotlightWeekLeft(app.ctx, shop),
         until: shop.spotlightUntil,
         mentionsThisMonth: await repository.spotlightMentions.countForShopSince(
           shop.id,
@@ -717,7 +774,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     const shop = await myShop(request);
     const payments = await repository.partnerPayments.listForShop(shop.id);
     const total = payments.reduce((sum, row) => sum + row.amountPence, 0);
-    const commission = await commissionFor(shop);
+    const restaurant = await restaurantFor(shop);
     const lines = [
       `${shop.name}`,
       `Statement from ${config.productName}, ${longDay(now())}.`,
@@ -725,17 +782,19 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       '',
       ...(payments.length === 0
         ? ['No payments recorded yet.']
-        : payments.map(
-            (row) =>
-              `${longDay(row.paidAt)}: ${PAYMENT_WORDS[row.kind]}, ${row.months} month${row.months === 1 ? '' : 's'}, ${money(row.amountPence)}. Covers until ${longDay(row.coversUntil)}.`,
+        : payments.map((row) =>
+            row.months === 0
+              ? `${longDay(row.paidAt)}: free Spotlight week, as a ${config.assistantName} Preferred Partner, ${money(row.amountPence)}. Covers until ${longDay(row.coversUntil)}.`
+              : `${longDay(row.paidAt)}: ${PAYMENT_WORDS[row.kind]}, ${row.months} month${row.months === 1 ? '' : 's'}, ${money(row.amountPence)}. Covers until ${longDay(row.coversUntil)}.`,
           )),
       '',
       `Total paid: ${money(total)}.`,
       `Plan: ${planWords(shop, limitFor(shop))}`,
-      ...(commission
+      ...(restaurant
         ? [
             '',
-            `Commission this month: ${commission.ordersThisMonth} order${commission.ordersThisMonth === 1 ? '' : 's'} through ${config.productName}, ${money(commission.goodsThisMonthPence)} of goods, ${commission.words} owed: ${money(commission.owedThisMonthPence)}.`,
+            `Orders this month: ${restaurant.ordersThisMonth} through ${config.productName}, ${money(restaurant.goodsThisMonthPence)} of food and drink at your shop prices. No commission is owed.`,
+            restaurant.words,
           ]
         : []),
     ];
@@ -1072,10 +1131,12 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i.exec(shopper?.deliveryAddress ?? '')?.[0] ??
         '';
     }
-    // Shops on paid Partner Plus come first, here, on the home page's "Stock up at local shops"
-    // and in search (ruling 75); everyone else keeps the order they joined in. With a postcode,
-    // nearness comes first and Partner Plus first within each distance (ruling 82).
-    const plusOrdered = plusFirst(
+    // Ozi Preferred Partners come first (Anthony, 30 October 2026), then shops on paid Partner
+    // Plus, here, on the home page's "Stock up at local shops" and in search (ruling 75);
+    // everyone else keeps the order they joined in. With a postcode, nearness comes first and
+    // that order within each distance (ruling 82), so a Preferred Partner is first in its area and
+    // its food type. The list says why (`ranking`), as the CMA asks of a commercial ranking.
+    const plusOrdered = rankedForListing(
       (await repository.partnerShops.list())
         .filter(listed)
         .filter((shop) => !query.section || sectionOf(shop) === query.section)
@@ -1088,6 +1149,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
             query.q ?? '',
           ),
         ),
+      now(),
+      config,
     );
     const nearness = new Map(
       plusOrdered.map((shop) => [shop.id, near ? postcodeNearness(near, shop.postcode) : 2]),
@@ -1113,7 +1176,14 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         nearYou: near ? nearness.get(shop.id) === 0 : null,
       });
     }
-    return { shops: rows, near: near ? postcodeArea(near) : null };
+    return {
+      shops: rows,
+      near: near ? postcodeArea(near) : null,
+      // Said next to the list whenever a Preferred Partner is in it (CMA).
+      ranking: rows.some((row) => row.preferredPartner)
+        ? preferredRankingWords(config.assistantName)
+        : null,
+    };
   });
 
   app.get('/shops/:id', async (request) => {
@@ -1540,11 +1610,12 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     if (shop.kind !== 'shop' && body.kind === 'plan') {
       throw new BadRequestError(
         shop.kind === 'food'
-          ? `A café or takeaway pays no monthly fee: ${basisPointsWords(partners.foodCommissionBasisPoints)} of each order through ${config.productName} instead.`
+          ? `A restaurant, café or takeaway pays no monthly fee and no commission. There is nothing to pay.${preferred(shop) ? ` As a ${config.assistantName} Preferred Partner you have Partner Plus free.` : ''}`
           : 'A service is listed free. There is nothing to pay.',
       );
     }
-    if (body.kind !== 'plan' && !(shop.plan === 'plus' && planPaid(shop))) {
+    // A Preferred Partner's Partner Plus is free, so it may buy Spotlight too.
+    if (body.kind !== 'plan' && !((shop.plan === 'plus' || preferred(shop)) && planPaid(shop))) {
       throw new ConflictError('Spotlight is only for shops on Partner Plus whose plan is paid.');
     }
     if (body.kind === 'plan' && partners.plusFirstMonthFree && !shop.plusTrialUsed) {
@@ -1604,6 +1675,19 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     return {
       recorded: true,
       message: `Thank you. ${PAYMENT_WORDS[checkout.kind]} is paid, ${money(checkout.amountPence)}, until ${longDay(until)}.`,
+    };
+  });
+
+  /**
+   * An Ozi Preferred Partner takes its free Spotlight week for this calendar month (Anthony, 30
+   * October 2026): nothing is charged, and the next is there from the 1st of next month.
+   */
+  app.post('/partner/spotlight/free-week', async (request) => {
+    const shop = await myShop(request);
+    const updated = await takeFreeSpotlightWeek(app.ctx, shop, 'free Preferred Partner week');
+    return {
+      until: updated.spotlightUntil,
+      message: `Your free Spotlight week is on, until ${longDay(updated.spotlightUntil ?? now())}. Nothing has been charged.`,
     };
   });
 
@@ -1986,7 +2070,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         area: postcodeArea(shop.postcode),
         listed: listed(shop),
         paid: planPaid(shop),
-        spotlightActive: spotlightActive(shop, now()),
+        preferredPartner: preferred(shop),
+        spotlightActive: spotlightActive(shop, now(), config),
         live: products.filter((product) => product.status === 'approved').length,
         waiting: products.filter((product) => product.status === 'pending').length,
         users: users.map((user) => ({ id: user.id, name: user.name, username: user.username })),
@@ -2015,7 +2100,9 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       freeListingCount: partners.freeListingCount,
       freeListed: await freeListedCount(),
       freeProductLimit: partners.freeProductLimit,
-      foodCommissionWords: basisPointsWords(partners.foodCommissionBasisPoints),
+      restaurantWords: restaurantFeeWords(config.restaurants, money),
+      preferredDiscountPercent: config.restaurants.preferredDiscountPercent,
+      maximumDiscountPercent: config.restaurants.maximumDiscountPercent,
       spotlightPence: config.extras.spotlightPence,
       spotlightPlusPence: config.extras.spotlightPlusPence,
       seedShops: loadShopsSeed(env.storeConfigPath).length,
@@ -2053,6 +2140,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         monthlyPence: z.number().int().min(0).max(1_000_000).optional(),
         /** Months of Partner Plus already paid on paper. */
         paidMonths: z.number().int().min(0).max(24).default(0),
+        /** A restaurant's agreed discount for Ozi, a whole percentage (30 October 2026). */
+        agreedDiscountPercent: discountSchema.default(0),
       })
       .merge(browseFieldsSchema)
       .parse(request.body ?? {});
@@ -2084,6 +2173,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       status: 'approved',
       source: 'staff',
       approvedAt: now(),
+      agreedDiscountPercent: discountFor(body.kind, body.agreedDiscountPercent),
       ...browseFields,
     });
     locateLater(app.ctx, shop.postcode, request.log);
@@ -2126,6 +2216,11 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
          * Ambassador introduced earns them a quarter of their share.
          */
         branchOfShopId: z.string().min(1).max(60).nullable().optional(),
+        /**
+         * A restaurant's agreed discount for Ozi, a whole percentage, set when approving or
+         * editing it (Anthony, 30 October 2026). 0 for none.
+         */
+        agreedDiscountPercent: discountSchema.optional(),
       })
       .merge(browseFieldsSchema)
       .parse(request.body ?? {});
@@ -2133,6 +2228,11 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     if (!shop) throw new NotFoundError('partner shop');
     const at = now();
     let updated = shop;
+    if (body.agreedDiscountPercent !== undefined) {
+      updated = await repository.partnerShops.update(shop.id, {
+        agreedDiscountPercent: discountFor(shop.kind, body.agreedDiscountPercent),
+      });
+    }
     if (body.branchOfShopId !== undefined) {
       if (body.branchOfShopId !== null) {
         const main = await repository.partnerShops.findById(body.branchOfShopId);
@@ -2214,6 +2314,74 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       updated = await repository.partnerShops.update(shop.id, { active: body.active });
     }
     return { shop: updated };
+  });
+
+  /**
+   * The restaurant partners (Anthony, 30 October 2026), so the founder sees who gives Ozi a
+   * discount and who does not: each one's agreed discount, whether it is a Preferred Partner, and
+   * its orders in the last 30 days. Sorted by any of those, or by name.
+   */
+  app.get('/staff/restaurants', async (request) => {
+    await staffActor(request, 'partners');
+    const { sort, order } = z
+      .object({
+        sort: z.enum(['name', 'discount', 'preferred', 'orders']).default('discount'),
+        order: z.enum(['asc', 'desc']).optional(),
+      })
+      .parse(request.query ?? {});
+    const at = now();
+    const events = await repository.analytics.list({
+      since: new Date(at.getTime() - 30 * 24 * 60 * 60 * 1000),
+      kind: 'order_paid',
+    });
+    const rows = (await repository.partnerShops.list())
+      .filter((shop) => shop.kind === 'food' && shop.status !== 'removed')
+      .map((shop) => ({
+        id: shop.id,
+        name: shop.name,
+        area: postcodeArea(shop.postcode),
+        listed: listed(shop),
+        discountPercent: shop.agreedDiscountPercent ?? 0,
+        preferredPartner: preferred(shop),
+        ordersLast30Days: events.filter((event) => eventForShop(event, shop)).length,
+      }));
+    const direction = (order ?? (sort === 'name' ? 'asc' : 'desc')) === 'asc' ? 1 : -1;
+    const value = (row: (typeof rows)[number]): number | string =>
+      sort === 'name'
+        ? row.name.toLowerCase()
+        : sort === 'discount'
+          ? row.discountPercent
+          : sort === 'preferred'
+            ? Number(row.preferredPartner)
+            : row.ordersLast30Days;
+    rows.sort((a, b) => {
+      const x = value(a);
+      const y = value(b);
+      const compared = x < y ? -1 : x > y ? 1 : 0;
+      return compared * direction || a.name.localeCompare(b.name);
+    });
+    return {
+      restaurants: rows,
+      sort,
+      order: direction === 1 ? 'asc' : 'desc',
+      preferredDiscountPercent: config.restaurants.preferredDiscountPercent,
+      withDiscount: rows.filter((row) => row.discountPercent > 0).length,
+      withoutDiscount: rows.filter((row) => row.discountPercent === 0).length,
+      preferred: rows.filter((row) => row.preferredPartner).length,
+    };
+  });
+
+  /** Staff give a Preferred Partner its free Spotlight week for this month, at no charge. */
+  app.post('/staff/partners/:id/free-spotlight-week', async (request) => {
+    const actor = await staffActor(request, 'partners');
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const shop = await repository.partnerShops.findById(id);
+    if (!shop) throw new NotFoundError('partner shop');
+    const updated = await takeFreeSpotlightWeek(app.ctx, shop, actor.name);
+    return {
+      shop: updated,
+      message: `${shop.name}'s free Spotlight week is on, until ${longDay(updated.spotlightUntil ?? now())}. Nothing was charged.`,
+    };
   });
 
   app.post('/staff/partners/:id/users', async (request, reply) => {

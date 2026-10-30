@@ -1,8 +1,9 @@
 /**
  * Shops, cafés, takeaways and services that join as partners (ruling 65, 16 and 17 October
  * 2026). The pure rules live here, with every figure coming from `extras.partners` in
- * `config/store.json`: what a partner pays, how many free listings there are, what a café or
- * takeaway owes on an order placed through the app, and which kinds of service are never listed.
+ * `config/store.json`: what a partner pays, how many free listings there are, and which kinds of
+ * service are never listed. A café, restaurant or takeaway owes no commission (Anthony, 30
+ * October 2026): it may agree a discount for Ozi instead (restaurants.ts).
  */
 
 /** What kind of business a partner is. A service lists services, not goods. */
@@ -27,16 +28,8 @@ export interface PartnerPricing {
   readonly plusMonthlyPence: number;
   /** The first month of Partner Plus costs nothing. */
   readonly plusFirstMonthFree: boolean;
-  /** What a café or takeaway owes on an order placed through the app, in basis points (1000 = 10%). */
-  readonly foodCommissionBasisPoints: number;
   /** Kinds of service that are never listed, each as plain words found in what the business says it does. */
   readonly excludedServiceKinds: readonly string[];
-}
-
-/** The commission on goods bought from a café or takeaway through the app, rounded to the penny. */
-export function commissionPence(goodsPence: number, basisPoints: number): number {
-  if (goodsPence <= 0) return 0;
-  return Math.round((goodsPence * basisPoints) / 10_000);
 }
 
 /** "10%" from 1000 basis points; "12.5%" from 1250. */

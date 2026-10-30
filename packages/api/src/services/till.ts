@@ -24,6 +24,7 @@ import { formatPence } from '@aldilivery/core';
 import type { AppContext } from '../app.js';
 import type { Order } from '../domain.js';
 import { tellShopperWords } from './order-updates.js';
+import { tillExpectedPence } from './orders.js';
 import { askOwner, matterWords } from './owner-desk.js';
 
 /**
@@ -152,8 +153,13 @@ async function settleTillOnCard(
     return { kind: 'refunded', pence };
   }
 
-  const limit = tillLimitPence(order.goodsEstimatePence, ctx.config.receipts.tillExtraFloorPence);
-  if (difference > limit) {
+  // The limit is on what the till was expected to say: for a restaurant with an agreed discount,
+  // the discounted counter price the Runner pays (Anthony, 30 October 2026); for groceries the
+  // shop prices, where the till's overage and the Shopper's difference are the same figure.
+  const expected = tillExpectedPence(order);
+  const limit = tillLimitPence(expected, ctx.config.receipts.tillExtraFloorPence);
+  const over = order.receiptTotalPence === null ? difference : order.receiptTotalPence - expected;
+  if (over > limit) {
     await alertOwner(
       `order ${order.id} came to ${money(difference)} more than estimated, over the ${money(limit)} taken automatically. Please decide.`,
     );

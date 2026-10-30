@@ -54,7 +54,9 @@ import {
 import { itemWords } from '../lib/language-model.js';
 import { remember, spokenIn, type Brain, type Outcome } from '../lib/ozi-memory.js';
 import { phraseReply } from '../lib/phrases.js';
-import { priceLinesInParts } from '../services/basket.js';
+import { priceLinesInParts, restaurantsOf } from '../services/basket.js';
+import { recordCheckoutViewed } from '../lib/analytics.js';
+import { RestaurantMinimumError, RestaurantMixedError } from '../errors.js';
 import { middayOf, scheduleFields } from '../services/scheduled.js';
 import { suggestItem } from '../services/suggest.js';
 import { liveBook } from './ozi.js';
@@ -279,6 +281,12 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     shopperId?: string,
     /** Booked for a later day (ruling 78): it counts in the month it is delivered in. */
     deliveryDay?: string,
+    /**
+     * Priced as the order it will be (Anthony, 30 October 2026): a restaurant's dishes with the
+     * restaurant fee and its smallest order, refused when mixed with other shopping. Left false
+     * where only the words are wanted.
+     */
+    asOrder = false,
   ) {
     const items = await repository.catalogue.findManyByIds(lines.map(([id]) => id));
     const shopper = shopperId ? await repository.shoppers.findById(shopperId) : null;
@@ -295,9 +303,59 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       config.fees,
       shopper ? await deliveryPlanFor(app.ctx, shopper, now()) : 'payg',
       allowance?.extraPence ?? 0,
+      asOrder ? await restaurantsOf(app.ctx, items) : undefined,
     );
     const words = listWords(priced.lines.map((line) => `${line.quantity} ${line.name}`));
-    return { priced, words, allowanceWords: allowance?.words ?? null };
+    return {
+      priced,
+      words,
+      allowanceWords: priced.restaurant ? null : (allowance?.words ?? null),
+    };
+  }
+
+  /**
+   * The read-back for the yes, as the order it will be. A restaurant basket below the smallest
+   * order, or dishes with other shopping, is said plainly and the caller goes back to the list.
+   */
+  async function readBackForYes(
+    state: CallState,
+    sid: string,
+    shopperId?: string,
+    deliveryDay?: string,
+  ): Promise<{ said: string } | Awaited<ReturnType<typeof readBack>>> {
+    try {
+      return await readBack(state.lines, shopperId, deliveryDay, true);
+    } catch (failure) {
+      if (failure instanceof RestaurantMinimumError || failure instanceof RestaurantMixedError) {
+        return {
+          said: ask(
+            `${failure.message} Anything else? When you have everything, say: that's everything.`,
+            next({ ...state, step: 'items', quiet: 0 }, sid),
+          ),
+        };
+      }
+      throw failure;
+    }
+  }
+
+  /** A caller we know heard the total: a checkout viewed, by telephone (checkout insights). */
+  function phoneCheckoutViewed(
+    state: CallState,
+    shopper: Shopper | null,
+    priced: Awaited<ReturnType<typeof readBack>>['priced'],
+  ): void {
+    if (!shopper) return;
+    void recordCheckoutViewed(app.ctx, {
+      shopperId: shopper.id,
+      goodsPence: priced.goodsPence,
+      itemChargesPence: priced.itemChargesPence,
+      feePence: priced.feePence + priced.allowanceExtraPence,
+      totalPence: priced.totalPence,
+      restaurant: priced.restaurant !== null,
+      area: shopper.deliveryAddress,
+      noRunnerWarning: Boolean(state.areaWarned),
+      channel: 'phone',
+    });
   }
 
   /**
@@ -312,9 +370,13 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       feePence: number;
       allowanceExtraPence: number;
       totalPence: number;
+      restaurant?: unknown;
     },
     allowanceWords: string | null = null,
   ): string {
+    if (priced.restaurant) {
+      return `The dishes come to about ${money(priced.goodsPence + priced.itemChargesPence)}, with the item charges included. The restaurant fee is ${money(priced.feePence)}, in place of delivery. So the total is about ${money(priced.totalPence)}`;
+    }
     const extra =
       priced.allowanceExtraPence > 0
         ? ` ${allowanceWords ?? `There is an extra delivery charge of ${money(priced.allowanceExtraPence)}.`}`
@@ -933,7 +995,9 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
   /** The order read back slowly: everything, the cost, the card and the address. */
   async function confirmTwiml(state: CallState, sid: string, opening = ''): Promise<string> {
     if (state.link) {
-      const { priced, words, allowanceWords } = await readBack(state.lines, state.shopperId);
+      const read = await readBackForYes(state, sid, state.shopperId);
+      if ('said' in read) return read.said;
+      const { priced, words, allowanceWords } = read;
       const ceiling = config.voice.paymentCeilingPence;
       if (priced.parts.length > 1) return overOneRunnerOnPhone(state, sid);
       if (priced.totalPence > ceiling) {
@@ -947,6 +1011,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       const known = state.shopperId ? await repository.shoppers.findById(state.shopperId) : null;
       const warning = await areaWarning(state, sid, known);
       if (warning) return warning;
+      phoneCheckoutViewed(state, known, priced);
       return ask(
         `${opening ? `${opening} ` : ''}Here is your order. ${words}. ${costWords(priced, allowanceWords)}. You pay what the till says for the shopping. ${state.booking ? `${phoneBookingWords(state.booking, false)} ` : ''}I'll text you a secure link from our payment company to pay and give your delivery address, and your card is kept safely by them for next time. ${state.booking ? 'A Runner is sent on the day once you have paid.' : "A Runner is sent once you've paid."} Shall I send the link? Say yes or no.${state.booking ? '' : ANOTHER_DAY}`,
         next({ ...state, step: 'confirm', agreedTotalPence: priced.totalPence, quiet: 0 }, sid),
@@ -955,11 +1020,9 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     const shopper = state.shopperId ? await repository.shoppers.findById(state.shopperId) : null;
     if (!shopper)
       return goodbye('Sorry, I could not find your account. Please ring again. Goodbye.');
-    const { priced, words, allowanceWords } = await readBack(
-      state.lines,
-      shopper.id,
-      state.booking?.deliveryDay,
-    );
+    const read = await readBackForYes(state, sid, shopper.id, state.booking?.deliveryDay);
+    if ('said' in read) return read.said;
+    const { priced, words, allowanceWords } = read;
     const ceiling = config.voice.paymentCeilingPence;
     if (priced.parts.length > 1) return overOneRunnerOnPhone(state, sid);
     if (priced.totalPence > ceiling) {
@@ -970,6 +1033,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     }
     const warning = await areaWarning(state, sid, shopper);
     if (warning) return warning;
+    phoneCheckoutViewed(state, shopper, priced);
     const cards = await repository.paymentMethods.listForShopper(shopper.id);
     const card = cards[0];
     return ask(
@@ -992,6 +1056,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       state.lines,
       state.shopperId,
       state.booking?.deliveryDay,
+      true,
     );
     if (priced.totalPence !== state.agreedTotalPence) {
       return goodbye(
@@ -1030,6 +1095,13 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       feePence: priced.feePence,
       allowanceExtraPence: priced.allowanceExtraPence,
       totalEstimatePence: priced.totalPence,
+      // A restaurant order keeps its restaurant and the discount agreed now (30 October 2026).
+      ...(priced.restaurant
+        ? {
+            restaurantShopId: priced.restaurant.shopId,
+            restaurantDiscountPercent: priced.restaurant.discountPercent,
+          }
+        : {}),
       deliveryPlan: priced.plan,
       deliveryAddress: '',
       doorstepProtocolSnapshot: shopper.doorstepProtocol,

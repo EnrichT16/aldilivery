@@ -6,7 +6,8 @@
  *   UK price, marked as an estimate like every other community price, and goes in the basket.
  *   The Runner buys it at the till and the Shopper pays the till price, as for anything else.
  * - **A meal from a café or takeaway**: the listed cafés and takeaways are named, so the Shopper
- *   can choose one, as the big apps list the restaurants that sell a dish.
+ *   can choose one, as the big apps list the restaurants that sell a dish. Ozi Preferred
+ *   Partners are named first (Anthony, 30 October 2026).
  * - **Something the service never carries** (alcohol, tobacco, medicines, cash): said plainly.
  *
  * Without the model, or when it is slow, the answer is "unknown" and the caller says so kindly.
@@ -19,13 +20,19 @@ import type { AppContext } from '../app.js';
 import type { CatalogueItem } from '../domain.js';
 import { bannedList, containsBanned } from '../lib/banned.js';
 import { remember } from '../lib/ozi-memory.js';
+import { preferredPartner, rankedForListing } from '../lib/partner-standing.js';
 
 import { lookUpPriceLater } from './prices.js';
 
 export type Suggestion =
   | { outcome: 'found'; item: CatalogueItem }
   | { outcome: 'added'; item: CatalogueItem }
-  | { outcome: 'shops'; reply: string; shops: Array<{ id: string; name: string }> }
+  | {
+      outcome: 'shops';
+      reply: string;
+      /** Ozi Preferred Partners first, each marked, so Ozi can say why they come first. */
+      shops: Array<{ id: string; name: string; preferred: boolean }>;
+    }
   | { outcome: 'refused'; reply: string }
   | { outcome: 'unknown' };
 
@@ -66,10 +73,20 @@ export async function suggestItem(
   };
 
   if (estimate.kind === 'prepared') {
-    const shops = (await repository.partnerShops.list())
-      .filter((shop) => shop.active && shop.status === 'approved' && shop.kind === 'food')
+    // Ozi Preferred Partners are suggested first (Anthony, 30 October 2026).
+    const shops = rankedForListing(
+      (await repository.partnerShops.list()).filter(
+        (shop) => shop.active && shop.status === 'approved' && shop.kind === 'food',
+      ),
+      ctx.now(),
+      config,
+    )
       .slice(0, 5)
-      .map((shop) => ({ id: shop.id, name: shop.name }));
+      .map((shop) => ({
+        id: shop.id,
+        name: shop.name,
+        preferred: preferredPartner(shop, config),
+      }));
     const reply =
       estimate.reply ?? `${wanted} comes from a café or takeaway rather than a supermarket.`;
     keep(reply, 'answered');

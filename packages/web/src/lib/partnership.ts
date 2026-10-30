@@ -21,6 +21,17 @@ export const SHOP_PRICES_WORDS = 'Shop prices plus a small item charge, always s
 
 export const REVIEW_POINTS_WORDS = 'Reviewers earn points for any honest rating.';
 
+/**
+ * The badge an Ozi Preferred Partner wears (Anthony, 30 October 2026): a restaurant that gives us
+ * a better price. Wherever it is shown first, the list says why (`preferredRankingWords`).
+ */
+export const PREFERRED_PARTNER_WORDS = 'Preferred Partner';
+
+/** "Restaurant fee £12": a restaurant order's flat fee, in place of delivery, from config. */
+export function restaurantFeeShortWords(): string {
+  return `Restaurant fee ${money(storeConfig.restaurants.feePence).replace(/\.00$/, '')}`;
+}
+
 /** "Delivery from £6.99": the lowest delivery price on any plan, from config. */
 export function deliveryFromWords(): string {
   return `Delivery from ${money(deliveryPriceRange(storeConfig.fees).lowestPence)}`;

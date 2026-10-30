@@ -27,7 +27,7 @@ import type { AppContext } from '../app.js';
 import type { Order, RecurringSet } from '../domain.js';
 import { recordOrder } from '../lib/analytics.js';
 import { cardAccepted } from '../lib/card-region.js';
-import { priceLines } from './basket.js';
+import { priceLines, RESTAURANT_SET_WORDS, restaurantsOf } from './basket.js';
 import { allowanceFor, deliveryPlanFor } from './plans.js';
 import { applyCredit } from './credit.js';
 import { offerOrder } from './dispatch.js';
@@ -245,6 +245,10 @@ export async function placeSetOrder(
     // The monthly allowance (ruling 73): a regular order counts like any other, and carries
     // the extra delivery charge when it is due; the notice before it said so.
     const allowance = await allowanceFor(ctx, shopper, ctx.now());
+    // Groceries only: a restaurant's dish that found its way in is never sent on its own.
+    if ((await restaurantsOf(ctx, catalogueItems)).of.size > 0) {
+      throw new Error(RESTAURANT_SET_WORDS);
+    }
     priced = priceLines(
       lines,
       catalogueItems,

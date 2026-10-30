@@ -8,6 +8,8 @@ import {
   priceBasketInParts,
   formatPence,
   productAllowed,
+  RESTAURANT_MIXED_WORDS,
+  restaurantMinimumWords,
   type BasketPartPricing,
   type BasketPricing,
   type DeliveryPlan,
@@ -53,6 +55,17 @@ interface BasketValue {
    * £5.99 delivery charge."), or null when there is nothing to say.
    */
   allowanceWords: string | null;
+  /**
+   * A restaurant order (Anthony, 30 October 2026): the restaurant it is from, when every dish is
+   * from that one restaurant. Its pricing is the flat restaurant fee in place of delivery.
+   */
+  restaurant: { shopId: string; name: string } | null;
+  /**
+   * What stops the order being sent, in plain words, or null: restaurant dishes mixed with other
+   * shopping or another restaurant's, or a restaurant basket below the smallest order. Shown on
+   * the screen and said by Ozi.
+   */
+  restaurantProblem: string | null;
 }
 
 const BasketContext = createContext<BasketValue | null>(null);
@@ -117,6 +130,16 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
     setLines([]);
   }, []);
 
+  // A restaurant order (Anthony, 30 October 2026): every dish from one restaurant, café or
+  // takeaway. Dishes mixed with other shopping, or with another restaurant's, cannot go as one.
+  const restaurants = lines.map((line) => line.item.restaurant ?? null);
+  const firstRestaurant = restaurants[0] ?? null;
+  const mixed =
+    restaurants.some(Boolean) &&
+    restaurants.some((ref) => ref === null || ref.shopId !== firstRestaurant?.shopId);
+  const restaurantId = !mixed && firstRestaurant ? firstRestaurant.shopId : null;
+  const restaurantName = !mixed && firstRestaurant ? firstRestaurant.name : null;
+
   const priced = useMemo<BasketPricing & { parts?: readonly BasketPartPricing[] }>(() => {
     const goodsPence = lines.reduce(
       (sum, line) => sum + line.item.estimatedPricePence * line.quantity,
@@ -142,6 +165,19 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
       })),
       storeConfig.fees,
     );
+    // A restaurant order: dishes at shop prices, the item charges, and the flat restaurant fee
+    // in place of delivery, on every plan, with no extra delivery charge. One Runner always.
+    if (restaurantId !== null) {
+      const feePence = storeConfig.restaurants.feePence;
+      return {
+        goodsPence,
+        itemChargesPence,
+        feePence,
+        allowanceExtraPence: 0,
+        totalPence: goodsPence + itemChargesPence + feePence,
+        plan,
+      };
+    }
     // Over one order but within one basket (ruling 61): priced as linked orders.
     if (
       goodsPence > storeConfig.fees.maximumOrderGoodsPence &&
@@ -182,15 +218,34 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
       totalPence: goodsPence + itemChargesPence + feePence + extraPence,
       plan,
     };
-  }, [lines, plan, extraPence]);
+  }, [lines, plan, extraPence, restaurantId]);
 
   const pricing = useMemo<BasketPricing>(() => {
     const { parts: _parts, ...rest } = priced;
     return rest;
   }, [priced]);
   const parts = useMemo(() => priced.parts ?? [], [priced]);
-  const overMaximum = pricing.goodsPence > storeConfig.fees.maximumBasketGoodsPence;
+  // A restaurant order is one Runner's: over what one order carries, it cannot go as it is.
+  const overMaximum =
+    pricing.goodsPence >
+    (restaurantId !== null
+      ? storeConfig.fees.maximumOrderGoodsPence
+      : storeConfig.fees.maximumBasketGoodsPence);
   const overOneRunner = parts.length > 1;
+  const restaurantProblem = mixed
+    ? RESTAURANT_MIXED_WORDS
+    : restaurantId !== null && pricing.goodsPence < storeConfig.restaurants.minimumOrderPence
+      ? restaurantMinimumWords(storeConfig.restaurants, (pence) =>
+          formatPence(pence, storeConfig.store.currencySymbol),
+        )
+      : null;
+  const restaurantRef = useMemo(
+    () =>
+      restaurantId !== null && restaurantName !== null
+        ? { shopId: restaurantId, name: restaurantName }
+        : null,
+    [restaurantId, restaurantName],
+  );
 
   const value = useMemo<BasketValue>(
     () => ({
@@ -204,7 +259,9 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
       overOneRunner,
       parts,
       itemCount: lines.reduce((sum, line) => sum + line.quantity, 0),
-      allowanceWords: lines.length === 0 ? null : allowanceText,
+      allowanceWords: lines.length === 0 || restaurantRef ? null : allowanceText,
+      restaurant: restaurantRef,
+      restaurantProblem,
     }),
     [
       lines,
@@ -217,6 +274,8 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
       overOneRunner,
       parts,
       allowanceText,
+      restaurantRef,
+      restaurantProblem,
     ],
   );
 

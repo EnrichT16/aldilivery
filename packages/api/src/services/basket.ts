@@ -14,13 +14,30 @@
  * Rule Three as amended on 9 October 2026 (ruling 58): every unit carries an item charge, and
  * the price shown for it always includes that charge; no single product may cost more than
  * £60 in the shop; delivery depends on the plan and the size of the shop.
+ *
+ * Restaurants (Anthony, 30 October 2026): a basket of dishes from one restaurant, café or
+ * takeaway is a restaurant order, priced apart from groceries: dishes at shop prices with the
+ * normal item charge, and the flat restaurant fee in place of delivery, with a smallest order
+ * (the one minimum there is, ruled by Anthony as an exception to Rule Four for restaurants
+ * only). Dishes cannot share a basket with other shopping, nor with another restaurant's dishes:
+ * the code has linked orders only for a basket too big for one Runner, not for one from two
+ * places, so each restaurant order goes on its own, and the Shopper is told so plainly.
  */
 
 import {
+  BasketOverMaximumError,
+  counterPricePence,
   displayPricePence,
+  formatPence,
+  isRestaurantKind,
   itemChargePence,
   priceBasket,
   priceBasketInParts,
+  priceRestaurantBasket,
+  RESTAURANT_MIXED_WORDS,
+  RestaurantBelowMinimumError,
+  restaurantMinimumWords,
+  type RestaurantSettings,
   type BasketPartFees,
   productAllowed,
   type BasketPricing,
@@ -28,13 +45,17 @@ import {
   type DeliveryPlan,
 } from '@aldilivery/core';
 
+import type { AppContext } from '../app.js';
 import type { BasketLine, CatalogueItem } from '../domain.js';
 import {
   AgeRestrictedItemError,
+  ApiError,
   BadRequestError,
   BasketTooLargeError,
   NotFoundError,
   ProductTooDearError,
+  RestaurantMinimumError,
+  RestaurantMixedError,
 } from '../errors.js';
 
 export interface PricedLine {
@@ -57,6 +78,126 @@ export interface PricedBasket extends BasketPricing {
   lines: PricedLine[];
 }
 
+/** The restaurant a dish in the catalogue is from, and the discount it has agreed for Ozi. */
+export interface RestaurantRef {
+  shopId: string;
+  name: string;
+  discountPercent: number;
+}
+
+/** A restaurant order's own figures: which restaurant, its discount, and the counter price. */
+export interface RestaurantPricing extends RestaurantRef {
+  /** What the Runner pays the restaurant at the counter: the shop prices less the discount. */
+  counterPence: number;
+}
+
+/** Why a regular order (a Set) cannot carry a restaurant's dishes (Anthony, 30 October 2026). */
+export const RESTAURANT_SET_WORDS =
+  'Restaurant dishes cannot go in a regular order. Please order them on their own when you would like them.';
+
+/** What pricing reads to tell a restaurant order from groceries. */
+export interface RestaurantLookup {
+  /** Catalogue item id to the restaurant it is from, for the dishes in the basket only. */
+  of: ReadonlyMap<string, RestaurantRef>;
+  settings: Pick<RestaurantSettings, 'feePence' | 'minimumOrderPence'>;
+  currencySymbol: string;
+}
+
+/**
+ * Which of these catalogue rows are a restaurant's dishes: a Shop Partner's product is in the
+ * catalogue as "partner:<product id>", and its partner's kind says whether it is food.
+ */
+export async function restaurantsOf(
+  ctx: Pick<AppContext, 'repository' | 'config'>,
+  items: readonly CatalogueItem[],
+): Promise<RestaurantLookup> {
+  const of = new Map<string, RestaurantRef>();
+  for (const item of items) {
+    if (!item.externalRef?.startsWith('partner:')) continue;
+    const product = await ctx.repository.partnerProducts.findById(
+      item.externalRef.slice('partner:'.length),
+    );
+    if (!product) continue;
+    const shop = await ctx.repository.partnerShops.findById(product.partnerShopId);
+    if (!shop || !isRestaurantKind(shop.kind)) continue;
+    of.set(item.id, {
+      shopId: shop.id,
+      name: shop.name,
+      discountPercent: shop.agreedDiscountPercent ?? 0,
+    });
+  }
+  return {
+    of,
+    settings: ctx.config.restaurants,
+    currencySymbol: ctx.config.store.currencySymbol,
+  };
+}
+
+/**
+ * The one restaurant this basket is from, or null for groceries. Refuses dishes mixed with other
+ * shopping, and dishes from two restaurants.
+ */
+function restaurantOfBasket(
+  lines: readonly PricedLine[],
+  restaurants: RestaurantLookup | undefined,
+): RestaurantRef | null {
+  if (!restaurants || restaurants.of.size === 0) return null;
+  const refs = lines.map((line) => restaurants.of.get(line.catalogueItemId) ?? null);
+  if (refs.every((ref) => ref === null)) return null;
+  const first = refs[0];
+  if (!first || refs.some((ref) => ref === null || ref.shopId !== first.shopId)) {
+    throw new RestaurantMixedError(RESTAURANT_MIXED_WORDS);
+  }
+  return first;
+}
+
+/** A restaurant basket priced: the flat fee, the smallest order, and the counter price. */
+function priceRestaurantLines(
+  pricedLines: PricedLine[],
+  restaurant: RestaurantRef,
+  restaurants: RestaurantLookup,
+  options: PriceBasketOptions,
+  plan: DeliveryPlan,
+): PricedBasket & { restaurant: RestaurantPricing } {
+  try {
+    const pricing = priceRestaurantBasket(
+      pricedLines.map((line) => ({ shopPricePence: line.unitPricePence, quantity: line.quantity })),
+      plan,
+      options,
+      restaurants.settings,
+    );
+    return {
+      ...pricing,
+      lines: pricedLines,
+      restaurant: {
+        ...restaurant,
+        counterPence: counterPricePence(pricing.goodsPence, restaurant.discountPercent),
+      },
+    };
+  } catch (failure) {
+    if (failure instanceof RestaurantBelowMinimumError) {
+      throw new RestaurantMinimumError(
+        restaurantMinimumWords(restaurants.settings, (pence) =>
+          formatPence(pence, restaurants.currencySymbol),
+        ),
+        failure.goodsPence,
+        failure.minimumPence,
+      );
+    }
+    if (failure instanceof BasketOverMaximumError) {
+      // A restaurant order is one Runner's: never linked orders.
+      const money = (pence: number): string => formatPence(pence, restaurants.currencySymbol);
+      throw new ApiError(
+        422,
+        'basket_too_large',
+        `This comes to ${money(failure.goodsPence)} of dishes, and one restaurant order carries up to ${money(failure.maximumPence)}. Please take something out.`,
+        { goodsPence: failure.goodsPence, maximumPence: failure.maximumPence },
+      );
+    }
+    throw failure;
+  }
+}
+
 export type PriceBasketOptions = DeliveryFees;
 
 /**
@@ -71,8 +212,13 @@ export function priceLines(
   options: PriceBasketOptions,
   plan: DeliveryPlan = 'payg',
   allowanceExtraPence = 0,
-): PricedBasket {
+  restaurants?: RestaurantLookup,
+): PricedBasket & { restaurant: RestaurantPricing | null } {
   const pricedLines = checkedLines(lines, catalogueItems, options);
+  const restaurant = restaurantOfBasket(pricedLines, restaurants);
+  if (restaurant && restaurants) {
+    return priceRestaurantLines(pricedLines, restaurant, restaurants, options, plan);
+  }
   const goodsPence = pricedLines.reduce((sum, line) => sum + line.linePence, 0);
 
   if (goodsPence > options.maximumOrderGoodsPence) {
@@ -85,7 +231,7 @@ export function priceLines(
     options,
     allowanceExtraPence,
   );
-  return { ...pricing, lines: pricedLines };
+  return { ...pricing, lines: pricedLines, restaurant: null };
 }
 
 /** One linked order of a basket kept whole (ruling 61), with its own priced lines. */
@@ -101,6 +247,8 @@ export interface PricedBasketInParts extends BasketPricing {
   parts: PricedBasketPart[];
   /** The extra Runners' deliveries, taken only when each of them collects. */
   extraDeliveryPence: number;
+  /** A restaurant order's own figures, or null for groceries (Anthony, 30 October 2026). */
+  restaurant: RestaurantPricing | null;
 }
 
 /**
@@ -115,8 +263,22 @@ export function priceLinesInParts(
   options: BasketPartFees,
   plan: DeliveryPlan = 'payg',
   allowanceExtraPence = 0,
+  restaurants?: RestaurantLookup,
 ): PricedBasketInParts {
   const pricedLines = checkedLines(lines, catalogueItems, options);
+  const restaurant = restaurantOfBasket(pricedLines, restaurants);
+  if (restaurant && restaurants) {
+    // One restaurant, one order, one Runner: never linked orders.
+    const priced = priceRestaurantLines(pricedLines, restaurant, restaurants, options, plan);
+    const { lines: pricedRestaurantLines, restaurant: figures, ...pricing } = priced;
+    return {
+      ...pricing,
+      lines: pricedRestaurantLines,
+      parts: [{ ...pricing, part: 1, extra: false, lines: pricedRestaurantLines }],
+      extraDeliveryPence: 0,
+      restaurant: figures,
+    };
+  }
   const goodsPence = pricedLines.reduce((sum, line) => sum + line.linePence, 0);
   if (goodsPence > options.maximumBasketGoodsPence) {
     throw new BasketTooLargeError(goodsPence, options.maximumBasketGoodsPence, true);
@@ -161,6 +323,7 @@ export function priceLinesInParts(
     extraDeliveryPence: inParts.extraDeliveryPence,
     lines: pricedLines,
     parts,
+    restaurant: null,
   };
 }
 

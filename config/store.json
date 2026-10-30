@@ -150,7 +150,6 @@
       "freeProductLimit": 10,
       "plusMonthlyPence": 1499,
       "plusFirstMonthFree": true,
-      "foodCommissionBasisPoints": 1000,
       "excludedServiceKinds": [
         "credit",
         "loans",
@@ -219,6 +218,19 @@
     ],
     "minimumActiveShare": 0.7,
     "givenAs": "Amazon voucher"
+  },
+  "restaurants": {
+    "feePence": 1200,
+    "minimumOrderPence": 1000,
+    "preferredDiscountPercent": 20,
+    "maximumDiscountPercent": 50
+  },
+  "checkoutInsights": {
+    "totalBandsPence": [2000, 4000, 6000],
+    "periodsDays": [7, 30, 90],
+    "sameCheckoutMinutes": 30,
+    "paidWithinHours": 2,
+    "askOncePerHours": 24
   },
   "ambassador": {
     "profitShare": 0.02,

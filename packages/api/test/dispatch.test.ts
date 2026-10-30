@@ -204,6 +204,8 @@ describe('what a Runner sees', () => {
       distanceMiles: expect.any(Number),
       // Not part of a split job (ruling 60).
       split: null,
+      // Groceries, not a restaurant order (30 October 2026).
+      restaurant: false,
     });
     expect(JSON.stringify(body)).not.toContain('Example Street');
     expect(JSON.stringify(body)).not.toContain('Knock twice');

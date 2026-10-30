@@ -542,6 +542,17 @@ export interface Order {
    */
   allowanceExtraPence: number;
   totalEstimatePence: number;
+  /**
+   * A restaurant, café or takeaway order (Anthony, 30 October 2026): the partner it is from, or
+   * null for groceries. `feePence` is then the flat restaurant fee, in place of delivery.
+   */
+  restaurantShopId: string | null;
+  /**
+   * The discount that restaurant agreed for Ozi when the order was placed, a whole percentage (0
+   * for none, and on every grocery order). The Shopper pays shop prices; the Runner pays the
+   * restaurant the shop prices less this at the counter; Ozi keeps the difference.
+   */
+  restaurantDiscountPercent: number;
   /** Which delivery price applied. */
   deliveryPlan: import('@aldilivery/core').DeliveryPlan;
   /** Family and Carer: the payer whose card pays, and their approval above their limit. */
@@ -1116,6 +1127,13 @@ export interface PartnerShop {
   ambassadorId: string | null;
   /** Another listing of the same business, marked by staff: each branch is its own venture. */
   branchOfShopId: string | null;
+  /**
+   * A restaurant's agreed discount for Ozi, a whole percentage, set by staff (Anthony, 30
+   * October 2026): it sells to Ozi at its shop price less this. 0 for none, and for every shop
+   * and service. At `restaurants.preferredDiscountPercent` or more it is an Ozi Preferred
+   * Partner. Restaurants pay no commission.
+   */
+  agreedDiscountPercent: number;
 }
 
 export type ServiceEnquiryKind = 'quote' | 'call_back';
@@ -1223,7 +1241,15 @@ export interface SpotlightMention {
 export interface AnalyticsEvent {
   id: string;
   at: Date;
-  kind: 'order_paid' | 'order_delivered' | 'search' | 'search_unmet' | 'spotlight_mention';
+  kind:
+    | 'order_paid'
+    | 'order_delivered'
+    | 'search'
+    | 'search_unmet'
+    | 'spotlight_mention'
+    | 'checkout_viewed'
+    | 'checkout_paid'
+    | 'checkout_reason';
   shopperKey: string | null;
   runnerKey: string | null;
   shop: string | null;
@@ -1238,7 +1264,28 @@ export interface AnalyticsEvent {
   categories: string;
   query: string | null;
   travelMode: string | null;
+  /**
+   * Checkout insights (Anthony, 30 October 2026), on checkout rows only: the breakdown shown
+   * (goods in `goodsPence`, then these), a restaurant order or groceries, whether the no-Runner
+   * warning was shown, a returning Shopper (one with an order before) or a new one, how they
+   * ordered, and on a checkout_reason row the answer tapped. Never a card detail.
+   */
+  itemChargesPence?: number | null;
+  feePence?: number | null;
+  totalPence?: number | null;
+  restaurant?: boolean | null;
+  noRunnerWarning?: boolean | null;
+  returning?: boolean | null;
+  channel?: CheckoutChannel | null;
+  answer?: CheckoutReason | null;
 }
+
+/** How a Shopper reached the checkout: the screen, Ozi by voice, or the telephone. */
+export type CheckoutChannel = 'web' | 'voice' | 'phone';
+
+/** The answers to "Can we ask what stopped you?" (Anthony, 30 October 2026). */
+export const CHECKOUT_REASONS = ['price', 'looking', 'no_runner', 'other'] as const;
+export type CheckoutReason = (typeof CHECKOUT_REASONS)[number];
 
 /** Money in (positive) or out (negative), by gateway. Seen only by the owner. */
 export interface IncomeRecord {

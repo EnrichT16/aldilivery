@@ -10,7 +10,8 @@
  *   An account with an order still on its way waits until that order is finished.
  * - Problem photos, voice notes and notes: two years after the problem was decided.
  * - Sign-in codes, the security record of signing in: one year.
- * - The figures about how the service is used: three years.
+ * - The figures about how the service is used: three years; checkouts viewed and not completed,
+ *   and the answers to "what stopped you", 12 months (Anthony, 30 October 2026).
  * - Orders and money records: seven years, then made anonymous, with the receipt photo removed.
  *
  * Not here, because nothing is stored to remove: the telephone number of somebody who rang and
@@ -42,6 +43,11 @@ export const KEEP_DAYS = {
   problemEvidence: 2 * 365,
   signInRecords: 365,
   analytics: 3 * 365,
+  /**
+   * Checkouts viewed and not completed, and why (Anthony, 30 October 2026): 12 months, to
+   * improve our prices, as the privacy page says. Never a card detail.
+   */
+  checkoutInsights: 365,
   orders: 7 * 365 + 2,
   runnerChecksAfterLeaving: 2 * 365,
   /** Ozi's memory (ruling 68): exchanges nobody judged go after six months, judged ones after three years. */
@@ -69,6 +75,8 @@ export interface RetentionReport {
   problemEvidenceRemoved: number;
   signInCodesRemoved: number;
   analyticsRemoved: number;
+  /** Checkout insight rows older than `KEEP_DAYS.checkoutInsights` (12 months). */
+  checkoutEventsRemoved: number;
   exchangesRemoved: number;
   ordersAnonymised: number;
   receiptPhotosRemoved: number;
@@ -197,6 +205,9 @@ export async function sweepRetention(
     ),
     analyticsRemoved: await step('analytics', () =>
       retention.deleteAnalyticsBefore(before(at, KEEP_DAYS.analytics)),
+    ),
+    checkoutEventsRemoved: await step('checkout insights', () =>
+      retention.deleteCheckoutEventsBefore(before(at, KEEP_DAYS.checkoutInsights)),
     ),
     exchangesRemoved: await step("Ozi's memory", async () => {
       const unrated = await retention.deleteExchangesBefore(

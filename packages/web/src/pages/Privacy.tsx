@@ -392,6 +392,10 @@ export function Privacy(): JSX.Element {
           <li>
             The figures about how the service is used, with codes instead of names: three years.
           </li>
+          <li>
+            We keep a record of checkouts that weren&rsquo;t completed, without card details, to
+            improve our prices, for 12 months.
+          </li>
           <li>Security records of signing in: one year.</li>
           <li>
             Recordings of calls from us: {storeConfig.companyContact.callRecordingDays} days.

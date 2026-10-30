@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 
+import { WhyStopped } from './components/WhyStopped';
 import { Layout } from './components/Layout';
 import { ReferralNews } from './components/ReferralCard';
 import { WeeklyReminder } from './components/WeeklyReminder';
@@ -150,6 +151,7 @@ export function App(): JSX.Element {
               <WeeklyReminder />
               <ReferralNews />
               <PageTitle />
+              <WhyStopped />
               <Routes>
                 <Route path="/" element={<Landing />} />
                 <Route path="/join" element={<Landing />} />

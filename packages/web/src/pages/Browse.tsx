@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { preferredRankingWords } from '@aldilivery/core';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { BrowseNav } from '../components/BrowseNav';
 import { storeConfig } from '../config';
 import { fetchShops, type BrowseSection, type PublicShop } from '../lib/api';
 import { BROWSE, browseNoun, browseQuery, emptyWords, listEntry, postcodeIn } from '../lib/browse';
-import { NOT_A_PARTNER_WORDS, TYPICAL_HOURS_WORDS } from '../lib/partnership';
+import {
+  NOT_A_PARTNER_WORDS,
+  PREFERRED_PARTNER_WORDS,
+  TYPICAL_HOURS_WORDS,
+} from '../lib/partnership';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
 
@@ -61,6 +66,8 @@ export function BrowsePage({ section }: { section: BrowseSection }): JSX.Element
   const search = params.get('q') ?? '';
   const near = params.get('near') ?? postcodeIn(shopper?.deliveryAddress ?? '');
   const [places, setPlaces] = useState<PublicShop[] | null>(null);
+  /** Said next to the list when Preferred Partners are shown first (CMA, 30 October 2026). */
+  const [ranking, setRanking] = useState<string | null>(null);
   const [choosing, setChoosing] = useState(false);
   const [open, setOpen] = useState<string[]>([]);
   const chooser = useRef<HTMLButtonElement>(null);
@@ -72,7 +79,9 @@ export function BrowsePage({ section }: { section: BrowseSection }): JSX.Element
     setPlaces(null);
     fetchShops(browseQuery(section, filter, { q: search, near }))
       .then((result) => {
-        if (!cancelled) setPlaces(result.shops);
+        if (cancelled) return;
+        setPlaces(result.shops);
+        setRanking(result.ranking ?? null);
       })
       .catch(() => {
         if (!cancelled) setPlaces([]);
@@ -124,6 +133,11 @@ export function BrowsePage({ section }: { section: BrowseSection }): JSX.Element
     setOpen((now) => (now.includes(id) ? now.filter((one) => one !== id) : [...now, id]));
 
   const words = browseNoun(section, filter);
+  // The ranking is commercial, and said so next to the list (CMA): always on Restaurants, and on
+  // any other list a Preferred Partner is in.
+  const disclosure =
+    ranking ??
+    (section === 'restaurants' ? preferredRankingWords(storeConfig.assistantName) : null);
   const nearby = places?.filter((place) => place.nearYou === true) ?? [];
   const further = places?.filter((place) => place.nearYou !== true) ?? [];
   const assistant = storeConfig.assistantName;
@@ -147,6 +161,12 @@ export function BrowsePage({ section }: { section: BrowseSection }): JSX.Element
                 <span aria-hidden="true">{expanded ? '▾' : '▸'}</span>
                 <span className="flex flex-col">
                   <span className="text-lead font-bold">{place.name}</span>
+                  {place.preferredPartner && (
+                    <span className="font-bold">
+                      <span aria-hidden="true">★ </span>
+                      {PREFERRED_PARTNER_WORDS}
+                    </span>
+                  )}
                   <span className="font-normal">
                     {place.kindWords}
                     {place.area ? `, ${place.area}` : ''}
@@ -298,6 +318,10 @@ export function BrowsePage({ section }: { section: BrowseSection }): JSX.Element
             ? ''
             : `${places.length} ${places.length === 1 ? words.replace(/s$/, '') : words}${search ? ` matching “${search}”` : ''}.`}
       </p>
+
+      {places !== null && places.length > 0 && disclosure && (
+        <p className="m-0 border-2 border-highlight rounded-2xl p-4">{disclosure}</p>
+      )}
 
       {places !== null && places.length === 0 && (
         <p className="m-0 border-2 border-paper rounded-2xl p-4">
