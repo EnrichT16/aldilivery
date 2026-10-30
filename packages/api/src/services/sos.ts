@@ -27,9 +27,22 @@ import { askOwner, matterWords } from './owner-desk.js';
 
 type SosContext = Pick<AppContext, 'repository' | 'config' | 'env' | 'now' | 'sendText'>;
 
-/** What the Runner is told, every time: the emergency services come first. */
-export const CALL_999 =
-  'If you are in danger, call 999 now. Get somewhere safe and public if you can. We have been told where you are.';
+/**
+ * What the Runner is told first, every time: the emergency services come first. It promises
+ * nothing about the office, which may not have been reached (Anthony, 30 October 2026).
+ */
+export const CALL_999 = 'If you are in danger, call 999 now.';
+
+/**
+ * What the Runner is told about the office: only what really happened (Anthony, 30 October 2026).
+ * "Told" only when the alert went; never when it failed, or when nobody could be texted.
+ */
+export function sosWords(sos: Pick<RunnerSos, 'alertSentAt' | 'latitude'>): string {
+  if (sos.alertSentAt === null) return 'We could not reach the office. Please call 999.';
+  return sos.latitude !== null
+    ? 'We have been told, with where you are.'
+    : 'We have been told. We do not know where you are yet.';
+}
 
 /** How long the link keeps working once the SOS is over. */
 const LINK_AFTER_END_MS = 60 * 60 * 1000;

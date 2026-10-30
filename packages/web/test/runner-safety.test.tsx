@@ -30,12 +30,20 @@ const livekit = vi.hoisted(() => {
 });
 vi.mock('../src/lib/call-connection', () => ({ connectToCall: livekit.connectToCall }));
 
-const CALL_999 =
-  'If you are in danger, call 999 now. Get somewhere safe and public if you can. We have been told where you are.';
+const CALL_999 = 'If you are in danger, call 999 now.';
+
+/** What the server says happened to the alert (Anthony, 30 October 2026). */
+type Alert = 'located' | 'unlocated' | 'failed' | 'unreachable';
+const ALERT_WORDS: Record<Exclude<Alert, 'unreachable'>, string> = {
+  located: 'We have been told, with where you are.',
+  unlocated: 'We have been told. We do not know where you are yet.',
+  failed: 'We could not reach the office. Please call 999.',
+};
 
 interface State {
   status: null | 'accepted' | 'shopping' | 'delivering';
   sosOn: boolean;
+  alert: Alert;
   schedule: 'weekly' | 'daily';
   instantAvailable: number;
   agreed: boolean;
@@ -62,9 +70,9 @@ function sos(on: boolean) {
     on,
     startedAt: '2026-10-18T10:00:00.000Z',
     endedAt: on ? null : '2026-10-18T10:05:00.000Z',
-    located: true,
-    locationAt: '2026-10-18T10:00:00.000Z',
-    alerted: true,
+    located: state.alert !== 'unlocated',
+    locationAt: state.alert === 'unlocated' ? null : '2026-10-18T10:00:00.000Z',
+    alerted: state.alert !== 'failed',
   };
 }
 
@@ -183,17 +191,18 @@ function stubRunner(): void {
       }
       if (path === '/runners/me/sos') {
         if (method === 'POST') {
+          if (state.alert === 'unreachable') throw new TypeError('Failed to fetch');
           state.sosOn = true;
           return reply(
-            {
-              sos: sos(true),
-              call999: CALL_999,
-              message: `We have been told, with where you are. ${CALL_999}`,
-            },
+            { sos: sos(true), call999: CALL_999, message: ALERT_WORDS[state.alert] },
             201,
           );
         }
-        return reply({ sos: state.sosOn ? sos(true) : null, call999: CALL_999 });
+        return reply({
+          sos: state.sosOn ? sos(true) : null,
+          call999: CALL_999,
+          message: state.sosOn && state.alert !== 'unreachable' ? ALERT_WORDS[state.alert] : null,
+        });
       }
       if (path === '/runners/me/sos/location') return reply({ sos: sos(true) });
       if (path === '/runners/me/sos/end') {
@@ -261,6 +270,7 @@ beforeEach(() => {
   state = {
     status: 'shopping',
     sosOn: false,
+    alert: 'located',
     schedule: 'weekly',
     instantAvailable: 0,
     agreed: true,
@@ -295,11 +305,12 @@ describe('the SOS button', () => {
     ).toEqual({
       location: { latitude: 51.38912, longitude: 0.54691, accuracyMetres: 12 },
     });
-    expect(
-      screen.getByText(
-        /We have been told, with where you are\. If you are in danger, call 999 now/,
-      ),
-    ).toHaveAttribute('role', 'alert');
+    expect(screen.getByText('We have been told, with where you are.')).toHaveAttribute(
+      'role',
+      'alert',
+    );
+    // The first and largest words on the SOS screen (Anthony, 30 October 2026).
+    expect(screen.getByText(CALL_999)).toHaveClass('text-display');
     expect(screen.getByRole('link', { name: 'Call 999' })).toHaveAttribute('href', 'tel:999');
     // Kept up to date while it is on.
     expect(geolocation.watchPosition).toHaveBeenCalled();
@@ -308,6 +319,65 @@ describe('the SOS button', () => {
     expect(await screen.findByText(/We are glad you are safe/)).toBeInTheDocument();
     expect(geolocation.clearWatch).toHaveBeenCalledWith(7);
     expect(screen.queryByRole('heading', { name: 'SOS is on' })).toBeNull();
+  });
+
+  it('puts "call 999 now" first and largest, with a one-tap call, before sending', async () => {
+    const user = userEvent.setup({ delay: null });
+    stubRunner();
+    renderRunner();
+    await user.click(await screen.findByRole('button', { name: 'SOS' }));
+    const confirm = screen.getByText(CALL_999);
+    expect(confirm).toHaveClass('text-display');
+    const call = screen.getByRole('link', { name: 'Call 999' });
+    expect(call).toHaveAttribute('href', 'tel:999');
+    // Before anything else in the box: the words, then the call.
+    expect(confirm.compareDocumentPosition(call) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      call.compareDocumentPosition(screen.getByRole('button', { name: 'Yes, send SOS' })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.queryByText(/We will be told/)).toBeNull();
+  });
+
+  it('says the office was told but does not know where yet, when that is what happened', async () => {
+    const user = userEvent.setup({ delay: null });
+    state.alert = 'unlocated';
+    stubRunner();
+    renderRunner();
+    await user.click(await screen.findByRole('button', { name: 'SOS' }));
+    await user.click(screen.getByRole('button', { name: 'Yes, send SOS' }));
+    expect(
+      await screen.findByText('We have been told. We do not know where you are yet.'),
+    ).toHaveAttribute('role', 'alert');
+    expect(screen.queryByText('We have been told, with where you are.')).toBeNull();
+  });
+
+  it('never says "told" when the alert failed, and says to call 999', async () => {
+    const user = userEvent.setup({ delay: null });
+    state.alert = 'failed';
+    stubRunner();
+    renderRunner();
+    await user.click(await screen.findByRole('button', { name: 'SOS' }));
+    await user.click(screen.getByRole('button', { name: 'Yes, send SOS' }));
+    expect(
+      await screen.findByText('We could not reach the office. Please call 999.'),
+    ).toHaveAttribute('role', 'alert');
+    expect(screen.queryByText(/told/)).toBeNull();
+    expect(screen.getByRole('link', { name: 'Call 999' })).toHaveAttribute('href', 'tel:999');
+  });
+
+  it('says the office could not be reached when the SOS could not be sent at all', async () => {
+    const user = userEvent.setup({ delay: null });
+    state.alert = 'unreachable';
+    stubRunner();
+    renderRunner();
+    await user.click(await screen.findByRole('button', { name: 'SOS' }));
+    await user.click(screen.getByRole('button', { name: 'Yes, send SOS' }));
+    expect(
+      await screen.findByText('We could not reach the office. Please call 999.'),
+    ).toHaveAttribute('role', 'alert');
+    expect(screen.queryByText(/told/)).toBeNull();
+    expect(screen.getByRole('link', { name: 'Call 999' })).toHaveAttribute('href', 'tel:999');
   });
 
   it('sends nothing when the Runner says they are fine', async () => {

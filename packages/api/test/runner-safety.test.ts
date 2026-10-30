@@ -79,7 +79,8 @@ describe('the SOS button', () => {
       runner.authHeader,
     );
     expect(pressed.statusCode, pressed.body).toBe(201);
-    expect(pressed.json().call999).toMatch(/call 999/);
+    expect(pressed.json().call999).toBe('If you are in danger, call 999 now.');
+    expect(pressed.json().message).toBe('We have been told, with where you are.');
     expect(pressed.json().sos).toEqual(expect.objectContaining({ on: true, located: true }));
 
     expect(texts).toHaveLength(1);
@@ -138,6 +139,52 @@ describe('the SOS button', () => {
     expect((await get(link)).statusCode).toBe(404);
   });
 
+  // Only what really happened (Anthony, 30 October 2026).
+  it('says the office was told, but not where, when the phone has not shared it yet', async () => {
+    const pressed = await post('/runners/me/sos', {}, runner.authHeader);
+    expect(pressed.statusCode).toBe(201);
+    expect(pressed.json().call999).toBe('If you are in danger, call 999 now.');
+    expect(pressed.json().message).toBe('We have been told. We do not know where you are yet.');
+    expect(texts).toHaveLength(1);
+
+    // Once the phone says where, the words say so too.
+    const moved = await post(
+      '/runners/me/sos/location',
+      { latitude: 51.39, longitude: 0.55 },
+      runner.authHeader,
+    );
+    expect(moved.json().message).toBe('We have been told, with where you are.');
+    const again = await get('/runners/me/sos', runner.authHeader);
+    expect(again.json().message).toBe('We have been told, with where you are.');
+  });
+
+  it('never says "told" when the text to the office fails, even with a location', async () => {
+    const failing = await buildTestApp(new Date('2026-10-18T10:00:00.000Z'), {
+      env: { ownerAlertPhone: OWNER_PHONE, primaryOrigin: 'https://ozi.example' },
+      sendText: async () => {
+        throw new Error('Twilio is down');
+      },
+    });
+    const someone = await signUpRunner(failing);
+    const pressed = await failing.app.inject({
+      method: 'POST',
+      url: '/runners/me/sos',
+      payload: { location: { latitude: 51.39, longitude: 0.55 } },
+      headers: someone.authHeader,
+    });
+    expect(pressed.statusCode).toBe(201);
+    expect(pressed.json().message).toBe('We could not reach the office. Please call 999.');
+    expect(pressed.json().message).not.toMatch(/told/);
+    expect(pressed.json().sos).toEqual(expect.objectContaining({ alerted: false, located: true }));
+    const shown = await failing.app.inject({
+      method: 'GET',
+      url: '/runners/me/sos',
+      headers: someone.authHeader,
+    });
+    expect(shown.json().message).toBe('We could not reach the office. Please call 999.');
+    await failing.close();
+  });
+
   it('is still on the staff screen when no alert phone is set up, and staff can mark it over', async () => {
     const quiet = await buildTestApp(new Date('2026-10-18T10:00:00.000Z'));
     const someone = await signUpRunner(quiet);
@@ -148,7 +195,9 @@ describe('the SOS button', () => {
       headers: someone.authHeader,
     });
     expect(pressed.statusCode).toBe(201);
-    expect(pressed.json().message).toMatch(/staff screen/);
+    // Nobody could be texted: never "told" (Anthony, 30 October 2026).
+    expect(pressed.json().message).toBe('We could not reach the office. Please call 999.');
+    expect(pressed.json().message).not.toMatch(/told/);
     const list = await quiet.app.inject({ method: 'GET', url: '/staff/sos', headers: STAFF });
     const row = list.json().sos[0];
     expect(row.alertProblem).toMatch(/No alert phone/);

@@ -22,6 +22,7 @@ import {
   hashLinkCode,
   mapsLink,
   sosPage,
+  sosWords,
   startSos,
   updateSosLocation,
 } from '../services/sos.js';
@@ -61,12 +62,11 @@ export async function registerRunnerSafetyRoutes(app: FastifyInstance): Promise<
     const body = z.object({ location: whereabouts.optional() }).parse(request.body ?? {});
     const result = await startSos(app.ctx, runner, body.location ?? null, request.log);
     void reply.status(result.alreadyOn ? 200 : 201);
+    // Only what really happened (Anthony, 30 October 2026): "told" only when the alert went.
     return {
       sos: publicSos(result.sos),
       call999: CALL_999,
-      message: result.alerted
-        ? `We have been told, with where you are. ${CALL_999}`
-        : `We could not text anybody just now, but the SOS is on the staff screen. ${CALL_999}`,
+      message: sosWords(result.sos),
     };
   });
 
@@ -76,13 +76,18 @@ export async function registerRunnerSafetyRoutes(app: FastifyInstance): Promise<
     const where = whereabouts.parse(request.body ?? {});
     const sos = await repository.sos.findActiveForRunner(runner.id);
     if (!sos) throw new ConflictError('There is no SOS on.');
-    return { sos: publicSos(await updateSosLocation(app.ctx, sos, where)) };
+    const updated = await updateSosLocation(app.ctx, sos, where);
+    return { sos: publicSos(updated), message: sosWords(updated) };
   });
 
   app.get('/runners/me/sos', async (request) => {
     const runner = await me(request);
     const sos = await repository.sos.findActiveForRunner(runner.id);
-    return { sos: sos ? publicSos(sos) : null, call999: CALL_999 };
+    return {
+      sos: sos ? publicSos(sos) : null,
+      call999: CALL_999,
+      message: sos ? sosWords(sos) : null,
+    };
   });
 
   /** "I am safe now." The private link stops working an hour later. */
