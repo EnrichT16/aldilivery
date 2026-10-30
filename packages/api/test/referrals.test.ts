@@ -222,6 +222,25 @@ describe('referral links for every kind of account', () => {
   });
 });
 
+describe("a Shopper's no-Runner link for a driver", () => {
+  it('counts the driver as the Shopper\'s referral, from the Runner sign-up link', async () => {
+    const ada = await signUpShopper(harness, { displayName: 'Ada', phone: '+447700900500' });
+    const handle = await handleOf(ada.shopperId);
+    // The link the checkout's "Send my referral link" shares: /runner/sign-up?via=shopper-<handle>.
+    const driver = await post('/runners', {
+      name: 'Dan',
+      phone: '+447700900502',
+      vehicleType: 'car',
+      adult: true,
+      homePostcode: 'ME7 1AA',
+      referredBy: `shopper-${handle}`,
+    });
+    expect(driver.statusCode, driver.body).toBe(201);
+    const row = await harness.repository.referrals.findFor('runner', driver.json().runner.id);
+    expect(row).toMatchObject({ referrerKind: 'shopper', referrerId: ada.shopperId });
+  });
+});
+
 describe('what active means', () => {
   it('a Shopper with an order delivered', () => {
     expect(activeStatus({ kind: 'shopper', closed: false, ordersDelivered: 1 })).toEqual({
