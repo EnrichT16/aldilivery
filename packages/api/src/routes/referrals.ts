@@ -28,7 +28,8 @@ import {
 } from '@aldilivery/core';
 
 import type { ReferralKind } from '../domain.js';
-import { BadRequestError, UnauthorisedError } from '../errors.js';
+import { BadRequestError, NotFoundError, UnauthorisedError } from '../errors.js';
+import { recordAudit } from '../lib/audit.js';
 import { businessActor } from '../lib/business.js';
 import { decidedBy, staffActor } from '../lib/staff.js';
 import {
@@ -47,6 +48,7 @@ import {
   withdrawalWords,
   ambassadorTermsChanged,
 } from '../services/ambassadors.js';
+import { sendVoucher, staffVoucherView } from '../services/vouchers.js';
 import {
   findAccount,
   markRewardGiven,
@@ -193,17 +195,31 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
 
   /* ---------------------------------------------------------------- staff */
 
+  /** Each level's sent voucher, as staff see it on the list: never the code but its last four. */
+  async function withVouchers<T extends { id: string }>(levels: T[]) {
+    return Promise.all(
+      levels.map(async (level) => {
+        const voucher = await app.ctx.repository.vouchers.findByLevel(level.id);
+        return { ...level, voucher: voucher ? staffVoucherView(voucher) : null };
+      }),
+    );
+  }
+
   app.get('/staff/referrals', async (request) => {
     await staffActor(request, 'referrals');
     const { search } = z
       .object({ search: z.string().trim().max(80).default('') })
       .parse(request.query ?? {});
+    const referrers = await referralLog(app.ctx, search, request.log);
     return {
       levels: config.referrals.levels,
       minimumActivePercent: Math.round(config.referrals.minimumActiveShare * 100),
       givenAs: config.referrals.givenAs,
+      voucherLastsYears: config.referrals.voucherLastsYears,
       ambassadorTerms: config.ambassador,
-      referrers: await referralLog(app.ctx, search, request.log),
+      referrers: await Promise.all(
+        referrers.map(async (row) => ({ ...row, levels: await withVouchers(row.levels) })),
+      ),
       ambassadors: await ambassadorLog(app.ctx, search),
     };
   });
@@ -211,7 +227,59 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
   app.get('/staff/referrals/:kind/:id', async (request) => {
     await staffActor(request, 'referrals');
     const { kind, id } = personParams.parse(request.params);
-    return referrerDetail(app.ctx, kind, id);
+    const detail = await referrerDetail(app.ctx, kind, id);
+    return { ...detail, levels: await withVouchers(detail.levels) };
+  });
+
+  /**
+   * "Send voucher" (Anthony, 30 October 2026): the code staff pasted, and a link if they have
+   * one, into the person's inbox. The audit hook writes it down with the code hidden.
+   */
+  app.post('/staff/referrals/levels/:id/voucher', async (request, reply) => {
+    const actor = await staffActor(request, 'referrals');
+    const { id } = z.object({ id: z.string().min(1).max(60) }).parse(request.params);
+    const body = z
+      .object({
+        code: z.string().trim().min(1, 'Please paste the voucher code.').max(60),
+        link: z.string().trim().max(500).optional(),
+        by: z.string().trim().max(80).optional(),
+      })
+      .parse(request.body ?? {});
+    const by = decidedBy(actor, body.by && body.by !== '' ? body.by : actor.name);
+    const sent = await sendVoucher(
+      app.ctx,
+      { levelId: id, code: body.code, link: body.link ?? null, actor, by },
+      request.log,
+    );
+    // Written down here, so neither the code nor the link (which may carry it) is in the log.
+    await recordAudit(request, {
+      actor: { id: actor.id, name: actor.name, role: actor.role },
+      action: 'referrals.voucher-sent',
+      target: `level=${id}`,
+      detail: `${sent.voucher.label} sent by ${by}`,
+    });
+    void reply.status(201);
+    return { voucher: staffVoucherView(sent.voucher), message: sent.message };
+  });
+
+  /**
+   * Opening a sent voucher's record: the code in full, for the staff member who opens it, and
+   * written in the audit log that they did.
+   */
+  app.get('/staff/referrals/vouchers/:id', async (request) => {
+    const actor = await staffActor(request, 'referrals');
+    const { id } = z.object({ id: z.string().min(1).max(60) }).parse(request.params);
+    const voucher = await app.ctx.repository.vouchers.findById(id);
+    if (!voucher) throw new NotFoundError('voucher');
+    await recordAudit(request, {
+      actor: { id: actor.id, name: actor.name, role: actor.role },
+      action: 'referrals.voucher-opened',
+      target: `voucher=${voucher.id}`,
+      detail: `${voucher.label} for ${voucher.accountKind} ${voucher.accountId}`,
+    });
+    return {
+      voucher: { ...staffVoucherView(voucher), code: voucher.code, link: voucher.link },
+    };
   });
 
   app.post('/staff/referrals/levels/:id/given', async (request) => {

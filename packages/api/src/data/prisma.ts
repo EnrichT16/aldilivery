@@ -275,6 +275,47 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    vouchers: {
+      async create(input) {
+        const made = await prisma.referralVoucher.createMany({
+          data: [input],
+          skipDuplicates: true,
+        });
+        if (made.count === 0) return null;
+        return (await prisma.referralVoucher.findUnique({
+          where: { levelId: input.levelId },
+        })) as any;
+      },
+      async findById(id) {
+        return (await prisma.referralVoucher.findUnique({ where: { id } })) as any;
+      },
+      async findByLevel(levelId) {
+        return (await prisma.referralVoucher.findUnique({ where: { levelId } })) as any;
+      },
+      async listFor(accountKind, accountId) {
+        return (await prisma.referralVoucher.findMany({
+          where: { accountKind, accountId },
+          orderBy: { sentAt: 'desc' },
+        })) as any;
+      },
+      async listDue(at) {
+        return (await prisma.referralVoucher.findMany({
+          where: { nextReminderAt: { lte: at } },
+          orderBy: { nextReminderAt: 'asc' },
+        })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.referralVoucher.update({ where: { id }, data: patch as any })) as any;
+      },
+      async eraseFor(accountKind, accountId, at) {
+        const result = await prisma.referralVoucher.updateMany({
+          where: { accountKind, accountId },
+          data: { code: '', link: null, nextReminderAt: null, ringingUntil: null, erasedAt: at },
+        });
+        return result.count;
+      },
+    },
+
     referrals: {
       async record(input) {
         // Two sign-ups at once can only ever keep one referrer for an account: the first.
@@ -1671,6 +1712,11 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           prisma.inboxThread.deleteMany({
             where: { accountKind: 'shopper', accountId: shopperId },
           }),
+          // A sent voucher's code goes with the account (30 October 2026).
+          prisma.referralVoucher.updateMany({
+            where: { accountKind: 'shopper', accountId: shopperId },
+            data: { code: '', link: null, nextReminderAt: null, ringingUntil: null, erasedAt: at },
+          }),
           prisma.staffCall.updateMany({
             where: { accountKind: 'shopper', accountId: shopperId },
             data: { accountName: 'Closed account' },
@@ -1685,6 +1731,10 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         await prisma.$transaction([
           prisma.runnerDocument.deleteMany({ where: { runnerId } }),
           prisma.inboxThread.deleteMany({ where: { accountKind: 'runner', accountId: runnerId } }),
+          prisma.referralVoucher.updateMany({
+            where: { accountKind: 'runner', accountId: runnerId },
+            data: { code: '', link: null, nextReminderAt: null, ringingUntil: null, erasedAt: at },
+          }),
           prisma.staffCall.updateMany({
             where: { accountKind: 'runner', accountId: runnerId },
             data: { accountName: 'Closed account' },

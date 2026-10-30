@@ -52,6 +52,46 @@ export interface ReferralSettings {
   readonly minimumActiveShare: number;
   /** What the reward is bought as, by hand, for staff: "Amazon voucher". */
   readonly givenAs: string;
+  /**
+   * Sending the voucher (Anthony, 30 October 2026): how long the gift card lasts, said in the
+   * message (Amazon UK gift cards last 10 years, so there is no expiry here); the days after it
+   * is sent that Ozi rings to remind them while it is unopened (the day, 7 and 14); and how long
+   * Ozi rings in the app before a text instead.
+   */
+  readonly voucherLastsYears: number;
+  readonly voucherReminderDays: readonly number[];
+  readonly voucherRingSeconds: number;
+}
+
+/** "Your £10 Amazon shopping voucher from <product name>": the voucher message's title. */
+export function voucherTitle(
+  rewardPence: number,
+  givenAs: string,
+  productName: string,
+  symbol = '£',
+): string {
+  const brand = givenAs.replace(/\s*voucher$/i, '').trim();
+  return `Your ${rewardWords(rewardPence, symbol)} ${brand} shopping voucher from ${productName}`;
+}
+
+/**
+ * What Ozi says when it rings about an unopened voucher: "Hello, this is <assistant> from <product name>.
+ * You've been sent a £10 shopping voucher as a thank you. Open your Ozi inbox to see it."
+ */
+export function voucherReminderWords(
+  rewardPence: number,
+  assistantName: string,
+  productName: string,
+  symbol = '£',
+): string {
+  return `Hello, this is ${assistantName} from ${productName}. You've been sent a ${rewardWords(rewardPence, symbol)} shopping voucher as a thank you. Open your ${assistantName} inbox to see it.`;
+}
+
+/** "Code ••••AB12": a voucher code with all but its last four characters hidden. */
+export function maskedVoucherCode(code: string): string {
+  if (code === '') return '';
+  const last = code.slice(-4);
+  return `${'•'.repeat(Math.max(4, code.length - 4))}${last}`;
 }
 
 /**

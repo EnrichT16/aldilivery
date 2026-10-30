@@ -3455,7 +3455,47 @@ export interface StaffReferrerRow {
     reachedAt: string;
     givenAt: string | null;
     givenBy: string | null;
+    /** The voucher sent for it, if one was (30 October 2026). */
+    voucher?: StaffVoucher | null;
   }>;
+}
+
+/** A sent referral voucher as staff see it on the list: the code's last four only. */
+export interface StaffVoucher {
+  id: string;
+  levelId: string;
+  label: string;
+  status: 'sent' | 'opened' | 'used';
+  sentAt: string;
+  sentByName: string;
+  openedAt: string | null;
+  usedAt: string | null;
+  codeMasked: string;
+  codeLastFour: string;
+  hasLink: boolean;
+  erased: boolean;
+  nextReminderAt: string | null;
+  reminders: Array<{ number: number; at: string; via: string; words: string }>;
+}
+
+/** "Send voucher": the code staff pasted, and a link if they have one, to the person's inbox. */
+export function sendReferralVoucher(
+  key: string,
+  levelId: string,
+  input: { code: string; link?: string; by: string },
+): Promise<{ voucher: StaffVoucher; message: string }> {
+  return staffRequest(key, `/staff/referrals/levels/${encodeURIComponent(levelId)}/voucher`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/** Opening a sent voucher's record: the code in full, written in the audit log. */
+export function openReferralVoucher(
+  key: string,
+  id: string,
+): Promise<{ voucher: StaffVoucher & { code: string; link: string | null } }> {
+  return staffRequest(key, `/staff/referrals/vouchers/${encodeURIComponent(id)}`);
 }
 
 export interface StaffAmbassadorRow {

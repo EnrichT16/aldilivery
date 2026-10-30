@@ -1521,6 +1521,43 @@ model Referral {
 /// A referral reward level somebody reached (Anthony, 30 October 2026), kept once reached. The
 /// owner is told once; the person is told on their dashboard and by Ozi once; staff give the
 /// voucher by hand and mark it given.
+/// A referral reward voucher staff sent to the person who reached the level (Anthony, 30
+/// October 2026). The code is sensitive: shown in full only to the person and to staff who open
+/// the record, never written in an application log, and emptied when the account is erased.
+model ReferralVoucher {
+  id             String    @id @default(cuid())
+  /// The level reached it is for: one voucher a level.
+  levelId        String    @unique
+  accountKind    String
+  accountId      String
+  label          String
+  rewardPence    Int
+  code           String
+  link           String?
+  /// The message in the person's inbox it went in.
+  messageId      String?
+  sentById       String?
+  sentByName     String
+  sentAt         DateTime
+  /// The first time the person opened or read the message.
+  openedAt       DateTime?
+  /// When the person tapped "I've used it" (their word: Amazon cannot tell us).
+  usedAt         DateTime?
+  /// Ozi's reminder calls: at most three, stopping once it is opened.
+  nextReminderAt DateTime?
+  ringingUntil   DateTime?
+  reminder1At    DateTime?
+  reminder1Via   String?
+  reminder2At    DateTime?
+  reminder2Via   String?
+  reminder3At    DateTime?
+  reminder3Via   String?
+  erasedAt       DateTime?
+
+  @@index([accountKind, accountId])
+  @@index([nextReminderAt])
+}
+
 model ReferralLevelReached {
   id              String    @id @default(cuid())
   referrerKind    String

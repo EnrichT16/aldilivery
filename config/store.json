@@ -218,7 +218,10 @@
       { "activeReferrals": 40, "rewardPence": 2000, "label": "£20 voucher" }
     ],
     "minimumActiveShare": 0.7,
-    "givenAs": "Amazon voucher"
+    "givenAs": "Amazon voucher",
+    "voucherLastsYears": 10,
+    "voucherReminderDays": [0, 7, 14],
+    "voucherRingSeconds": 90
   },
   "restaurants": {
     "ozisSharePence": 700,

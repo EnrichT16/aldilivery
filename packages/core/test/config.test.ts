@@ -125,6 +125,7 @@ describe('the live configuration file', () => {
       splitPartMaxPenceByMode: { motorbike: 7500, foot: 6000 },
       tinyExtraBelowPence: 500,
       splitRunnerPayPence: 500,
+      autoRefundAfterMinutes: 120,
       fairShareMaxLeadPence: 1500,
       chainRadiusMiles: 1.5,
       chainMinutesBeforeDone: 2,

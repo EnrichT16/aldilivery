@@ -10,6 +10,9 @@ import { describe, expect, it } from 'vitest';
 import { parseStoreConfig } from '../src/config.js';
 import { loadStoreConfig, storeConfigPath } from '../src/node.js';
 import {
+  maskedVoucherCode,
+  voucherReminderWords,
+  voucherTitle,
   ambassadorAvailableAt,
   ambassadorEarningAfterRefunds,
   ambassadorNeedsReview,
@@ -235,5 +238,37 @@ describe('tamper-proof Ambassador money (ruled 30 October 2026)', () => {
     expect(
       ambassadorAvailableAt(new Date('2026-11-01T10:00:00.000Z'), ambassadors).toISOString(),
     ).toBe('2026-12-01T10:00:00.000Z');
+  });
+});
+
+describe('sending the voucher (30 October 2026)', () => {
+  it('has the title, the words Ozi says, and the code masked to its last four', () => {
+    const product = config.productName;
+    const assistant = config.assistantName;
+    expect(voucherTitle(1000, config.referrals.givenAs, product)).toBe(
+      `Your £10 Amazon shopping voucher from ${product}`,
+    );
+    expect(voucherReminderWords(1000, assistant, product)).toBe(
+      `Hello, this is ${assistant} from ${product}. You've been sent a £10 shopping voucher as a thank you. Open your ${assistant} inbox to see it.`,
+    );
+    expect(maskedVoucherCode('GIFT-ABCD-9876')).toBe('••••••••••9876');
+    expect(maskedVoucherCode('AB12')).toBe('••••AB12');
+    expect(maskedVoucherCode('')).toBe('');
+  });
+
+  it('reminds on the day, 7 and 14 days later, lasts 10 years, and refuses more than three', () => {
+    expect(config.referrals.voucherReminderDays).toEqual([0, 7, 14]);
+    expect(config.referrals.voucherLastsYears).toBe(10);
+    const file = JSON.parse(readFileSync(storeConfigPath(), 'utf8')) as Record<string, unknown>;
+    const referrals = file['referrals'] as Record<string, unknown>;
+    expect(() =>
+      parseStoreConfig({
+        ...file,
+        referrals: { ...referrals, voucherReminderDays: [0, 7, 14, 21] },
+      }),
+    ).toThrow(/voucherReminderDays/);
+    expect(() =>
+      parseStoreConfig({ ...file, referrals: { ...referrals, voucherReminderDays: [7, 0] } }),
+    ).toThrow(/voucherReminderDays/);
   });
 });

@@ -851,7 +851,35 @@ function parseReferrals(raw: Unknown): ReferralSettings {
     levels,
     minimumActiveShare: share,
     givenAs: str(raw['givenAs'] ?? 'Amazon voucher', 'referrals.givenAs').trim(),
+    voucherLastsYears: wholeNumber(
+      raw['voucherLastsYears'] ?? 10,
+      'referrals.voucherLastsYears',
+      1,
+    ),
+    voucherReminderDays: voucherReminderDays(raw['voucherReminderDays'] ?? [0, 7, 14]),
+    voucherRingSeconds: wholeNumber(
+      raw['voucherRingSeconds'] ?? 90,
+      'referrals.voucherRingSeconds',
+      10,
+    ),
   };
+}
+
+/** The days after a voucher is sent that Ozi rings about it, rising, at most three. */
+function voucherReminderDays(value: unknown): number[] {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.length > 3 ||
+    value.some(
+      (day, index) => !Number.isInteger(day) || day < 0 || (index > 0 && day <= value[index - 1]),
+    )
+  ) {
+    throw new StoreConfigError(
+      'referrals.voucherReminderDays must be up to three whole days, rising, such as [0, 7, 14].',
+    );
+  }
+  return value as number[];
 }
 
 /** A share from 0 to 1, such as 0.02 for 2%. */

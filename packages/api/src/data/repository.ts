@@ -80,6 +80,7 @@ import type {
   InboxAccountKind,
   InboxMessage,
   InboxThread,
+  ReferralVoucher,
   StaffCall,
   StaffCode,
   StaffCodeKind,
@@ -378,6 +379,43 @@ export interface Repository {
       id: string,
       patch: Partial<Pick<ReferralLevelReached, 'toldAt' | 'givenAt' | 'givenBy'>>,
     ): Promise<ReferralLevelReached>;
+  };
+
+  /**
+   * Referral reward vouchers staff sent (Anthony, 30 October 2026): one a level reached. The code
+   * is removed when the account is erased (`eraseFor`).
+   */
+  vouchers: {
+    /** Keeps it; a second voucher for the same level gives null, and the first stays. */
+    create(
+      input: Pick<
+        ReferralVoucher,
+        | 'levelId'
+        | 'accountKind'
+        | 'accountId'
+        | 'label'
+        | 'rewardPence'
+        | 'code'
+        | 'link'
+        | 'messageId'
+        | 'sentById'
+        | 'sentByName'
+        | 'sentAt'
+        | 'nextReminderAt'
+      >,
+    ): Promise<ReferralVoucher | null>;
+    findById(id: string): Promise<ReferralVoucher | null>;
+    findByLevel(levelId: string): Promise<ReferralVoucher | null>;
+    /** Newest first. */
+    listFor(accountKind: ReferralKind, accountId: string): Promise<ReferralVoucher[]>;
+    /** Every one whose next reminder is due by `at`, oldest due first. */
+    listDue(at: Date): Promise<ReferralVoucher[]>;
+    update(
+      id: string,
+      patch: Partial<Omit<ReferralVoucher, 'id' | 'levelId' | 'accountKind' | 'accountId'>>,
+    ): Promise<ReferralVoucher>;
+    /** The account is erased: every code and link of theirs goes, and no more reminders. */
+    eraseFor(accountKind: ReferralKind, accountId: string, at: Date): Promise<number>;
   };
 
   /**

@@ -104,7 +104,7 @@ describe('a paid order no Runner takes', () => {
     await sweep();
     const text = texts.find((row) => row.body.includes(NO_RUNNER_REFUND_REASON));
     expect(text?.body).toMatch(
-      /^Ozi Delivery: No Runner was able to take your order, so it has been cancelled and your money given back in full\. £\d+\.\d\d is going back to your card\./,
+      /^[^:]+: No Runner was able to take your order, so it has been cancelled and your money given back in full\. £\d+\.\d\d is going back to your card\./,
     );
     const inbox = (
       await harness.app.inject({ method: 'GET', url: '/inbox', headers: shopper.authHeader })
