@@ -66,9 +66,14 @@ export function Confirm(): JSX.Element {
     allowanceExtraPence: number;
     totalPence: number;
   } | null>(null);
+  // If that price could not be worked out, say so and try again on the next press, rather than
+  // waiting for ever (30 October 2026: a booking for next month stuck on "One moment").
+  const [monthFailed, setMonthFailed] = useState(false);
+  const [monthTry, setMonthTry] = useState(0);
   useEffect(() => {
     if (!otherMonth) return;
     let cancelled = false;
+    setMonthFailed(false);
     priceBasketRemotely(
       lines.map((line) => ({ catalogueItemId: line.item.id, quantity: line.quantity })),
       booking.deliveryDay,
@@ -81,11 +86,13 @@ export function Confirm(): JSX.Element {
           totalPence: price.totalPence,
         });
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setMonthFailed(true);
+      });
     return () => {
       cancelled = true;
     };
-  }, [otherMonth, booking.deliveryDay, lines]);
+  }, [otherMonth, booking.deliveryDay, lines, monthTry]);
   const monthApplies = otherMonth && monthPrice?.day === booking.deliveryDay;
   const pricing = monthApplies
     ? {
@@ -240,7 +247,11 @@ export function Confirm(): JSX.Element {
       }
       const check = checkSchedule(choice, new Date(), storeConfig.scheduled);
       if (!check.ok) return check.message;
-      if (otherMonth && !monthApplies) return 'One moment: working out the price for that month.';
+      if (otherMonth && !monthApplies) {
+        return monthFailed
+          ? 'We could not work out the price for that month. Please press the button again to try once more.'
+          : 'One moment: working out the price for that month.';
+      }
     }
     return null;
   }
@@ -258,6 +269,8 @@ export function Confirm(): JSX.Element {
     const byBank = payingByBank();
     const missing = whatIsMissing();
     if (missing !== null) {
+      // The price for next month could not be had: this press asks again.
+      if (later && otherMonth && !monthApplies && monthFailed) setMonthTry((n) => n + 1);
       setError(missing);
       void ozi.say(missing);
       return;

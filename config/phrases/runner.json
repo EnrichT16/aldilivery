@@ -2177,8 +2177,7 @@
       "topic": "documents",
       "when": ["basic or enhanced dbs", "what kind of dbs", "do i need an enhanced dbs"],
       "replies": [
-        "Every Runner needs a basic DBS check. We don't ask for an enhanced one.",
-        "Basic, for everyone."
+        "Every Runner needs a basic DBS check. An enhanced DBS check is optional: only if you want closer-help jobs, going inside a Shopper's home to carry shopping in or put it away. Those jobs aren't offered yet."
       ]
     },
     {
@@ -3494,8 +3493,7 @@
       "topic": "documents",
       "when": ["what is the barred list", "what is the adults barred list"],
       "replies": [
-        "It's a list of people barred from certain work with adults. We ask every Runner for a basic DBS check, which doesn't include it.",
-        "An enhanced DBS check includes it. We only ask for a basic one."
+        "It's a list of people barred from certain work with adults. A basic DBS check, which every Runner needs, doesn't include it. An enhanced check does, and that's optional, only for closer-help jobs inside a Shopper's home, which aren't offered yet."
       ]
     },
     {

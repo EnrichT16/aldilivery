@@ -2692,8 +2692,7 @@
       "topic": "risk",
       "when": ["is there insurance", "company insurance", "liability cover"],
       "replies": [
-        "Runners provide insurance documents. For the company's own cover, please ask the founder.",
-        "Ask the founder about company insurance."
+        "Please ask the founder about that."
       ]
     },
     {

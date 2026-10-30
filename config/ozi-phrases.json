@@ -6347,7 +6347,7 @@
       "topic": "about",
       "when": ["is it insured", "what if something goes wrong on the way", "insurance"],
       "replies": [
-        "Problems are put right by us: a refund or a replacement. Runners who drive carry their own insurance."
+        "If something goes wrong with an order, say report a problem and we put it right. For anything else, say \"person\" and our customer service team will help."
       ]
     },
     {
@@ -16691,7 +16691,7 @@
       "topic": "safety",
       "when": ["is the company insured", "public liability", "company insurance"],
       "replies": [
-        "If something goes wrong with an order, tell us and we put it right. Runners who drive carry their own insurance for delivery work."
+        "That's one for our customer service team. Say \"person\", or ring us on {telephone}."
       ]
     },
     {
