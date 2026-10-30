@@ -12,7 +12,9 @@ import { money, planAllowanceWords, planDeliveryWords } from '../lib/money';
  * yes, the refund timeline and the call price. Every figure comes from configuration, so a price
  * changed there changes here. Reviewed against the Consumer Contracts Regulations 2013, the
  * Consumer Rights Act 2015 and the E-Commerce Regulations 2002 on 9 October 2026 (ruling 54,
- * docs/LEGAL_REVIEW.md). Runners have their own agreement, at /runner/agreement.
+ * docs/LEGAL_REVIEW.md). Corrected on 30 October 2026 after an audit: no connection with any
+ * other business called Ozi, the area-by-area clause, and the till limit and reminder read from
+ * config (Anthony, 30 October 2026). Runners have their own agreement, at /runner/agreement.
  */
 export function Terms(): JSX.Element {
   const name = storeConfig.productName;
@@ -41,6 +43,7 @@ export function Terms(): JSX.Element {
           {name} is run by {company.name}. In these terms, &ldquo;we&rdquo; and &ldquo;us&rdquo;
           means that company, and &ldquo;you&rdquo; means the Shopper.
         </p>
+        <p className="m-0">We are not connected with any other business called {assistant}.</p>
         <CompanyDetails />
       </section>
 
@@ -52,6 +55,10 @@ export function Terms(): JSX.Element {
           You tell us what shopping you need, by talking to {assistant}, by tapping, or by
           telephone. A Runner buys it for you at the shop and brings it to your door. Runners are
           self-employed people who work with us; we are responsible to you for the service.
+        </p>
+        <p className="m-0">
+          We run across the UK, area by area. Before you pay, we tell you if we are not running in
+          your area yet.
         </p>
         <p className="m-0">
           Our service is for adults. You must be 18 or over to open an account, and the shopping is
@@ -103,10 +110,11 @@ export function Terms(): JSX.Element {
             credit and comes off your next order.
           </li>
           <li>
-            The prices shown are estimates. You pay what the shop&rsquo;s till charges, shown on the
-            receipt. We take the estimate when you order. When your Runner sends the till total: if
-            it is less, we give the difference straight back to your card; if it is more, we take
-            the difference from the same card, up to {money(500)} or a fifth of the shopping
+            The prices shown are estimates. For the shopping, you pay what the shop&rsquo;s till
+            charges, shown on the receipt, plus the item charges above. We take the estimate when
+            you order. When your Runner sends the till total: if it is less, we give the difference
+            straight back to your card; if it is more, we take the difference from the same card, up
+            to {money(storeConfig.receipts.tillExtraFloorPence)} or a fifth of the shopping
             estimate, whichever is more. We will not take more than that without speaking to you
             first. We tell you each time.
           </li>
@@ -125,9 +133,9 @@ export function Terms(): JSX.Element {
           <li>
             Your first month of membership is free, from when you open your account (or your first
             order by telephone). During it you pay the pay-as-you-go delivery unless you choose to
-            join a plan. About three days before it ends we remind you. Nothing is ever taken unless
-            you choose to join, and if you do not, you simply carry on paying as you go. Nobody is
-            refused service for not joining.
+            join a plan. We remind you {extras.freeMonthReminderDaysBefore} days before it ends.
+            Nothing is ever taken unless you choose to join, and if you do not, you simply carry on
+            paying as you go. Nobody is refused service for not joining.
           </li>
           <li>
             Extras, if you choose them: Recipe Pass {money(extras.recipePassPence)} for{' '}
@@ -143,7 +151,7 @@ export function Terms(): JSX.Element {
 
       <section aria-labelledby="yes" className="space-y-3">
         <h2 id="yes" className="text-lead font-bold">
-          Ordering and paying: nothing without your yes
+          Ordering and paying: we never take money you haven&rsquo;t agreed to
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
@@ -209,7 +217,8 @@ export function Terms(): JSX.Element {
           </li>
           <li>
             Once your Runner has started shopping, you can still cancel, but you pay for the
-            shopping already bought and the delivery fee, because the work has been done for you.
+            shopping already bought and a fair part of the delivery fee, because the work has been
+            done for you.
           </li>
           <li>
             Once your shopping is delivered, our service is complete, and the usual 14 days to
@@ -336,7 +345,7 @@ export function Terms(): JSX.Element {
           Ireland, you keep the protections of the law where you live, and you can bring a claim in
           your own courts.
         </p>
-        <p className="m-0">These terms were last reviewed on 9 October 2026.</p>
+        <p className="m-0">These terms were last reviewed on 30 October 2026.</p>
       </section>
 
       <ul className="flex flex-wrap gap-2 list-none m-0 p-0">

@@ -35,11 +35,16 @@ describe('signing up to run', () => {
     );
   });
 
-  it('says before anything is filled in that a person checks documents first', () => {
+  it('says before anything is filled in how documents are checked', () => {
     renderAt('/runner/sign-up');
     expect(
-      screen.getByText(/checks your right to work in the UK and a DBS check/),
+      screen.getByText(/we check your\s+right to work in the UK and a DBS check/),
     ).toBeInTheDocument();
+    // The automatic check approves only what is clearly in order (30 October 2026).
+    expect(
+      screen.getByText(/Our automatic check approves documents that are clearly in order/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/for a car, motorbike or van your licence/)).toBeInTheDocument();
   });
 
   it('asks for a name and mobile with real labels, and every way they might deliver', () => {

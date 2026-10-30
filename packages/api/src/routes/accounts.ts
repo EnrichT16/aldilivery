@@ -165,7 +165,7 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
     }
 
     const travelModes = [...new Set(input.travelModes ?? [input.vehicleType ?? 'on_foot'])];
-    // They start walking or cycling if they can; a car or motorbike waits for the licence and
+    // They start walking or cycling if they can; a car, motorbike or van waits for the licence and
     // insurance to be checked.
     const firstMode =
       input.vehicleType ??
@@ -290,7 +290,7 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
     }
     if (body.available && MOTOR_MODES.includes(current.vehicleType) && !canDrive(current, now())) {
       throw new ConflictError(
-        'Before you can deliver by car or motorbike, we need your driving licence and insurance checked and in date. Switch to walking or bicycle to start now.',
+        'Before you can deliver by car, motorbike or van, we need your driving licence and insurance checked and in date. Switch to walking or bicycle to start now.',
         { needs: 'licence_and_insurance' },
       );
     }

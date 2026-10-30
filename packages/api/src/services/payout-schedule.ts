@@ -84,7 +84,7 @@ export async function instantQuote(ctx: MoneyContext, runner: Runner): Promise<I
       words:
         availablePence === 0
           ? 'Nothing can be sent instantly just now. Stripe needs a debit card on your account for instant payouts, and money that has arrived.'
-          : `${formatPence(availablePence, symbol)} could go instantly, but Stripe's fee of ${formatPence(feePence, symbol)} would take all of it. It goes with your usual payout instead, for free.`,
+          : `${formatPence(availablePence, symbol)} could go instantly, but the instant payout fee of ${formatPence(feePence, symbol)} would take all of it. It goes with your usual payout instead, for free.`,
     };
   }
   return {
@@ -92,7 +92,7 @@ export async function instantQuote(ctx: MoneyContext, runner: Runner): Promise<I
     feePence,
     youGetPence,
     possible: true,
-    words: `${formatPence(availablePence, symbol)} can go to your debit card now. Stripe's fee for that is ${formatPence(feePence, symbol)}, paid by you, so you would get ${formatPence(youGetPence, symbol)}.`,
+    words: `${formatPence(availablePence, symbol)} can go to your debit card now. The instant payout fee for that is ${formatPence(feePence, symbol)}, paid by you, so you would get ${formatPence(youGetPence, symbol)}.`,
   };
 }
 
@@ -151,6 +151,6 @@ export async function takeInstantPayout(
   return {
     payoutId: payout.id,
     quote,
-    message: `${formatPence(quote.youGetPence, symbol)} is on its way to your debit card. Stripe's fee was ${formatPence(quote.feePence, symbol)}.`,
+    message: `${formatPence(quote.youGetPence, symbol)} is on its way to your debit card. The instant payout fee was ${formatPence(quote.feePence, symbol)}.`,
   };
 }

@@ -9,7 +9,8 @@
     "telephonePlaceholder": "01634 980059",
     "telephoneIsPlaceholder": false,
     "email": "hello@ozidelivery.co.uk",
-    "emailIsPlaceholder": false
+    "emailIsPlaceholder": false,
+    "website": "www.ozidelivery.co.uk"
   },
   "store": {
     "displayName": "Aldi",
@@ -29,7 +30,7 @@
     "catalogueSource": {
       "mode": "community",
       "allowedModes": ["partner_feed", "community"],
-      "attribution": "Prices are community estimates and are not supplied by the store. Your Runner pays the shelf price and you are charged the receipt."
+      "attribution": "Prices are community estimates and are not supplied by the shops. Your Runner pays the shelf price and you are charged the receipt."
     }
   },
   "brand": {
@@ -201,7 +202,8 @@
     }
   },
   "receipts": {
-    "photoNeededAbovePence": 3000
+    "photoNeededAbovePence": 3000,
+    "tillExtraFloorPence": 500
   },
   "runners": {
     "sosLinkHours": 12,

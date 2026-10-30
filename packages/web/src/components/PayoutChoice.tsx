@@ -10,7 +10,8 @@ import {
 
 /**
  * When a Runner's money reaches their bank (ruling 16), on their Money tab: weekly by default, or
- * daily, or an instant payout now at Stripe's fee, which is shown before anything is sent.
+ * daily, or an instant payout now for the instant payout fee, which is shown before anything is
+ * sent (Anthony, 30 October 2026).
  *
  * It says plainly what the choice controls: their pay and the money for the shopping still
  * reach their own Stripe account straight away; this is only how often Stripe sends it on.
@@ -91,7 +92,7 @@ export function PayoutChoice({ onNews }: { onNews: (news: string) => void }): JS
         (askingInstant ? (
           <div role="alert" className="space-y-3 border-2 border-highlight rounded-2xl p-4">
             <p className="m-0">
-              Send {money(instant.youGetPence)} to your debit card now? Stripe&rsquo;s fee of{' '}
+              Send {money(instant.youGetPence)} to your debit card now? The instant payout fee of{' '}
               {money(instant.feePence)} is taken from the {money(instant.availablePence)}.
             </p>
             <button

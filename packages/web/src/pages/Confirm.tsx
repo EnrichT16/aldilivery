@@ -799,14 +799,28 @@ export function Confirm(): JSX.Element {
         <h2 id="promise-heading" className="text-lead font-bold">
           Before you press it
         </h2>
+        {/* What saying yes covers, listed once, every figure from config (Rule Nine). The
+            charges that follow stay automatic; the Shopper is told of each here, before they
+            agree (Anthony, 30 October 2026). */}
         <p className="m-0">
-          Pressing the button below is the only thing that will ever take a payment. Nothing before
-          it has charged you a penny, and nothing after it will charge you again without asking.
+          We never take money you haven&rsquo;t agreed to. Nothing before the button below has
+          charged you a penny. Pressing it means you agree to pay, and to our terms. Saying yes also
+          covers:
         </p>
-        <p className="m-0">
-          Pressing it means you agree to pay, and to our terms. You pay what the till says. You can
-          cancel free until your Runner starts shopping.
-        </p>
+        <ul className="m-0 ps-6 space-y-2">
+          <li>
+            the difference at the till. If the shopping comes to more than the estimate, we take up
+            to {money(storeConfig.receipts.tillExtraFloorPence)} more, or a fifth of the estimate if
+            that is more. If it comes to less, we give the difference back to your card.
+          </li>
+          <li>
+            if your basket is split between Runners, an extra Runner&rsquo;s delivery fee of{' '}
+            {money(storeConfig.fees.extraRunnerDeliveryPence)} for each one.
+          </li>
+          <li>any plan you have chosen, which renews each month until you stop it.</li>
+          <li>a booked or weekly order, which is charged on its date.</li>
+        </ul>
+        <p className="m-0">You can cancel free until your Runner starts shopping.</p>
         <Link to="/terms" className="control bg-paper/10 text-paper underline">
           Read our terms
         </Link>
@@ -834,6 +848,9 @@ export function Confirm(): JSX.Element {
       <p className="m-0">
         <span className="visually-hidden">You are agreeing to this: </span>
         {statement}
+      </p>
+      <p className="m-0">
+        By sending it, you ask us to start now. You lose the right to cancel once it is delivered.
       </p>
 
       <button

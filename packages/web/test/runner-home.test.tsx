@@ -293,7 +293,7 @@ function stubRunnerApi(): void {
             {
               error: {
                 message:
-                  'Before you can deliver by car or motorbike, we need to check your driving licence and insurance. You can deliver walking or by bicycle today.',
+                  'Before you can deliver by car, motorbike or van, we need to check your driving licence and insurance. You can deliver walking or by bicycle today.',
               },
             },
             409,
@@ -423,7 +423,8 @@ describe('a Runner page', () => {
     const offer = await screen.findByRole('alert');
     expect(offer).toHaveTextContent('A job for you');
     expect(offer).toHaveTextContent(
-      `From ${storeConfig.store.displayName}, 0.4 miles away. 3 things, about £3.39 of shopping. You get £5.00.`,
+      // No supermarket named: the shops on the list, or the Shop Partners by name (30 October 2026).
+      'From the shops on the list, 0.4 miles away. 3 things, about £3.39 of shopping. You get £5.00.',
     );
     expect(offer).not.toHaveTextContent('Example Street');
     // The seconds left are on the screen, but outside the alert, so a screen reader is not
@@ -446,7 +447,7 @@ describe('a Runner page', () => {
     renderHome();
     expect(
       await screen.findByText(
-        /Send your documents below; a person checks them, usually within a few days\./,
+        /Our automatic check approves documents that are clearly in order\. Anything unclear is looked at by a person\./,
       ),
     ).toBeInTheDocument();
     expect(await screen.findByText(/You have sent everything we need/)).toBeInTheDocument();
@@ -575,7 +576,10 @@ describe('a Runner page', () => {
     await user.click(screen.getByRole('button', { name: 'I have started shopping' }));
 
     const till = await screen.findByLabelText('What did the till say?');
-    expect(till).toHaveAccessibleDescription(/charged exactly this/);
+    expect(till).toHaveAccessibleDescription(
+      /The Shopper pays the till total, within the limits in our terms\./,
+    );
+    expect(till).toHaveAccessibleDescription(/Large or unclear amounts are checked by a person/);
     await user.click(screen.getByRole('button', { name: 'Put in the till total' }));
     expect(await screen.findByText(/Please type the total from the receipt/)).toHaveAttribute(
       'role',
@@ -640,7 +644,9 @@ describe('a Runner page', () => {
 
     const till = await screen.findByLabelText('What did the till say?');
     const camera = screen.getByLabelText('Take a photo of the receipt');
-    expect(camera).toHaveAccessibleDescription(/pay you back larger amounts straight away/);
+    expect(camera).toHaveAccessibleDescription(
+      /without a photo, anything over £30\.00 waits for a person to check/,
+    );
     await user.upload(camera, new File(['receipt'], 'receipt.jpg', { type: 'image/jpeg' }));
     expect(
       await screen.findByText('The photo of the receipt is ready to go with the total.'),
@@ -749,11 +755,13 @@ describe('a Runner page', () => {
 });
 
 describe('how a Runner gets paid', () => {
-  it('shows what has been earned, and that pay goes straight to their own bank', async () => {
+  it('shows what has been earned, and that pay goes to their Stripe account, then their bank', async () => {
     stubRunnerApi();
     renderHome();
     expect(await screen.findByText(/You have earned £10.00 from 2 deliveries/)).toBeInTheDocument();
-    expect(screen.getByText(/straight to your own bank account/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/goes to your Stripe account, then to your bank on your payout schedule/),
+    ).toBeInTheDocument();
   });
 
   it('says what is owed and sends them to Stripe to set up, saying the service never sees the details', async () => {

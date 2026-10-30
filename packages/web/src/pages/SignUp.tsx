@@ -415,7 +415,7 @@ export function SignUp(): JSX.Element {
       </form>
 
       <p className="m-0 text-paper/80 max-w-xl">
-        {storeConfig.productName} will never take a payment without asking you first, and will never
+        We never take money you haven&rsquo;t agreed to, and {storeConfig.productName} will never
         store your card number.
       </p>
     </div>

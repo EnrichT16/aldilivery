@@ -320,7 +320,7 @@ export function Card(): JSX.Element {
       <div className="space-y-6">
         <h1 className="text-display font-bold m-0">Your card is saved</h1>
         <p role="status" className="m-0 max-w-xl">
-          {saved} Nothing has been charged. We will ask you before we ever take a penny.
+          {saved} Nothing has been charged. We never take money you haven&rsquo;t agreed to.
         </p>
         <Link to="/shop" className="control bg-highlight text-on-accent">
           Find your shopping

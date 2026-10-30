@@ -41,6 +41,8 @@ interface State {
   agreed: boolean;
   insurance: null | { until: string; daysLeft: number; paused: boolean; words: string };
   sent: Array<{ method: string; path: string; body: unknown }>;
+  /** The Shop Partners whose things are in the job (30 October 2026). */
+  shopNames?: string[];
 }
 
 let state: State;
@@ -137,6 +139,7 @@ function stubRunner(): void {
                 goodsEstimatePence: 339,
                 receiptTotalPence: null,
                 runnerPaymentPence: 500,
+                shopNames: state.shopNames ?? [],
                 items: [
                   {
                     id: 'i2',
@@ -223,7 +226,7 @@ function stubRunner(): void {
             youGetPence: possible ? state.instantAvailable - 50 : 0,
             possible,
             words: possible
-              ? "£42.50 can go to your debit card now. Stripe's fee for that is £0.50, paid by you, so you would get £42.00."
+              ? "£42.50 can go to your debit card now. The instant payout fee for that is £0.50, paid by you, so you would get £42.00."
               : 'Nothing can be sent instantly just now.',
           },
         });
@@ -231,7 +234,7 @@ function stubRunner(): void {
       if (path === '/runners/me/payouts/instant') {
         state.instantAvailable = 0;
         return reply({
-          message: "£42.00 is on its way to your debit card. Stripe's fee was £0.50.",
+          message: "£42.00 is on its way to your debit card. The instant payout fee was £0.50.",
         });
       }
       if (path === '/runners/me/leave') {
@@ -333,12 +336,31 @@ describe('directions to the shop and the door', () => {
     expect(links[0]).toHaveAccessibleName('Directions to the shop (opens your maps app)');
     expect(links[0]).toHaveAttribute(
       'href',
-      `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(storeConfig.store.displayName)}&travelmode=bicycling`,
+      `https://www.google.com/maps/dir/?api=1&destination=supermarket&travelmode=bicycling`,
     );
+    // No supermarket is named: we have no partnership with one (Anthony, 30 October 2026).
+    expect(
+      screen.getByText('Opens your maps app to the shop, searching for a supermarket near you.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(new RegExp(`nearest ${storeConfig.store.displayName}`))).toBeNull();
     expect(links[1]).toHaveAttribute(
       'href',
       `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent('12 Example Street, Leeds LS1 4AB')}&travelmode=bicycling`,
     );
+  });
+
+  it('names the Shop Partner when the order has its things in it', async () => {
+    state.shopNames = ['Mama Africa Foods'];
+    stubRunner();
+    renderRunner();
+    const links = await screen.findAllByRole('link', { name: /^Directions to the/ });
+    expect(links[0]).toHaveAttribute(
+      'href',
+      `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent('Mama Africa Foods')}&travelmode=bicycling`,
+    );
+    expect(
+      screen.getByText('Opens your maps app to the shop, Mama Africa Foods.'),
+    ).toBeInTheDocument();
   });
 
   it('puts the door first once on the way', async () => {
@@ -414,7 +436,7 @@ describe('when money reaches the bank', () => {
     });
   });
 
-  it("shows Stripe's fee before an instant payout, and sends only after a yes", async () => {
+  it("shows the instant payout fee before an instant payout, and sends only after a yes", async () => {
     const user = userEvent.setup({ delay: null });
     state.instantAvailable = 4250;
     stubRunner();
@@ -425,7 +447,7 @@ describe('when money reaches the bank', () => {
     );
     expect(state.sent.some((r) => r.path === '/runners/me/payouts/instant')).toBe(false);
     expect(
-      screen.getByText(/Stripe’s fee of £0\.50 is taken from the £42\.50/),
+      screen.getByText(/The instant payout fee of £0\.50 is taken from the £42\.50/),
     ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Yes, send £42.00 now' }));
     expect(state.sent.find((r) => r.path === '/runners/me/payouts/instant')?.body).toEqual({
@@ -508,7 +530,12 @@ describe('agreeing to the Runner agreement by talking to Ozi (ruling 55)', () =>
         `${agreementSummary()} Do you agree to the Runner agreement? Please say yes or no.`,
       );
     });
-    expect(agreementSummary()).toContain('£5.00 for every delivery');
+    expect(agreementSummary()).toContain('£5.00 for a standard delivery');
+    // Corrected on 30 October 2026: matches the agreement, section 7.
+    expect(agreementSummary()).toContain(
+      'Nothing is taken from your pay except the cool bag deposit, and money owed after a written decision.',
+    );
+    expect(agreementSummary()).not.toContain('straight away.');
 
     await heard(engine, 'hmm, maybe');
     await waitFor(() => {

@@ -35,6 +35,7 @@ import { askOwner, ukDate } from './owner-desk.js';
 import { tellShopperWords } from './order-updates.js';
 import { activeOrdersByRunner } from './runner-pool.js';
 import { bookedWords } from './scheduled.js';
+import { shopsInOrder } from './shop-of-the-month.js';
 
 type Ctx = AppContext;
 
@@ -197,12 +198,35 @@ async function handsFull(ctx: Ctx, runnerId: string, at: Date): Promise<boolean>
   );
 }
 
+/**
+ * Where the shopping comes from, in words. We have no partnership with any supermarket, so a
+ * job never names one: it names the Shop Partners whose things are in it, when there are any,
+ * and otherwise says "the shops on the list" (Anthony, 30 October 2026).
+ */
+export function fromShopsWords(shopNames: readonly string[]): string {
+  if (shopNames.length === 0) return 'the shops on the list';
+  if (shopNames.length === 1) return shopNames[0]!;
+  return `${shopNames.slice(0, -1).join(', ')} and ${shopNames[shopNames.length - 1]!}`;
+}
+
+/** The names of the Shop Partners whose things are in an order: none for an ordinary shop. */
+export async function orderShopNames(
+  ctx: Pick<Ctx, 'repository'>,
+  order: Order,
+): Promise<string[]> {
+  return (await shopsInOrder(ctx, order)).map((shop) => shop.name);
+}
+
 /** The job, as the Runner is told it: never the customer's name, address or number. */
-export function officeJobWords(ctx: Pick<Ctx, 'config'>, order: Order): string {
+export function officeJobWords(
+  ctx: Pick<Ctx, 'config'>,
+  order: Order,
+  shopNames: readonly string[] = [],
+): string {
   const money = (pence: number) => formatPence(pence, ctx.config.store.currencySymbol);
   const things = order.items.reduce((sum, item) => sum + item.quantity, 0);
   const minutes = ctx.config.allocation.allocatedHoldMinutes;
-  return `The office has sent you job ${orderReference(order)}: ${things} ${things === 1 ? 'thing' : 'things'}, about ${money(order.goodsEstimatePence)} of shopping, from ${ctx.config.store.displayName}. You get ${money(order.runnerPaymentPence)}. It is held for you alone for ${minutes} minutes. Take it or say no on your Runner page.`;
+  return `The office has sent you job ${orderReference(order)}: ${things} ${things === 1 ? 'thing' : 'things'}, about ${money(order.goodsEstimatePence)} of shopping, from ${fromShopsWords(shopNames)}. You get ${money(order.runnerPaymentPence)}. It is held for you alone for ${minutes} minutes. Take it or say no on your Runner page.`;
 }
 
 /** Notification and text to the Runner. Never stops the offer: the Runner page shows it too. */
@@ -213,7 +237,7 @@ async function tellRunnerOfJob(
   offer: JobOffer,
   log?: FastifyBaseLogger,
 ): Promise<void> {
-  const words = officeJobWords(ctx, order);
+  const words = officeJobWords(ctx, order, await orderShopNames(ctx, order));
   if (ctx.sendPush) {
     try {
       for (const device of await ctx.repository.pushSubscriptions.listForRunner(runner.id)) {

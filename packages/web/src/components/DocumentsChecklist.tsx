@@ -18,7 +18,7 @@ import { PhotoChoice } from './PhotoChoice';
  * camera for the face photo, the back one for documents — and one to choose a photo already on
  * the phone, or for a document a PDF (27 October 2026); and, for the right to work and the
  * DBS check, a box for a share code instead. Insurance asks for the date it runs out. Below, what
- * has been sent and what a person decided, with the reason if one was turned down.
+ * has been sent and what was decided, with the reason if one was turned down.
  */
 
 const HOW: Record<RunnerDocumentKind, string> = {

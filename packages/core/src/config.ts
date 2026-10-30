@@ -63,6 +63,12 @@ export interface StoreConfig {
     /** The email address Shoppers, Runners and anyone else can write to (E-Commerce Regulations). */
     readonly email: string;
     readonly emailIsPlaceholder: boolean;
+    /**
+     * The website address as people should type it, such as "www.ozidelivery.co.uk". Empty when
+     * not set. Named wherever we warn about other apps with a similar name (Anthony, 30 October
+     * 2026).
+     */
+    readonly website: string;
   };
   readonly store: {
     readonly displayName: string;
@@ -302,6 +308,12 @@ export interface StoreConfig {
    */
   readonly receipts: {
     readonly photoNeededAbovePence: number;
+    /**
+     * The till may come to this much over the shopping estimate, or a fifth of the estimate if
+     * that is more, and still be taken from the Shopper's card and paid back to the Runner
+     * without a person looking first (services/till.ts). £5 by default (Anthony, 30 October 2026).
+     */
+    readonly tillExtraFloorPence: number;
   };
   /**
    * Who may be offered which job (ruling 59, as changed by ruling 60). Each way of travelling
@@ -1120,6 +1132,7 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       ),
       email: emailAddress(contact['email'], 'contact.email'),
       emailIsPlaceholder: bool(contact['emailIsPlaceholder'], 'contact.emailIsPlaceholder'),
+      website: contact['website'] === undefined ? '' : str(contact['website'], 'contact.website'),
     },
     store: {
       displayName: str(store['displayName'], 'store.displayName'),
@@ -1370,6 +1383,11 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       photoNeededAbovePence: wholeNumber(
         receipts['photoNeededAbovePence'] ?? 3000,
         'receipts.photoNeededAbovePence',
+        0,
+      ),
+      tillExtraFloorPence: wholeNumber(
+        receipts['tillExtraFloorPence'] ?? 500,
+        'receipts.tillExtraFloorPence',
         0,
       ),
     },

@@ -2,12 +2,15 @@ import { Link } from 'react-router-dom';
 
 import { storeConfig } from '../config';
 import { money } from '../lib/money';
+import { WrongAppWarning } from '../components/GetTheApp';
+import { ENHANCED_DBS_OPTIONAL, paidBackInFull } from '../lib/runner-words';
 
 /**
  * The Runner door.
  *
  * Rule Two is a promise to a person, so it is stated as a number on the first screen a
- * Runner ever sees, with nothing hedged and no asterisk.
+ * Runner ever sees, with no asterisk. Every figure is from config, and each promise says only
+ * what the code does (Anthony, 30 October 2026).
  */
 export function RunnerDoor(): JSX.Element {
   const { runnerPaymentPence, coolBag, largeOrderFromPence, largeOrderRunnerPaymentPence } =
@@ -18,11 +21,10 @@ export function RunnerDoor(): JSX.Element {
       <h1 className="text-display font-bold m-0">Run for {storeConfig.productName}</h1>
 
       <p className="text-lead m-0 max-w-xl">
-        You get {money(runnerPaymentPence)} for every order you complete. Every order, without
-        exception. For an order of {money(largeOrderFromPence)} or more of shopping, delivered whole
-        by car or van, you get {money(largeOrderRunnerPaymentPence)}. When a big order is split
-        between Runners, each part pays {money(storeConfig.dispatch.splitRunnerPayPence)}, shown
-        before you say yes.
+        You get {money(runnerPaymentPence)} a standard delivery,{' '}
+        {money(largeOrderRunnerPaymentPence)} for orders of {money(largeOrderFromPence)} or more,
+        delivered whole by car or van. When a big order is split between Runners, each part pays{' '}
+        {money(storeConfig.dispatch.splitRunnerPayPence)}, shown before you say yes.
       </p>
 
       <section aria-labelledby="how-heading" className="space-y-3">
@@ -30,13 +32,16 @@ export function RunnerDoor(): JSX.Element {
           How it works
         </h2>
         <ol className="m-0 ps-6 space-y-2">
-          <li>A job is offered to you and held for you for sixty seconds.</li>
           <li>
-            You buy the shopping at the shelf price with your own card and keep the receipt. When
-            you put in the till total, we pay it back to you straight away.
+            A job is offered to you and held for you for {storeConfig.allocation.offerHoldSeconds}{' '}
+            seconds.
+          </li>
+          <li>
+            You buy the shopping at the shelf price with your own card and keep the receipt.{' '}
+            {paidBackInFull()}
           </li>
           <li>You take it to the door and follow whatever the Shopper asked for.</li>
-          <li>{money(runnerPaymentPence)} goes to your own bank account.</li>
+          <li>Your pay goes to your Stripe account, then to your bank on your payout schedule.</li>
         </ol>
       </section>
 
@@ -45,8 +50,8 @@ export function RunnerDoor(): JSX.Element {
           How jobs are shared out
         </h2>
         <p className="m-0 max-w-xl">
-          Jobs go to whoever is nearby and has waited longest since their last one. It is a
-          rotation, not a race, so you do not have to sit staring at your phone to earn.
+          Jobs go first to available Runners in your area, nearest first. Each offer is held for
+          you, so you do not have to sit staring at your phone to earn.
         </p>
         <p className="m-0 max-w-xl">
           If two orders are close together we may give you both in one trip. You are paid{' '}
@@ -61,8 +66,8 @@ export function RunnerDoor(): JSX.Element {
         <p className="m-0 max-w-xl">
           You will need a cool bag. We hold back {money(coolBag.withholdPerOrderPence)} from your
           first few payments, up to {money(coolBag.depositPence)} in total, and give the whole lot
-          back to you after your {coolBag.releaseAfterCompletedDeliveries}th delivery. It is held,
-          not taken.
+          back to you after your {coolBag.releaseAfterCompletedDeliveries}th delivery. It is your
+          money, held back and then given back.
         </p>
       </section>
 
@@ -72,10 +77,11 @@ export function RunnerDoor(): JSX.Element {
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>Proof of your right to work in the United Kingdom.</li>
-          <li>A criminal record check.</li>
+          <li>A basic criminal record check (a basic DBS check).</li>
           <li>Your own bank account, so we can pay you directly.</li>
           <li>You must be 18 or over.</li>
         </ul>
+        <p className="m-0 max-w-xl">{ENHANCED_DBS_OPTIONAL}</p>
       </section>
 
       <section aria-labelledby="agreement-heading" className="space-y-3">
@@ -90,6 +96,9 @@ export function RunnerDoor(): JSX.Element {
           Read the Runner agreement
         </Link>
       </section>
+
+      {/* Another app called Ozi is in the app stores; ours is not yet (Anthony, 30 October 2026). */}
+      <WrongAppWarning homeScreen />
 
       <Link to="/runner/sign-up" className="control bg-highlight text-on-accent text-lead">
         Start signing up as a Runner

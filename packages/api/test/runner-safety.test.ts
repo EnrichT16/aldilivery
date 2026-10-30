@@ -228,7 +228,7 @@ describe('when money reaches the bank (ruling 16)', () => {
       }),
     );
     expect(quote.words).toBe(
-      "£42.50 can go to your debit card now. Stripe's fee for that is £0.50, paid by you, so you would get £42.00.",
+      "£42.50 can go to your debit card now. The instant payout fee for that is £0.50, paid by you, so you would get £42.00.",
     );
 
     // The amount changed since they looked: nothing is sent.
@@ -247,7 +247,7 @@ describe('when money reaches the bank (ruling 16)', () => {
     );
     expect(taken.statusCode, taken.body).toBe(200);
     expect(taken.json().message).toBe(
-      "£42.00 is on its way to your debit card. Stripe's fee was £0.50.",
+      "£42.00 is on its way to your debit card. The instant payout fee was £0.50.",
     );
     expect(harness.payments.calls.at(-1)).toEqual({
       kind: 'instant_payout',
@@ -457,7 +457,7 @@ describe('insurance reminders for Runners who drive (ruling 14)', () => {
     await harness.repository.runners.update(runner.runnerId, { available: true });
 
     expect(await sweepInsuranceReminders(harness.app.ctx)).toBe(1);
-    expect(texts.at(-1)?.body).toContain('Jobs by car or motorbike are paused');
+    expect(texts.at(-1)?.body).toContain('Jobs by car, motorbike or van are paused');
     expect((await harness.repository.runners.findById(runner.runnerId))?.available).toBe(false);
 
     // Back on shift by car is refused; walking is fine, and is offered work.

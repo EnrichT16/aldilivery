@@ -598,6 +598,8 @@ export interface OfferedJob {
     goodsEstimatePence: number;
     runnerPaymentPence: number;
     distanceMiles: number | null;
+    /** The Shop Partners whose things are in it, by name; empty for the shops on the list. */
+    shopNames?: string[];
     split?: SplitJob | null;
   } | null;
 }
@@ -655,6 +657,8 @@ export interface CurrentJob {
   doorWord?: string | null;
   /** A part of a split job (ruling 60). */
   split?: SplitJob | null;
+  /** The Shop Partners whose things are in it, by name; empty for the shops on the list. */
+  shopNames?: string[];
   items: Array<{ id: string; name: string; quantity: number; estimatedPricePence: number }>;
 }
 

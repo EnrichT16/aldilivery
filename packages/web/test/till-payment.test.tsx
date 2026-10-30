@@ -99,7 +99,7 @@ describe('how a Runner pays at the till', () => {
     stub();
     render(<TillPayment onNews={() => undefined} />);
     expect(await screen.findByText('The Ozi card is coming soon.')).toBeInTheDocument();
-    expect(screen.getByText('My own card, paid back straight away.')).toBeInTheDocument();
+    expect(screen.getByText('My own card, and we pay you back.')).toBeInTheDocument();
     expect(screen.queryByRole('radio')).not.toBeInTheDocument();
     const results = await axe.run(document.body, AXE as axe.RunOptions);
     expect(results.violations.map((v) => v.id)).toEqual([]);
@@ -119,7 +119,7 @@ describe('how a Runner pays at the till', () => {
     expect(screen.getByLabelText('Ozi card (recommended)')).toHaveAccessibleDescription(
       /None of your own money is needed/,
     );
-    expect(screen.getByLabelText('My own card, paid back straight away')).toBeChecked();
+    expect(screen.getByLabelText('My own card, and we pay you back')).toBeChecked();
 
     await user.click(screen.getByRole('button', { name: 'Set up my Ozi card' }));
     await user.type(screen.getByLabelText('Your address, first line'), '3 Runner Row');
@@ -182,7 +182,7 @@ describe('how a Runner pays at the till', () => {
     state.payMethod = 'card';
     stub();
     render(<TillPayment onNews={() => undefined} />);
-    await user.click(await screen.findByLabelText('My own card, paid back straight away'));
+    await user.click(await screen.findByLabelText('My own card, and we pay you back'));
     expect(state.sent.find((r) => r.path === '/runners/me/pay-method')?.body).toEqual({
       method: 'own',
     });

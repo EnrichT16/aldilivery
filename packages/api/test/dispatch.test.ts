@@ -199,6 +199,7 @@ describe('what a Runner sees', () => {
       itemCount: 3,
       goodsEstimatePence: expect.any(Number),
       runnerPaymentPence: 500,
+      shopNames: [],
       distanceMiles: expect.any(Number),
       // Not part of a split job (ruling 60).
       split: null,
