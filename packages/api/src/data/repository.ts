@@ -195,6 +195,8 @@ export type CreateOrder = Pick<
       | 'chargeAt'
       | 'chargeNextTryAt'
       | 'chargeStatus'
+      | 'restaurantShopId'
+      | 'restaurantDiscountPercent'
     >
   > & { items: CreateOrderItem[] };
 
@@ -737,6 +739,7 @@ export interface Repository {
             | 'ambassadorKind'
             | 'ambassadorId'
             | 'branchOfShopId'
+            | 'agreedDiscountPercent'
           >
         >,
     ): Promise<PartnerShop>;
@@ -940,6 +943,11 @@ export interface Repository {
     deleteProblemEvidenceDecidedBefore(before: Date): Promise<number>;
     /** Business analysis records from before a moment. */
     deleteAnalyticsBefore(before: Date): Promise<number>;
+    /**
+     * Checkout insight rows (checkout_viewed, checkout_paid, checkout_reason) from before a
+     * moment: kept 12 months, not the three years of the rest (Anthony, 30 October 2026).
+     */
+    deleteCheckoutEventsBefore(before: Date): Promise<number>;
     /** Ozi's memory from before a moment: only the rows nobody judged, or every row. */
     deleteExchangesBefore(before: Date, only: 'unrated' | 'all'): Promise<number>;
     /** Sign-in codes made before a moment: the security record of signing in. */

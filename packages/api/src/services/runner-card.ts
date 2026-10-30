@@ -34,7 +34,8 @@ import { formatPence } from '@aldilivery/core';
 import type { AppContext } from '../app.js';
 import type { CardAuthorization, Order, Runner, RunnerPayMethod } from '../domain.js';
 import { ConflictError } from '../errors.js';
-import { GROCERY_CATEGORIES } from '../lib/payments.js';
+import { cardCategoriesFor } from '../lib/payments.js';
+import { tillExpectedPence } from './orders.js';
 import { tillLimitPence } from './till.js';
 import { mostOneOrderCarries } from './basket-orders.js';
 
@@ -233,8 +234,10 @@ export async function loadCardForOrder(
     await ctx.repository.orders.update(order.id, { payMethodUsed: 'own' });
     return own;
   }
+  // Loaded with what the till is expected to say: for a restaurant with an agreed discount, the
+  // counter price, never the shop prices the Shopper pays (Anthony, 30 October 2026).
   const limit = cardLimitFor(
-    order.goodsEstimatePence,
+    tillExpectedPence(order),
     mostOneOrderCarries(ctx.config, order),
     ctx.config.receipts.tillExtraFloorPence,
   );
@@ -243,6 +246,7 @@ export async function loadCardForOrder(
       cardId: runner.issuingCardId,
       limitPence: limit,
       orderId: order.id,
+      ...(order.restaurantShopId ? { restaurant: true } : {}),
     });
   } catch (failure) {
     log?.error({ err: failure, orderId: order.id }, 'The spending card could not be loaded.');
@@ -325,7 +329,10 @@ export interface AuthorizationDecision {
 export function decideAuthorization(input: {
   enabled: boolean;
   runner: Pick<Runner, 'id' | 'leftAt'> | null;
-  order: Pick<Order, 'runnerId' | 'status' | 'payMethodUsed' | 'cardLimitPence'> | null;
+  order:
+    | (Pick<Order, 'runnerId' | 'status' | 'payMethodUsed' | 'cardLimitPence'> &
+        Partial<Pick<Order, 'restaurantShopId'>>)
+    | null;
   amountPence: number;
   currency: string;
   category: string;
@@ -348,7 +355,8 @@ export function decideAuthorization(input: {
   if (input.currency.toLowerCase() !== 'gbp') {
     return { approved: false, reason: `Not in pounds (${input.currency}).` };
   }
-  if (!(GROCERY_CATEGORIES as readonly string[]).includes(input.category)) {
+  // A restaurant order may be paid at a restaurant's counter too (Anthony, 30 October 2026).
+  if (!cardCategoriesFor(Boolean(order.restaurantShopId)).includes(input.category)) {
     return { approved: false, reason: `Not a grocery shop (${input.category || 'unknown'}).` };
   }
   if (input.amountPence <= 0) return { approved: false, reason: 'No amount.' };

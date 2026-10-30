@@ -35,6 +35,7 @@ import type { AppContext } from '../app.js';
 import type { Order } from '../domain.js';
 import { ConflictError, NotFoundError } from '../errors.js';
 import { canBePaid } from './pay-runner.js';
+import { tillExpectedPence } from './orders.js';
 import { tillLimitPence, type TillOutcome } from './till.js';
 import { mostOneOrderCarries } from './basket-orders.js';
 import { askOwner, matterWords } from './owner-desk.js';
@@ -137,7 +138,9 @@ export async function startReimbursement(
 
   const plan = planReimbursement({
     receiptTotalPence: order.receiptTotalPence,
-    goodsEstimatePence: order.goodsEstimatePence,
+    // What the till was expected to say: for a restaurant with an agreed discount, the counter
+    // price the Runner pays, never the shop prices the Shopper pays (Anthony, 30 October 2026).
+    goodsEstimatePence: tillExpectedPence(order),
     maximumGoodsPence: mostOneOrderCarries(ctx.config, order),
     tillNeedsPerson: settled.kind === 'needs-person' ? settled.reason : null,
     receiptPhoto: {

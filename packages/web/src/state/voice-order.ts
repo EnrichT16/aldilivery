@@ -11,6 +11,9 @@ import {
   itemChargesForLines,
   overOneRunnerWords,
   parseSpokenSchedule,
+  preferredRankingWords,
+  RESTAURANT_MIXED_WORDS,
+  restaurantMinimumWords,
   scheduleAgreementWords,
   ukDay,
   type DeliveryWindow,
@@ -25,6 +28,7 @@ import {
   listPaymentMethods,
   markAreaWarned,
   priceBasketRemotely,
+  recordCheckoutViewed,
   recordExchange,
   searchCatalogue,
   suggestItem,
@@ -81,6 +85,8 @@ type Stage =
       home: string;
       cardId: string;
       lastFour: string;
+      /** What was said, for the checkout insights (30 October 2026). */
+      breakdown?: SaidBreakdown;
     }
   | {
       kind: 'payment';
@@ -93,6 +99,14 @@ type Stage =
       /** Booked for a later day (ruling 78), as it was said: "deliver it on Saturday morning". */
       booking?: VoiceBooking;
     };
+
+/** The figures Ozi said before the yes: the shopping, the item charges, delivery or the restaurant fee. */
+interface SaidBreakdown {
+  goodsPence: number;
+  itemChargesPence: number;
+  feePence: number;
+  restaurant: boolean;
+}
 
 /** A later day, its window, and, if said, when the money is taken (ruling 78). */
 interface VoiceBooking {
@@ -400,6 +414,28 @@ export function useVoiceOrdering(
         )
         .join(', ');
 
+      // A restaurant order (Anthony, 30 October 2026): one restaurant's dishes on their own, at
+      // least the smallest order, with the flat restaurant fee in place of delivery.
+      const restaurants = items.map(({ product }) => product.restaurant ?? null);
+      const restaurant = restaurants[0] ?? null;
+      const mixed =
+        restaurants.some(Boolean) &&
+        restaurants.some((ref) => ref === null || ref.shopId !== restaurant?.shopId);
+      if (mixed) {
+        reset();
+        await say(`${notes}${RESTAURANT_MIXED_WORDS} I've put it all in your basket.`);
+        navigate('/basket');
+        return;
+      }
+      if (restaurant && goodsPence < storeConfig.restaurants.minimumOrderPence) {
+        reset();
+        await say(
+          `${notes}${restaurantMinimumWords(storeConfig.restaurants, money)} I've put it in your basket.`,
+        );
+        navigate('/basket');
+        return;
+      }
+
       if (goodsPence > maximumOrderGoodsPence) {
         reset();
         // Ruling 61: told plainly, with both choices. Keeping everything is chosen on the screen,
@@ -412,14 +448,20 @@ export function useVoiceOrdering(
         navigate('/basket');
         return;
       }
-      const deliveryPence = deliveryFeePence(goodsPence, plan, storeConfig.fees);
+      const deliveryPence = restaurant
+        ? storeConfig.restaurants.feePence
+        : deliveryFeePence(goodsPence, plan, storeConfig.fees);
       // The monthly order allowance (ruling 73), counted as the server counts it, and said
-      // before the yes.
+      // before the yes. A restaurant order has the restaurant fee instead, and no extra.
       const allowancePlan = live.current.shopper?.allowancePlan ?? 'payg';
       const orderNumber = (live.current.shopper?.ordersThisMonth ?? 0) + 1;
       const allowance = storeConfig.fees.delivery.allowance;
-      const extraPence = allowanceExtraPence(allowancePlan, orderNumber, allowance);
-      const allowanceSaid = allowanceWords(allowancePlan, orderNumber, allowance, money);
+      const extraPence = restaurant
+        ? 0
+        : allowanceExtraPence(allowancePlan, orderNumber, allowance);
+      const allowanceSaid = restaurant
+        ? null
+        : allowanceWords(allowancePlan, orderNumber, allowance, money);
       const totalPence = shoppingPence + deliveryPence + extraPence;
 
       let cards: Awaited<ReturnType<typeof listPaymentMethods>>['paymentMethods'] = [];
@@ -455,9 +497,18 @@ export function useVoiceOrdering(
         home,
         cardId: card.id,
         lastFour: card.lastFour,
+        breakdown: {
+          goodsPence,
+          itemChargesPence,
+          feePence: deliveryPence + extraPence,
+          restaurant: restaurant !== null,
+        },
       };
+      const feeSaid = restaurant
+        ? `the restaurant fee is ${money(deliveryPence)}, in place of delivery`
+        : `delivery is ${money(deliveryPence)}`;
       await say(
-        `${notes}Here is your order: ${list}. Your shopping comes to about ${money(shoppingPence)}, with the item charges included, and delivery is ${money(deliveryPence)}${allowanceSaid ? `. ${allowanceSaid} So` : ', so'} about ${money(totalPence)} altogether. It will be delivered to your home address: ${home}. Is that right?`,
+        `${notes}Here is your order: ${list}. Your shopping comes to about ${money(shoppingPence)}, with the item charges included, and ${feeSaid}${allowanceSaid ? `. ${allowanceSaid} So` : ', so'} about ${money(totalPence)} altogether. It will be delivered to your home address: ${home}. Is that right?`,
       );
     },
     [say, reset, putInBasket, navigate, maximumOrderGoodsPence],
@@ -505,9 +556,13 @@ export function useVoiceOrdering(
           }
           if (suggestion.outcome === 'shops') {
             const names = suggestion.shops.map((shop) => shop.name);
+            // Preferred Partners are named first (30 October 2026), and Ozi says why.
+            const why = suggestion.shops[0]?.preferred
+              ? ` ${preferredRankingWords(storeConfig.assistantName)}`
+              : '';
             notes +=
               names.length > 0
-                ? `${suggestion.reply} On ${storeConfig.productName}: ${names.slice(0, -1).join(', ')}${names.length > 1 ? ' and ' : ''}${names[names.length - 1]}. Say open and the name to see what they have. `
+                ? `${suggestion.reply} On ${storeConfig.productName}: ${names.slice(0, -1).join(', ')}${names.length > 1 ? ' and ' : ''}${names[names.length - 1]}.${why} Say open and the name to see what they have. `
                 : `${suggestion.reply} No cafés or takeaways have joined near you yet. `;
             continue;
           }
@@ -844,6 +899,16 @@ export function useVoiceOrdering(
           // yet, or is paused, Ozi says so gently before the final yes, once for this order, and
           // they choose; nothing is stopped. It is never said earlier than this.
           const warning = await noRunnerWarning(current.home);
+          // Checkout insights (30 October 2026): the order and its total were said, by voice.
+          if (current.breakdown) {
+            recordCheckoutViewed({
+              ...current.breakdown,
+              totalPence: current.totalPence,
+              area: current.home,
+              noRunnerWarning: warning !== '',
+              channel: 'voice',
+            }).catch(() => undefined);
+          }
           await say(
             `${warning}${statement} Say yes to send it and pay, or no to stop. ${ANOTHER_DAY}`,
           );

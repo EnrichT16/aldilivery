@@ -51,7 +51,7 @@ const BAKERY_DASHBOARD: PartnerDashboard = {
     words:
       'Free listing: your name, address, hours and up to 10 products. Partner Plus, £14.99 a month, adds the full catalogue with photos, Shop of the Month, and first place among shops at the same distance, with the first month free.',
   },
-  commission: null,
+  restaurant: null,
   enquiries: [],
   counts: { live: 0, waiting: 0, notAccepted: 0 },
   products: [],
@@ -102,7 +102,9 @@ beforeEach(() => {
           freeProductLimit: 10,
           plusMonthlyPence: 1499,
           plusFirstMonthFree: true,
-          foodCommissionWords: '10%',
+          restaurantWords:
+            'A restaurant, café or takeaway order has a flat restaurant fee of £12 in place of delivery, and the smallest order is £10 of dishes.',
+          preferredDiscountPercent: 20,
           spotlightPence: 1999,
           spotlightPlusPence: 3999,
           excludedServiceKinds: ['credit', 'loans', 'mortgages', 'insurance'],
@@ -314,7 +316,11 @@ describe('joining as a shop', () => {
       screen.getByText('Shops: a basic listing, free, with no monthly fee'),
     ).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'What each plan gives a shop' })).toBeInTheDocument();
-    expect(screen.getByText(/10% of each order placed through/)).toBeInTheDocument();
+    // No commission for restaurants (30 October 2026); an optional discount instead.
+    expect(
+      screen.getByText('Restaurants, cafés and takeaways: no monthly fee and no commission.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/10% of each order/)).toBeNull();
     expect(
       screen.getByText(/We cannot list credit, loans, mortgages, insurance/),
     ).toBeInTheDocument();
@@ -457,7 +463,7 @@ describe('paying from the dashboard', () => {
     expect(window.sessionStorage.getItem('ozidelivery.partner.receipt')).toBeNull();
   });
 
-  it('shows a café its commission and a service its enquiries, with no pay button', async () => {
+  it('shows a café no commission, its discount and its orders, with no pay button', async () => {
     window.sessionStorage.setItem('ozidelivery.business.token', 'bz1.x.y');
     dashboard = {
       ...BAKERY_DASHBOARD,
@@ -473,27 +479,38 @@ describe('paying from the dashboard', () => {
         ...BAKERY_DASHBOARD.plan,
         freeForever: false,
         productLimit: null,
-        words: `No monthly fee. 10% of each order placed through ${storeConfig.productName} is owed as commission.`,
+        words: 'No monthly fee and no commission.',
       },
-      commission: {
-        basisPoints: 1000,
-        words: '10%',
+      restaurant: {
+        discountPercent: 20,
+        preferred: true,
+        preferredDiscountPercent: 20,
         ordersThisMonth: 3,
         goodsThisMonthPence: 4500,
-        owedThisMonthPence: 450,
+        words: 'You have agreed a 20% discount, so our Runners pay your shop price less 20%.',
       },
+      spotlight: { ...BAKERY_DASHBOARD.spotlight, freeWeekLeft: true },
     };
     renderAt('/partner');
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Rainham Café' }),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(`3 orders through ${storeConfig.productName}, £45.00 of food and drink.`, {
+      screen.getByText(`3 orders through ${storeConfig.productName}, £45.00 of food and drink`, {
         exact: false,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText('£4.50')).toBeInTheDocument();
+    // The 10% commission is replaced (30 October 2026): nothing owed, ever.
+    expect(screen.getByText(/No commission: you owe/)).toBeInTheDocument();
+    expect(screen.queryByText(/owed:/)).toBeNull();
+    expect(
+      screen.getByRole('heading', { name: `${storeConfig.assistantName} Preferred Partner` }),
+    ).toBeInTheDocument();
+    // Partner Plus is free, so there is no button to pay for it; the free Spotlight week is there.
     expect(screen.queryByRole('button', { name: /Partner Plus/ })).toBeNull();
+    expect(
+      screen.getByRole('button', { name: 'Start my free Spotlight week' }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -632,7 +649,8 @@ describe('choosing free or paid at sign-up (ruling 75)', () => {
       freeProductLimit: 10,
       plusMonthlyPence: 1499,
       plusFirstMonthFree: true,
-      foodCommissionWords: '10%',
+      restaurantWords: '',
+      preferredDiscountPercent: 20,
       spotlightPence: 1999,
       spotlightPlusPence: 3999,
       excludedServiceKinds: [],
@@ -650,7 +668,8 @@ describe('choosing free or paid at sign-up (ruling 75)', () => {
       freeProductLimit: 10,
       plusMonthlyPence: 1499,
       plusFirstMonthFree: true,
-      foodCommissionWords: '10%',
+      restaurantWords: '',
+      preferredDiscountPercent: 20,
       spotlightPence: 1999,
       spotlightPlusPence: 3999,
       excludedServiceKinds: [],

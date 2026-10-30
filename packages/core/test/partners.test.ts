@@ -1,5 +1,5 @@
 /**
- * Partners (ruling 65): the pure rules for the free listings, Partner Plus, a café's commission,
+ * Partners (ruling 65): the pure rules for the free listings, Partner Plus, no café commission,
  * the kinds of service never listed, and a shop's area from its postcode.
  */
 
@@ -7,7 +7,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
   basisPointsWords,
-  commissionPence,
   excludedServiceKind,
   excludedServiceWords,
   freeListingAvailable,
@@ -23,16 +22,17 @@ const config = loadStoreConfig();
 const pricing = config.extras.partners;
 
 describe('the partner pricing in config/store.json', () => {
-  it('is the pricing Anthony ruled: 100 free listings of 10 products, Plus at £14.99, 10% for food', () => {
+  it('is the pricing Anthony ruled: 100 free listings of 10 products, Plus at £14.99, no commission for food', () => {
     expect(pricing).toEqual(
       expect.objectContaining({
         freeListingCount: 100,
         freeProductLimit: 10,
         plusMonthlyPence: 1499,
         plusFirstMonthFree: true,
-        foodCommissionBasisPoints: 1000,
       }),
     );
+    // The 10% café commission was replaced by an optional discount (Anthony, 30 October 2026).
+    expect(pricing).not.toHaveProperty('foodCommissionBasisPoints');
     expect(pricing.excludedServiceKinds).toEqual(
       expect.arrayContaining(['credit', 'loans', 'mortgages', 'insurance', 'financial advice']),
     );
@@ -50,10 +50,7 @@ describe('the partner pricing in config/store.json', () => {
 });
 
 describe('the rules', () => {
-  it('works out a café’s commission to the penny', () => {
-    expect(commissionPence(1250, 1000)).toBe(125);
-    expect(commissionPence(999, 1000)).toBe(100);
-    expect(commissionPence(0, 1000)).toBe(0);
+  it('says a share in basis points plainly', () => {
     expect(basisPointsWords(1000)).toBe('10%');
     expect(basisPointsWords(1250)).toBe('12.5%');
   });

@@ -1710,6 +1710,13 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       async deleteAnalyticsBefore(before) {
         return (await prisma.analyticsEvent.deleteMany({ where: { at: { lt: before } } })).count;
       },
+      async deleteCheckoutEventsBefore(before) {
+        return (
+          await prisma.analyticsEvent.deleteMany({
+            where: { at: { lt: before }, kind: { startsWith: 'checkout_' } },
+          })
+        ).count;
+      },
       async deleteExchangesBefore(before, only) {
         return (
           await prisma.oziExchange.deleteMany({

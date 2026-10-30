@@ -1185,6 +1185,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           feePence: input.feePence,
           allowanceExtraPence: input.allowanceExtraPence ?? 0,
           totalEstimatePence: input.totalEstimatePence,
+          restaurantShopId: input.restaurantShopId ?? null,
+          restaurantDiscountPercent: input.restaurantDiscountPercent ?? 0,
           deliveryPlan: input.deliveryPlan ?? 'payg',
           payerShopperId: input.payerShopperId ?? null,
           approvalStatus: input.approvalStatus ?? null,
@@ -1785,6 +1787,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           ambassadorKind: null,
           ambassadorId: null,
           branchOfShopId: null,
+          agreedDiscountPercent: 0,
           ...input,
           id: id(),
           paidUntil: null,
@@ -2571,6 +2574,14 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
       async deleteAnalyticsBefore(before) {
         const keep = analyticsEvents.filter((row) => row.at >= before);
+        const removed = analyticsEvents.length - keep.length;
+        analyticsEvents.splice(0, analyticsEvents.length, ...keep);
+        return removed;
+      },
+      async deleteCheckoutEventsBefore(before) {
+        const keep = analyticsEvents.filter(
+          (row) => row.at >= before || !row.kind.startsWith('checkout_'),
+        );
         const removed = analyticsEvents.length - keep.length;
         analyticsEvents.splice(0, analyticsEvents.length, ...keep);
         return removed;

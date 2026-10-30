@@ -14,7 +14,9 @@ import { money, planAllowanceWords, planDeliveryWords } from '../lib/money';
  * Consumer Rights Act 2015 and the E-Commerce Regulations 2002 on 9 October 2026 (ruling 54,
  * docs/LEGAL_REVIEW.md). Corrected on 30 October 2026 after an audit: no connection with any
  * other business called Ozi, the area-by-area clause, and the till limit and reminder read from
- * config (Anthony, 30 October 2026). Runners have their own agreement, at /runner/agreement.
+ * config (Anthony, 30 October 2026). Restaurant pricing added the same day: the flat restaurant
+ * fee, the smallest restaurant order, and that restaurants giving a better price are listed
+ * first. Runners have their own agreement, at /runner/agreement.
  */
 export function Terms(): JSX.Element {
   const name = storeConfig.productName;
@@ -22,7 +24,7 @@ export function Terms(): JSX.Element {
   const { itemCharge, maximumOrderGoodsPence, maximumProductPence, runnerPaymentPence } =
     storeConfig.fees;
   const { instantRefundUpToPence, decideWithinWorkingDays } = storeConfig.problems;
-  const { extras, calls, voice } = storeConfig;
+  const { extras, calls, voice, restaurants } = storeConfig;
   const company = companyFacts();
 
   return (
@@ -86,8 +88,9 @@ export function Terms(): JSX.Element {
             prices. If you pay as you go, it is {planDeliveryWords('payg')}. On {assistant}{' '}
             Membership it is {planDeliveryWords('membership')}; on {assistant} Plus or Family and
             Carer, {planDeliveryWords('plus')}. People an organisation looks after pay the
-            Membership delivery. There is no minimum spend and no extra charge at busy times. Each
-            monthly plan includes a number of your own orders each calendar month (UK time):
+            Membership delivery. There is no minimum spend on shopping and no extra charge at busy
+            times. Each monthly plan includes a number of your own orders each calendar month (UK
+            time):
             {assistant} Membership, and people an organisation looks after,{' '}
             {planAllowanceWords('membership')}; {assistant} Plus {planAllowanceWords('plus')};{' '}
             {assistant} Family and Carer {planAllowanceWords('family')}. Cancelled and refunded
@@ -96,6 +99,18 @@ export function Terms(): JSX.Element {
             {money(runnerPaymentPence)} of every delivery goes to your Runner, or{' '}
             {money(storeConfig.fees.largeOrderRunnerPaymentPence)} for an order of{' '}
             {money(storeConfig.fees.largeOrderFromPence)} or more of shopping.
+          </li>
+          <li>
+            Restaurant, café and takeaway orders are priced on their own. Dishes are at the
+            restaurant&rsquo;s own shop price, with the same item charge on each dish. Instead of
+            delivery there is a flat restaurant fee of {money(restaurants.feePence)} an order,
+            whatever your plan, with no extra delivery charge; {money(runnerPaymentPence)} of it
+            goes to your Runner. The smallest restaurant order is{' '}
+            {money(restaurants.minimumOrderPence)} of dishes at the shop&rsquo;s prices, and we tell
+            you before you pay if yours is smaller. A restaurant order comes from one restaurant, on
+            its own: dishes cannot go in the same order as other shopping. Some restaurants give us
+            a better price than their shop price; you still pay their shop price, and we keep the
+            difference. Those restaurants are shown first, and we say so where they are listed.
           </li>
           <li>
             One order carries up to {money(maximumOrderGoodsPence)} of shopping, which is what one

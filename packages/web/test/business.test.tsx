@@ -128,7 +128,7 @@ beforeEach(() => {
             words:
               'Partner Plus, £14.99 a month, paid until 7 November 2026: the full catalogue with photos, Shop of the Month, and first place among shops at the same distance.',
           },
-          commission: null,
+          restaurant: null,
           enquiries: [],
           counts: { live: 1, waiting: 0, notAccepted: 0 },
           products: [

@@ -42,6 +42,7 @@ import { registerAuthRoutes } from './routes/auth.js';
 import { registerAccountRoutes } from './routes/accounts.js';
 import { registerBasketRoutes } from './routes/basket.js';
 import { registerCatalogueRoutes } from './routes/catalogue.js';
+import { registerCheckoutRoutes } from './routes/checkout.js';
 import { registerJobRoutes } from './routes/jobs.js';
 import { registerQuestionRoutes } from './routes/questions.js';
 import { registerOrderRoutes } from './routes/orders.js';
@@ -511,6 +512,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerAccountRoutes(app);
   await registerCatalogueRoutes(app);
   await registerBasketRoutes(app);
+  await registerCheckoutRoutes(app);
   await registerPaymentMethodRoutes(app);
   await registerPushRoutes(app);
   await registerAddressRoutes(app);

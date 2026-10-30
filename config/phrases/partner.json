@@ -3686,8 +3686,8 @@
         "what does a takeaway pay"
       ],
       "replies": [
-        "A café or takeaway pays no monthly fee. {foodCommission} of each order placed through {product} is owed as commission; it is shown on your dashboard and your statement.",
-        "{foodCommission} on orders through {product}, and nothing a month. The figure is on your dashboard."
+        "No commission and no monthly fee. You may agree a discount instead: you sell to us below your shop price, and our Runner pays that in full at the counter. At {preferredDiscount} or more you are a Preferred Partner.",
+        "No commission, and nothing a month. If you like, agree a discount for us; at {preferredDiscount} or more you are a Preferred Partner."
       ]
     },
     {
@@ -3891,7 +3891,7 @@
       "topic": "customers",
       "when": ["can takeaways join", "i run a takeaway", "commission"],
       "replies": [
-        "Yes. Takeaways pay a share of each order instead of a monthly plan. The partnerships team sets it up."
+        "Yes. Takeaways pay no commission and no monthly plan. You may agree a discount for us instead; the partnerships team sets it up."
       ]
     },
     {
@@ -3934,6 +3934,19 @@
       "when": ["can i introduce another business", "ozi ambassador", "earn for introducing shops"],
       "replies": [
         "Yes, as an {assistant} Ambassador. Choose it on your dashboard. You earn {ambassadorShare} of our profit on another business's orders for {ambassadorMonths} months. You cannot introduce your own business."
+      ]
+    },
+    {
+      "id": "partner-preferred-partner",
+      "topic": "plan",
+      "when": [
+        "what is a preferred partner",
+        "how do i become a preferred partner",
+        "preferred partner"
+      ],
+      "replies": [
+        "A restaurant, café or takeaway that agrees a discount of {preferredDiscount} or more for {product} is a Preferred Partner: listed first, with a badge, Partner Plus free while you keep the discount, and one free Spotlight week each month.",
+        "Agree a discount of {preferredDiscount} or more and you are a Preferred Partner, listed first."
       ]
     }
   ]

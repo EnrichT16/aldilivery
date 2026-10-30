@@ -1,4 +1,4 @@
-import { basisPointsWords } from '@aldilivery/core';
+import { counterPricePence, preferredRankingWords } from '@aldilivery/core';
 import { Link } from 'react-router-dom';
 
 import { CompanyDetails, DetailsToFollowNotice, companyFacts } from '../components/CompanyDetails';
@@ -12,9 +12,11 @@ import { SHOP_PRICES_WORDS } from '../lib/partnership';
  * version (SHOP_PARTNER_TERMS_VERSION in packages/core).
  *
  * Written only from what the service really does (routes/business.ts and lib/spotlight.ts):
- * the free listing and Partner Plus, Spotlight, a café's commission, paying through Stripe from
- * the dashboard, each product checked before Shoppers see it, and what each side sees. Every
- * figure comes from config/store.json, so a price changed there changes here.
+ * the free listing and Partner Plus, Spotlight, restaurants (no commission; an optional discount
+ * for Ozi, paid in full at the counter at the agreed price; the Preferred Partner level it
+ * decides, Anthony, 30 October 2026), paying through Stripe from the dashboard, each product
+ * checked before Shoppers see it, and what each side sees. Every figure comes from
+ * config/store.json, so a price changed there changes here.
  */
 export function PartnerTerms(): JSX.Element {
   const name = storeConfig.productName;
@@ -22,7 +24,9 @@ export function PartnerTerms(): JSX.Element {
   const { partners, spotlightPence, spotlightPlusPence, spotlightPerWeek, spotlightPlusPerWeek } =
     storeConfig.extras;
   const company = companyFacts();
-  const commission = basisPointsWords(partners.foodCommissionBasisPoints);
+  const { preferredDiscountPercent } = storeConfig.restaurants;
+  // The worked example, from config: a dish of the smallest restaurant order's price.
+  const exampleDish = storeConfig.restaurants.minimumOrderPence;
 
   return (
     <article className="space-y-8 max-w-2xl">
@@ -95,9 +99,50 @@ export function PartnerTerms(): JSX.Element {
         </p>
       </section>
 
+      <section aria-labelledby="restaurants" className="space-y-3">
+        <h2 id="restaurants" className="text-lead font-bold">
+          Restaurants, cafés and takeaways
+        </h2>
+        <ul className="m-0 ps-6 space-y-2">
+          <li>
+            You pay {name} no commission and no monthly fee on orders placed through {name}.
+          </li>
+          <li>
+            You may agree a discount for {name}: you sell to us at a lower price than your shop
+            price. For example, a dish at {money(exampleDish)} in your shop, sold to us at{' '}
+            {money(counterPricePence(exampleDish, preferredDiscountPercent))}, is a discount of{' '}
+            {preferredDiscountPercent}%. A person at {name} records the discount you agree, and you
+            can change it by ringing us. Agreeing one is your choice.
+          </li>
+          <li>
+            Shoppers always see and pay your shop price. Our Runner pays you at the counter, in
+            full, at the agreed price: your shop price less the discount, or your shop price if you
+            have agreed none. We keep the difference.
+          </li>
+          <li>
+            There are two levels, and the discount alone decides them. A restaurant with a discount
+            of {preferredDiscountPercent}% or more is an {assistant} Preferred Partner; every other
+            restaurant is listed normally. Shoppers pay nothing more either way.
+          </li>
+          <li>
+            A Preferred Partner is listed first in its area and food type, on the lists, in search
+            and when {assistant} suggests a place for a dish, with a &ldquo;Preferred Partner&rdquo;
+            badge. Next to every list it changes, Shoppers are told why: &ldquo;
+            {preferredRankingWords(assistant)}&rdquo;
+          </li>
+          <li>
+            While it keeps the discount, a Preferred Partner has Partner Plus free, and is never
+            charged for it; one free Spotlight week each calendar month, taken from its dashboard or
+            given by us; and, where two places are rated equally by our Shoppers, it wins the tie
+            for Shop of the Month. If the discount goes below {preferredDiscountPercent}%, these
+            stop, and nothing is owed.
+          </li>
+        </ul>
+      </section>
+
       <section aria-labelledby="money" className="space-y-3">
         <h2 id="money" className="text-lead font-bold">
-          Fees, commission and paying
+          Fees and paying
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
@@ -107,9 +152,9 @@ export function PartnerTerms(): JSX.Element {
             arrangement, is recorded on your dashboard the same way.
           </li>
           <li>
-            Cafés and takeaways pay no monthly fee. They owe {commission} of the goods in each order
-            placed through {name}. Your dashboard and your statement show the orders, the goods and
-            what is owed each month, and a person at {name} agrees with you how it is paid.
+            Restaurants, cafés and takeaways pay no monthly fee and no commission. Your dashboard
+            and your statement show your orders through {name} each month, and the discount you have
+            agreed, if any.
           </li>
           <li>Services are listed free. No payment for a service goes through {name}.</li>
           <li>

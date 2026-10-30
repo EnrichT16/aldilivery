@@ -44,6 +44,7 @@ import type { AreaSettings } from './areas.js';
 import type { BrowseSettings } from './browse.js';
 import { excludedServiceKind, type PartnerPricing } from './partners.js';
 import type { AmbassadorSettings, ReferralSettings } from './referrals.js';
+import type { RestaurantSettings } from './restaurants.js';
 
 export type CatalogueSourceMode = 'partner_feed' | 'community';
 
@@ -229,7 +230,8 @@ export interface StoreConfig {
     readonly giftCardPence: readonly number[];
     /**
      * Shops, cafés, takeaways and services joining as partners (ruling 65): the free listings,
-     * Partner Plus, the commission a café or takeaway pays, and the kinds of service never listed.
+     * Partner Plus, and the kinds of service never listed. A café or takeaway pays no commission
+     * (Anthony, 30 October 2026): see `restaurants`.
      */
     readonly partners: PartnerPricing;
     /**
@@ -280,6 +282,19 @@ export interface StoreConfig {
   readonly referrals: ReferralSettings;
   /** Ozi Ambassadors, who introduce businesses (Anthony, 30 October 2026). */
   readonly ambassador: AmbassadorSettings;
+  /**
+   * Restaurant, café and takeaway pricing (Anthony, 30 October 2026): the flat restaurant fee in
+   * place of delivery, the smallest restaurant order, and the agreed discount that makes a
+   * restaurant an Ozi Preferred Partner. Ozi's share of the fee is the fee less the Runner's pay.
+   */
+  readonly restaurants: RestaurantSettings;
+  /**
+   * Checkout insights (Anthony, 30 October 2026): why people do not pay. The bands totals are
+   * counted in (under £20, £20 to £40, £40 to £60, over £60), the periods staff may choose, how
+   * close together two views of the checkout count as one, how soon after one a payment counts as
+   * paying it, and how often "Can we ask what stopped you?" may be asked of one Shopper.
+   */
+  readonly checkoutInsights: CheckoutInsightSettings;
   readonly versionOneRestrictions: {
     readonly ageRestrictedGoodsAllowed: boolean;
   };
@@ -747,11 +762,6 @@ function partnerPricing(raw: Unknown): PartnerPricing {
       raw['plusFirstMonthFree'] ?? true,
       'extras.partners.plusFirstMonthFree',
     ),
-    foodCommissionBasisPoints: wholeNumber(
-      raw['foodCommissionBasisPoints'] ?? 1000,
-      'extras.partners.foodCommissionBasisPoints',
-      0,
-    ),
     excludedServiceKinds: (excluded as string[]).map((kind) => kind.trim()).filter(Boolean),
   };
 }
@@ -868,6 +878,103 @@ function parseAmbassador(raw: Unknown): AmbassadorSettings {
       raw['reviewAbovePence'] ?? 50000,
       'ambassador.reviewAbovePence',
       0,
+    ),
+  };
+}
+
+/**
+ * Restaurant pricing (Anthony, 30 October 2026): £12 flat in place of delivery, £10 the smallest
+ * order, 20% the discount that makes a Preferred Partner. The fee must cover the Runner's pay on
+ * every order it could be charged on (Rule Two): the standard five pounds, and the large-order
+ * pay too, since a restaurant order may be that big.
+ */
+function parseRestaurants(raw: Unknown, runnerPayPence: readonly number[]): RestaurantSettings {
+  const feePence = wholeNumber(raw['feePence'] ?? 1200, 'restaurants.feePence', 1);
+  for (const pay of runnerPayPence) {
+    if (feePence < pay) {
+      throw new StoreConfigError(
+        `restaurants.feePence (${feePence}) must cover the Runner's pay of ${pay} on every restaurant order (Rule Two).`,
+      );
+    }
+  }
+  if (raw['ozisSharePence'] !== undefined) {
+    throw new StoreConfigError(
+      "restaurants.ozisSharePence is not set on its own: Ozi's share is the fee less the Runner's pay.",
+    );
+  }
+  const preferredDiscountPercent = wholeNumber(
+    raw['preferredDiscountPercent'] ?? 20,
+    'restaurants.preferredDiscountPercent',
+    1,
+  );
+  const maximumDiscountPercent = wholeNumber(
+    raw['maximumDiscountPercent'] ?? 50,
+    'restaurants.maximumDiscountPercent',
+    1,
+  );
+  if (maximumDiscountPercent > 90 || preferredDiscountPercent > maximumDiscountPercent) {
+    throw new StoreConfigError(
+      'restaurants.preferredDiscountPercent must be at most restaurants.maximumDiscountPercent, which is at most 90.',
+    );
+  }
+  return {
+    feePence,
+    minimumOrderPence: wholeNumber(
+      raw['minimumOrderPence'] ?? 1000,
+      'restaurants.minimumOrderPence',
+      0,
+    ),
+    preferredDiscountPercent,
+    maximumDiscountPercent,
+  };
+}
+
+/** What the checkout insights read from config/store.json. */
+export interface CheckoutInsightSettings {
+  /** The top of each total band but the last, rising: [2000, 4000, 6000]. */
+  readonly totalBandsPence: readonly number[];
+  /** The periods, in days, staff may choose between: [7, 30, 90]. */
+  readonly periodsDays: readonly number[];
+  readonly sameCheckoutMinutes: number;
+  readonly paidWithinHours: number;
+  readonly askOncePerHours: number;
+}
+
+function parseCheckoutInsights(raw: Unknown): CheckoutInsightSettings {
+  const list = (value: unknown, fallback: number[], path: string, minimum: number): number[] => {
+    const entries = (value === undefined ? fallback : array(value, path)).map((entry, index) =>
+      wholeNumber(entry, `${path}[${index}]`, minimum),
+    );
+    if (
+      entries.length === 0 ||
+      entries.some((entry, index) => index > 0 && entry <= entries[index - 1]!)
+    ) {
+      throw new StoreConfigError(`${path} must be a rising list of whole numbers.`);
+    }
+    return entries;
+  };
+  return {
+    totalBandsPence: list(
+      raw['totalBandsPence'],
+      [2000, 4000, 6000],
+      'checkoutInsights.totalBandsPence',
+      1,
+    ),
+    periodsDays: list(raw['periodsDays'], [7, 30, 90], 'checkoutInsights.periodsDays', 1),
+    sameCheckoutMinutes: wholeNumber(
+      raw['sameCheckoutMinutes'] ?? 30,
+      'checkoutInsights.sameCheckoutMinutes',
+      1,
+    ),
+    paidWithinHours: wholeNumber(
+      raw['paidWithinHours'] ?? 2,
+      'checkoutInsights.paidWithinHours',
+      1,
+    ),
+    askOncePerHours: wholeNumber(
+      raw['askOncePerHours'] ?? 24,
+      'checkoutInsights.askOncePerHours',
+      24,
     ),
   };
 }
@@ -1500,6 +1607,15 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     ),
     ambassador: parseAmbassador(
       root['ambassador'] === undefined ? {} : object(root['ambassador'], 'ambassador'),
+    ),
+    checkoutInsights: parseCheckoutInsights(
+      root['checkoutInsights'] === undefined
+        ? {}
+        : object(root['checkoutInsights'], 'checkoutInsights'),
+    ),
+    restaurants: parseRestaurants(
+      root['restaurants'] === undefined ? {} : object(root['restaurants'], 'restaurants'),
+      [RUNNER_PAYMENT_PENCE, largeOrderRunnerPaymentPence],
     ),
     versionOneRestrictions: {
       ageRestrictedGoodsAllowed,

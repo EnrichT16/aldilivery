@@ -427,7 +427,19 @@ describe('offers and organisations', () => {
     expect(
       screen.getAllByText(new RegExp(storeConfig.store.legalEntityName)).length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText(/They owe 10% of the goods in each order/)).toBeInTheDocument();
+    // Restaurants pay no commission (30 October 2026): an optional discount, paid in full at the
+    // counter at the agreed price, and the two levels it decides, with the ranking disclosed.
+    expect(document.body.textContent).not.toMatch(/owe 10%|commission of/);
+    expect(
+      screen.getByText(/You pay .+ no commission and no monthly fee on orders/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Our Runner pays you at the counter, in full,/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/There are two levels, and the discount alone decides them/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Preferred Partners, who give .+ a better price, are shown first/),
+    ).toBeInTheDocument();
     expect(screen.getByText(/law of England and Wales/)).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/insur/i);
     cleanup();

@@ -68,7 +68,12 @@ export type StaffArea =
    * Referrals (Anthony, 30 October 2026): everybody who has referred anybody, how many are
    * active, the reward levels and marking them given, and the Ozi Ambassadors and their pay.
    */
-  | 'referrals';
+  | 'referrals'
+  /**
+   * Checkout insights (Anthony, 30 October 2026): checkouts viewed, paid and left, and what
+   * stopped people, for the founder and the operations manager.
+   */
+  | 'insights';
 
 export type StaffRole =
   | 'founder'
@@ -103,6 +108,7 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
       'messages',
       'areas',
       'referrals',
+      'insights',
     ],
   },
   operations_manager: {
@@ -121,6 +127,7 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
       'messages',
       'areas',
       'referrals',
+      'insights',
     ],
   },
   onboarding: { title: 'Runner onboarding officer', areas: ['documents', 'messages'] },

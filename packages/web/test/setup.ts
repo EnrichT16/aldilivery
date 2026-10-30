@@ -193,6 +193,13 @@ export interface ApiStubOptions {
   requestCodeUnavailable?: string;
   /** Whether paying by bank transfer is switched on (ruling 50; on since ruling 61). */
   bankTransfer?: boolean;
+  /**
+   * Whether the server says "Can we ask what stopped you?" may be asked now (30 October 2026).
+   * It answers yes once, then no, as the server does within a day. False unless a test says.
+   */
+  askWhy?: boolean;
+  /** The places `/shops` lists, and the ranking words it says with them (30 October 2026). */
+  shops?: { shops: unknown[]; ranking?: string | null };
 }
 
 /**
@@ -208,6 +215,7 @@ export interface ApiStubOptions {
 export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
   const recorded: RecordedRequest[] = [];
   const runnerDocumentsSent: string[] = [];
+  let askWhy = options.askWhy ?? false;
 
   /**
    * Signed in, or signed out — never "whatever the last test left behind".
@@ -258,6 +266,29 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
       recorded.push({ path, method, body });
 
       if (path.startsWith('/catalogue/search')) return reply(FAKE_CATALOGUE);
+
+      // Checkout insights (30 October 2026).
+      if (path === '/checkout/viewed' && method === 'POST') return reply({ recorded: true });
+      if (path === '/checkout/why/ask' && method === 'POST') {
+        const ask = askWhy;
+        askWhy = false;
+        return reply({
+          ask,
+          question: 'Can we ask what stopped you?',
+          answers: [
+            { answer: 'price', label: 'The price' },
+            { answer: 'looking', label: 'Just looking' },
+            { answer: 'no_runner', label: 'No Runner in my area' },
+            { answer: 'other', label: 'Something else' },
+          ],
+        });
+      }
+      if (path === '/checkout/why' && method === 'POST') {
+        return reply({ recorded: true, message: 'Thank you. That helps us get our prices right.' });
+      }
+      if (options.shops && (path === '/shops' || path.startsWith('/shops?'))) {
+        return reply({ near: null, ...options.shops });
+      }
 
       if (path === '/share') {
         return reply({ link: 'https://example.test/join?via=shopper-margaret', joined: 2 });

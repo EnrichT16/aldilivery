@@ -83,6 +83,8 @@ import {
   fetchStaffShopOfTheMonth,
   type ShopStandings,
   fetchBankPayments,
+  grantFreeSpotlightWeek,
+  setStaffPartnerDiscount,
   fetchTinyExtras,
   carryWithFirstRunner,
   markBankPayment,
@@ -93,6 +95,7 @@ import {
   type TinyExtraRow,
 } from '../lib/api';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
+import { CheckoutInsightsPage, RestaurantPartners } from '../components/StaffRestaurants';
 import { BrowseFields, readBrowseFields } from '../components/BrowseFields';
 import { ShareCard } from '../components/ShareCard';
 import { StaffVoice } from '../components/StaffVoice';
@@ -160,6 +163,7 @@ export const TABS: Array<{ key: TabKey; label: string; group: TabGroup }> = [
   { key: 'owed', label: 'Money owed', group: 'money' },
   { key: 'reports', label: 'Reports', group: 'money' },
   { key: 'analytics', label: 'Analytics', group: 'money' },
+  { key: 'insights', label: 'Checkout insights', group: 'money' },
   { key: 'documents', label: 'Documents', group: 'people' },
   { key: 'team', label: 'Team', group: 'people' },
   { key: 'messages', label: 'Messages', group: 'people' },
@@ -436,7 +440,9 @@ export function Staff(): JSX.Element {
             {shown === 'learning' && <PricesLearned staffKey={key} />}
             {shown === 'payments' && <Payments staffKey={key} onNews={setNews} />}
             {shown === 'partners' && <Partners staffKey={key} onNews={setNews} />}
+            {shown === 'partners' && <RestaurantPartners staffKey={key} />}
             {shown === 'partners' && <ShopOfTheMonth staffKey={key} />}
+            {shown === 'insights' && <CheckoutInsightsPage staffKey={key} />}
             {shown === 'analytics' && <Analytics staffKey={key} />}
             {shown === 'overview' && me.areas.includes('overview') && (
               <Overview staffKey={key} onOpen={setTab} />
@@ -2498,8 +2504,10 @@ function Partners({
           <p className="m-0">
             Partner Plus {money(list.data.plusMonthlyPence)} a month; the first{' '}
             {list.data.freeListingCount} shops listed free for ever ({list.data.freeListed} given),
-            up to {list.data.freeProductLimit} products each; cafés and takeaways{' '}
-            {list.data.foodCommissionWords} of orders through us; services free.
+            up to {list.data.freeProductLimit} products each; restaurants, cafés and takeaways pay
+            no commission and may agree a discount for {storeConfig.assistantName}, a{' '}
+            {storeConfig.assistantName} Preferred Partner at {list.data.preferredDiscountPercent}%
+            or more; services free. {list.data.restaurantWords}
           </p>
         )}
         <button
@@ -2542,7 +2550,7 @@ function Partners({
                       : 'Partner Plus not paid: their products are hidden. '
                     : `Free listing${shop.freeForever ? ', for ever' : ''}. `
                   : shop.kind === 'food'
-                    ? 'Commission on orders, no monthly fee. '
+                    ? `No commission, no monthly fee. Agreed discount ${shop.agreedDiscountPercent ?? 0}%${shop.preferredPartner ? `: a ${storeConfig.assistantName} Preferred Partner, Partner Plus free` : ''}. `
                     : 'Free listing, enquiries only. '}
                 {shop.spotlightActive ? 'On Spotlight. ' : ''}
                 {shop.live} live, {shop.waiting} waiting. Sign-ins:{' '}
@@ -2551,6 +2559,63 @@ function Partners({
                   : 'none yet'}
                 .
               </p>
+              {/* A restaurant's agreed discount for Ozi (Anthony, 30 October 2026), set when
+                  approving or editing it; 0 for none. */}
+              {shop.kind === 'food' && shop.status !== 'removed' && (
+                <form
+                  onSubmit={(event) => {
+                    const value = values(event);
+                    void setStaffPartnerDiscount(
+                      staffKey,
+                      shop.id,
+                      Number(value(`discount-${shop.id}`) || '0'),
+                    )
+                      .then(() => {
+                        onNews(`${shop.name}: the agreed discount is saved.`);
+                        list.reload();
+                      })
+                      .catch(fail);
+                  }}
+                  className="flex flex-wrap items-end gap-2"
+                >
+                  <div className="space-y-1">
+                    <label htmlFor={`discount-${shop.id}`} className="block font-bold">
+                      Agreed discount for {storeConfig.assistantName}, percent
+                    </label>
+                    <input
+                      id={`discount-${shop.id}`}
+                      name={`discount-${shop.id}`}
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={list.data?.maximumDiscountPercent ?? 50}
+                      step={1}
+                      defaultValue={shop.agreedDiscountPercent ?? 0}
+                      className={`${field} max-w-[10rem]`}
+                    />
+                  </div>
+                  <button type="submit" className="control bg-highlight text-on-accent">
+                    Save the discount<span className="visually-hidden"> for {shop.name}</span>
+                  </button>
+                  {shop.preferredPartner && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void grantFreeSpotlightWeek(staffKey, shop.id)
+                          .then((result) => {
+                            onNews(result.message);
+                            list.reload();
+                          })
+                          .catch(fail)
+                      }
+                      className="control border-paper bg-paper/10 text-paper"
+                    >
+                      Give this month’s free Spotlight week
+                      <span className="visually-hidden"> to {shop.name}</span>
+                    </button>
+                  )}
+                </form>
+              )}
               {/* Each branch is its own venture (Anthony, 30 October 2026): marked here when
                   approving or editing, for the Ozi Ambassador's share on another branch. */}
               {shop.status !== 'removed' && (

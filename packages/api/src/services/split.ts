@@ -90,7 +90,9 @@ export function splitView(
 
 /** How many parts, in words, for the Shopper. */
 function partsWords(n: number): string {
-  return ['', 'one part', 'two parts', 'three parts', 'four parts', 'five parts'][n] ?? `${n} parts`;
+  return (
+    ['', 'one part', 'two parts', 'three parts', 'four parts', 'five parts'][n] ?? `${n} parts`
+  );
 }
 
 /**
@@ -126,9 +128,12 @@ const PART_WORDS: Record<SplitPartMode, string> = {
 /** "motorbike £75.00, on foot or bicycle £60.00 and on foot or bicycle £15.00", for the owner. */
 function planWords(config: AppContext['config'], plan: readonly PlannedPart[]): string {
   const words = plan.map(
-    (part) => `${PART_WORDS[part.mode]} ${formatPence(part.goodsPence, config.store.currencySymbol)}`,
+    (part) =>
+      `${PART_WORDS[part.mode]} ${formatPence(part.goodsPence, config.store.currencySymbol)}`,
   );
-  return words.length <= 1 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`;
+  return words.length <= 1
+    ? (words[0] ?? '')
+    : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`;
 }
 
 /** Make each planned part its own job, numbered from `firstNumber`, of `of` parts in all. */
@@ -155,6 +160,9 @@ async function createParts(
         itemChargesPence: 0,
         feePence: 0,
         totalEstimatePence: part.goodsPence,
+        // A restaurant order's part is paid at the counter at the agreed discount too.
+        restaurantShopId: whole.restaurantShopId,
+        restaurantDiscountPercent: whole.restaurantDiscountPercent,
         deliveryPlan: whole.deliveryPlan,
         deliveryAddress: whole.deliveryAddress,
         latitude: whole.latitude,
@@ -294,7 +302,8 @@ export async function replanStrandedParts(
   const kept = siblings.filter((row) => !untaken.includes(row));
   const plan = planSplit(linesOf(untaken), free.motorbike, config.dispatch.splitPartMaxPenceByMode);
   const shape = (modes: Array<SplitPartMode | null>) => [...modes].sort().join(',');
-  if (shape(plan.map((row) => row.mode)) === shape(untaken.map((row) => row.splitMode))) return null;
+  if (shape(plan.map((row) => row.mode)) === shape(untaken.map((row) => row.splitMode)))
+    return null;
   // Always at least two parts in all, as at the split.
   if (kept.length + plan.length < 2) return null;
 
@@ -329,7 +338,8 @@ export async function replanStrandedParts(
   // The owner's one alert for a part still waiting stays one for the whole order.
   const alertedAt = siblings.find((row) => row.waitingAlertSentAt)?.waitingAlertSentAt;
   if (alertedAt) {
-    for (const row of parts) await repository.orders.update(row.id, { waitingAlertSentAt: alertedAt });
+    for (const row of parts)
+      await repository.orders.update(row.id, { waitingAlertSentAt: alertedAt });
   }
 
   const phone = ctx.env?.ownerAlertPhone;
@@ -455,7 +465,10 @@ export async function settleSplitTill(
     receiptFeePence: repricing.receiptFeePence,
     finalTotalPence: repricing.finalTotalPence,
     ...(flagged
-      ? { tillStatus: 'needs_person' as const, tillReason: `split part ${flagged.splitPart}: ${flagged.tillReason ?? 'needs a person'}` }
+      ? {
+          tillStatus: 'needs_person' as const,
+          tillReason: `split part ${flagged.splitPart}: ${flagged.tillReason ?? 'needs a person'}`,
+        }
       : {}),
   });
   if (flagged) {

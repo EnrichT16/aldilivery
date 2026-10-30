@@ -1,7 +1,7 @@
 /**
  * Shops join by themselves (ruling 65, 16 and 17 October 2026): the mobile confirmed with a code,
  * a pending account that works at once and a page that goes public only once a person approves
- * it; the free-for-ever listings and Partner Plus paid from the dashboard; a café's commission;
+ * it; the free-for-ever listings and Partner Plus paid from the dashboard; a café's orders with no commission;
  * services with enquiries and the kinds never listed; the shops Ozi lists itself and their claiming.
  */
 
@@ -395,7 +395,7 @@ describe('Partner Plus, paid from the dashboard', () => {
 });
 
 describe('a café or takeaway', () => {
-  it('pays no monthly fee and sees its commission on orders through the app', async () => {
+  it('pays no monthly fee and no commission, and sees its orders through the app', async () => {
     const joined = await join({
       name: 'Rainham Café',
       kind: 'food',
@@ -425,13 +425,17 @@ describe('a café or takeaway', () => {
       await harness.app.inject({ method: 'GET', url: '/partner/dashboard', headers })
     ).json();
     expect(dashboard.plan.monthlyPence).toBe(0);
-    expect(dashboard.plan.words).toMatch(/No monthly fee\. 10%/);
-    expect(dashboard.commission).toEqual({
-      basisPoints: 1000,
-      words: '10%',
+    // The 10% commission is replaced (Anthony, 30 October 2026): nothing is owed, ever.
+    expect(dashboard.plan.words).toMatch(/No monthly fee and no commission\./);
+    expect(dashboard.plan.words).not.toMatch(/10%|owed/);
+    expect(dashboard).not.toHaveProperty('commission');
+    expect(dashboard.restaurant).toEqual({
+      discountPercent: 0,
+      preferred: false,
+      preferredDiscountPercent: 20,
       ordersThisMonth: 1,
       goodsThisMonthPence: 1250,
-      owedThisMonthPence: 125,
+      words: expect.stringContaining('our Runners pay your full shop price at the counter'),
     });
     const nothingToPay = await harness.app.inject({
       method: 'POST',
@@ -445,7 +449,10 @@ describe('a café or takeaway', () => {
       url: '/partner/statement.pdf',
       headers,
     });
-    expect(pdf.rawPayload.toString('latin1')).toContain('10% owed: £1.25');
+    expect(pdf.rawPayload.toString('latin1').replace(/\) Tj T\*\n\(/g, ' ')).toMatch(
+      /No commission is owed\./,
+    );
+    expect(pdf.rawPayload.toString('latin1')).not.toContain('owed: ');
     // The statement says who it is from: the company's details from config (30 October 2026).
     const { store } = harness.config;
     expect(pdf.rawPayload.toString('latin1')).toContain(store.legalEntityName);
@@ -454,7 +461,7 @@ describe('a café or takeaway', () => {
     expect(pdf.rawPayload.toString('latin1')).toContain(store.registeredOffice);
   });
 
-  it('is owed commission on its own orders by its id, never on another place of the same name', async () => {
+  it('counts its own orders by its id, never another place of the same name', async () => {
     const joined = await join({
       name: 'Rainham Café',
       kind: 'food',
@@ -492,7 +499,7 @@ describe('a café or takeaway', () => {
     const dashboard = (
       await harness.app.inject({ method: 'GET', url: '/partner/dashboard', headers })
     ).json();
-    expect(dashboard.commission).toEqual(
+    expect(dashboard.restaurant).toEqual(
       expect.objectContaining({ ordersThisMonth: 2, goodsThisMonthPence: 1500 }),
     );
     expect(dashboard.numbers).toEqual(expect.objectContaining({ purchasesThisMonth: 2 }));

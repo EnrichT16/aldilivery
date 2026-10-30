@@ -787,6 +787,12 @@ function JobInHand({
         )}
       </div>
 
+      {job.counterWords && (
+        <p className="m-0 text-lead font-bold border-2 border-highlight rounded-2xl p-4">
+          {job.counterWords}
+        </p>
+      )}
+
       <JobNavigation
         address={job.deliveryAddress}
         shopNames={job.shopNames}

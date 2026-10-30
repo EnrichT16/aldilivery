@@ -2,10 +2,11 @@
  * Referral links for everybody, the referral log and reward levels, and Ozi Ambassadors (Anthony,
  * 30 October 2026): links recorded for every kind of account, what "active" means, the 70% rule,
  * levels and the owner told once, the staff page and who may open it, and the Ambassador share
- * (2% of item charges or commission, a quarter on another branch, 12 months, 5% of the first
- * Partner Plus payment once, the review over £500 once a month, opt-in and no introducing
- * yourself), and the money made tamper-proof: pending for 30 days, following refunds and
- * chargebacks, deductions, only what is available paid, and withdrawals to the bank.
+ * (2% of item charges, or of a restaurant's discount plus its item charges, a quarter on another
+ * branch, 12 months, 5% of the first Partner Plus payment once, the review over £500 once a
+ * month, opt-in and no introducing yourself), and the money made tamper-proof: pending for 30
+ * days, following refunds and chargebacks, deductions, only what is available paid, and
+ * withdrawals to the bank.
  */
 
 import { AMBASSADOR_TERMS_VERSION } from '@aldilivery/core';
@@ -465,7 +466,13 @@ describe('Ozi Ambassadors', () => {
   }
 
   /** A delivered order of `quantity` of one product from the shop, at the price given. */
-  async function orderFrom(shopId: string, pricePence: number, quantity: number, at?: Date) {
+  async function orderFrom(
+    shopId: string,
+    pricePence: number,
+    quantity: number,
+    at?: Date,
+    restaurantDiscountPercent?: number,
+  ) {
     const product = await harness.repository.partnerProducts.create({
       partnerShopId: shopId,
       name: 'Thing',
@@ -495,6 +502,9 @@ describe('Ozi Ambassadors', () => {
       feePence: 1099,
       totalEstimatePence: pricePence * quantity + 1099,
       deliveryAddress: '1 High Street, Gillingham ME7 1AA',
+      ...(restaurantDiscountPercent !== undefined
+        ? { restaurantShopId: shopId, restaurantDiscountPercent }
+        : {}),
       items: [
         { catalogueItemId: item.id, name: item.name, quantity, estimatedPricePence: pricePence },
       ],
@@ -592,17 +602,25 @@ describe('Ozi Ambassadors', () => {
     expect(summary.earnedPence).toBe(60);
   });
 
-  it('earns 2% of a café’s 10% commission', async () => {
+  it('earns 2% of a restaurant’s discount plus its item charges, never the restaurant fee', async () => {
     const ada = await ambassador();
     await optIn(ada.authHeader);
     const cafe = await joinShop({ ambassador: ada.via, kind: 'food', about: 'Breakfasts.' });
     await approve(cafe.id);
-    // £50 of food: £5 commission, 2% of it 10p.
+    // Restaurants pay no commission (Anthony, 30 October 2026). Ten £9 dishes, £90, at a 20%
+    // discount: £18 of discount, and £10 of item charges (£1 a dish), so Ozi's profit is £28 and
+    // 2% of it 56p. The £12 restaurant fee is never in it.
     const [entry] = await creditAmbassadorShares(
       harness.app.ctx,
-      await orderFrom(cafe.id, 500, 10),
+      await orderFrom(cafe.id, 900, 10, undefined, 20),
     );
-    expect(entry).toEqual(expect.objectContaining({ profitPence: 500, amountPence: 10 }));
+    expect(entry).toEqual(expect.objectContaining({ profitPence: 2800, amountPence: 56 }));
+    // With no discount agreed, the item charges alone: £10, 2% of it 20p.
+    const [plain] = await creditAmbassadorShares(
+      harness.app.ctx,
+      await orderFrom(cafe.id, 900, 10, undefined, 0),
+    );
+    expect(plain).toEqual(expect.objectContaining({ profitPence: 1000, amountPence: 20 }));
   });
 
   it('earns a quarter on another branch through the same link, and nothing on a branch without it', async () => {

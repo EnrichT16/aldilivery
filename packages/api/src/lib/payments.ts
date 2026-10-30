@@ -144,6 +144,20 @@ export const GROCERY_CATEGORIES = [
   'dairy_products_stores',
 ] as const;
 
+/**
+ * The merchant categories a restaurant, café or takeaway is filed under. The card may pay there
+ * only while it is loaded for a restaurant order (Anthony, 30 October 2026).
+ */
+export const RESTAURANT_CATEGORIES = [
+  'eating_places_restaurants',
+  'fast_food_restaurants',
+] as const;
+
+/** The categories the card may pay at for one order. */
+export function cardCategoriesFor(restaurant: boolean): string[] {
+  return restaurant ? [...GROCERY_CATEGORIES, ...RESTAURANT_CATEGORIES] : [...GROCERY_CATEGORIES];
+}
+
 /** The Stripe API version this service speaks, sent back on a real-time authorization answer. */
 export const STRIPE_API_VERSION = '2024-12-18.acacia';
 
@@ -175,6 +189,11 @@ export interface LoadCardInput {
   cardId: string;
   limitPence: number;
   orderId: string;
+  /**
+   * A restaurant, café or takeaway order (Anthony, 30 October 2026): the card may also pay at a
+   * restaurant's counter for this order, as well as at the grocery shops it always may.
+   */
+  restaurant?: boolean;
 }
 
 export interface WebhookEvent {
@@ -617,7 +636,9 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
       await stripe.issuing.cards.update(input.cardId, {
         status: 'active',
         spending_controls: {
-          allowed_categories: [...GROCERY_CATEGORIES],
+          allowed_categories: cardCategoriesFor(input.restaurant === true) as Array<
+            (typeof GROCERY_CATEGORIES)[number]
+          >,
           spending_limits: [{ amount: input.limitPence, interval: 'per_authorization' }],
         },
         metadata: { orderId: input.orderId },

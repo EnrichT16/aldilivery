@@ -18,7 +18,7 @@ import { z } from 'zod';
 
 import { requireSession, requireStaff } from '../app.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../errors.js';
-import { priceLines } from '../services/basket.js';
+import { priceLines, RESTAURANT_SET_WORDS, restaurantsOf } from '../services/basket.js';
 import { deliveryPlanFor } from '../services/plans.js';
 import { runDueSets, sendDueNotices } from '../services/set-runner.js';
 import { firstFireAt, isSkipInstruction, noticeDueAt } from '../services/sets.js';
@@ -65,6 +65,12 @@ export async function registerSetRoutes(app: FastifyInstance): Promise<void> {
     const catalogueItems = await repository.catalogue.findManyByIds(
       input.lines.map((line) => line.catalogueItemId),
     );
+
+    // A regular order is groceries only (Anthony, 30 October 2026): a restaurant's dishes are
+    // their own order, with the restaurant fee, ordered when wanted.
+    if ((await restaurantsOf(app.ctx, catalogueItems)).of.size > 0) {
+      throw new BadRequestError(RESTAURANT_SET_WORDS);
+    }
 
     // Rule Six applies to a Set exactly as it applies to a one off order, priced at the
     // Shopper's own delivery price.

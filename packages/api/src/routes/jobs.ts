@@ -10,6 +10,7 @@
  */
 
 import type { FastifyInstance } from 'fastify';
+import { counterPricePence, formatPence } from '@aldilivery/core';
 import { z } from 'zod';
 
 import { requireSession, requireStaff } from '../app.js';
@@ -21,7 +22,8 @@ import { canCarry, largeOrderWords, offerOrder } from '../services/dispatch.js';
 import { ensureDoorWord, newDoorWord } from '../services/door-word.js';
 import { drivingPaused } from '../services/insurance.js';
 import { tellShopper } from '../services/order-updates.js';
-import { assertTransitionAllowed } from '../services/orders.js';
+import type { Order } from '../domain.js';
+import { assertTransitionAllowed, tillExpectedPence } from '../services/orders.js';
 import { AGREE_FIRST, hasAgreed } from '../services/runner-agreement.js';
 import { loadCardForOrder } from '../services/runner-card.js';
 import { checksPassed } from '../services/runner-pool.js';
@@ -29,6 +31,19 @@ import { splitView, syncSplitParent } from '../services/split.js';
 
 export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
   const { repository, config, now } = app.ctx;
+
+  /**
+   * For a restaurant order, what the Runner is told to pay at the counter, plainly; null for
+   * groceries (Anthony, 30 October 2026).
+   */
+  async function counterWords(order: Order): Promise<string | null> {
+    if (!order.restaurantShopId) return null;
+    const shop = await repository.partnerShops.findById(order.restaurantShopId);
+    const amount = formatPence(tillExpectedPence(order), config.store.currencySymbol);
+    return order.restaurantDiscountPercent > 0
+      ? `Pay ${shop?.name ?? 'the restaurant'} ${amount} at the counter: the price agreed with ${config.productName}. Pay it in full, and keep the receipt.`
+      : `Pay ${shop?.name ?? 'the restaurant'} ${amount} at the counter, and keep the receipt.`;
+  }
 
   /**
    * Offer an order to the next Runner in the rotation.
@@ -82,7 +97,10 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
           job: order
             ? {
                 itemCount: order.items.reduce((sum, item) => sum + item.quantity, 0),
-                goodsEstimatePence: order.goodsEstimatePence,
+                // What the Runner pays: for a restaurant with an agreed discount, the counter
+                // price (Anthony, 30 October 2026).
+                goodsEstimatePence: tillExpectedPence(order),
+                restaurant: order.restaurantShopId !== null,
                 runnerPaymentPence: order.runnerPaymentPence,
                 distanceMiles: offer.distanceMiles,
                 shopNames,
@@ -120,7 +138,11 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
             deliveryAddress: order.deliveryAddress,
             doorstepProtocol: order.doorstepProtocolSnapshot,
             substitutionDefault: shopper?.substitutionDefault ?? 'ask_me',
-            goodsEstimatePence: order.goodsEstimatePence,
+            // What the Runner is to pay at the till: for a restaurant that agreed a discount for
+            // Ozi, the shop prices less the discount, paid in full at the counter (Anthony, 30
+            // October 2026). Each dish below is at that price too.
+            goodsEstimatePence: tillExpectedPence(order),
+            counterWords: await counterWords(order),
             receiptTotalPence: order.receiptTotalPence,
             runnerPaymentPence: order.runnerPaymentPence,
             // The Shop Partners whose things are in it, for the directions to the shop.
@@ -140,7 +162,9 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
               id: item.id,
               name: item.name,
               quantity: item.quantity,
-              estimatedPricePence: item.estimatedPricePence,
+              estimatedPricePence: order.restaurantShopId
+                ? counterPricePence(item.estimatedPricePence, order.restaurantDiscountPercent)
+                : item.estimatedPricePence,
             })),
           },
         };

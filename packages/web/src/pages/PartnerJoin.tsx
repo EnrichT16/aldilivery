@@ -438,8 +438,13 @@ export function PartnerJoin(): JSX.Element {
               two are compared side by side.
             </li>
             <li>
-              <strong>Cafés and takeaways: no monthly fee.</strong> {options.foodCommissionWords} of
-              each order placed through {storeConfig.productName}, shown on your dashboard.
+              <strong>Restaurants, cafés and takeaways: no monthly fee and no commission.</strong>{' '}
+              You may agree a discount for {storeConfig.assistantName} instead: you sell to us a
+              little below your shop price, and our Runner pays that in full at the counter.
+              Shoppers still pay your shop price. With a discount of{' '}
+              {options.preferredDiscountPercent}% or more you are a {storeConfig.assistantName}{' '}
+              Preferred Partner: listed first, Partner Plus free, and a free Spotlight week each
+              month. {options.restaurantWords}
             </li>
             <li>
               <strong>Services: free.</strong> Shoppers ask you for a quote or a call back; no
