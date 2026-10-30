@@ -27,7 +27,14 @@ import type { AppContext } from '../app.js';
 import type { Order, RecurringSet } from '../domain.js';
 import { recordOrder } from '../lib/analytics.js';
 import { cardAccepted } from '../lib/card-region.js';
-import { priceLines, RESTAURANT_SET_WORDS, restaurantsOf } from './basket.js';
+import {
+  carriedPence,
+  orderItemFor,
+  orderItemsWithTerms,
+  priceLines,
+  RESTAURANT_SET_WORDS,
+  restaurantsOf,
+} from './basket.js';
 import { allowanceFor, deliveryPlanFor } from './plans.js';
 import { applyCredit } from './credit.js';
 import { offerOrder } from './dispatch.js';
@@ -165,13 +172,19 @@ async function leaveDraft(ctx: AppContext, set: RecurringSet): Promise<SetOutcom
   const existing = await ctx.repository.orders.findBySetOccurrence(set.id, set.nextFireAt);
   if (existing) return { kind: 'draft', setId: set.id, orderId: existing.id };
   const goodsPence = goodsOf(set);
+  // The same lines as any order: a partner's thing with its shop price and counter price.
+  const items = await orderItemsWithTerms(ctx, set.items);
+  const carried = items.reduce(
+    (sum, item) => sum + (item.counterPricePence ?? item.estimatedPricePence) * item.quantity,
+    0,
+  );
   const order = await ctx.repository.orders.create({
     shopperId: set.shopperId,
     setId: set.id,
     setFireAt: set.nextFireAt,
     status: 'draft',
     goodsEstimatePence: goodsPence,
-    runnerPaymentPence: runnerPaymentFor(goodsPence, ctx.config.fees),
+    runnerPaymentPence: runnerPaymentFor(carried, ctx.config.fees),
     itemChargesPence: 0,
     feePence: 0,
     totalEstimatePence: goodsPence,
@@ -180,12 +193,7 @@ async function leaveDraft(ctx: AppContext, set: RecurringSet): Promise<SetOutcom
     latitude: set.latitude,
     longitude: set.longitude,
     paymentMethodId: set.paymentMethodId,
-    items: set.items.map((item) => ({
-      catalogueItemId: item.catalogueItemId,
-      name: item.name,
-      quantity: item.quantity,
-      estimatedPricePence: item.estimatedPricePence,
-    })),
+    items,
   });
   return { kind: 'draft', setId: set.id, orderId: order.id };
 }
@@ -246,15 +254,18 @@ export async function placeSetOrder(
     // the extra delivery charge when it is due; the notice before it said so.
     const allowance = await allowanceFor(ctx, shopper, ctx.now());
     // Groceries only: a restaurant's dish that found its way in is never sent on its own.
-    if ((await restaurantsOf(ctx, catalogueItems)).of.size > 0) {
+    const partners = await restaurantsOf(ctx, catalogueItems);
+    if (partners.of.size > 0) {
       throw new Error(RESTAURANT_SET_WORDS);
     }
+    // A shop partner's things keep their shop price and counter price (30 October 2026).
     priced = priceLines(
       lines,
       catalogueItems,
       config.fees,
       await deliveryPlanFor(ctx, shopper, ctx.now()),
       allowance.extraPence,
+      partners,
     );
   } catch (failure) {
     log.warn({ err: failure, setId: set.id }, 'A regular order could not be priced.');
@@ -279,7 +290,7 @@ export async function placeSetOrder(
     setFireAt: fireAt,
     status: 'draft',
     goodsEstimatePence: priced.goodsPence,
-    runnerPaymentPence: runnerPaymentFor(priced.goodsPence, config.fees),
+    runnerPaymentPence: runnerPaymentFor(carriedPence(priced.lines), config.fees),
     itemChargesPence: priced.itemChargesPence,
     feePence: priced.feePence,
     allowanceExtraPence: priced.allowanceExtraPence,
@@ -290,12 +301,7 @@ export async function placeSetOrder(
     longitude: set.longitude,
     paymentMethodId: card.id,
     doorstepProtocolSnapshot: shopper.doorstepProtocol,
-    items: priced.lines.map((line) => ({
-      catalogueItemId: line.catalogueItemId,
-      name: line.name,
-      quantity: line.quantity,
-      estimatedPricePence: line.unitPricePence,
-    })),
+    items: priced.lines.map(orderItemFor),
   });
 
   // Rule One: the Shopper's own agreement to this Set, and the notice they did not stop, written

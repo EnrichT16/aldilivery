@@ -36,6 +36,7 @@
 import {
   assertProductAllowed,
   BasketOverMaximumError,
+  carriedGoodsPence,
   itemChargesForLines,
   type BasketPricing,
   type DeliveryFees,
@@ -169,8 +170,9 @@ export function restaurantFeeForRunnerPay(
 }
 
 /**
- * The restaurant fee on this much of dishes at shop prices: £12, or £14 from £120, where the
- * Runner is paid the large-order £7 (Rule Two).
+ * The restaurant fee on this much paid at the counter: £12, or £14 from £120, where the Runner
+ * is paid the large-order £7 (Rule Two). Counted, like the Runner's pay, on what the Runner pays
+ * at the counter, never the marked-up price (30 October 2026).
  */
 export function restaurantFeePence(
   settings: Pick<RestaurantSettings, 'feePence' | 'largeOrderFeePence' | 'largeOrderFromPence'>,
@@ -257,14 +259,17 @@ export function priceRestaurantBasket(
 ): BasketPricing {
   for (const line of lines) assertProductAllowed(line.shopPricePence, fees);
   const goodsPence = lines.reduce((sum, line) => sum + line.shopPricePence * line.quantity, 0);
-  if (goodsPence > fees.maximumOrderGoodsPence) {
-    throw new BasketOverMaximumError(goodsPence, fees.maximumOrderGoodsPence);
+  // What the Runner pays at the counter decides the most one order carries and the large-order
+  // fee, as it decides the Runner's pay (30 October 2026); the smallest order is the dishes.
+  const carriedPence = carriedGoodsPence(lines);
+  if (carriedPence > fees.maximumOrderGoodsPence) {
+    throw new BasketOverMaximumError(carriedPence, fees.maximumOrderGoodsPence);
   }
   if (goodsPence < settings.minimumOrderPence) {
     throw new RestaurantBelowMinimumError(goodsPence, settings.minimumOrderPence);
   }
   const itemChargesPence = itemChargesForLines(lines, fees);
-  const feePence = restaurantFeePence(settings, goodsPence);
+  const feePence = restaurantFeePence(settings, carriedPence);
   return {
     goodsPence,
     itemChargesPence,

@@ -54,7 +54,12 @@ import {
 import { itemWords } from '../lib/language-model.js';
 import { remember, spokenIn, type Brain, type Outcome } from '../lib/ozi-memory.js';
 import { phraseReply } from '../lib/phrases.js';
-import { priceLinesInParts, restaurantsOf } from '../services/basket.js';
+import {
+  carriedPence,
+  orderItemFor,
+  priceLinesInParts,
+  restaurantsOf,
+} from '../services/basket.js';
 import { recordCheckoutViewed } from '../lib/analytics.js';
 import { RestaurantMinimumError, RestaurantMixedError } from '../errors.js';
 import { middayOf, scheduleFields } from '../services/scheduled.js';
@@ -1090,7 +1095,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
       shopperId: shopper.id,
       status: 'confirmed',
       goodsEstimatePence: priced.goodsPence,
-      runnerPaymentPence: runnerPaymentFor(priced.goodsPence, config.fees),
+      runnerPaymentPence: runnerPaymentFor(carriedPence(priced.lines), config.fees),
       itemChargesPence: priced.itemChargesPence,
       feePence: priced.feePence,
       allowanceExtraPence: priced.allowanceExtraPence,
@@ -1120,16 +1125,7 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
             pay: 'now',
           })
         : {}),
-      items: priced.lines.map((line) => ({
-        catalogueItemId: line.catalogueItemId,
-        name: line.name,
-        quantity: line.quantity,
-        estimatedPricePence: line.unitPricePence,
-        // A partner's thing: its shop price and counter price, kept (30 October 2026).
-        ...(line.shopPricePence !== undefined
-          ? { shopPricePence: line.shopPricePence, counterPricePence: line.counterPricePence }
-          : {}),
-      })),
+      items: priced.lines.map(orderItemFor),
     });
     const origin = env.primaryOrigin ?? '';
     let url: string;

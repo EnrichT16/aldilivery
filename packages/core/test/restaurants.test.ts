@@ -10,8 +10,10 @@ import { describe, expect, it } from 'vitest';
 import { parseStoreConfig } from '../src/config.js';
 import {
   BasketOverMaximumError,
+  carriedGoodsPence,
   deliveryFeePence,
   priceBasket,
+  priceBasketInParts,
   runnerPaymentFor,
 } from '../src/fees.js';
 import { formatPence } from '../src/money.js';
@@ -242,5 +244,50 @@ describe('Ozi Preferred Partner', () => {
     expect(preferredRankingWords(config.assistantName)).toBe(
       'Preferred Partners, who give Ozi a better price, are shown first.',
     );
+  });
+});
+
+describe('thresholds on what the Runner pays at the till (30 October 2026)', () => {
+  it('gives the large restaurant fee on the counter amount, not the marked-up price', () => {
+    // £37.50 shown, £25 at the counter, four of them: £150 shown, £100 at the counter.
+    const marked = [{ shopPricePence: 3750, quantity: 4, counterPricePence: 2500 }];
+    expect(carriedGoodsPence(marked)).toBe(10_000);
+    expect(priceRestaurantBasket(marked, 'payg', config.fees, settings).feePence).toBe(1200);
+    // £37.50 shown, £30 at the counter: £120 at the counter, the £14 fee and the £7 Runner pay.
+    const big = [{ shopPricePence: 3750, quantity: 4, counterPricePence: 3000 }];
+    expect(priceRestaurantBasket(big, 'payg', config.fees, settings).feePence).toBe(1400);
+    expect(runnerPaymentFor(carriedGoodsPence(big), config.fees)).toBe(700);
+  });
+
+  it('counts the most one order carries on the counter amount', () => {
+    // £50 shown, £40 at the counter: three is £120 carried (accepted), four £160 (refused).
+    const line = (quantity: number) => [
+      { shopPricePence: 5000, quantity, counterPricePence: 4000 },
+    ];
+    expect(priceRestaurantBasket(line(3), 'payg', config.fees, settings).goodsPence).toBe(15_000);
+    expect(() => priceRestaurantBasket(line(4), 'payg', config.fees, settings)).toThrow(
+      BasketOverMaximumError,
+    );
+    // Groceries the same: £180 shown, £120 at the till, one order.
+    expect(
+      priceBasket(
+        [{ shopPricePence: 6000, quantity: 3, counterPricePence: 4000 }],
+        'payg',
+        config.fees,
+      ).goodsPence,
+    ).toBe(18_000);
+    expect(() => deliveryFeePence(18_000, 'payg', config.fees)).toThrow(BasketOverMaximumError);
+    expect(deliveryFeePence(18_000, 'payg', config.fees, 12_000)).toBe(1499);
+    const parts = priceBasketInParts(
+      [{ key: 'a', unitPricePence: 6000, quantity: 3, counterPricePence: 4000 }],
+      'payg',
+      config.fees,
+    );
+    expect(parts.parts).toHaveLength(1);
+    // Groceries with no partner terms are unchanged: £180 is two orders.
+    expect(
+      priceBasketInParts([{ key: 'a', unitPricePence: 6000, quantity: 3 }], 'payg', config.fees)
+        .parts,
+    ).toHaveLength(2);
   });
 });

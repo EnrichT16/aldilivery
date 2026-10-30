@@ -127,6 +127,29 @@ export interface ProcessorModel {
 export interface PricedUnitLine {
   readonly shopPricePence: number;
   readonly quantity: number;
+  /**
+   * A partner's thing with an agreed mark-up or discount (Anthony, 30 October 2026): what the
+   * Runner pays for one at the counter. The most one order carries is counted on this, what the
+   * Runner really buys and carries; absent, it is the shop price.
+   */
+  readonly counterPricePence?: number;
+}
+
+/**
+ * What the Runner buys and carries for these lines: each at its counter price where it has one,
+ * otherwise its shop price (30 October 2026). For groceries with no partner terms, the goods.
+ */
+export function carriedGoodsPence(
+  lines: ReadonlyArray<{
+    readonly shopPricePence: number;
+    readonly quantity: number;
+    readonly counterPricePence?: number;
+  }>,
+): number {
+  return lines.reduce(
+    (sum, line) => sum + (line.counterPricePence ?? line.shopPricePence) * line.quantity,
+    0,
+  );
 }
 
 /** What the Shopper is told, before they confirm anything. */
@@ -256,10 +279,12 @@ export function deliveryFeePence(
   goodsPence: number,
   plan: DeliveryPlan,
   fees: DeliveryFees,
+  /** What the Runner buys and carries, which the most one order carries is counted on. */
+  carriedPence: number = goodsPence,
 ): number {
   assertWholePence(goodsPence, 'Goods total');
-  if (goodsPence > fees.maximumOrderGoodsPence) {
-    throw new BasketOverMaximumError(goodsPence, fees.maximumOrderGoodsPence);
+  if (carriedPence > fees.maximumOrderGoodsPence) {
+    throw new BasketOverMaximumError(carriedPence, fees.maximumOrderGoodsPence);
   }
   return bandPrice(deliveryBandFor(goodsPence, fees), plan);
 }
@@ -372,7 +397,7 @@ export function priceBasket(
   assertWholePence(allowanceExtraPence, 'Extra delivery charge');
   const goodsPence = lines.reduce((sum, line) => sum + line.shopPricePence * line.quantity, 0);
   const itemChargesPence = itemChargesForLines(lines, fees);
-  const feePence = deliveryFeePence(goodsPence, plan, fees);
+  const feePence = deliveryFeePence(goodsPence, plan, fees, carriedGoodsPence(lines));
   return {
     goodsPence,
     itemChargesPence,
@@ -541,7 +566,10 @@ export interface BasketPartFees extends DeliveryFees {
 }
 
 /** One line of a basket to be priced in parts: which line, its shop price, and how many. */
-export type BasketPartLine = SplitLine;
+export type BasketPartLine = SplitLine & {
+  /** A partner's thing: what the Runner pays for one at the counter (30 October 2026). */
+  readonly counterPricePence?: number;
+};
 
 /** One linked order of a basket kept whole (ruling 61): its items, its prices and its Runner. */
 export interface BasketPartPricing extends BasketPricing {
@@ -581,22 +609,43 @@ export function priceBasketInParts(
   if (goods > fees.maximumBasketGoodsPence) {
     throw new BasketOverMaximumError(goods, fees.maximumBasketGoodsPence);
   }
-  const packed =
-    goods <= fees.maximumOrderGoodsPence
-      ? [
-          {
-            lines: lines.map(({ key, quantity, unitPricePence }) => ({
-              key,
-              quantity,
-              unitPricePence,
-            })),
-            goodsPence: goods,
-          },
-        ]
-      : packFirstFit(lines, fees.maximumOrderGoodsPence, () => ({
-          tag: null,
-          capacityPence: fees.maximumOrderGoodsPence,
-        }));
+  // The most one order carries is counted on what the Runner buys at the till (30 October 2026):
+  // the counter price of a partner's thing, otherwise its shop price.
+  const carriedOf = (line: BasketPartLine): number => line.counterPricePence ?? line.unitPricePence;
+  const carried = lines.reduce((sum, line) => sum + carriedOf(line) * line.quantity, 0);
+  const byKey = new Map(lines.map((line) => [line.key, line]));
+  const packed = (
+    carried <= fees.maximumOrderGoodsPence
+      ? [{ lines: lines.map(({ key, quantity }) => ({ key, quantity })) }]
+      : packFirstFit(
+          lines.map((line) => ({
+            key: line.key,
+            quantity: line.quantity,
+            unitPricePence: carriedOf(line),
+          })),
+          fees.maximumOrderGoodsPence,
+          () => ({ tag: null, capacityPence: fees.maximumOrderGoodsPence }),
+        )
+  ).map((bin) => {
+    const binLines = bin.lines.map(({ key, quantity }) => ({
+      key,
+      quantity,
+      unitPricePence: byKey.get(key)!.unitPricePence,
+      counterPricePence: byKey.get(key)!.counterPricePence,
+    }));
+    return {
+      lines: binLines.map(({ key, quantity, unitPricePence }) => ({
+        key,
+        quantity,
+        unitPricePence,
+      })),
+      goodsPence: binLines.reduce((sum, line) => sum + line.unitPricePence * line.quantity, 0),
+      carriedPence: binLines.reduce(
+        (sum, line) => sum + (line.counterPricePence ?? line.unitPricePence) * line.quantity,
+        0,
+      ),
+    };
+  });
   const parts = packed.map((bin, index): BasketPartPricing => {
     const itemChargesPence = itemChargesForLines(
       bin.lines.map((line) => ({ shopPricePence: line.unitPricePence, quantity: line.quantity })),
@@ -605,7 +654,7 @@ export function priceBasketInParts(
     const extra = index > 0;
     const feePence = extra
       ? fees.extraRunnerDeliveryPence
-      : deliveryFeePence(bin.goodsPence, plan, fees);
+      : deliveryFeePence(bin.goodsPence, plan, fees, bin.carriedPence);
     // A basket kept whole is one order of the month (ruling 73): any extra charge for the
     // allowance is on the first order only.
     const partExtra = index === 0 ? allowanceExtraPence : 0;

@@ -45,6 +45,7 @@ export {
   runnerPaymentFor,
   organisationMonthlyPence,
   BasketOverMaximumError,
+  carriedGoodsPence,
   ProductOverMaximumError,
   type DeliveryPlan,
   type DeliveryBand,
