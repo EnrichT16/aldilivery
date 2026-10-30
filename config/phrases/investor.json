@@ -1,5 +1,5 @@
 {
-  "about": "What Ozi says to investors (ruling 44). Kept on the server only.",
+  "about": "What Ozi says to investors (ruling 44). Kept on the server only. Rules for every addition: never promise a postcode check or say a town is covered in its own words (use the agreed area answer: we run across the UK, area by area, wherever we have Runners and shops); never name a supermarket or shop chain as a partner, or suggest any endorsement; never promise a delivery time (say usually the same day, and the order page shows a best guess); never say \"no mark-up\" (say shop prices, plus a small item charge on each product, plus delivery); and never name any company or technology behind {assistant}, including the makers of any AI. The tests check these.",
   "phrases": [
     {
       "id": "investor-hello",
@@ -101,7 +101,10 @@
       "id": "investor-what-do-runners-earn",
       "topic": "business",
       "when": ["what do runners earn"],
-      "replies": ["{runnerPay} for every job.", "{runnerPay} a job."]
+      "replies": [
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders.",
+        "{runnerPay} a standard job, {largeRunnerPay} a big one."
+      ]
     },
     {
       "id": "investor-what-is-ozi-plus",
@@ -171,8 +174,8 @@
       "topic": "growth",
       "when": ["where does it operate", "regions"],
       "replies": [
-        "Medway first, then more of the UK, then other countries as separate marketplaces.",
-        "Medway first, then wider."
+        "Across the UK, area by area, wherever there are Runners and shops. Other countries would come later, as separate marketplaces.",
+        "Across the UK, area by area."
       ]
     },
     {
@@ -699,8 +702,8 @@
       "topic": "money",
       "when": ["how much do runners cost the business", "runner costs"],
       "replies": [
-        "Each Runner is paid {runnerPay} for every job. The founder can explain the rest of the costs.",
-        "{runnerPay} a job to the Runner. Ask the founder for more."
+        "Each Runner is paid {runnerPay} a standard delivery, {largeRunnerPay} for big orders. The founder can explain the rest of the costs.",
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders, to the Runner. Ask the founder for more."
       ]
     },
     {
@@ -721,8 +724,8 @@
       "topic": "business",
       "when": ["do you mark up prices", "are shop prices marked up", "is there a markup"],
       "replies": [
-        "No. The Shopper is charged what's on the till receipt. The service earns from the delivery fee and its extras.",
-        "Receipt price only. Earnings come from the fee and the extras."
+        "Shop prices, plus a small item charge on each product that the Shopper is always told, plus delivery.",
+        "Shop prices, a small item charge, and delivery."
       ]
     },
     {
@@ -1157,7 +1160,7 @@
         "is there surge pricing"
       ],
       "replies": [
-        "Delivery depends only on the plan and the size of the shop, never surge priced, and {runnerPay} of every delivery goes to the Runner.",
+        "Delivery depends only on the plan and the size of the shop, never surge priced. The Runner gets {runnerPay} a standard delivery, {largeRunnerPay} for big orders.",
         "By plan and shop size, never surge priced."
       ]
     },
@@ -1398,7 +1401,7 @@
       "topic": "business",
       "when": ["what are everyday essentials", "same day essentials", "batteries and bulbs"],
       "replies": [
-        "Everyday essentials like batteries, a charging cable or light bulbs are brought the same day, instead of waiting for a parcel.",
+        "Everyday essentials like batteries, a charging cable or light bulbs are usually brought the same day, instead of waiting for a parcel.",
         "Same-day small essentials."
       ]
     },
@@ -1464,14 +1467,17 @@
       "id": "investor-how-are-runners-paid",
       "topic": "business",
       "when": ["how are runners paid", "runner pay", "is runner pay fair"],
-      "replies": ["{runnerPay} for every job, the same for everyone.", "A flat {runnerPay} a job."]
+      "replies": [
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders, the same rule for everyone.",
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders."
+      ]
     },
     {
       "id": "investor-what-is-a-runner",
       "topic": "business",
       "when": ["what is a runner", "who are the runners", "who does the deliveries"],
       "replies": [
-        "Runners are checked people who shop and deliver, on foot, by bicycle or by car, and are paid {runnerPay} a job.",
+        "Runners are checked people who shop and deliver, on foot, by bicycle or by car, and are paid {runnerPay} a standard delivery, {largeRunnerPay} for big orders.",
         "Checked people who shop and deliver."
       ]
     },
@@ -1480,7 +1486,7 @@
       "topic": "business",
       "when": ["how are runners checked", "runner vetting", "are runners safe"],
       "replies": [
-        "Runners send documents such as right to work and insurance, checked by staff before they can take jobs.",
+        "Runners send documents such as right to work and insurance, approved automatically when clearly in order and by a person when anything is unclear.",
         "Documents checked by staff before any job."
       ]
     },
@@ -1529,8 +1535,8 @@
       "topic": "business",
       "when": ["which shops", "is it only one supermarket", "which supermarkets"],
       "replies": [
-        "It starts with one supermarket chain, and every local shop can be listed free. Prices shown are community estimates, not supplied by the store.",
-        "One supermarket first, and local shops listed free."
+        "Supermarkets and local shops on the list for each area, and every local shop can be listed free. We have no partnership with any supermarket yet.",
+        "Supermarkets and local shops, with local shops listed free."
       ]
     },
     {
@@ -1542,8 +1548,8 @@
         "does the supermarket endorse this"
       ],
       "replies": [
-        "Prices are community estimates, not supplied by the store. For any agreement with a shop, please ask the founder.",
-        "Please ask the founder about any agreements."
+        "No. We have no partnership with any supermarket yet.",
+        "No. No supermarket partnership yet."
       ]
     },
     {
@@ -1699,8 +1705,8 @@
       "topic": "growth",
       "when": ["which countries next", "international plans", "nigeria and kenya"],
       "replies": [
-        "Medway first, then other areas, then countries such as Nigeria and Kenya, each as its own marketplace.",
-        "Medway, then more of the UK, then abroad."
+        "The UK first, area by area, then countries such as Nigeria and Kenya, each as its own marketplace.",
+        "The UK, area by area, then abroad."
       ]
     },
     {
@@ -1708,7 +1714,7 @@
       "topic": "growth",
       "when": ["why medway", "where is medway", "why start in kent"],
       "replies": [
-        "Medway is where the service starts. The founder can tell you why.",
+        "Medway is where the service began; it now runs across the UK, area by area. The founder can tell you more.",
         "It's the first area. Ask the founder for the reasoning."
       ]
     },
@@ -1768,8 +1774,8 @@
       "topic": "growth",
       "when": ["who builds it", "who writes the code", "who are the developers"],
       "replies": [
-        "The founder directs the work, and the code is written with Claude Code, an AI coding assistant, with automatic tests on every change.",
-        "Built with Claude Code, directed by the founder."
+        "The founder directs the work, with automated tests on every change.",
+        "Directed by the founder, with automated tests on every change."
       ]
     },
     {
@@ -1969,7 +1975,7 @@
       "topic": "mission",
       "when": ["does it create jobs", "flexible work", "local work"],
       "replies": [
-        "Yes, flexible paid work for Runners, at {runnerPay} a job.",
+        "Yes, flexible paid work for Runners: {runnerPay} a standard delivery, {largeRunnerPay} for big orders.",
         "Flexible local work for Runners."
       ]
     },
@@ -2574,8 +2580,8 @@
       "topic": "competition",
       "when": ["why would runners join", "what's in it for runners", "benefit for runners"],
       "replies": [
-        "Flexible local work, at {runnerPay} a job, the same for everyone.",
-        "Flexible work, flat pay."
+        "Flexible local work: {runnerPay} a standard delivery, {largeRunnerPay} for big orders, the same rule for everyone.",
+        "Flexible work, clear pay."
       ]
     },
     {
@@ -3006,7 +3012,7 @@
       "topic": "about",
       "when": ["are you ai", "are you artificial intelligence", "how do you work"],
       "replies": [
-        "I'm a voice assistant. For investors, I answer from phrases kept on the server, and read the parts of the dashboard switched on for you.",
+        "I'm {assistant}, a computer voice assistant, not a person. For investors, I answer from phrases kept on the server, and read the parts of the dashboard switched on for you.",
         "A voice assistant, with answers kept on the server."
       ]
     },
@@ -3396,7 +3402,7 @@
       "topic": "business",
       "when": ["what stage is the company at", "is it early stage", "how mature is it"],
       "replies": [
-        "The service is built and preparing to grow, starting in Medway. For detail on the company's stage, please ask the founder.",
+        "The service is built and runs across the UK, area by area, wherever there are Runners and shops. For detail on the company's stage, please ask the founder.",
         "Please ask the founder for the latest."
       ]
     },
@@ -3486,8 +3492,8 @@
       "topic": "growth",
       "when": ["what happens after launch", "the first year", "early plans"],
       "replies": [
-        "Medway first, then the growth steps as users increase, with phone apps and more features on the roadmap. Ask the founder for timings.",
-        "Grow in Medway, then step by step."
+        "Growth area by area across the UK as users increase, with phone apps and more features on the roadmap. Ask the founder for timings.",
+        "Area by area, step by step."
       ]
     },
     {

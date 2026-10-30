@@ -1,5 +1,5 @@
 {
-  "about": "What Ozi says to the owner: {owner} is how he is addressed, and every reply ends with sir (ruling 44). The owner also has every other account's phrases. Kept on the server only.",
+  "about": "What Ozi says to the owner: {owner} is how he is addressed, and every reply ends with sir (ruling 44). The owner also has every other account's phrases. Kept on the server only. Rules for every addition: never promise a postcode check or say a town is covered in its own words (use the agreed area answer: we run across the UK, area by area, wherever we have Runners and shops); never name a supermarket or shop chain as a partner, or suggest any endorsement; never promise a delivery time (say usually the same day, and the order page shows a best guess); never say \"no mark-up\" (say shop prices, plus a small item charge on each product, plus delivery); and never name any company or technology behind {assistant}, including the makers of any AI. The tests check these.",
   "formOfAddress": "Mr Anthony",
   "phrases": [
     {
@@ -240,7 +240,10 @@
       "id": "owner-how-much-do-runners-earn",
       "topic": "prices",
       "when": ["how much do runners earn"],
-      "replies": ["{runnerPay} a job, sir.", "{runnerPay}, sir."]
+      "replies": [
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders, sir.",
+        "{runnerPay} or {largeRunnerPay}, sir."
+      ]
     },
     {
       "id": "owner-who-are-you",
@@ -346,8 +349,8 @@
       "topic": "adverts",
       "when": ["turn on the adverts", "advert square"],
       "replies": [
-        "Tell Claude, sir, and the advert square will be switched on.",
-        "Ask Claude to switch it on, sir."
+        "Tell your developer, sir, and the advert square will be switched on.",
+        "Ask your developer to switch it on, sir."
       ]
     },
     {
@@ -453,7 +456,7 @@
       "when": ["connect flutterwave", "when will flutterwave come", "add flutterwave"],
       "replies": [
         "Flutterwave isn't connected yet, sir. It's on the still to do list, and it will appear in the money part once it is.",
-        "Not yet, sir. Tell Claude when you're ready and it will be built in."
+        "Not yet, sir. Tell your developer when you're ready and it will be built in."
       ]
     },
     {
@@ -546,8 +549,8 @@
       "topic": "money",
       "when": ["do runners always get the same", "is runner pay fixed"],
       "replies": [
-        "Yes, sir. A Runner gets {runnerPay} for every job, always.",
-        "{runnerPay} a job, every time, sir."
+        "Not quite, sir. A Runner gets {runnerPay} a standard delivery, {largeRunnerPay} for big orders.",
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders, sir."
       ]
     },
     {
@@ -591,8 +594,8 @@
       "topic": "money",
       "when": ["where are the prices set", "who sets the prices", "can i change a price"],
       "replies": [
-        "Every price lives in the store settings, sir. Tell Claude the new figure and it's changed in one place.",
-        "In the store settings, sir. Claude changes them for you."
+        "Every price lives in the store settings, sir. Tell your developer the new figure and it's changed in one place.",
+        "In the store settings, sir. Your developer changes them for you."
       ]
     },
     {
@@ -972,8 +975,8 @@
       "topic": "roles",
       "when": ["add a new job", "make a new role"],
       "replies": [
-        "Tell Claude, sir. The jobs are set in the code and can be added or changed.",
-        "Ask Claude, sir. It's a quick change."
+        "Tell your developer, sir. The jobs are set in the code and can be added or changed.",
+        "Ask your developer, sir. It's a quick change."
       ]
     },
     {
@@ -1092,8 +1095,8 @@
       "topic": "kill switch",
       "when": ["does the kill switch affect shoppers", "does it affect runners too"],
       "replies": [
-        "No, sir. It signs out the admin panel. Changing the server's secret key signs out Shoppers and Runners too; Claude does that.",
-        "Admins only, sir. Claude can sign out everyone else."
+        "No, sir. It signs out the admin panel. Changing the server's secret key signs out Shoppers and Runners too; your developer does that.",
+        "Admins only, sir. Your developer can sign out everyone else."
       ]
     },
     {
@@ -1152,8 +1155,8 @@
       "topic": "security",
       "when": ["i forgot my passcode", "lost my passcode"],
       "replies": [
-        "Nobody can read it back, sir, not even me. Tell Claude, and it will help you set a new one.",
-        "Tell Claude, sir."
+        "Nobody can read it back, sir, not even me. Tell your developer, who will help you set a new one.",
+        "Tell your developer, sir."
       ]
     },
     {
@@ -1197,8 +1200,8 @@
       "topic": "security",
       "when": ["i lost my authenticator", "new phone codes"],
       "replies": [
-        "Tell Claude, sir, and it will help you set two-step codes up again on the new phone.",
-        "Tell Claude, sir."
+        "Tell your developer, sir, who will help you set two-step codes up again on the new phone.",
+        "Tell your developer, sir."
       ]
     },
     {
@@ -1251,7 +1254,7 @@
       "topic": "security",
       "when": ["what is cloudflare", "put cloudflare in front"],
       "replies": [
-        "A shield in front of the website, sir, against floods and known attacks. You make a free account, and Claude moves the settings.",
+        "A shield in front of the website, sir, against floods and known attacks. You make a free account, and your developer moves the settings.",
         "A shield, sir. The free plan is enough."
       ]
     },
@@ -1260,7 +1263,7 @@
       "topic": "security",
       "when": ["what is dependabot", "dependency scanning"],
       "replies": [
-        "A robot that checks the parts our code uses for known weaknesses each week, sir. Claude switches it on, free.",
+        "A robot that checks the parts our code uses for known weaknesses each week, sir. Your developer switches it on, free.",
         "A weekly check, sir."
       ]
     },
@@ -1287,7 +1290,7 @@
       "topic": "security",
       "when": ["audit log", "one way log"],
       "replies": [
-        "Every important action copied to a store the server can add to but never change, sir. Still to do, by Claude.",
+        "Every important action copied to a store the server can add to but never change, sir. Still to do, by the build team.",
         "To do, sir. A thief couldn't cover their tracks."
       ]
     },
@@ -1350,8 +1353,8 @@
       "topic": "security",
       "when": ["security guide for new people", "guide for new starters"],
       "replies": [
-        "A one-page guide for every new starter, sir. Claude drafts it when asked.",
-        "To do, sir. Claude can draft it."
+        "A one-page guide for every new starter, sir. The build team drafts it when asked.",
+        "To do, sir. The build team can draft it."
       ]
     },
     {
@@ -1368,7 +1371,7 @@
       "topic": "launch",
       "when": ["read me the launch list", "launch checklist", "what's on the launch list"],
       "replies": [
-        "Company details, the telephone number, a solicitor, the ICO, the backed-up database, the staff key, Stripe live keys, Twilio, LiveKit, notification keys and insurance, sir.",
+        "A solicitor, the backed-up database, the staff key, Stripe live keys, Twilio, LiveKit, notification keys and insurance, sir. Company details, the telephone number and the ICO are done.",
         "Fourteen steps in the launch document, sir."
       ]
     },
@@ -1377,8 +1380,8 @@
       "topic": "launch",
       "when": ["what do i do first for launch", "first launch step"],
       "replies": [
-        "The company's registered name, number and office on the site, sir. Send them to Claude.",
-        "Company details first, sir."
+        "The company details, telephone number and ICO registration are set, sir. The launch document lists what is left.",
+        "The launch document, sir."
       ]
     },
     {
@@ -1503,8 +1506,8 @@
       "topic": "launch",
       "when": ["ico registration", "data protection fee"],
       "replies": [
-        "Registered online at the ICO's site in about fifteen minutes, sir. Then send Claude the number.",
-        "About fifteen minutes online, sir."
+        "Done, sir. Our ICO registration number is {icoNumber}, set in the store settings.",
+        "Registered, sir: {icoNumber}."
       ]
     },
     {
@@ -1581,7 +1584,7 @@
       "topic": "launch",
       "when": ["what's stopping us launching", "what's holding us up"],
       "replies": [
-        "Only your steps, sir: company details, the number, the solicitor, the ICO, the database, the keys, Twilio, LiveKit and insurance.",
+        "Only your steps, sir: the solicitor, the database, the keys, Twilio, LiveKit and insurance.",
         "Settings and paperwork, sir. The app is built."
       ]
     },
@@ -1698,8 +1701,8 @@
       "topic": "telephone",
       "when": ["what's our phone number", "shopper telephone number"],
       "replies": [
-        "The number is still a placeholder, sir. A Twilio UK mobile number is step two of the launch list.",
-        "Not set yet, sir."
+        "Our number is {telephone}, sir. It's set in the store settings.",
+        "{telephone}, sir."
       ]
     },
     {
@@ -1833,8 +1836,8 @@
       "topic": "phrases",
       "when": ["review the phrases", "check what you say"],
       "replies": [
-        "Tell Claude which reply to change, sir, and it's corrected in the phrase files.",
-        "Ask Claude, sir. Any reply can be changed."
+        "Tell your developer which reply to change, sir, and it's corrected in the phrase files.",
+        "Ask your developer, sir. Any reply can be changed."
       ]
     },
     {
@@ -1842,7 +1845,7 @@
       "topic": "phrases",
       "when": ["that was wrong", "that's not right"],
       "replies": [
-        "I'm sorry, sir. Tell Claude what I should have said, and it will be put right.",
+        "I'm sorry, sir. Tell your developer what I should have said, and it will be put right.",
         "Apologies, sir."
       ]
     },
@@ -1851,7 +1854,7 @@
       "topic": "phrases",
       "when": ["why do you call me sir", "you don't have to call me sir"],
       "replies": [
-        "It's how you asked to be addressed, {owner}, sir. Tell Claude if you'd like it changed.",
+        "It's how you asked to be addressed, {owner}, sir. Tell your developer if you'd like it changed.",
         "Out of respect, {owner}. Yes, sir."
       ]
     },
@@ -1860,8 +1863,8 @@
       "topic": "phrases",
       "when": ["call me something else", "change how you address me"],
       "replies": [
-        "The form of address lives in your phrase file, sir. Tell Claude what you'd like.",
-        "Tell Claude, sir, and it's changed."
+        "The form of address lives in your phrase file, sir. Tell your developer what you'd like.",
+        "Tell your developer, sir, and it's changed."
       ]
     },
     {
@@ -1952,12 +1955,12 @@
       ]
     },
     {
-      "id": "owner-tell-claude-numbers",
+      "id": "owner-tell-developer-numbers",
       "topic": "growth",
       "when": ["when do we take the following step", "who does the growth work"],
       "replies": [
-        "Tell Claude the number of users as you near each step, sir. Claude writes the code; you make the DigitalOcean changes.",
-        "Tell Claude the numbers, sir."
+        "Tell your developer the number of users as you near each step, sir. The build team writes the code; you make the DigitalOcean changes.",
+        "Tell your developer the numbers, sir."
       ]
     },
     {
@@ -1965,8 +1968,8 @@
       "topic": "growth",
       "when": ["new regions", "where do we go after medway", "nigeria", "kenya"],
       "replies": [
-        "Medway first, sir, then other areas, then Nigeria and Kenya, each its own marketplace.",
-        "Medway, then further, sir."
+        "Across the UK, area by area, sir, then Nigeria and Kenya, each its own marketplace.",
+        "Area by area across the UK, sir."
       ]
     },
     {
@@ -1992,8 +1995,8 @@
       "topic": "growth",
       "when": ["other languages", "welsh", "igbo", "yoruba"],
       "replies": [
-        "Welsh first, sir, then Igbo, Hausa, Yoruba and Swahili. Not built yet.",
-        "Welsh first, sir."
+        "English for now, sir; more languages are planned. Not built yet.",
+        "English for now, sir."
       ]
     },
     {
@@ -2184,7 +2187,7 @@
       "topic": "partners",
       "when": ["spotlight introductory price", "spotlight first three months"],
       "replies": [
-        "Claude's recommendation awaits you, sir: one price for everyone for the first three months, then reviewed.",
+        "The build team's recommendation awaits you, sir: one price for everyone for the first three months, then reviewed.",
         "Your decision, sir."
       ]
     },
@@ -2421,8 +2424,8 @@
       "topic": "building",
       "when": ["carer plan", "ordering for a relative"],
       "replies": [
-        "The family and carer plan says coming soon, sir. The data model is ready.",
-        "Coming soon, sir."
+        "Family and Carer is live, sir: up to four people, one card, and a six-letter family code.",
+        "Live, sir."
       ]
     },
     {
@@ -2504,12 +2507,12 @@
       ]
     },
     {
-      "id": "owner-ask-claude-build",
+      "id": "owner-ask-developer-build",
       "topic": "building",
-      "when": ["can claude build it", "who builds the features"],
+      "when": ["can the developer build it", "who builds the features"],
       "replies": [
-        "Claude writes the code when you ask, sir. You make the changes that need your accounts.",
-        "Claude, when you ask, sir."
+        "Your developer writes the code when you ask, sir. You make the changes that need your accounts.",
+        "Your developer, when you ask, sir."
       ]
     },
     {
@@ -2574,8 +2577,8 @@
       "topic": "building",
       "when": ["everyday essentials", "same day essentials"],
       "replies": [
-        "Batteries, cables, light bulbs and the like, brought the same day, sir.",
-        "Same day, sir."
+        "Batteries, cables, light bulbs and the like, usually brought the same day, sir.",
+        "Usually the same day, sir."
       ]
     },
     {
@@ -3108,8 +3111,8 @@
       "topic": "about",
       "when": ["who built you", "who made you"],
       "replies": [
-        "You did, {owner}, with Claude writing the code. Yes, sir.",
-        "You, sir, with Claude."
+        "You did, {owner}, with your developer writing the code. Yes, sir.",
+        "You, sir, with the build team."
       ]
     },
     {
@@ -3149,11 +3152,11 @@
       ]
     },
     {
-      "id": "owner-who-is-claude",
+      "id": "owner-who-is-the-developer",
       "topic": "about",
-      "when": ["who is claude", "what does claude do"],
+      "when": ["who is the developer", "what does the developer do"],
       "replies": [
-        "Claude writes the code and the documents, sir, when you ask.",
+        "Your developer writes the code and the documents, sir, when you ask.",
         "The builder, sir."
       ]
     },
@@ -3273,8 +3276,8 @@
       "topic": "about",
       "when": ["what's the company called", "registered name"],
       "replies": [
-        "The registered details are still a placeholder on the site, sir. Send Claude the Companies House details.",
-        "Still a placeholder, sir."
+        "{companyName}, sir, company number {companyNumber}. It's set in the store settings.",
+        "{companyName}, sir."
       ]
     },
     {

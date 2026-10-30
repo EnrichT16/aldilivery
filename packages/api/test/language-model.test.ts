@@ -38,9 +38,45 @@ describe('the instructions', () => {
     const text = instructions(config);
     expect(text).toContain(config.assistantName);
     expect(text).toContain(config.productName);
-    expect(text).toContain(config.store.displayName);
     expect(text).toMatch(/"items"/);
     expect(text).toMatch(/never ask for a card number/i);
+  });
+
+  it('never names the shop chain, and says there is no partnership with any', () => {
+    for (const text of [instructions(config), emailInstructions(config), serviceFacts(config)]) {
+      expect(text).not.toContain(config.store.displayName);
+      expect(text).not.toMatch(/Medway/);
+      expect(text).toMatch(/no partnership with, or endorsement from, any supermarket/);
+    }
+    expect(instructions(config)).toMatch(/never say otherwise/);
+  });
+
+  it('carry the service facts from configuration, and answer only from them', () => {
+    const text = instructions(config);
+    expect(text).toContain(serviceFacts(config));
+    expect(text).toMatch(/only from these facts; if they don't cover it, say you're not sure/);
+    const facts = serviceFacts(config);
+    const money = (pence: number) => `£${(pence / 100).toFixed(2)}`;
+    expect(facts).toContain(money(config.extras.membershipPence));
+    expect(facts).toContain(money(config.extras.plusPence));
+    expect(facts).toContain(money(config.extras.familyPence));
+    expect(facts).toContain(`Family and Carer`);
+    expect(facts).toContain(money(config.fees.itemCharge.basePence));
+    expect(facts).toContain(`${money(config.fees.runnerPaymentPence)} for a standard delivery`);
+    expect(facts).toContain(
+      `${money(config.fees.largeOrderRunnerPaymentPence)} for a big order (shop prices of ${money(config.fees.largeOrderFromPence)}`,
+    );
+    expect(facts).toContain(`${config.scheduled.maxDaysAhead} days ahead`);
+    expect(facts).toMatch(/payment link texted/);
+  });
+
+  it('say it is a computer voice assistant if asked, never who is behind it', () => {
+    for (const text of [instructions(config), emailInstructions(config)]) {
+      expect(text).toContain(
+        `If asked, say you are ${config.assistantName}, a computer voice assistant, not a person. Never name the company or technology behind you.`,
+      );
+      expect(text).not.toMatch(/AI model|anthropic|claude/i);
+    }
   });
 });
 

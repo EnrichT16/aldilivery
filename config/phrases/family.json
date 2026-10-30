@@ -1,5 +1,5 @@
 {
-  "about": "What Ozi says to family members the owner lets see his dashboard (ruling 44). Kept on the server only.",
+  "about": "What Ozi says to family members the owner lets see his dashboard (ruling 44). Kept on the server only. Rules for every addition: never promise a postcode check or say a town is covered in its own words (use the agreed area answer: we run across the UK, area by area, wherever we have Runners and shops); never name a supermarket or shop chain as a partner, or suggest any endorsement; never promise a delivery time (say usually the same day, and the order page shows a best guess); never say \"no mark-up\" (say shop prices, plus a small item charge on each product, plus delivery); and never name any company or technology behind {assistant}, including the makers of any AI. The tests check these.",
   "phrases": [
     {
       "id": "family-hello",
@@ -119,7 +119,10 @@
       "id": "family-how-do-runners-get-paid",
       "topic": "about",
       "when": ["how do runners get paid"],
-      "replies": ["{runnerPay} for every job.", "Each job pays the Runner {runnerPay}."]
+      "replies": [
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders.",
+        "Each standard delivery pays the Runner {runnerPay}, and a big order {largeRunnerPay}."
+      ]
     },
     {
       "id": "family-help",
@@ -335,7 +338,10 @@
       "id": "family-where-does-it-operate",
       "topic": "about",
       "when": ["where does it operate", "which areas"],
-      "replies": ["Medway first, growing to more areas.", "Starting in Medway."]
+      "replies": [
+        "We run across the UK, area by area, wherever we have Runners and shops.",
+        "Across the UK, area by area."
+      ]
     },
     {
       "id": "family-can-i-see-investors",
@@ -984,8 +990,8 @@
       "topic": "money",
       "when": ["do runners earn well", "is runner pay fair"],
       "replies": [
-        "Each delivery pays the Runner {runnerPay}, and tips go to them in full.",
-        "{runnerPay} a job, and every tip in full."
+        "Each standard delivery pays the Runner {runnerPay}, and a big order {largeRunnerPay}. Tipping isn't available yet.",
+        "{runnerPay} a standard delivery, {largeRunnerPay} for big orders."
       ]
     },
     {
@@ -993,8 +999,8 @@
       "topic": "money",
       "when": ["who gets the tips", "where do tips go"],
       "replies": [
-        "Every tip goes to the Runner, all of it. {assistant} never asks for a tip aloud.",
-        "All to the Runner."
+        "Tipping isn't available yet. {assistant} never asks for one.",
+        "Tipping isn't available yet."
       ]
     },
     {
@@ -2214,7 +2220,7 @@
       "topic": "about",
       "when": ["what are emergency runs", "business emergency runs"],
       "replies": [
-        "A fast run for a business inside Medway, promised within 45 minutes.",
+        "A quick run for a business, sent to a Runner straight away. Times are never promised.",
         "A quick run for a business."
       ]
     },
@@ -2345,7 +2351,10 @@
       "id": "family-is-it-only-medway",
       "topic": "about",
       "when": ["is it only medway", "will it grow"],
-      "replies": ["Medway first, growing to more areas as it goes.", "Medway first, then more."]
+      "replies": [
+        "No. We run across the UK, area by area, wherever we have Runners and shops.",
+        "No, across the UK, area by area."
+      ]
     },
     {
       "id": "family-how-many-users-expected",
@@ -2366,7 +2375,10 @@
       "id": "family-does-it-work-on-phones",
       "topic": "about",
       "when": ["does it work on phones", "is there an app"],
-      "replies": ["Yes, on the website, and in the phone apps.", "Website and phone apps."]
+      "replies": [
+        "Yes, on the website, in any phone's browser. Phone apps are coming soon.",
+        "Website for now; phone apps soon."
+      ]
     },
     {
       "id": "family-what-is-the-website",
@@ -2412,7 +2424,7 @@
       "topic": "about",
       "when": ["is there a tip", "do people tip"],
       "replies": [
-        "Tipping is optional and goes all to the Runner. {assistant} never asks for one aloud.",
+        "Tipping isn't available yet. {assistant} never asks for one.",
         "Optional, never asked for."
       ]
     },

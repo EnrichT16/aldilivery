@@ -19,7 +19,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 
-import type { StoreConfig } from '@aldilivery/core';
+import { deliveryStepsWords, formatPence, type StoreConfig } from '@aldilivery/core';
 
 /** The model used unless LANGUAGE_MODEL names another: the cheapest current one. */
 export const DEFAULT_MODEL = 'claude-haiku-5-5';
@@ -186,20 +186,27 @@ const EMAIL_SCHEMA = {
 
 /** The service's own facts, from configuration (Rule Nine), the only things a reply may say. */
 export function serviceFacts(config: StoreConfig): string {
-  const money = (pence: number): string => `£${(pence / 100).toFixed(2)}`;
-  const bands = config.fees.delivery.bands
-    .map(
-      (band) =>
-        `${band.upToPence === null ? 'larger orders' : `orders up to ${money(band.upToPence)}`}: ${money(band.payAsYouGoPence)}`,
-    )
-    .join('; ');
+  const money = (pence: number): string => formatPence(pence, config.store.currencySymbol);
+  const { fees, extras } = config;
+  const charge = fees.itemCharge;
   return [
-    `${config.productName} is a delivery service in Medway, England: people say or type their shopping to ${config.assistantName}, its assistant, and a local Runner buys it at ${config.store.displayName} or a listed local shop and brings it to the door.`,
-    `Delivery costs, pay as you go: ${bands}. A monthly membership is ${money(config.extras.membershipPence)} and Plus is ${money(config.extras.plusPence)}, with cheaper delivery${config.extras.freeFirstMonth ? '; the first month is free' : ''}.`,
+    `${config.productName} is a delivery service run across the UK, area by area, wherever it has Runners and shops: people say or type their shopping to ${config.assistantName}, its assistant, and a local Runner buys it at a supermarket or local shop on the list for the Shopper's area and brings it to the door.`,
+    `${config.productName} is independent and has no partnership with, or endorsement from, any supermarket or shop chain yet.`,
+    `Delivery on pay as you go: ${deliveryStepsWords('payg', fees, money)}. Membership is ${money(extras.membershipPence)} a month, with delivery at ${deliveryStepsWords('membership', fees, money)}. Plus is ${money(extras.plusPence)} a month, with delivery at ${deliveryStepsWords('plus', fees, money)}. Family and Carer is ${money(extras.familyPence)} a month for up to ${extras.familyMaximum} people, with the same delivery as Plus${extras.freeFirstMonth ? '. The first month of a plan is free' : ''}.`,
+    `Each product also carries a small item charge: ${money(charge.basePence)}, plus ${money(charge.stepPence)} for every ${money(charge.everyPence)} of its shop price. It pays for the service, not the Runner, and is always said before the Shopper agrees.`,
+    `A Runner is paid ${money(fees.runnerPaymentPence)} for a standard delivery, and ${money(fees.largeOrderRunnerPaymentPence)} for a big order (shop prices of ${money(fees.largeOrderFromPence)} or more, delivered whole). Tipping is not available.`,
     `It never brings alcohol, tobacco or vapes, medicines, or anything age restricted.`,
-    `Orders are placed on the website or the app${config.contact.telephoneIsPlaceholder ? '' : `, or by telephone on ${config.contact.telephonePlaceholder}`}; payment is by card when the order is placed.`,
+    `Orders are placed on the website${config.contact.telephoneIsPlaceholder ? '' : `, or by telephone on ${config.contact.telephonePlaceholder}`}, for as soon as possible or booked up to ${config.scheduled.maxDaysAhead} days ahead in a time window. Delivery times are never promised: usually the same day, and the order page shows a best guess. Payment is by card, by a payment link texted to the Shopper, or by bank transfer.`,
     `Shops and organisations can join from the website's business page.`,
   ].join('\n');
+}
+
+/** The rules about honesty every set of instructions shares (Rule Nine: names from configuration). */
+function honestyRules(config: StoreConfig): string {
+  return [
+    `${config.productName} is independent and has no partnership with, or endorsement from, any supermarket or shop chain yet; never say otherwise.`,
+    `If asked, say you are ${config.assistantName}, a computer voice assistant, not a person. Never name the company or technology behind you.`,
+  ].join(' ');
 }
 
 /** The standing instructions for sorting an email, from configuration (Rule Nine). */
@@ -211,7 +218,7 @@ export function emailInstructions(config: StoreConfig): string {
     `important: true for decisions, complaints, legal or official mail, partner or organisation approaches, anything about money owed to or by the business, and anything about anyone's safety; false for spam, marketing, newsletters and routine notices.`,
     `summary: one or two short spoken sentences for the owner, under 45 words, British English: who it is from (a name or an organisation, never an email address) and what it is about. Never read out long numbers, account numbers, reference numbers, card numbers, phone numbers or email addresses: say "a reference number" instead.`,
     `suggestedReply: only for "customer_question", and only when the question can be fully answered from the facts below and nothing else: two or three short, kind, plain sentences in British English, with no greeting and no sign-off. Never promise anything, never invent a price, a time, a refund or a fact, never ask for a card number or password. If the facts do not clearly answer it, null. For every other category, null.`,
-    `Never mention being an AI model or who made you.`,
+    honestyRules(config),
     `The facts:\n${serviceFacts(config)}`,
   ].join('\n');
 }
@@ -489,7 +496,7 @@ const ESTIMATE_SCHEMA = {
 /** The standing instructions for an estimate, from configuration (Rule Nine). */
 export function estimateInstructions(config: StoreConfig): string {
   return [
-    `You help ${config.assistantName}, the assistant of ${config.productName}, a delivery service in Medway, England, where a Runner buys things at UK high street shops and supermarkets and brings them to the door.`,
+    `You help ${config.assistantName}, the assistant of ${config.productName}, a delivery service run across the UK, area by area, where a Runner buys things at UK high street shops and supermarkets and brings them to the door.`,
     `You are given the name of one thing a customer asked for that is not in the shop list. Answer in the JSON shape given.`,
     `kind: "grocery" for anything a UK supermarket, corner shop or high street shop sells off the shelf (food, drink without alcohol, toiletries, household, stationery, small gifts); "prepared" for a hot or made-to-order meal from a café, restaurant or takeaway (a curry, chow mein, a pizza, a burger, fish and chips, a coffee); "service" for a service rather than a thing; "not_allowed" for alcohol, tobacco or vapes, any medicine (even paracetamol), cash or gift vouchers for money, weapons or anything age restricted; "not_a_product" when it is not a thing anyone sells.`,
     `name: the tidy shop name a shelf label would carry, in British English, with a typical size ("Plain flour, 1.5kg", "Large free range eggs, 12"). category: the closest from the list. pricePence: a typical current UK supermarket price in pence for that size, a sensible middle price, never a premium brand unless named; 0 when not "grocery".`,
@@ -503,13 +510,15 @@ export type BrainClient = Pick<Anthropic, 'messages'>;
 /** The standing instructions, built from configuration so no name lives in code (Rule Nine). */
 export function instructions(config: StoreConfig): string {
   const { assistantName: ozi, productName: product } = config;
-  const shop = config.store.displayName;
   return [
-    `You are ${ozi}, the voice assistant of ${product}, a grocery delivery service in Medway, England. People say their shopping; a Runner buys it at ${shop} or a listed local shop and brings it to the door. Many customers are blind, elderly or housebound and are speaking, not typing.`,
+    `You are ${ozi}, the voice assistant of ${product}, a grocery delivery service run across the UK, area by area. People say their shopping; a Runner buys it at a supermarket or local shop on the list for the Shopper's area and brings it to the door. Many customers are blind, elderly or housebound and are speaking, not typing.`,
     `Your only job here is to understand one sentence and answer in the JSON shape you are given.`,
     `Shopping words: "order", "get me", "pick up", "grab", "buy", "purchase", "fetch", "bring", "add", "I need", "I've run out of", "put in", "can I have" and anything like them all mean the person wants things bought. Kind "items": list each thing: "name" is the plain product word or two a shop search needs ("flour", "eggs", "semi skimmed milk"), "quantity" how many (default 1; "a couple" is 2, "a dozen" is 12), "brand" only if they said one, and "detail" any size or variety they said ("2 kg", "large", "free range"), or null.`,
     `Kind "remove": they want something taken off; put the thing in items. Kind "done": they have finished ("that's everything", "that's all"). Kind "stop": cancel or never mind. Kind "repeat": say it again. Kind "question": a question about the service, delivery, prices in general, plans, Runners, safety or how to do something; give a short, kind, honest reply under 25 words. Kind "recommend": they ask for an idea or recommendation (breakfast, lunch, dinner, a snack, something for a party, a cheap meal, something healthy); put 3 to 5 everyday supermarket items for it in items, and reply in under 30 words naming the dish and the items, ending with "Shall I add them?". Kind "chatter": small talk or a remark; reply warmly in under 15 words. If they ask the time, the day or the date, answer from the time given, as kind "question". Kind "unclear": you cannot tell; reply with one short question.`,
-    `Rules for any reply: British English; plain words; no figures you are not sure of (never invent a price, a time or a fee); never ask for a card number, a code or a password; no alcohol, tobacco, medicines or cash through the service; if they want a person, say they can say "person". Never mention being an AI model or who made you. Speak as ${ozi}.`,
+    `Rules for any reply: British English; plain words; no figures you are not sure of (never invent a price, a time or a fee); never ask for a card number, a code or a password; no alcohol, tobacco, medicines or cash through the service; if they want a person, say they can say "person". Speak as ${ozi}.`,
+    honestyRules(config),
+    `Answer service questions only from these facts; if they don't cover it, say you're not sure and offer a person.`,
+    `The facts:\n${serviceFacts(config)}`,
   ].join('\n');
 }
 

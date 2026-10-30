@@ -90,6 +90,17 @@ export const BLANKS = [
   'maximum',
   'maximumProduct',
   'runnerPay',
+  // A big order's Runner pay, and the shop prices from which an order counts as big (ruling 60).
+  'largeRunnerPay',
+  'largeOrderFrom',
+  // How many days ahead an order can be booked (ruling 78).
+  'daysAhead',
+  // The business's own details, from the store settings: the telephone number, the registered
+  // company name and number, and the ICO registration number.
+  'telephone',
+  'companyName',
+  'companyNumber',
+  'icoNumber',
   'callPrice',
   'instantRefund',
   'partnerPlan',
@@ -272,6 +283,13 @@ export function fillIn(
     maximum: money(config.fees.maximumOrderGoodsPence),
     maximumProduct: money(config.fees.maximumProductPence),
     runnerPay: money(config.fees.runnerPaymentPence),
+    largeRunnerPay: money(config.fees.largeOrderRunnerPaymentPence),
+    largeOrderFrom: money(config.fees.largeOrderFromPence),
+    daysAhead: String(config.scheduled.maxDaysAhead),
+    telephone: config.contact.telephonePlaceholder,
+    companyName: config.store.legalEntityName,
+    companyNumber: config.store.companyNumber,
+    icoNumber: config.store.icoRegistrationNumber,
     callPrice: `${config.calls.pencePerMinute}p`,
     instantRefund: money(config.problems.instantRefundUpToPence),
     // Ruling 65: the plan is Partner Plus; the first shops are listed free for ever.
