@@ -39,6 +39,8 @@ other eight stand as they were.
 
 *Amended 30 October 2026 (Anthony, restaurant pricing): groceries are unchanged, with no minimum spend. A restaurant, café or takeaway order is priced on its own: dishes at the restaurant's shop price with the normal item charge, a flat restaurant fee (`restaurants.feePence`, £12) in place of the delivery bands, the Runner's five pounds out of it as on every delivery, and a smallest restaurant order of `restaurants.minimumOrderPence` (£10) of dishes, which is a real minimum: below it the order cannot be sent, and the Shopper is told so plainly and by Ozi. It is the one minimum, for restaurants only, ruled by Anthony.*
 
+*Amended 30 October 2026 (Anthony, big restaurant orders): the restaurant fee is the Runner's pay plus Ozi's share (`restaurants.ozisSharePence`, £7), so Ozi always keeps £7: £12 with the standard five pounds, £14 for £120 or more of dishes, whose Runner is paid £7 under Rule Two. Restaurant orders never count towards a plan's monthly order allowance. A partner may also agree a mark-up on its prices (at most `restaurants.maximumMarkupPercent`): Shoppers see and pay the marked-up price, with the item charge worked out on it and the words "Prices on Ozi may be higher than in the restaurant", while the Runner pays the shop price less any discount at the counter.*
+
 **Five.** A notice is sent thirty minutes before any recurring Set order fires, with a one word skip.
 
 **Six.** No age restricted goods in version one.

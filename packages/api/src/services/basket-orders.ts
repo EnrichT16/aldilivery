@@ -37,6 +37,8 @@ import type { Order } from '../domain.js';
 import { ConflictError, NotFoundError } from '../errors.js';
 import { gatewayName } from '../lib/ledger.js';
 import { orderReference } from '../routes/runner-account.js';
+import { copiedOrderItem } from './basket.js';
+import { tillExpectedPence } from './orders.js';
 import { tellShopperWords } from './order-updates.js';
 
 type BasketContext = Pick<AppContext, 'repository' | 'config' | 'now' | 'payments'> &
@@ -60,7 +62,9 @@ export function deferredExtraPence(order: Pick<Order, 'extraDeliveryStatus' | 'f
 }
 
 /** What is taken from the card when the order is sent: everything but the deferred deliveries. */
-export function chargedNowPence(order: Pick<Order, 'totalEstimatePence' | 'extraDeliveryStatus' | 'feePence'>): number {
+export function chargedNowPence(
+  order: Pick<Order, 'totalEstimatePence' | 'extraDeliveryStatus' | 'feePence'>,
+): number {
   return order.totalEstimatePence - deferredExtraPence(order);
 }
 
@@ -72,7 +76,10 @@ export function mostOneOrderCarries(
   config: AppContext['config'],
   order: Pick<Order, 'basketGroupId'>,
 ): number {
-  return config.fees.maximumOrderGoodsPence + (order.basketGroupId ? config.dispatch.tinyExtraBelowPence : 0);
+  return (
+    config.fees.maximumOrderGoodsPence +
+    (order.basketGroupId ? config.dispatch.tinyExtraBelowPence : 0)
+  );
 }
 
 /** Whether this order is a tiny extra a person may ask the first Runner to carry. */
@@ -106,7 +113,11 @@ export async function alertTinyExtras(ctx: BasketContext, group: readonly Order[
 }
 
 /** Add to the Shopper's account as "Unused Runner fee credit", used on their next order. */
-async function creditUnusedRunnerFee(ctx: BasketContext, order: Order, pence: number): Promise<void> {
+async function creditUnusedRunnerFee(
+  ctx: BasketContext,
+  order: Order,
+  pence: number,
+): Promise<void> {
   const shopperId = order.payerShopperId ?? order.shopperId;
   const shopper = await ctx.repository.shoppers.findById(shopperId);
   if (!shopper || pence <= 0) return;
@@ -197,7 +208,10 @@ export async function releaseExtraDelivery(
         });
         await repository.orders.update(fresh.id, { extraDeliveryStatus: 'refunded' });
       } catch (failure) {
-        log.warn({ err: failure, orderId: fresh.id }, 'The unused Runner fee could not be refunded: kept as credit.');
+        log.warn(
+          { err: failure, orderId: fresh.id },
+          'The unused Runner fee could not be refunded: kept as credit.',
+        );
         await creditUnusedRunnerFee(ctx, fresh, fresh.feePence);
         await repository.orders.update(fresh.id, { extraDeliveryStatus: 'credited' });
       }
@@ -233,7 +247,13 @@ export async function listTinyExtras(
 }
 
 /** The first order may still take more on: not yet shopped for, and not over. */
-const FIRST_CAN_CARRY = new Set<Order['status']>(['confirmed', 'paid', 'offered', 'accepted', 'shopping']);
+const FIRST_CAN_CARRY = new Set<Order['status']>([
+  'confirmed',
+  'paid',
+  'offered',
+  'accepted',
+  'shopping',
+]);
 
 /**
  * "Carry with the first Runner" (ruling 61): a person has asked the first Runner to carry a tiny
@@ -256,18 +276,14 @@ export async function carryWithFirstRunner(
   }
   const first = await repository.orders.findById(extra.basketGroupId);
   if (!first || !FIRST_CAN_CARRY.has(first.status)) {
-    throw new ConflictError('The first order has already been shopped for, so it cannot take more on.');
+    throw new ConflictError(
+      'The first order has already been shopped for, so it cannot take more on.',
+    );
   }
   const at = ctx.now();
 
   for (const item of extra.items) {
-    await repository.orders.addItem(first.id, {
-      catalogueItemId: item.catalogueItemId,
-      name: item.name,
-      quantity: item.quantity,
-      estimatedPricePence: item.estimatedPricePence,
-      ...(item.note ? { note: item.note } : {}),
-    });
+    await repository.orders.addItem(first.id, copiedOrderItem(item));
   }
   const goods = first.goodsEstimatePence + extra.goodsEstimatePence;
   const updatedFirst = await repository.orders.update(first.id, {
@@ -275,7 +291,11 @@ export async function carryWithFirstRunner(
     itemChargesPence: first.itemChargesPence + extra.itemChargesPence,
     totalEstimatePence:
       first.totalEstimatePence + extra.goodsEstimatePence + extra.itemChargesPence,
-    runnerPaymentPence: Math.max(first.runnerPaymentPence, runnerPaymentFor(goods, config.fees)),
+    // What the Runner buys at the till decides the large-order pay (30 October 2026).
+    runnerPaymentPence: Math.max(
+      first.runnerPaymentPence,
+      runnerPaymentFor(tillExpectedPence(first) + tillExpectedPence(extra), config.fees),
+    ),
   });
 
   const cancelled = await repository.orders.update(extra.id, {

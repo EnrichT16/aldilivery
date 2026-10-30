@@ -6,17 +6,21 @@ import { connectToCall, type CallConnection } from '../lib/call-connection';
 import {
   READ_MESSAGES,
   answerCompanyCall,
+  answerVoucherRing,
   endCompanyCall,
   fetchCompanyCall,
   fetchInbox,
   fetchInboxUnread,
   markInboxRead,
+  markVoucherUsed,
   readMessagesAloud,
   replyToInbox,
   whenWords,
   type CompanyCall,
   type InboxAs,
   type InboxMessage,
+  type InboxVoucher,
+  type OziVoucherRing,
 } from '../lib/inbox-api';
 import { useOzi } from '../state/ozi';
 
@@ -30,8 +34,15 @@ const UNREAD_POLL_MS = 30_000;
 const CALL_POLL_MS = 5_000;
 
 /** How many messages are new: for the link on each account's main page. */
-export function useInboxUnread(as: InboxAs, on = true): { unread: number; ringing: boolean } {
-  const [state, setState] = useState({ unread: 0, ringing: false });
+export function useInboxUnread(
+  as: InboxAs,
+  on = true,
+): { unread: number; ringing: boolean; ozi: OziVoucherRing | null } {
+  const [state, setState] = useState<{
+    unread: number;
+    ringing: boolean;
+    ozi: OziVoucherRing | null;
+  }>({ unread: 0, ringing: false, ozi: null });
   useEffect(() => {
     if (!on) return undefined;
     let live = true;
@@ -42,6 +53,7 @@ export function useInboxUnread(as: InboxAs, on = true): { unread: number; ringin
             setState({
               unread: result.unread,
               ringing: result.call !== null && result.call !== undefined,
+              ozi: result.ozi ?? null,
             });
           }
         })
@@ -67,14 +79,190 @@ export function InboxLink({
   to: string;
   className?: string;
 }): JSX.Element {
-  const { unread, ringing } = useInboxUnread(as);
+  const { unread, ringing, ozi } = useInboxUnread(as);
+  const [done, setDone] = useState<string | null>(null);
   return (
-    <Link to={to} className={className}>
-      <span aria-hidden="true">✉ </span>
-      Messages
-      {unread > 0 ? `, ${unread} new` : ''}
-      {ringing ? `. ${storeConfig.productName} is calling` : ''}
-    </Link>
+    <>
+      <Link to={to} className={className}>
+        <span aria-hidden="true">✉ </span>
+        Messages
+        {unread > 0 ? `, ${unread} new` : ''}
+        {ringing || (ozi && ozi.id !== done) ? `. ${storeConfig.productName} is calling` : ''}
+      </Link>
+      {ozi && ozi.id !== done && <OziVoucherCall as={as} ring={ozi} onDone={setDone} />}
+    </>
+  );
+}
+
+/**
+ * Ozi ringing in the app about a voucher the person has not opened (Anthony, 30 October 2026):
+ * announced to a screen reader, Answer or Not now. Answered, Ozi says the words aloud and they
+ * stay on the screen.
+ */
+export function OziVoucherCall({
+  as,
+  ring,
+  onDone,
+}: {
+  as: InboxAs;
+  ring: OziVoucherRing;
+  onDone: (id: string) => void;
+}): JSX.Element {
+  const ozi = useOzi();
+  const [heard, setHeard] = useState<string | null>(null);
+  const reply = (answer: 'answer' | 'decline'): void => {
+    answerVoucherRing(as, ring.id, answer)
+      .then((result) => {
+        if (answer === 'answer') {
+          setHeard(result.words);
+          void ozi.say(result.words);
+        } else onDone(ring.id);
+      })
+      .catch(() => onDone(ring.id));
+  };
+  return (
+    <section
+      aria-labelledby={`ozi-ring-${ring.id}`}
+      className="border-2 border-highlight rounded-2xl p-4 space-y-3"
+    >
+      <h2 id={`ozi-ring-${ring.id}`} className="text-lead font-bold m-0">
+        {ring.from} is calling
+      </h2>
+      {heard ? (
+        <>
+          <p role="status" className="m-0">
+            {heard}
+          </p>
+          <button
+            type="button"
+            onClick={() => onDone(ring.id)}
+            className="control min-h-control bg-highlight text-on-accent"
+          >
+            End call
+          </button>
+        </>
+      ) : (
+        <>
+          <p role="alert" className="m-0">
+            {ring.from} is calling you about a thank-you voucher.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => reply('answer')}
+              className="control min-h-control bg-highlight text-on-accent"
+            >
+              <span aria-hidden="true">📞 </span>
+              Answer
+            </button>
+            <button
+              type="button"
+              onClick={() => reply('decline')}
+              className="control min-h-control border-paper bg-paper/10 text-paper"
+            >
+              Not now
+            </button>
+          </div>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** One character at a time, for a screen reader: "G I F T dash A B C D". */
+function spelledOut(code: string): string {
+  return [...code].map((char) => (char === '-' ? 'dash' : char === ' ' ? 'space' : char)).join(' ');
+}
+
+/**
+ * A referral reward voucher in a message (Anthony, 30 October 2026): the code shown clearly, read
+ * one character at a time by a screen reader, a "Copy code" button, the link if there is one, how
+ * long the gift card lasts, and "I've used it".
+ */
+export function VoucherCard({
+  as,
+  voucher,
+  onChanged,
+}: {
+  as: InboxAs;
+  voucher: InboxVoucher;
+  onChanged: (voucher: InboxVoucher, words: string) => void;
+}): JSX.Element {
+  const [said, setSaid] = useState('');
+  const codeId = `voucher-code-${voucher.id}`;
+  const copy = (): void => {
+    const clipboard = typeof navigator !== 'undefined' ? navigator.clipboard : undefined;
+    if (!clipboard) {
+      setSaid('Copying is not possible here. Please write the code down.');
+      return;
+    }
+    clipboard
+      .writeText(voucher.code)
+      .then(() => setSaid('The code is copied.'))
+      .catch(() => setSaid('The code could not be copied. Please write it down.'));
+  };
+  const used = (): void => {
+    markVoucherUsed(as, voucher.id)
+      .then((result) => {
+        setSaid(result.words);
+        onChanged(result.voucher, result.words);
+      })
+      .catch((failure: unknown) =>
+        setSaid(failure instanceof Error ? failure.message : 'That did not work.'),
+      );
+  };
+  return (
+    <section
+      aria-labelledby={`${codeId}-title`}
+      className="border-2 border-highlight rounded-2xl p-4 space-y-3"
+    >
+      <h2 id={`${codeId}-title`} className="text-lead font-bold m-0">
+        {voucher.title}
+      </h2>
+      <p className="m-0" id={codeId}>
+        Your code:{' '}
+        <code aria-hidden="true" className="text-display font-bold break-all">
+          {voucher.code}
+        </code>
+        <span className="visually-hidden">{spelledOut(voucher.code)}</span>
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={copy}
+          aria-describedby={codeId}
+          className="control min-h-control bg-highlight text-on-accent"
+        >
+          Copy code
+        </button>
+        {voucher.link && (
+          <a
+            href={voucher.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="control min-h-control border-paper bg-paper/10 text-paper"
+          >
+            Open the voucher<span className="visually-hidden"> (opens in a new tab)</span>
+          </a>
+        )}
+        {!voucher.usedAt && (
+          <button
+            type="button"
+            onClick={used}
+            className="control min-h-control border-paper bg-paper/10 text-paper"
+          >
+            I&rsquo;ve used it
+          </button>
+        )}
+      </div>
+      <p className="m-0">{voucher.lastsWords}</p>
+      {voucher.usedAt && (
+        <p className="m-0">You told us you used it, {whenWords(voucher.usedAt)}.</p>
+      )}
+      <p role="status" className="m-0 min-h-control">
+        {said}
+      </p>
+    </section>
   );
 }
 
@@ -196,6 +384,19 @@ export function Inbox({ as, title = 'Messages' }: { as: InboxAs; title?: string 
                 {message.sentAt ? `, ${whenWords(message.sentAt)}` : ''}
               </p>
               <p className="m-0 whitespace-pre-wrap">{message.text}</p>
+              {message.voucher && (
+                <VoucherCard
+                  as={as}
+                  voucher={message.voucher}
+                  onChanged={(voucher) =>
+                    setMessages((before) =>
+                      (before ?? []).map((row) =>
+                        row.id === message.id ? { ...row, voucher } : row,
+                      ),
+                    )
+                  }
+                />
+              )}
             </li>
           ))}
         </ol>

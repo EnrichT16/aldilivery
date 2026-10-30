@@ -2550,7 +2550,7 @@ function Partners({
                       : 'Partner Plus not paid: their products are hidden. '
                     : `Free listing${shop.freeForever ? ', for ever' : ''}. `
                   : shop.kind === 'food'
-                    ? `No commission, no monthly fee. Agreed discount ${shop.agreedDiscountPercent ?? 0}%${shop.preferredPartner ? `: a ${storeConfig.assistantName} Preferred Partner, Partner Plus free` : ''}. `
+                    ? `No commission, no monthly fee. Agreed discount ${shop.agreedDiscountPercent ?? 0}%, mark-up ${shop.agreedMarkupPercent ?? 0}%${shop.preferredPartner ? `: a ${storeConfig.assistantName} Preferred Partner, Partner Plus free` : ''}. `
                     : 'Free listing, enquiries only. '}
                 {shop.spotlightActive ? 'On Spotlight. ' : ''}
                 {shop.live} live, {shop.waiting} waiting. Sign-ins:{' '}
@@ -2559,9 +2559,10 @@ function Partners({
                   : 'none yet'}
                 .
               </p>
-              {/* A restaurant's agreed discount for Ozi (Anthony, 30 October 2026), set when
-                  approving or editing it; 0 for none. */}
-              {shop.kind === 'food' && shop.status !== 'removed' && (
+              {/* A partner's agreed discount for Ozi and mark-up on its prices (Anthony, 30
+                  October 2026), set when approving or editing it; 0 for none. A restaurant, café,
+                  takeaway or shop; never a service. */}
+              {shop.kind !== 'service' && shop.status !== 'removed' && (
                 <form
                   onSubmit={(event) => {
                     const value = values(event);
@@ -2569,9 +2570,10 @@ function Partners({
                       staffKey,
                       shop.id,
                       Number(value(`discount-${shop.id}`) || '0'),
+                      Number(value(`markup-${shop.id}`) || '0'),
                     )
                       .then(() => {
-                        onNews(`${shop.name}: the agreed discount is saved.`);
+                        onNews(`${shop.name}: the agreed discount and mark-up are saved.`);
                         list.reload();
                       })
                       .catch(fail);
@@ -2594,8 +2596,29 @@ function Partners({
                       className={`${field} max-w-[10rem]`}
                     />
                   </div>
+                  <div className="space-y-1">
+                    <label htmlFor={`markup-${shop.id}`} className="block font-bold">
+                      Mark-up on its prices, percent
+                    </label>
+                    <input
+                      id={`markup-${shop.id}`}
+                      name={`markup-${shop.id}`}
+                      type="number"
+                      inputMode="numeric"
+                      min={0}
+                      max={list.data?.maximumMarkupPercent ?? 100}
+                      step={1}
+                      defaultValue={shop.agreedMarkupPercent ?? 0}
+                      aria-describedby={`markup-help-${shop.id}`}
+                      className={`${field} max-w-[10rem]`}
+                    />
+                    <p id={`markup-help-${shop.id}`} className="m-0 text-sm">
+                      50 makes a £10 dish £15 for Shoppers.
+                    </p>
+                  </div>
                   <button type="submit" className="control bg-highlight text-on-accent">
-                    Save the discount<span className="visually-hidden"> for {shop.name}</span>
+                    Save the discount and mark-up
+                    <span className="visually-hidden"> for {shop.name}</span>
                   </button>
                   {shop.preferredPartner && (
                     <button

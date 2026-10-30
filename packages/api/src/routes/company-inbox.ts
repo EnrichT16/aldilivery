@@ -15,7 +15,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
 import { requireSession } from '../app.js';
-import type { InboxAccountKind, InboxMessage, StaffCall } from '../domain.js';
+import type { InboxAccountKind, InboxMessage, ReferralVoucher, StaffCall } from '../domain.js';
 import {
   ApiError,
   ConflictError,
@@ -57,6 +57,14 @@ import {
   useMessageCode,
   type ContactAccount,
 } from '../services/company-contact.js';
+import {
+  accountSeen,
+  accountVoucherView,
+  answerVoucherRing,
+  ringingVoucher,
+  voucherUsed,
+  vouchersRead,
+} from '../services/vouchers.js';
 
 /** A pass into a room lasts long enough to connect, not for ever. */
 const TOKEN_SECONDS = 10 * 60;
@@ -111,8 +119,13 @@ export async function registerCompanyInboxRoutes(app: FastifyInstance): Promise<
     return { account, senderName: account.name };
   }
 
-  /** What the account sees of a message: who from, never a code or what authorised it. */
-  function accountView(message: InboxMessage) {
+  /**
+   * What the account sees of a message: who from, never a staff code or what authorised it. A
+   * referral voucher's message carries the voucher itself, its code in full, for this person
+   * alone (30 October 2026).
+   */
+  function accountView(message: InboxMessage, vouchers: readonly ReferralVoucher[] = []) {
+    const voucher = vouchers.find((row) => row.messageId === message.id && row.erasedAt === null);
     return {
       id: message.id,
       from: message.fromStaff ? 'company' : 'you',
@@ -122,7 +135,13 @@ export async function registerCompanyInboxRoutes(app: FastifyInstance): Promise<
       text: message.text,
       sentAt: message.sentAt,
       readAt: message.fromStaff ? message.readAt : null,
+      voucher: voucher ? accountVoucherView(ctx, voucher) : null,
     };
+  }
+
+  /** This account's sent vouchers. */
+  function vouchersOf(account: ContactAccount): Promise<ReferralVoucher[]> {
+    return repository.vouchers.listFor(account.kind, account.id);
   }
 
   async function accountMessages(account: ContactAccount): Promise<InboxMessage[]> {
@@ -155,21 +174,29 @@ export async function registerCompanyInboxRoutes(app: FastifyInstance): Promise<
 
   app.get('/inbox', async (request) => {
     const { account } = await inboxAccount(request);
+    accountSeen(ctx, account.kind, account.id);
     const messages = await accountMessages(account);
+    const vouchers = await vouchersOf(account);
     return {
       productName: config.productName,
-      messages: messages.map(accountView),
+      messages: messages.map((message) => accountView(message, vouchers)),
       unread: unreadOf(messages),
     };
   });
 
-  /** For the main pages' count, and a call ringing: cheap enough to ask every half minute. */
+  /**
+   * For the main pages' count, and a call ringing: cheap enough to ask every half minute. Ozi
+   * ringing about an unopened voucher comes here too (30 October 2026), and asking means the app
+   * is open, so a reminder may ring in it.
+   */
   app.get('/inbox/unread', async (request) => {
     const { account } = await inboxAccount(request);
+    accountSeen(ctx, account.kind, account.id);
     const call = await currentCall(account);
     return {
       unread: unreadOf(await accountMessages(account)),
       call: call ? accountCallView(call) : null,
+      ozi: await ringingVoucher(ctx, account),
     };
   });
 
@@ -181,7 +208,29 @@ export async function registerCompanyInboxRoutes(app: FastifyInstance): Promise<
         await contact.updateMessage(message.id, { readAt: at });
       }
     }
+    // A voucher message read is a voucher opened: no more reminders (30 October 2026).
+    await vouchersRead(ctx, account);
     return { unread: 0 };
+  });
+
+  /** "I've used it": the person's own word, as Amazon cannot tell us (30 October 2026). */
+  app.post('/inbox/vouchers/:id/used', async (request) => {
+    const { account } = await inboxAccount(request);
+    const { id } = z.object({ id: z.string().min(1).max(60) }).parse(request.params);
+    const voucher = await voucherUsed(ctx, account, id);
+    return {
+      voucher: accountVoucherView(ctx, voucher),
+      words: 'Thank you. We have noted that you have used your voucher.',
+    };
+  });
+
+  /** Ozi's reminder ring about a voucher, answered in the app or turned down. */
+  app.post('/inbox/vouchers/:id/ring/:answer', async (request) => {
+    const { account } = await inboxAccount(request);
+    const { id, answer } = z
+      .object({ id: z.string().min(1).max(60), answer: z.enum(['answer', 'decline']) })
+      .parse(request.params);
+    return answerVoucherRing(ctx, account, id, answer === 'answer');
   });
 
   app.post('/inbox/reply', async (request, reply) => {
@@ -197,8 +246,12 @@ export async function registerCompanyInboxRoutes(app: FastifyInstance): Promise<
 
   app.get('/inbox/call', async (request) => {
     const { account } = await inboxAccount(request);
+    accountSeen(ctx, account.kind, account.id);
     const call = await currentCall(account);
-    return { call: call ? accountCallView(call) : null };
+    return {
+      call: call ? accountCallView(call) : null,
+      ozi: call ? null : await ringingVoucher(ctx, account),
+    };
   });
 
   async function accountCall(

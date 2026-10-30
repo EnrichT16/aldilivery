@@ -162,9 +162,13 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
               id: item.id,
               name: item.name,
               quantity: item.quantity,
-              estimatedPricePence: order.restaurantShopId
-                ? counterPricePence(item.estimatedPricePence, order.restaurantDiscountPercent)
-                : item.estimatedPricePence,
+              // What the Runner pays for it: a partner's counter price where it was kept
+              // (Anthony, 30 October 2026), never the marked-up price the Shopper pays.
+              estimatedPricePence:
+                item.counterPricePence ??
+                (order.restaurantShopId
+                  ? counterPricePence(item.estimatedPricePence, order.restaurantDiscountPercent)
+                  : item.estimatedPricePence),
             })),
           },
         };

@@ -2,7 +2,7 @@
  * Referral links for everybody, the referral log and reward levels, and Ozi Ambassadors (Anthony,
  * 30 October 2026): links recorded for every kind of account, what "active" means, the 70% rule,
  * levels and the owner told once, the staff page and who may open it, and the Ambassador share
- * (2% of item charges, or of a restaurant's discount plus its item charges, a quarter on another
+ * (2% of item charges, or of a restaurant's discount only, a quarter on another
  * branch, 12 months, 5% of the first Partner Plus payment once, the review over £500 once a
  * month, opt-in and no introducing yourself), and the money made tamper-proof: pending for 30
  * days, following refunds and chargebacks, deductions, only what is available paid, and
@@ -574,53 +574,127 @@ describe('Ozi Ambassadors', () => {
     expect((await harness.repository.partnerShops.findById(second.id))?.ambassadorId).toBeNull();
   });
 
-  it('earns 2% of the item charges on a shop’s orders, once, for 12 months from approval', async () => {
+  it('earns 1% of the item charges on a shop’s orders, once, for 12 months from approval', async () => {
     const ada = await ambassador();
     await optIn(ada.authHeader);
     const shop = await joinShop({ ambassador: ada.via });
 
     // Not yet approved: nothing earned.
-    const early = await orderFrom(shop.id, 1200, 10);
+    const early = await orderFrom(shop.id, 1200, 20);
     expect(await creditAmbassadorShares(harness.app.ctx, early)).toEqual([]);
 
     await approve(shop.id);
-    // £12 each: an item charge of £1.50, ten of them £15; 2% of that is 30p. Not the delivery fee.
-    const order = await orderFrom(shop.id, 1200, 10);
+    // £12 each: an item charge of £1.50, twenty of them £30; 1% of that is 30p (Anthony's final
+    // ruling, 30 October 2026). Not the delivery fee.
+    const order = await orderFrom(shop.id, 1200, 20);
     const [entry] = await creditAmbassadorShares(harness.app.ctx, order);
     expect(entry).toEqual(
-      expect.objectContaining({ kind: 'share', profitPence: 1500, amountPence: 30 }),
+      expect.objectContaining({ kind: 'share', profitPence: 3000, amountPence: 30 }),
     );
     expect(await creditAmbassadorShares(harness.app.ctx, order)).toEqual([]);
 
     // Twelve months on, nothing more.
-    const late = await orderFrom(shop.id, 1200, 10, new Date('2027-11-10T10:00:00.000Z'));
+    const late = await orderFrom(shop.id, 1200, 20, new Date('2027-11-10T10:00:00.000Z'));
     expect(await creditAmbassadorShares(harness.app.ctx, late)).toEqual([]);
-    const nearly = await orderFrom(shop.id, 1200, 10, new Date('2027-11-10T09:00:00.000Z'));
+    const nearly = await orderFrom(shop.id, 1200, 20, new Date('2027-11-10T09:00:00.000Z'));
     expect(await creditAmbassadorShares(harness.app.ctx, nearly)).toHaveLength(1);
 
     const summary = await ambassadorSummary(harness.app.ctx, 'shopper', ada.shopperId);
     expect(summary.earnedPence).toBe(60);
   });
 
-  it('earns 2% of a restaurant’s discount plus its item charges, never the restaurant fee', async () => {
+  it('earns 2% of a restaurant’s mark-up and 2% of its discount, never the item charges', async () => {
     const ada = await ambassador();
     await optIn(ada.authHeader);
     const cafe = await joinShop({ ambassador: ada.via, kind: 'food', about: 'Breakfasts.' });
     await approve(cafe.id);
-    // Restaurants pay no commission (Anthony, 30 October 2026). Ten £9 dishes, £90, at a 20%
-    // discount: £18 of discount, and £10 of item charges (£1 a dish), so Ozi's profit is £28 and
-    // 2% of it 56p. The £12 restaurant fee is never in it.
+    // Anthony's final ruling (30 October 2026): a £10 dish, 50% mark-up and 20% discount. The
+    // Shopper pays £15, the Runner £8: 2% of the £5 mark-up and 2% of the £2 discount, 14p.
+    const order = await orderFrom(cafe.id, 1500, 1, undefined, 20);
+    const shopper = order.shopperId;
+    const kept = await harness.repository.orders.create({
+      shopperId: shopper,
+      status: 'delivered',
+      goodsEstimatePence: 1500,
+      feePence: 1200,
+      totalEstimatePence: 1500 + 150 + 1200,
+      deliveryAddress: '1 High Street, Gillingham ME7 1AA',
+      restaurantShopId: cafe.id,
+      restaurantDiscountPercent: 20,
+      items: [
+        {
+          catalogueItemId: order.items[0]!.catalogueItemId,
+          name: 'Thing',
+          quantity: 1,
+          estimatedPricePence: 1500,
+          shopPricePence: 1000,
+          counterPricePence: 800,
+        },
+      ],
+    });
+    await harness.repository.orders.update(kept.id, { deliveredAt: harness.now() });
+    const [entry] = await creditAmbassadorShares(harness.app.ctx, kept);
+    expect(entry).toEqual(expect.objectContaining({ profitPence: 700, amountPence: 14 }));
+  });
+
+  it('earns 1% of a grocery shop’s item charges, mark-up and discount', async () => {
+    const ada = await ambassador();
+    await optIn(ada.authHeader);
+    const shop = await joinShop({ ambassador: ada.via });
+    await approve(shop.id);
+    // Twenty things at £10 in the shop, 50% mark-up (£15 shown) and 10% discount (£9 at the
+    // till): item charges on £15 of £1.50 each, £30; mark-up £100; discount £20. 1% of each:
+    // 30p + £1 + 20p = £1.50.
+    const order = await orderFrom(shop.id, 1500, 20);
+    const kept = await harness.repository.orders.create({
+      shopperId: order.shopperId,
+      status: 'delivered',
+      goodsEstimatePence: 30_000,
+      feePence: 1499,
+      totalEstimatePence: 30_000 + 3000 + 1499,
+      deliveryAddress: '1 High Street, Gillingham ME7 1AA',
+      items: [
+        {
+          catalogueItemId: order.items[0]!.catalogueItemId,
+          name: 'Thing',
+          quantity: 20,
+          estimatedPricePence: 1500,
+          shopPricePence: 1000,
+          counterPricePence: 900,
+        },
+      ],
+    });
+    await harness.repository.orders.update(kept.id, { deliveredAt: harness.now() });
+    const [entry] = await creditAmbassadorShares(harness.app.ctx, kept);
+    expect(entry).toEqual(expect.objectContaining({ profitPence: 15_000, amountPence: 150 }));
+  });
+
+  it('earns 2% of a restaurant’s discount, never its item charges or the restaurant fee', async () => {
+    const ada = await ambassador();
+    await optIn(ada.authHeader);
+    const cafe = await joinShop({ ambassador: ada.via, kind: 'food', about: 'Breakfasts.' });
+    await approve(cafe.id);
+    // Restaurants pay no commission (Anthony, 30 October 2026, changed the same day). Ten £9
+    // dishes, £90, at a 20% discount: £18 of discount, and 2% of it 36p. The £10 of item charges
+    // and the restaurant fee are never in it.
     const [entry] = await creditAmbassadorShares(
       harness.app.ctx,
       await orderFrom(cafe.id, 900, 10, undefined, 20),
     );
-    expect(entry).toEqual(expect.objectContaining({ profitPence: 2800, amountPence: 56 }));
-    // With no discount agreed, the item charges alone: £10, 2% of it 20p.
-    const [plain] = await creditAmbassadorShares(
+    expect(entry).toEqual(expect.objectContaining({ profitPence: 1800, amountPence: 36 }));
+    // The founder's example: one £10 dish at 20%, a £2 margin, 2% of it 4p.
+    const [one] = await creditAmbassadorShares(
       harness.app.ctx,
-      await orderFrom(cafe.id, 900, 10, undefined, 0),
+      await orderFrom(cafe.id, 1000, 1, undefined, 20),
     );
-    expect(plain).toEqual(expect.objectContaining({ profitPence: 1000, amountPence: 20 }));
+    expect(one).toEqual(expect.objectContaining({ profitPence: 200, amountPence: 4 }));
+    // With no discount agreed, nothing.
+    expect(
+      await creditAmbassadorShares(
+        harness.app.ctx,
+        await orderFrom(cafe.id, 900, 10, undefined, 0),
+      ),
+    ).toEqual([]);
   });
 
   it('earns a quarter on another branch through the same link, and nothing on a branch without it', async () => {
@@ -640,17 +714,17 @@ describe('Ozi Ambassadors', () => {
 
     const [full] = await creditAmbassadorShares(
       harness.app.ctx,
-      await orderFrom(main.id, 1200, 10),
+      await orderFrom(main.id, 1200, 20),
     );
     const [quarter] = await creditAmbassadorShares(
       harness.app.ctx,
-      await orderFrom(branch.id, 1200, 10),
+      await orderFrom(branch.id, 1200, 20),
     );
     expect(full?.amountPence).toBe(30);
-    // A quarter of 2% is 0.5%: of £15 of item charges, 7.5p, to the nearest penny 8p.
+    // A quarter of 1% is 0.25%: of £30 of item charges, 7.5p, to the nearest penny 8p.
     expect(quarter?.amountPence).toBe(8);
     expect(
-      await creditAmbassadorShares(harness.app.ctx, await orderFrom(elsewhere.id, 1200, 10)),
+      await creditAmbassadorShares(harness.app.ctx, await orderFrom(elsewhere.id, 1200, 20)),
     ).toEqual([]);
   });
 
@@ -716,7 +790,7 @@ describe('Ozi Ambassadors', () => {
     await optIn(ada.authHeader);
     const shop = await joinShop({ ambassador: ada.via });
     await approve(shop.id);
-    await creditAmbassadorShares(harness.app.ctx, await orderFrom(shop.id, 1200, 10));
+    await creditAmbassadorShares(harness.app.ctx, await orderFrom(shop.id, 1200, 20));
     // 30p, pending: nothing can be paid.
     expect(
       (await post(`/staff/ambassadors/shopper/${ada.shopperId}/paid`, { by: 'Anthony' }, STAFF))
@@ -825,10 +899,10 @@ describe('Ambassador money is tamper-proof (ruled 30 October 2026)', () => {
   it('comes only from a real, delivered order, read again from the records', async () => {
     const { shop } = await tiedShop();
     expect(await creditAmbassadorShares(harness.app.ctx, { id: 'made-up' })).toEqual([]);
-    const shopping = await delivered(shop.id, 10, { status: 'shopping', deliveredAt: null });
+    const shopping = await delivered(shop.id, 20, { status: 'shopping', deliveredAt: null });
     expect(await creditAmbassadorShares(harness.app.ctx, shopping)).toEqual([]);
     // What the caller hands in is not believed: the order as recorded is.
-    const order = await delivered(shop.id, 10);
+    const order = await delivered(shop.id, 20);
     const [entry] = await creditAmbassadorShares(harness.app.ctx, {
       ...order,
       items: order.items.map((item) => ({ ...item, quantity: 1000 })),
@@ -838,8 +912,8 @@ describe('Ambassador money is tamper-proof (ruled 30 October 2026)', () => {
 
   it('stays pending for 30 days, following a cancel or part refund, then is available', async () => {
     const { ada, shop } = await tiedShop();
-    const whole = await delivered(shop.id, 10);
-    const part = await delivered(shop.id, 10);
+    const whole = await delivered(shop.id, 20);
+    const part = await delivered(shop.id, 20);
     await creditAmbassadorShares(harness.app.ctx, whole);
     await creditAmbassadorShares(harness.app.ctx, part);
     expect(await summary(ada.shopperId)).toEqual(
@@ -863,7 +937,7 @@ describe('Ambassador money is tamper-proof (ruled 30 October 2026)', () => {
 
   it('takes a later refund off what is available next, never below zero, as a line', async () => {
     const { ada, shop } = await tiedShop();
-    const order = await delivered(shop.id, 10);
+    const order = await delivered(shop.id, 20);
     await creditAmbassadorShares(harness.app.ctx, order);
     harness.setNow(new Date('2026-12-11T10:00:00.000Z'));
     expect((await summary(ada.shopperId)).availablePence).toBe(30);
@@ -883,7 +957,7 @@ describe('Ambassador money is tamper-proof (ruled 30 October 2026)', () => {
     expect((await summary(ada.shopperId)).deductionsPence).toBe(30);
 
     // Another share, available and paid; then a chargeback on it: nothing goes below zero.
-    const second = await delivered(shop.id, 10, { stripePaymentIntentId: 'pi_disputed' });
+    const second = await delivered(shop.id, 20, { stripePaymentIntentId: 'pi_disputed' });
     await creditAmbassadorShares(harness.app.ctx, second);
     harness.setNow(new Date('2027-01-11T10:00:00.000Z'));
     expect((await summary(ada.shopperId)).availablePence).toBe(30);
@@ -907,7 +981,7 @@ describe('Ambassador money is tamper-proof (ruled 30 October 2026)', () => {
 
   it('hears of a chargeback from Stripe', async () => {
     const { ada, shop } = await tiedShop();
-    const order = await delivered(shop.id, 10, { stripePaymentIntentId: 'pi_chargeback' });
+    const order = await delivered(shop.id, 20, { stripePaymentIntentId: 'pi_chargeback' });
     await creditAmbassadorShares(harness.app.ctx, order);
     expect((await summary(ada.shopperId)).pendingPence).toBe(30);
     const hook = await harness.app.inject({
@@ -972,6 +1046,58 @@ describe('Ambassador money is tamper-proof (ruled 30 October 2026)', () => {
     expect((await post('/ambassador/withdraw', {}, ada.authHeader)).statusCode).toBe(409);
     const mine = (await get('/referrals/me', ada.authHeader)).json().ambassador;
     expect(mine.withdrawals[0].words).toBe('£12.00: sent to your bank.');
+  });
+
+  it('asks an Ambassador on older terms to agree again: the link works, withdrawals wait', async () => {
+    const { ada, shop } = await tiedShop();
+    await earn(ada.shopperId, shop.id, 1200);
+    await post('/ambassador/bank', {}, { ...ada.authHeader, origin: 'http://localhost:5173' });
+    // They agreed to the terms before they changed on 30 October 2026.
+    const agreement = (await harness.repository.ambassadors.findAgreement(
+      'shopper',
+      ada.shopperId,
+    ))!;
+    await harness.repository.ambassadors.updateAgreement(agreement.id, {
+      termsVersion: '2026-10-30',
+    });
+    const mine = (await get('/referrals/me', ada.authHeader)).json().ambassador;
+    expect(mine).toEqual(
+      expect.objectContaining({
+        joined: true,
+        termsChanged: true,
+        termsChangedWords: 'Our terms have changed. Please read and agree to keep going.',
+        canWithdraw: false,
+      }),
+    );
+    // Their link still works.
+    expect(mine.link).toBeTruthy();
+    const another = await joinShop({
+      ambassador: `shopper:${await handleOf(ada.shopperId)}`,
+    });
+    expect((await harness.repository.partnerShops.findById(another.id))?.ambassadorId).toBe(
+      ada.shopperId,
+    );
+    // A withdrawal waits.
+    const waiting = await post('/ambassador/withdraw', {}, ada.authHeader);
+    expect(waiting.statusCode).toBe(409);
+    expect(waiting.json().error.message).toBe(
+      'Our terms have changed. Please read and agree to keep going.',
+    );
+    // "I agree": the new version and the moment are kept, and they can withdraw again.
+    harness.setNow(new Date(harness.now().getTime() + 60_000));
+    const again = await post(
+      '/ambassador/join',
+      { termsAgreed: true, termsVersion: AMBASSADOR_TERMS_VERSION },
+      ada.authHeader,
+    );
+    expect(again.statusCode, again.body).toBe(200);
+    const agreed = await harness.repository.ambassadors.findAgreement('shopper', ada.shopperId);
+    expect(agreed).toEqual(
+      expect.objectContaining({ termsVersion: AMBASSADOR_TERMS_VERSION, agreedAt: harness.now() }),
+    );
+    expect((await get('/referrals/me', ada.authHeader)).json().ambassador.termsChanged).toBe(false);
+    const sent = await post('/ambassador/withdraw', {}, ada.authHeader);
+    expect(sent.statusCode, sent.body).toBe(200);
   });
 
   it('holds a withdrawal over £500 in a month, or from somebody flagged, for staff to approve', async () => {

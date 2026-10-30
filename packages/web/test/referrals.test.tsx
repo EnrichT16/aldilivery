@@ -233,10 +233,20 @@ describe('becoming an Ozi Ambassador', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByText(
-        /2% of our profit on every order from a business you introduce, for 12 months/,
+        /A share of what we keep on every order from a business you introduce, for 12 months/,
       ),
     ).toBeInTheDocument();
-    expect(screen.getByText(/0\.5% on another branch of the same business/)).toBeInTheDocument();
+    // Anthony's final ruling (30 October 2026): both sides of a restaurant's, and a shop's.
+    expect(
+      screen.getByText(/2% of the mark-up we keep .* and 2% of the discount we keep/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/£10\.00 dish with a 50% mark-up and a 20% discount: .* £0\.14/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/1% of the item charges on its things/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/a quarter of each rate: 0\.5% and 0\.5% on a restaurant, 0\.25% on a shop/),
+    ).toBeInTheDocument();
     expect(screen.getByText(AMBASSADOR_EDUCATION)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Read the Ozi Ambassador terms' })).toHaveAttribute(
       'href',
@@ -258,7 +268,7 @@ describe('becoming an Ozi Ambassador', () => {
     ).toBeInTheDocument();
     expect(sent.find((row) => row.path === '/ambassador/join')?.body).toEqual({
       termsAgreed: true,
-      termsVersion: '2026-10-30',
+      termsVersion: '2026-10-30b',
     });
     expect(news).toHaveBeenCalledWith('Welcome, you are now an Ozi Ambassador.');
     expect(
@@ -405,9 +415,15 @@ describe('the Ozi Ambassador terms page', () => {
     ).toBeInTheDocument();
     const text = container.textContent ?? '';
     expect(text).toMatch(/not our employee, worker or\s+agent/);
-    expect(text).toMatch(/2% of our profit/);
+    expect(text).toMatch(/A share of what we keep/);
+    expect(text).toMatch(/2% of the mark-up we keep/);
+    expect(text).toMatch(/2% of the discount we keep/);
+    expect(text).toMatch(/Never the item charges or the restaurant fee/);
+    expect(text).toMatch(
+      /1% of the item charges on its things, and 1% of any mark-up and 1% of any discount/,
+    );
     expect(text).toMatch(/for 12 months from the day we approve/);
-    expect(text).toMatch(/0\.5%, a quarter of the rate/);
+    expect(text).toMatch(/a quarter of each rate/);
     expect(text).toMatch(/A one-off 5% of the business.s first Partner Plus payment/);
     expect(text).toMatch(/never the delivery fee/i);
     expect(text).toMatch(/stay pending for 30 days/);

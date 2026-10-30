@@ -28,6 +28,8 @@ import { callScript, codeMessage, senderName, twilioCaller, twilioSender } from 
 import { twilioDialler } from './lib/twilio-voice.js';
 import { sweepAllocations } from './services/allocate.js';
 import { sweepOffers } from './services/dispatch.js';
+import { refundUntakenOrders } from './services/order-rescue.js';
+import { sweepVoucherReminders } from './services/vouchers.js';
 import { sweepScheduled } from './services/scheduled.js';
 import { sweepPayouts } from './services/pay-runner.js';
 import { sweepReimbursements } from './services/reimburse.js';
@@ -309,6 +311,17 @@ async function main(): Promise<void> {
       )
       .catch((failure: unknown) => {
         app.log.error({ err: failure }, 'The offer sweep failed');
+      })
+      // A paid order no Runner has taken in two hours: cancelled with a full refund (30 October
+      // 2026).
+      .then(() => refundUntakenOrders(app.ctx, app.log))
+      .then((cancelled) => {
+        if (cancelled && cancelled.length > 0) {
+          app.log.info({ orders: cancelled.length }, 'Orders no Runner took were refunded');
+        }
+      })
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, 'The no-Runner refund sweep failed');
       });
   }, 10_000);
   sweep.unref();
@@ -317,6 +330,15 @@ async function main(): Promise<void> {
   // Shopper chose, tried again every hour after a refusal; an order still unpaid at its offer
   // time held, with the Shopper and the owner told; the Shopper's reminders; and the owner's
   // one morning summary on Ozi's desk. Offering them on the day is the offer sweep's, above.
+  // Every minute: Ozi's reminder calls about sent vouchers still unopened (30 October 2026),
+  // never in quiet hours.
+  const voucherSweep = setInterval(() => {
+    sweepVoucherReminders(app.ctx, app.log).catch((failure: unknown) => {
+      app.log.error({ err: failure }, 'The voucher reminder sweep failed');
+    });
+  }, 60_000);
+  voucherSweep.unref();
+
   let bookedRunning = false;
   const bookedSweep = setInterval(() => {
     if (bookedRunning) return;
@@ -568,6 +590,7 @@ async function main(): Promise<void> {
   const shutdown = async (signal: string): Promise<void> => {
     clearInterval(sweep);
     clearInterval(bookedSweep);
+    clearInterval(voucherSweep);
     clearInterval(deskSweep);
     clearInterval(deskFallback);
     if (emailSweep) clearInterval(emailSweep);

@@ -32,6 +32,8 @@ import type { Order, PaymentMethod, Shopper } from '../domain.js';
 import { cardAccepted } from '../lib/card-region.js';
 import {
   priceLinesInParts,
+  carriedPence,
+  orderItemFor,
   restaurantsOf,
   type PricedBasketInParts,
   type RestaurantLookup,
@@ -275,7 +277,8 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
           ...fields,
           goodsEstimatePence: part.goodsPence,
           // Rule Two as amended by ruling 60: £5, or £7 for £120 or more of shopping.
-          runnerPaymentPence: runnerPaymentFor(part.goodsPence, config.fees),
+          // What the Runner buys at the till decides the large-order pay (30 October 2026).
+          runnerPaymentPence: runnerPaymentFor(carriedPence(part.lines), config.fees),
           itemChargesPence: part.itemChargesPence,
           feePence: part.feePence,
           // Ruling 73: the extra delivery charge past the monthly allowance, on the first only.
@@ -297,12 +300,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
                 ...(part.extra ? { extraDeliveryStatus: extraStatus } : {}),
               }
             : {}),
-          items: part.lines.map((line) => ({
-            catalogueItemId: line.catalogueItemId,
-            name: line.name,
-            quantity: line.quantity,
-            estimatedPricePence: line.unitPricePence,
-          })),
+          items: part.lines.map(orderItemFor),
         }),
       );
     }

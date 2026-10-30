@@ -1,3 +1,4 @@
+import { markupDisclosureWords } from '@aldilivery/core';
 import { Link } from 'react-router-dom';
 
 import { CompanyDetails, DetailsToFollowNotice, companyFacts } from '../components/CompanyDetails';
@@ -105,12 +106,18 @@ export function Terms(): JSX.Element {
             restaurant&rsquo;s own shop price, with the same item charge on each dish. Instead of
             delivery there is a flat restaurant fee of {money(restaurants.feePence)} an order,
             whatever your plan, with no extra delivery charge; {money(runnerPaymentPence)} of it
-            goes to your Runner. The smallest restaurant order is{' '}
+            goes to your Runner. For {money(restaurants.largeOrderFromPence)} of dishes or more the
+            restaurant fee is {money(restaurants.largeOrderFeePence)}, because your Runner is paid{' '}
+            {money(storeConfig.fees.largeOrderRunnerPaymentPence)}; we keep the same{' '}
+            {money(restaurants.ozisSharePence)} either way. The smallest restaurant order is{' '}
             {money(restaurants.minimumOrderPence)} of dishes at the shop&rsquo;s prices, and we tell
             you before you pay if yours is smaller. A restaurant order comes from one restaurant, on
             its own: dishes cannot go in the same order as other shopping. Some restaurants give us
-            a better price than their shop price; you still pay their shop price, and we keep the
-            difference. Those restaurants are shown first, and we say so where they are listed.
+            a better price than their shop price; we keep the difference. Those restaurants are
+            shown first, and we say so where they are listed. Some restaurants and shops have agreed
+            that we add a mark-up to their prices, which we keep:{' '}
+            {markupDisclosureWords(storeConfig.assistantName, 'food')} We say so next to their
+            prices, and the price we show before you pay is the price you pay.
           </li>
           <li>
             One order carries up to {money(maximumOrderGoodsPence)} of shopping, which is what one

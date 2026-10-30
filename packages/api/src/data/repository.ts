@@ -80,6 +80,7 @@ import type {
   InboxAccountKind,
   InboxMessage,
   InboxThread,
+  ReferralVoucher,
   StaffCall,
   StaffCode,
   StaffCodeKind,
@@ -142,7 +143,7 @@ export type CreatePaymentMethod = Pick<
   Partial<Pick<PaymentMethod, 'brand' | 'region' | 'isDefault'>>;
 
 export type CreateOrderItem = Pick<OrderItem, 'name' | 'quantity' | 'estimatedPricePence'> &
-  Partial<Pick<OrderItem, 'catalogueItemId' | 'note'>>;
+  Partial<Pick<OrderItem, 'catalogueItemId' | 'note' | 'shopPricePence' | 'counterPricePence'>>;
 
 /** The statuses of a booked order (ruling 78) that is not yet being shopped. */
 export const SCHEDULED_WAITING: readonly OrderStatus[] = [
@@ -381,6 +382,43 @@ export interface Repository {
   };
 
   /**
+   * Referral reward vouchers staff sent (Anthony, 30 October 2026): one a level reached. The code
+   * is removed when the account is erased (`eraseFor`).
+   */
+  vouchers: {
+    /** Keeps it; a second voucher for the same level gives null, and the first stays. */
+    create(
+      input: Pick<
+        ReferralVoucher,
+        | 'levelId'
+        | 'accountKind'
+        | 'accountId'
+        | 'label'
+        | 'rewardPence'
+        | 'code'
+        | 'link'
+        | 'messageId'
+        | 'sentById'
+        | 'sentByName'
+        | 'sentAt'
+        | 'nextReminderAt'
+      >,
+    ): Promise<ReferralVoucher | null>;
+    findById(id: string): Promise<ReferralVoucher | null>;
+    findByLevel(levelId: string): Promise<ReferralVoucher | null>;
+    /** Newest first. */
+    listFor(accountKind: ReferralKind, accountId: string): Promise<ReferralVoucher[]>;
+    /** Every one whose next reminder is due by `at`, oldest due first. */
+    listDue(at: Date): Promise<ReferralVoucher[]>;
+    update(
+      id: string,
+      patch: Partial<Omit<ReferralVoucher, 'id' | 'levelId' | 'accountKind' | 'accountId'>>,
+    ): Promise<ReferralVoucher>;
+    /** The account is erased: every code and link of theirs goes, and no more reminders. */
+    eraseFor(accountKind: ReferralKind, accountId: string, at: Date): Promise<number>;
+  };
+
+  /**
    * What Ozi Ambassadors earned and were paid (Anthony, 30 October 2026). A pending share may
    * change with its order's final state (ruled the same day); nothing is ever removed.
    */
@@ -399,7 +437,10 @@ export interface Repository {
     updateAgreement(
       id: string,
       patch: Partial<
-        Pick<AmbassadorAgreement, 'stripeConnectedAccountId' | 'flaggedAt' | 'flagReason'>
+        Pick<
+          AmbassadorAgreement,
+          'stripeConnectedAccountId' | 'flaggedAt' | 'flagReason' | 'termsVersion' | 'agreedAt'
+        >
       >,
     ): Promise<AmbassadorAgreement>;
     /** Adds it; one with the same reference already there gives null, and nothing is added. */
@@ -740,6 +781,7 @@ export interface Repository {
             | 'ambassadorId'
             | 'branchOfShopId'
             | 'agreedDiscountPercent'
+            | 'agreedMarkupPercent'
           >
         >,
     ): Promise<PartnerShop>;

@@ -9,6 +9,7 @@ import {
   formatPence,
   productAllowed,
   RESTAURANT_MIXED_WORDS,
+  restaurantFeePence,
   restaurantMinimumWords,
   type BasketPartPricing,
   type BasketPricing,
@@ -59,7 +60,7 @@ interface BasketValue {
    * A restaurant order (Anthony, 30 October 2026): the restaurant it is from, when every dish is
    * from that one restaurant. Its pricing is the flat restaurant fee in place of delivery.
    */
-  restaurant: { shopId: string; name: string } | null;
+  restaurant: { shopId: string; name: string; markedUp?: boolean } | null;
   /**
    * What stops the order being sent, in plain words, or null: restaurant dishes mixed with other
    * shopping or another restaurant's, or a restaurant basket below the smallest order. Shown on
@@ -139,6 +140,7 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
     restaurants.some((ref) => ref === null || ref.shopId !== firstRestaurant?.shopId);
   const restaurantId = !mixed && firstRestaurant ? firstRestaurant.shopId : null;
   const restaurantName = !mixed && firstRestaurant ? firstRestaurant.name : null;
+  const restaurantMarkedUp = !mixed && firstRestaurant ? firstRestaurant.markedUp === true : false;
 
   const priced = useMemo<BasketPricing & { parts?: readonly BasketPartPricing[] }>(() => {
     const goodsPence = lines.reduce(
@@ -168,7 +170,8 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
     // A restaurant order: dishes at shop prices, the item charges, and the flat restaurant fee
     // in place of delivery, on every plan, with no extra delivery charge. One Runner always.
     if (restaurantId !== null) {
-      const feePence = storeConfig.restaurants.feePence;
+      // £14 from £120 of dishes, whose Runner is paid £7 (Anthony, 30 October 2026).
+      const feePence = restaurantFeePence(storeConfig.restaurants, goodsPence);
       return {
         goodsPence,
         itemChargesPence,
@@ -242,9 +245,9 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
   const restaurantRef = useMemo(
     () =>
       restaurantId !== null && restaurantName !== null
-        ? { shopId: restaurantId, name: restaurantName }
+        ? { shopId: restaurantId, name: restaurantName, markedUp: restaurantMarkedUp }
         : null,
-    [restaurantId, restaurantName],
+    [restaurantId, restaurantName, restaurantMarkedUp],
   );
 
   const value = useMemo<BasketValue>(

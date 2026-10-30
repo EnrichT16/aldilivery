@@ -18,7 +18,7 @@
 
 import type { FastifyBaseLogger } from 'fastify';
 
-import { canTransition, formatPence } from '@aldilivery/core';
+import { canTransition, formatPence, ukMoment } from '@aldilivery/core';
 
 import type { AppContext } from '../app.js';
 import type { Order, Runner } from '../domain.js';
@@ -26,6 +26,8 @@ import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
 import { RefundRefusedError } from '../lib/payments.js';
 import { orderReference } from '../routes/admin.js';
 import { offerExpiryAt } from './allocation.js';
+import { isUkMobile } from '../lib/phone.js';
+import { allocatedOrderIds } from './allocate.js';
 import { releaseExtraDelivery } from './basket-orders.js';
 import { canCarry, offerOrder } from './dispatch.js';
 import { tellShopperWords } from './order-updates.js';
@@ -113,7 +115,12 @@ export interface CancelOutcome {
 export async function cancelOrder(
   ctx: AppContext,
   order: Order,
-  input: { reason: string; by: string },
+  input: {
+    reason: string;
+    by: string;
+    /** The caller tells the Shopper itself (an automatic cancel, 30 October 2026). */
+    tellShopper?: boolean;
+  },
   log: FastifyBaseLogger,
 ): Promise<CancelOutcome> {
   const { repository, payments, config } = ctx;
@@ -212,16 +219,18 @@ export async function cancelOrder(
       log,
     );
   }
-  await tellShopperWords(
-    ctx,
-    updated,
-    refundedPence > 0
-      ? `Your order ${reference} has been cancelled, and ${money(refundedPence)} is going back to your card. Your bank may take a few days to show it.`
-      : bankRefundPence > 0
-        ? `Your order ${reference} has been cancelled. We will send your ${money(bankRefundPence)} back to your bank account.`
-        : `Your order ${reference} has been cancelled. Nothing has been taken.`,
-    log,
-  );
+  if (input.tellShopper !== false) {
+    await tellShopperWords(
+      ctx,
+      updated,
+      refundedPence > 0
+        ? `Your order ${reference} has been cancelled, and ${money(refundedPence)} is going back to your card. Your bank may take a few days to show it.`
+        : bankRefundPence > 0
+          ? `Your order ${reference} has been cancelled. We will send your ${money(bankRefundPence)} back to your bank account.`
+          : `Your order ${reference} has been cancelled. Nothing has been taken.`,
+      log,
+    );
+  }
 
   const message =
     refundedPence > 0
@@ -430,4 +439,147 @@ export async function reassignOrder(
   const released = firstName(releasedRunner?.name);
   const message = `${released ? `${released} has been released from order ${reference}.` : `Order ${reference} is offered again.`} ${offeredTo ? `It is offered to ${offeredTo} now.` : 'No Runner is free for it yet; the dispatcher keeps looking.'}`;
   return { order: updated, released, offeredTo, message };
+}
+
+/* ------------------------------------------------------------------ orders no Runner takes */
+
+/** Why an order no Runner took was cancelled, said to the Shopper as it is (30 October 2026). */
+export const NO_RUNNER_REFUND_REASON =
+  'No Runner was able to take your order, so it has been cancelled and your money given back in full.';
+
+/** Who the audit log says did it. */
+export const AUTOMATIC_ACTOR = 'Ozi (automatic)';
+
+/** Paid, and nobody has it yet. */
+const UNTAKEN = new Set<Order['status']>(['paid', 'offered']);
+
+/**
+ * When the two hours start for an order no Runner has taken: when it was paid, or for an order
+ * booked for a later day (ruling 78), the start of its delivery window, if that is later.
+ */
+export function untakenSince(order: Order, config: AppContext['config']): Date {
+  const paid = order.bankReceivedAt ?? order.spokenConfirmationAt ?? order.createdAt;
+  if (!order.deliveryDay || !order.deliveryWindow) return paid;
+  const windowStart = ukMoment(
+    order.deliveryDay,
+    config.scheduled.windows[order.deliveryWindow].from,
+  );
+  return windowStart.getTime() > paid.getTime() ? windowStart : paid;
+}
+
+/**
+ * Orders no Runner takes (Anthony, 30 October 2026). A paid order that no Runner has accepted
+ * `dispatch.autoRefundAfterMinutes` (120) after it was paid, or after its window starts if it was
+ * booked for a later day, is cancelled with a full refund by the same path staff use
+ * (`cancelOrder`). The Shopper is told by text and in their inbox, with the reason; the audit log
+ * says "Ozi (automatic)". Run on the offer sweep's timer.
+ *
+ * Left alone: a demo order; an order the office sent to a named Runner (ruling 80), which a
+ * person is handling; a part of a split order, because the whole order is what was paid for. A
+ * split order is cancelled whole only when no part of it has a Runner; once any part has one, a
+ * person decides. Each order is read again before it is cancelled, and a cancelled order is not
+ * cancelled twice, so the refund is made once.
+ */
+export async function refundUntakenOrders(
+  ctx: AppContext,
+  log: FastifyBaseLogger,
+): Promise<string[]> {
+  const { repository, config } = ctx;
+  const at = ctx.now();
+  const limit = config.dispatch.autoRefundAfterMinutes * 60_000;
+  const allocated = await allocatedOrderIds(ctx);
+  const waiting = [
+    ...(await repository.orders.listByStatus('paid')),
+    ...(await repository.orders.listByStatus('offered')),
+  ];
+  const cancelled: string[] = [];
+  for (const listed of waiting) {
+    try {
+      if (listed.isDemo || listed.splitParentId || listed.runnerId) continue;
+      if (allocated.has(listed.id)) continue;
+      if (at.getTime() - untakenSince(listed, config).getTime() < limit) continue;
+      if (listed.splitAt) {
+        const parts = await repository.orders.listParts(listed.id);
+        if (parts.some((part) => part.runnerId !== null || !UNTAKEN.has(part.status))) continue;
+        if (parts.some((part) => allocated.has(part.id))) continue;
+      }
+      // Read again: a Runner may have taken it a moment ago, or it may already be cancelled.
+      const order = await repository.orders.findById(listed.id);
+      if (!order || !UNTAKEN.has(order.status) || order.runnerId) continue;
+      const outcome = await cancelOrder(
+        ctx,
+        order,
+        { reason: NO_RUNNER_REFUND_REASON, by: AUTOMATIC_ACTOR, tellShopper: false },
+        log,
+      );
+      cancelled.push(order.id);
+      await tellShopperNoRunner(ctx, outcome.order, outcome, log);
+      await repository.audit.record({
+        at,
+        actorId: null,
+        actorName: AUTOMATIC_ACTOR,
+        actorRole: 'automatic',
+        action: 'order.auto-cancelled',
+        target: `order=${order.id}`,
+        detail: `${NO_RUNNER_REFUND_REASON} ${outcome.message}`.slice(0, 500),
+        ip: '',
+      });
+    } catch (failure) {
+      log.warn(
+        { orderId: listed.id, err: failure },
+        'An order no Runner took could not be cancelled',
+      );
+    }
+  }
+  return cancelled;
+}
+
+/** The Shopper hears why, by text where they have a mobile, and in their inbox. */
+async function tellShopperNoRunner(
+  ctx: AppContext,
+  order: Order,
+  outcome: CancelOutcome,
+  log: FastifyBaseLogger,
+): Promise<void> {
+  const { repository, config } = ctx;
+  const money = (pence: number): string => formatPence(pence, config.store.currencySymbol);
+  const reference = orderReference(order);
+  const words = `${NO_RUNNER_REFUND_REASON} ${
+    outcome.refundedPence > 0
+      ? `${money(outcome.refundedPence)} is going back to your card. Your bank may take a few days to show it.`
+      : outcome.bankRefundPence > 0
+        ? `We will send your ${money(outcome.bankRefundPence)} back to your bank account.`
+        : 'Nothing has been taken.'
+  } Order ${reference}.`;
+  const shopper = await repository.shoppers.findById(order.shopperId);
+  // A refund is said straight away, as every cancellation is: there is no quiet-hours rule for
+  // the texts about an order.
+  if (shopper && ctx.sendText && isUkMobile(shopper.phone)) {
+    await ctx
+      .sendText(shopper.phone, `${config.productName}: ${words}`)
+      .catch((failure: unknown) => log.warn({ err: failure }, 'The Shopper could not be texted.'));
+  } else {
+    await tellShopperWords(ctx, order, words, log);
+  }
+  try {
+    const contact = repository.companyContact;
+    const thread = await contact.openThread('shopper', order.shopperId);
+    const at = ctx.now();
+    await contact.addMessage({
+      threadId: thread.id,
+      fromStaff: true,
+      staffId: null,
+      senderName: config.assistantName,
+      text: words,
+      createdAt: at,
+      sentAt: at,
+      readAt: null,
+      status: 'sent',
+      authorisedBy: null,
+      authorisedByName: null,
+    });
+    await contact.updateThread(thread.id, { lastMessageAt: at });
+  } catch (failure) {
+    log.warn({ err: failure }, 'The Shopper inbox message could not be written.');
+  }
 }

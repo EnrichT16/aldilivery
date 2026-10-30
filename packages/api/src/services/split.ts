@@ -44,6 +44,7 @@ import type { AppContext } from '../app.js';
 import type { Order } from '../domain.js';
 import { orderReference } from '../routes/runner-account.js';
 import { tellShopperWords } from './order-updates.js';
+import { copiedOrderItem } from './basket.js';
 import { repriceToReceipt } from './orders.js';
 import { freeRunnersByPartMode } from './runner-pool.js';
 import { settleTill, type TillOutcome } from './till.js';
@@ -181,15 +182,17 @@ async function createParts(
         // Offered only to Runners of this kind (ruling 61).
         splitMode: part.mode,
         splitPlannedAt: at,
+        // Each part's lines keep the prices and partner terms the whole order was placed with.
         items: part.lines.map((line) => {
           const item = byId.get(line.key);
-          return {
-            catalogueItemId: item?.catalogueItemId ?? null,
-            name: item?.name ?? 'item',
-            quantity: line.quantity,
-            estimatedPricePence: line.unitPricePence,
-            ...(item?.note ? { note: item.note } : {}),
-          };
+          return item
+            ? copiedOrderItem({ ...item, estimatedPricePence: line.unitPricePence }, line.quantity)
+            : {
+                catalogueItemId: null,
+                name: 'item',
+                quantity: line.quantity,
+                estimatedPricePence: line.unitPricePence,
+              };
         }),
       }),
     );

@@ -4356,7 +4356,7 @@
       "topic": "share",
       "when": ["can a runner be an ambassador", "introduce a shop", "ambassador earnings"],
       "replies": [
-        "Yes. On the More tab, choose Become an {assistant} Ambassador. You earn {ambassadorShare} of our profit on orders from businesses you introduce, for {ambassadorMonths} months, paid once {ambassadorMinimum} is available."
+        "Yes. On the More tab, choose Become an {assistant} Ambassador. You earn a small share of what we keep, {ambassadorShare} on a restaurant's and {ambassadorGroceryShare} on a shop's, on orders from businesses you introduce, for {ambassadorMonths} months, paid once {ambassadorMinimum} is available."
       ]
     }
   ]

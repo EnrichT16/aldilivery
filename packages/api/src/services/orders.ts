@@ -11,9 +11,11 @@ import {
   canTransition,
   counterPricePence,
   shopPriceFromCounterPence,
+  shownPriceFromCounterPence,
   type OrderStatus,
 } from '@aldilivery/core';
 
+import type { OrderItem } from '../domain.js';
 import { BadRequestError, ConfirmationRequiredError, ConflictError } from '../errors.js';
 
 export interface ConfirmableOrder {
@@ -76,17 +78,52 @@ interface RestaurantSide {
   goodsEstimatePence: number;
   restaurantShopId?: string | null;
   restaurantDiscountPercent?: number;
+  /** Its things, with a partner's shop price and counter price where they were kept. */
+  items?: ReadonlyArray<
+    Pick<
+      OrderItem,
+      'estimatedPricePence' | 'quantity' | 'counterPricePence' | 'substitutionOutcome'
+    >
+  >;
+}
+
+/**
+ * What Ozi keeps on a partner's things in the order, at the counter, over what the Runner pays:
+ * for each thing kept with a counter price, what the Shopper pays less that (the mark-up and the
+ * discount, Anthony, 30 October 2026). Things the Runner could not get are left out when
+ * `available` is asked for.
+ */
+function partnerGapPence(order: RestaurantSide, available = false): number {
+  return (order.items ?? []).reduce(
+    (sum, item) =>
+      item.counterPricePence === null ||
+      item.counterPricePence === undefined ||
+      (available && item.substitutionOutcome === 'unavailable')
+        ? sum
+        : sum + (item.estimatedPricePence - item.counterPricePence) * item.quantity,
+    0,
+  );
+}
+
+/** Whether every thing in a restaurant order kept its counter price (orders since mark-ups). */
+function countersKept(order: RestaurantSide): boolean {
+  const items = order.items ?? [];
+  return items.length > 0 && items.every((item) => typeof item.counterPricePence === 'number');
 }
 
 /**
  * What the till is expected to say: the shopping at shop prices, or, for a restaurant that agreed
  * a discount for Ozi, the shop prices less that discount, which is what the Runner pays at the
  * counter. Every check on the Runner's side reads this: what they are told to pay, the till
- * total check, what their spending card is loaded with and what they are paid back.
+ * total check, what their spending card is loaded with and what they are paid back. With
+ * mark-ups (Anthony, 30 October 2026) it is the counter price of each partner thing, never the
+ * marked-up price the Shopper pays.
  */
 export function tillExpectedPence(order: RestaurantSide): number {
-  if (!order.restaurantShopId) return order.goodsEstimatePence;
-  return counterPricePence(order.goodsEstimatePence, order.restaurantDiscountPercent ?? 0);
+  if (order.restaurantShopId && !countersKept(order)) {
+    return counterPricePence(order.goodsEstimatePence, order.restaurantDiscountPercent ?? 0);
+  }
+  return order.goodsEstimatePence - partnerGapPence(order);
 }
 
 /**
@@ -117,12 +154,19 @@ export function repriceToReceipt(
   }
 
   const receiptFeePence = order.feePence;
+  // A restaurant: the shown-price value of what was paid at the counter. A grocery order: the
+  // till, plus what Ozi keeps on any partner thing that was bought (Anthony, 30 October 2026).
   const shopGoodsPence = order.restaurantShopId
-    ? shopPriceFromCounterPence(receiptTotalPence, {
-        shopPricePence: order.goodsEstimatePence,
-        discountPercent: order.restaurantDiscountPercent ?? 0,
-      })
-    : receiptTotalPence;
+    ? countersKept(order)
+      ? shownPriceFromCounterPence(receiptTotalPence, {
+          shownPence: order.goodsEstimatePence,
+          counterPence: tillExpectedPence(order),
+        })
+      : shopPriceFromCounterPence(receiptTotalPence, {
+          shopPricePence: order.goodsEstimatePence,
+          discountPercent: order.restaurantDiscountPercent ?? 0,
+        })
+    : receiptTotalPence + partnerGapPence(order, true);
   return {
     receiptTotalPence,
     receiptFeePence,

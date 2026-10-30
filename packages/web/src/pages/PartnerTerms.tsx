@@ -1,4 +1,10 @@
-import { counterPricePence, preferredRankingWords } from '@aldilivery/core';
+import {
+  counterPricePence,
+  markedUpPricePence,
+  markupDisclosureWords,
+  preferredRankingWords,
+  SHOP_PARTNER_TERMS_VERSION,
+} from '@aldilivery/core';
 import { Link } from 'react-router-dom';
 
 import { CompanyDetails, DetailsToFollowNotice, companyFacts } from '../components/CompanyDetails';
@@ -115,9 +121,26 @@ export function PartnerTerms(): JSX.Element {
             can change it by ringing us. Agreeing one is your choice.
           </li>
           <li>
-            Shoppers always see and pay your shop price. Our Runner pays you at the counter, in
-            full, at the agreed price: your shop price less the discount, or your shop price if you
-            have agreed none. We keep the difference.
+            Shoppers see and pay your shop price, with any mark-up you agreed. Our Runner pays you
+            at the counter, in full, at the agreed price: your shop price less the discount, or your
+            shop price if you have agreed none. We keep the difference.
+          </li>
+          <li>
+            You may also agree a mark-up: we show your dishes to Shoppers at your shop price plus
+            that percentage, and keep it. For example, a mark-up of 50% shows a dish at{' '}
+            {money(exampleDish)} in your shop at {money(markedUpPricePence(exampleDish, 50))}. You
+            are still paid your shop price, less any discount. Next to your prices, Shoppers are
+            told: &ldquo;{markupDisclosureWords(assistant, 'food')}&rdquo; A person at {name}{' '}
+            records the mark-up you agree, up to {storeConfig.restaurants.maximumMarkupPercent}%,
+            and you can change it by ringing us. A shop may agree a discount or a mark-up in the
+            same way, and its Shoppers are told prices may be higher than in the shop.
+          </li>
+          <li>
+            Shoppers pay a flat restaurant fee in place of delivery:{' '}
+            {money(storeConfig.restaurants.feePence)}, or{' '}
+            {money(storeConfig.restaurants.largeOrderFeePence)} for{' '}
+            {money(storeConfig.restaurants.largeOrderFromPence)} of dishes or more. It pays our
+            Runner and us, and never comes out of what you are paid.
           </li>
           <li>
             There are two levels, and the discount alone decides them. A restaurant with a discount
@@ -232,11 +255,13 @@ export function PartnerTerms(): JSX.Element {
           Changes, and the law that applies
         </h2>
         <p className="m-0">
-          If we change these terms, we tell you before the change takes effect. These terms are
-          under the law of England and Wales, and the courts of England and Wales deal with any
-          dispute.
+          If we change these terms, we tell you before the change takes effect, and ask you to agree
+          to the new version on your dashboard. Your listing stays live while you read them; changes
+          from your dashboard wait until you agree. These terms are under the law of England and
+          Wales, and the courts of England and Wales deal with any dispute.
         </p>
         <p className="m-0">These terms were written on 30 October 2026.</p>
+        <p className="m-0 extra">Version {SHOP_PARTNER_TERMS_VERSION}.</p>
       </section>
 
       <Link to="/business/join" className="control bg-highlight text-on-accent">

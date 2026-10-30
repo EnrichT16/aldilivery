@@ -20,7 +20,7 @@ export interface CatalogueItem {
    * The restaurant, café or takeaway a dish is from (Anthony, 30 October 2026), or null for
    * everything else. A basket of one restaurant's dishes is a restaurant order.
    */
-  restaurant?: { shopId: string; name: string } | null;
+  restaurant?: { shopId: string; name: string; markedUp?: boolean } | null;
 }
 
 export interface CatalogueResult {
@@ -2100,6 +2100,8 @@ export interface ServiceEnquiryRow {
  */
 export interface PartnerRestaurant {
   discountPercent: number;
+  /** The agreed mark-up on its prices (30 October 2026). */
+  markupPercent?: number;
   preferred: boolean;
   preferredDiscountPercent: number;
   ordersThisMonth: number;
@@ -2140,6 +2142,19 @@ export interface PartnerDashboard extends PartnerExtras {
   counts: { live: number; waiting: number; notAccepted: number };
   products: PartnerProductRow[];
   sharePath: string;
+  /**
+   * The Shop Partner terms changed since this partner agreed (30 October 2026): until they agree
+   * again, every change but agreeing waits. Their listing stays live.
+   */
+  terms?: { changed: boolean; words: string | null; version: string; path: string };
+}
+
+/** "I agree" to the Shop Partner terms of this version (30 October 2026). */
+export function agreePartnerTerms(termsVersion: string): Promise<{ message: string }> {
+  return businessRequest('/partner/terms/agree', {
+    method: 'POST',
+    body: JSON.stringify({ termsAgreed: true, termsVersion }),
+  });
 }
 
 /** What a joining business is told about the tiers, every figure from config/store.json. */
@@ -2366,6 +2381,8 @@ export interface PublicShop {
   partnerPlus?: boolean;
   /** An Ozi Preferred Partner (30 October 2026): listed first, with a badge. */
   preferredPartner?: boolean;
+  /** "Prices on Ozi may be higher than in the restaurant", where a mark-up applies. */
+  priceNote?: string | null;
   /** Which of the four pages it is on (ruling 82). */
   section?: BrowseSection;
   cuisines?: string[];
@@ -2545,6 +2562,8 @@ export interface StaffPartners {
       branchOfShopId?: string | null;
       /** A restaurant's agreed discount for Ozi, a whole percentage (30 October 2026). */
       agreedDiscountPercent?: number;
+      /** The agreed mark-up on its prices, a whole percentage (30 October 2026). */
+      agreedMarkupPercent?: number;
       preferredPartner?: boolean;
     } & Partial<BrowseFields>
   >;
@@ -2562,6 +2581,8 @@ export interface StaffPartners {
   restaurantWords: string;
   preferredDiscountPercent: number;
   maximumDiscountPercent: number;
+  /** The largest mark-up staff may record (30 October 2026). */
+  maximumMarkupPercent?: number;
   spotlightPence: number;
   spotlightPlusPence: number;
   /** How many shops config/shops-seed.json names. */
@@ -2734,10 +2755,14 @@ export function setStaffPartnerDiscount(
   key: string,
   id: string,
   agreedDiscountPercent: number,
+  agreedMarkupPercent?: number,
 ): Promise<unknown> {
   return staffRequest(key, `/staff/partners/${encodeURIComponent(id)}`, {
     method: 'POST',
-    body: JSON.stringify({ agreedDiscountPercent }),
+    body: JSON.stringify({
+      agreedDiscountPercent,
+      ...(agreedMarkupPercent !== undefined ? { agreedMarkupPercent } : {}),
+    }),
   });
 }
 
@@ -2756,11 +2781,13 @@ export interface StaffRestaurantRow {
   area: string;
   listed: boolean;
   discountPercent: number;
+  /** The agreed mark-up on its prices (Anthony, 30 October 2026). */
+  markupPercent: number;
   preferredPartner: boolean;
   ordersLast30Days: number;
 }
 
-export type StaffRestaurantSort = 'name' | 'discount' | 'preferred' | 'orders';
+export type StaffRestaurantSort = 'name' | 'discount' | 'markup' | 'preferred' | 'orders';
 
 export interface StaffRestaurants {
   restaurants: StaffRestaurantRow[];
@@ -3341,6 +3368,9 @@ export interface MyReferrals {
     joined: boolean;
     agreedAt: string | null;
     termsVersion: string;
+    /** Agreed to older Ambassador terms (30 October 2026): asked to agree again. */
+    termsChanged?: boolean;
+    termsChangedWords?: string | null;
     link: string | null;
     termsPath: string;
     profitShareWords: string;
@@ -3425,7 +3455,47 @@ export interface StaffReferrerRow {
     reachedAt: string;
     givenAt: string | null;
     givenBy: string | null;
+    /** The voucher sent for it, if one was (30 October 2026). */
+    voucher?: StaffVoucher | null;
   }>;
+}
+
+/** A sent referral voucher as staff see it on the list: the code's last four only. */
+export interface StaffVoucher {
+  id: string;
+  levelId: string;
+  label: string;
+  status: 'sent' | 'opened' | 'used';
+  sentAt: string;
+  sentByName: string;
+  openedAt: string | null;
+  usedAt: string | null;
+  codeMasked: string;
+  codeLastFour: string;
+  hasLink: boolean;
+  erased: boolean;
+  nextReminderAt: string | null;
+  reminders: Array<{ number: number; at: string; via: string; words: string }>;
+}
+
+/** "Send voucher": the code staff pasted, and a link if they have one, to the person's inbox. */
+export function sendReferralVoucher(
+  key: string,
+  levelId: string,
+  input: { code: string; link?: string; by: string },
+): Promise<{ voucher: StaffVoucher; message: string }> {
+  return staffRequest(key, `/staff/referrals/levels/${encodeURIComponent(levelId)}/voucher`, {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+/** Opening a sent voucher's record: the code in full, written in the audit log. */
+export function openReferralVoucher(
+  key: string,
+  id: string,
+): Promise<{ voucher: StaffVoucher & { code: string; link: string | null } }> {
+  return staffRequest(key, `/staff/referrals/vouchers/${encodeURIComponent(id)}`);
 }
 
 export interface StaffAmbassadorRow {

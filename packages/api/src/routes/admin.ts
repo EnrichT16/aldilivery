@@ -361,10 +361,16 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
           orderTotalPence(order) - (await alreadyRefundedPence(app.ctx, order)),
         ),
         goodwillRefundedPence: order.goodwillRefundedPence,
+        // A partner's discount, and each thing's till and counter price (30 October 2026): for
+        // staff alone, who see everything.
+        restaurantDiscountPercent: order.restaurantDiscountPercent,
         items: order.items.map((item) => ({
           name: item.name,
           quantity: item.quantity,
           outcome: item.substitutionOutcome,
+          pricePence: item.estimatedPricePence,
+          shopPricePence: item.shopPricePence,
+          counterPricePence: item.counterPricePence,
         })),
       },
       timeline: events,

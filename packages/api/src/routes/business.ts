@@ -21,6 +21,7 @@ import {
   chosenFrom,
   preferredRankingWords,
   restaurantFeeWords,
+  markupDisclosureWords,
   matchesBrowseSearch,
   postcodeNearness,
   sectionOf,
@@ -39,6 +40,8 @@ import {
   postcodeArea,
   productLimit,
   SHOP_PARTNER_TERMS_VERSION,
+  TERMS_CHANGED_WORDS,
+  termsChanged,
   tidyPostcode,
   type PartnerKind,
 } from '@aldilivery/core';
@@ -60,7 +63,13 @@ import type {
   ServiceEnquiry,
   Shopper,
 } from '../domain.js';
-import { BadRequestError, ConflictError, NotFoundError, UnauthorisedError } from '../errors.js';
+import {
+  ApiError,
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+  UnauthorisedError,
+} from '../errors.js';
 import {
   businessActor,
   BUSINESS_SESSION_HOURS,
@@ -82,7 +91,11 @@ import { plusPaid, preferredPartner, rankedForListing } from '../lib/partner-sta
 import { awardTitlesByShop } from '../services/shop-of-the-month.js';
 import { checkInBackground, checkPartnerProduct } from '../services/auto-check.js';
 import { askOwner, settleMattersFor } from '../services/owner-desk.js';
-import { decidePartnerProduct } from '../services/partner-products.js';
+import {
+  decidePartnerProduct,
+  refreshPartnerPrices,
+  shopperPricePence,
+} from '../services/partner-products.js';
 import { tieAmbassador } from '../services/ambassadors.js';
 import { recordReferralFor, VIA_PATTERN } from '../services/referrals.js';
 import { hashPassword, passwordMatches, staffActor, temporaryPassword } from '../lib/staff.js';
@@ -167,6 +180,10 @@ const discountSchema = z
   .number()
   .int('Please give the discount as a whole percentage, such as 20.')
   .min(0, 'A discount cannot be below 0%.');
+const markupSchema = z
+  .number()
+  .int('Please give the mark-up as a whole percentage, such as 50.')
+  .min(0, 'A mark-up cannot be below 0%.');
 
 const usernameSchema = z
   .string()
@@ -266,19 +283,43 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
   const partners = config.extras.partners;
 
   /**
-   * A restaurant's agreed discount, checked: only a restaurant, café or takeaway has one, and no
-   * more than `restaurants.maximumDiscountPercent`, so a slip of the keys gives nothing away.
+   * A partner's agreed discount, checked: a restaurant, café or takeaway, or since Anthony's final
+   * ruling (30 October 2026) a grocery shop, never a service, and no more than
+   * `restaurants.maximumDiscountPercent`, so a slip of the keys gives nothing away.
    */
   function discountFor(kind: PartnerKind, percent: number): number {
     if (percent === 0) return 0;
-    if (kind !== 'food') {
-      throw new BadRequestError('Only a restaurant, café or takeaway agrees a discount.');
+    if (kind === 'service') {
+      throw new BadRequestError('Only a restaurant, café, takeaway or shop agrees a discount.');
     }
     const most = config.restaurants.maximumDiscountPercent;
     if (percent > most) {
       throw new BadRequestError(`A discount of more than ${most}% is not taken. Please check it.`);
     }
     return percent;
+  }
+
+  /**
+   * A partner's agreed mark-up, checked (Anthony, 30 October 2026): a restaurant, café, takeaway
+   * or shop, never a service, and no more than `restaurants.maximumMarkupPercent`.
+   */
+  function markupFor(kind: PartnerKind, percent: number): number {
+    if (percent === 0) return 0;
+    if (kind === 'service') {
+      throw new BadRequestError('Only a restaurant, café, takeaway or shop has a mark-up.');
+    }
+    const most = config.restaurants.maximumMarkupPercent;
+    if (percent > most) {
+      throw new BadRequestError(`A mark-up of more than ${most}% is not taken. Please check it.`);
+    }
+    return percent;
+  }
+
+  /** Where a partner's prices carry a mark-up, what Shoppers are told near them, or null. */
+  function priceNoteFor(shop: PartnerShop): string | null {
+    return (shop.agreedMarkupPercent ?? 0) > 0
+      ? markupDisclosureWords(config.assistantName, shop.kind)
+      : null;
   }
 
   /** Approved by a person and not paused: its page is public (ruling 65). */
@@ -356,6 +397,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     const goodsPence = events.reduce((sum, event) => sum + event.goodsPence, 0);
     return {
       discountPercent: shop.agreedDiscountPercent ?? 0,
+      markupPercent: shop.agreedMarkupPercent ?? 0,
       preferred: preferred(shop),
       preferredDiscountPercent: config.restaurants.preferredDiscountPercent,
       ordersThisMonth: events.length,
@@ -409,6 +451,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       cuisines: shop.kind === 'food' ? shop.cuisines : [],
       // An Ozi Preferred Partner (Anthony, 30 October 2026): listed first, with a badge.
       preferredPartner: preferred(shop),
+      // "Prices on Ozi may be higher than in the restaurant", where a mark-up applies.
+      priceNote: priceNoteFor(shop),
       specialities: shop.kind === 'shop' ? shop.specialities : [],
       categories: shop.kind === 'service' ? shop.categories : [],
       convenience: shop.kind === 'shop' && shop.convenience,
@@ -603,18 +647,25 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
   });
 
   async function describe(user: BusinessUser) {
-    const business =
+    const shop =
       user.kind === 'partner' && user.partnerShopId
-        ? (await repository.partnerShops.findById(user.partnerShopId))?.name
-        : user.organisationId
-          ? (await repository.organisations.findById(user.organisationId))?.name
-          : null;
+        ? await repository.partnerShops.findById(user.partnerShopId)
+        : null;
+    const business = shop
+      ? shop.name
+      : user.organisationId
+        ? (await repository.organisations.findById(user.organisationId))?.name
+        : null;
+    // The Shop Partner terms changed since this partner agreed (30 October 2026): said at sign-in.
+    const changed = shop !== null && partnerTermsChanged(shop);
     return {
       kind: user.kind,
       name: user.name,
       office: user.office,
       business: business ?? '',
       mustChangePassword: user.mustChangePassword,
+      termsChanged: changed,
+      termsChangedWords: changed ? TERMS_CHANGED_WORDS : null,
     };
   }
 
@@ -652,8 +703,55 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     return shop;
   }
 
+  /** Agreed to Shop Partner terms older than today's (30 October 2026). */
+  function partnerTermsChanged(shop: PartnerShop): boolean {
+    return termsChanged(shop.termsVersion, SHOP_PARTNER_TERMS_VERSION);
+  }
+
+  /**
+   * The partner's own shop, for a change from the dashboard. Until a partner who agreed to older
+   * Shop Partner terms agrees to the new ones, every change but agreeing is paused (30 October
+   * 2026). Their listing stays live, so Shoppers are never let down.
+   */
+  async function myShopToChange(
+    request: Parameters<typeof businessActor>[0],
+  ): Promise<PartnerShop> {
+    const shop = await myShop(request);
+    if (partnerTermsChanged(shop)) {
+      throw new ApiError(409, 'terms_changed', TERMS_CHANGED_WORDS, {
+        termsPath: '/partner/terms',
+        termsVersion: SHOP_PARTNER_TERMS_VERSION,
+      });
+    }
+    return shop;
+  }
+
+  /** "I agree" to the Shop Partner terms of today: the version and the moment are kept. */
+  app.post('/partner/terms/agree', async (request) => {
+    const shop = await myShop(request);
+    const body = z
+      .object({
+        termsAgreed: z.literal(true, {
+          errorMap: () => ({ message: 'Please tick to agree to the Shop Partner terms.' }),
+        }),
+        termsVersion: z.string().trim().min(1).max(60),
+      })
+      .parse(request.body ?? {});
+    if (body.termsVersion !== SHOP_PARTNER_TERMS_VERSION) {
+      throw new BadRequestError(
+        'The Shop Partner terms have changed again. Please read them again, then agree.',
+      );
+    }
+    await repository.partnerShops.update(shop.id, {
+      termsAgreedAt: now(),
+      termsVersion: SHOP_PARTNER_TERMS_VERSION,
+    });
+    return { message: 'Thank you. You have agreed to the new terms, and your dashboard is ready.' };
+  });
+
   app.get('/partner/dashboard', async (request) => {
     const shop = await myShop(request);
+    const changed = partnerTermsChanged(shop);
     const products = (await repository.partnerProducts.listForShop(shop.id)).filter(
       (product) => product.status !== 'removed',
     );
@@ -694,6 +792,14 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         words: planWords(shop, limit),
       },
       restaurant: await restaurantFor(shop),
+      // Agreed to older Shop Partner terms (30 October 2026): asked to agree again, and every
+      // change but agreeing waits. The listing stays live.
+      terms: {
+        changed,
+        words: changed ? TERMS_CHANGED_WORDS : null,
+        version: SHOP_PARTNER_TERMS_VERSION,
+        path: '/partner/terms',
+      },
       enquiries:
         shop.kind === 'service'
           ? await Promise.all(
@@ -741,7 +847,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
    * words about itself. The excluded kinds are refused here as on the join form.
    */
   app.post('/partner/profile', async (request) => {
-    const shop = await myShop(request);
+    const shop = await myShopToChange(request);
     const body = browseFieldsSchema
       .extend({ about: z.string().trim().max(500).optional() })
       .parse(request.body ?? {});
@@ -807,7 +913,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
   });
 
   app.post('/partner/products', { bodyLimit: 7 * 1024 * 1024 }, async (request, reply) => {
-    const shop = await myShop(request);
+    const shop = await myShopToChange(request);
     if (shop.status === 'removed' || !shop.active) {
       throw new ConflictError('This listing is paused, so nothing can be added. Please ring us.');
     }
@@ -932,8 +1038,12 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     };
   });
 
-  async function myProduct(request: Parameters<typeof businessActor>[0], id: string) {
-    const shop = await myShop(request);
+  async function myProduct(
+    request: Parameters<typeof businessActor>[0],
+    id: string,
+    changing = true,
+  ) {
+    const shop = changing ? await myShopToChange(request) : await myShop(request);
     const product = await repository.partnerProducts.findById(id);
     if (!product || product.partnerShopId !== shop.id || product.status === 'removed') {
       throw new NotFoundError('product');
@@ -953,8 +1063,10 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       priceEstimated: false,
     });
     if (product.catalogueItemId) {
+      const shop = await repository.partnerShops.findById(product.partnerShopId);
       await repository.catalogue.update(product.catalogueItemId, {
-        estimatedPricePence: pricePence,
+        // What Shoppers pay: with any agreed mark-up (Anthony, 30 October 2026).
+        estimatedPricePence: shop ? shopperPricePence(shop, pricePence) : pricePence,
         lastSeenAt: now(),
       });
     }
@@ -980,7 +1092,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
 
   app.get('/partner/products/:id/photo', async (request, reply) => {
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
-    const product = await myProduct(request, id);
+    const product = await myProduct(request, id, false);
     if (!product.photo || !product.photoType) throw new NotFoundError('photo');
     void reply.header('content-type', product.photoType);
     void reply.header('cache-control', 'no-store');
@@ -994,7 +1106,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
 
   /** Who may scan: any shop, café or takeaway whose listing can take products. */
   async function scanningShop(request: Parameters<typeof businessActor>[0]) {
-    const shop = await myShop(request);
+    const shop = await myShopToChange(request);
     if (shop.status === 'removed' || !shop.active) {
       throw new ConflictError('This listing is paused, so nothing can be added. Please ring us.');
     }
@@ -1205,7 +1317,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       products: live.map((product) => ({
         id: product.id,
         name: product.name,
-        pricePence: product.pricePence,
+        // What Shoppers pay: the shop price with any agreed mark-up (30 October 2026).
+        pricePence: shopperPricePence(shop, product.pricePence),
         tags: product.tags,
         expiresOn: product.expiresOn,
         hasPhoto: product.photo !== null,
@@ -1599,7 +1712,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
    * the shop back with the signed receipt, so nothing waits on the server meanwhile.
    */
   app.post('/partner/plan/checkout', async (request) => {
-    const shop = await myShop(request);
+    const shop = await myShopToChange(request);
     const body = z
       .object({
         kind: z.enum(['plan', 'spotlight', 'plus']).default('plan'),
@@ -1683,7 +1796,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
    * October 2026): nothing is charged, and the next is there from the 1st of next month.
    */
   app.post('/partner/spotlight/free-week', async (request) => {
-    const shop = await myShop(request);
+    const shop = await myShopToChange(request);
     const updated = await takeFreeSpotlightWeek(app.ctx, shop, 'free Preferred Partner week');
     return {
       until: updated.spotlightUntil,
@@ -1693,7 +1806,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
 
   /** A service answers an enquiry: marks it answered, with a note the Shopper sees. */
   app.post('/partner/enquiries/:id/answer', async (request) => {
-    const shop = await myShop(request);
+    const shop = await myShopToChange(request);
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const { reply: note } = z
       .object({ reply: z.string().trim().max(600).default('') })
@@ -2103,6 +2216,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       restaurantWords: restaurantFeeWords(config.restaurants, money),
       preferredDiscountPercent: config.restaurants.preferredDiscountPercent,
       maximumDiscountPercent: config.restaurants.maximumDiscountPercent,
+      maximumMarkupPercent: config.restaurants.maximumMarkupPercent,
       spotlightPence: config.extras.spotlightPence,
       spotlightPlusPence: config.extras.spotlightPlusPence,
       seedShops: loadShopsSeed(env.storeConfigPath).length,
@@ -2142,6 +2256,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         paidMonths: z.number().int().min(0).max(24).default(0),
         /** A restaurant's agreed discount for Ozi, a whole percentage (30 October 2026). */
         agreedDiscountPercent: discountSchema.default(0),
+        /** The agreed mark-up on its prices, a whole percentage (30 October 2026). */
+        agreedMarkupPercent: markupSchema.default(0),
       })
       .merge(browseFieldsSchema)
       .parse(request.body ?? {});
@@ -2174,6 +2290,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       source: 'staff',
       approvedAt: now(),
       agreedDiscountPercent: discountFor(body.kind, body.agreedDiscountPercent),
+      agreedMarkupPercent: markupFor(body.kind, body.agreedMarkupPercent),
       ...browseFields,
     });
     locateLater(app.ctx, shop.postcode, request.log);
@@ -2221,6 +2338,11 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
          * editing it (Anthony, 30 October 2026). 0 for none.
          */
         agreedDiscountPercent: discountSchema.optional(),
+        /**
+         * The agreed mark-up on its prices, a whole percentage (Anthony, 30 October 2026): its
+         * things in the catalogue take the new price Shoppers pay at once.
+         */
+        agreedMarkupPercent: markupSchema.optional(),
       })
       .merge(browseFieldsSchema)
       .parse(request.body ?? {});
@@ -2232,6 +2354,12 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       updated = await repository.partnerShops.update(shop.id, {
         agreedDiscountPercent: discountFor(shop.kind, body.agreedDiscountPercent),
       });
+    }
+    if (body.agreedMarkupPercent !== undefined) {
+      updated = await repository.partnerShops.update(shop.id, {
+        agreedMarkupPercent: markupFor(shop.kind, body.agreedMarkupPercent),
+      });
+      await refreshPartnerPrices(app.ctx, updated);
     }
     if (body.branchOfShopId !== undefined) {
       if (body.branchOfShopId !== null) {
@@ -2325,7 +2453,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     await staffActor(request, 'partners');
     const { sort, order } = z
       .object({
-        sort: z.enum(['name', 'discount', 'preferred', 'orders']).default('discount'),
+        sort: z.enum(['name', 'discount', 'markup', 'preferred', 'orders']).default('discount'),
         order: z.enum(['asc', 'desc']).optional(),
       })
       .parse(request.query ?? {});
@@ -2342,6 +2470,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         area: postcodeArea(shop.postcode),
         listed: listed(shop),
         discountPercent: shop.agreedDiscountPercent ?? 0,
+        markupPercent: shop.agreedMarkupPercent ?? 0,
         preferredPartner: preferred(shop),
         ordersLast30Days: events.filter((event) => eventForShop(event, shop)).length,
       }));
@@ -2351,9 +2480,11 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         ? row.name.toLowerCase()
         : sort === 'discount'
           ? row.discountPercent
-          : sort === 'preferred'
-            ? Number(row.preferredPartner)
-            : row.ordersLast30Days;
+          : sort === 'markup'
+            ? row.markupPercent
+            : sort === 'preferred'
+              ? Number(row.preferredPartner)
+              : row.ordersLast30Days;
     rows.sort((a, b) => {
       const x = value(a);
       const y = value(b);

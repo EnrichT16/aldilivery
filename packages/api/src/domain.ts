@@ -301,6 +301,52 @@ export interface ReferralLevelReached {
   givenBy: string | null;
 }
 
+/** How one reminder about a sent voucher reached the person (30 October 2026). */
+export type VoucherReminderVia =
+  'app' | 'app_answered' | 'app_declined' | 'app_then_text' | 'text' | 'none';
+
+/**
+ * A referral reward voucher staff sent to the person who reached the level (Anthony, 30 October
+ * 2026): the code they pasted (sensitive: shown in full only to the person and to staff who open
+ * the record, never written in an application log, removed when the account is erased), the
+ * message it went in, who sent it and when, when it was first opened and when the person said
+ * they had used it, and Ozi's reminder calls, at most three.
+ */
+export interface ReferralVoucher {
+  id: string;
+  /** The level reached it is for: one voucher a level. */
+  levelId: string;
+  accountKind: ReferralKind;
+  accountId: string;
+  label: string;
+  rewardPence: number;
+  /** The voucher code. Empty once the account is erased. */
+  code: string;
+  /** A link to the voucher, if staff gave one. */
+  link: string | null;
+  /** The message in the person's inbox it went in. */
+  messageId: string | null;
+  sentById: string | null;
+  sentByName: string;
+  sentAt: Date;
+  /** The first time the person opened or read the message. */
+  openedAt: Date | null;
+  /** When the person tapped "I've used it". Amazon cannot tell us, so it is their word. */
+  usedAt: Date | null;
+  /** When Ozi next rings to remind them; null once opened, or after the third. */
+  nextReminderAt: Date | null;
+  /** While Ozi is ringing in the app: until when, before a text instead. */
+  ringingUntil: Date | null;
+  reminder1At: Date | null;
+  reminder1Via: VoucherReminderVia | null;
+  reminder2At: Date | null;
+  reminder2Via: VoucherReminderVia | null;
+  reminder3At: Date | null;
+  reminder3Via: VoucherReminderVia | null;
+  /** When the code was removed with the account. */
+  erasedAt: Date | null;
+}
+
 /** Somebody who chose to become an Ozi Ambassador, agreeing to the Ambassador terms. */
 export interface AmbassadorAgreement {
   id: string;
@@ -509,6 +555,14 @@ export interface OrderItem {
   substitutedForName: string | null;
   actualPricePence: number | null;
   note: string | null;
+  /**
+   * A Shop Partner's thing (Anthony, 30 October 2026): the partner's own shop price for one, and
+   * what the Runner pays for one at the counter (the shop price less any agreed discount), kept
+   * as they were when the order was placed. `estimatedPricePence` is what the Shopper pays for
+   * one, with any agreed mark-up. Null for everything else.
+   */
+  shopPricePence: number | null;
+  counterPricePence: number | null;
   createdAt: Date;
 }
 
@@ -1131,9 +1185,16 @@ export interface PartnerShop {
    * A restaurant's agreed discount for Ozi, a whole percentage, set by staff (Anthony, 30
    * October 2026): it sells to Ozi at its shop price less this. 0 for none, and for every shop
    * and service. At `restaurants.preferredDiscountPercent` or more it is an Ozi Preferred
-   * Partner. Restaurants pay no commission.
+   * Partner. Restaurants pay no commission. Since Anthony's final ruling (30 October 2026) a
+   * grocery shop partner may have one too; never a service.
    */
   agreedDiscountPercent: number;
+  /**
+   * An agreed mark-up on the partner's prices, a whole percentage, set by staff (Anthony, 30
+   * October 2026): Shoppers see and pay the shop price with this on it (50% makes £10 into £15).
+   * 0 for none, at most `restaurants.maximumMarkupPercent`; never for a service.
+   */
+  agreedMarkupPercent: number;
 }
 
 export type ServiceEnquiryKind = 'quote' | 'call_back';

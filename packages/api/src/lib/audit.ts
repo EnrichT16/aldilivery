@@ -201,6 +201,9 @@ export const AUDIT_WORDS: Record<string, string> = {
   'POST /staff/team/:id/authorise': 'Let someone authorise messages and calls, or stopped it',
   // Sending jobs straight to a chosen Runner (ruling 80).
   'order.allocated': 'Sent an order straight to a Runner',
+  'order.auto-cancelled': 'Cancelled an order no Runner took, with a full refund',
+  'referrals.voucher-opened': 'Opened a sent voucher, with its code',
+  'referrals.voucher-sent': 'Sent a referral voucher',
   'POST /staff/orders/allocate': 'Tried to send orders straight to Runners',
   'POST /staff/team/:id/allocate': 'Let someone send jobs straight to Runners, or stopped it',
 };

@@ -5,9 +5,11 @@ import { BrowseFields, readBrowseFields } from '../components/BrowseFields';
 import { ProductScanner } from '../components/ProductScanner';
 import { ReferralCard } from '../components/ReferralCard';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
+import { TermsChanged } from '../components/TermsChanged';
 import { storeConfig } from '../config';
 import {
   addPartnerProduct,
+  agreePartnerTerms,
   answerPartnerEnquiry,
   confirmPartnerCheckout,
   downloadBusinessStatement,
@@ -458,6 +460,18 @@ export function PartnerDashboard(): JSX.Element {
       <nav aria-label="Your messages">
         <InboxLink as="business" to="/partner/messages" />
       </nav>
+      {data.terms?.changed && (
+        <TermsChanged
+          words={data.terms.words ?? ''}
+          termsName="Shop Partner terms"
+          termsPath={data.terms.path}
+          onAgree={async () => {
+            const result = await agreePartnerTerms(data.terms?.version ?? '');
+            setNews(result.message);
+            await load();
+          }}
+        />
+      )}
       <p className="m-0">
         <Link to="/partner/pay-by-bank" className="control border-paper bg-paper/10 text-paper">
           Pay us by bank: our details and your reference

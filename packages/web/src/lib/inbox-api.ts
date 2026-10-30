@@ -20,6 +20,17 @@ function inboxRequest<T>(as: InboxAs, path: string, init?: RequestInit): Promise
   return request<T>(path, init, as);
 }
 
+/** A referral reward voucher sent in a message (30 October 2026): the code for this person. */
+export interface InboxVoucher {
+  id: string;
+  title: string;
+  code: string;
+  link: string | null;
+  lastsWords: string;
+  openedAt: string | null;
+  usedAt: string | null;
+}
+
 export interface InboxMessage {
   id: string;
   from: 'company' | 'you';
@@ -27,6 +38,14 @@ export interface InboxMessage {
   text: string;
   sentAt: string | null;
   readAt: string | null;
+  voucher?: InboxVoucher | null;
+}
+
+/** Ozi ringing in the app to remind the person of a voucher they have not opened. */
+export interface OziVoucherRing {
+  id: string;
+  from: string;
+  words: string;
 }
 
 export interface CompanyCall {
@@ -45,8 +64,31 @@ export function fetchInbox(
 
 export function fetchInboxUnread(
   as: InboxAs,
-): Promise<{ unread: number; call: CompanyCall | null }> {
+): Promise<{ unread: number; call: CompanyCall | null; ozi?: OziVoucherRing | null }> {
   return inboxRequest(as, '/inbox/unread');
+}
+
+/** "I've used it": the person's own word, as Amazon cannot tell us. */
+export function markVoucherUsed(
+  as: InboxAs,
+  id: string,
+): Promise<{ voucher: InboxVoucher; words: string }> {
+  return inboxRequest(as, `/inbox/vouchers/${encodeURIComponent(id)}/used`, {
+    method: 'POST',
+    body: '{}',
+  });
+}
+
+/** Ozi's reminder ring, answered or turned down. */
+export function answerVoucherRing(
+  as: InboxAs,
+  id: string,
+  answer: 'answer' | 'decline',
+): Promise<{ words: string }> {
+  return inboxRequest(as, `/inbox/vouchers/${encodeURIComponent(id)}/ring/${answer}`, {
+    method: 'POST',
+    body: '{}',
+  });
 }
 
 export function markInboxRead(as: InboxAs): Promise<{ unread: number }> {

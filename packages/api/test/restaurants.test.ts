@@ -238,6 +238,119 @@ describe('a restaurant order is priced apart from groceries', () => {
       restaurantDiscountPercent: 20,
     });
   });
+
+  it('charges £14 on a big order, whose Runner is paid £7, so Ozi still keeps £7', async () => {
+    // Four £30 dishes: £120, the large-order line (Rule Two). Anthony, 30 October 2026.
+    const { dish } = await restaurant(0, 3000);
+    const priced = await price([{ catalogueItemId: dish, quantity: 4 }]);
+    expect(priced.statusCode, priced.body).toBe(200);
+    expect(priced.json()).toMatchObject({ goodsEstimatePence: 12000, feePence: 1400 });
+    expect(priced.json().explanation).toContain(
+      'The restaurant fee is £14.00, in place of delivery.',
+    );
+    const orderId = await placeOrder(dish, 4, priced.json().totalPence as number);
+    const order = (await harness.repository.orders.findById(orderId))!;
+    expect(order).toMatchObject({ feePence: 1400, runnerPaymentPence: 700 });
+    expect(order.feePence - order.runnerPaymentPence).toBe(700);
+  });
+});
+
+describe('the agreed mark-up (Anthony, 30 October 2026)', () => {
+  const DISCLOSURE = 'Prices on Ozi may be higher than in the restaurant.';
+
+  it('has the Shopper pay the marked-up price, the item charge on it, and says so', async () => {
+    // A £10 dish, 50% mark-up and 20% discount: the Shopper sees £15.
+    const { shop, dish } = await restaurant(20, 1000);
+    const set = await post(`/staff/partners/${shop.id}`, { agreedMarkupPercent: 50 }, STAFF);
+    expect(set.statusCode, set.body).toBe(200);
+    expect(set.json().shop.agreedMarkupPercent).toBe(50);
+    expect((await harness.repository.catalogue.findById(dish))?.estimatedPricePence).toBe(1500);
+
+    const priced = await price([{ catalogueItemId: dish, quantity: 1 }]);
+    expect(priced.statusCode, priced.body).toBe(200);
+    // £15 shown, the item charge on £15 (50p + 2 × 50p), then the £12 restaurant fee.
+    expect(priced.json()).toMatchObject({
+      goodsEstimatePence: 1500,
+      itemChargesPence: 150,
+      feePence: 1200,
+      totalPence: 2850,
+      restaurant: { priceNote: DISCLOSURE },
+    });
+    expect(priced.json().explanation).toContain(DISCLOSURE);
+    // The counter price and the shop price are never told to the Shopper.
+    expect(priced.json().lines[0]).not.toHaveProperty('counterPricePence');
+    expect(priced.json().lines[0]).not.toHaveProperty('shopPricePence');
+
+    // The restaurant's page shows the price Shoppers pay, and the same words.
+    const page = (await get(`/shops/${shop.id}`)).json();
+    expect(page.products[0].pricePence).toBe(1500);
+    expect(page.shop.priceNote).toBe(DISCLOSURE);
+    // Preferred Partner stays the discount's alone.
+    expect(page.shop.preferredPartner).toBe(true);
+  });
+
+  it('records what the Shopper paid per dish, and the Runner pays and is paid back the counter price', async () => {
+    const { shop, dish } = await restaurant(20, 1000);
+    await post(`/staff/partners/${shop.id}`, { agreedMarkupPercent: 50 }, STAFF);
+    const { orderId } = await beingShopped(dish, 1, 2850);
+    const placed = (await harness.repository.orders.findById(orderId))!;
+    expect(placed.items[0]).toMatchObject({
+      estimatedPricePence: 1500,
+      shopPricePence: 1000,
+      counterPricePence: 800,
+    });
+    const current = (await get('/jobs/current', runner.authHeader)).json().job;
+    expect(current.goodsEstimatePence).toBe(800);
+    expect(current.items[0].estimatedPricePence).toBe(800);
+
+    const sent = await post(
+      `/orders/${orderId}/receipt`,
+      { receiptTotalPence: 800 },
+      runner.authHeader,
+    );
+    expect(sent.statusCode, sent.body).toBe(200);
+    expect(sent.json().repricing).toMatchObject({ receiptTotalPence: 800, finalTotalPence: 2850 });
+    expect(sent.json().reimbursement).toMatchObject({ kind: 'paid', pence: 800 });
+    // Ozi keeps the £5 mark-up and the £2 discount on the dish.
+    const order = (await harness.repository.orders.findById(orderId))!;
+    expect(
+      order.finalTotalPence! - order.itemChargesPence - order.feePence - order.receiptTotalPence!,
+    ).toBe(700);
+  });
+
+  it('refuses a mark-up over the most allowed, 100%', async () => {
+    const { shop } = await restaurant(0, 1000);
+    expect(
+      (await post(`/staff/partners/${shop.id}`, { agreedMarkupPercent: 100 }, STAFF)).statusCode,
+    ).toBe(200);
+    const tooMuch = await post(`/staff/partners/${shop.id}`, { agreedMarkupPercent: 101 }, STAFF);
+    expect(tooMuch.statusCode).toBe(400);
+    expect(tooMuch.json().error.message).toContain('more than 100%');
+    // A mark-up alone never makes a Preferred Partner.
+    expect((await get(`/shops/${shop.id}`)).json().shop.preferredPartner).toBe(false);
+  });
+
+  it('applies to a grocery shop partner the same way, with the shop words', async () => {
+    // £10 in the shop, 50% mark-up, 10% discount: £15 shown, £9 at the till.
+    const { shop, dish } = await restaurant(10, 1000, { kind: 'shop', cuisines: [] });
+    await post(`/staff/partners/${shop.id}`, { agreedMarkupPercent: 50 }, STAFF);
+    const page = (await get(`/shops/${shop.id}`)).json();
+    expect(page.shop.priceNote).toBe('Prices on Ozi may be higher than in the shop.');
+    const priced = (await price([{ catalogueItemId: dish, quantity: 1 }])).json();
+    expect(priced).toMatchObject({ goodsEstimatePence: 1500, itemChargesPence: 150 });
+    const { orderId } = await beingShopped(dish, 1, priced.totalPence as number);
+    const current = (await get('/jobs/current', runner.authHeader)).json().job;
+    expect(current.goodsEstimatePence).toBe(900);
+    const sent = await post(
+      `/orders/${orderId}/receipt`,
+      { receiptTotalPence: 900 },
+      runner.authHeader,
+    );
+    expect(sent.statusCode, sent.body).toBe(200);
+    // The Shopper pays the £15 shown; the Runner paid and is paid back £9.
+    expect(sent.json().repricing.finalTotalPence).toBe(priced.totalPence);
+    expect(sent.json().reimbursement).toMatchObject({ pence: 900 });
+  });
 });
 
 describe('the agreed discount, all the way to the counter', () => {
@@ -397,6 +510,7 @@ describe('Ozi Preferred Partner', () => {
     expect(found.items[0].restaurant).toEqual({
       shopId: preferred.shop.id,
       name: preferred.shop.name,
+      markedUp: false,
     });
     expect(found.ranking).toMatch(
       /Preferred Partners, who give .+ a better price, are shown first\./,
@@ -547,8 +661,13 @@ describe('the staff list of restaurant partners', () => {
     const set = await post(`/staff/partners/${shop.id}`, { agreedDiscountPercent: 20 }, STAFF);
     expect(set.statusCode, set.body).toBe(200);
     expect(set.json().shop.agreedDiscountPercent).toBe(20);
-    const tooMuch = await post(`/staff/partners/${shop.id}`, { agreedDiscountPercent: 80 }, STAFF);
+    // The most is restaurants.maximumDiscountPercent, 50: 50 is taken, 51 is not.
+    expect(harness.app.ctx.config.restaurants.maximumDiscountPercent).toBe(50);
+    const most = await post(`/staff/partners/${shop.id}`, { agreedDiscountPercent: 50 }, STAFF);
+    expect(most.statusCode, most.body).toBe(200);
+    const tooMuch = await post(`/staff/partners/${shop.id}`, { agreedDiscountPercent: 51 }, STAFF);
     expect(tooMuch.statusCode).toBe(400);
+    expect(tooMuch.json().error.message).toContain('more than 50%');
     const groceryShop = await harness.repository.partnerShops.create({
       name: 'Corner Shop',
       address: '',
@@ -557,12 +676,29 @@ describe('the staff list of restaurant partners', () => {
       monthlyPence: 0,
       kind: 'shop',
     });
-    const notFood = await post(
+    // Since Anthony's final ruling (30 October 2026) a grocery shop may agree one too; a service
+    // never does.
+    const groceryDiscount = await post(
       `/staff/partners/${groceryShop.id}`,
       { agreedDiscountPercent: 10 },
       STAFF,
     );
-    expect(notFood.statusCode).toBe(400);
+    expect(groceryDiscount.statusCode, groceryDiscount.body).toBe(200);
+    const service = await harness.repository.partnerShops.create({
+      name: 'Garden Help',
+      address: '',
+      telephone: '',
+      about: '',
+      monthlyPence: 0,
+      kind: 'service',
+    });
+    expect(
+      (await post(`/staff/partners/${service.id}`, { agreedDiscountPercent: 10 }, STAFF))
+        .statusCode,
+    ).toBe(400);
+    expect(
+      (await post(`/staff/partners/${service.id}`, { agreedMarkupPercent: 10 }, STAFF)).statusCode,
+    ).toBe(400);
     const added = await post(
       '/staff/partners',
       { name: 'Spice Hut', kind: 'food', agreedDiscountPercent: 20 },

@@ -40,6 +40,7 @@ import {
   type StaffTwoStep,
 } from '../lib/api';
 import { AllocateJobs } from '../components/AllocateJobs';
+import { VoucherForLevel } from '../components/StaffVoucher';
 import { PersonTools } from '../components/Unlock';
 import { money } from '../lib/money';
 
@@ -814,6 +815,20 @@ export function Referrals({
                       ? `Reached the ${row.level.label} level: ${row.level.given ? 'reward given' : 'reward not given yet'}.`
                       : 'No reward level reached yet.'}
                   </p>
+                  {/* Sending the voucher (30 October 2026): for every level reached. */}
+                  {row.levels.map((level) => (
+                    <VoucherForLevel
+                      key={`voucher-${level.id}`}
+                      staffKey={staffKey}
+                      level={level}
+                      personName={row.name}
+                      by={by}
+                      onSent={(message) => {
+                        onNews(message);
+                        reload();
+                      }}
+                    />
+                  ))}
                   {row.levels
                     .filter((level) => level.givenAt === null)
                     .map((level) => (

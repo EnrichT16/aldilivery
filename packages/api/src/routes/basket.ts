@@ -6,7 +6,13 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import { formatPence, isDay, needsVehicle, overOneRunnerWords } from '@aldilivery/core';
+import {
+  markupDisclosureWords,
+  formatPence,
+  isDay,
+  needsVehicle,
+  overOneRunnerWords,
+} from '@aldilivery/core';
 import { z } from 'zod';
 
 import { priceLinesInParts, restaurantsOf, type PricedBasketInParts } from '../services/basket.js';
@@ -76,6 +82,11 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
 
     const symbol = config.store.currencySymbol;
     if (priced.parts.length > 1) return basketChoice(priced, allowance);
+    // A restaurant whose prices carry an agreed mark-up: said near the prices (30 October 2026).
+    const priceNote =
+      priced.restaurant && priced.restaurant.markupPercent > 0
+        ? markupDisclosureWords(config.assistantName, 'food')
+        : null;
     const shopping = priced.goodsPence + priced.itemChargesPence;
     // Rulings 59 and 60: a large shop goes to a Runner with a vehicle who can carry it, or
     // comes in parts if none takes it, which may take a little longer.
@@ -93,9 +104,12 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
       // The restaurant it is from, or null for groceries. The counter price is the Runner's and
       // Ozi's business, so it is not told to the Shopper: they see and pay shop prices.
       restaurant: priced.restaurant
-        ? { shopId: priced.restaurant.shopId, name: priced.restaurant.name }
+        ? { shopId: priced.restaurant.shopId, name: priced.restaurant.name, priceNote }
         : null,
-      lines: priced.lines,
+      // A partner's shop price and counter price are never told to the Shopper.
+      lines: priced.lines.map(
+        ({ shopPricePence: _shop, counterPricePence: _counter, ...line }) => line,
+      ),
       // Said in words as well as pence, so a screen reader, a large text setting or a
       // future voice reply all have something plain to read out.
       inWords: {
@@ -113,6 +127,7 @@ export async function registerBasketRoutes(app: FastifyInstance): Promise<void> 
           : `Delivery is ${formatPence(priced.feePence, symbol)}.`,
         ...(allowance?.words && !priced.restaurant ? [allowance.words] : []),
         `So about ${formatPence(priced.totalPence, symbol)} altogether.`,
+        ...(priceNote ? [priceNote] : []),
         'You pay what the till says for the shopping, so the total may change a little.',
         ...(carNeeded ? [largeOrderShopperWords(config, priced.goodsPence)] : []),
       ],

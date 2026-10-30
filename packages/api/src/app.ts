@@ -20,6 +20,7 @@ import type { SessionRole } from './domain.js';
 import { ApiError, ForbiddenError, TooManyRequestsError, UnauthorisedError } from './errors.js';
 import type { Env } from './env.js';
 import { bankSettings } from './lib/bank.js';
+import { askedByStaff, withoutStaffOnlyFields } from './lib/staff-only.js';
 import { auditChange } from './lib/audit.js';
 import { addSecurityHeaders, limiter } from './lib/guard.js';
 import type { CallRecorder } from './lib/call-recording.js';
@@ -337,6 +338,12 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       );
     }
   });
+
+  // A partner's till prices, counter prices, discount and mark-up go to staff alone (30 October
+  // 2026): taken out of every other response here, so no route can forget.
+  app.addHook('preSerialization', async (request, _reply, payload) =>
+    askedByStaff(request) ? payload : withoutStaffOnlyFields(payload),
+  );
 
   app.addHook('onSend', async (request, reply) => {
     addSecurityHeaders(reply);

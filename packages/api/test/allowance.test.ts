@@ -10,7 +10,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { Order } from '../src/domain.js';
-import { ukMonth } from '../src/services/plans.js';
+import { countsTowardsAllowance, ukMonth } from '../src/services/plans.js';
 import { buildTestApp, signUpShopper, type SignedInShopper, type TestHarness } from './helpers.js';
 
 const NOW = new Date('2026-10-20T10:00:00.000Z');
@@ -252,6 +252,30 @@ describe('what counts towards the allowance', () => {
       orderNumberThisMonth: 3,
       allowanceExtraPence: 0,
     });
+  });
+
+  it('never counts a restaurant order: it has its own fee and no allowance (30 October 2026)', async () => {
+    await onPlan(shopper, 'membership');
+    // Five restaurant orders this month, delivered and paid for, and four grocery orders.
+    await pastOrders(shopper, 5, {
+      extra: { restaurantShopId: 'mama-joy', restaurantDiscountPercent: 20 },
+    });
+    await pastOrders(shopper, 4);
+    const me = (
+      await harness.app.inject({ method: 'GET', url: '/me', headers: shopper.authHeader })
+    ).json().shopper;
+    expect(me).toMatchObject({ allowancePlan: 'membership', ordersThisMonth: 4 });
+    // The next grocery order is the 5th, still inside Membership's 5: no extra charge.
+    expect(await price(await tenThings())).toMatchObject({
+      orderNumberThisMonth: 5,
+      allowanceExtraPence: 0,
+    });
+    expect(
+      countsTowardsAllowance({
+        ...(await harness.repository.orders.listForShopper(shopper.shopperId))[0]!,
+        restaurantShopId: 'mama-joy',
+      }),
+    ).toBe(false);
   });
 
   it('starts again at the start of the next month', async () => {

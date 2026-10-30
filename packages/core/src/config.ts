@@ -368,6 +368,12 @@ export interface StoreConfig {
      */
     readonly tinyExtraBelowPence: number;
     readonly splitRunnerPayPence: number;
+    /**
+     * A paid order no Runner has accepted this many minutes after it was paid (or after its
+     * window starts, for a booked order) is cancelled with a full refund (Anthony, 30 October
+     * 2026): 120.
+     */
+    readonly autoRefundAfterMinutes: number;
   };
   /**
    * The owner (ruling 74): how Ozi speaks to him on the telephone, "Mr. Anthony", always.
@@ -845,7 +851,35 @@ function parseReferrals(raw: Unknown): ReferralSettings {
     levels,
     minimumActiveShare: share,
     givenAs: str(raw['givenAs'] ?? 'Amazon voucher', 'referrals.givenAs').trim(),
+    voucherLastsYears: wholeNumber(
+      raw['voucherLastsYears'] ?? 10,
+      'referrals.voucherLastsYears',
+      1,
+    ),
+    voucherReminderDays: voucherReminderDays(raw['voucherReminderDays'] ?? [0, 7, 14]),
+    voucherRingSeconds: wholeNumber(
+      raw['voucherRingSeconds'] ?? 90,
+      'referrals.voucherRingSeconds',
+      10,
+    ),
   };
+}
+
+/** The days after a voucher is sent that Ozi rings about it, rising, at most three. */
+function voucherReminderDays(value: unknown): number[] {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.length > 3 ||
+    value.some(
+      (day, index) => !Number.isInteger(day) || day < 0 || (index > 0 && day <= value[index - 1]),
+    )
+  ) {
+    throw new StoreConfigError(
+      'referrals.voucherReminderDays must be up to three whole days, rising, such as [0, 7, 14].',
+    );
+  }
+  return value as number[];
 }
 
 /** A share from 0 to 1, such as 0.02 for 2%. */
@@ -857,14 +891,37 @@ function share(value: unknown, path: string): number {
 }
 
 /**
- * Ozi Ambassadors (Anthony, 30 October 2026, ruled again the same day): 2% of Ozi's profit on each
- * order for 12 months from approval, a quarter of that on another branch through the same link,
+ * Ozi Ambassadors (Anthony, 30 October 2026, ruled again the same day, and finally: on a
+ * restaurant's orders 2% of the mark-up and 2% of the discount Ozi keeps; on a grocery shop
+ * partner's 1% of the item charges, the mark-up and the discount) for 12 months from approval, a quarter of that on another branch through the same link,
  * a one-off 5% of the first Partner Plus payment, held for 30 days after delivery before it can
  * be paid, paid once £10 is available, and a month over £500 checked by the owner first.
  */
 function parseAmbassador(raw: Unknown): AmbassadorSettings {
+  // Replaced by the shares below (Anthony's final ruling, 30 October 2026).
+  if (raw['profitShare'] !== undefined) {
+    throw new StoreConfigError(
+      'ambassador.profitShare is replaced by ambassador.restaurantMarkupShare, restaurantDiscountShare, groceryItemChargeShare, groceryMarkupShare and groceryDiscountShare.',
+    );
+  }
   return {
-    profitShare: share(raw['profitShare'] ?? 0.02, 'ambassador.profitShare'),
+    restaurantMarkupShare: share(
+      raw['restaurantMarkupShare'] ?? 0.02,
+      'ambassador.restaurantMarkupShare',
+    ),
+    restaurantDiscountShare: share(
+      raw['restaurantDiscountShare'] ?? 0.02,
+      'ambassador.restaurantDiscountShare',
+    ),
+    groceryItemChargeShare: share(
+      raw['groceryItemChargeShare'] ?? 0.01,
+      'ambassador.groceryItemChargeShare',
+    ),
+    groceryMarkupShare: share(raw['groceryMarkupShare'] ?? 0.01, 'ambassador.groceryMarkupShare'),
+    groceryDiscountShare: share(
+      raw['groceryDiscountShare'] ?? 0.01,
+      'ambassador.groceryDiscountShare',
+    ),
     months: wholeNumber(raw['months'] ?? 12, 'ambassador.months', 1),
     planShare: share(raw['planShare'] ?? 0.05, 'ambassador.planShare'),
     branchShareFactor: share(raw['branchShareFactor'] ?? 0.25, 'ambassador.branchShareFactor'),
@@ -883,24 +940,35 @@ function parseAmbassador(raw: Unknown): AmbassadorSettings {
 }
 
 /**
- * Restaurant pricing (Anthony, 30 October 2026): £12 flat in place of delivery, £10 the smallest
- * order, 20% the discount that makes a Preferred Partner. The fee must cover the Runner's pay on
- * every order it could be charged on (Rule Two): the standard five pounds, and the large-order
- * pay too, since a restaurant order may be that big.
+ * Restaurant pricing (Anthony, 30 October 2026): £10 the smallest order, 20% the discount that
+ * makes a Preferred Partner. Changed 30 October 2026 (Anthony, big restaurant orders): Ozi's share
+ * of the restaurant fee (`ozisSharePence`, £7) is the one figure configured, and the fee is the
+ * Runner's pay plus it: £12 with the standard five pounds, £14 with the large-order £7. So the fee
+ * always covers the Runner's pay (Rule Two), and is refused if set on its own.
  */
-function parseRestaurants(raw: Unknown, runnerPayPence: readonly number[]): RestaurantSettings {
-  const feePence = wholeNumber(raw['feePence'] ?? 1200, 'restaurants.feePence', 1);
-  for (const pay of runnerPayPence) {
-    if (feePence < pay) {
+function parseRestaurants(
+  raw: Unknown,
+  runnerPay: {
+    readonly standardPence: number;
+    readonly largeOrderPence: number;
+    readonly largeOrderFromPence: number;
+  },
+): RestaurantSettings {
+  const ozisSharePence = wholeNumber(raw['ozisSharePence'] ?? 700, 'restaurants.ozisSharePence', 0);
+  const feePence = runnerPay.standardPence + ozisSharePence;
+  const largeOrderFeePence = runnerPay.largeOrderPence + ozisSharePence;
+  // A parsed configuration read back in carries the worked-out fees; anything else is refused,
+  // so the fee can never drift from the Runner's pay plus Ozi's share.
+  for (const [key, worked] of [
+    ['feePence', feePence],
+    ['largeOrderFeePence', largeOrderFeePence],
+    ['largeOrderFromPence', runnerPay.largeOrderFromPence],
+  ] as const) {
+    if (raw[key] !== undefined && raw[key] !== worked) {
       throw new StoreConfigError(
-        `restaurants.feePence (${feePence}) must cover the Runner's pay of ${pay} on every restaurant order (Rule Two).`,
+        `restaurants.${key} is not set on its own: the restaurant fee is the Runner's pay plus restaurants.ozisSharePence.`,
       );
     }
-  }
-  if (raw['ozisSharePence'] !== undefined) {
-    throw new StoreConfigError(
-      "restaurants.ozisSharePence is not set on its own: Ozi's share is the fee less the Runner's pay.",
-    );
   }
   const preferredDiscountPercent = wholeNumber(
     raw['preferredDiscountPercent'] ?? 20,
@@ -912,13 +980,25 @@ function parseRestaurants(raw: Unknown, runnerPayPence: readonly number[]): Rest
     'restaurants.maximumDiscountPercent',
     1,
   );
+  // The largest mark-up staff may record on a partner's prices (Anthony, 30 October 2026).
+  const maximumMarkupPercent = wholeNumber(
+    raw['maximumMarkupPercent'] ?? 100,
+    'restaurants.maximumMarkupPercent',
+    0,
+  );
+  if (maximumMarkupPercent > 1000) {
+    throw new StoreConfigError('restaurants.maximumMarkupPercent must be at most 1000.');
+  }
   if (maximumDiscountPercent > 90 || preferredDiscountPercent > maximumDiscountPercent) {
     throw new StoreConfigError(
       'restaurants.preferredDiscountPercent must be at most restaurants.maximumDiscountPercent, which is at most 90.',
     );
   }
   return {
+    ozisSharePence,
     feePence,
+    largeOrderFeePence,
+    largeOrderFromPence: runnerPay.largeOrderFromPence,
     minimumOrderPence: wholeNumber(
       raw['minimumOrderPence'] ?? 1000,
       'restaurants.minimumOrderPence',
@@ -926,6 +1006,7 @@ function parseRestaurants(raw: Unknown, runnerPayPence: readonly number[]): Rest
     ),
     preferredDiscountPercent,
     maximumDiscountPercent,
+    maximumMarkupPercent,
   };
 }
 
@@ -1615,7 +1696,11 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     ),
     restaurants: parseRestaurants(
       root['restaurants'] === undefined ? {} : object(root['restaurants'], 'restaurants'),
-      [RUNNER_PAYMENT_PENCE, largeOrderRunnerPaymentPence],
+      {
+        standardPence: RUNNER_PAYMENT_PENCE,
+        largeOrderPence: largeOrderRunnerPaymentPence,
+        largeOrderFromPence,
+      },
     ),
     versionOneRestrictions: {
       ageRestrictedGoodsAllowed,
@@ -1696,6 +1781,11 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       splitRunnerPayPence: wholeNumber(
         dispatch['splitRunnerPayPence'] ?? 500,
         'dispatch.splitRunnerPayPence',
+        1,
+      ),
+      autoRefundAfterMinutes: wholeNumber(
+        dispatch['autoRefundAfterMinutes'] ?? 120,
+        'dispatch.autoRefundAfterMinutes',
         1,
       ),
       fairShareMaxLeadPence: wholeNumber(

@@ -63,6 +63,7 @@ import type {
   ReferralReward,
   Referral,
   ReferralLevelReached,
+  ReferralVoucher,
   AmbassadorEntry,
   AmbassadorAgreement,
   AmbassadorWithdrawal,
@@ -166,6 +167,23 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const levelsReached: ReferralLevelReached[] = [];
   const ambassadorEntries: AmbassadorEntry[] = [];
   const ambassadorAgreements: AmbassadorAgreement[] = [];
+  const vouchers = new Map<string, ReferralVoucher>();
+  const eraseVouchers = (accountKind: string, accountId: string, at: Date): number => {
+    let count = 0;
+    for (const [key, row] of vouchers) {
+      if (row.accountKind !== accountKind || row.accountId !== accountId) continue;
+      vouchers.set(key, {
+        ...row,
+        code: '',
+        link: null,
+        nextReminderAt: null,
+        ringingUntil: null,
+        erasedAt: at,
+      });
+      count += 1;
+    }
+    return count;
+  };
   const ambassadorWithdrawals: AmbassadorWithdrawal[] = [];
   const auditEntries: AuditEntry[] = [];
   const cardAuthorizations = new Map<string, CardAuthorization>();
@@ -597,6 +615,58 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
       async list() {
         return referralRewards.map(clone);
+      },
+    },
+
+    vouchers: {
+      async create(input) {
+        if ([...vouchers.values()].some((row) => row.levelId === input.levelId)) return null;
+        const row: ReferralVoucher = {
+          ...input,
+          id: id(),
+          openedAt: null,
+          usedAt: null,
+          ringingUntil: null,
+          reminder1At: null,
+          reminder1Via: null,
+          reminder2At: null,
+          reminder2Via: null,
+          reminder3At: null,
+          reminder3Via: null,
+          erasedAt: null,
+        };
+        vouchers.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const row = vouchers.get(key);
+        return row ? clone(row) : null;
+      },
+      async findByLevel(levelId) {
+        const row = [...vouchers.values()].find((one) => one.levelId === levelId);
+        return row ? clone(row) : null;
+      },
+      async listFor(accountKind, accountId) {
+        return [...vouchers.values()]
+          .filter((row) => row.accountKind === accountKind && row.accountId === accountId)
+          .sort((a, b) => b.sentAt.getTime() - a.sentAt.getTime())
+          .map(clone);
+      },
+      async listDue(at) {
+        return [...vouchers.values()]
+          .filter((row) => row.nextReminderAt !== null && row.nextReminderAt <= at)
+          .sort((a, b) => a.nextReminderAt!.getTime() - b.nextReminderAt!.getTime())
+          .map(clone);
+      },
+      async update(key, patch) {
+        const row = vouchers.get(key);
+        if (!row) throw new NotFoundError('Voucher', key);
+        const updated = { ...row, ...patch };
+        vouchers.set(key, updated);
+        return clone(updated);
+      },
+      async eraseFor(accountKind, accountId, at) {
+        return eraseVouchers(accountKind, accountId, at);
       },
     },
 
@@ -1171,6 +1241,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           substitutedForName: null,
           actualPricePence: null,
           note: item.note ?? null,
+          shopPricePence: item.shopPricePence ?? null,
+          counterPricePence: item.counterPricePence ?? null,
           createdAt: now(),
         }));
 
@@ -1295,6 +1367,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           substitutedForName: null,
           actualPricePence: null,
           note: item.note ?? null,
+          shopPricePence: item.shopPricePence ?? null,
+          counterPricePence: item.counterPricePence ?? null,
           createdAt: now(),
         };
         order.items.push(added);
@@ -1788,6 +1862,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           ambassadorId: null,
           branchOfShopId: null,
           agreedDiscountPercent: 0,
+          agreedMarkupPercent: 0,
           ...input,
           id: id(),
           paidUntil: null,
@@ -2521,6 +2596,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         }
         dropThread('shopper', shopperId);
         forgetCallNames('shopper', shopperId);
+        // A sent voucher's code goes with the account (30 October 2026).
+        eraseVouchers('shopper', shopperId, at);
         for (const [key, order] of orders) {
           if (order.shopperId !== shopperId) continue;
           orders.set(key, {
@@ -2541,6 +2618,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         }
         dropThread('runner', runnerId);
         forgetCallNames('runner', runnerId);
+        eraseVouchers('runner', runnerId, at);
       },
       async deleteRunnerChecksLeftBefore(before) {
         const gone = new Set(
