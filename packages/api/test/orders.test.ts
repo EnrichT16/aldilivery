@@ -192,7 +192,7 @@ describe('repricing to the receipt', () => {
     const runnerResponse = await harness.app.inject({
       method: 'POST',
       url: '/runners',
-      payload: { name: 'Ayesha', phone: '+447700900199' },
+      payload: { name: 'Ayesha', phone: '+447700900199', adult: true, homePostcode: 'ME7 1AA' },
     });
     const runner = runnerResponse.json() as { runner: { id: string }; token: string };
     await harness.repository.orders.update(orderId, {

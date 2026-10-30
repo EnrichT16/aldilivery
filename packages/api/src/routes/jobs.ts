@@ -24,6 +24,7 @@ import { tellShopper } from '../services/order-updates.js';
 import { assertTransitionAllowed } from '../services/orders.js';
 import { AGREE_FIRST, hasAgreed } from '../services/runner-agreement.js';
 import { loadCardForOrder } from '../services/runner-card.js';
+import { checksPassed } from '../services/runner-pool.js';
 import { splitView, syncSplitParent } from '../services/split.js';
 
 export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
@@ -195,7 +196,8 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
 
     const runner = await repository.runners.findById(session.accountId);
     if (!runner) throw new NotFoundError('account');
-    if (!runner.rightToWorkVerified || !runner.criminalRecordCheckVerified) {
+    // Every check, the face photo included (Anthony, 30 October 2026).
+    if (!checksPassed(runner)) {
       throw new ForbiddenError('We still need to finish your checks before you can take a job.');
     }
     // The agreement, with its pay-back and recovery terms, comes before any job (ruling 55).

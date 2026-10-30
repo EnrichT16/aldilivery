@@ -87,6 +87,7 @@ describe('offering without anybody pressing anything', () => {
     await harness.repository.runners.update(runner.runnerId, {
       rightToWorkVerified: true,
       criminalRecordCheckVerified: true,
+      facePhotoAcceptedAt: harness.now(),
       // Registered with a car: driving needs the licence and insurance accepted too.
       drivingLicenceVerified: true,
       motorInsuranceUntil: new Date('2099-12-31T00:00:00.000Z'),
@@ -374,7 +375,10 @@ describe('carrying limits by way of travelling', () => {
   /** Fifty pints: £62.50 at the shop, over what walking and cycling carry. */
   const placeLargeOrder = () => placeMilk(50);
 
-  async function travelling(runnerId: string, vehicleType: 'on_foot' | 'bicycle' | 'motorbike' | 'car' | 'van') {
+  async function travelling(
+    runnerId: string,
+    vehicleType: 'on_foot' | 'bicycle' | 'motorbike' | 'car' | 'van',
+  ) {
     await harness.repository.runners.update(runnerId, { vehicleType });
   }
 
@@ -389,7 +393,10 @@ describe('carrying limits by way of travelling', () => {
     expect(harness.config.dispatch.waitingAlertMinutes).toBe(15);
     // Ruling 61: split after ten minutes, motorbike parts up to £75, foot and bicycle up to £60.
     expect(harness.config.dispatch.splitAfterMinutes).toBe(10);
-    expect(harness.config.dispatch.splitPartMaxPenceByMode).toEqual({ motorbike: 7500, foot: 6000 });
+    expect(harness.config.dispatch.splitPartMaxPenceByMode).toEqual({
+      motorbike: 7500,
+      foot: 6000,
+    });
   });
 
   it('does not offer a large order to a Runner on foot or by bicycle', async () => {
@@ -424,7 +431,9 @@ describe('carrying limits by way of travelling', () => {
     await travelling(rider.runnerId, 'motorbike');
     const upTo70 = await placeMilk(56); // £70.00
     expect((await offersFor(upTo70))[0]!.runnerId).toBe(rider.runnerId);
-    await harness.repository.offers.update((await offersFor(upTo70))[0]!.id, { outcome: 'declined' });
+    await harness.repository.offers.update((await offersFor(upTo70))[0]!.id, {
+      outcome: 'declined',
+    });
 
     const over70 = await placeMilk(57); // £71.25
     expect(await offersFor(over70)).toHaveLength(0);
@@ -492,7 +501,10 @@ describe('carrying limits by way of travelling', () => {
       (await signUpRunner(harness)).runnerId,
     ))!;
     const at = harness.now();
-    const as = (vehicleType: 'on_foot' | 'bicycle' | 'motorbike' | 'car' | 'van') => ({ ...runner, vehicleType });
+    const as = (vehicleType: 'on_foot' | 'bicycle' | 'motorbike' | 'car' | 'van') => ({
+      ...runner,
+      vehicleType,
+    });
     expect(canCarry(harness.config, as('on_foot'), { goodsEstimatePence: 6000 }, at)).toBe(true);
     expect(canCarry(harness.config, as('on_foot'), { goodsEstimatePence: 6001 }, at)).toBe(false);
     expect(canCarry(harness.config, as('bicycle'), { goodsEstimatePence: 6001 }, at)).toBe(false);

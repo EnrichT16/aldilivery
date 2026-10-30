@@ -23,7 +23,14 @@ async function signUp(travelModes: string[], extra: Record<string, unknown> = {}
   const response = await harness.app.inject({
     method: 'POST',
     url: '/runners',
-    payload: { name: 'Chidi Okafor', phone: '+447700900301', travelModes, ...extra },
+    payload: {
+      name: 'Chidi Okafor',
+      phone: '+447700900301',
+      travelModes,
+      adult: true,
+      homePostcode: 'ME7 1AA',
+      ...extra,
+    },
   });
   expect(response.statusCode, response.body).toBe(201);
   const body = response.json() as {
@@ -70,6 +77,8 @@ describe('signing up', () => {
         phone: '+447700900302',
         travelModes: ['bicycle'],
         referredBy: first.runner.referralCode.toLowerCase(),
+        adult: true,
+        homePostcode: 'ME7 1AA',
       },
     });
     const stored = await harness.repository.runners.findById(second.json().runner.id);

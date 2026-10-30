@@ -65,10 +65,11 @@ import {
   offerExpiryAt,
   SERVICE_RADIUS_MILES,
 } from './allocation.js';
+import { areaFor, knownPlace, runnerArea, runnerPositions } from './areas.js';
 import { earnedTodayPence } from './earnings.js';
 import { hasPlusExtras } from './plans.js';
 import { allocatedOrderIds, liveAllocationFor, runnersAwaitingOfficeJobs } from './allocate.js';
-import { activeOrdersByRunner, mayBeOffered, takesPart } from './runner-pool.js';
+import { activeOrdersByRunner, checksPassed, mayBeOffered, takesPart } from './runner-pool.js';
 import { alertIfSplitPartWaiting, replanStrandedParts, shouldSplit, splitOrder } from './split.js';
 import { canDrive, orderReference } from '../routes/runner-account.js';
 
@@ -235,9 +236,18 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
   // nobody who has left is offered anything, driving waits for in-date insurance (ruling 14),
   // a large order goes only to a Runner who can carry it (rulings 59 and 60), and the demo
   // Runner is never offered a real job.
+  // Areas (Anthony, 30 October 2026): a job goes only to Runners whose own area, from their home
+  // postcode, is the area of its delivery address; never to anybody in another area.
   const onShift = (await repository.runners.listAvailable()).filter(
-    (r) => !holding.has(r.id) && mayBeOffered(r, at) && canCarry(config, r, order, at),
+    (r) =>
+      !holding.has(r.id) &&
+      mayBeOffered(r, at) &&
+      canCarry(config, r, order, at) &&
+      inJobArea(config, r, order),
   );
+  // Nearest first: where each Runner's phone last said they were, while that is recent, or else
+  // their home postcode's place (Anthony, 30 October 2026).
+  const positions = await runnerPositions(ctx, onShift, at);
   const free = onShift.filter((r) => !active.has(r.id));
   // Earned-today balance (ruling 64): what each has earned today, compared and told to nobody.
   const earned = new Map<string, number>();
@@ -285,10 +295,15 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
   // regular Runner" where possible (ruling 58), first unless they are more than
   // `fairShareMaxLeadPence` ahead of the lowest earner on shift.
   const regular = await regularRunnerFor(ctx, order, at);
-  const here = { latitude: order.latitude, longitude: order.longitude };
+  const here =
+    order.latitude !== null && order.longitude !== null
+      ? { latitude: order.latitude, longitude: order.longitude }
+      : ((await knownPlace(ctx, order.deliveryAddress)) ?? { latitude: null, longitude: null });
   const queue = fairQueue(
     free
-      .map((r) => asFair(r, distanceMiles(here, r)))
+      .map((r) =>
+        asFair(r, distanceMiles(here, positions.get(r.id) ?? { latitude: null, longitude: null })),
+      )
       // Not a fairness rule, a practicality: a Runner twenty miles away cannot deliver chilled food.
       .filter((r) => r.distanceMiles === null || r.distanceMiles <= SERVICE_RADIUS_MILES),
     at,
@@ -347,6 +362,20 @@ export async function offerOrder(ctx: DispatchContext, orderId: string): Promise
   }
 
   return { offer, alreadyOffered: false, holdSeconds, queueLength: queue.length };
+}
+
+/**
+ * Whether a Runner may be offered a job at this address, by area (Anthony, 30 October 2026): only
+ * in their own area, from their home postcode. A Runner who has not given one yet is in no area.
+ * An address with no postcode to go by (only orders from before areas) is not held back by area.
+ */
+export function inJobArea(
+  config: AppContext['config'],
+  runner: Runner,
+  order: Pick<Order, 'deliveryAddress'>,
+): boolean {
+  const area = areaFor(config, order.deliveryAddress);
+  return area === null || runnerArea(config, runner) === area;
 }
 
 /** A Runner on shift with a job in hand, and the orders in hand. */
@@ -411,7 +440,7 @@ export async function queuePositionFor(
     words: queuePositionWords(null, reason),
   });
   if (!runner.available) return notInLine('off_shift');
-  if (!runner.rightToWorkVerified || !runner.criminalRecordCheckVerified) {
+  if (!checksPassed(runner)) {
     return notInLine('checks_not_done');
   }
   const active = await activeOrdersByRunner(ctx);

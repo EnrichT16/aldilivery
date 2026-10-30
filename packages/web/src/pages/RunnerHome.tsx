@@ -53,6 +53,7 @@ import { LeaveRunning } from '../components/LeaveRunning';
 import { PayoutChoice } from '../components/PayoutChoice';
 import { PhotoChoice } from '../components/PhotoChoice';
 import { RunnerSos } from '../components/RunnerSos';
+import { HomePostcode, RunnerLocation } from '../components/RunnerLocation';
 import { DemoBanner } from '../components/DemoBanner';
 import { NotifyMe } from '../components/NotifyMe';
 import { TillPayment } from '../components/TillPayment';
@@ -150,8 +151,11 @@ export function RunnerHome(): JSX.Element {
   // Offers already chimed for, so a new one sounds once and a look every few seconds is silent.
   const heardOffers = useRef(new Set<string>());
 
+  // Every check, the face photo included (Anthony, 30 October 2026).
   const approved = runner
-    ? runner.rightToWorkVerified && runner.criminalRecordCheckVerified
+    ? runner.rightToWorkVerified &&
+      runner.criminalRecordCheckVerified &&
+      runner.facePhotoAcceptedAt !== null
     : false;
 
   const refresh = useCallback(async () => {
@@ -378,13 +382,23 @@ export function RunnerHome(): JSX.Element {
               }}
             />
           )}
+          {/* Areas (Anthony, 30 October 2026): jobs come from their own area, nearest first. */}
+          {approved && !runner.homePostcode && (
+            <HomePostcode
+              onSaved={(message) => {
+                setNews(message);
+                void refresh();
+              }}
+            />
+          )}
+          {approved && <RunnerLocation onShift={runner.available} onJob={job !== null} />}
           {!approved ? (
             <section aria-labelledby="checks-heading" className="space-y-3 max-w-xl">
               <h2 id="checks-heading" className="text-lead font-bold">
                 Waiting for your checks
               </h2>
               <p className="m-0">
-                Send your documents below. {DOCUMENT_CHECK_WORDS} You can go on shift once both of
+                Send your documents below. {DOCUMENT_CHECK_WORDS} You can go on shift once all of
                 these are done.
               </p>
               <ul className="m-0 ps-6 space-y-2">
@@ -396,6 +410,7 @@ export function RunnerHome(): JSX.Element {
                   Basic criminal record check (DBS):{' '}
                   {runner.criminalRecordCheckVerified ? 'done' : 'not yet'}.
                 </li>
+                <li>Face photo: {runner.facePhotoAcceptedAt ? 'done' : 'not yet'}.</li>
               </ul>
               <p className="m-0">{ENHANCED_DBS_OPTIONAL}</p>
               <DocumentsChecklist onNews={setNews} />

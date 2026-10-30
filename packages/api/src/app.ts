@@ -28,6 +28,7 @@ import type { VoiceEngineLink } from './lib/oluoma-voice.js';
 import type { OziBrain } from './lib/language-model.js';
 import type { OpenPricesLookup } from './lib/open-prices.js';
 import type { PaymentsGateway } from './lib/payments.js';
+import type { PostcodeLookup } from './lib/postcodes.js';
 import type { SendPush } from './lib/push.js';
 import type { SendText } from './lib/sms.js';
 import type { PlaceCall } from './lib/twilio-voice.js';
@@ -35,6 +36,7 @@ import { verifySession } from './lib/tokens.js';
 import { gitCommit } from './lib/version.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerAllocateRoutes } from './routes/allocate.js';
+import { registerAreaRoutes } from './routes/areas.js';
 import { registerUnlockRoutes } from './routes/unlock.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerAccountRoutes } from './routes/accounts.js';
@@ -152,6 +154,18 @@ export interface AppContext {
    * the model. On in the real server; off in the tests, which await each check to prove it.
    */
   backgroundChecks: boolean;
+  /**
+   * Turning a postcode into a place, with postcodes.io (Anthony, 30 October 2026), asked when a
+   * postcode is saved and kept. Null in the tests unless a stand-in is given, so no test ever
+   * reaches the network; areas then come from the postcode's letters alone.
+   */
+  findPostcode: PostcodeLookup | null;
+  /**
+   * Refuse, before paying, an order to an area that is not running yet, and put the Shopper on
+   * its waiting list (Anthony, 30 October 2026). On in the real server; off unless asked for in
+   * the tests, most of which prove other rules in an area with no Runner signed up yet.
+   */
+  areasGate: boolean;
 }
 
 export interface Session {
@@ -190,6 +204,8 @@ export interface BuildAppOptions extends Partial<
     | 'openPrices'
     | 'lookUpPrices'
     | 'backgroundChecks'
+    | 'findPostcode'
+    | 'areasGate'
   >
 > {
   config: StoreConfig;
@@ -262,6 +278,8 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     openPrices: options.openPrices ?? null,
     lookUpPrices: options.lookUpPrices ?? false,
     backgroundChecks: options.backgroundChecks ?? false,
+    findPostcode: options.findPostcode ?? null,
+    areasGate: options.areasGate ?? true,
   };
 
   app.decorate('ctx', ctx);
@@ -532,6 +550,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerOrderExtraRoutes(app);
   await registerReviewRoutes(app);
   await registerRunnerSafetyRoutes(app);
+  await registerAreaRoutes(app);
   await registerRunnerMoneyRoutes(app);
   await registerRunnerCardRoutes(app);
   await registerReferralRewardRoutes(app);

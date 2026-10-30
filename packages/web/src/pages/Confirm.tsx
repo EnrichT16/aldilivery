@@ -4,6 +4,7 @@ import {
   checkSchedule,
   largeOrderShopperWords,
   needsVehicle,
+  postcodeIn,
   runnerPaymentFor,
   scheduleAgreementWords,
   ukDay,
@@ -17,6 +18,7 @@ import { PinGate } from '../components/PinGate';
 import { startingBooking, WhenItComes, type Booking } from '../components/WhenItComes';
 import { storeConfig } from '../config';
 import {
+  checkArea,
   createOrder,
   fetchBankTransferEnabled,
   fetchAddresses,
@@ -132,6 +134,26 @@ export function Confirm(): JSX.Element {
    */
   const [confirmedAddress, setConfirmedAddress] = useState<string | null>(null);
   const addressConfirmed = confirmedAddress !== null && confirmedAddress === address.trim();
+  /**
+   * Areas (Anthony, 30 October 2026): whether we run at this address yet, asked as soon as it is
+   * shown, so a Shopper somewhere we do not run yet is told honestly before paying, and nothing
+   * is taken. The server refuses such an order too, and puts them on the area's waiting list.
+   */
+  const [notRunning, setNotRunning] = useState<string | null>(null);
+  const postcode = postcodeIn(address);
+  useEffect(() => {
+    setNotRunning(null);
+    if (postcode === '') return undefined;
+    let cancelled = false;
+    checkArea(postcode)
+      .then((result) => {
+        if (!cancelled && result.running === false) setNotRunning(result.words);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [postcode]);
   const ozi = useOzi();
   const spokenFor = useRef<string | null>(null);
 
@@ -236,6 +258,7 @@ export function Confirm(): JSX.Element {
     if (overMaximum) {
       return `Your shopping is more than one basket holds, ${money(storeConfig.fees.maximumBasketGoodsPence)}. Please go back to your basket and take some things out.`;
     }
+    if (notRunning !== null) return notRunning;
     if (address.trim() === '' || !addressConfirmed) return 'Please confirm the address first';
     if (!card && !byBank && !byFamily) return 'Please add a card or choose bank transfer';
     if (overOneRunner && !keepEverything) {
@@ -687,6 +710,14 @@ export function Confirm(): JSX.Element {
             ) : (
               <p className="m-0">
                 {address === '' ? 'You have not given us an address yet.' : address}
+              </p>
+            )}
+            {notRunning !== null && (
+              <p
+                role="alert"
+                className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0"
+              >
+                {notRunning} Nothing will be taken.
               </p>
             )}
             {address.trim() !== '' &&

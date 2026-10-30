@@ -16,6 +16,9 @@ import type { OrderStatus } from '@aldilivery/core';
 import type {
   CardAuthorization,
   AccountRole,
+  AreaRecord,
+  AreaWaiting,
+  PostcodePlace,
   AuditEntry,
   IncomeRecord,
   LearnedPhrase,
@@ -163,6 +166,9 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const inboxMessages = new Map<string, InboxMessage>();
   const staffCodes = new Map<string, StaffCode>();
   const staffCalls = new Map<string, StaffCall>();
+  const postcodePlaces = new Map<string, PostcodePlace>();
+  const areaRecords = new Map<string, AreaRecord>();
+  const areaWaiting = new Map<string, AreaWaiting>();
 
   /** The account's thread and its messages go with the account (ruling 77). */
   const dropThread = (accountKind: InboxThread['accountKind'], accountId: string): number => {
@@ -387,6 +393,10 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           issuingTermsAcceptedAt: null,
           issuingTermsAcceptedIp: null,
           faceMatchConsentAt: null,
+          homePostcode: input.homePostcode ?? '',
+          locationAt: null,
+          facePhotoAcceptedAt: input.facePhotoAcceptedAt ?? null,
+          adultConfirmedAt: input.adultConfirmedAt ?? null,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -828,6 +838,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           joinCode: null,
           monthlyBudgetPence: null,
           staffTripCostPence: null,
+          postcode: input.postcode ?? '',
           createdAt: now(),
           updatedAt: now(),
         };
@@ -2317,6 +2328,9 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         for (const [key, set] of sets) {
           if (set.shopperId === shopperId) sets.delete(key);
         }
+        for (const [key, waiting] of areaWaiting) {
+          if (waiting.shopperId === shopperId) areaWaiting.delete(key);
+        }
         dropThread('shopper', shopperId);
         forgetCallNames('shopper', shopperId);
         for (const [key, order] of orders) {
@@ -2415,6 +2429,67 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         return removed;
       },
     },
+    postcodes: {
+      async find(postcode) {
+        const found = postcodePlaces.get(postcode);
+        return found ? clone(found) : null;
+      },
+      async findMany(postcodes) {
+        return postcodes.flatMap((postcode) => {
+          const found = postcodePlaces.get(postcode);
+          return found ? [clone(found)] : [];
+        });
+      },
+      async save(place) {
+        postcodePlaces.set(place.postcode, clone(place));
+        return clone(place);
+      },
+    },
+
+    areas: {
+      async list() {
+        return [...areaRecords.values()].map(clone);
+      },
+      async find(area) {
+        const found = areaRecords.get(area);
+        return found ? clone(found) : null;
+      },
+      async save(area, patch) {
+        const existing = areaRecords.get(area) ?? {
+          area,
+          pausedAt: null,
+          pausedBy: null,
+          startedAt: null,
+        };
+        const updated = { ...existing, ...patch, area };
+        areaRecords.set(area, updated);
+        return clone(updated);
+      },
+    },
+
+    areaWaiting: {
+      async add(input) {
+        for (const row of areaWaiting.values()) {
+          if (row.area === input.area && row.shopperId === input.shopperId) return clone(row);
+        }
+        const row: AreaWaiting = { ...input, id: id(), textedAt: null };
+        areaWaiting.set(row.id, row);
+        return clone(row);
+      },
+      async list() {
+        return [...areaWaiting.values()]
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async markTexted(key, at) {
+        const existing = areaWaiting.get(key);
+        if (!existing) throw new NotFoundError('Waiting list entry', key);
+        const updated = { ...existing, textedAt: at };
+        areaWaiting.set(key, updated);
+        return clone(updated);
+      },
+    },
+
     admin: {
       async listOrders(where) {
         return [...orders.values()]

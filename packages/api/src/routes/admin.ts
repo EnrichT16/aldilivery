@@ -28,6 +28,7 @@ import { ForbiddenError } from '../errors.js';
 import { formatPence } from '@aldilivery/core';
 import { canCarry } from '../services/dispatch.js';
 import { needsYou } from '../services/needs-you.js';
+import { mapsLink } from '../services/sos.js';
 import {
   alreadyRefundedPence,
   cancelOrder,
@@ -506,6 +507,13 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
         earnedTodayPence: earned(startOfDay),
         earnedWeekPence: earned(weekAgo),
         earnedAllTimePence: earned(new Date(0)),
+        // On a job: when their phone last shared where they are, and where (30 October 2026).
+        // Only to staff with the Runners tab, never to a Shopper.
+        lastSeenAt: job ? runner.locationAt : null,
+        mapsLink:
+          job && runner.locationAt && runner.latitude !== null && runner.longitude !== null
+            ? mapsLink(runner.latitude, runner.longitude)
+            : null,
       });
     }
     rows.sort((a, b) => Number(b.activeNow) - Number(a.activeNow) || a.name.localeCompare(b.name));

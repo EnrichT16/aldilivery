@@ -150,6 +150,8 @@ export {
   type HeardBrowse,
 } from './browse.js';
 
+export { areaName, areaOf, postcodeIn, tidyPostcode, type AreaSettings } from './areas.js';
+
 export {
   PARTNER_KINDS,
   PARTNER_KIND_WORDS,

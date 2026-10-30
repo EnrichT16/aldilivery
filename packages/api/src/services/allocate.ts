@@ -29,6 +29,7 @@ import { ForbiddenError } from '../errors.js';
 import { isViewerRole, type StaffActor } from '../lib/staff.js';
 import { orderReference } from '../routes/admin.js';
 import { distanceMiles, isOfferExpired, offerExpiryAt } from './allocation.js';
+import { areaCalled, areaFor, runnerArea } from './areas.js';
 import { canCarry, largeOrderWords, offerOrder } from './dispatch.js';
 import { mayBeAssigned, releaseRunner, withdrawOffers } from './order-rescue.js';
 import { askOwner, ukDate } from './owner-desk.js';
@@ -95,6 +96,11 @@ export interface AssignmentResult {
   place?: number;
   /** Refused: why, in plain words, such as "it has been bought already". */
   reason?: string;
+  /**
+   * Allocated, but worth a second look: the Runner is in a different area from the order
+   * (Anthony, 30 October 2026). Still sent, because staff decide.
+   */
+  warning?: string;
   allocationId?: string;
 }
 
@@ -150,6 +156,22 @@ export function runnerRefusal(ctx: Pick<Ctx, 'config'>, runner: Runner, order: O
     return `${name} cannot carry it: ${lowerFirst(largeOrderWords(ctx.config, order, runner).replace(/\.$/, ''))}`;
   }
   return null;
+}
+
+/**
+ * A warning when the Runner's own area is not the order's (Anthony, 30 October 2026): the queue
+ * never offers a job in another area, but the office may send one, because staff decide.
+ */
+export function areaWarning(ctx: Pick<Ctx, 'config'>, runner: Runner, order: Order): string | null {
+  const orderArea = areaFor(ctx.config, order.deliveryAddress);
+  if (!orderArea) return null;
+  const theirs = runnerArea(ctx.config, runner);
+  if (theirs === orderArea) return null;
+  const name = firstName(runner.name);
+  const where = areaCalled(ctx.config, orderArea);
+  return theirs
+    ? `${name} is in ${areaCalled(ctx.config, theirs)}, and this order is in ${where}`
+    : `${name} has not given a home postcode, so may not be in ${where}, where this order is`;
 }
 
 /** The order's office allocation still live, queued or offered, if there is one. */
@@ -376,6 +398,8 @@ async function allocateOne(
     }
     const cannot = runnerRefusal(ctx, runner, order, at);
     if (cannot) return refuse(cannot);
+    const warning = areaWarning(ctx, runner, order);
+    const warned = warning ? { warning } : {};
     let backup: Runner | null = null;
     if (assignment.backupRunnerId) {
       if (assignment.backupRunnerId === runner.id) {
@@ -419,10 +443,11 @@ async function allocateOne(
     await offerNextFor(ctx, runner.id, log);
     const now = (await repository.allocations.findById(allocation.id)) ?? allocation;
     if (now.status === 'offered') {
-      return { ...base, result: 'allocated', state: 'offered', allocationId: now.id };
+      return { ...base, ...warned, result: 'allocated', state: 'offered', allocationId: now.id };
     }
     return {
       ...base,
+      ...warned,
       result: 'allocated',
       state: 'queued',
       place: await placeInQueue(ctx, now),
@@ -487,6 +512,12 @@ export function allocationMessage(results: readonly AssignmentResult[]): string 
     text += sent.length > 0 ? `; ${refused.length} could not be: ${why}.` : `: ${why}.`;
   } else {
     text += '.';
+  }
+  // A different area (Anthony, 30 October 2026): sent, and said, so staff can think again.
+  for (const row of sent) {
+    if (row.warning) {
+      text += ` Please check: ${row.warning}${row.reference ? ` (order ${row.reference})` : ''}.`;
+    }
   }
   for (const entry of byRunner.values()) {
     if (entry.waiting === 0) continue;

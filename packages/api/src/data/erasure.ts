@@ -61,6 +61,8 @@ export function erasedRunnerPatch(runnerId: string, at: Date): Partial<Runner> {
     phone: `closed:${runnerId}`,
     latitude: null,
     longitude: null,
+    locationAt: null,
+    homePostcode: '',
     available: false,
     issuingTermsAcceptedIp: null,
     insuranceReminderFor: null,

@@ -22,6 +22,7 @@ import { loadShopsSeed } from './lib/shops-seed.js';
 import { oluomaVoice } from './lib/oluoma-voice.js';
 import { languageModel } from './lib/language-model.js';
 import { openPrices } from './lib/open-prices.js';
+import { postcodesIo } from './lib/postcodes.js';
 import { webPushSender } from './lib/push.js';
 import { callScript, codeMessage, senderName, twilioCaller, twilioSender } from './lib/sms.js';
 import { twilioDialler } from './lib/twilio-voice.js';
@@ -34,6 +35,7 @@ import { sweepCards } from './services/runner-card.js';
 import { sweepRetention } from './services/retention.js';
 import { settleShopReviews } from './services/shop-of-the-month.js';
 import { sweepSets } from './services/set-runner.js';
+import { sweepAreas } from './services/areas.js';
 import { sweepInsuranceReminders } from './services/insurance.js';
 import { sweepDeposits } from './services/runner-leaving.js';
 import { sweepPlans } from './services/plans.js';
@@ -172,6 +174,9 @@ async function main(): Promise<void> {
       userAgent: `${config.productName}/1.0 (${config.contact.email})`,
     }),
     lookUpPrices: true,
+    // Postcodes become places with postcodes.io when saved (Anthony, 30 October 2026); no key.
+    findPostcode: postcodesIo(),
+    areasGate: true,
     // The automatic check (ruling 74) runs in the background: nobody waits for it.
     backgroundChecks: true,
     repository,
@@ -376,6 +381,25 @@ async function main(): Promise<void> {
       });
   }, 60_000);
   setSweep.unref();
+
+  // Every minute: an area's waiting list is texted once when the area starts (Anthony, 30
+  // October 2026), never in the quiet hours.
+  let areasRunning = false;
+  const areaSweep = setInterval(() => {
+    if (areasRunning) return;
+    areasRunning = true;
+    sweepAreas(app.ctx, app.log)
+      .then((texted) => {
+        if (texted > 0) app.log.info({ texted }, 'Area waiting lists texted');
+      })
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, 'The area sweep failed');
+      })
+      .finally(() => {
+        areasRunning = false;
+      });
+  }, 60_000);
+  areaSweep.unref();
 
   // Every hour: remove closed accounts whose seven days are up, and anything kept longer than
   // the privacy page says (services/retention.ts).

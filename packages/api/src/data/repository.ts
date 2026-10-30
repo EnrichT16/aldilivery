@@ -12,6 +12,9 @@
 
 import type {
   AccountRole,
+  AreaRecord,
+  AreaWaiting,
+  PostcodePlace,
   AuditEntry,
   CardAuthorization,
   IncomeRecord,
@@ -111,11 +114,14 @@ export type CreateRunner = Pick<Runner, 'name' | 'phone'> &
       | 'latitude'
       | 'longitude'
       | 'isDemo'
+      | 'homePostcode'
+      | 'adultConfirmedAt'
+      | 'facePhotoAcceptedAt'
     >
   >;
 
 export type CreateOrganisation = Pick<Organisation, 'name' | 'contactName' | 'contactEmail'> &
-  Partial<Pick<Organisation, 'contactPhone' | 'invoiceTerms'>>;
+  Partial<Pick<Organisation, 'contactPhone' | 'invoiceTerms' | 'postcode'>>;
 
 export type CreateCatalogueItem = Pick<
   CatalogueItem,
@@ -936,6 +942,33 @@ export interface Repository {
     listCallsFor(accountKind: InboxAccountKind, accountId: string): Promise<StaffCall[]>;
     /** Calls started before a moment that still have a recording kept. */
     listRecordingsStartedBefore(before: Date): Promise<StaffCall[]>;
+  };
+
+  /** Postcodes turned into places with postcodes.io, kept so each is asked once (30 October 2026). */
+  postcodes: {
+    find(postcode: string): Promise<PostcodePlace | null>;
+    findMany(postcodes: readonly string[]): Promise<PostcodePlace[]>;
+    /** Adds the place, or brings the one for the same postcode up to date. */
+    save(place: PostcodePlace): Promise<PostcodePlace>;
+  };
+
+  /** Areas paused by staff, and when each started (30 October 2026). */
+  areas: {
+    list(): Promise<AreaRecord[]>;
+    find(area: string): Promise<AreaRecord | null>;
+    /** Adds the area's record, or changes the one there. */
+    save(area: string, patch: Partial<Omit<AreaRecord, 'area'>>): Promise<AreaRecord>;
+  };
+
+  /** Shoppers waiting for their area to start, each once per area (30 October 2026). */
+  areaWaiting: {
+    /** Adds them, or leaves the entry already there as it is. */
+    add(
+      input: Pick<AreaWaiting, 'area' | 'shopperId' | 'postcode' | 'createdAt'>,
+    ): Promise<AreaWaiting>;
+    /** Oldest first. */
+    list(): Promise<AreaWaiting[]>;
+    markTexted(id: string, at: Date): Promise<AreaWaiting>;
   };
 
   /** What the admin panel looks up across everybody (Section Q). Read only. */

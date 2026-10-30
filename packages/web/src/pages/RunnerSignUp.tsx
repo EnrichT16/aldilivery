@@ -52,6 +52,7 @@ export function RunnerSignUp(): JSX.Element {
     const data = new FormData(event.currentTarget);
     const name = String(data.get('runnerName') ?? '').trim();
     const phone = String(data.get('runnerPhone') ?? '').trim();
+    const homePostcode = String(data.get('homePostcode') ?? '').trim();
     const travelModes = data.getAll('travelModes').map(String) as VehicleType[];
     const agreed = data.get('agreement') === 'yes';
 
@@ -59,6 +60,9 @@ export function RunnerSignUp(): JSX.Element {
     if (name === '') found.push({ field: 'runnerName', message: 'Please tell us your name.' });
     if (phone === '') {
       found.push({ field: 'runnerPhone', message: 'Please give us your mobile number.' });
+    }
+    if (homePostcode === '') {
+      found.push({ field: 'homePostcode', message: 'Please give your home postcode.' });
     }
     if (travelModes.length === 0) {
       found.push({
@@ -87,6 +91,9 @@ export function RunnerSignUp(): JSX.Element {
         ...(referredBy ? { referredBy } : {}),
         // Kept with the date and the version, before any job (ruling 55).
         agreement: { accepted: true, version: RUNNER_AGREEMENT_VERSION, channel: 'button' },
+        // The same tick says they are 18 or over; the server keeps it with its time.
+        adult: true,
+        homePostcode,
       });
       // Kept as the Runner's own sign-in, so any Shopper signed in here stays signed in.
       writeRunnerToken(result.token);
@@ -182,6 +189,12 @@ export function RunnerSignUp(): JSX.Element {
           hint="We will contact you on this number to arrange your checks, like 07700 900123."
           type="tel"
           autoComplete="tel"
+        />
+        <Field
+          id="homePostcode"
+          label="Your home postcode"
+          hint="Jobs are offered in your own area, from where you live, like ME7 1AA."
+          autoComplete="postal-code"
         />
 
         <fieldset className="space-y-2 border-0 p-0 m-0" aria-describedby="ways-hint">

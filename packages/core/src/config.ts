@@ -40,6 +40,7 @@ import type {
   OrganisationPricing,
   ProcessorModel,
 } from './fees.js';
+import type { AreaSettings } from './areas.js';
 import type { BrowseSettings } from './browse.js';
 import { excludedServiceKind, type PartnerPricing } from './partners.js';
 
@@ -381,6 +382,13 @@ export interface StoreConfig {
    * joins, as printed for people.
    */
   readonly browse: BrowseSettings;
+  /**
+   * Areas (Anthony, 30 October 2026): what each UK postcode area is called, the areas run as one
+   * (London), what a Shopper in an area not running yet is told before paying, the text their
+   * waiting list gets when it starts and the hours it is never sent, and how a Runner's position
+   * is shared and trusted.
+   */
+  readonly areas: AreaSettings;
   /** The admin panel (Section Q): who may do what, and how signing in is kept safe. */
   readonly admin: {
     /** A refund above this is the owner's alone to give (Section Q). £25 unless set. */
@@ -780,6 +788,62 @@ function parseBrowse(raw: Unknown, excluded: readonly string[]): BrowseSettings 
     serviceCategories,
     ofstedCategories,
     joinAddress: str(raw['joinAddress'] ?? '/business/join', 'browse.joinAddress'),
+  };
+}
+
+function parseAreas(raw: Unknown): AreaSettings {
+  const namesRaw = raw['names'] === undefined ? {} : object(raw['names'], 'areas.names');
+  const names: Record<string, string> = {};
+  for (const [area, name] of Object.entries(namesRaw)) {
+    names[area] = str(name, `areas.names.${area}`).trim();
+  }
+  const groupsRaw = raw['groups'] === undefined ? {} : object(raw['groups'], 'areas.groups');
+  const groups: Record<string, string[]> = {};
+  const grouped = new Set<string>();
+  for (const [group, members] of Object.entries(groupsRaw)) {
+    const letters = wordList(members, `areas.groups.${group}`).map((entry) => entry.toUpperCase());
+    for (const entry of letters) {
+      if (!/^[A-Z]{1,2}$/.test(entry)) {
+        throw new StoreConfigError(
+          `areas.groups.${group} has "${entry}", which is not the letters of a postcode area.`,
+        );
+      }
+      if (grouped.has(entry)) {
+        throw new StoreConfigError(`areas.groups has "${entry}" in more than one group.`);
+      }
+      grouped.add(entry);
+    }
+    groups[group] = letters;
+  }
+  return {
+    names,
+    groups,
+    runningWords: str(
+      raw['runningWords'] ?? 'Yes, we are running in {area}.',
+      'areas.runningWords',
+    ),
+    notRunningWords: str(
+      raw['notRunningWords'] ??
+        "We aren't running in your area yet. We'll text you the moment it starts.",
+      'areas.notRunningWords',
+    ),
+    startedWords: str(
+      raw['startedWords'] ?? 'Good news: we have started in {area}.',
+      'areas.startedWords',
+    ),
+    textQuietFrom: clockTime(raw['textQuietFrom'] ?? '21:00', 'areas.textQuietFrom'),
+    textQuietUntil: clockTime(raw['textQuietUntil'] ?? '09:00', 'areas.textQuietUntil'),
+    livePositionMinutes: wholeNumber(
+      raw['livePositionMinutes'] ?? 15,
+      'areas.livePositionMinutes',
+      1,
+    ),
+    shareOnShiftSeconds: wholeNumber(
+      raw['shareOnShiftSeconds'] ?? 120,
+      'areas.shareOnShiftSeconds',
+      10,
+    ),
+    shareOnJobSeconds: wholeNumber(raw['shareOnJobSeconds'] ?? 25, 'areas.shareOnJobSeconds', 5),
   };
 }
 
@@ -1459,6 +1523,7 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       root['browse'] === undefined ? {} : object(root['browse'], 'browse'),
       partnersParsed.excludedServiceKinds,
     ),
+    areas: parseAreas(root['areas'] === undefined ? {} : object(root['areas'], 'areas')),
     admin: {
       ownerOnlyRefundAbovePence: wholeNumber(
         admin['ownerOnlyRefundAbovePence'] ?? 2500,

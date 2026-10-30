@@ -26,6 +26,7 @@ import type { OpenPricesLookup } from '../src/lib/open-prices.js';
 import type { VoiceEngineLink } from '../src/lib/oluoma-voice.js';
 import type { SendPush } from '../src/lib/push.js';
 import type { PlaceCall } from '../src/lib/twilio-voice.js';
+import type { PostcodeLookup } from '../src/lib/postcodes.js';
 
 export const TEST_SECRET = 'test-secret-that-is-long-enough-for-hmac';
 
@@ -139,6 +140,13 @@ export interface TestAppOptions {
   placeCall?: PlaceCall;
   /** Recording staff calls (ruling 77). Off unless a test hands in a stand-in. */
   recorder?: CallRecorder;
+  /** Postcodes into places (30 October 2026). Off unless a test hands in a stand-in: no network. */
+  findPostcode?: PostcodeLookup;
+  /**
+   * Refuse orders where we are not running yet (30 October 2026). Off unless asked for: most
+   * tests prove other rules with no Runner signed up in the order's area.
+   */
+  areasGate?: boolean;
 }
 
 export async function buildTestApp(
@@ -183,6 +191,8 @@ export async function buildTestApp(
     ...(options.openPrices ? { openPrices: options.openPrices } : {}),
     ...(options.placeCall ? { placeCall: options.placeCall } : {}),
     ...(options.recorder ? { recorder: options.recorder } : {}),
+    ...(options.findPostcode ? { findPostcode: options.findPostcode } : {}),
+    areasGate: options.areasGate ?? false,
     deliverCode:
       options.deliverCode ??
       (async (phone, code) => {
@@ -314,6 +324,8 @@ export async function signUpRunner(
     agreed?: boolean;
     latitude?: number;
     longitude?: number;
+    /** Where they live, which gives their area (30 October 2026). Medway unless a test says. */
+    homePostcode?: string;
   } = {},
 ): Promise<SignedInRunner> {
   const response = await harness.app.inject({
@@ -324,6 +336,8 @@ export async function signUpRunner(
       phone: overrides.phone ?? '+447700900101',
       vehicleType: 'car',
       stripeConnectedAccountId: 'acct_test_runner',
+      adult: true,
+      homePostcode: overrides.homePostcode ?? 'ME7 1AA',
       ...(overrides.agreed === false
         ? {}
         : { agreement: { accepted: true, version: RUNNER_AGREEMENT_VERSION, channel: 'button' } }),
@@ -342,9 +356,13 @@ export async function signUpRunner(
       // They registered with a car, so an approved one has had both checked.
       drivingLicenceVerified: true,
       motorInsuranceUntil: new Date('2099-12-31T00:00:00.000Z'),
+      // Every check before a job includes the face photo (30 October 2026).
+      facePhotoAcceptedAt: harness.now(),
       available: true,
       latitude: overrides.latitude ?? 52.4862,
       longitude: overrides.longitude ?? -1.8904,
+      // Their phone has just said where they are.
+      locationAt: harness.now(),
     });
   }
 

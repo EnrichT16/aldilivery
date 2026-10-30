@@ -364,6 +364,10 @@ export interface RegisterRunnerInput {
   referredBy?: string;
   /** Agreeing to the Runner agreement as they sign up (ruling 55). */
   agreement?: { accepted: true; version: string; channel: 'button' | 'voice' };
+  /** The tick "I am 18 or over", kept by the server with its time (30 October 2026). */
+  adult: true;
+  /** Where they live, which gives their area: they are offered jobs only there. */
+  homePostcode: string;
 }
 
 /**
@@ -399,6 +403,10 @@ export interface RunnerAccount {
   agreementVersion?: string | null;
   /** The app store reviewers' demo Runner (ruling 60). */
   isDemo?: boolean;
+  /** Where they live, which gives their area (30 October 2026). Empty until given. */
+  homePostcode?: string;
+  /** When a person accepted their face photo; null until then. */
+  facePhotoAcceptedAt?: string | null;
 }
 
 /** Agreeing to the Runner agreement before the first job (ruling 55). */
@@ -553,6 +561,41 @@ export function setRunnerAvailability(available: boolean): Promise<{ runner: Run
     { method: 'POST', body: JSON.stringify({ available }) },
     'runner',
   );
+}
+
+/** Where the Runner's phone says they are, while on shift or on a job (30 October 2026). */
+export function shareRunnerLocation(where: {
+  latitude: number;
+  longitude: number;
+}): Promise<{ kept: boolean }> {
+  return request<{ kept: boolean }>(
+    '/runners/me/location',
+    { method: 'POST', body: JSON.stringify(where) },
+    'runner',
+  );
+}
+
+/** The Runner's home postcode, which gives their area: they are offered jobs only there. */
+export function saveHomePostcode(
+  postcode: string,
+): Promise<{ homePostcode: string; area: string | null; message: string }> {
+  return request<{ homePostcode: string; area: string | null; message: string }>(
+    '/runners/me/home-postcode',
+    { method: 'PUT', body: JSON.stringify({ postcode }) },
+    'runner',
+  );
+}
+
+/** Whether we are running in a postcode's area yet (Anthony, 30 October 2026). */
+export interface AreaCheck {
+  area: string;
+  name: string;
+  running: boolean;
+  words: string;
+}
+
+export function checkArea(postcode: string): Promise<AreaCheck> {
+  return request<AreaCheck>(`/areas/check?${new URLSearchParams({ postcode }).toString()}`);
 }
 
 export interface RunnerPay {
@@ -1316,7 +1359,9 @@ export type StaffArea =
   | 'accounts'
   | 'audit'
   /** The company inbox and staff calls (ruling 77). */
-  | 'messages';
+  | 'messages'
+  /** Each UK area, whether it is running, and pausing it (30 October 2026). */
+  | 'areas';
 
 /** Where someone's two-step codes stand (Section Q). */
 export interface StaffTwoStep {
@@ -3468,6 +3513,12 @@ export interface RunnerNowRow {
   earnedTodayPence: number;
   earnedWeekPence: number;
   earnedAllTimePence: number;
+  /**
+   * On a job: when their phone last shared where they are, and a maps link to it (30 October
+   * 2026). Null when it never has.
+   */
+  lastSeenAt?: string | null;
+  mapsLink?: string | null;
 }
 
 export interface RunnersNow {
@@ -3479,6 +3530,43 @@ export interface RunnersNow {
 
 export function fetchRunnersNow(key: string): Promise<RunnersNow> {
   return staffRequest(key, '/staff/runners/now');
+}
+
+/** One UK area on the Areas page (Anthony, 30 October 2026). */
+export interface AreaRow {
+  area: string;
+  name: string;
+  ready: boolean;
+  paused: boolean;
+  running: boolean;
+  needs: Array<'runner' | 'shop'>;
+  statusWords: string;
+  shoppers: number;
+  runnersApproved: number;
+  runnersWaiting: number;
+  shopsApproved: number;
+  shopsWaiting: number;
+  organisations: number;
+  waitingList: number;
+  ordersToday: number;
+  ordersThisWeek: number;
+  pausedBy: string | null;
+}
+
+export function fetchStaffAreas(key: string): Promise<{ areas: AreaRow[] }> {
+  return staffRequest(key, '/staff/areas');
+}
+
+export function pauseStaffArea(
+  key: string,
+  area: string,
+  paused: boolean,
+  by: string,
+): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/areas/${encodeURIComponent(area)}/pause`, {
+    method: 'POST',
+    body: JSON.stringify({ paused, by }),
+  });
 }
 
 export interface SignupBucket {

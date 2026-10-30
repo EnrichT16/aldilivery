@@ -204,6 +204,14 @@ export interface Runner {
    * (ruling 74). Null: the automatic check makes no face comparison, and a person does it.
    */
   faceMatchConsentAt: Date | null;
+  /** Where they live (Anthony, 30 October 2026), which gives their area. Empty until given. */
+  homePostcode: string;
+  /** When their phone last shared `latitude` and `longitude`. Null: it never has. */
+  locationAt: Date | null;
+  /** When a person accepted their face photo. No job is offered before it (30 October 2026). */
+  facePhotoAcceptedAt: Date | null;
+  /** When they confirmed at sign-up that they are 18 or over. */
+  adultConfirmedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -329,6 +337,8 @@ export interface Organisation {
   monthlyBudgetPence: number | null;
   /** What one of their own staff going to the shops costs them, for the savings figure. */
   staffTripCostPence: number | null;
+  /** Where it is, which gives its area (Anthony, 30 October 2026). Empty until given. */
+  postcode: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -1480,4 +1490,35 @@ export interface StaffCall {
   egressId: string | null;
   /** Why there is no recording, in words: "not recorded: recording storage not set up". */
   recordingNote: string | null;
+}
+
+/**
+ * A postcode's place, looked up once with postcodes.io and kept (Anthony, 30 October 2026).
+ * `found` false: it was not known, or postcodes.io could not be reached, and the place is unknown.
+ */
+export interface PostcodePlace {
+  postcode: string;
+  latitude: number | null;
+  longitude: number | null;
+  found: boolean;
+  lookedUpAt: Date;
+}
+
+/** An area's own record: paused by staff, and when it first started (30 October 2026). */
+export interface AreaRecord {
+  area: string;
+  pausedAt: Date | null;
+  pausedBy: string | null;
+  /** When it first started running, which is when its waiting list was texted. */
+  startedAt: Date | null;
+}
+
+/** A Shopper waiting for Ozi to start in their area, texted once when it does. */
+export interface AreaWaiting {
+  id: string;
+  area: string;
+  shopperId: string;
+  postcode: string;
+  createdAt: Date;
+  textedAt: Date | null;
 }

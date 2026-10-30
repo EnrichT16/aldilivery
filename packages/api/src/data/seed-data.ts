@@ -205,6 +205,7 @@ export async function seedRepository(
     available: true,
     latitude: 52.4862,
     longitude: -1.8904,
+    homePostcode: 'B1 1AA',
   });
 
   await repository.runners.create({
@@ -216,6 +217,7 @@ export async function seedRepository(
     available: true,
     latitude: 52.4795,
     longitude: -1.9026,
+    homePostcode: 'B1 1AA',
   });
 
   return { catalogueItems: items.length, shoppers: 1, runners: 2, alreadySeeded: false };

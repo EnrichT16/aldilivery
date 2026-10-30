@@ -148,7 +148,7 @@ async function runnerSigningUp(name = 'Chidi Okafor', phone = '+447700900301') {
   const response = await harness.app.inject({
     method: 'POST',
     url: '/runners',
-    payload: { name, phone, travelModes: ['on_foot'] },
+    payload: { name, phone, travelModes: ['on_foot'], adult: true, homePostcode: 'ME7 1AA' },
   });
   expect(response.statusCode, response.body).toBe(201);
   const body = response.json() as { runner: { id: string }; token: string };

@@ -38,6 +38,7 @@ import {
   postcodeArea,
   productLimit,
   SHOP_PARTNER_TERMS_VERSION,
+  tidyPostcode,
   type PartnerKind,
 } from '@aldilivery/core';
 import { z } from 'zod';
@@ -45,6 +46,7 @@ import { z } from 'zod';
 import { phoneConfirmedAtSignUp, requireSession } from '../app.js';
 import { READABLE_IMAGES } from '../lib/language-model.js';
 import { hasPlusExtras } from '../services/plans.js';
+import { locateLater } from '../services/areas.js';
 import { estimatedPricePence } from '../services/suggest.js';
 import type {
   AnalyticsEvent,
@@ -1372,6 +1374,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
           approvedAt: null,
         })
       : await repository.partnerShops.create({ ...details, source: 'self' });
+    locateLater(app.ctx, shop.postcode, request.log);
 
     const user = await repository.businessUsers.create({
       kind: 'partner',
@@ -2066,6 +2069,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       approvedAt: now(),
       ...browseFields,
     });
+    locateLater(app.ctx, shop.postcode, request.log);
     const paid =
       body.paidMonths > 0
         ? await repository.partnerShops.update(shop.id, {
@@ -2234,9 +2238,17 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         contactName: z.string().trim().min(2).max(80),
         contactEmail: z.string().trim().max(120).default(''),
         contactPhone: z.string().trim().max(30).optional(),
+        /** Where it is, which gives its area (Anthony, 30 October 2026). */
+        postcode: z
+          .string()
+          .trim()
+          .max(10)
+          .transform((value) => tidyPostcode(value))
+          .optional(),
       })
       .parse(request.body ?? {});
     const organisation = await repository.organisations.create(body);
+    if (body.postcode) locateLater(app.ctx, body.postcode, request.log);
     let joinCode = '';
     do {
       joinCode = Array.from(
