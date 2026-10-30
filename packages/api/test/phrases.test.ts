@@ -98,7 +98,10 @@ describe('the phrase files', () => {
       [/\b(ten|\d+) miles\b/i, 'a distance promised'],
       // No supermarket or chain named, as a partner or otherwise.
       [
-        /\b(aldi|tesco|sainsbury'?s?|lidl|asda|morrisons|waitrose|iceland|co-?op|m&s|marks and spencer)\b/i,
+        new RegExp(
+          `\\b(${config.store.displayName}|tesco|sainsbury'?s?|lidl|asda|morrisons|waitrose|iceland|co-?op|m&s|marks and spencer)\\b`,
+          'i',
+        ),
         'a supermarket named',
       ],
       // Times: usually the same day, with the order page's best guess.
@@ -208,7 +211,7 @@ describe('answering an everyday phrase', () => {
 
   it('says plainly that it is independent of every supermarket', () => {
     for (const said of [
-      'are you aldi',
+      'are you the supermarket',
       'are you part of tesco',
       'does the supermarket endorse you',
     ]) {
