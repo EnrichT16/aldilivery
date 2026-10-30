@@ -223,7 +223,7 @@ describe('referral links for every kind of account', () => {
 });
 
 describe("a Shopper's no-Runner link for a driver", () => {
-  it('counts the driver as the Shopper\'s referral, from the Runner sign-up link', async () => {
+  it("counts the driver as the Shopper's referral, from the Runner sign-up link", async () => {
     const ada = await signUpShopper(harness, { displayName: 'Ada', phone: '+447700900500' });
     const handle = await handleOf(ada.shopperId);
     // The link the checkout's "Send my referral link" shares: /runner/sign-up?via=shopper-<handle>.
