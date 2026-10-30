@@ -981,6 +981,58 @@ describe('Ambassador money is tamper-proof (ruled 30 October 2026)', () => {
     expect(mine.withdrawals[0].words).toBe('£12.00: sent to your bank.');
   });
 
+  it('asks an Ambassador on older terms to agree again: the link works, withdrawals wait', async () => {
+    const { ada, shop } = await tiedShop();
+    await earn(ada.shopperId, shop.id, 1200);
+    await post('/ambassador/bank', {}, { ...ada.authHeader, origin: 'http://localhost:5173' });
+    // They agreed to the terms before they changed on 30 October 2026.
+    const agreement = (await harness.repository.ambassadors.findAgreement(
+      'shopper',
+      ada.shopperId,
+    ))!;
+    await harness.repository.ambassadors.updateAgreement(agreement.id, {
+      termsVersion: '2026-10-30',
+    });
+    const mine = (await get('/referrals/me', ada.authHeader)).json().ambassador;
+    expect(mine).toEqual(
+      expect.objectContaining({
+        joined: true,
+        termsChanged: true,
+        termsChangedWords: 'Our terms have changed. Please read and agree to keep going.',
+        canWithdraw: false,
+      }),
+    );
+    // Their link still works.
+    expect(mine.link).toBeTruthy();
+    const another = await joinShop({
+      ambassador: `shopper:${await handleOf(ada.shopperId)}`,
+    });
+    expect((await harness.repository.partnerShops.findById(another.id))?.ambassadorId).toBe(
+      ada.shopperId,
+    );
+    // A withdrawal waits.
+    const waiting = await post('/ambassador/withdraw', {}, ada.authHeader);
+    expect(waiting.statusCode).toBe(409);
+    expect(waiting.json().error.message).toBe(
+      'Our terms have changed. Please read and agree to keep going.',
+    );
+    // "I agree": the new version and the moment are kept, and they can withdraw again.
+    harness.setNow(new Date(harness.now().getTime() + 60_000));
+    const again = await post(
+      '/ambassador/join',
+      { termsAgreed: true, termsVersion: AMBASSADOR_TERMS_VERSION },
+      ada.authHeader,
+    );
+    expect(again.statusCode, again.body).toBe(200);
+    const agreed = await harness.repository.ambassadors.findAgreement('shopper', ada.shopperId);
+    expect(agreed).toEqual(
+      expect.objectContaining({ termsVersion: AMBASSADOR_TERMS_VERSION, agreedAt: harness.now() }),
+    );
+    expect((await get('/referrals/me', ada.authHeader)).json().ambassador.termsChanged).toBe(false);
+    const sent = await post('/ambassador/withdraw', {}, ada.authHeader);
+    expect(sent.statusCode, sent.body).toBe(200);
+  });
+
   it('holds a withdrawal over £500 in a month, or from somebody flagged, for staff to approve', async () => {
     const { ada, shop } = await tiedShop();
     await post('/ambassador/bank', {}, { ...ada.authHeader, origin: 'http://localhost:5173' });

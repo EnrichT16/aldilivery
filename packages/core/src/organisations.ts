@@ -14,8 +14,23 @@ import { deliveryStepsWords, type DeliveryFees, type OrganisationPricing } from 
 /** The consent wording a person agreed to when linking to an organisation. */
 export const ORGANISATION_CONSENT_VERSION = 'organisation-consent-2026-11-05';
 
-/** The Shop Partner terms at /partner/terms. */
-export const SHOP_PARTNER_TERMS_VERSION = 'shop-partner-terms-2026-11-05';
+/**
+ * The Shop Partner terms at /partner/terms. Changed in substance on 30 October 2026 (Anthony:
+ * restaurant fee and Ambassador base), so a partner who agreed to an earlier version is asked to
+ * agree again (`termsChanged`). Versions are compared for equality, never by order.
+ */
+export const SHOP_PARTNER_TERMS_VERSION = 'shop-partner-terms-2026-10-30b';
+
+/** What a partner or Ambassador whose agreed terms are older is told, until they agree again. */
+export const TERMS_CHANGED_WORDS = 'Our terms have changed. Please read and agree to keep going.';
+
+/**
+ * Whether somebody who agreed to `agreedVersion` must agree again to `currentVersion`. Never
+ * having agreed (null) is not a change: that is joining, which has its own agreement.
+ */
+export function termsChanged(agreedVersion: string | null, currentVersion: string): boolean {
+  return agreedVersion !== null && agreedVersion !== currentVersion;
+}
 
 /** The Organisation terms at /organisation/terms. */
 export const ORGANISATION_TERMS_VERSION = 'organisation-terms-2026-11-05';

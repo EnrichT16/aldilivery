@@ -192,6 +192,8 @@ export {
   ORGANISATION_SHARED_THINGS,
   ORGANISATION_TERMS_VERSION,
   SHOP_PARTNER_TERMS_VERSION,
+  TERMS_CHANGED_WORDS,
+  termsChanged,
   organisationConsentWords,
   type OrganisationConsentWords,
 } from './organisations.js';

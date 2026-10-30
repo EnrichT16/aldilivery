@@ -562,8 +562,13 @@ describe('the staff list of restaurant partners', () => {
     const set = await post(`/staff/partners/${shop.id}`, { agreedDiscountPercent: 20 }, STAFF);
     expect(set.statusCode, set.body).toBe(200);
     expect(set.json().shop.agreedDiscountPercent).toBe(20);
-    const tooMuch = await post(`/staff/partners/${shop.id}`, { agreedDiscountPercent: 80 }, STAFF);
+    // The most is restaurants.maximumDiscountPercent, 50: 50 is taken, 51 is not.
+    expect(harness.app.ctx.config.restaurants.maximumDiscountPercent).toBe(50);
+    const most = await post(`/staff/partners/${shop.id}`, { agreedDiscountPercent: 50 }, STAFF);
+    expect(most.statusCode, most.body).toBe(200);
+    const tooMuch = await post(`/staff/partners/${shop.id}`, { agreedDiscountPercent: 51 }, STAFF);
     expect(tooMuch.statusCode).toBe(400);
+    expect(tooMuch.json().error.message).toContain('more than 50%');
     const groceryShop = await harness.repository.partnerShops.create({
       name: 'Corner Shop',
       address: '',

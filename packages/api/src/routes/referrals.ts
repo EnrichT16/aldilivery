@@ -20,7 +20,12 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
-import { AMBASSADOR_TERMS_VERSION, rewardWords, shareWords } from '@aldilivery/core';
+import {
+  AMBASSADOR_TERMS_VERSION,
+  rewardWords,
+  shareWords,
+  TERMS_CHANGED_WORDS,
+} from '@aldilivery/core';
 
 import type { ReferralKind } from '../domain.js';
 import { BadRequestError, UnauthorisedError } from '../errors.js';
@@ -40,6 +45,7 @@ import {
   refuseWithdrawal,
   requestWithdrawal,
   withdrawalWords,
+  ambassadorTermsChanged,
 } from '../services/ambassadors.js';
 import {
   findAccount,
@@ -95,6 +101,9 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
         joined: agreement !== null,
         agreedAt: agreement?.agreedAt ?? null,
         termsVersion: AMBASSADOR_TERMS_VERSION,
+        // Agreed to older terms (30 October 2026): asked to agree again; withdrawals wait.
+        termsChanged: ambassadorTermsChanged(agreement),
+        termsChangedWords: ambassadorTermsChanged(agreement) ? TERMS_CHANGED_WORDS : null,
         link: agreement ? ambassadorLink(env.primaryOrigin ?? '', account) : null,
         termsPath: '/ambassador/terms',
         profitShareWords: shareWords(rates.profitShare),
@@ -113,7 +122,7 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
         availablePence: summary.availablePence,
         paidPence: summary.paidPence,
         deductions: summary.deductions.map((line) => ({ at: line.at, words: line.words })),
-        canWithdraw: agreement !== null && summary.payable,
+        canWithdraw: agreement !== null && !ambassadorTermsChanged(agreement) && summary.payable,
         bankReady: agreement ? await ambassadorBankReady(app.ctx, kind, id) : false,
         withdrawals: withdrawals.slice(0, 5).map((row) => ({
           id: row.id,

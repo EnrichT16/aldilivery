@@ -399,7 +399,10 @@ export interface Repository {
     updateAgreement(
       id: string,
       patch: Partial<
-        Pick<AmbassadorAgreement, 'stripeConnectedAccountId' | 'flaggedAt' | 'flagReason'>
+        Pick<
+          AmbassadorAgreement,
+          'stripeConnectedAccountId' | 'flaggedAt' | 'flagReason' | 'termsVersion' | 'agreedAt'
+        >
       >,
     ): Promise<AmbassadorAgreement>;
     /** Adds it; one with the same reference already there gives null, and nothing is added. */

@@ -258,7 +258,7 @@ describe('becoming an Ozi Ambassador', () => {
     ).toBeInTheDocument();
     expect(sent.find((row) => row.path === '/ambassador/join')?.body).toEqual({
       termsAgreed: true,
-      termsVersion: '2026-10-30',
+      termsVersion: '2026-10-30b',
     });
     expect(news).toHaveBeenCalledWith('Welcome, you are now an Ozi Ambassador.');
     expect(

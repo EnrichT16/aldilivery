@@ -1,4 +1,8 @@
-import { counterPricePence, preferredRankingWords } from '@aldilivery/core';
+import {
+  counterPricePence,
+  preferredRankingWords,
+  SHOP_PARTNER_TERMS_VERSION,
+} from '@aldilivery/core';
 import { Link } from 'react-router-dom';
 
 import { CompanyDetails, DetailsToFollowNotice, companyFacts } from '../components/CompanyDetails';
@@ -120,6 +124,13 @@ export function PartnerTerms(): JSX.Element {
             have agreed none. We keep the difference.
           </li>
           <li>
+            Shoppers pay a flat restaurant fee in place of delivery:{' '}
+            {money(storeConfig.restaurants.feePence)}, or{' '}
+            {money(storeConfig.restaurants.largeOrderFeePence)} for{' '}
+            {money(storeConfig.restaurants.largeOrderFromPence)} of dishes or more. It pays our
+            Runner and us, and never comes out of what you are paid.
+          </li>
+          <li>
             There are two levels, and the discount alone decides them. A restaurant with a discount
             of {preferredDiscountPercent}% or more is an {assistant} Preferred Partner; every other
             restaurant is listed normally. Shoppers pay nothing more either way.
@@ -232,11 +243,13 @@ export function PartnerTerms(): JSX.Element {
           Changes, and the law that applies
         </h2>
         <p className="m-0">
-          If we change these terms, we tell you before the change takes effect. These terms are
-          under the law of England and Wales, and the courts of England and Wales deal with any
-          dispute.
+          If we change these terms, we tell you before the change takes effect, and ask you to agree
+          to the new version on your dashboard. Your listing stays live while you read them; changes
+          from your dashboard wait until you agree. These terms are under the law of England and
+          Wales, and the courts of England and Wales deal with any dispute.
         </p>
         <p className="m-0">These terms were written on 30 October 2026.</p>
+        <p className="m-0 extra">Version {SHOP_PARTNER_TERMS_VERSION}.</p>
       </section>
 
       <Link to="/business/join" className="control bg-highlight text-on-accent">

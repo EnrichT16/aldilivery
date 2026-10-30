@@ -164,7 +164,8 @@ export function AmbassadorTerms(): JSX.Element {
         <p className="m-0">
           These terms are governed by the law of England and Wales, and the courts of England and
           Wales deal with any dispute. We may change these terms; if we do, we ask you to agree to
-          the new version before you introduce more businesses.
+          the new version. Your link keeps working while you read them, and withdrawals wait until
+          you agree.
         </p>
         <p className="m-0 extra">Version {AMBASSADOR_TERMS_VERSION}.</p>
       </section>

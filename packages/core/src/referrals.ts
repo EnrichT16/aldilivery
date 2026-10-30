@@ -29,8 +29,13 @@
 
 import { formatPence } from './money.js';
 
-/** The version of the Ozi Ambassador terms at /ambassador/terms, kept with each agreement. */
-export const AMBASSADOR_TERMS_VERSION = '2026-10-30';
+/**
+ * The version of the Ozi Ambassador terms at /ambassador/terms, kept with each agreement.
+ * Changed in substance on 30 October 2026 (Anthony: the base on a restaurant's orders is its
+ * discount alone), so an Ambassador who agreed to an earlier version agrees again before a
+ * withdrawal; their link keeps working.
+ */
+export const AMBASSADOR_TERMS_VERSION = '2026-10-30b';
 
 /** One reward level: so many active referrals, the reward, and what it is called. */
 export interface ReferralLevel {

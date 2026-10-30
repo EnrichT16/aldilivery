@@ -14,6 +14,7 @@ import {
 } from '../lib/api';
 import { money } from '../lib/money';
 import { readRunnerToken } from '../lib/session';
+import { TermsChanged } from './TermsChanged';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
 
@@ -244,6 +245,19 @@ export function ReferralCard({
               {busy ? 'One moment…' : 'Become an Ozi Ambassador'}
             </button>
           </div>
+        )}
+
+        {ambassador.joined && ambassador.termsChanged && (
+          <TermsChanged
+            words={ambassador.termsChangedWords ?? ''}
+            termsName="Ozi Ambassador terms"
+            termsPath={ambassador.termsPath}
+            onAgree={async () => {
+              await becomeAmbassador(as, ambassador.termsVersion);
+              onNews('Thank you. You have agreed to the new Ozi Ambassador terms.');
+              load();
+            }}
+          />
         )}
 
         {ambassador.joined && ambassador.link && (

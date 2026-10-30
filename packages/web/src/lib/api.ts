@@ -2140,6 +2140,19 @@ export interface PartnerDashboard extends PartnerExtras {
   counts: { live: number; waiting: number; notAccepted: number };
   products: PartnerProductRow[];
   sharePath: string;
+  /**
+   * The Shop Partner terms changed since this partner agreed (30 October 2026): until they agree
+   * again, every change but agreeing waits. Their listing stays live.
+   */
+  terms?: { changed: boolean; words: string | null; version: string; path: string };
+}
+
+/** "I agree" to the Shop Partner terms of this version (30 October 2026). */
+export function agreePartnerTerms(termsVersion: string): Promise<{ message: string }> {
+  return businessRequest('/partner/terms/agree', {
+    method: 'POST',
+    body: JSON.stringify({ termsAgreed: true, termsVersion }),
+  });
 }
 
 /** What a joining business is told about the tiers, every figure from config/store.json. */
@@ -3341,6 +3354,9 @@ export interface MyReferrals {
     joined: boolean;
     agreedAt: string | null;
     termsVersion: string;
+    /** Agreed to older Ambassador terms (30 October 2026): asked to agree again. */
+    termsChanged?: boolean;
+    termsChangedWords?: string | null;
     link: string | null;
     termsPath: string;
     profitShareWords: string;

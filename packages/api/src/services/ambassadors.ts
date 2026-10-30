@@ -55,6 +55,8 @@ import type { FastifyBaseLogger } from 'fastify';
 
 import {
   AMBASSADOR_TERMS_VERSION,
+  TERMS_CHANGED_WORDS,
+  termsChanged,
   ambassadorAvailableAt,
   ambassadorEarningAfterRefunds,
   ambassadorNeedsReview,
@@ -119,7 +121,9 @@ export async function ambassadorAgreement(
 
 /**
  * They choose to become an Ozi Ambassador, agreeing to the Ambassador terms of this version:
- * the moment and the version are kept. Agreeing again changes nothing.
+ * the moment and the version are kept. Agreeing again to the same version changes nothing; an
+ * Ambassador who agreed to an older version and agrees to the new one has the new version and
+ * the moment kept (30 October 2026).
  */
 export async function becomeAmbassador(
   ctx: Pick<AppContext, 'repository' | 'now'>,
@@ -132,12 +136,24 @@ export async function becomeAmbassador(
       'The Ambassador terms have changed. Please read them again, then agree.',
     );
   }
+  const found = await ctx.repository.ambassadors.findAgreement(kind, id);
+  if (found && found.termsVersion !== version) {
+    return ctx.repository.ambassadors.updateAgreement(found.id, {
+      termsVersion: version,
+      agreedAt: ctx.now(),
+    });
+  }
   return ctx.repository.ambassadors.agree({
     accountKind: kind,
     accountId: id,
     agreedAt: ctx.now(),
     termsVersion: version,
   });
+}
+
+/** Whether this Ambassador agreed to older terms and must agree again (30 October 2026). */
+export function ambassadorTermsChanged(agreement: AmbassadorAgreement | null): boolean {
+  return termsChanged(agreement?.termsVersion ?? null, AMBASSADOR_TERMS_VERSION);
 }
 
 /**
@@ -836,6 +852,11 @@ export async function requestWithdrawal(
   log?: FastifyBaseLogger,
 ): Promise<{ withdrawal: AmbassadorWithdrawal; message: string }> {
   const agreement = await agreed(ctx, kind, id);
+  // Terms changed since they agreed (30 October 2026): their link still works and earnings keep
+  // coming in, but a withdrawal waits until they agree to the new terms.
+  if (ambassadorTermsChanged(agreement)) {
+    throw new ConflictError(TERMS_CHANGED_WORDS);
+  }
   const symbol = ctx.config.store.currencySymbol;
   const rates = ctx.config.ambassador;
   const summary = await ambassadorSummary(ctx, kind, id);

@@ -39,6 +39,8 @@ import {
   postcodeArea,
   productLimit,
   SHOP_PARTNER_TERMS_VERSION,
+  TERMS_CHANGED_WORDS,
+  termsChanged,
   tidyPostcode,
   type PartnerKind,
 } from '@aldilivery/core';
@@ -60,7 +62,13 @@ import type {
   ServiceEnquiry,
   Shopper,
 } from '../domain.js';
-import { BadRequestError, ConflictError, NotFoundError, UnauthorisedError } from '../errors.js';
+import {
+  ApiError,
+  BadRequestError,
+  ConflictError,
+  NotFoundError,
+  UnauthorisedError,
+} from '../errors.js';
 import {
   businessActor,
   BUSINESS_SESSION_HOURS,
@@ -603,18 +611,25 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
   });
 
   async function describe(user: BusinessUser) {
-    const business =
+    const shop =
       user.kind === 'partner' && user.partnerShopId
-        ? (await repository.partnerShops.findById(user.partnerShopId))?.name
-        : user.organisationId
-          ? (await repository.organisations.findById(user.organisationId))?.name
-          : null;
+        ? await repository.partnerShops.findById(user.partnerShopId)
+        : null;
+    const business = shop
+      ? shop.name
+      : user.organisationId
+        ? (await repository.organisations.findById(user.organisationId))?.name
+        : null;
+    // The Shop Partner terms changed since this partner agreed (30 October 2026): said at sign-in.
+    const changed = shop !== null && partnerTermsChanged(shop);
     return {
       kind: user.kind,
       name: user.name,
       office: user.office,
       business: business ?? '',
       mustChangePassword: user.mustChangePassword,
+      termsChanged: changed,
+      termsChangedWords: changed ? TERMS_CHANGED_WORDS : null,
     };
   }
 
@@ -652,8 +667,55 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     return shop;
   }
 
+  /** Agreed to Shop Partner terms older than today's (30 October 2026). */
+  function partnerTermsChanged(shop: PartnerShop): boolean {
+    return termsChanged(shop.termsVersion, SHOP_PARTNER_TERMS_VERSION);
+  }
+
+  /**
+   * The partner's own shop, for a change from the dashboard. Until a partner who agreed to older
+   * Shop Partner terms agrees to the new ones, every change but agreeing is paused (30 October
+   * 2026). Their listing stays live, so Shoppers are never let down.
+   */
+  async function myShopToChange(
+    request: Parameters<typeof businessActor>[0],
+  ): Promise<PartnerShop> {
+    const shop = await myShop(request);
+    if (partnerTermsChanged(shop)) {
+      throw new ApiError(409, 'terms_changed', TERMS_CHANGED_WORDS, {
+        termsPath: '/partner/terms',
+        termsVersion: SHOP_PARTNER_TERMS_VERSION,
+      });
+    }
+    return shop;
+  }
+
+  /** "I agree" to the Shop Partner terms of today: the version and the moment are kept. */
+  app.post('/partner/terms/agree', async (request) => {
+    const shop = await myShop(request);
+    const body = z
+      .object({
+        termsAgreed: z.literal(true, {
+          errorMap: () => ({ message: 'Please tick to agree to the Shop Partner terms.' }),
+        }),
+        termsVersion: z.string().trim().min(1).max(60),
+      })
+      .parse(request.body ?? {});
+    if (body.termsVersion !== SHOP_PARTNER_TERMS_VERSION) {
+      throw new BadRequestError(
+        'The Shop Partner terms have changed again. Please read them again, then agree.',
+      );
+    }
+    await repository.partnerShops.update(shop.id, {
+      termsAgreedAt: now(),
+      termsVersion: SHOP_PARTNER_TERMS_VERSION,
+    });
+    return { message: 'Thank you. You have agreed to the new terms, and your dashboard is ready.' };
+  });
+
   app.get('/partner/dashboard', async (request) => {
     const shop = await myShop(request);
+    const changed = partnerTermsChanged(shop);
     const products = (await repository.partnerProducts.listForShop(shop.id)).filter(
       (product) => product.status !== 'removed',
     );
@@ -694,6 +756,14 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         words: planWords(shop, limit),
       },
       restaurant: await restaurantFor(shop),
+      // Agreed to older Shop Partner terms (30 October 2026): asked to agree again, and every
+      // change but agreeing waits. The listing stays live.
+      terms: {
+        changed,
+        words: changed ? TERMS_CHANGED_WORDS : null,
+        version: SHOP_PARTNER_TERMS_VERSION,
+        path: '/partner/terms',
+      },
       enquiries:
         shop.kind === 'service'
           ? await Promise.all(
@@ -741,7 +811,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
    * words about itself. The excluded kinds are refused here as on the join form.
    */
   app.post('/partner/profile', async (request) => {
-    const shop = await myShop(request);
+    const shop = await myShopToChange(request);
     const body = browseFieldsSchema
       .extend({ about: z.string().trim().max(500).optional() })
       .parse(request.body ?? {});
@@ -807,7 +877,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
   });
 
   app.post('/partner/products', { bodyLimit: 7 * 1024 * 1024 }, async (request, reply) => {
-    const shop = await myShop(request);
+    const shop = await myShopToChange(request);
     if (shop.status === 'removed' || !shop.active) {
       throw new ConflictError('This listing is paused, so nothing can be added. Please ring us.');
     }
@@ -932,8 +1002,12 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     };
   });
 
-  async function myProduct(request: Parameters<typeof businessActor>[0], id: string) {
-    const shop = await myShop(request);
+  async function myProduct(
+    request: Parameters<typeof businessActor>[0],
+    id: string,
+    changing = true,
+  ) {
+    const shop = changing ? await myShopToChange(request) : await myShop(request);
     const product = await repository.partnerProducts.findById(id);
     if (!product || product.partnerShopId !== shop.id || product.status === 'removed') {
       throw new NotFoundError('product');
@@ -980,7 +1054,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
 
   app.get('/partner/products/:id/photo', async (request, reply) => {
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
-    const product = await myProduct(request, id);
+    const product = await myProduct(request, id, false);
     if (!product.photo || !product.photoType) throw new NotFoundError('photo');
     void reply.header('content-type', product.photoType);
     void reply.header('cache-control', 'no-store');
@@ -994,7 +1068,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
 
   /** Who may scan: any shop, café or takeaway whose listing can take products. */
   async function scanningShop(request: Parameters<typeof businessActor>[0]) {
-    const shop = await myShop(request);
+    const shop = await myShopToChange(request);
     if (shop.status === 'removed' || !shop.active) {
       throw new ConflictError('This listing is paused, so nothing can be added. Please ring us.');
     }
@@ -1599,7 +1673,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
    * the shop back with the signed receipt, so nothing waits on the server meanwhile.
    */
   app.post('/partner/plan/checkout', async (request) => {
-    const shop = await myShop(request);
+    const shop = await myShopToChange(request);
     const body = z
       .object({
         kind: z.enum(['plan', 'spotlight', 'plus']).default('plan'),
@@ -1683,7 +1757,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
    * October 2026): nothing is charged, and the next is there from the 1st of next month.
    */
   app.post('/partner/spotlight/free-week', async (request) => {
-    const shop = await myShop(request);
+    const shop = await myShopToChange(request);
     const updated = await takeFreeSpotlightWeek(app.ctx, shop, 'free Preferred Partner week');
     return {
       until: updated.spotlightUntil,
@@ -1693,7 +1767,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
 
   /** A service answers an enquiry: marks it answered, with a note the Shopper sees. */
   app.post('/partner/enquiries/:id/answer', async (request) => {
-    const shop = await myShop(request);
+    const shop = await myShopToChange(request);
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const { reply: note } = z
       .object({ reply: z.string().trim().max(600).default('') })
