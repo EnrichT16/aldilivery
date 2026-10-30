@@ -73,7 +73,7 @@ import { registerRunnerAccountRoutes } from './routes/runner-account.js';
 import { registerRunnerMoneyRoutes } from './routes/runner-money.js';
 import { registerRunnerCardRoutes } from './routes/runner-card.js';
 import { registerRunnerSafetyRoutes } from './routes/runner-safety.js';
-import { registerReferralRewardRoutes } from './routes/referral-reward.js';
+import { registerReferralRoutes } from './routes/referrals.js';
 import { registerPushRoutes } from './routes/push.js';
 import { registerSetRoutes } from './routes/sets.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
@@ -545,7 +545,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerAreaRoutes(app);
   await registerRunnerMoneyRoutes(app);
   await registerRunnerCardRoutes(app);
-  await registerReferralRewardRoutes(app);
+  await registerReferralRoutes(app);
   await registerAdminRoutes(app);
   await registerAllocateRoutes(app);
   await registerUnlockRoutes(app);

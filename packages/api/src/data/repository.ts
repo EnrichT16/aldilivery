@@ -63,6 +63,12 @@ import type {
   RunnerPayout,
   RunnerSos,
   ReferralReward,
+  Referral,
+  ReferralKind,
+  ReferralLevelReached,
+  AmbassadorEntry,
+  AmbassadorAgreement,
+  AmbassadorWithdrawal,
   SetItem,
   Shopper,
   OziExchange,
@@ -345,6 +351,95 @@ export interface Repository {
     list(): Promise<ReferralReward[]>;
   };
 
+  /**
+   * Referral links for everybody (Anthony, 30 October 2026): who brought whom, one row per new
+   * account, and the reward levels reached.
+   */
+  referrals: {
+    /** Keeps it, unless this account already has a referrer: then null, and the first stays. */
+    record(input: Omit<Referral, 'id'>): Promise<Referral | null>;
+    findFor(joinedKind: ReferralKind, joinedId: string): Promise<Referral | null>;
+    /** Oldest first. */
+    listForReferrer(referrerKind: ReferralKind, referrerId: string): Promise<Referral[]>;
+    /** Every referral, oldest first. */
+    list(): Promise<Referral[]>;
+    /** Keeps a level reached; the same level for the same person a second time gives null. */
+    reachLevel(
+      input: Omit<ReferralLevelReached, 'id' | 'toldAt' | 'givenAt' | 'givenBy'>,
+    ): Promise<ReferralLevelReached | null>;
+    findLevel(id: string): Promise<ReferralLevelReached | null>;
+    /** Oldest first. */
+    listLevels(): Promise<ReferralLevelReached[]>;
+    /** Oldest first. */
+    listLevelsFor(referrerKind: ReferralKind, referrerId: string): Promise<ReferralLevelReached[]>;
+    updateLevel(
+      id: string,
+      patch: Partial<Pick<ReferralLevelReached, 'toldAt' | 'givenAt' | 'givenBy'>>,
+    ): Promise<ReferralLevelReached>;
+  };
+
+  /**
+   * What Ozi Ambassadors earned and were paid (Anthony, 30 October 2026). A pending share may
+   * change with its order's final state (ruled the same day); nothing is ever removed.
+   */
+  ambassadors: {
+    /** Keeps their agreement to the Ambassador terms; a second time returns the first. */
+    agree(
+      input: Omit<
+        AmbassadorAgreement,
+        'id' | 'stripeConnectedAccountId' | 'flaggedAt' | 'flagReason'
+      >,
+    ): Promise<AmbassadorAgreement>;
+    findAgreement(
+      accountKind: ReferralKind,
+      accountId: string,
+    ): Promise<AmbassadorAgreement | null>;
+    updateAgreement(
+      id: string,
+      patch: Partial<
+        Pick<AmbassadorAgreement, 'stripeConnectedAccountId' | 'flaggedAt' | 'flagReason'>
+      >,
+    ): Promise<AmbassadorAgreement>;
+    /** Adds it; one with the same reference already there gives null, and nothing is added. */
+    add(
+      input: Omit<AmbassadorEntry, 'id' | 'availableAt' | 'disputedAt'> &
+        Partial<Pick<AmbassadorEntry, 'availableAt' | 'disputedAt'>>,
+    ): Promise<AmbassadorEntry | null>;
+    findByReference(reference: string): Promise<AmbassadorEntry | null>;
+    /** Only a share's worth, or a deduction's, as an order's final state changes. */
+    updateEntry(
+      id: string,
+      patch: Partial<Pick<AmbassadorEntry, 'amountPence' | 'disputedAt'>>,
+    ): Promise<AmbassadorEntry>;
+    /** Oldest first. */
+    listFor(ambassadorKind: ReferralKind, ambassadorId: string): Promise<AmbassadorEntry[]>;
+    /** Every share and deduction on this order, oldest first. */
+    listForOrder(orderId: string): Promise<AmbassadorEntry[]>;
+    /** Oldest first. */
+    list(): Promise<AmbassadorEntry[]>;
+    createWithdrawal(
+      input: Omit<
+        AmbassadorWithdrawal,
+        'id' | 'decidedAt' | 'decidedBy' | 'stripeTransferId' | 'failure'
+      >,
+    ): Promise<AmbassadorWithdrawal>;
+    findWithdrawal(id: string): Promise<AmbassadorWithdrawal | null>;
+    updateWithdrawal(
+      id: string,
+      patch: Partial<
+        Pick<
+          AmbassadorWithdrawal,
+          'status' | 'decidedAt' | 'decidedBy' | 'stripeTransferId' | 'failure'
+        >
+      >,
+    ): Promise<AmbassadorWithdrawal>;
+    /** Newest first. */
+    listWithdrawalsFor(
+      ambassadorKind: ReferralKind,
+      ambassadorId: string,
+    ): Promise<AmbassadorWithdrawal[]>;
+  };
+
   runnerFeedback: {
     create(input: Omit<RunnerFeedback, 'id'>): Promise<RunnerFeedback>;
     /** Newest first. */
@@ -592,9 +687,9 @@ export interface Repository {
     create(
       input: Omit<
         OrganisationEnquiry,
-        'id' | 'handled' | 'createdAt' | 'kind' | 'termsAgreedAt' | 'termsVersion'
+        'id' | 'handled' | 'createdAt' | 'kind' | 'termsAgreedAt' | 'termsVersion' | 'joinedVia'
       > &
-        Partial<Pick<OrganisationEnquiry, 'kind' | 'termsAgreedAt' | 'termsVersion'>>,
+        Partial<Pick<OrganisationEnquiry, 'kind' | 'termsAgreedAt' | 'termsVersion' | 'joinedVia'>>,
     ): Promise<OrganisationEnquiry>;
     /** Newest first. */
     list(): Promise<OrganisationEnquiry[]>;
@@ -639,6 +734,9 @@ export interface Repository {
             | 'categories'
             | 'convenience'
             | 'ofstedNumber'
+            | 'ambassadorKind'
+            | 'ambassadorId'
+            | 'branchOfShopId'
           >
         >,
     ): Promise<PartnerShop>;

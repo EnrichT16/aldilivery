@@ -275,6 +275,133 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    referrals: {
+      async record(input) {
+        // Two sign-ups at once can only ever keep one referrer for an account: the first.
+        const made = await prisma.referral.createMany({ data: [input], skipDuplicates: true });
+        if (made.count === 0) return null;
+        return (await prisma.referral.findUnique({
+          where: {
+            joinedKind_joinedId: { joinedKind: input.joinedKind, joinedId: input.joinedId },
+          },
+        })) as any;
+      },
+      async findFor(joinedKind, joinedId) {
+        return (await prisma.referral.findUnique({
+          where: { joinedKind_joinedId: { joinedKind, joinedId } },
+        })) as any;
+      },
+      async listForReferrer(referrerKind, referrerId) {
+        return (await prisma.referral.findMany({
+          where: { referrerKind, referrerId },
+          orderBy: { createdAt: 'asc' },
+        })) as any;
+      },
+      async list() {
+        return (await prisma.referral.findMany({ orderBy: { createdAt: 'asc' } })) as any;
+      },
+      async reachLevel(input) {
+        const made = await prisma.referralLevelReached.createMany({
+          data: [input],
+          skipDuplicates: true,
+        });
+        if (made.count === 0) return null;
+        return (await prisma.referralLevelReached.findUnique({
+          where: {
+            referrerKind_referrerId_activeReferrals: {
+              referrerKind: input.referrerKind,
+              referrerId: input.referrerId,
+              activeReferrals: input.activeReferrals,
+            },
+          },
+        })) as any;
+      },
+      async findLevel(id) {
+        return (await prisma.referralLevelReached.findUnique({ where: { id } })) as any;
+      },
+      async listLevels() {
+        return (await prisma.referralLevelReached.findMany({
+          orderBy: { reachedAt: 'asc' },
+        })) as any;
+      },
+      async listLevelsFor(referrerKind, referrerId) {
+        return (await prisma.referralLevelReached.findMany({
+          where: { referrerKind, referrerId },
+          orderBy: { reachedAt: 'asc' },
+        })) as any;
+      },
+      async updateLevel(id, patch) {
+        return (await prisma.referralLevelReached.update({ where: { id }, data: patch })) as any;
+      },
+    },
+
+    ambassadors: {
+      async agree(input) {
+        return (await prisma.ambassadorAgreement.upsert({
+          where: {
+            accountKind_accountId: { accountKind: input.accountKind, accountId: input.accountId },
+          },
+          create: input,
+          update: {},
+        })) as any;
+      },
+      async findAgreement(accountKind, accountId) {
+        return (await prisma.ambassadorAgreement.findUnique({
+          where: { accountKind_accountId: { accountKind, accountId } },
+        })) as any;
+      },
+      async updateAgreement(id, patch) {
+        return (await prisma.ambassadorAgreement.update({ where: { id }, data: patch })) as any;
+      },
+      async findByReference(reference) {
+        return (await prisma.ambassadorEntry.findUnique({ where: { reference } })) as any;
+      },
+      async updateEntry(id, patch) {
+        return (await prisma.ambassadorEntry.update({ where: { id }, data: patch })) as any;
+      },
+      async listForOrder(orderId) {
+        return (await prisma.ambassadorEntry.findMany({
+          where: { orderId },
+          orderBy: { at: 'asc' },
+        })) as any;
+      },
+      async createWithdrawal(input) {
+        return (await prisma.ambassadorWithdrawal.create({ data: input })) as any;
+      },
+      async findWithdrawal(id) {
+        return (await prisma.ambassadorWithdrawal.findUnique({ where: { id } })) as any;
+      },
+      async updateWithdrawal(id, patch) {
+        return (await prisma.ambassadorWithdrawal.update({ where: { id }, data: patch })) as any;
+      },
+      async listWithdrawalsFor(ambassadorKind, ambassadorId) {
+        return (await prisma.ambassadorWithdrawal.findMany({
+          where: { ambassadorKind, ambassadorId },
+          orderBy: { requestedAt: 'desc' },
+        })) as any;
+      },
+      async add(input) {
+        // Each share, bonus and payment once only, however often it is worked out.
+        const made = await prisma.ambassadorEntry.createMany({
+          data: [input],
+          skipDuplicates: true,
+        });
+        if (made.count === 0) return null;
+        return (await prisma.ambassadorEntry.findUnique({
+          where: { reference: input.reference },
+        })) as any;
+      },
+      async listFor(ambassadorKind, ambassadorId) {
+        return (await prisma.ambassadorEntry.findMany({
+          where: { ambassadorKind, ambassadorId },
+          orderBy: { at: 'asc' },
+        })) as any;
+      },
+      async list() {
+        return (await prisma.ambassadorEntry.findMany({ orderBy: { at: 'asc' } })) as any;
+      },
+    },
+
     runnerFeedback: {
       async create(input) {
         return (await prisma.runnerFeedback.create({ data: input })) as any;

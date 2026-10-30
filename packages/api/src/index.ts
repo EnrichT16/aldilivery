@@ -36,6 +36,7 @@ import { sweepRetention } from './services/retention.js';
 import { settleShopReviews } from './services/shop-of-the-month.js';
 import { sweepSets } from './services/set-runner.js';
 import { sweepAreas } from './services/areas.js';
+import { sweepReferralLevels } from './services/referrals.js';
 import { sweepInsuranceReminders } from './services/insurance.js';
 import { sweepDeposits } from './services/runner-leaving.js';
 import { sweepPlans } from './services/plans.js';
@@ -440,6 +441,19 @@ async function main(): Promise<void> {
       });
   }, 3_600_000);
   planSweep.unref();
+  // Every hour: anybody who has reached a new referral reward level is kept, and the owner told
+  // once on Ozi's desk (Anthony, 30 October 2026). A level is also checked the moment a delivery
+  // makes somebody active, so the hour this lands in does not matter.
+  const referralSweep = setInterval(() => {
+    sweepReferralLevels(app.ctx, app.log)
+      .then((reached) => {
+        if (reached > 0) app.log.info({ reached }, 'Referral levels reached');
+      })
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, 'The referral level sweep failed');
+      });
+  }, 3_600_000);
+  referralSweep.unref();
   // Every six hours: a few things whose price is only an estimate, or a month old, are looked
   // up again in the open price database or, failing that, by one web search (ruling 72).
   const priceSweep = setInterval(() => {

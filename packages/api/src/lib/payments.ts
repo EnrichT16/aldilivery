@@ -223,9 +223,12 @@ export interface PaymentsGateway {
   /**
    * A Stripe account of the Runner's own, for their pay to go to (Rule Ten: The service never
    * holds a Runner's money). Stripe collects their bank details on its own pages; they never
-   * pass through the service.
+   * pass through the service. An Ozi Ambassador has one the same way, for withdrawals of what
+   * they have earned (30 October 2026): `ambassador` is their kind:id.
    */
-  createConnectedAccount(input: { runnerId: string }): Promise<{ id: string }>;
+  createConnectedAccount(
+    input: { runnerId: string } | { ambassador: string },
+  ): Promise<{ id: string }>;
   /** A one-time link to Stripe's form for that account. Expires after a few minutes. */
   createOnboardingLink(input: {
     accountId: string;
@@ -463,7 +466,8 @@ export function stripeGateway(secretKey: string, webhookSecret: string): Payment
         country: 'GB',
         business_type: 'individual',
         capabilities: { transfers: { requested: true } },
-        metadata: { runnerId: input.runnerId },
+        metadata:
+          'runnerId' in input ? { runnerId: input.runnerId } : { ambassador: input.ambassador },
       });
       return { id: account.id };
     },
@@ -702,6 +706,7 @@ export interface RecordedCall {
     | ChargeSavedCardInput
     | { paymentIntentId: string; amountPence: number; reference: string }
     | { runnerId: string }
+    | { ambassador: string }
     | { accountId: string; interval: 'weekly' | 'daily' }
     | { accountId: string; amountPence: number; currency: string; reference: string }
     | CreateCardholderInput

@@ -178,6 +178,32 @@ export {
 } from './organisations.js';
 
 export {
+  activeShare,
+  AMBASSADOR_TERMS_VERSION,
+  ambassadorAvailableAt,
+  ambassadorEarningAfterRefunds,
+  ambassadorNeedsReview,
+  ambassadorPayable,
+  ambassadorPlanSharePence,
+  ambassadorShareEnds,
+  ambassadorSharePence,
+  earnedWords,
+  highestLevel,
+  levelsReached,
+  meetsActiveShare,
+  nextLevel,
+  ownerLevelWords,
+  percentWords,
+  progressWords,
+  rewardWords,
+  shareWords,
+  withinAmbassadorMonths,
+  type AmbassadorSettings,
+  type ReferralLevel,
+  type ReferralSettings,
+} from './referrals.js';
+
+export {
   DELIVERY_WINDOWS,
   SCHEDULED_DEFAULTS,
   addDays,

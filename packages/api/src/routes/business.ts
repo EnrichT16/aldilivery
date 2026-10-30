@@ -76,6 +76,8 @@ import { awardTitlesByShop } from '../services/shop-of-the-month.js';
 import { checkInBackground, checkPartnerProduct } from '../services/auto-check.js';
 import { askOwner, settleMattersFor } from '../services/owner-desk.js';
 import { decidePartnerProduct } from '../services/partner-products.js';
+import { tieAmbassador } from '../services/ambassadors.js';
+import { recordReferralFor, VIA_PATTERN } from '../services/referrals.js';
 import { hashPassword, passwordMatches, staffActor, temporaryPassword } from '../lib/staff.js';
 import { verifyPhoneProof } from '../lib/tokens.js';
 
@@ -1288,6 +1290,10 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       termsAgreed: z.literal(true, {
         errorMap: () => ({ message: 'Please tick to agree to the Shop Partner terms.' }),
       }),
+      /** Anybody's referral link the owner came by, as kind:code (30 October 2026). */
+      joinedVia: z.string().trim().regex(VIA_PATTERN).optional(),
+      /** The Ozi Ambassador whose link brought the business, as kind:code (30 October 2026). */
+      ambassador: z.string().trim().regex(VIA_PATTERN).optional(),
     })
     .merge(browseFieldsSchema);
 
@@ -1375,6 +1381,16 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         })
       : await repository.partnerShops.create({ ...details, source: 'self' });
     locateLater(app.ctx, shop.postcode, request.log);
+    // The Ozi Ambassador who introduced it, never its own owner; and whoever referred it
+    // (Anthony, 30 October 2026). An Ambassador's link is a referral too.
+    const introduced = await tieAmbassador(app.ctx, shop, body.ambassador);
+    await recordReferralFor(
+      app.ctx,
+      body.joinedVia ?? (introduced.tied ? body.ambassador : undefined),
+      'partner',
+      shop.id,
+      request.log,
+    );
 
     const user = await repository.businessUsers.create({
       kind: 'partner',
@@ -1435,7 +1451,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       message:
         `Welcome, ${body.contactName}. ${shop.name} is set up${claimed ? ' and claimed' : ''}. You can add ${body.kind === 'service' ? 'services' : 'products'} now; your page goes public once we have checked it, usually within one working day.` +
         (freeForever ? ' Your basic listing is free, with no monthly fee.' : '') +
-        planMessage,
+        planMessage +
+        introduced.words,
     };
   });
 
@@ -2103,6 +2120,12 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         active: z.boolean().optional(),
         /** Approve a pending listing, or remove one. */
         status: z.enum(['approved', 'pending', 'removed']).optional(),
+        /**
+         * "A branch of" another listing of the same business, or null for none (Anthony, 30
+         * October 2026): each branch is its own venture, and another branch of a business an
+         * Ambassador introduced earns them a quarter of their share.
+         */
+        branchOfShopId: z.string().min(1).max(60).nullable().optional(),
       })
       .merge(browseFieldsSchema)
       .parse(request.body ?? {});
@@ -2110,6 +2133,18 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     if (!shop) throw new NotFoundError('partner shop');
     const at = now();
     let updated = shop;
+    if (body.branchOfShopId !== undefined) {
+      if (body.branchOfShopId !== null) {
+        const main = await repository.partnerShops.findById(body.branchOfShopId);
+        if (!main) throw new NotFoundError('partner shop');
+        if (main.id === shop.id || main.branchOfShopId === shop.id) {
+          throw new BadRequestError('A shop cannot be a branch of itself.');
+        }
+      }
+      updated = await repository.partnerShops.update(shop.id, {
+        branchOfShopId: body.branchOfShopId,
+      });
+    }
     // What it is browsed under (ruling 82), set by staff when adding or approving a shop.
     const browseKeys = [
       'cuisines',
@@ -2245,9 +2280,12 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
           .max(10)
           .transform((value) => tidyPostcode(value))
           .optional(),
+        /** The enquiry it came from, which may carry the referral link it came by. */
+        enquiryId: z.string().min(1).max(60).optional(),
       })
       .parse(request.body ?? {});
-    const organisation = await repository.organisations.create(body);
+    const { enquiryId, ...details } = body;
+    const organisation = await repository.organisations.create(details);
     if (body.postcode) locateLater(app.ctx, body.postcode, request.log);
     let joinCode = '';
     do {
@@ -2257,6 +2295,18 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       ).join('');
     } while (await repository.organisations.findByJoinCode(joinCode));
     const updated = await repository.organisations.update(organisation.id, { joinCode });
+    // Who referred it (30 October 2026): the link its enquiry came by. Without the enquiry's id,
+    // the newest organisation enquiry of the same name that came by a link.
+    const enquiries = await repository.organisationEnquiries.list();
+    const enquiry = enquiryId
+      ? enquiries.find((row) => row.id === enquiryId)
+      : enquiries.find(
+          (row) =>
+            row.kind === 'organisation' &&
+            row.joinedVia &&
+            row.organisation.trim().toLowerCase() === details.name.trim().toLowerCase(),
+        );
+    await recordReferralFor(app.ctx, enquiry?.joinedVia, 'organisation', updated.id, request.log);
     void reply.status(201);
     return { organisation: updated };
   });

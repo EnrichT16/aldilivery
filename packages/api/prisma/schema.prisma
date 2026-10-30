@@ -1151,6 +1151,9 @@ model OrganisationEnquiry {
   /// version.
   termsAgreedAt DateTime?
   termsVersion  String?
+  /// The referral link the person asking came by, as kind:code (Anthony, 30 October 2026). Kept
+  /// until staff set the organisation up, which records who referred it.
+  joinedVia     String?
 }
 
 /// Somebody who runs the service, with their own admin sign-in (7 October 2026). What they can
@@ -1241,6 +1244,14 @@ model PartnerShop {
   convenience    Boolean   @default(false)
   /// Ruling 82: a childminder's Ofsted registration number, as they gave it. Never checked by us.
   ofstedNumber   String    @default("")
+  /// The Ozi Ambassador who introduced it (Anthony, 30 October 2026): shopper, runner, partner
+  /// or organisation, and that account's id. Never the shop's own owner.
+  ambassadorKind String?
+  ambassadorId   String?
+  /// Another listing of the same business, marked by staff: each branch is its own venture.
+  branchOfShopId String?
+
+  @@index([ambassadorKind, ambassadorId])
 }
 
 /// A Shopper asking a service for a quote or a call back (ruling 65). No money moves.
@@ -1457,6 +1468,124 @@ model ReferralReward {
   createdAt       DateTime @default(now())
 
   @@index([referrer])
+}
+
+/// Who brought whom (Anthony, 30 October 2026): every account opened through somebody's referral
+/// link, of any kind by any kind. One row per new account. Whether it is active is worked out
+/// from what the account has done, never stored.
+model Referral {
+  id           String   @id @default(cuid())
+  /// shopper, runner, partner or organisation.
+  referrerKind String
+  referrerId   String
+  /// shopper, runner, partner or organisation.
+  joinedKind   String
+  joinedId     String
+  /// The link as followed, kind:code, for example shopper:margaret.
+  via          String
+  createdAt    DateTime @default(now())
+
+  @@unique([joinedKind, joinedId])
+  @@index([referrerKind, referrerId])
+}
+
+/// A referral reward level somebody reached (Anthony, 30 October 2026), kept once reached. The
+/// owner is told once; the person is told on their dashboard and by Ozi once; staff give the
+/// voucher by hand and mark it given.
+model ReferralLevelReached {
+  id              String    @id @default(cuid())
+  referrerKind    String
+  referrerId      String
+  /// The level: so many active referrals.
+  activeReferrals Int
+  rewardPence     Int
+  label           String
+  /// How many were active, and had joined, when it was reached.
+  activeAtReach   Int
+  joinedAtReach   Int
+  reachedAt       DateTime  @default(now())
+  /// When Ozi told the person in the app.
+  toldAt          DateTime?
+  givenAt         DateTime?
+  givenBy         String?
+
+  @@unique([referrerKind, referrerId, activeReferrals])
+  @@index([reachedAt])
+}
+
+/// Somebody who chose to become an Ozi Ambassador (Anthony, 30 October 2026), with when they
+/// agreed to the Ambassador terms at /ambassador/terms and which version. Only then do they have
+/// an Ambassador link.
+model AmbassadorAgreement {
+  id                       String    @id @default(cuid())
+  /// shopper, runner, partner or organisation.
+  accountKind              String
+  accountId                String
+  agreedAt                 DateTime  @default(now())
+  termsVersion             String
+  /// Their own Stripe account for withdrawals (ruled 30 October 2026). Stripe collects the bank
+  /// details on its own form; they never pass through the service.
+  stripeConnectedAccountId String?
+  /// Flagged by staff: every withdrawal waits for a person to approve it.
+  flaggedAt                DateTime?
+  flagReason               String?
+
+  @@unique([accountKind, accountId])
+}
+
+/// What an Ozi Ambassador has earned and been paid (Anthony, 30 October 2026): a share of an
+/// order's profit, the Partner Plus bonus, a deduction for a refund that came after a share was
+/// available, or a payment. A pending share follows its order's final state (ruled the same day);
+/// nothing is ever removed.
+model AmbassadorEntry {
+  id             String    @id @default(cuid())
+  ambassadorKind String
+  ambassadorId   String
+  /// share (of an order's profit), bonus (of the first Partner Plus payment), deduction or
+  /// payment.
+  kind           String
+  /// The business it was earned from; null for a payment.
+  partnerShopId  String?
+  orderId        String?
+  /// What the share was worked from: Ozi's profit on the order (item charges, or a café's
+  /// commission), or the first Partner Plus payment.
+  profitPence    Int       @default(0)
+  /// Earned, taken off, or paid: always zero or more.
+  amountPence    Int
+  /// When a share or bonus stops being pending (30 days after delivery) and can be paid.
+  availableAt    DateTime?
+  /// A card chargeback on its order: the share is worth nothing.
+  disputedAt     DateTime?
+  /// Makes each one once only: share:<order>:<shop>, bonus:<shop>, deduction:<entry>,
+  /// payment:<time> or withdrawal:<id>.
+  reference      String    @unique
+  recordedBy     String?
+  at             DateTime  @default(now())
+
+  @@index([ambassadorKind, ambassadorId])
+  @@index([partnerShopId])
+  @@index([orderId])
+}
+
+/// An Ambassador asking for their available money to go to their bank (ruled 30 October 2026):
+/// sent by a Stripe transfer to their own Stripe account, or waiting for staff to approve it when
+/// it is over the monthly review figure or they are flagged.
+model AmbassadorWithdrawal {
+  id               String    @id @default(cuid())
+  ambassadorKind   String
+  ambassadorId     String
+  amountPence      Int
+  /// waiting_approval, sent, refused or failed.
+  status           String
+  waitingReason    String?
+  requestedAt      DateTime  @default(now())
+  decidedAt        DateTime?
+  decidedBy        String?
+  stripeTransferId String?
+  failure          String?
+
+  @@index([ambassadorKind, ambassadorId])
+  @@index([status])
 }
 
 /// Who did what in the admin panel, and when (Section Q). Only ever added to: the server has

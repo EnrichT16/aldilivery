@@ -11,7 +11,6 @@ import { offerOrder } from '../src/services/dispatch.js';
 import { instantFeePence } from '../src/services/payout-schedule.js';
 import { reminderDue, sweepInsuranceReminders } from '../src/services/insurance.js';
 import { sweepDeposits } from '../src/services/runner-leaving.js';
-import { sameAddressKey } from '../src/services/referral-reward.js';
 import {
   buildTestApp,
   signUpRunner,
@@ -277,7 +276,7 @@ describe('when money reaches the bank (ruling 16)', () => {
       }),
     );
     expect(quote.words).toBe(
-      "£42.50 can go to your debit card now. The instant payout fee for that is £0.50, paid by you, so you would get £42.00.",
+      '£42.50 can go to your debit card now. The instant payout fee for that is £0.50, paid by you, so you would get £42.00.',
     );
 
     // The amount changed since they looked: nothing is sent.
@@ -296,7 +295,7 @@ describe('when money reaches the bank (ruling 16)', () => {
     );
     expect(taken.statusCode, taken.body).toBe(200);
     expect(taken.json().message).toBe(
-      "£42.00 is on its way to your debit card. The instant payout fee was £0.50.",
+      '£42.00 is on its way to your debit card. The instant payout fee was £0.50.',
     );
     expect(harness.payments.calls.at(-1)).toEqual({
       kind: 'instant_payout',
@@ -529,173 +528,9 @@ describe('insurance reminders for Runners who drive (ruling 14)', () => {
   });
 });
 
-describe('the private referral reward (rulings 12 and 16)', () => {
-  async function makeOwner(): Promise<Record<string, string>> {
-    await post(
-      '/staff/owner',
-      { name: 'Anthony', username: 'anthony', password: 'a long password', passcode: '123456#' },
-      STAFF,
-    );
-    const signedIn = await post('/staff/sign-in', {
-      username: 'anthony',
-      password: 'a long password',
-      passcode: '123456#',
-    });
-    return { 'x-staff-token': signedIn.json().token as string };
-  }
-
-  /** Somebody who came by the link, with a card and an address, and an order of their own. */
-  async function referred(
-    via: string,
-    n: number,
-    options: { address?: string; status?: Order['status']; refunded?: boolean; card?: string } = {},
-  ) {
-    const shopper = await harness.repository.shoppers.create({
-      displayName: `Person ${n}`,
-      handle: `person-${n}`,
-      phone: `+4477009${String(10_000 + n).slice(-5)}`,
-    });
-    await harness.repository.shoppers.update(shopper.id, { joinedVia: via });
-    const card = await harness.repository.paymentMethods.create({
-      shopperId: shopper.id,
-      stripePaymentMethodId: `pm_person_${n}`,
-      lastFour: '4242',
-    });
-    if (options.card) harness.payments.fingerprints.set(`pm_person_${n}`, options.card);
-    const order = await orderFor(
-      {
-        shopperId: shopper.id,
-        paymentMethodId: card.id,
-        token: '',
-        authHeader: { authorization: '' },
-      },
-      { status: options.status ?? 'completed' },
-      options.address ?? `${n} Long Road, Gillingham ME7 ${String(n % 10)}AA`,
-    );
-    if (options.refunded) {
-      await harness.repository.problems.create({
-        orderId: order.id,
-        reportedBy: 'shopper',
-        reporterId: shopper.id,
-        summary: 'Missing',
-        refundRequestedPence: 100,
-        status: 'decided',
-        decideBy: harness.now(),
-        decision: 'platform_at_fault',
-        refundPence: 100,
-        refundReference: 're_1',
-        decisionNote: null,
-        decidedBy: 'Kemi',
-        decidedAt: harness.now(),
-        createdAt: harness.now(),
-      });
-    }
-    return shopper;
-  }
-
-  it('makes addresses comparable however they are written', () => {
-    expect(sameAddressKey('12 Example St, ME7 1AA')).toBe(sameAddressKey('12 example st me71aa'));
-  });
-
-  it('counts only people who paid for an order that was not refunded, with the guards, for the owner alone', async () => {
-    const owner = await makeOwner();
-    const referrer = await signUpShopper(harness, { phone: '+447700900500', displayName: 'Ngozi' });
-    const handle = (await harness.repository.shoppers.findById(referrer.shopperId))!.handle;
-    const via = `shopper:${handle}`;
-    await harness.repository.shoppers.update(referrer.shopperId, {
-      deliveryAddress: '1 Home Lane, Gillingham ME7 9ZZ',
-    });
-    harness.payments.fingerprints.set('pm_test_visa', 'fp_ngozi');
-
-    for (let n = 1; n <= 98; n += 1) await referred(via, n);
-    await referred(via, 200, { status: 'paid' }); // not delivered yet
-    await referred(via, 201, { refunded: true });
-    await referred(via, 202, { address: '1 home lane gillingham me7 9zz' }); // the referrer's own
-    await referred(via, 203, { address: '1 Long Road, Gillingham ME7 1AA' }); // same as person 1
-
-    expect((await get('/staff/referrals', STAFF)).statusCode).toBe(403);
-    const find = async () =>
-      (await get('/staff/referrals', owner))
-        .json()
-        .referrers.find((one: { referrer: string }) => one.referrer === via);
-    expect((await get('/staff/referrals', owner)).json()).toEqual(
-      expect.objectContaining({ needed: 100, rewardPence: 15_000 }),
-    );
-    expect(await find()).toEqual(
-      expect.objectContaining({
-        joined: 102,
-        counted: 98,
-        notYet: 2,
-        due: false,
-        // Stripe is not asked about cards until someone is near the line.
-        cardsChecked: false,
-        excluded: { self: 0, sameCard: 0, sameAddress: 2 },
-      }),
-    );
-
-    // Paid with the referrer's own card, and the same card twice: once near the line, the card
-    // test runs, and neither is counted.
-    await referred(via, 204, { card: 'fp_ngozi' });
-    await referred(via, 205, { card: 'fp_shared' });
-    await referred(via, 206, { card: 'fp_shared' });
-    expect(await find()).toEqual(
-      expect.objectContaining({
-        counted: 99,
-        cardsChecked: true,
-        due: false,
-        excluded: { self: 0, sameCard: 2, sameAddress: 2 },
-      }),
-    );
-
-    // One more real person makes a hundred.
-    await referred(via, 300);
-    expect(await find()).toEqual(
-      expect.objectContaining({ counted: 100, rewardsEarned: 1, rewardsGiven: 0, due: true }),
-    );
-
-    const given = await post('/staff/referrals/reward', { referrer: via, by: 'Anthony' }, owner);
-    expect(given.statusCode, given.body).toBe(200);
-    expect(given.json().message).toBe('£150.00 for Ngozi, added to their account as credit.');
-    expect((await harness.repository.shoppers.findById(referrer.shopperId))?.creditPence).toBe(
-      15_000,
-    );
-    // Once only.
-    expect(
-      (await post('/staff/referrals/reward', { referrer: via, by: 'Anthony' }, owner)).statusCode,
-    ).toBe(409);
-  });
-
-  it('never counts somebody referring themselves, and pays a Runner to their own account', async () => {
-    const owner = await makeOwner();
-    const code = (await harness.repository.runners.findById(runner.runnerId))!.referralCode;
-    const via = `runner:${code}`;
-    // The Runner's own phone, opening a Shopper account by their own link.
-    const self = await harness.repository.shoppers.create({
-      displayName: 'Tomasz',
-      handle: 'tomasz',
-      phone: '+447700900101',
-    });
-    await harness.repository.shoppers.update(self.id, { joinedVia: via });
-    for (let n = 1; n <= 100; n += 1) await referred(via, n);
-
-    const row = (await get('/staff/referrals', owner))
-      .json()
-      .referrers.find((one: { referrer: string }) => one.referrer === via);
-    expect(row).toEqual(expect.objectContaining({ kind: 'runner', counted: 100, due: true }));
-    expect(row.excluded.self).toBe(1);
-
-    const given = await post('/staff/referrals/reward', { referrer: via, by: 'Anthony' }, owner);
-    expect(given.json().message).toBe('£150.00 for Tomasz, sent to their own Stripe account.');
-    expect(harness.payments.calls.at(-1)).toEqual({
-      kind: 'transfer',
-      input: expect.objectContaining({
-        amountPence: 15_000,
-        destinationAccountId: 'acct_test_runner',
-        idempotencyKey: `referral:${via}:1`,
-      }),
-    });
-  });
-
+// The private referral reward of £150 at 100 referrals (rulings 12 and 16) was replaced by the
+// referral levels for everybody (Anthony, 30 October 2026): see referrals.test.ts.
+describe('a Runner’s link', () => {
   it('a Shopper can come by a Runner’s link', async () => {
     const code = (await harness.repository.runners.findById(runner.runnerId))!.referralCode;
     const made = await post('/shoppers', {

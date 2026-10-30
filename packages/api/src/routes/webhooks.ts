@@ -13,6 +13,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 
 import { BadRequestError } from '../errors.js';
 import { chargeCalls } from '../services/calls.js';
+import { ambassadorChargeback } from '../services/ambassadors.js';
 import { applyCredit } from '../services/credit.js';
 import { recordOrder } from '../lib/analytics.js';
 import { cardRegionFor } from '../lib/card-region.js';
@@ -158,6 +159,16 @@ export async function registerWebhookRoutes(app: FastifyInstance): Promise<void>
               await releaseCard(app.ctx, order.runnerId, order.id, request.log);
             }
           }
+        }
+        break;
+      }
+
+      // A card chargeback (30 October 2026): any Ozi Ambassador's share on the orders it paid
+      // for is worth nothing, taken off their next earnings if it was already available.
+      case 'charge.dispute.created': {
+        const paymentIntent = (object as { payment_intent?: unknown }).payment_intent;
+        if (typeof paymentIntent === 'string') {
+          await ambassadorChargeback(app.ctx, paymentIntent);
         }
         break;
       }
