@@ -295,7 +295,13 @@ async function stillNeedsOwner(ctx: DeskContext, matter: OwnerMatter): Promise<b
     case 'allocation_returned':
     case 'referral_level':
     case 'ambassador_review':
+    case 'ambassador_application':
       return true;
+    case 'ambassador_document': {
+      // An Ambassador applicant's document (30 October 2026): until it is decided.
+      const document = await repository.ambassadorDocuments.findById(matter.subjectId);
+      return document?.status === 'submitted';
+    }
   }
 }
 
@@ -522,11 +528,43 @@ async function carryOut(
       const shop = await repository.partnerShops.findById(matter.subjectId);
       if (!shop) throw new ApiError(404, 'not_found', 'The shop is gone.');
       if (shop.status !== 'pending') throw new ApiError(409, 'conflict', 'Already decided.');
+      // Signed up by an Ozi Ambassador (30 October 2026): its agreement sheet's reference is
+      // checked, and its mark-up and discount confirmed, in the admin panel only.
+      if (approve && shop.agreementReference) {
+        // Not a 409, which the desk takes as "already dealt with": it is still waiting.
+        throw new ApiError(
+          400,
+          'bad_request',
+          'This business was signed up by an Ambassador. Please approve it in the admin panel, with the reference on its agreement sheet.',
+        );
+      }
       await repository.partnerShops.update(shop.id, {
         status: approve ? 'approved' : 'removed',
         approvedAt: approve ? (shop.approvedAt ?? ctx.now()) : shop.approvedAt,
         ...(approve ? {} : { active: false }),
       });
+      return;
+    }
+    case 'ambassador_document': {
+      // An Ambassador applicant's document the automatic check was unsure of (30 October 2026).
+      // Approving it marks it checked; the Ambassador is still only approved after the chat.
+      const document = await repository.ambassadorDocuments.findById(matter.subjectId);
+      if (!document) throw new ApiError(404, 'not_found', 'The document is gone.');
+      const { decideAmbassadorDocument } = await import('./ambassador-applications.js');
+      await decideAmbassadorDocument(
+        ctx,
+        document,
+        {
+          decision: approve ? 'accept' : 'reject',
+          by: decidedBy,
+          note: approve
+            ? null
+            : document.checkNote
+              ? `Not accepted: ${document.checkNote.replace(/\.$/, '')}. Please send it again.`
+              : 'Not accepted when it was checked. Please send it again, clear and in date.',
+        },
+        log,
+      );
       return;
     }
     case 'message_approval': {

@@ -12,6 +12,10 @@
  *   mismatched, or with something recorded on the DBS becomes a matter on Ozi's desk, and Ozi
  *   rings the owner with the reason in one sentence. A share code cannot be checked by the model,
  *   so it always goes to the owner, to check on GOV.UK.
+ * - **Ozi Ambassador applicants' documents** (30 October 2026) are read the same way: the photo
+ *   ID, the back of a card, the proof of address (also whether it is dated within the last three
+ *   months) and the face photo. Clear ones are marked checked; unclear ones go to the owner and to
+ *   staff. Nobody is ever approved as an Ambassador automatically.
  * - **Shop products.** Clear ones are approved automatically. Clearly restricted ones are refused
  *   automatically only by the existing rule lists (things never brought, excluded services, the
  *   most one product may cost): a rule, not a judgement. Doubtful ones go to the owner.
@@ -24,6 +28,7 @@
 import type { FastifyBaseLogger } from 'fastify';
 
 import {
+  addressDateRecent,
   excludedServiceKind,
   excludedServiceWords,
   formatPence,
@@ -31,9 +36,10 @@ import {
 } from '@aldilivery/core';
 
 import type { AppContext } from '../app.js';
-import type { RunnerDocument } from '../domain.js';
+import type { AmbassadorDocument, RunnerDocument } from '../domain.js';
 import {
   READABLE_IMAGES,
+  type CheckedDocumentKind,
   type DocumentFile,
   type DocumentReading,
   type ReceiptImage,
@@ -48,7 +54,9 @@ import {
   ukDate,
   type DeskContext,
 } from './owner-desk.js';
+import { decideAmbassadorDocument, documentSpoken } from './ambassador-applications.js';
 import { decidePartnerProduct, withdrawPartnerProduct } from './partner-products.js';
+import { findAccount } from './referrals.js';
 import { decideRunnerDocument, KIND_SPOKEN } from './runner-documents.js';
 
 type CheckContext = DeskContext & Pick<AppContext, 'backgroundChecks'>;
@@ -73,14 +81,18 @@ function readable(contentType: string | null): contentType is ReceiptImage['medi
 }
 
 /** The document as the check reads it: a photo, or the PDF it was emailed as. */
-function fileOf(document: Pick<RunnerDocument, 'image' | 'contentType'>): DocumentFile | null {
+function fileOf(
+  document: Pick<RunnerDocument | AmbassadorDocument, 'image' | 'contentType'>,
+): DocumentFile | null {
   if (document.image && document.contentType === 'application/pdf') {
     return { data: Buffer.from(document.image).toString('base64'), mediaType: 'application/pdf' };
   }
   return photoOf(document);
 }
 
-function photoOf(document: Pick<RunnerDocument, 'image' | 'contentType'>): ReceiptImage | null {
+function photoOf(
+  document: Pick<RunnerDocument | AmbassadorDocument, 'image' | 'contentType'>,
+): ReceiptImage | null {
   if (!document.image || !readable(document.contentType)) return null;
   return {
     data: Buffer.from(document.image).toString('base64'),
@@ -376,6 +388,173 @@ export async function checkApplication(
   await settleMattersFor(ctx, 'runner_application', runner.id, 'automatic', AUTOMATIC);
 }
 
+/* ------------------------------------------------------------------ Ambassador documents */
+
+/** Which document the check is told to expect, for each Ambassador document and photo ID. */
+function ambassadorAsked(document: AmbassadorDocument): CheckedDocumentKind | null {
+  switch (document.kind) {
+    case 'photo_id_front':
+      return document.idType === 'driving_licence'
+        ? 'ambassador_driving_licence'
+        : document.idType === 'residence_card'
+          ? 'ambassador_residence_card'
+          : 'ambassador_passport';
+    case 'photo_id_back':
+      return 'ambassador_card_back';
+    case 'proof_of_address':
+      return 'ambassador_proof_of_address';
+    case 'face_photo':
+      return 'face_photo';
+    case 'share_code':
+      return null;
+  }
+}
+
+/**
+ * What stops an Ambassador's document being marked checked automatically (30 October 2026), the
+ * same checks as a Runner's: the kind asked for, readable, in date, the name matching the
+ * account, a clear real face; and for a proof of address, dated within the last
+ * `addressWithinMonths` months. Empty means every check was clearly fine.
+ */
+export function ambassadorDocumentConcerns(
+  document: Pick<AmbassadorDocument, 'kind'>,
+  reading: DocumentReading,
+  accountName: string,
+  today: string,
+  confidence: number,
+  addressWithinMonths: number,
+): string[] {
+  const concerns: string[] = [];
+  if (!reading.kindMatches) concerns.push('it does not look like the document that was asked for');
+  if (!reading.readable) concerns.push('it is not clear enough to read');
+  if (reading.expiresOn !== null && reading.expiresOn < today) concerns.push('it has expired');
+  if (document.kind === 'photo_id_front' || document.kind === 'proof_of_address') {
+    if (reading.nameOnDocument === null) concerns.push('no name can be read on it');
+    else if (!namesMatch(accountName, reading.nameOnDocument)) {
+      concerns.push('the name on it does not match the name on the account');
+    }
+  }
+  if (document.kind === 'proof_of_address') {
+    const issued = reading.issuedOn ?? null;
+    if (issued === null) concerns.push('the date it was issued cannot be read');
+    else if (!addressDateRecent(issued, today, addressWithinMonths)) {
+      concerns.push(`it is not dated within the last ${addressWithinMonths} months`);
+    }
+  }
+  if (document.kind === 'face_photo' && reading.clearRealFace !== true) {
+    concerns.push('it is not clearly a photo of a real face');
+  }
+  if (concerns.length === 0 && reading.confidence < confidence) {
+    concerns.push(
+      reading.concern
+        ? `the automatic check is not sure: ${reading.concern.replace(/\.$/, '').toLowerCase()}`
+        : 'the automatic check is not sure enough about it',
+    );
+  }
+  return concerns;
+}
+
+/**
+ * Reads one document an Ambassador applicant sent, as a Runner's is read: clearly fine, it is
+ * marked checked; anything unclear goes to staff on the Ambassadors page and to the owner's desk.
+ * Nothing is refused automatically, and nobody is ever approved as an Ambassador by this: a person
+ * presses "Approve" after the chat.
+ */
+export async function checkAmbassadorDocument(
+  ctx: CheckContext,
+  documentId: string,
+  log?: FastifyBaseLogger,
+): Promise<void> {
+  const { repository, config } = ctx;
+  const document = await repository.ambassadorDocuments.findById(documentId);
+  if (!document || document.status !== 'submitted') return;
+  const account = await findAccount(ctx, document.accountKind, document.accountId);
+  if (!account) return;
+  const at = ctx.now();
+  const what = documentSpoken(document);
+  const target = `ambassador-document=${document.id}`;
+
+  const toOwner = async (reason: string, reading: DocumentReading | null = null) => {
+    await repository.ambassadorDocuments.update(document.id, {
+      checkedAt: at,
+      checkPassed: false,
+      checkNote: reason,
+      checkName: reading?.nameOnDocument ?? null,
+      checkIssuedOn: reading?.issuedOn ?? null,
+    });
+    await askOwner(
+      ctx,
+      {
+        kind: 'ambassador_document',
+        subjectId: document.id,
+        summary: `Ambassador applicant ${account.name}'s ${what} needs you. ${reason}`,
+        options: 'decide',
+      },
+      log,
+    );
+    await auditAutomatic(ctx, target, `Not marked checked; asked the owner. ${what}: ${reason}`);
+  };
+
+  const asked = ambassadorAsked(document);
+  if (asked === null || (document.shareCode && !document.image)) {
+    await toOwner(
+      'It is a Home Office share code, which the automatic check cannot verify. Please check it on GOV.UK.',
+    );
+    return;
+  }
+  if (!ctx.brain?.checkDocument) {
+    await toOwner('The automatic check is not switched on, so a person needs to look at it.');
+    return;
+  }
+  const photo = fileOf(document);
+  if (!photo) {
+    await toOwner('The photo is in a kind the automatic check cannot read.');
+    return;
+  }
+  const today = ukDate(at);
+  const reading = await ctx.brain.checkDocument({
+    kind: asked,
+    photo,
+    accountName: account.name,
+    today,
+  });
+  if (!reading) {
+    await toOwner('The automatic check could not read it.');
+    return;
+  }
+  const concerns = ambassadorDocumentConcerns(
+    document,
+    reading,
+    account.name,
+    today,
+    config.ownerDesk.checkConfidence,
+    config.ambassador.addressWithinMonths,
+  );
+  if (concerns.length > 0) {
+    await toOwner(sentence(concerns), reading);
+    return;
+  }
+  await repository.ambassadorDocuments.update(document.id, {
+    checkedAt: at,
+    checkPassed: true,
+    checkNote: null,
+    checkName: reading.nameOnDocument,
+    checkIssuedOn: reading.issuedOn ?? null,
+  });
+  const decided = await decideAmbassadorDocument(
+    ctx,
+    { ...document, checkPassed: true },
+    { decision: 'accept', by: AUTOMATIC, note: 'Checked by the automatic check.' },
+    log,
+  );
+  await settleMattersFor(ctx, 'ambassador_document', decided.id, 'automatic', AUTOMATIC);
+  await auditAutomatic(
+    ctx,
+    target,
+    `Marked checked: ${what}. Every check clearly fine (confidence ${reading.confidence.toFixed(2)}).`,
+  );
+}
+
 /**
  * After a person decided a document in the Documents tab: what Ozi was to ring about for it is
  * settled, and the rest of the application may now be complete for the automatic check.
@@ -525,6 +704,14 @@ export async function checkWaiting(
     if (document.checkedAt !== null) continue;
     await checkRunnerDocument(ctx, document.id, log).catch((failure: unknown) =>
       log?.error({ err: failure }, 'A waiting document could not be checked.'),
+    );
+    documents += 1;
+  }
+  // Ambassador applicants' documents too (30 October 2026).
+  for (const document of await ctx.repository.ambassadorDocuments.listSubmitted()) {
+    if (document.checkedAt !== null) continue;
+    await checkAmbassadorDocument(ctx, document.id, log).catch((failure: unknown) =>
+      log?.error({ err: failure }, 'A waiting Ambassador document could not be checked.'),
     );
     documents += 1;
   }

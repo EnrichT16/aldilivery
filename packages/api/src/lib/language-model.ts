@@ -257,14 +257,23 @@ export function tidyLabel(reading: LabelReading): LabelReading {
   };
 }
 
-/** The documents a Runner sends (routes/runner-account.ts). */
+/**
+ * The documents a Runner sends (routes/runner-account.ts), and those an Ozi Ambassador applicant
+ * sends (services/ambassador-applications.ts, 30 October 2026): a photo ID, the back of a card,
+ * and a proof of address.
+ */
 export type CheckedDocumentKind =
   | 'face_photo'
   | 'right_to_work'
   | 'dbs'
   | 'driving_licence_front'
   | 'driving_licence_back'
-  | 'insurance';
+  | 'insurance'
+  | 'ambassador_passport'
+  | 'ambassador_driving_licence'
+  | 'ambassador_residence_card'
+  | 'ambassador_card_back'
+  | 'ambassador_proof_of_address';
 
 /** A Runner's document as sent: a photo, or the PDF it was emailed as (27 October 2026). */
 export interface DocumentFile {
@@ -300,6 +309,14 @@ const documentReadingShape = z.object({
   samePerson: z.boolean().nullable(),
   concern: z.string().nullable(),
   confidence: z.number().min(0).max(1),
+  /**
+   * The date a letter or bill was issued, YYYY-MM-DD, for a proof of address (30 October 2026),
+   * or null. Optional, so a reading from before it still parses.
+   */
+  issuedOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullish(),
 });
 export type DocumentReading = z.infer<typeof documentReadingShape>;
 
@@ -316,8 +333,10 @@ const DOCUMENT_SCHEMA = {
     'samePerson',
     'concern',
     'confidence',
+    'issuedOn',
   ],
   properties: {
+    issuedOn: { type: ['string', 'null'] },
     kindMatches: { type: 'boolean' },
     readable: { type: 'boolean' },
     nameOnDocument: { type: ['string', 'null'] },
@@ -341,6 +360,12 @@ const DOCUMENT_ASKED: Record<CheckedDocumentKind, string> = {
   driving_licence_back: 'the back of a UK photocard driving licence',
   insurance:
     'a UK motor insurance certificate that covers delivery work (business use, or hire and reward)',
+  ambassador_passport: 'the photo page of a passport, with the photo, name and expiry date',
+  ambassador_driving_licence: 'the front of a photocard driving licence',
+  ambassador_residence_card: 'the front of a UK biometric residence card or permit',
+  ambassador_card_back: 'the back of a photocard driving licence or of a biometric residence card',
+  ambassador_proof_of_address:
+    'a utility bill, a bank letter or statement, or a council tax letter, addressed to the person, showing their name, home address and the date it was issued',
 };
 
 export interface ProductCheckInput {
@@ -379,8 +404,8 @@ const PRODUCT_SCHEMA = {
 /** The standing instructions for checking a Runner's document, from configuration (Rule Nine). */
 export function documentInstructions(config: StoreConfig): string {
   return [
-    `You check photos of documents sent by people applying to deliver shopping for ${config.productName}, a delivery service in England. You only read and report; a person makes every decision against anyone.`,
-    `Answer in the JSON shape given. kindMatches: whether the photo is what was asked for. readable: whether every important part can be read clearly. nameOnDocument: the full name printed on it, as printed, or null. expiresOn: the expiry or "valid until" date as YYYY-MM-DD, or null if it has none. dbsRecordsSomething: for a DBS certificate only, true if anything at all is recorded (any conviction, caution, reprimand or warning), false if it says none recorded, null for other documents. clearRealFace: for a face photo only, whether it clearly shows one real, live person's face, otherwise null. samePerson: only when a second photo of an ID is given, whether the face photo and the face on the ID appear to be the same person, otherwise null.`,
+    `You check photos of documents sent by people applying to deliver shopping for ${config.productName}, a delivery service in England, or to introduce businesses to it as an Ambassador. You only read and report; a person makes every decision against anyone.`,
+    `Answer in the JSON shape given. kindMatches: whether the photo is what was asked for. readable: whether every important part can be read clearly. nameOnDocument: the full name printed on it, as printed, or null. expiresOn: the expiry or "valid until" date as YYYY-MM-DD, or null if it has none. dbsRecordsSomething: for a DBS certificate only, true if anything at all is recorded (any conviction, caution, reprimand or warning), false if it says none recorded, null for other documents. clearRealFace: for a face photo only, whether it clearly shows one real, live person's face, otherwise null. samePerson: only when a second photo of an ID is given, whether the face photo and the face on the ID appear to be the same person, otherwise null. issuedOn: for a bill, statement or letter, the date it was issued or written as YYYY-MM-DD, otherwise null.`,
     `concern: when anything is not clearly fine, one short plain sentence saying what, under 20 words, never quoting numbers from the document; otherwise null. confidence: from 0 to 1, how sure you are that every answer is right. Be cautious: when unsure, say so with a low confidence.`,
   ].join('\n');
 }
