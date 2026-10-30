@@ -20,7 +20,7 @@ export interface CatalogueItem {
    * The restaurant, café or takeaway a dish is from (Anthony, 30 October 2026), or null for
    * everything else. A basket of one restaurant's dishes is a restaurant order.
    */
-  restaurant?: { shopId: string; name: string } | null;
+  restaurant?: { shopId: string; name: string; markedUp?: boolean } | null;
 }
 
 export interface CatalogueResult {
@@ -2100,6 +2100,8 @@ export interface ServiceEnquiryRow {
  */
 export interface PartnerRestaurant {
   discountPercent: number;
+  /** The agreed mark-up on its prices (30 October 2026). */
+  markupPercent?: number;
   preferred: boolean;
   preferredDiscountPercent: number;
   ordersThisMonth: number;
@@ -2379,6 +2381,8 @@ export interface PublicShop {
   partnerPlus?: boolean;
   /** An Ozi Preferred Partner (30 October 2026): listed first, with a badge. */
   preferredPartner?: boolean;
+  /** "Prices on Ozi may be higher than in the restaurant", where a mark-up applies. */
+  priceNote?: string | null;
   /** Which of the four pages it is on (ruling 82). */
   section?: BrowseSection;
   cuisines?: string[];
@@ -2558,6 +2562,8 @@ export interface StaffPartners {
       branchOfShopId?: string | null;
       /** A restaurant's agreed discount for Ozi, a whole percentage (30 October 2026). */
       agreedDiscountPercent?: number;
+      /** The agreed mark-up on its prices, a whole percentage (30 October 2026). */
+      agreedMarkupPercent?: number;
       preferredPartner?: boolean;
     } & Partial<BrowseFields>
   >;
@@ -2575,6 +2581,8 @@ export interface StaffPartners {
   restaurantWords: string;
   preferredDiscountPercent: number;
   maximumDiscountPercent: number;
+  /** The largest mark-up staff may record (30 October 2026). */
+  maximumMarkupPercent?: number;
   spotlightPence: number;
   spotlightPlusPence: number;
   /** How many shops config/shops-seed.json names. */
@@ -2747,10 +2755,14 @@ export function setStaffPartnerDiscount(
   key: string,
   id: string,
   agreedDiscountPercent: number,
+  agreedMarkupPercent?: number,
 ): Promise<unknown> {
   return staffRequest(key, `/staff/partners/${encodeURIComponent(id)}`, {
     method: 'POST',
-    body: JSON.stringify({ agreedDiscountPercent }),
+    body: JSON.stringify({
+      agreedDiscountPercent,
+      ...(agreedMarkupPercent !== undefined ? { agreedMarkupPercent } : {}),
+    }),
   });
 }
 
@@ -2769,11 +2781,13 @@ export interface StaffRestaurantRow {
   area: string;
   listed: boolean;
   discountPercent: number;
+  /** The agreed mark-up on its prices (Anthony, 30 October 2026). */
+  markupPercent: number;
   preferredPartner: boolean;
   ordersLast30Days: number;
 }
 
-export type StaffRestaurantSort = 'name' | 'discount' | 'preferred' | 'orders';
+export type StaffRestaurantSort = 'name' | 'discount' | 'markup' | 'preferred' | 'orders';
 
 export interface StaffRestaurants {
   restaurants: StaffRestaurantRow[];

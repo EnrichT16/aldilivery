@@ -223,7 +223,8 @@
     "ozisSharePence": 700,
     "minimumOrderPence": 1000,
     "preferredDiscountPercent": 20,
-    "maximumDiscountPercent": 50
+    "maximumDiscountPercent": 50,
+    "maximumMarkupPercent": 100
   },
   "checkoutInsights": {
     "totalBandsPence": [2000, 4000, 6000],
@@ -233,7 +234,11 @@
     "askOncePerHours": 24
   },
   "ambassador": {
-    "profitShare": 0.02,
+    "restaurantMarkupShare": 0.02,
+    "restaurantDiscountShare": 0.02,
+    "groceryItemChargeShare": 0.01,
+    "groceryMarkupShare": 0.01,
+    "groceryDiscountShare": 0.01,
     "months": 12,
     "planShare": 0.05,
     "branchShareFactor": 0.25,

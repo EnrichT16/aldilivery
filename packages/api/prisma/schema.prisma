@@ -703,6 +703,10 @@ model OrderItem {
   substitutedForName  String?
   actualPricePence    Int?
   note                String?
+  /// A Shop Partner's thing (Anthony, 30 October 2026): its shop price for one, and what the
+  /// Runner pays for one at the counter, kept as they were when the order was placed.
+  shopPricePence      Int?
+  counterPricePence   Int?
 
   questions ItemQuestion[]
 
@@ -1259,6 +1263,9 @@ model PartnerShop {
   /// sells to Ozi at its shop price less this. 0 for none, and for every shop and service. At
   /// restaurants.preferredDiscountPercent or more it is an Ozi Preferred Partner.
   agreedDiscountPercent Int @default(0)
+  /// An agreed mark-up on the partner's prices, a whole percentage (Anthony, 30 October 2026):
+  /// Shoppers see and pay the shop price with this on it. 0 for none; never for a service.
+  agreedMarkupPercent   Int @default(0)
 
   @@index([ambassadorKind, ambassadorId])
 }

@@ -16,7 +16,7 @@ import {
   ambassadorPayable,
   ambassadorPlanSharePence,
   ambassadorShareEnds,
-  ambassadorSharePence,
+  ambassadorOrderSharePence,
   earnedWords,
   highestLevel,
   levelsReached,
@@ -49,7 +49,11 @@ describe('the referral figures in config/store.json', () => {
 
   it('are the Ambassador terms Anthony set', () => {
     expect(ambassadors).toEqual({
-      profitShare: 0.02,
+      restaurantMarkupShare: 0.02,
+      restaurantDiscountShare: 0.02,
+      groceryItemChargeShare: 0.01,
+      groceryMarkupShare: 0.01,
+      groceryDiscountShare: 0.01,
       months: 12,
       planShare: 0.05,
       branchShareFactor: 0.25,
@@ -57,8 +61,10 @@ describe('the referral figures in config/store.json', () => {
       payoutMinimumPence: 1000,
       reviewAbovePence: 50000,
     });
-    expect(shareWords(ambassadors.profitShare)).toBe('2%');
+    expect(shareWords(ambassadors.restaurantMarkupShare)).toBe('2%');
+    expect(shareWords(ambassadors.groceryItemChargeShare)).toBe('1%');
     expect(shareWords(0.025)).toBe('2.5%');
+    expect(shareWords(0.0025)).toBe('0.25%');
   });
 
   it('refuses levels that make no sense', () => {
@@ -133,17 +139,51 @@ describe('the words', () => {
 });
 
 describe('the Ambassador share', () => {
-  it('is 2% of Ozi’s profit, to the nearest penny, and 3% if the founder switches it', () => {
-    expect(ambassadorSharePence(1000, ambassadors)).toBe(20);
-    expect(ambassadorSharePence(333, ambassadors)).toBe(7);
-    expect(ambassadorSharePence(0, ambassadors)).toBe(0);
-    expect(ambassadorSharePence(-100, ambassadors)).toBe(0);
-    expect(ambassadorSharePence(1000, { ...ambassadors, profitShare: 0.03 })).toBe(30);
+  const restaurant = (markupPence: number, discountPence: number, itemChargesPence = 0) =>
+    ({ kind: 'restaurant', markupPence, discountPence, itemChargesPence }) as const;
+  const grocery = (itemChargesPence: number, markupPence = 0, discountPence = 0) =>
+    ({ kind: 'grocery', markupPence, discountPence, itemChargesPence }) as const;
+
+  it('is 2% of the mark-up and 2% of the discount on a restaurant, never its item charges', () => {
+    // The founder's example: a £10 dish, 50% mark-up (£5) and 20% discount (£2): 10p + 4p.
+    expect(ambassadorOrderSharePence(restaurant(500, 200), ambassadors)).toBe(14);
+    // The item charges are never in it, on a restaurant.
+    expect(ambassadorOrderSharePence(restaurant(500, 200, 10_000), ambassadors)).toBe(14);
+    // No mark-up and no discount: nothing.
+    expect(ambassadorOrderSharePence(restaurant(0, 0, 300), ambassadors)).toBe(0);
+    expect(ambassadorOrderSharePence(restaurant(-100, 0), ambassadors)).toBe(0);
+    // 3% if the founder switches it.
+    expect(
+      ambassadorOrderSharePence(restaurant(1000, 0), {
+        ...ambassadors,
+        restaurantMarkupShare: 0.03,
+      }),
+    ).toBe(30);
+  });
+
+  it('is 1% of the item charges, the mark-up and the discount on a grocery shop partner', () => {
+    // £15 of item charges: 15p.
+    expect(ambassadorOrderSharePence(grocery(1500), ambassadors)).toBe(15);
+    // £15 of item charges, £10 of mark-up and £5 of discount: 15p + 10p + 5p.
+    expect(ambassadorOrderSharePence(grocery(1500, 1000, 500), ambassadors)).toBe(30);
+    // To the nearest penny: 1% of £3.33 is 3p.
+    expect(ambassadorOrderSharePence(grocery(333), ambassadors)).toBe(3);
   });
 
   it('is a quarter of that on another branch of the business, through the same link', () => {
-    expect(ambassadorSharePence(1000, ambassadors, 'other_branch')).toBe(5);
-    expect(ambassadorSharePence(1000, ambassadors, 'introduced')).toBe(20);
+    expect(ambassadorOrderSharePence(restaurant(1000, 0), ambassadors, 'other_branch')).toBe(5);
+    expect(ambassadorOrderSharePence(restaurant(1000, 0), ambassadors, 'introduced')).toBe(20);
+    expect(ambassadorOrderSharePence(grocery(2000), ambassadors, 'other_branch')).toBe(5);
+  });
+
+  it('refuses the old single profit share in the settings', () => {
+    const file = JSON.parse(readFileSync(storeConfigPath(), 'utf8')) as Record<string, unknown>;
+    expect(() =>
+      parseStoreConfig({
+        ...file,
+        ambassador: { ...(file['ambassador'] as object), profitShare: 0.02 },
+      }),
+    ).toThrow(/replaced/);
   });
 
   it('takes a one-off 5% of the first Partner Plus payment: 75p of £14.99', () => {

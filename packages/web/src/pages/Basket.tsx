@@ -1,3 +1,4 @@
+import { markupDisclosureWords } from '@aldilivery/core';
 import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -206,6 +207,9 @@ export function Basket(): JSX.Element {
             is paid {money(storeConfig.fees.largeOrderRunnerPaymentPence)}). The smallest restaurant
             order is {money(storeConfig.restaurants.minimumOrderPence)}. Every price we show already
             includes its item charge.
+            {restaurant.markedUp
+              ? ` ${markupDisclosureWords(storeConfig.assistantName, 'food')}`
+              : ''}
           </p>
         ) : (
           <p className="m-0 card-muted">

@@ -431,6 +431,7 @@ describe('a café or takeaway', () => {
     expect(dashboard).not.toHaveProperty('commission');
     expect(dashboard.restaurant).toEqual({
       discountPercent: 0,
+      markupPercent: 0,
       preferred: false,
       preferredDiscountPercent: 20,
       ordersThisMonth: 1,

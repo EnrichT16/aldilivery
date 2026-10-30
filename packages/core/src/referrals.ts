@@ -54,9 +54,26 @@ export interface ReferralSettings {
   readonly givenAs: string;
 }
 
-export interface AmbassadorSettings {
-  /** The Ambassador's share of Ozi's profit on each order: 0.02 is 2%. */
-  readonly profitShare: number;
+/**
+ * What an Ambassador earns on each order (Anthony's final ruling, 30 October 2026), each a share
+ * from 0 to 1. On a restaurant's order: of the mark-up Ozi keeps, and of the discount Ozi keeps,
+ * never the item charges or the restaurant fee. On a grocery shop partner's order: of the item
+ * charges on its things, and of any mark-up and discount Ozi keeps.
+ */
+export interface AmbassadorShares {
+  /** 0.02: 2% of the mark-up Ozi keeps on a restaurant's dishes. */
+  readonly restaurantMarkupShare: number;
+  /** 0.02: 2% of the discount Ozi keeps on a restaurant's dishes. */
+  readonly restaurantDiscountShare: number;
+  /** 0.01: 1% of the item charges on a grocery shop partner's things. */
+  readonly groceryItemChargeShare: number;
+  /** 0.01: 1% of the mark-up Ozi keeps on a grocery shop partner's things. */
+  readonly groceryMarkupShare: number;
+  /** 0.01: 1% of the discount Ozi keeps on a grocery shop partner's things. */
+  readonly groceryDiscountShare: number;
+}
+
+export interface AmbassadorSettings extends AmbassadorShares {
   /** For this many months from when the business was approved. */
   readonly months: number;
   /** A one-off share of the business's first Partner Plus payment: 0.05 is 5%. */
@@ -71,9 +88,9 @@ export interface AmbassadorSettings {
   readonly reviewAbovePence: number;
 }
 
-/** "2%", or "2.5%": a share as people read it. */
+/** "2%", "2.5%" or "0.25%": a share as people read it, to two places at most. */
 export function shareWords(share: number): string {
-  const percent = Math.round(share * 1000) / 10;
+  const percent = Math.round(share * 10000) / 100;
   return `${percent}%`;
 }
 
@@ -166,21 +183,42 @@ export function ownerLevelWords(name: string, level: ReferralLevel, active: numb
   return `${name} has reached the ${level.label} level with ${active} active referrals.`;
 }
 
+/** What Ozi kept on one business's things in one order, the amounts an Ambassador's share is of. */
+export interface AmbassadorBase {
+  /** A restaurant, café or takeaway, or a grocery shop partner. */
+  readonly kind: 'restaurant' | 'grocery';
+  /** The mark-up Ozi kept: what the Shopper paid less the shop price. */
+  readonly markupPence: number;
+  /** The discount Ozi kept: the shop price less what the Runner paid at the counter. */
+  readonly discountPence: number;
+  /** The item charges on its things (counted for a grocery shop partner only). */
+  readonly itemChargesPence: number;
+}
+
 /**
- * The Ambassador's share of Ozi's profit on one order, to the nearest penny: 2% of it for the
- * branch they introduced, a quarter of that for another branch of it that joined through their
- * link.
+ * The Ambassador's share on one business's things in one order, to the nearest penny (Anthony's
+ * final ruling, 30 October 2026). A restaurant: 2% of the mark-up kept plus 2% of the discount
+ * kept (a £10 dish at 50% mark-up and 20% discount: 2% of £5 and 2% of £2, 14p). A grocery shop
+ * partner: 1% of the item charges, of the mark-up and of the discount. A quarter of it for
+ * another branch that joined through their link.
  */
-export function ambassadorSharePence(
-  profitPence: number,
-  settings: Pick<AmbassadorSettings, 'profitShare' | 'branchShareFactor'>,
+export function ambassadorOrderSharePence(
+  base: AmbassadorBase,
+  settings: AmbassadorShares & Pick<AmbassadorSettings, 'branchShareFactor'>,
   branch: 'introduced' | 'other_branch' = 'introduced',
 ): number {
-  if (profitPence <= 0) return 0;
   const factor = branch === 'other_branch' ? settings.branchShareFactor : 1;
   // Worked in millionths, so 2% of £10 is exactly 20p however the share is written.
-  const millionths = Math.round(settings.profitShare * factor * 1_000_000);
-  return Math.round((profitPence * millionths) / 1_000_000);
+  const part = (pence: number, share: number): number =>
+    Math.max(0, pence) * Math.round(share * factor * 1_000_000);
+  const millionths =
+    base.kind === 'restaurant'
+      ? part(base.markupPence, settings.restaurantMarkupShare) +
+        part(base.discountPence, settings.restaurantDiscountShare)
+      : part(base.itemChargesPence, settings.groceryItemChargeShare) +
+        part(base.markupPence, settings.groceryMarkupShare) +
+        part(base.discountPence, settings.groceryDiscountShare);
+  return Math.round(millionths / 1_000_000);
 }
 
 /** The one-off share of the business's first Partner Plus payment: 5% of £14.99 is 75p. */

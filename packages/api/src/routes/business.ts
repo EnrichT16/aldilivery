@@ -21,6 +21,7 @@ import {
   chosenFrom,
   preferredRankingWords,
   restaurantFeeWords,
+  markupDisclosureWords,
   matchesBrowseSearch,
   postcodeNearness,
   sectionOf,
@@ -90,7 +91,11 @@ import { plusPaid, preferredPartner, rankedForListing } from '../lib/partner-sta
 import { awardTitlesByShop } from '../services/shop-of-the-month.js';
 import { checkInBackground, checkPartnerProduct } from '../services/auto-check.js';
 import { askOwner, settleMattersFor } from '../services/owner-desk.js';
-import { decidePartnerProduct } from '../services/partner-products.js';
+import {
+  decidePartnerProduct,
+  refreshPartnerPrices,
+  shopperPricePence,
+} from '../services/partner-products.js';
 import { tieAmbassador } from '../services/ambassadors.js';
 import { recordReferralFor, VIA_PATTERN } from '../services/referrals.js';
 import { hashPassword, passwordMatches, staffActor, temporaryPassword } from '../lib/staff.js';
@@ -175,6 +180,10 @@ const discountSchema = z
   .number()
   .int('Please give the discount as a whole percentage, such as 20.')
   .min(0, 'A discount cannot be below 0%.');
+const markupSchema = z
+  .number()
+  .int('Please give the mark-up as a whole percentage, such as 50.')
+  .min(0, 'A mark-up cannot be below 0%.');
 
 const usernameSchema = z
   .string()
@@ -274,19 +283,43 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
   const partners = config.extras.partners;
 
   /**
-   * A restaurant's agreed discount, checked: only a restaurant, café or takeaway has one, and no
-   * more than `restaurants.maximumDiscountPercent`, so a slip of the keys gives nothing away.
+   * A partner's agreed discount, checked: a restaurant, café or takeaway, or since Anthony's final
+   * ruling (30 October 2026) a grocery shop, never a service, and no more than
+   * `restaurants.maximumDiscountPercent`, so a slip of the keys gives nothing away.
    */
   function discountFor(kind: PartnerKind, percent: number): number {
     if (percent === 0) return 0;
-    if (kind !== 'food') {
-      throw new BadRequestError('Only a restaurant, café or takeaway agrees a discount.');
+    if (kind === 'service') {
+      throw new BadRequestError('Only a restaurant, café, takeaway or shop agrees a discount.');
     }
     const most = config.restaurants.maximumDiscountPercent;
     if (percent > most) {
       throw new BadRequestError(`A discount of more than ${most}% is not taken. Please check it.`);
     }
     return percent;
+  }
+
+  /**
+   * A partner's agreed mark-up, checked (Anthony, 30 October 2026): a restaurant, café, takeaway
+   * or shop, never a service, and no more than `restaurants.maximumMarkupPercent`.
+   */
+  function markupFor(kind: PartnerKind, percent: number): number {
+    if (percent === 0) return 0;
+    if (kind === 'service') {
+      throw new BadRequestError('Only a restaurant, café, takeaway or shop has a mark-up.');
+    }
+    const most = config.restaurants.maximumMarkupPercent;
+    if (percent > most) {
+      throw new BadRequestError(`A mark-up of more than ${most}% is not taken. Please check it.`);
+    }
+    return percent;
+  }
+
+  /** Where a partner's prices carry a mark-up, what Shoppers are told near them, or null. */
+  function priceNoteFor(shop: PartnerShop): string | null {
+    return (shop.agreedMarkupPercent ?? 0) > 0
+      ? markupDisclosureWords(config.assistantName, shop.kind)
+      : null;
   }
 
   /** Approved by a person and not paused: its page is public (ruling 65). */
@@ -364,6 +397,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     const goodsPence = events.reduce((sum, event) => sum + event.goodsPence, 0);
     return {
       discountPercent: shop.agreedDiscountPercent ?? 0,
+      markupPercent: shop.agreedMarkupPercent ?? 0,
       preferred: preferred(shop),
       preferredDiscountPercent: config.restaurants.preferredDiscountPercent,
       ordersThisMonth: events.length,
@@ -417,6 +451,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       cuisines: shop.kind === 'food' ? shop.cuisines : [],
       // An Ozi Preferred Partner (Anthony, 30 October 2026): listed first, with a badge.
       preferredPartner: preferred(shop),
+      // "Prices on Ozi may be higher than in the restaurant", where a mark-up applies.
+      priceNote: priceNoteFor(shop),
       specialities: shop.kind === 'shop' ? shop.specialities : [],
       categories: shop.kind === 'service' ? shop.categories : [],
       convenience: shop.kind === 'shop' && shop.convenience,
@@ -1027,8 +1063,10 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       priceEstimated: false,
     });
     if (product.catalogueItemId) {
+      const shop = await repository.partnerShops.findById(product.partnerShopId);
       await repository.catalogue.update(product.catalogueItemId, {
-        estimatedPricePence: pricePence,
+        // What Shoppers pay: with any agreed mark-up (Anthony, 30 October 2026).
+        estimatedPricePence: shop ? shopperPricePence(shop, pricePence) : pricePence,
         lastSeenAt: now(),
       });
     }
@@ -1279,7 +1317,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       products: live.map((product) => ({
         id: product.id,
         name: product.name,
-        pricePence: product.pricePence,
+        // What Shoppers pay: the shop price with any agreed mark-up (30 October 2026).
+        pricePence: shopperPricePence(shop, product.pricePence),
         tags: product.tags,
         expiresOn: product.expiresOn,
         hasPhoto: product.photo !== null,
@@ -2177,6 +2216,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       restaurantWords: restaurantFeeWords(config.restaurants, money),
       preferredDiscountPercent: config.restaurants.preferredDiscountPercent,
       maximumDiscountPercent: config.restaurants.maximumDiscountPercent,
+      maximumMarkupPercent: config.restaurants.maximumMarkupPercent,
       spotlightPence: config.extras.spotlightPence,
       spotlightPlusPence: config.extras.spotlightPlusPence,
       seedShops: loadShopsSeed(env.storeConfigPath).length,
@@ -2216,6 +2256,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         paidMonths: z.number().int().min(0).max(24).default(0),
         /** A restaurant's agreed discount for Ozi, a whole percentage (30 October 2026). */
         agreedDiscountPercent: discountSchema.default(0),
+        /** The agreed mark-up on its prices, a whole percentage (30 October 2026). */
+        agreedMarkupPercent: markupSchema.default(0),
       })
       .merge(browseFieldsSchema)
       .parse(request.body ?? {});
@@ -2248,6 +2290,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       source: 'staff',
       approvedAt: now(),
       agreedDiscountPercent: discountFor(body.kind, body.agreedDiscountPercent),
+      agreedMarkupPercent: markupFor(body.kind, body.agreedMarkupPercent),
       ...browseFields,
     });
     locateLater(app.ctx, shop.postcode, request.log);
@@ -2295,6 +2338,11 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
          * editing it (Anthony, 30 October 2026). 0 for none.
          */
         agreedDiscountPercent: discountSchema.optional(),
+        /**
+         * The agreed mark-up on its prices, a whole percentage (Anthony, 30 October 2026): its
+         * things in the catalogue take the new price Shoppers pay at once.
+         */
+        agreedMarkupPercent: markupSchema.optional(),
       })
       .merge(browseFieldsSchema)
       .parse(request.body ?? {});
@@ -2306,6 +2354,12 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       updated = await repository.partnerShops.update(shop.id, {
         agreedDiscountPercent: discountFor(shop.kind, body.agreedDiscountPercent),
       });
+    }
+    if (body.agreedMarkupPercent !== undefined) {
+      updated = await repository.partnerShops.update(shop.id, {
+        agreedMarkupPercent: markupFor(shop.kind, body.agreedMarkupPercent),
+      });
+      await refreshPartnerPrices(app.ctx, updated);
     }
     if (body.branchOfShopId !== undefined) {
       if (body.branchOfShopId !== null) {
@@ -2399,7 +2453,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     await staffActor(request, 'partners');
     const { sort, order } = z
       .object({
-        sort: z.enum(['name', 'discount', 'preferred', 'orders']).default('discount'),
+        sort: z.enum(['name', 'discount', 'markup', 'preferred', 'orders']).default('discount'),
         order: z.enum(['asc', 'desc']).optional(),
       })
       .parse(request.query ?? {});
@@ -2416,6 +2470,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         area: postcodeArea(shop.postcode),
         listed: listed(shop),
         discountPercent: shop.agreedDiscountPercent ?? 0,
+        markupPercent: shop.agreedMarkupPercent ?? 0,
         preferredPartner: preferred(shop),
         ordersLast30Days: events.filter((event) => eventForShop(event, shop)).length,
       }));
@@ -2425,9 +2480,11 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         ? row.name.toLowerCase()
         : sort === 'discount'
           ? row.discountPercent
-          : sort === 'preferred'
-            ? Number(row.preferredPartner)
-            : row.ordersLast30Days;
+          : sort === 'markup'
+            ? row.markupPercent
+            : sort === 'preferred'
+              ? Number(row.preferredPartner)
+              : row.ordersLast30Days;
     rows.sort((a, b) => {
       const x = value(a);
       const y = value(b);

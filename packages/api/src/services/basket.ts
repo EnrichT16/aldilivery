@@ -72,6 +72,13 @@ export interface PricedLine {
   linePence: number;
   /** Shown price times quantity. */
   lineDisplayPence: number;
+  /**
+   * A Shop Partner's thing (Anthony, 30 October 2026): its own shop price for one, before any
+   * agreed mark-up (`unitPricePence` is the price with it, what the Shopper pays), and what the
+   * Runner pays for one at the counter, less any agreed discount. Absent for everything else.
+   */
+  shopPricePence?: number;
+  counterPricePence?: number;
 }
 
 export interface PricedBasket extends BasketPricing {
@@ -83,6 +90,14 @@ export interface RestaurantRef {
   shopId: string;
   name: string;
   discountPercent: number;
+  /** The mark-up agreed on its prices (Anthony, 30 October 2026), 0 for none. */
+  markupPercent: number;
+}
+
+/** A Shop Partner's terms on one of its things in the catalogue (Anthony, 30 October 2026). */
+export interface PartnerLineTerms {
+  shopPricePence: number;
+  counterPricePence: number;
 }
 
 /** A restaurant order's own figures: which restaurant, its discount, and the counter price. */
@@ -99,6 +114,8 @@ export const RESTAURANT_SET_WORDS =
 export interface RestaurantLookup {
   /** Catalogue item id to the restaurant it is from, for the dishes in the basket only. */
   of: ReadonlyMap<string, RestaurantRef>;
+  /** Catalogue item id to its partner's shop price and counter price, for every partner thing. */
+  terms?: ReadonlyMap<string, PartnerLineTerms>;
   settings: Pick<
     RestaurantSettings,
     'feePence' | 'largeOrderFeePence' | 'largeOrderFromPence' | 'minimumOrderPence'
@@ -115,6 +132,7 @@ export async function restaurantsOf(
   items: readonly CatalogueItem[],
 ): Promise<RestaurantLookup> {
   const of = new Map<string, RestaurantRef>();
+  const terms = new Map<string, PartnerLineTerms>();
   for (const item of items) {
     if (!item.externalRef?.startsWith('partner:')) continue;
     const product = await ctx.repository.partnerProducts.findById(
@@ -122,15 +140,23 @@ export async function restaurantsOf(
     );
     if (!product) continue;
     const shop = await ctx.repository.partnerShops.findById(product.partnerShopId);
-    if (!shop || !isRestaurantKind(shop.kind)) continue;
+    if (!shop || shop.kind === 'service') continue;
+    const discountPercent = shop.agreedDiscountPercent ?? 0;
+    terms.set(item.id, {
+      shopPricePence: product.pricePence,
+      counterPricePence: counterPricePence(product.pricePence, discountPercent),
+    });
+    if (!isRestaurantKind(shop.kind)) continue;
     of.set(item.id, {
       shopId: shop.id,
       name: shop.name,
-      discountPercent: shop.agreedDiscountPercent ?? 0,
+      discountPercent,
+      markupPercent: shop.agreedMarkupPercent ?? 0,
     });
   }
   return {
     of,
+    terms,
     settings: ctx.config.restaurants,
     currencySymbol: ctx.config.store.currencySymbol,
   };
@@ -169,13 +195,15 @@ function priceRestaurantLines(
       options,
       restaurants.settings,
     );
+    // What the Runner pays at the counter: each dish's counter price, from its shop price less
+    // the discount, never from the marked-up price the Shopper pays (30 October 2026).
+    const counterPence = pricedLines.every((line) => line.counterPricePence !== undefined)
+      ? pricedLines.reduce((sum, line) => sum + (line.counterPricePence ?? 0) * line.quantity, 0)
+      : counterPricePence(pricing.goodsPence, restaurant.discountPercent);
     return {
       ...pricing,
       lines: pricedLines,
-      restaurant: {
-        ...restaurant,
-        counterPence: counterPricePence(pricing.goodsPence, restaurant.discountPercent),
-      },
+      restaurant: { ...restaurant, counterPence },
     };
   } catch (failure) {
     if (failure instanceof RestaurantBelowMinimumError) {
@@ -217,7 +245,7 @@ export function priceLines(
   allowanceExtraPence = 0,
   restaurants?: RestaurantLookup,
 ): PricedBasket & { restaurant: RestaurantPricing | null } {
-  const pricedLines = checkedLines(lines, catalogueItems, options);
+  const pricedLines = withPartnerTerms(checkedLines(lines, catalogueItems, options), restaurants);
   const restaurant = restaurantOfBasket(pricedLines, restaurants);
   if (restaurant && restaurants) {
     return priceRestaurantLines(pricedLines, restaurant, restaurants, options, plan);
@@ -268,7 +296,7 @@ export function priceLinesInParts(
   allowanceExtraPence = 0,
   restaurants?: RestaurantLookup,
 ): PricedBasketInParts {
-  const pricedLines = checkedLines(lines, catalogueItems, options);
+  const pricedLines = withPartnerTerms(checkedLines(lines, catalogueItems, options), restaurants);
   const restaurant = restaurantOfBasket(pricedLines, restaurants);
   if (restaurant && restaurants) {
     // One restaurant, one order, one Runner: never linked orders.
@@ -328,6 +356,19 @@ export function priceLinesInParts(
     parts,
     restaurant: null,
   };
+}
+
+/** Each partner thing's shop price and counter price, kept on its line for the order. */
+function withPartnerTerms(
+  lines: PricedLine[],
+  restaurants: RestaurantLookup | undefined,
+): PricedLine[] {
+  const terms = restaurants?.terms;
+  if (!terms || terms.size === 0) return lines;
+  return lines.map((line) => {
+    const found = terms.get(line.catalogueItemId);
+    return found ? { ...line, ...found } : line;
+  });
 }
 
 /** The checks every basket goes through, and its lines priced one by one. */

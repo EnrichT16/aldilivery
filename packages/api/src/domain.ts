@@ -509,6 +509,14 @@ export interface OrderItem {
   substitutedForName: string | null;
   actualPricePence: number | null;
   note: string | null;
+  /**
+   * A Shop Partner's thing (Anthony, 30 October 2026): the partner's own shop price for one, and
+   * what the Runner pays for one at the counter (the shop price less any agreed discount), kept
+   * as they were when the order was placed. `estimatedPricePence` is what the Shopper pays for
+   * one, with any agreed mark-up. Null for everything else.
+   */
+  shopPricePence: number | null;
+  counterPricePence: number | null;
   createdAt: Date;
 }
 
@@ -1131,9 +1139,16 @@ export interface PartnerShop {
    * A restaurant's agreed discount for Ozi, a whole percentage, set by staff (Anthony, 30
    * October 2026): it sells to Ozi at its shop price less this. 0 for none, and for every shop
    * and service. At `restaurants.preferredDiscountPercent` or more it is an Ozi Preferred
-   * Partner. Restaurants pay no commission.
+   * Partner. Restaurants pay no commission. Since Anthony's final ruling (30 October 2026) a
+   * grocery shop partner may have one too; never a service.
    */
   agreedDiscountPercent: number;
+  /**
+   * An agreed mark-up on the partner's prices, a whole percentage, set by staff (Anthony, 30
+   * October 2026): Shoppers see and pay the shop price with this on it (50% makes £10 into £15).
+   * 0 for none, at most `restaurants.maximumMarkupPercent`; never for a service.
+   */
+  agreedMarkupPercent: number;
 }
 
 export type ServiceEnquiryKind = 'quote' | 'call_back';

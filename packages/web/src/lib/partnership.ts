@@ -1,4 +1,4 @@
-import { deliveryPriceRange } from '@aldilivery/core';
+import { ambassadorOrderSharePence, deliveryPriceRange, shareWords } from '@aldilivery/core';
 
 import { storeConfig } from '../config';
 import { money } from './money';
@@ -55,4 +55,29 @@ export function ordinal(n: number): string {
   const tens = n % 100;
   const suffix = tens >= 11 && tens <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] ?? 'th');
   return `${n}${suffix}`;
+}
+
+/**
+ * What an Ozi Ambassador earns on each order, in plain words with every figure from config
+ * (Anthony's final ruling, 30 October 2026), for the Ambassador terms and the dashboard: a
+ * restaurant's mark-up and discount, a shop's item charges, mark-up and discount, and the
+ * quarter rate on another branch.
+ */
+export function ambassadorEarningWords(): {
+  restaurant: string;
+  grocery: string;
+  branch: string;
+} {
+  const rates = storeConfig.ambassador;
+  const share = (value: number): string => shareWords(value);
+  const quarter = (value: number): string => shareWords(value * rates.branchShareFactor);
+  const example = ambassadorOrderSharePence(
+    { kind: 'restaurant', markupPence: 500, discountPence: 200, itemChargesPence: 0 },
+    rates,
+  );
+  return {
+    restaurant: `On a restaurant's, café's or takeaway's orders: ${share(rates.restaurantMarkupShare)} of the mark-up we keep (what the Shopper pays over the restaurant's own price) and ${share(rates.restaurantDiscountShare)} of the discount we keep (the restaurant's own price less what we pay at the counter). For example, a ${money(1000)} dish with a 50% mark-up and a 20% discount: ${share(rates.restaurantMarkupShare)} of ${money(500)} and ${share(rates.restaurantDiscountShare)} of ${money(200)}, ${money(example)}. Never the item charges or the restaurant fee.`,
+    grocery: `On a shop's orders: ${share(rates.groceryItemChargeShare)} of the item charges on its things, and ${share(rates.groceryMarkupShare)} of any mark-up and ${share(rates.groceryDiscountShare)} of any discount we keep. Never the delivery fee.`,
+    branch: `Another branch of the same business that joins through your link earns you a quarter of each rate: ${quarter(rates.restaurantMarkupShare)} and ${quarter(rates.restaurantDiscountShare)} on a restaurant, ${quarter(rates.groceryItemChargeShare)} on a shop. A branch that joins without your link earns you nothing.`,
+  };
 }

@@ -1125,6 +1125,10 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
         name: line.name,
         quantity: line.quantity,
         estimatedPricePence: line.unitPricePence,
+        // A partner's thing: its shop price and counter price, kept (30 October 2026).
+        ...(line.shopPricePence !== undefined
+          ? { shopPricePence: line.shopPricePence, counterPricePence: line.counterPricePence }
+          : {}),
       })),
     });
     const origin = env.primaryOrigin ?? '';

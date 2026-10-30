@@ -18049,7 +18049,7 @@
       "topic": "referral",
       "when": ["what is an ozi ambassador", "become an ambassador", "introduce a business"],
       "replies": [
-        "An {assistant} Ambassador introduces local businesses, as an independent marketer. You earn {ambassadorShare} of our profit on their orders for {ambassadorMonths} months. You can choose it in Settings, under Introduce a business."
+        "An {assistant} Ambassador introduces local businesses, as an independent marketer. You earn a small share of what we keep, {ambassadorShare} on a restaurant's and {ambassadorGroceryShare} on a shop's, on their orders for {ambassadorMonths} months. You can choose it in Settings, under Introduce a business."
       ]
     },
     {

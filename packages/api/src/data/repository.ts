@@ -142,7 +142,7 @@ export type CreatePaymentMethod = Pick<
   Partial<Pick<PaymentMethod, 'brand' | 'region' | 'isDefault'>>;
 
 export type CreateOrderItem = Pick<OrderItem, 'name' | 'quantity' | 'estimatedPricePence'> &
-  Partial<Pick<OrderItem, 'catalogueItemId' | 'note'>>;
+  Partial<Pick<OrderItem, 'catalogueItemId' | 'note' | 'shopPricePence' | 'counterPricePence'>>;
 
 /** The statuses of a booked order (ruling 78) that is not yet being shopped. */
 export const SCHEDULED_WAITING: readonly OrderStatus[] = [
@@ -743,6 +743,7 @@ export interface Repository {
             | 'ambassadorId'
             | 'branchOfShopId'
             | 'agreedDiscountPercent'
+            | 'agreedMarkupPercent'
           >
         >,
     ): Promise<PartnerShop>;

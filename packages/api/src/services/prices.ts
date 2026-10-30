@@ -51,12 +51,25 @@ function median(values: number[]): number {
  * when nothing changed. A price from outside (not a receipt) that is wildly off the estimate is
  * more likely a different size than a real price, so it is left for a person to look at.
  */
+async function partnerHasTerms(
+  ctx: Pick<AppContext, 'repository'>,
+  externalRef: string | null | undefined,
+): Promise<boolean> {
+  if (!externalRef?.startsWith('partner:')) return false;
+  const product = await ctx.repository.partnerProducts.findById(externalRef.slice(8));
+  const shop = product ? await ctx.repository.partnerShops.findById(product.partnerShopId) : null;
+  return shop !== null && (shop.agreedMarkupPercent > 0 || shop.agreedDiscountPercent > 0);
+}
+
 export async function settlePrice(
   ctx: Pick<AppContext, 'repository' | 'now'>,
   catalogueItemId: string,
 ): Promise<number | null> {
   const item = await ctx.repository.catalogue.findById(catalogueItemId);
   if (!item || item.retired) return null;
+  // A partner with an agreed mark-up or discount (Anthony, 30 October 2026): the till shows the
+  // counter price, never the price Shoppers pay, so it never moves the catalogue price.
+  if (item.source === 'partner_feed' && (await partnerHasTerms(ctx, item.externalRef))) return null;
   const freshFrom = ctx.now().getTime() - FRESH_DAYS * 86_400_000;
   const sightings = (await ctx.repository.prices.listForItem(item.id, 30)).filter(
     (row) => row.seenAt.getTime() >= freshFrom,

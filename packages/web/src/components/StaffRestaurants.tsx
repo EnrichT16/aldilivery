@@ -64,6 +64,7 @@ function Failure({ text }: { text: string }): JSX.Element | null {
 const COLUMNS: Array<{ key: StaffRestaurantSort; label: string }> = [
   { key: 'name', label: 'Restaurant' },
   { key: 'discount', label: 'Agreed discount' },
+  { key: 'markup', label: 'Mark-up' },
   { key: 'preferred', label: 'Preferred Partner' },
   { key: 'orders', label: 'Orders, last 30 days' },
 ];
@@ -142,6 +143,9 @@ export function RestaurantPartners({ staffKey }: { staffKey: string }): JSX.Elem
                   </th>
                   <td className="p-2">
                     {row.discountPercent === 0 ? 'None' : `${row.discountPercent}%`}
+                  </td>
+                  <td className="p-2">
+                    {(row.markupPercent ?? 0) === 0 ? 'None' : `${row.markupPercent}%`}
                   </td>
                   <td className="p-2">{row.preferredPartner ? 'Yes' : 'No'}</td>
                   <td className="p-2">{row.ordersLast30Days}</td>

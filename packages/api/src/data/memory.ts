@@ -1171,6 +1171,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           substitutedForName: null,
           actualPricePence: null,
           note: item.note ?? null,
+          shopPricePence: item.shopPricePence ?? null,
+          counterPricePence: item.counterPricePence ?? null,
           createdAt: now(),
         }));
 
@@ -1295,6 +1297,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           substitutedForName: null,
           actualPricePence: null,
           note: item.note ?? null,
+          shopPricePence: item.shopPricePence ?? null,
+          counterPricePence: item.counterPricePence ?? null,
           createdAt: now(),
         };
         order.items.push(added);
@@ -1788,6 +1792,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           ambassadorId: null,
           branchOfShopId: null,
           agreedDiscountPercent: 0,
+          agreedMarkupPercent: 0,
           ...input,
           id: id(),
           paidUntil: null,

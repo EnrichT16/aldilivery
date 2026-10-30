@@ -76,6 +76,22 @@ describe('a restaurant basket', () => {
     expect(screen.getByText(/A restaurant order from Mama Joy/)).toBeInTheDocument();
   });
 
+  it('says prices may be higher than in the restaurant, when its prices carry a mark-up', async () => {
+    JOLLOF.restaurant = { ...MAMA, markedUp: true } as typeof MAMA;
+    try {
+      stubApi();
+      const user = userEvent.setup();
+      renderAt('/shop');
+      await addToBasket(user, /Add Jollof rice/, 2);
+      await user.click(screen.getByRole('link', { name: 'Basket' }));
+      expect(
+        screen.getByText(/Prices on Ozi may be higher than in the restaurant\./),
+      ).toBeInTheDocument();
+    } finally {
+      JOLLOF.restaurant = MAMA;
+    }
+  });
+
   it('is refused below £10, on the screen and by Ozi', async () => {
     stubApi();
     const user = userEvent.setup();
@@ -246,6 +262,7 @@ describe('the staff pages', () => {
               area: 'ME7',
               listed: true,
               discountPercent: 25,
+              markupPercent: 50,
               preferredPartner: true,
               ordersLast30Days: 4,
             },
@@ -255,6 +272,7 @@ describe('the staff pages', () => {
               area: 'DA1',
               listed: true,
               discountPercent: 0,
+              markupPercent: 0,
               preferredPartner: false,
               ordersLast30Days: 9,
             },
@@ -274,6 +292,9 @@ describe('the staff pages', () => {
     const rows = within(table).getAllByRole('row');
     expect(rows[1]).toHaveTextContent('Spice Hut, ME7');
     expect(rows[1]).toHaveTextContent('25%');
+    // The mark-up too (Anthony, 30 October 2026).
+    expect(rows[1]).toHaveTextContent('50%');
+    expect(within(table).getByRole('button', { name: /Mark-up/ })).toBeInTheDocument();
     expect(rows[1]).toHaveTextContent('Yes');
     expect(rows[2]).toHaveTextContent('None');
     expect(screen.getByText(/1 give Ozi a discount and 1 do not/)).toBeInTheDocument();

@@ -13,6 +13,7 @@ import {
   type ReferralAs,
 } from '../lib/api';
 import { money } from '../lib/money';
+import { ambassadorEarningWords } from '../lib/partnership';
 import { readRunnerToken } from '../lib/session';
 import { TermsChanged } from './TermsChanged';
 import { useOzi } from '../state/ozi';
@@ -190,13 +191,12 @@ export function ReferralCard({
         </p>
         <ul className="m-0 ps-6 space-y-1">
           <li>
-            {ambassador.profitShareWords} of our profit on every order from a business you
-            introduce, for {ambassador.months} months from when we approve it.
+            A share of what we keep on every order from a business you introduce, for{' '}
+            {ambassador.months} months from when we approve it.
           </li>
-          <li>
-            {ambassador.branchShareWords} on another branch of the same business that joins through
-            your link.
-          </li>
+          <li>{ambassadorEarningWords().restaurant}</li>
+          <li>{ambassadorEarningWords().grocery}</li>
+          <li>{ambassadorEarningWords().branch}</li>
           <li>A one-off {ambassador.planShareWords} of its first Partner Plus payment.</li>
           <li>
             What you earn on an order waits {ambassador.holdDays} days after delivery, in case of a

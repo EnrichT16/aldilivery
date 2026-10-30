@@ -3933,7 +3933,7 @@
       "topic": "sharing",
       "when": ["can i introduce another business", "ozi ambassador", "earn for introducing shops"],
       "replies": [
-        "Yes, as an {assistant} Ambassador. Choose it on your dashboard. You earn {ambassadorShare} of our profit on another business's orders for {ambassadorMonths} months. You cannot introduce your own business."
+        "Yes, as an {assistant} Ambassador. Choose it on your dashboard. You earn a small share of what we keep, {ambassadorShare} on a restaurant's and {ambassadorGroceryShare} on a shop's, on another business's orders for {ambassadorMonths} months. You cannot introduce your own business."
       ]
     },
     {

@@ -5,10 +5,39 @@
  * a service never does, because nobody buys it here, they ask for a quote (ruling 65).
  */
 
+import { markedUpPricePence } from '@aldilivery/core';
+
 import type { AppContext } from '../app.js';
-import type { PartnerProduct } from '../domain.js';
+import type { PartnerProduct, PartnerShop } from '../domain.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
 import { NEVER_FOUND } from '../lib/restricted.js';
+
+/**
+ * What Shoppers see and pay for a partner's thing at this shop price: the price with the
+ * partner's agreed mark-up on it (Anthony, 30 October 2026). The catalogue holds this price.
+ */
+export function shopperPricePence(
+  shop: Pick<PartnerShop, 'agreedMarkupPercent'>,
+  pricePence: number,
+): number {
+  return markedUpPricePence(pricePence, shop.agreedMarkupPercent ?? 0);
+}
+
+/**
+ * The partner's agreed mark-up changed: every one of its things in the catalogue takes the price
+ * Shoppers pay now. Orders already placed keep what was agreed.
+ */
+export async function refreshPartnerPrices(
+  ctx: Pick<AppContext, 'repository'>,
+  shop: PartnerShop,
+): Promise<void> {
+  for (const product of await ctx.repository.partnerProducts.listForShop(shop.id)) {
+    if (!product.catalogueItemId || product.status !== 'approved') continue;
+    await ctx.repository.catalogue.update(product.catalogueItemId, {
+      estimatedPricePence: shopperPricePence(shop, product.pricePence),
+    });
+  }
+}
 
 export async function decidePartnerProduct(
   ctx: Pick<AppContext, 'repository' | 'now'>,
@@ -35,7 +64,7 @@ export async function decidePartnerProduct(
       : await repository.catalogue.create({
           name: `${product.name} (${shop.name})`,
           category: `From ${shop.name}`,
-          estimatedPricePence: product.pricePence,
+          estimatedPricePence: shopperPricePence(shop, product.pricePence),
           source: 'partner_feed',
           externalRef: `partner:${product.id}`,
         });

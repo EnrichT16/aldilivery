@@ -79,8 +79,13 @@ const searchSchema = z.object({
 });
 
 /** The restaurant a dish is from, as the screen needs it: its id and name, or null. */
-function restaurantFields(ref: { shopId: string; name: string } | undefined) {
-  return ref ? { shopId: ref.shopId, name: ref.name } : null;
+function restaurantFields(
+  ref: { shopId: string; name: string; markupPercent?: number } | undefined,
+) {
+  // Whether its prices carry an agreed mark-up (30 October 2026), so the basket can say so.
+  return ref
+    ? { shopId: ref.shopId, name: ref.name, markedUp: (ref.markupPercent ?? 0) > 0 }
+    : null;
 }
 
 export async function registerCatalogueRoutes(app: FastifyInstance): Promise<void> {

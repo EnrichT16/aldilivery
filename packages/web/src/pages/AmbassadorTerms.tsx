@@ -2,6 +2,7 @@ import { AMBASSADOR_TERMS_VERSION, rewardWords, shareWords } from '@aldilivery/c
 
 import { CompanyDetails, DetailsToFollowNotice, companyFacts } from '../components/CompanyDetails';
 import { storeConfig } from '../config';
+import { ambassadorEarningWords } from '../lib/partnership';
 
 /**
  * The Ozi Ambassador terms, in plain words (Anthony, 30 October 2026), agreed with a tick box and
@@ -18,8 +19,7 @@ export function AmbassadorTerms(): JSX.Element {
   const company = companyFacts();
   const rates = storeConfig.ambassador;
   const symbol = storeConfig.store.currencySymbol;
-  const full = shareWords(rates.profitShare);
-  const branch = shareWords(rates.profitShare * rates.branchShareFactor);
+  const earning = ambassadorEarningWords();
   const plan = shareWords(rates.planShare);
   const minimum = rewardWords(rates.payoutMinimumPence, symbol);
   const review = rewardWords(rates.reviewAbovePence, symbol);
@@ -74,20 +74,16 @@ export function AmbassadorTerms(): JSX.Element {
         </h2>
         <ul className="m-0 ps-6 space-y-2">
           <li>
-            <strong>{full} of our profit</strong> on every order from a business you introduced, for{' '}
-            {rates.months} months from the day we approve that business. Our profit is the item
-            charges on a shop&rsquo;s orders. On a restaurant&rsquo;s, caf&eacute;&rsquo;s or
-            takeaway&rsquo;s orders it is only the discount the restaurant agreed to give us: the
-            shop price less the lower price we pay at the counter. A &pound;10 dish at a 20%
-            discount gives us &pound;2, and you earn {full} of that. A restaurant that gives us no
-            discount earns you nothing. It is never the item charges on a restaurant&rsquo;s dishes,
-            never the delivery fee, and never the restaurant fee.
+            <strong>A share of what we keep</strong> on every order from a business you introduced,
+            for {rates.months} months from the day we approve that business.
+            <ul className="m-0 ps-6 space-y-1">
+              <li>{earning.restaurant}</li>
+              <li>{earning.grocery}</li>
+            </ul>
           </li>
           <li>
             <strong>Each branch is its own business.</strong> The branch you introduced earns you
-            the full {full}. Another branch of the same business that joins through your link earns
-            you {branch}, a quarter of the rate. A branch that joins without your link earns you
-            nothing.
+            the full rates. {earning.branch}
           </li>
           <li>
             <strong>A one-off {plan} of the business&rsquo;s first Partner Plus payment</strong>, if

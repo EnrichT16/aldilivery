@@ -19,6 +19,13 @@
  *   sells to Ozi at its shop price less that percentage. The Shopper still sees and pays the
  *   shop price; the Runner pays the restaurant the discounted amount at the counter; Ozi keeps
  *   the difference.
+ * - Mark-up (Anthony's final ruling, 30 October 2026): a partner, a restaurant or a grocery shop,
+ *   may also have an agreed mark-up percentage, recorded by staff (0 unless set, at most
+ *   `maximumMarkupPercent`, 100%). The Shopper sees and pays the shop price with the mark-up on
+ *   it (`markedUpPricePence`: £10 at 50% is £15), the item charge is worked out on that shown
+ *   price, then the fee. The Runner pays the counter price, the shop price less the discount.
+ *   Ozi keeps the mark-up and the discount. Where a mark-up applies, Shoppers are told "Prices
+ *   on Ozi may be higher than in the restaurant" (`markupDisclosureWords`).
  * - A restaurant whose agreed discount is at least `preferredDiscountPercent` (20%) is an Ozi
  *   Preferred Partner: listed first, with a badge, and the commercial reason said where it is
  *   listed (the CMA's rule that a ranking paid for in any way is disclosed).
@@ -52,6 +59,8 @@ export interface RestaurantSettings {
   readonly preferredDiscountPercent: number;
   /** The largest discount staff may record (keeps a typing slip from giving food away). */
   readonly maximumDiscountPercent: number;
+  /** The largest mark-up staff may record on a partner's prices (100%). */
+  readonly maximumMarkupPercent: number;
 }
 
 /** The partner kinds whose orders are restaurant orders: food only, never a shop or a service. */
@@ -86,6 +95,43 @@ export function counterPricePence(shopPricePence: number, discountPercent: numbe
     throw new TypeError(`A shop price must be whole pence, received ${shopPricePence}.`);
   }
   return Math.round((shopPricePence * (100 - discountPercent)) / 100);
+}
+
+/**
+ * What the Shopper sees and pays for something at this shop price with this mark-up, to the
+ * nearest penny: £10.00 at 50% is £15.00. No mark-up, the shop price.
+ */
+export function markedUpPricePence(shopPricePence: number, markupPercent: number): number {
+  if (!Number.isInteger(markupPercent) || markupPercent < 0 || markupPercent > 1000) {
+    throw new TypeError(`A mark-up must be a whole percentage, received ${markupPercent}.`);
+  }
+  if (!Number.isInteger(shopPricePence) || shopPricePence < 0) {
+    throw new TypeError(`A shop price must be whole pence, received ${shopPricePence}.`);
+  }
+  return Math.round((shopPricePence * (100 + markupPercent)) / 100);
+}
+
+/**
+ * Where a partner's prices carry a mark-up, what Shoppers are told near them: "Prices on Ozi may
+ * be higher than in the restaurant." The name is the assistant's, from config.
+ */
+export function markupDisclosureWords(assistantName: string, kind: string): string {
+  return `Prices on ${assistantName} may be higher than in the ${isRestaurantKind(kind) ? 'restaurant' : 'shop'}.`;
+}
+
+/**
+ * The shown-price value of what the Runner really paid at the counter, for the Shopper's final
+ * bill, from the lines' own figures: paid exactly what was expected, exactly the shown prices
+ * agreed to; paid something else (a dish missing, a price changed), that amount scaled up in the
+ * same proportion, so the Shopper pays the shown prices and Ozi keeps its agreed share.
+ */
+export function shownPriceFromCounterPence(
+  counterPaidPence: number,
+  expected: { readonly shownPence: number; readonly counterPence: number },
+): number {
+  if (counterPaidPence === expected.counterPence) return expected.shownPence;
+  if (expected.counterPence <= 0) return counterPaidPence;
+  return Math.round((counterPaidPence * expected.shownPence) / expected.counterPence);
 }
 
 /** What Ozi keeps on this much at shop prices: the shop price less the counter price. */
@@ -227,17 +273,4 @@ export function priceRestaurantBasket(
     totalPence: goodsPence + itemChargesPence + feePence,
     plan,
   };
-}
-
-/**
- * The base an Ambassador's share is worked from on a restaurant order: only the discount Ozi
- * keeps, the shop price less the counter price. Changed 30 October 2026 (Anthony): never the
- * item charges, and never the restaurant fee; a restaurant with no discount gives no base. A £10
- * dish at 20% gives £2, and 2% of that is 4p.
- */
-export function restaurantAmbassadorBasePence(
-  shopPricePence: number,
-  discountPercent: number,
-): number {
-  return restaurantDiscountPence(shopPricePence, discountPercent);
 }

@@ -242,6 +242,7 @@ export function ShopPage(): JSX.Element {
         {page.shop.preferredPartner && (
           <p className="m-0 card-muted">{preferredRankingWords(storeConfig.assistantName)}</p>
         )}
+        {page.shop.priceNote && <p className="m-0">{page.shop.priceNote}</p>}
         {page.shop.about && <p className="m-0">{page.shop.about}</p>}
         {[
           ...(page.shop.cuisines ?? []),

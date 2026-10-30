@@ -129,6 +129,7 @@ export const BLANKS = [
   'firstLevel',
   'activeShare',
   'ambassadorShare',
+  'ambassadorGroceryShare',
   'ambassadorBranch',
   'ambassadorPlan',
   'ambassadorMonths',
@@ -338,9 +339,11 @@ export function fillIn(
     ),
     firstLevel: String(config.referrals.levels[0]?.activeReferrals ?? 0),
     activeShare: `${Math.round(config.referrals.minimumActiveShare * 100)}%`,
-    ambassadorShare: shareWords(config.ambassador.profitShare),
+    // Anthony's final ruling (30 October 2026): a restaurant's share, and a grocery shop's.
+    ambassadorShare: shareWords(config.ambassador.restaurantMarkupShare),
+    ambassadorGroceryShare: shareWords(config.ambassador.groceryItemChargeShare),
     ambassadorBranch: shareWords(
-      config.ambassador.profitShare * config.ambassador.branchShareFactor,
+      config.ambassador.restaurantMarkupShare * config.ambassador.branchShareFactor,
     ),
     ambassadorPlan: shareWords(config.ambassador.planShare),
     ambassadorMonths: String(config.ambassador.months),

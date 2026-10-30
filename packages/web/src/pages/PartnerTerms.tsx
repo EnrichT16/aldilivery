@@ -1,5 +1,7 @@
 import {
   counterPricePence,
+  markedUpPricePence,
+  markupDisclosureWords,
   preferredRankingWords,
   SHOP_PARTNER_TERMS_VERSION,
 } from '@aldilivery/core';
@@ -119,9 +121,19 @@ export function PartnerTerms(): JSX.Element {
             can change it by ringing us. Agreeing one is your choice.
           </li>
           <li>
-            Shoppers always see and pay your shop price. Our Runner pays you at the counter, in
-            full, at the agreed price: your shop price less the discount, or your shop price if you
-            have agreed none. We keep the difference.
+            Shoppers see and pay your shop price, with any mark-up you agreed. Our Runner pays you
+            at the counter, in full, at the agreed price: your shop price less the discount, or your
+            shop price if you have agreed none. We keep the difference.
+          </li>
+          <li>
+            You may also agree a mark-up: we show your dishes to Shoppers at your shop price plus
+            that percentage, and keep it. For example, a mark-up of 50% shows a dish at{' '}
+            {money(exampleDish)} in your shop at {money(markedUpPricePence(exampleDish, 50))}. You
+            are still paid your shop price, less any discount. Next to your prices, Shoppers are
+            told: &ldquo;{markupDisclosureWords(assistant, 'food')}&rdquo; A person at {name}{' '}
+            records the mark-up you agree, up to {storeConfig.restaurants.maximumMarkupPercent}%,
+            and you can change it by ringing us. A shop may agree a discount or a mark-up in the
+            same way, and its Shoppers are told prices may be higher than in the shop.
           </li>
           <li>
             Shoppers pay a flat restaurant fee in place of delivery:{' '}

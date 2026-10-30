@@ -28,7 +28,9 @@ import {
   restaurantFeeShares,
   restaurantFeeWords,
   restaurantMinimumWords,
-  restaurantAmbassadorBasePence,
+  markedUpPricePence,
+  markupDisclosureWords,
+  shownPriceFromCounterPence,
   shopPriceFromCounterPence,
 } from '../src/restaurants.js';
 import { RUNNER_PAYMENT_PENCE } from '../src/rules.js';
@@ -47,6 +49,7 @@ describe('the restaurant figures in config/store.json', () => {
       minimumOrderPence: 1000,
       preferredDiscountPercent: 20,
       maximumDiscountPercent: 50,
+      maximumMarkupPercent: 100,
     });
   });
 
@@ -181,13 +184,50 @@ describe('the agreed discount', () => {
     expect(shopPriceFromCounterPence(400, { shopPricePence: 1000, discountPercent: 20 })).toBe(500);
     expect(shopPriceFromCounterPence(700, { shopPricePence: 1000, discountPercent: 0 })).toBe(700);
   });
+});
 
-  it("makes an Ambassador's base the discount alone, never the item charges or the fee", () => {
-    // A £10 dish at 20%: a £2 margin (Anthony, 30 October 2026).
-    expect(restaurantAmbassadorBasePence(1000, 20)).toBe(200);
-    expect(restaurantAmbassadorBasePence(2000, 20)).toBe(400);
-    // No discount, no base.
-    expect(restaurantAmbassadorBasePence(2000, 0)).toBe(0);
+describe('the agreed mark-up (Anthony, 30 October 2026)', () => {
+  it('turns a £10 dish into £15 at 50%, and leaves it alone at 0%', () => {
+    expect(markedUpPricePence(1000, 50)).toBe(1500);
+    expect(markedUpPricePence(1000, 0)).toBe(1000);
+    expect(markedUpPricePence(333, 50)).toBe(500);
+    expect(() => markedUpPricePence(1000, -1)).toThrow(TypeError);
+    expect(settings.maximumMarkupPercent).toBe(100);
+  });
+
+  it('prices the dish shown with its mark-up, the item charge on that, then the fee', () => {
+    // £10 at 50%: £15 shown, the item charge on £15 is 50p + 2 × 50p = £1.50, fee £12.
+    const shown = markedUpPricePence(1000, 50);
+    const pricing = priceRestaurantBasket(
+      [{ shopPricePence: shown, quantity: 1 }],
+      'payg',
+      config.fees,
+      settings,
+    );
+    expect(pricing).toMatchObject({
+      goodsPence: 1500,
+      itemChargesPence: 150,
+      feePence: 1200,
+      totalPence: 2850,
+    });
+    // The Runner pays the counter price: £10 less 20%, £8. Ozi keeps £5 + £2.
+    expect(counterPricePence(1000, 20)).toBe(800);
+  });
+
+  it('bills the shown prices from the counter amount the Runner paid', () => {
+    expect(shownPriceFromCounterPence(800, { shownPence: 1500, counterPence: 800 })).toBe(1500);
+    // Half the order missing: half the counter, half the shown prices.
+    expect(shownPriceFromCounterPence(400, { shownPence: 1500, counterPence: 800 })).toBe(750);
+    expect(shownPriceFromCounterPence(400, { shownPence: 0, counterPence: 0 })).toBe(400);
+  });
+
+  it('tells Shoppers prices may be higher, for a restaurant and for a shop', () => {
+    expect(markupDisclosureWords('Ozi', 'food')).toBe(
+      'Prices on Ozi may be higher than in the restaurant.',
+    );
+    expect(markupDisclosureWords('Ozi', 'shop')).toBe(
+      'Prices on Ozi may be higher than in the shop.',
+    );
   });
 });
 

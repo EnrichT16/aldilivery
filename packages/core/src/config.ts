@@ -857,14 +857,37 @@ function share(value: unknown, path: string): number {
 }
 
 /**
- * Ozi Ambassadors (Anthony, 30 October 2026, ruled again the same day): 2% of Ozi's profit on each
- * order for 12 months from approval, a quarter of that on another branch through the same link,
+ * Ozi Ambassadors (Anthony, 30 October 2026, ruled again the same day, and finally: on a
+ * restaurant's orders 2% of the mark-up and 2% of the discount Ozi keeps; on a grocery shop
+ * partner's 1% of the item charges, the mark-up and the discount) for 12 months from approval, a quarter of that on another branch through the same link,
  * a one-off 5% of the first Partner Plus payment, held for 30 days after delivery before it can
  * be paid, paid once £10 is available, and a month over £500 checked by the owner first.
  */
 function parseAmbassador(raw: Unknown): AmbassadorSettings {
+  // Replaced by the shares below (Anthony's final ruling, 30 October 2026).
+  if (raw['profitShare'] !== undefined) {
+    throw new StoreConfigError(
+      'ambassador.profitShare is replaced by ambassador.restaurantMarkupShare, restaurantDiscountShare, groceryItemChargeShare, groceryMarkupShare and groceryDiscountShare.',
+    );
+  }
   return {
-    profitShare: share(raw['profitShare'] ?? 0.02, 'ambassador.profitShare'),
+    restaurantMarkupShare: share(
+      raw['restaurantMarkupShare'] ?? 0.02,
+      'ambassador.restaurantMarkupShare',
+    ),
+    restaurantDiscountShare: share(
+      raw['restaurantDiscountShare'] ?? 0.02,
+      'ambassador.restaurantDiscountShare',
+    ),
+    groceryItemChargeShare: share(
+      raw['groceryItemChargeShare'] ?? 0.01,
+      'ambassador.groceryItemChargeShare',
+    ),
+    groceryMarkupShare: share(raw['groceryMarkupShare'] ?? 0.01, 'ambassador.groceryMarkupShare'),
+    groceryDiscountShare: share(
+      raw['groceryDiscountShare'] ?? 0.01,
+      'ambassador.groceryDiscountShare',
+    ),
     months: wholeNumber(raw['months'] ?? 12, 'ambassador.months', 1),
     planShare: share(raw['planShare'] ?? 0.05, 'ambassador.planShare'),
     branchShareFactor: share(raw['branchShareFactor'] ?? 0.25, 'ambassador.branchShareFactor'),
@@ -923,6 +946,15 @@ function parseRestaurants(
     'restaurants.maximumDiscountPercent',
     1,
   );
+  // The largest mark-up staff may record on a partner's prices (Anthony, 30 October 2026).
+  const maximumMarkupPercent = wholeNumber(
+    raw['maximumMarkupPercent'] ?? 100,
+    'restaurants.maximumMarkupPercent',
+    0,
+  );
+  if (maximumMarkupPercent > 1000) {
+    throw new StoreConfigError('restaurants.maximumMarkupPercent must be at most 1000.');
+  }
   if (maximumDiscountPercent > 90 || preferredDiscountPercent > maximumDiscountPercent) {
     throw new StoreConfigError(
       'restaurants.preferredDiscountPercent must be at most restaurants.maximumDiscountPercent, which is at most 90.',
@@ -940,6 +972,7 @@ function parseRestaurants(
     ),
     preferredDiscountPercent,
     maximumDiscountPercent,
+    maximumMarkupPercent,
   };
 }
 

@@ -10,13 +10,14 @@
  *
  * What an Ambassador earns, every figure in `ambassador` in config/store.json:
  *
- * - 2% (`profitShare`, ruled at 2%) of Ozi's profit on every order from that business, for 12
- *   months from when it was approved. Ozi's profit is the item charges on a shop's order (the
- *   item charges on that shop's things in it). On a restaurant's, café's or takeaway's order it
- *   is only the restaurant's agreed discount that Ozi keeps (Anthony, 30 October 2026, changed
- *   the same day: not the item charges on its dishes); a restaurant with no discount earns its
- *   Ambassador nothing. Never the delivery fee, and never the restaurant fee. Only approved
- *   businesses with real orders earn.
+ * - A share of what Ozi keeps on every order from that business, for 12 months from when it was
+ *   approved (Anthony's final ruling, 30 October 2026). On a restaurant's, café's or takeaway's
+ *   order: 2% of the mark-up Ozi keeps plus 2% of the discount Ozi keeps
+ *   (`restaurantMarkupShare`, `restaurantDiscountShare`), never its item charges or the
+ *   restaurant fee. On a grocery shop partner's: 1% of the item charges on its things, plus 1%
+ *   of any mark-up and 1% of any discount (`groceryItemChargeShare`, `groceryMarkupShare`,
+ *   `groceryDiscountShare`). Never the delivery fee. Only approved businesses with real orders
+ *   earn.
  * - Each branch (each listing) is its own venture. The branch the Ambassador introduced earns the
  *   full share; another branch of the same business that joined through the same Ambassador's
  *   link earns `branchShareFactor` (a quarter, ruled 30 October 2026; it was half) of it; a
@@ -63,11 +64,12 @@ import {
   ambassadorPayable,
   ambassadorPlanSharePence,
   ambassadorShareEnds,
-  ambassadorSharePence,
+  ambassadorOrderSharePence,
+  counterPricePence,
   formatPence,
   itemChargePence,
   isRestaurantKind,
-  restaurantAmbassadorBasePence,
+  type AmbassadorBase,
   rewardWords,
   withinAmbassadorMonths,
 } from '@aldilivery/core';
@@ -189,16 +191,19 @@ export async function tieAmbassador(
 /* ------------------------------------------------------------------ earning */
 
 /**
- * Ozi's profit on one order from each Shop Partner in it, from the order's final state: the item
- * charges on that shop's things as the Shopper was charged them; for a restaurant, café or
- * takeaway, only its agreed discount for Ozi on the dishes at shop prices (the discount agreed
- * when the order was placed), never the item charges (Anthony, 30 October 2026). Never the
- * delivery fee or the restaurant fee. Things the Runner could not get are left out.
+ * What Ozi kept on one order from each Shop Partner in it, from the order's final state, the
+ * amounts an Ambassador's share is worked from (Anthony's final ruling, 30 October 2026): the
+ * mark-up kept (what the Shopper paid less the shop price), the discount kept (the shop price
+ * less what the Runner paid at the counter), and the item charges as the Shopper was charged
+ * them. A restaurant's share is of its mark-up and discount only; a grocery shop's also of its
+ * item charges (`ambassadorOrderSharePence`). Never the delivery fee or the restaurant fee.
+ * Things the Runner could not get are left out. `profitPence` is what the share is of, kept on
+ * the record.
  */
 export async function profitByShop(
   ctx: Pick<AppContext, 'repository' | 'config'>,
   order: Order,
-): Promise<Map<string, { shop: PartnerShop; profitPence: number }>> {
+): Promise<Map<string, { shop: PartnerShop; profitPence: number; base: AmbassadorBase }>> {
   const { repository, config } = ctx;
   const items = order.items.filter((item) => item.substitutionOutcome !== 'unavailable');
   const catalogue = await repository.catalogue.findManyByIds(
@@ -210,27 +215,49 @@ export async function profitByShop(
     const product = await repository.partnerProducts.findById(entry.externalRef.slice(8));
     if (product) shopOf.set(entry.id, product.partnerShopId);
   }
-  const lines = new Map<string, { goods: number; charges: number }>();
+  const lines = new Map<
+    string,
+    { shown: number; shopPrice: number; counter: number | null; charges: number }
+  >();
   for (const item of items) {
     const shopId = shopOf.get(item.catalogueItemId ?? '');
     if (!shopId) continue;
-    // The dishes at the shop prices the Shopper paid, and the item charge on the price shown.
-    const line = lines.get(shopId) ?? { goods: 0, charges: 0 };
-    line.goods += item.estimatedPricePence * item.quantity;
+    // What the Shopper paid for each, its shop price and its counter price, as kept on the
+    // order; an order from before mark-ups has its shop price as what was paid.
+    const line = lines.get(shopId) ?? { shown: 0, shopPrice: 0, counter: 0, charges: 0 };
+    line.shown += item.estimatedPricePence * item.quantity;
+    line.shopPrice += (item.shopPricePence ?? item.estimatedPricePence) * item.quantity;
+    line.counter =
+      line.counter === null || item.counterPricePence === null
+        ? null
+        : line.counter + item.counterPricePence * item.quantity;
     line.charges += itemChargePence(item.estimatedPricePence, config.fees) * item.quantity;
     lines.set(shopId, line);
   }
-  const result = new Map<string, { shop: PartnerShop; profitPence: number }>();
+  const result = new Map<
+    string,
+    { shop: PartnerShop; profitPence: number; base: AmbassadorBase }
+  >();
   for (const [shopId, line] of lines) {
     const shop = await repository.partnerShops.findById(shopId);
     if (!shop) continue;
-    // The discount agreed when the order was placed; an order with none earns nothing on a
-    // restaurant (Anthony, 30 October 2026).
-    const discount = order.restaurantShopId === shopId ? order.restaurantDiscountPercent : 0;
-    const profitPence = isRestaurantKind(shop.kind)
-      ? restaurantAmbassadorBasePence(line.goods, discount)
-      : line.charges;
-    result.set(shopId, { shop, profitPence });
+    const restaurant = isRestaurantKind(shop.kind);
+    // The counter prices kept on the order; an older restaurant order has only the discount
+    // agreed when it was placed.
+    const counter =
+      line.counter ??
+      (restaurant && order.restaurantShopId === shopId
+        ? counterPricePence(line.shopPrice, order.restaurantDiscountPercent)
+        : line.shopPrice);
+    const base: AmbassadorBase = {
+      kind: restaurant ? 'restaurant' : 'grocery',
+      markupPence: Math.max(0, line.shown - line.shopPrice),
+      discountPence: Math.max(0, line.shopPrice - counter),
+      itemChargesPence: line.charges,
+    };
+    const profitPence =
+      base.markupPence + base.discountPence + (restaurant ? 0 : base.itemChargesPence);
+    result.set(shopId, { shop, profitPence, base });
   }
   return result;
 }
@@ -261,15 +288,11 @@ async function shareWorth(
   ctx: MoneyContext,
   order: Order,
   shop: PartnerShop,
-  profitPence: number,
+  base: AmbassadorBase,
   disputed: boolean,
 ): Promise<number> {
   if (disputed) return 0;
-  const share = ambassadorSharePence(
-    profitPence,
-    ctx.config.ambassador,
-    await branchRate(ctx, shop),
-  );
+  const share = ambassadorOrderSharePence(base, ctx.config.ambassador, await branchRate(ctx, shop));
   const { paidPence, refundedPence } = await paidAndRefunded(ctx, order);
   return ambassadorEarningAfterRefunds(share, paidPence, refundedPence);
 }
@@ -351,11 +374,11 @@ export async function creditAmbassadorShares(
     const order = await ctx.repository.orders.findById(delivered.id);
     if (!order || !EARNS.has(order.status) || !order.deliveredAt) return made;
     const at = order.deliveredAt;
-    for (const { shop, profitPence } of (await profitByShop(ctx, order)).values()) {
+    for (const { shop, profitPence, base } of (await profitByShop(ctx, order)).values()) {
       if (!shop.ambassadorKind || !shop.ambassadorId) continue;
       if (shop.status !== 'approved') continue;
       if (!withinAmbassadorMonths(shop.approvedAt, at, ctx.config.ambassador)) continue;
-      const amountPence = await shareWorth(ctx, order, shop, profitPence, false);
+      const amountPence = await shareWorth(ctx, order, shop, base, false);
       if (amountPence <= 0) continue;
       const entry = await ctx.repository.ambassadors.add({
         ambassadorKind: shop.ambassadorKind,
@@ -396,7 +419,7 @@ export async function reconcileOrder(ctx: MoneyContext, orderId: string): Promis
     const found = share.partnerShopId ? profits.get(share.partnerShopId) : undefined;
     const worth =
       order && found
-        ? await shareWorth(ctx, order, found.shop, share.profitPence, share.disputedAt !== null)
+        ? await shareWorth(ctx, order, found.shop, found.base, share.disputedAt !== null)
         : 0;
     const pending = share.availableAt !== null && share.availableAt.getTime() > now;
     if (pending) {
