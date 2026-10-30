@@ -194,6 +194,12 @@ model Shopper {
   organisationId     String?
   organisation       Organisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
 
+  /// When the person agreed to link to the organisation (30 October 2026, UK GDPR). The
+  /// organisation sees only orders placed from this moment on.
+  organisationConsentAt      DateTime?
+  /// Which consent wording they agreed to (ORGANISATION_CONSENT_VERSION in packages/core).
+  organisationConsentVersion String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1124,6 +1130,13 @@ model OrganisationEnquiry {
   message      String   @default("")
   handled      Boolean  @default(false)
   createdAt    DateTime @default(now())
+
+  /// organisation, or shop for a shop asking from /organisations?shop=1 (30 October 2026).
+  kind          String    @default("organisation")
+  /// When an organisation agreed to the Organisation terms at /organisation/terms, and which
+  /// version.
+  termsAgreedAt DateTime?
+  termsVersion  String?
 }
 
 /// Somebody who runs the service, with their own admin sign-in (7 October 2026). What they can
@@ -1190,6 +1203,9 @@ model PartnerShop {
   freeForever    Boolean   @default(false)
   /// The free first month of Partner Plus has been taken.
   plusTrialUsed  Boolean   @default(false)
+  /// When the shop agreed to the Shop Partner terms at /partner/terms, and which version.
+  termsAgreedAt  DateTime?
+  termsVersion   String?
   /// self (joined through the app), staff (added from a paper form), ozi (listed by Ozi) or claimed.
   source         String    @default("staff")
   /// The seed entry this shop came from, so the seed never adds it twice.
@@ -1317,6 +1333,8 @@ model AnalyticsEvent {
   shopperKey      String?
   runnerKey       String?
   shop            String?
+  /// The Shop Partner's id, from 30 October 2026; older rows have only the shop's name.
+  partnerShopId   String?
   area            String?
   toArea          String?
   ageBand         String?

@@ -1,5 +1,5 @@
 {
-  "about": "Shops Ozi lists itself (ruling 65, 17 October 2026): well-known Medway high-street shops with their public addresses and typical hours. Read once by the start-up seed when there are no shops yet, and by the admin panel's 'Add the seed shops' button, which adds only the ones not there. Each is listed by Ozi, is not a partner, has no products of its own (the community catalogue applies), and shows 'Are you the owner? Claim this shop'. Names and addresses live here, never in code. Check the hours before launch: they are typical, not promised. Ruling 82 (25 October 2026): each shop may say what it is browsed under, from the lists in `browse` in store.json: 'convenience' true for a corner shop or convenience store (listed under Convenience stores, not Shops), and 'specialities', 'cuisines' or 'categories' as lists. The supermarkets are not convenience stores.",
+  "about": "Shops Ozi lists itself (ruling 65, 17 October 2026): well-known Medway high-street shops with their public addresses and typical hours. Read once by the start-up seed when there are no shops yet, and by the admin panel's 'Add the seed shops' button, which adds only the ones not there. Each is listed by Ozi, is not a partner, has no products of its own (the community catalogue applies), and shows 'Are you the owner? Claim this shop', except a branch of a national chain, marked 'chain': true, whose page never invites a claim (30 October 2026): a branch manager cannot sign up for the whole company. Every page of a shop listed by Ozi says 'We don't have a partnership with this shop yet.', and its hours are shown as typical, to check with the shop. Names and addresses live here, never in code. Check the hours before launch: they are typical, not promised. Ruling 82 (25 October 2026): each shop may say what it is browsed under, from the lists in `browse` in store.json: 'convenience' true for a corner shop or convenience store (listed under Convenience stores, not Shops), and 'specialities', 'cuisines' or 'categories' as lists. The supermarkets are not convenience stores.",
   "shops": [
     {
       "key": "aldi-gillingham",
@@ -9,7 +9,8 @@
       "postcode": "ME7 1BB",
       "hours": "Monday to Saturday 8am to 10pm, Sunday 10am to 4pm",
       "about": "Supermarket on the High Street.",
-      "convenience": false
+      "convenience": false,
+      "chain": true
     },
     {
       "key": "tesco-extra-gillingham",
@@ -19,7 +20,8 @@
       "postcode": "ME8 0GX",
       "hours": "Monday to Saturday 6am to midnight, Sunday 10am to 4pm",
       "about": "Large supermarket on Courteney Road.",
-      "convenience": false
+      "convenience": false,
+      "chain": true
     },
     {
       "key": "asda-gillingham-pier",
@@ -29,7 +31,8 @@
       "postcode": "ME7 1RZ",
       "hours": "Monday to Saturday 7am to 10pm, Sunday 10am to 4pm",
       "about": "Supermarket by Gillingham Pier.",
-      "convenience": false
+      "convenience": false,
+      "chain": true
     },
     {
       "key": "sainsburys-hempstead-valley",
@@ -39,7 +42,8 @@
       "postcode": "ME7 3PD",
       "hours": "Monday to Saturday 7am to 10pm, Sunday 10am to 4pm",
       "about": "Supermarket at Hempstead Valley.",
-      "convenience": false
+      "convenience": false,
+      "chain": true
     },
     {
       "key": "lidl-gillingham",
@@ -49,7 +53,8 @@
       "postcode": "ME8 0PZ",
       "hours": "Monday to Saturday 8am to 10pm, Sunday 10am to 4pm",
       "about": "Supermarket in Gillingham.",
-      "convenience": false
+      "convenience": false,
+      "chain": true
     },
     {
       "key": "iceland-gillingham",
@@ -59,7 +64,8 @@
       "postcode": "ME7 1AX",
       "hours": "Monday to Saturday 8am to 7pm, Sunday 10am to 4pm",
       "about": "Frozen and fresh food on the High Street.",
-      "convenience": false
+      "convenience": false,
+      "chain": true
     },
     {
       "key": "morrisons-strood",
@@ -69,7 +75,8 @@
       "postcode": "ME2 2AD",
       "hours": "Monday to Saturday 7am to 10pm, Sunday 10am to 4pm",
       "about": "Supermarket in Strood.",
-      "convenience": false
+      "convenience": false,
+      "chain": true
     },
     {
       "key": "bm-gillingham",
@@ -79,7 +86,8 @@
       "postcode": "ME8 0PU",
       "hours": "Monday to Saturday 8am to 8pm, Sunday 10am to 4pm",
       "about": "Household goods, food cupboard and garden.",
-      "convenience": false
+      "convenience": false,
+      "chain": true
     },
     {
       "key": "coop-rainham",
@@ -89,7 +97,8 @@
       "postcode": "ME8 7JE",
       "hours": "Every day 7am to 10pm",
       "about": "Convenience store on Rainham High Street.",
-      "convenience": true
+      "convenience": true,
+      "chain": true
     },
     {
       "key": "farmfoods-chatham",
@@ -99,7 +108,8 @@
       "postcode": "ME4 4EH",
       "hours": "Monday to Saturday 8am to 7pm, Sunday 10am to 4pm",
       "about": "Frozen food and groceries in Chatham.",
-      "convenience": false
+      "convenience": false,
+      "chain": true
     },
     {
       "key": "poundland-chatham",
@@ -109,7 +119,8 @@
       "postcode": "ME4 4EE",
       "hours": "Monday to Saturday 8am to 6pm, Sunday 10am to 4pm",
       "about": "Everyday essentials in Chatham.",
-      "convenience": false
+      "convenience": false,
+      "chain": true
     },
     {
       "key": "the-range-chatham",
@@ -118,8 +129,9 @@
       "address": "Horsted Retail Park, Maidstone Road, Chatham",
       "postcode": "ME5 9SQ",
       "hours": "Monday to Saturday 9am to 8pm, Sunday 10am to 4pm",
-      "about": "Home, garden and household goods. The Range took over former Wilko lines in Medway.",
-      "convenience": false
+      "about": "Home, garden and household goods.",
+      "convenience": false,
+      "chain": true
     },
     {
       "key": "boots-gillingham",
@@ -129,7 +141,8 @@
       "postcode": "ME7 1AY",
       "hours": "Monday to Saturday 9am to 5.30pm, Sunday closed",
       "about": "Toiletries, baby and household items only. A Runner never buys medicines.",
-      "convenience": false
+      "convenience": false,
+      "chain": true
     },
     {
       "key": "gillingham-market",

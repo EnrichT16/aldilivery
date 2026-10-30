@@ -358,12 +358,15 @@ describe('Shop of the Month', () => {
     expect(balancedScore(40, 4.8, 4, 10)).toBeCloseTo(4.64, 2);
   });
 
-  it('needs ten reviews in the period, on Partner Plus, and ranks by the balanced score', async () => {
+  it('needs ten reviews in the period, on paid Partner Plus, and ranks by the balanced score', async () => {
     const september = new Date('2026-09-15T12:00:00.000Z');
     const grocer = await partnerShop('Other Grocer');
     const free = await partnerShop('Free Listing Shop', 'free');
     const paused = await partnerShop('Paused Shop');
     await harness.repository.partnerShops.update(paused.shop.id, { active: false });
+    // Marked Partner Plus but never paid (30 October 2026): it cannot win either.
+    const unpaid = await partnerShop('Unpaid Plus Shop');
+    await harness.repository.partnerShops.update(unpaid.shop.id, { paidUntil: null });
 
     // The bakery: ten reviews averaging 4.5. The grocer: twelve averaging 4.75.
     await reviews(bakery.id, [5, 5, 5, 5, 5, 4, 4, 4, 4, 4], september);
@@ -371,6 +374,7 @@ describe('Shop of the Month', () => {
     // A free listing with perfect reviews, and a paused shop, never win.
     await reviews(free.shop.id, Array<number>(12).fill(5), september);
     await reviews(paused.shop.id, Array<number>(12).fill(5), september);
+    await reviews(unpaid.shop.id, Array<number>(12).fill(5), september);
     // Nine perfect reviews are one short this month.
     const nearly = await partnerShop('Nearly There');
     await reviews(nearly.shop.id, Array<number>(9).fill(5), START);

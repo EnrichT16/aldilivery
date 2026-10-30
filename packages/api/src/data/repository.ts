@@ -584,7 +584,11 @@ export interface Repository {
 
   organisationEnquiries: {
     create(
-      input: Omit<OrganisationEnquiry, 'id' | 'handled' | 'createdAt'>,
+      input: Omit<
+        OrganisationEnquiry,
+        'id' | 'handled' | 'createdAt' | 'kind' | 'termsAgreedAt' | 'termsVersion'
+      > &
+        Partial<Pick<OrganisationEnquiry, 'kind' | 'termsAgreedAt' | 'termsVersion'>>,
     ): Promise<OrganisationEnquiry>;
     /** Newest first. */
     list(): Promise<OrganisationEnquiry[]>;
@@ -614,6 +618,8 @@ export interface Repository {
             | 'status'
             | 'plan'
             | 'freeForever'
+            | 'termsAgreedAt'
+            | 'termsVersion'
             | 'source'
             | 'seedKey'
             | 'postcode'

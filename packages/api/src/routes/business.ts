@@ -32,10 +32,12 @@ import {
   formatPence,
   freeListingAvailable,
   organisationMonthlyPence,
+  ORGANISATION_CONSENT_VERSION,
   PARTNER_KIND_WORDS,
   PARTNER_KINDS,
   postcodeArea,
   productLimit,
+  SHOP_PARTNER_TERMS_VERSION,
   type PartnerKind,
 } from '@aldilivery/core';
 import { z } from 'zod';
@@ -45,6 +47,7 @@ import { READABLE_IMAGES } from '../lib/language-model.js';
 import { hasPlusExtras } from '../services/plans.js';
 import { estimatedPricePence } from '../services/suggest.js';
 import type {
+  AnalyticsEvent,
   BusinessKind,
   BusinessUser,
   Order,
@@ -52,6 +55,7 @@ import type {
   PartnerProduct,
   PartnerShop,
   ServiceEnquiry,
+  Shopper,
 } from '../domain.js';
 import { BadRequestError, ConflictError, NotFoundError, UnauthorisedError } from '../errors.js';
 import {
@@ -171,6 +175,19 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     });
   }
 
+  /**
+   * Who the statement is from, as the law asks a business letter to say (Companies Act 2006 and
+   * the trading disclosure regulations of 2015): every detail from `store` in config/store.json
+   * (Anthony, 30 October 2026).
+   */
+  function companyLines(): string[] {
+    const { store } = config;
+    return [
+      `${config.productName} is run by ${store.legalEntityName}, a company registered in ${store.registeredIn}, company number ${store.companyNumber}.`,
+      `Registered office: ${store.registeredOffice}.`,
+    ];
+  }
+
   function publicPayment(row: PartnerPayment) {
     return {
       id: row.id,
@@ -183,15 +200,24 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     };
   }
 
+  /**
+   * Whether an order's analysis row is this shop's: by the shop's id, which rows carry from 30
+   * October 2026, or by its name for older rows, which have only that. A shop renamed, or two
+   * shops of the same name, can no longer take each other's orders.
+   */
+  function eventForShop(event: AnalyticsEvent, shop: PartnerShop): boolean {
+    return event.partnerShopId ? event.partnerShopId === shop.id : event.shop === shop.name;
+  }
+
   /** How the shop is doing: purchases from it this week and this month (business analysis). */
-  async function shopNumbers(shopName: string) {
+  async function shopNumbers(shop: PartnerShop) {
     const at = now();
     const events = (
       await repository.analytics.list({
         since: new Date(at.getTime() - 30 * 24 * 60 * 60 * 1000),
         kind: 'order_paid',
       })
-    ).filter((event) => event.shop === shopName);
+    ).filter((event) => eventForShop(event, shop));
     const week = events.filter(
       (event) => event.at.getTime() > at.getTime() - 7 * 24 * 60 * 60 * 1000,
     );
@@ -228,7 +254,10 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     return planPaid(shop);
   }
 
-  /** A shop on Partner Plus whose month is paid: listed above free shops (ruling 75). */
+  /**
+   * A shop on Partner Plus whose month is paid: listed first among shops at the same distance
+   * (ruling 75; worded so since 30 October 2026).
+   */
   function onPaidPlus(shop: PartnerShop): boolean {
     return shop.kind === 'shop' && shop.plan === 'plus' && planPaid(shop);
   }
@@ -238,9 +267,30 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     return [...shops.filter(onPaidPlus), ...shops.filter((shop) => !onPaidPlus(shop))];
   }
 
-  /** Listed by Ozi and nobody has claimed it: its page invites the owner to. */
+  /**
+   * The seed shops that are branches of national chains (`chain: true` in shops-seed.json):
+   * never claimable, since a branch manager cannot sign up for the whole company (30 October
+   * 2026). Read once; a seed file that cannot be read leaves every Ozi listing claimable.
+   */
+  const chainSeedKeys = (() => {
+    try {
+      return new Set(
+        loadShopsSeed(env.storeConfigPath)
+          .filter((seed) => seed.chain)
+          .map((seed) => seed.key),
+      );
+    } catch {
+      return new Set<string>();
+    }
+  })();
+
+  /**
+   * Listed by Ozi, not a national chain's branch, and nobody has claimed it: its page invites
+   * the owner to.
+   */
   async function claimable(shop: PartnerShop): Promise<boolean> {
     if (shop.source !== 'ozi') return false;
+    if (shop.seedKey && chainSeedKeys.has(shop.seedKey)) return false;
     return (await repository.businessUsers.listFor({ partnerShopId: shop.id })).length === 0;
   }
 
@@ -261,7 +311,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     if (shop.kind !== 'food') return null;
     const events = (
       await repository.analytics.list({ since: monthStart(), kind: 'order_paid' })
-    ).filter((event) => event.shop === shop.name);
+    ).filter((event) => eventForShop(event, shop));
     const goodsPence = events.reduce((sum, event) => sum + event.goodsPence, 0);
     return {
       basisPoints: partners.foodCommissionBasisPoints,
@@ -403,10 +453,10 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     }
     if (shop.plan === 'plus') {
       return planPaid(shop) && shop.paidUntil
-        ? `Partner Plus, ${money(partners.plusMonthlyPence)} a month, paid until ${longDay(shop.paidUntil)}: the full catalogue with photos, offers and Shop of the Month.`
+        ? `Partner Plus, ${money(partners.plusMonthlyPence)} a month, paid until ${longDay(shop.paidUntil)}: the full catalogue with photos, Shop of the Month, and first place among shops at the same distance.`
         : `Partner Plus, ${money(partners.plusMonthlyPence)} a month, is not paid at the moment, so your products are hidden. Pay here, or ring us.`;
     }
-    return `Free listing: your name, address, hours and up to ${limit ?? partners.freeProductLimit} products. Partner Plus, ${money(partners.plusMonthlyPence)} a month, adds the full catalogue with photos, offers, Shop of the Month and a place above free shops${partners.plusFirstMonthFree && !shop.plusTrialUsed ? ', with the first month free' : ''}.`;
+    return `Free listing: your name, address, hours and up to ${limit ?? partners.freeProductLimit} products. Partner Plus, ${money(partners.plusMonthlyPence)} a month, adds the full catalogue with photos, Shop of the Month, and first place among shops at the same distance${partners.plusFirstMonthFree && !shop.plusTrialUsed ? ', with the first month free' : ''}.`;
   }
 
   function publicProduct(product: PartnerProduct) {
@@ -620,7 +670,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       },
       payments: (await repository.partnerPayments.listForShop(shop.id)).map(publicPayment),
       referrals: await countJoinedVia(`partner:${shop.id}`),
-      numbers: await shopNumbers(shop.name),
+      numbers: await shopNumbers(shop),
     };
   });
 
@@ -667,6 +717,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     const lines = [
       `${shop.name}`,
       `Statement from ${config.productName}, ${longDay(now())}.`,
+      ...companyLines(),
       '',
       ...(payments.length === 0
         ? ['No payments recorded yet.']
@@ -1231,6 +1282,10 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
        * month, and goes straight to Stripe Checkout; false takes the free month at once.
        */
       payNow: z.boolean().default(false),
+      /** The Shop Partner terms at /partner/terms, ticked on the form (30 October 2026). */
+      termsAgreed: z.literal(true, {
+        errorMap: () => ({ message: 'Please tick to agree to the Shop Partner terms.' }),
+      }),
     })
     .merge(browseFieldsSchema);
 
@@ -1274,18 +1329,19 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     }
 
     // The tiers (ruling 65): a café, takeaway or service never pays monthly; a shop asking for a
-    // free listing gets one of the first free-for-ever ones while they last, otherwise Partner Plus.
+    // free listing gets one of the first free-for-ever ones while they last. Once they have all
+    // gone, a shop asking for one is told so and chooses again: it is never moved to Partner
+    // Plus without choosing it and paying (Anthony, 30 October 2026).
     let plan: PartnerShop['plan'] = 'free';
     let freeForever = false;
-    let freeGone = false;
     if (body.kind === 'shop') {
       if (body.plan === 'free') {
-        if (freeListingAvailable(await freeListedCount(), partners)) {
-          freeForever = true;
-        } else {
-          plan = 'plus';
-          freeGone = true;
+        if (!freeListingAvailable(await freeListedCount(), partners)) {
+          throw new ConflictError(
+            `The ${partners.freeListingCount} free listings have all gone, so we cannot give a basic listing now. Nothing has been set up. You can choose Partner Plus, ${money(partners.plusMonthlyPence)} a month${partners.plusFirstMonthFree ? ', with the first month free' : ''}, or ring us.`,
+          );
         }
+        freeForever = true;
       } else {
         plan = 'plus';
       }
@@ -1305,6 +1361,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       contactName: body.contactName,
       mobile,
       email: body.email,
+      termsAgreedAt: now(),
+      termsVersion: SHOP_PARTNER_TERMS_VERSION,
       ...browseFields,
     };
     const shop = claimed
@@ -1342,7 +1400,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     // shop pays from the start, the free month is set aside and Stripe's page is made now.
     let planMessage = '';
     let checkout: { url: string; receipt: string } | null = null;
-    if (body.kind === 'shop' && plan === 'plus' && !freeGone) {
+    if (body.kind === 'shop' && plan === 'plus') {
       if (body.payNow || !partners.plusFirstMonthFree) {
         const paying = await repository.partnerShops.update(shop.id, { plusTrialUsed: true });
         try {
@@ -1373,11 +1431,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       checkout,
       message:
         `Welcome, ${body.contactName}. ${shop.name} is set up${claimed ? ' and claimed' : ''}. You can add ${body.kind === 'service' ? 'services' : 'products'} now; your page goes public once we have checked it, usually within one working day.` +
-        (freeGone
-          ? ` The ${partners.freeListingCount} free listings have all gone, so you are on Partner Plus at ${money(partners.plusMonthlyPence)} a month${partners.plusFirstMonthFree ? ', with the first month free' : ''}; start it from your dashboard.`
-          : freeForever
-            ? ' Your basic listing is free.'
-            : '') +
+        (freeForever ? ' Your basic listing is free, with no monthly fee.' : '') +
         planMessage,
     };
   });
@@ -1555,6 +1609,23 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
 
   /* ------------------------------------------------------------------ organisations */
 
+  /**
+   * What an organisation may see of a person (UK GDPR; Anthony, 30 October 2026): only the
+   * orders they placed after agreeing to link, and their booked weekly shops while they agree.
+   * Somebody linked before consent was recorded shows nothing until they agree again.
+   */
+  function sharedSince(person: Shopper): Date | null {
+    return person.organisationConsentAt;
+  }
+
+  async function sharedOrders(person: Shopper): Promise<Order[]> {
+    const since = sharedSince(person);
+    if (!since) return [];
+    return (await repository.orders.listForShopper(person.id)).filter(
+      (order) => PAID_STATUSES.has(order.status) && order.createdAt.getTime() >= since.getTime(),
+    );
+  }
+
   async function myOrganisation(request: Parameters<typeof businessActor>[0]) {
     const user = await businessActor(request, 'organisation');
     const organisation = user.organisationId
@@ -1590,8 +1661,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       estimatePence: number;
     }> = [];
     for (const person of people) {
-      for (const order of await repository.orders.listForShopper(person.id)) {
-        if (!PAID_STATUSES.has(order.status)) continue;
+      for (const order of await sharedOrders(person)) {
         orders.push({
           id: order.id,
           person: person.displayName,
@@ -1604,7 +1674,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
           allowanceExtraPence: order.allowanceExtraPence,
         });
       }
-      for (const set of await repository.sets.listForShopper(person.id)) {
+      const sets = sharedSince(person) ? await repository.sets.listForShopper(person.id) : [];
+      for (const set of sets) {
         if (!set.active) continue;
         // The people an organisation looks after have Membership delivery, by the value of the
         // shopping (rulings 58 and 63), and item charges on every unit.
@@ -1675,6 +1746,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         id: person.id,
         name: person.displayName,
         office: person.organisationOffice ?? '',
+        // Linked before consent was recorded: nothing of theirs shows until they agree again.
+        agreed: person.organisationConsentAt !== null,
       })),
       orders: orders.slice(0, 200),
       upcoming,
@@ -1687,10 +1760,13 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       // What the organisation pays a month for the people it looks after (ruling 58).
       plan: organisationPlan(people.length),
       sharePath: organisation.joinCode ? `/join/organisation/${organisation.joinCode}` : null,
-      referrals:
-        (organisation.joinCode
-          ? await countJoinedVia(`organisation:${organisation.joinCode}`)
-          : 0) + people.length,
+      // Everybody linked, and everybody who opened an account by the link but has not linked
+      // yet: somebody who did both is counted once (30 October 2026).
+      referrals: organisation.joinCode
+        ? (await countJoinedVia(`organisation:${organisation.joinCode}`)) +
+          people.filter((person) => person.joinedVia !== `organisation:${organisation.joinCode}`)
+            .length
+        : people.length,
     };
   });
 
@@ -1728,8 +1804,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     const people = await repository.organisations.listServiceUsers(organisation.id);
     const rows: Array<{ at: Date; line: string; pence: number }> = [];
     for (const person of people) {
-      for (const order of await repository.orders.listForShopper(person.id)) {
-        if (!PAID_STATUSES.has(order.status)) continue;
+      for (const order of await sharedOrders(person)) {
         const pence = paidAmount(order);
         rows.push({
           at: order.createdAt,
@@ -1742,6 +1817,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     const lines = [
       organisation.name,
       `Statement from ${config.productName}, ${longDay(now())}.`,
+      ...companyLines(),
       '',
       ...(rows.length === 0 ? ['No orders yet.'] : rows.map((row) => row.line)),
       '',
@@ -1797,7 +1873,12 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     const { organisation } = await myOrganisation(request);
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const person = await myPerson(organisation.id, id);
-    await repository.shoppers.update(person.id, { organisationId: null, organisationOffice: null });
+    await repository.shoppers.update(person.id, {
+      organisationId: null,
+      organisationOffice: null,
+      organisationConsentAt: null,
+      organisationConsentVersion: null,
+    });
     return { message: `${person.displayName} is no longer linked to ${organisation.name}.` };
   });
 
@@ -1818,15 +1899,17 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
 
   app.post('/me/organisation', async (request) => {
     const session = requireSession(request, 'shopper');
-    const { code } = z
+    const { code, version } = z
       .object({
         code: z.string().trim().min(4, 'Please type the code the organisation gave you.').max(20),
         agreed: z.literal(true, {
           errorMap: () => ({
             message:
-              'Please agree first that the organisation will see your orders and what they cost.',
+              'Please agree first to what the organisation will see. Only you, or someone with legal authority to act for you, may agree.',
           }),
         }),
+        /** The consent wording shown (ORGANISATION_CONSENT_VERSION); an older screen is refused. */
+        version: z.string().trim().max(80).optional(),
       })
       .parse(request.body ?? {});
     const organisation = await repository.organisations.findByJoinCode(
@@ -1834,13 +1917,22 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     );
     if (!organisation || !organisation.active)
       throw new NotFoundError('organisation with that code');
+    if (version !== undefined && version !== ORGANISATION_CONSENT_VERSION) {
+      throw new ConflictError(
+        'The words about what is shared have changed. Please reload the page, read them again and agree.',
+      );
+    }
+    // The moment they agreed, and to which words (UK GDPR): the organisation sees only orders
+    // placed from now on (30 October 2026).
     await repository.shoppers.update(session.accountId, {
       organisationId: organisation.id,
       organisationOffice: null,
+      organisationConsentAt: now(),
+      organisationConsentVersion: ORGANISATION_CONSENT_VERSION,
     });
     return {
       organisation: { name: organisation.name },
-      message: `You're now linked to ${organisation.name}. They can see your orders and what they cost. You can stop this at any time in Settings.`,
+      message: `You're now linked to ${organisation.name}. They can see your name, the office label they give you, the weekly shops you have booked, and the orders you place from now on with what they cost. They pay us their own fee for you, and your delivery is the Membership price. You can stop this at any time in Settings.`,
     };
   });
 
@@ -1849,6 +1941,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     await repository.shoppers.update(session.accountId, {
       organisationId: null,
       organisationOffice: null,
+      organisationConsentAt: null,
+      organisationConsentVersion: null,
     });
     return {
       organisation: null,

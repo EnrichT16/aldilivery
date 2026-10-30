@@ -11,7 +11,7 @@
 import { randomInt } from 'node:crypto';
 
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { formatPence } from '@aldilivery/core';
+import { formatPence, ORGANISATION_TERMS_VERSION } from '@aldilivery/core';
 import { z } from 'zod';
 
 import { requireSession } from '../app.js';
@@ -594,25 +594,45 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
 
   /* ------------------------------------------------------------------ organisations */
 
+  /**
+   * An organisation, or a shop from /organisations?shop=1, asking to work with us. Since 30
+   * October 2026 the form says which it is, so the owner hears "a new shop" for a shop, and an
+   * organisation agrees to the Organisation terms at /organisation/terms first, with the moment
+   * and the version kept.
+   */
   app.post('/organisations/enquiries', async (request, reply) => {
     const body = z
       .object({
+        kind: z.enum(['organisation', 'shop']).default('organisation'),
         organisation: z.string().trim().min(2, 'Please give the organisation’s name.').max(120),
         contactName: z.string().trim().min(2, 'Please give your name.').max(80),
         telephone: z.string().trim().min(6, 'Please give a telephone number.').max(30),
         email: z.string().trim().max(120).default(''),
         people: z.string().trim().max(60).default(''),
         message: z.string().trim().max(1000).default(''),
+        termsAgreed: z.boolean().default(false),
       })
       .parse(request.body ?? {});
-    const enquiry = await repository.organisationEnquiries.create(body);
+    const shop = body.kind === 'shop';
+    if (!shop && !body.termsAgreed) {
+      throw new BadRequestError('Please tick to agree to the Organisation terms.');
+    }
+    const { termsAgreed, ...details } = body;
+    const enquiry = await repository.organisationEnquiries.create({
+      ...details,
+      people: shop ? '' : details.people,
+      termsAgreedAt: !shop && termsAgreed ? now() : null,
+      termsVersion: !shop && termsAgreed ? ORGANISATION_TERMS_VERSION : null,
+    });
     // Ozi's desk (ruling 74). The number they gave is on the Enquiries page, never said aloud.
     await askOwner(
       app.ctx,
       {
         kind: 'organisation_enquiry',
         subjectId: enquiry.id,
-        summary: `A new organisation, ${body.organisation}, asked to work with us${body.people ? `, for ${body.people} people` : ''}. ${body.contactName} would like a call back; the number is on the Enquiries page.`,
+        summary: shop
+          ? `A new shop, ${body.organisation}, asked to work with us. ${body.contactName} would like a call back; the number is on the Enquiries page.`
+          : `A new organisation, ${body.organisation}, asked to work with us${body.people ? `, for ${body.people} people` : ''}. ${body.contactName} would like a call back; the number is on the Enquiries page.`,
         options: 'acknowledge',
       },
       request.log,

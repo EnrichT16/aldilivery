@@ -29,6 +29,8 @@ export function erasedShopperPatch(shopperId: string, at: Date): Partial<Shopper
     planRenews: false,
     organisationId: null,
     organisationOffice: null,
+    organisationConsentAt: null,
+    organisationConsentVersion: null,
     ageBand: null,
     joinedVia: null,
     deletionScheduledFor: null,

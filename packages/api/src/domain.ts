@@ -110,6 +110,13 @@ export interface Shopper {
   organisationId: string | null;
   /** Which office or team at the organisation looks after this person. */
   organisationOffice: string | null;
+  /**
+   * When the person agreed to link to the organisation (30 October 2026, UK GDPR): it sees
+   * only orders placed from this moment on. Null for nobody linked, or linked before then.
+   */
+  organisationConsentAt: Date | null;
+  /** The consent wording they agreed to (ORGANISATION_CONSENT_VERSION in packages/core). */
+  organisationConsentVersion: string | null;
   /** Optional, given by the person for analysis only. */
   ageBand: AgeBand | null;
   /** The share link they came by, such as partner:<id> or organisation:<id>. */
@@ -877,6 +884,11 @@ export interface OrganisationEnquiry {
   message: string;
   handled: boolean;
   createdAt: Date;
+  /** An organisation, or a shop asking from /organisations?shop=1 (30 October 2026). */
+  kind: 'organisation' | 'shop';
+  /** When an organisation agreed to the Organisation terms, and which version. */
+  termsAgreedAt: Date | null;
+  termsVersion: string | null;
 }
 
 /** Somebody who runs the service, with their own sign-in to the admin panel. */
@@ -954,6 +966,9 @@ export interface PartnerShop {
   freeForever: boolean;
   /** The free first month of Partner Plus has been taken. */
   plusTrialUsed: boolean;
+  /** When the shop agreed to the Shop Partner terms, and which version (30 October 2026). */
+  termsAgreedAt: Date | null;
+  termsVersion: string | null;
   source: PartnerShopSource;
   /** The entry in config/shops-seed.json this came from, if Ozi listed it. */
   seedKey: string | null;
@@ -1085,6 +1100,8 @@ export interface AnalyticsEvent {
   shopperKey: string | null;
   runnerKey: string | null;
   shop: string | null;
+  /** The Shop Partner's id, from 30 October 2026; older rows have only the shop's name. */
+  partnerShopId?: string | null;
   area: string | null;
   toArea: string | null;
   ageBand: string | null;

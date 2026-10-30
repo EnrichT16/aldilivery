@@ -2,7 +2,8 @@
  * Spotlight and Spotlight Plus (ruling 42): paid mentions by Ozi, for Shop Partners only.
  *
  * Section O still governs: the genuine answer comes first, the mention after it, called an
- * advert, with checkable facts only ("in stock at", "about £3.50"), never "better". A mention is
+ * advert, with checkable facts only ("is sold at", "about £3.50"), never "better". It said
+ * "in stock at" until nobody could promise the shelf (Anthony, 30 October 2026). A mention is
  * only made when the Shopper is looking for something that shop sells, and the same Shopper
  * hears a given shop at most once a week on Spotlight, or three times on Spotlight Plus. One
  * advert at most per search.
@@ -95,6 +96,6 @@ export async function chooseAdvert(
     productName: product.name,
     pricePence: product.pricePence,
     catalogueItemId: product.catalogueItemId,
-    words: `Advert: ${product.name} is in stock at ${shop.name}, about ${price}.`,
+    words: `Advert: ${product.name} is sold at ${shop.name}, about ${price}.`,
   };
 }

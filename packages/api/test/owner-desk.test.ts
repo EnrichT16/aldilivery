@@ -221,6 +221,7 @@ describe('what becomes a matter for the owner', () => {
         username: 'cornerbakery',
         password: 'a-long-enough-password',
         phoneProof: proof.json().phoneProof,
+        termsAgreed: true,
       },
     });
     expect(joined.statusCode, joined.body).toBe(201);
@@ -256,6 +257,7 @@ describe('what becomes a matter for the owner', () => {
         contactName: 'Ada',
         telephone: '01634 123 4567',
         people: '40',
+        termsAgreed: true,
       },
     });
 

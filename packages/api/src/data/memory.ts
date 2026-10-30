@@ -228,6 +228,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           isDemo: input.isDemo ?? false,
           organisationId: input.organisationId ?? null,
           organisationOffice: null,
+          organisationConsentAt: null,
+          organisationConsentVersion: null,
           ageBand: null,
           joinedVia: null,
           createdAt: now(),
@@ -1489,7 +1491,15 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
 
     organisationEnquiries: {
       async create(input) {
-        const row: OrganisationEnquiry = { ...input, id: id(), handled: false, createdAt: now() };
+        const row: OrganisationEnquiry = {
+          kind: 'organisation',
+          termsAgreedAt: null,
+          termsVersion: null,
+          ...input,
+          id: id(),
+          handled: false,
+          createdAt: now(),
+        };
         enquiries.set(row.id, row);
         return clone(row);
       },
@@ -1564,6 +1574,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           plan: 'plus',
           freeForever: false,
           plusTrialUsed: false,
+          termsAgreedAt: null,
+          termsVersion: null,
           source: 'staff',
           seedKey: null,
           postcode: '',
@@ -1774,7 +1786,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
 
     analytics: {
       async record(input) {
-        analyticsEvents.push({ ...input, id: id() });
+        analyticsEvents.push({ ...input, partnerShopId: input.partnerShopId ?? null, id: id() });
       },
       async list(where) {
         return analyticsEvents

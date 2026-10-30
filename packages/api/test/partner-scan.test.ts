@@ -63,6 +63,7 @@ async function join(details: Record<string, unknown> = {}) {
       about: 'Groceries.',
       username: `cornershop${joinedCount}`,
       password: 'a-long-enough-password',
+      termsAgreed: true,
       ...details,
     },
   });
@@ -135,11 +136,16 @@ describe('choosing the plan at sign-up', () => {
     await start();
     const { joined, headers } = await joinedShop({ plan: 'free' });
     expect(joined.json().checkout).toBeNull();
-    expect(joined.json().message).toMatch(/Your basic listing is free\./);
+    expect(joined.json().message).toMatch(/Your basic listing is free, with no monthly fee\./);
     expect(joined.json().message).not.toMatch(/for ever/);
     const plan = (await dashboard(headers)).json().plan;
     expect(plan).toEqual(expect.objectContaining({ tier: 'free', productLimit: 10 }));
     expect(plan.words).not.toMatch(/for ever/);
+    // Offers do not exist yet, and Plus is first only among shops at the same distance
+    // (30 October 2026).
+    expect(plan.words).not.toMatch(/offers/i);
+    expect(plan.words).not.toMatch(/above free shops/);
+    expect(plan.words).toMatch(/first place among shops at the same distance/);
   });
 });
 

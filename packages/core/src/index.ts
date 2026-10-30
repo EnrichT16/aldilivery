@@ -166,6 +166,16 @@ export {
 } from './partners.js';
 
 export {
+  ORGANISATION_AUTHORITY_WORDS,
+  ORGANISATION_CONSENT_VERSION,
+  ORGANISATION_SHARED_THINGS,
+  ORGANISATION_TERMS_VERSION,
+  SHOP_PARTNER_TERMS_VERSION,
+  organisationConsentWords,
+  type OrganisationConsentWords,
+} from './organisations.js';
+
+export {
   DELIVERY_WINDOWS,
   SCHEDULED_DEFAULTS,
   addDays,
