@@ -39,6 +39,8 @@ import {
 } from '../services/basket-orders.js';
 import { applyCredit } from '../services/credit.js';
 import { recordOrder } from '../lib/analytics.js';
+import { creditAmbassadorShares, profitByShop } from '../services/ambassadors.js';
+import { referralsMoved } from '../services/referrals.js';
 import { recordOrderIncome } from '../lib/ledger.js';
 import { offerNextFor } from '../services/allocate.js';
 import { locatePostcode, noteWarned } from '../services/areas.js';
@@ -1025,7 +1027,22 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
     if ((status === 'delivered' || status === 'cancelled') && order.payMethodUsed === 'card') {
       await releaseCard(app.ctx, order.runnerId, order.id, request.log);
     }
-    if (status === 'delivered') await recordOrder(app.ctx, updated, 'order_delivered', request.log);
+    if (status === 'delivered') {
+      await recordOrder(app.ctx, updated, 'order_delivered', request.log);
+      // An Ambassador's share of Ozi's profit on it, and anybody whose referrer may now have
+      // reached a level (Anthony, 30 October 2026). Neither can hold the order up.
+      await creditAmbassadorShares(app.ctx, updated, request.log);
+      const shops = await profitByShop(app.ctx, updated).catch(() => new Map());
+      await referralsMoved(
+        app.ctx,
+        [
+          { kind: 'shopper', id: updated.shopperId },
+          { kind: 'runner', id: updated.runnerId },
+          ...[...shops.keys()].map((id: string) => ({ kind: 'partner' as const, id })),
+        ],
+        request.log,
+      );
+    }
     if (status === 'delivering' || status === 'delivered') {
       void tellShopper(app.ctx, updated, status, request.log);
     }

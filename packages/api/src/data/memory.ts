@@ -61,6 +61,11 @@ import type {
   RunnerPayout,
   RunnerSos,
   ReferralReward,
+  Referral,
+  ReferralLevelReached,
+  AmbassadorEntry,
+  AmbassadorAgreement,
+  AmbassadorWithdrawal,
   SetItem,
   Shopper,
   ShopperFeedback,
@@ -157,6 +162,11 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const reviewPointsSpends: ReviewPointsSpend[] = [];
   const sosAlerts = new Map<string, RunnerSos>();
   const referralRewards: ReferralReward[] = [];
+  const referralRows: Referral[] = [];
+  const levelsReached: ReferralLevelReached[] = [];
+  const ambassadorEntries: AmbassadorEntry[] = [];
+  const ambassadorAgreements: AmbassadorAgreement[] = [];
+  const ambassadorWithdrawals: AmbassadorWithdrawal[] = [];
   const auditEntries: AuditEntry[] = [];
   const cardAuthorizations = new Map<string, CardAuthorization>();
   const ownerMatters = new Map<string, OwnerMatter>();
@@ -587,6 +597,177 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
       async list() {
         return referralRewards.map(clone);
+      },
+    },
+
+    referrals: {
+      async record(input) {
+        if (
+          referralRows.some(
+            (row) => row.joinedKind === input.joinedKind && row.joinedId === input.joinedId,
+          )
+        ) {
+          return null;
+        }
+        const row: Referral = { ...input, id: id() };
+        referralRows.push(row);
+        return clone(row);
+      },
+      async findFor(joinedKind, joinedId) {
+        const found = referralRows.find(
+          (row) => row.joinedKind === joinedKind && row.joinedId === joinedId,
+        );
+        return found ? clone(found) : null;
+      },
+      async listForReferrer(referrerKind, referrerId) {
+        return referralRows
+          .filter((row) => row.referrerKind === referrerKind && row.referrerId === referrerId)
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async list() {
+        return [...referralRows]
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async reachLevel(input) {
+        if (
+          levelsReached.some(
+            (row) =>
+              row.referrerKind === input.referrerKind &&
+              row.referrerId === input.referrerId &&
+              row.activeReferrals === input.activeReferrals,
+          )
+        ) {
+          return null;
+        }
+        const row: ReferralLevelReached = {
+          ...input,
+          id: id(),
+          toldAt: null,
+          givenAt: null,
+          givenBy: null,
+        };
+        levelsReached.push(row);
+        return clone(row);
+      },
+      async findLevel(key) {
+        const found = levelsReached.find((row) => row.id === key);
+        return found ? clone(found) : null;
+      },
+      async listLevels() {
+        return [...levelsReached]
+          .sort((a, b) => a.reachedAt.getTime() - b.reachedAt.getTime())
+          .map(clone);
+      },
+      async listLevelsFor(referrerKind, referrerId) {
+        return levelsReached
+          .filter((row) => row.referrerKind === referrerKind && row.referrerId === referrerId)
+          .sort((a, b) => a.reachedAt.getTime() - b.reachedAt.getTime())
+          .map(clone);
+      },
+      async updateLevel(key, patch) {
+        const index = levelsReached.findIndex((row) => row.id === key);
+        if (index < 0) throw new NotFoundError('Referral level', key);
+        const updated = { ...levelsReached[index]!, ...patch };
+        levelsReached[index] = updated;
+        return clone(updated);
+      },
+    },
+
+    ambassadors: {
+      async agree(input) {
+        const found = ambassadorAgreements.find(
+          (row) => row.accountKind === input.accountKind && row.accountId === input.accountId,
+        );
+        if (found) return clone(found);
+        const row: AmbassadorAgreement = {
+          ...input,
+          id: id(),
+          stripeConnectedAccountId: null,
+          flaggedAt: null,
+          flagReason: null,
+        };
+        ambassadorAgreements.push(row);
+        return clone(row);
+      },
+      async findAgreement(accountKind, accountId) {
+        const found = ambassadorAgreements.find(
+          (row) => row.accountKind === accountKind && row.accountId === accountId,
+        );
+        return found ? clone(found) : null;
+      },
+      async updateAgreement(key, patch) {
+        const index = ambassadorAgreements.findIndex((row) => row.id === key);
+        if (index < 0) throw new NotFoundError('Ambassador agreement', key);
+        const updated = { ...ambassadorAgreements[index]!, ...patch };
+        ambassadorAgreements[index] = updated;
+        return clone(updated);
+      },
+      async add(input) {
+        if (ambassadorEntries.some((row) => row.reference === input.reference)) return null;
+        const row: AmbassadorEntry = { availableAt: null, disputedAt: null, ...input, id: id() };
+        ambassadorEntries.push(row);
+        return clone(row);
+      },
+      async findByReference(reference) {
+        const found = ambassadorEntries.find((row) => row.reference === reference);
+        return found ? clone(found) : null;
+      },
+      async updateEntry(key, patch) {
+        const index = ambassadorEntries.findIndex((row) => row.id === key);
+        if (index < 0) throw new NotFoundError('Ambassador entry', key);
+        const updated = { ...ambassadorEntries[index]!, ...patch };
+        ambassadorEntries[index] = updated;
+        return clone(updated);
+      },
+      async listForOrder(orderId) {
+        return ambassadorEntries
+          .filter((row) => row.orderId === orderId)
+          .sort((a, b) => a.at.getTime() - b.at.getTime())
+          .map(clone);
+      },
+      async createWithdrawal(input) {
+        const row: AmbassadorWithdrawal = {
+          ...input,
+          id: id(),
+          decidedAt: null,
+          decidedBy: null,
+          stripeTransferId: null,
+          failure: null,
+        };
+        ambassadorWithdrawals.push(row);
+        return clone(row);
+      },
+      async findWithdrawal(key) {
+        const found = ambassadorWithdrawals.find((row) => row.id === key);
+        return found ? clone(found) : null;
+      },
+      async updateWithdrawal(key, patch) {
+        const index = ambassadorWithdrawals.findIndex((row) => row.id === key);
+        if (index < 0) throw new NotFoundError('Ambassador withdrawal', key);
+        const updated = { ...ambassadorWithdrawals[index]!, ...patch };
+        ambassadorWithdrawals[index] = updated;
+        return clone(updated);
+      },
+      async listWithdrawalsFor(ambassadorKind, ambassadorId) {
+        return ambassadorWithdrawals
+          .filter(
+            (row) => row.ambassadorKind === ambassadorKind && row.ambassadorId === ambassadorId,
+          )
+          .sort((a, b) => b.requestedAt.getTime() - a.requestedAt.getTime())
+          .map(clone);
+      },
+      async listFor(ambassadorKind, ambassadorId) {
+        return ambassadorEntries
+          .filter(
+            (row) => row.ambassadorKind === ambassadorKind && row.ambassadorId === ambassadorId,
+          )
+          .sort((a, b) => a.at.getTime() - b.at.getTime())
+          .map(clone);
+      },
+      async list() {
+        return [...ambassadorEntries].sort((a, b) => a.at.getTime() - b.at.getTime()).map(clone);
       },
     },
 
@@ -1506,6 +1687,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           kind: 'organisation',
           termsAgreedAt: null,
           termsVersion: null,
+          joinedVia: null,
           ...input,
           id: id(),
           handled: false,
@@ -1600,6 +1782,9 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           categories: [],
           convenience: false,
           ofstedNumber: '',
+          ambassadorKind: null,
+          ambassadorId: null,
+          branchOfShopId: null,
           ...input,
           id: id(),
           paidUntil: null,

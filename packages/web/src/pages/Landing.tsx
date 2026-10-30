@@ -4,9 +4,8 @@ import { Navigate, useSearchParams } from 'react-router-dom';
 import { DoorButton } from '../components/DoorButton';
 import { GetTheApp, WrongAppWarning } from '../components/GetTheApp';
 import { storeConfig } from '../config';
-import { rememberJoinedVia } from '../lib/api';
 import { inPairs } from '../lib/phone-aloud';
-import { rememberReferral } from '../lib/referral';
+import { rememberLinkFrom } from '../lib/referral';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
 import { useVoice } from '../state/voice';
@@ -67,13 +66,9 @@ export function Landing(): JSX.Element {
   const { shopper, restoring } = useSession();
 
   useEffect(() => {
-    rememberReferral(params.get('ref'));
-    // A Runner's link (`/join?ref=R…`) can bring a Shopper too: counted for the Runner who shared it.
-    const ref = params.get('ref');
-    if (ref && /^R[A-Z0-9]{7}$/i.test(ref)) rememberJoinedVia(`runner:${ref.toUpperCase()}`);
-    // A share link from staff or a Shopper (ruling 44): /join?via=staff-… or shopper-….
-    const via = /^(staff|shopper)-([A-Za-z0-9_-]{1,40})$/.exec(params.get('via') ?? '');
-    if (via) rememberJoinedVia(`${via[1]}:${via[2]}`);
+    // A Runner's link (`/join?ref=R…`), anybody's referral link (`/join?via=kind-code`, ruling 44
+    // and 30 October 2026): kept until sign-up, whatever they sign up as.
+    rememberLinkFrom(params);
   }, [params]);
 
   // As they are on arrival: Ozi speaks once a visit, after its first introduction.

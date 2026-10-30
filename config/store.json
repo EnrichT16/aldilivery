@@ -209,9 +209,25 @@
     "sosLinkHours": 12,
     "instantPayoutFeeBasisPoints": 100,
     "instantPayoutFeeMinimumPence": 50,
-    "insuranceReminderDays": [30, 7, 1],
-    "referralRewardPence": 15000,
-    "referralsForReward": 100
+    "insuranceReminderDays": [30, 7, 1]
+  },
+  "referrals": {
+    "levels": [
+      { "activeReferrals": 20, "rewardPence": 1000, "label": "£10 voucher" },
+      { "activeReferrals": 30, "rewardPence": 1500, "label": "£15 voucher" },
+      { "activeReferrals": 40, "rewardPence": 2000, "label": "£20 voucher" }
+    ],
+    "minimumActiveShare": 0.7,
+    "givenAs": "Amazon voucher"
+  },
+  "ambassador": {
+    "profitShare": 0.02,
+    "months": 12,
+    "planShare": 0.05,
+    "branchShareFactor": 0.25,
+    "holdDays": 30,
+    "payoutMinimumPence": 1000,
+    "reviewAbovePence": 50000
   },
   "admin": {
     "ownerOnlyRefundAbovePence": 2500,

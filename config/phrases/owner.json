@@ -1773,8 +1773,8 @@
       "topic": "share",
       "when": ["what's the hundred target", "towards a hundred"],
       "replies": [
-        "Shop Partners and organisations have a meter towards a hundred people joined, sir.",
-        "Towards a hundred, sir."
+        "There is no hundred target now, sir. Everybody's referral link counts towards a {referralLevels}, with at least {activeShare} active. The Referrals page has them all.",
+        "Voucher levels now, sir, on the Referrals page."
       ]
     },
     {

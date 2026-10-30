@@ -63,7 +63,12 @@ export type StaffArea =
    * Areas (Anthony, 30 October 2026): each UK area's Shoppers, Runners, shops and orders, whether
    * it is running, and pausing it.
    */
-  | 'areas';
+  | 'areas'
+  /**
+   * Referrals (Anthony, 30 October 2026): everybody who has referred anybody, how many are
+   * active, the reward levels and marking them given, and the Ozi Ambassadors and their pay.
+   */
+  | 'referrals';
 
 export type StaffRole =
   | 'founder'
@@ -97,6 +102,7 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
       'reports',
       'messages',
       'areas',
+      'referrals',
     ],
   },
   operations_manager: {
@@ -114,6 +120,7 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
       'reports',
       'messages',
       'areas',
+      'referrals',
     ],
   },
   onboarding: { title: 'Runner onboarding officer', areas: ['documents', 'messages'] },

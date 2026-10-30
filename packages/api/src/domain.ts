@@ -266,7 +266,114 @@ export interface RunnerSos {
   alertProblem: string | null;
 }
 
-/** The private referral reward (rulings 12 and 16), given by the owner. */
+/**
+ * The kinds of account with a referral link, who can refer and be referred (Anthony, 30 October
+ * 2026): anyone can refer anyone.
+ */
+export type ReferralKind = 'shopper' | 'runner' | 'partner' | 'organisation';
+
+/** One account opened through somebody's referral link. Whether it is active is never stored. */
+export interface Referral {
+  id: string;
+  referrerKind: ReferralKind;
+  referrerId: string;
+  joinedKind: ReferralKind;
+  joinedId: string;
+  /** The link as followed, kind:code. */
+  via: string;
+  createdAt: Date;
+}
+
+/** A referral reward level somebody reached, kept once reached. */
+export interface ReferralLevelReached {
+  id: string;
+  referrerKind: ReferralKind;
+  referrerId: string;
+  activeReferrals: number;
+  rewardPence: number;
+  label: string;
+  activeAtReach: number;
+  joinedAtReach: number;
+  reachedAt: Date;
+  /** When Ozi told the person in the app, once. */
+  toldAt: Date | null;
+  givenAt: Date | null;
+  givenBy: string | null;
+}
+
+/** Somebody who chose to become an Ozi Ambassador, agreeing to the Ambassador terms. */
+export interface AmbassadorAgreement {
+  id: string;
+  accountKind: ReferralKind;
+  accountId: string;
+  agreedAt: Date;
+  termsVersion: string;
+  /**
+   * Their own Stripe account, for withdrawals to their bank (ruled 30 October 2026). A Runner's
+   * own payout account is used when they have one. Stripe collects the bank details on its own
+   * form; they never pass through the service.
+   */
+  stripeConnectedAccountId: string | null;
+  /** Flagged by staff: every withdrawal waits for a person to approve it. */
+  flaggedAt: Date | null;
+  flagReason: string | null;
+}
+
+/**
+ * One line of an Ozi Ambassador's money (ruled 30 October 2026):
+ *
+ * - `share`: their share of Ozi's profit on one order from one business, following the order's
+ *   final state. Pending until `availableAt`; until then a cancel or refund changes it.
+ * - `bonus`: the one-off share of a business's first Partner Plus payment.
+ * - `deduction`: a refund that came after a share was already available (a late complaint, a
+ *   card chargeback), taken off what is available next, never below zero.
+ * - `payment`: what was paid to them, by hand or by a withdrawal to their bank.
+ */
+export interface AmbassadorEntry {
+  id: string;
+  ambassadorKind: ReferralKind;
+  ambassadorId: string;
+  kind: 'share' | 'bonus' | 'deduction' | 'payment';
+  partnerShopId: string | null;
+  orderId: string | null;
+  profitPence: number;
+  /** Always zero or more: a deduction or a payment is taken off. */
+  amountPence: number;
+  /** When a share or bonus stops being pending and can be paid; null for the others. */
+  availableAt: Date | null;
+  /** A card chargeback on its order: the share is worth nothing (from the Stripe webhook). */
+  disputedAt: Date | null;
+  /** Each one once only. */
+  reference: string;
+  recordedBy: string | null;
+  at: Date;
+}
+
+/**
+ * An Ambassador asking for their available money to go to their bank (ruled 30 October 2026).
+ * Sent at once by a Stripe transfer to their own Stripe account, unless it is over the monthly
+ * review figure or they are flagged: then it waits for staff to approve it.
+ */
+export interface AmbassadorWithdrawal {
+  id: string;
+  ambassadorKind: ReferralKind;
+  ambassadorId: string;
+  amountPence: number;
+  status: 'waiting_approval' | 'sent' | 'refused' | 'failed';
+  /** Why it waits for a person, in plain words, or null. */
+  waitingReason: string | null;
+  requestedAt: Date;
+  decidedAt: Date | null;
+  decidedBy: string | null;
+  stripeTransferId: string | null;
+  /** What went wrong, for staff, when Stripe refused it. */
+  failure: string | null;
+}
+
+/**
+ * The private referral reward (rulings 12 and 16), given by the owner. Replaced by the referral
+ * levels on 30 October 2026; the rows already given are kept, for the record.
+ */
 export interface ReferralReward {
   id: string;
   /** shopper:<handle> or runner:<Runner ID>. */
@@ -902,6 +1009,8 @@ export interface OrganisationEnquiry {
   /** When an organisation agreed to the Organisation terms, and which version. */
   termsAgreedAt: Date | null;
   termsVersion: string | null;
+  /** The referral link the person asking came by, kind:code (Anthony, 30 October 2026). */
+  joinedVia: string | null;
 }
 
 /** Somebody who runs the service, with their own sign-in to the admin panel. */
@@ -1002,6 +1111,11 @@ export interface PartnerShop {
   convenience: boolean;
   /** As the provider gave it, for a childminder (ruling 82). Shown, never checked by us. */
   ofstedNumber: string;
+  /** The Ozi Ambassador who introduced it, if any (Anthony, 30 October 2026). */
+  ambassadorKind: ReferralKind | null;
+  ambassadorId: string | null;
+  /** Another listing of the same business, marked by staff: each branch is its own venture. */
+  branchOfShopId: string | null;
 }
 
 export type ServiceEnquiryKind = 'quote' | 'call_back';
@@ -1302,7 +1416,11 @@ export type OwnerMatterKind =
   /** A booked order's payment on its chosen day could not be taken (ruling 78): to hear. */
   | 'scheduled_payment'
   /** A job the office sent to a Runner came back: declined or run out (ruling 80): to hear. */
-  | 'allocation_returned';
+  | 'allocation_returned'
+  /** Somebody reached a referral reward level (Anthony, 30 October 2026): to hear, once. */
+  | 'referral_level'
+  /** An Ambassador's month is over the review figure: to check before paying, once a month. */
+  | 'ambassador_review';
 
 /** Approve, decline or later; or only "I have heard it", or later. */
 export type OwnerMatterOptions = 'decide' | 'acknowledge';

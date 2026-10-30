@@ -293,6 +293,8 @@ async function stillNeedsOwner(ctx: DeskContext, matter: OwnerMatter): Promise<b
     case 'account_message':
     case 'scheduled_today':
     case 'allocation_returned':
+    case 'referral_level':
+    case 'ambassador_review':
       return true;
   }
 }

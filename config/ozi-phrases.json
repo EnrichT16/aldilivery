@@ -769,8 +769,8 @@
       "topic": "referral",
       "when": ["invite a friend", "share the app"],
       "replies": [
-        "Share the website with friends. Your share link is in Settings.",
-        "Your share link is in Settings."
+        "Thank you. Your referral link is in Settings. Share it with anyone: friends, family, drivers who could be Runners, and local shops.",
+        "Your referral link is in Settings, with a Share button."
       ]
     },
     {
@@ -3129,8 +3129,8 @@
       "topic": "referral",
       "when": ["how do i tell my friends", "recommend you to someone", "where is my share link"],
       "replies": [
-        "Thank you. Your share link is in Settings. Send it to friends and family.",
-        "That's kind. Settings has your share link."
+        "Thank you. Your referral link is in Settings. Send it to friends and family, or to a driver who could be a Runner.",
+        "That's kind. Settings has your referral link."
       ]
     },
     {
@@ -6407,7 +6407,7 @@
       "topic": "about",
       "when": ["can i refer someone", "refer a friend", "referral"],
       "replies": [
-        "Yes. Your share link is in Settings, with a count of how many friends joined through you."
+        "Yes. Your referral link is in Settings. It shows how many joined and how many are active, and your progress towards a {firstReward} voucher at {firstLevel} active referrals."
       ]
     },
     {
@@ -8309,7 +8309,9 @@
       "id": "s66-runners-can-i-recommend-a-runner",
       "topic": "runners",
       "when": ["can i recommend a runner", "my friend wants to be a runner", "refer a runner"],
-      "replies": ["Yes. Share your link from Settings. They tap the Runner door and sign up."]
+      "replies": [
+        "Yes. Share your referral link from Settings. They open it, choose the Runner door and sign up, and they are counted for you."
+      ]
     },
     {
       "id": "s66-runners-can-runners-close-their-account",
@@ -13029,7 +13031,7 @@
       "topic": "reviews",
       "when": ["points for referring friends", "referral points", "do i get points for sharing"],
       "replies": [
-        "Sharing is counted on your share link. Points come from reviews. Both are in Settings."
+        "Points come from reviews. Referring people counts towards a shopping voucher instead: a {firstReward} voucher at {firstLevel} active referrals. Both are in Settings."
       ]
     },
     {
@@ -16096,7 +16098,9 @@
         "runner referral",
         "runner invites"
       ],
-      "replies": ["Runners have a share link too, and are counted for the people they bring in."]
+      "replies": [
+        "Runners have a referral link too, on their More tab. Anyone who joins through it is counted for them."
+      ]
     },
     {
       "id": "s66-runners-are-runners-self-employed-or-staff",
@@ -18014,6 +18018,50 @@
       ],
       "replies": [
         "Only when the room is noisy or the telly is on. After I ask a question, just answer."
+      ]
+    },
+    {
+      "id": "referral-levels",
+      "topic": "referral",
+      "when": [
+        "what are the referral rewards",
+        "referral voucher",
+        "do i get anything for referring"
+      ],
+      "replies": [
+        "Yes: a {referralLevels}. Active means they really use us, and at least {activeShare} of the people you refer need to be active. It's all in Settings."
+      ]
+    },
+    {
+      "id": "referral-what-is-active",
+      "topic": "referral",
+      "when": [
+        "what is an active referral",
+        "what counts as active",
+        "why is my referral not active"
+      ],
+      "replies": [
+        "A Shopper is active once an order has been delivered. A Runner once approved and they have made a delivery. A shop once approved and it has had an order. An organisation once someone is linked."
+      ]
+    },
+    {
+      "id": "ambassador-what-is-it",
+      "topic": "referral",
+      "when": ["what is an ozi ambassador", "become an ambassador", "introduce a business"],
+      "replies": [
+        "An {assistant} Ambassador introduces local businesses, as an independent marketer. You earn {ambassadorShare} of our profit on their orders for {ambassadorMonths} months. You can choose it in Settings, under Introduce a business."
+      ]
+    },
+    {
+      "id": "ambassador-when-paid",
+      "topic": "referral",
+      "when": [
+        "when do i get my ambassador money",
+        "what does pending mean",
+        "withdraw my ambassador earnings"
+      ],
+      "replies": [
+        "Earnings wait {ambassadorHold} after each delivery, in case of a refund. Then they are available, and once {ambassadorMinimum} is available you can withdraw it to your bank in Settings."
       ]
     }
   ]

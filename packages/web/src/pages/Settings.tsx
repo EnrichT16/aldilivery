@@ -5,12 +5,11 @@ import { storeConfig } from '../config';
 import { CloseAccount } from '../components/CloseAccount';
 import { WrongAppWarning } from '../components/GetTheApp';
 import { OrganisationConsent } from '../components/OrganisationConsent';
-import { ShareCard } from '../components/ShareCard';
+import { ReferralCard } from '../components/ReferralCard';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import {
   cancelPlan,
   fetchMyOrganisation,
-  fetchMyShareLink,
   fetchPlus,
   joinOrganisation,
   leaveOrganisation,
@@ -214,7 +213,8 @@ export function Settings(): JSX.Element {
         <p className="m-0 text-paper/80 extra">Speech by: {voice.engine.name}.</p>
       </section>
 
-      {shopper && <ShareCard load={fetchMyShareLink} onNews={setNews} />}
+      {/* Their referral link and Ozi Ambassador section (Anthony, 30 October 2026). */}
+      {shopper && <ReferralCard as="shopper" onNews={setNews} />}
 
       {shopper && <YourPlan />}
 
@@ -401,8 +401,8 @@ function OrganisationLink(): JSX.Element {
           className="space-y-3"
         >
           <p className="m-0 extra">
-            If a care home, a council or another organisation helps you with your shopping, they
-            may give you a code to type here.
+            If a care home, a council or another organisation helps you with your shopping, they may
+            give you a code to type here.
           </p>
           <label htmlFor="organisation-code" className="block font-bold">
             The organisation’s code

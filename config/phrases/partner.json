@@ -210,8 +210,8 @@
       "topic": "share",
       "when": ["how many people joined", "referrals", "my referral meter"],
       "replies": [
-        "Your meter shows how many people opened an account through your link, towards 100.",
-        "Look at the meter under your link."
+        "Your referral section shows how many joined through your link and how many are active.",
+        "Look under Your referral link on your dashboard."
       ]
     },
     {
@@ -2378,8 +2378,8 @@
       "topic": "sharing",
       "when": ["what is the meter", "what does the meter mean", "referral meter"],
       "replies": [
-        "It shows how many people opened an account through your link, towards 100.",
-        "People who joined through your link, out of 100."
+        "It shows how many people joined through your link, how many are active, and your progress towards a {firstReward} voucher at {firstLevel} active referrals.",
+        "People who joined through your link, and how many are active."
       ]
     },
     {
@@ -2398,10 +2398,10 @@
     {
       "id": "partner-what-happens-at-100",
       "topic": "sharing",
-      "when": ["what happens at 100", "what do i get for 100", "is there a reward"],
+      "when": ["what happens at 100", "what do i get for referring", "is there a reward"],
       "replies": [
-        "The meter counts towards 100. Ask our partnerships team if you'd like to know more.",
-        "Our team can tell you more about the meter."
+        "Referral rewards are shopping vouchers: a {referralLevels}, when at least {activeShare} of the people you refer are active.",
+        "Shopping vouchers for active referrals. Your dashboard shows your progress."
       ]
     },
     {
@@ -3927,6 +3927,14 @@
       "topic": "account",
       "when": ["can i have more than one branch", "can i've more than one branch", "add a branch"],
       "replies": ["Yes. Each branch gets its own page under your account. Ask the team to add it."]
+    },
+    {
+      "id": "partner-ambassador",
+      "topic": "sharing",
+      "when": ["can i introduce another business", "ozi ambassador", "earn for introducing shops"],
+      "replies": [
+        "Yes, as an {assistant} Ambassador. Choose it on your dashboard. You earn {ambassadorShare} of our profit on another business's orders for {ambassadorMonths} months. You cannot introduce your own business."
+      ]
     }
   ]
 }

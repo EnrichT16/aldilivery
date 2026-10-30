@@ -265,7 +265,7 @@ export function rememberJoinedVia(via: string): void {
   }
 }
 
-function forgetJoinedVia(): void {
+export function forgetJoinedVia(): void {
   try {
     window.localStorage.removeItem(JOINED_VIA);
   } catch {
@@ -273,11 +273,42 @@ function forgetJoinedVia(): void {
   }
 }
 
-function joinedVia(): string | null {
+/**
+ * The referral link that brought someone here, kept until they finish signing up, whatever they
+ * sign up as (Anthony, 30 October 2026): a Shopper, a Runner, a shop or an organisation.
+ */
+export function joinedVia(): string | null {
   try {
     return window.localStorage.getItem(JOINED_VIA);
   } catch {
     return null;
+  }
+}
+
+const AMBASSADOR = 'ozidelivery.joined.ambassador';
+
+/** The Ozi Ambassador whose link brought a business to /business/join, kept until it joins. */
+export function rememberAmbassador(via: string): void {
+  try {
+    window.localStorage.setItem(AMBASSADOR, via);
+  } catch {
+    // Not tied, which is harmless.
+  }
+}
+
+export function ambassadorVia(): string | null {
+  try {
+    return window.localStorage.getItem(AMBASSADOR);
+  } catch {
+    return null;
+  }
+}
+
+function forgetAmbassador(): void {
+  try {
+    window.localStorage.removeItem(AMBASSADOR);
+  } catch {
+    // Nothing to forget.
   }
 }
 
@@ -362,6 +393,8 @@ export interface RegisterRunnerInput {
   travelModes: VehicleType[];
   /** The ID of whoever invited them, from the link they followed. */
   referredBy?: string;
+  /** Anybody's referral link they came by, as kind:code (30 October 2026). */
+  joinedVia?: string;
   /** Agreeing to the Runner agreement as they sign up (ruling 55). */
   agreement?: { accepted: true; version: string; channel: 'button' | 'voice' };
   /** The tick "I am 18 or over", kept by the server with its time (30 October 2026). */
@@ -377,13 +410,21 @@ export interface RegisterRunnerInput {
 export function registerRunner(
   input: RegisterRunnerInput,
 ): Promise<{ runner: { name: string; phone: string; referralCode: string }; token: string }> {
+  // Anybody's link they came by, a Shopper's say, is counted for them too (30 October 2026). A
+  // Runner's own link is already sent as `referredBy`, so it is not sent twice.
+  const kept = input.joinedVia ?? joinedVia();
+  const via =
+    kept && input.referredBy && kept === `runner:${input.referredBy.toUpperCase()}` ? null : kept;
   return request<{ runner: { name: string; phone: string; referralCode: string }; token: string }>(
     '/runners',
     {
       method: 'POST',
-      body: JSON.stringify(input),
+      body: JSON.stringify(via ? { ...input, joinedVia: via } : input),
     },
-  );
+  ).then((made) => {
+    forgetJoinedVia();
+    return made;
+  });
 }
 
 export interface RunnerAccount {
@@ -1380,7 +1421,8 @@ export type StaffArea =
   /** The company inbox and staff calls (ruling 77). */
   | 'messages'
   /** Each UK area, whether it is running, and pausing it (30 October 2026). */
-  | 'areas';
+  | 'areas'
+  | 'referrals';
 
 /** Where someone's two-step codes stand (Section Q). */
 export interface StaffTwoStep {
@@ -1834,7 +1876,15 @@ export function sendOrganisationEnquiry(input: {
   /** The Organisation terms at /organisation/terms, ticked: needed from an organisation. */
   termsAgreed?: boolean;
 }): Promise<{ message: string }> {
-  return request('/organisations/enquiries', { method: 'POST', body: JSON.stringify(input) });
+  // The referral link that brought them, kept until staff set the organisation up (30 October 2026).
+  const via = joinedVia();
+  return request<{ message: string }>('/organisations/enquiries', {
+    method: 'POST',
+    body: JSON.stringify(via ? { ...input, joinedVia: via } : input),
+  }).then((sent) => {
+    forgetJoinedVia();
+    return sent;
+  });
 }
 
 export interface StaffFindRequest extends FindRequest {
@@ -2099,7 +2149,23 @@ export function joinAsPartner(input: PartnerJoinInput): Promise<
     message: string;
   }
 > {
-  return request('/partner/join', { method: 'POST', body: JSON.stringify(input) });
+  // The link that brought them, and the Ozi Ambassador who introduced them, if any (30 October
+  // 2026), kept on the device until the business has joined.
+  const via = joinedVia();
+  const ambassador = ambassadorVia();
+  const body = {
+    ...input,
+    ...(via ? { joinedVia: via } : {}),
+    ...(ambassador ? { ambassador } : {}),
+  };
+  return request<Awaited<ReturnType<typeof joinAsPartner>>>('/partner/join', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  }).then((made) => {
+    forgetJoinedVia();
+    forgetAmbassador();
+    return made;
+  });
 }
 
 /**
@@ -2403,6 +2469,8 @@ export interface StaffPartners {
       live: number;
       waiting: number;
       users: Array<{ id: string; name: string; username: string }>;
+      /** Another listing of the same business it is a branch of (30 October 2026), or null. */
+      branchOfShopId?: string | null;
     } & Partial<BrowseFields>
   >;
   organisations: Array<{
@@ -2452,7 +2520,12 @@ export function addStaffPartner(
 export function setStaffPartnerState(
   key: string,
   id: string,
-  change: { status?: 'approved' | 'pending' | 'removed'; active?: boolean } & Partial<BrowseFields>,
+  change: {
+    status?: 'approved' | 'pending' | 'removed';
+    active?: boolean;
+    /** "A branch of" another listing of the same business, or null for none (30 October 2026). */
+    branchOfShopId?: string | null;
+  } & Partial<BrowseFields>,
 ): Promise<unknown> {
   return staffRequest(key, `/staff/partners/${encodeURIComponent(id)}`, {
     method: 'POST',
@@ -3075,6 +3148,250 @@ export interface ShareLink {
 /** A Shopper's own link. */
 export function fetchMyShareLink(): Promise<ShareLink> {
   return request('/share');
+}
+
+/* ------------------------------------------------------------------------------------- *
+ * Referral links, reward levels and Ozi Ambassadors (Anthony, 30 October 2026).
+ * ------------------------------------------------------------------------------------- */
+
+/** Whose dashboard it is: a Shopper, a Runner, or a shop or organisation signed in. */
+export type ReferralAs = 'shopper' | 'runner' | 'business';
+
+export interface ReferralLevelView {
+  activeReferrals: number;
+  rewardPence: number;
+  label: string;
+  reached: boolean;
+  given: boolean;
+}
+
+export interface MyReferrals {
+  referrals: {
+    link: string;
+    joined: number;
+    active: number;
+    progress: string;
+    minimumActivePercent: number;
+    levels: ReferralLevelView[];
+    earned: Array<{ id: string; label: string; words: string; given: boolean }>;
+    /** A level reached that Ozi has not said yet. Empty when there is none. */
+    news: string;
+  };
+  ambassador: {
+    joined: boolean;
+    agreedAt: string | null;
+    termsVersion: string;
+    link: string | null;
+    termsPath: string;
+    profitShareWords: string;
+    branchShareWords: string;
+    planShareWords: string;
+    months: number;
+    /** Days an earning waits, pending, after the order is delivered. */
+    holdDays: number;
+    payoutMinimumWords: string;
+    businesses: Array<{ name: string; approved: boolean }>;
+    earnedPence: number;
+    /** Waiting for the refund window to pass. */
+    pendingPence: number;
+    /** Can be paid or withdrawn now. */
+    availablePence: number;
+    paidPence: number;
+    /** Refunds that came after a share was available, each taken off. */
+    deductions: Array<{ at: string; words: string }>;
+    canWithdraw: boolean;
+    /** Their bank details are set up with Stripe. */
+    bankReady: boolean;
+    withdrawals: Array<{ id: string; requestedAt: string; words: string }>;
+  };
+}
+
+function referralRequest<T>(as: ReferralAs, path: string, init?: RequestInit): Promise<T> {
+  if (as === 'business') return businessRequest<T>(path, init);
+  return request<T>(path, init, as);
+}
+
+export function fetchMyReferrals(as: ReferralAs): Promise<MyReferrals> {
+  return referralRequest(as, '/referrals/me');
+}
+
+/** Ozi has said the news of a level reached: it is not said again. */
+export function markReferralNewsHeard(as: ReferralAs): Promise<{ told: number }> {
+  return referralRequest(as, '/referrals/me/heard', { method: 'POST', body: '{}' });
+}
+
+/**
+ * Where an Ambassador's withdrawals go: a one-time link to Stripe's own form, where the bank
+ * details go straight to Stripe (30 October 2026).
+ */
+export function ambassadorBankLink(as: ReferralAs): Promise<{ url: string }> {
+  return referralRequest(as, '/ambassador/bank', { method: 'POST', body: '{}' });
+}
+
+/** Everything available, once at least the minimum, to the Ambassador's bank. */
+export function withdrawAmbassadorEarnings(
+  as: ReferralAs,
+): Promise<{ status: string; amountPence: number; message: string }> {
+  return referralRequest(as, '/ambassador/withdraw', { method: 'POST', body: '{}' });
+}
+
+/** "Become an Ozi Ambassador": agreeing to the Ambassador terms of this version. */
+export function becomeAmbassador(
+  as: ReferralAs,
+  termsVersion: string,
+): Promise<{ link: string; message: string }> {
+  return referralRequest(as, '/ambassador/join', {
+    method: 'POST',
+    body: JSON.stringify({ termsAgreed: true, termsVersion }),
+  });
+}
+
+export interface StaffReferrerRow {
+  kind: string;
+  id: string;
+  name: string;
+  kindWords: string;
+  area: string;
+  joined: number;
+  active: number;
+  percent: string;
+  meetsShare: boolean;
+  level: { id: string; label: string; rewardPence: number; given: boolean } | null;
+  levels: Array<{
+    id: string;
+    label: string;
+    activeReferrals: number;
+    rewardPence: number;
+    reachedAt: string;
+    givenAt: string | null;
+    givenBy: string | null;
+  }>;
+}
+
+export interface StaffAmbassadorRow {
+  kind: string;
+  id: string;
+  name: string;
+  kindWords: string;
+  area: string;
+  businesses: Array<{
+    id: string;
+    name: string;
+    approved: boolean;
+    branch: boolean;
+    earnedPence: number;
+  }>;
+  earnedPence: number;
+  earnedThisMonthPence: number;
+  pendingPence: number;
+  availablePence: number;
+  paidPence: number;
+  deductionsPence: number;
+  deductions: Array<{ at: string; amountPence: number; words: string }>;
+  withdrawingPence: number;
+  shortfallPence: number;
+  payable: boolean;
+  flagged: boolean;
+  flagReason: string | null;
+  waitingWithdrawals: Array<{
+    id: string;
+    amountPence: number;
+    requestedAt: string;
+    waitingReason: string | null;
+  }>;
+}
+
+export interface StaffReferrals {
+  levels: Array<{ activeReferrals: number; rewardPence: number; label: string }>;
+  minimumActivePercent: number;
+  givenAs: string;
+  referrers: StaffReferrerRow[];
+  ambassadors: StaffAmbassadorRow[];
+}
+
+export function fetchStaffReferrals(key: string, search = ''): Promise<StaffReferrals> {
+  const query = search.trim() === '' ? '' : `?search=${encodeURIComponent(search.trim())}`;
+  return staffRequest(key, `/staff/referrals${query}`);
+}
+
+export interface StaffReferrerDetail {
+  referrer: {
+    name: string;
+    kindWords: string;
+    area: string;
+    joined: number;
+    active: number;
+    percent: string;
+  };
+  people: Array<{
+    name: string;
+    kindWords: string;
+    joinedAt: string;
+    active: boolean;
+    reason: string;
+  }>;
+}
+
+export function fetchStaffReferrer(
+  key: string,
+  kind: string,
+  id: string,
+): Promise<StaffReferrerDetail> {
+  return staffRequest(
+    key,
+    `/staff/referrals/${encodeURIComponent(kind)}/${encodeURIComponent(id)}`,
+  );
+}
+
+export function markReferralRewardGiven(
+  key: string,
+  levelId: string,
+  by: string,
+): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/referrals/levels/${encodeURIComponent(levelId)}/given`, {
+    method: 'POST',
+    body: JSON.stringify({ by }),
+  });
+}
+
+export function markAmbassadorPaid(
+  key: string,
+  kind: string,
+  id: string,
+  by: string,
+): Promise<{ message: string }> {
+  return staffRequest(
+    key,
+    `/staff/ambassadors/${encodeURIComponent(kind)}/${encodeURIComponent(id)}/paid`,
+    { method: 'POST', body: JSON.stringify({ by }) },
+  );
+}
+
+export function decideAmbassadorWithdrawal(
+  key: string,
+  id: string,
+  decision: 'approve' | 'refuse',
+  by: string,
+): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/ambassadors/withdrawals/${encodeURIComponent(id)}/${decision}`, {
+    method: 'POST',
+    body: JSON.stringify({ by }),
+  });
+}
+
+/** Flagged: every withdrawal of theirs waits for a person to approve it. */
+export function flagAmbassador(
+  key: string,
+  kind: string,
+  id: string,
+  flagged: boolean,
+  reason: string,
+): Promise<{ message: string }> {
+  return staffRequest(
+    key,
+    `/staff/ambassadors/${encodeURIComponent(kind)}/${encodeURIComponent(id)}/flag`,
+    { method: 'POST', body: JSON.stringify({ flagged, reason }) },
+  );
 }
 
 /** A staff member's, the owner's, a family member's or an investor's link. */

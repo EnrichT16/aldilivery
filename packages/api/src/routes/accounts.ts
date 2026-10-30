@@ -28,6 +28,7 @@ import {
   inFreeMonth,
 } from '../services/plans.js';
 import { agreementRecord, agreementSchema, hasAgreed } from '../services/runner-agreement.js';
+import { recordReferralFor } from '../services/referrals.js';
 import { MOTOR_MODES, canDrive, documentsNeeded } from './runner-account.js';
 
 /** Checked, and turned into `+44…`, so the same number always finds the same account. */
@@ -86,6 +87,15 @@ const runnerSchema = z.object({
    * link for a driver, "shopper-<handle>" (30 October 2026).
    */
   referredBy: z.string().trim().max(60).optional(),
+  /**
+   * Anybody's referral link they came by (Anthony, 30 October 2026): a Shopper, a shop or an
+   * organisation can bring a Runner too, as kind:code.
+   */
+  joinedVia: z
+    .string()
+    .trim()
+    .regex(/^(partner|organisation|staff|shopper|runner):[A-Za-z0-9_-]{1,40}$/)
+    .optional(),
   stripeConnectedAccountId: z.string().trim().max(120).optional(),
   /** Agreeing to the Runner agreement as they sign up (ruling 55). Or later, before a job. */
   agreement: agreementSchema.optional(),
@@ -160,6 +170,8 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
     });
     if (input.joinedVia) {
       await repository.shoppers.update(shopper.id, { joinedVia: input.joinedVia });
+      // Whoever's link it was, of any kind, is recorded as referring them (30 October 2026).
+      await recordReferralFor(app.ctx, input.joinedVia, 'shopper', shopper.id, request.log);
     }
     // Every area is open (Anthony, 30 October 2026): signing up says nothing about Runners in
     // their area. Any warning comes only as they place an order.
@@ -227,6 +239,18 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       homePostcode: input.homePostcode,
       adultConfirmedAt: now(),
     });
+    // Who referred them (30 October 2026): a Runner's own ID first, as before, or anybody's link.
+    await recordReferralFor(
+      app.ctx,
+      referrer
+        ? referrer.startsWith('shopper:')
+          ? referrer
+          : `runner:${referrer}`
+        : input.joinedVia,
+      'runner',
+      runner.id,
+      request.log,
+    );
     // Its place is looked up in the background: a sign-up never waits for it.
     locateLater(app.ctx, input.homePostcode, request.log);
 

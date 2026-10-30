@@ -15,7 +15,7 @@ import { RUNNER_AGREEMENT_VERSION } from '@aldilivery/core';
 
 import { App } from '../src/App';
 import { agreementSummary } from '../src/components/AgreeByVoice';
-import { ActiveSos, ReferralRewards, RemoveRunner } from '../src/components/StaffRunnerSafety';
+import { ActiveSos, RemoveRunner } from '../src/components/StaffRunnerSafety';
 import { storeConfig } from '../src/config';
 import { directionsLink, isApplePhone } from '../src/lib/runner-api';
 import { setVoiceEngine } from '../src/voice';
@@ -235,7 +235,7 @@ function stubRunner(): void {
             youGetPence: possible ? state.instantAvailable - 50 : 0,
             possible,
             words: possible
-              ? "£42.50 can go to your debit card now. The instant payout fee for that is £0.50, paid by you, so you would get £42.00."
+              ? '£42.50 can go to your debit card now. The instant payout fee for that is £0.50, paid by you, so you would get £42.00.'
               : 'Nothing can be sent instantly just now.',
           },
         });
@@ -243,7 +243,7 @@ function stubRunner(): void {
       if (path === '/runners/me/payouts/instant') {
         state.instantAvailable = 0;
         return reply({
-          message: "£42.00 is on its way to your debit card. The instant payout fee was £0.50.",
+          message: '£42.00 is on its way to your debit card. The instant payout fee was £0.50.',
         });
       }
       if (path === '/runners/me/leave') {
@@ -506,7 +506,7 @@ describe('when money reaches the bank', () => {
     });
   });
 
-  it("shows the instant payout fee before an instant payout, and sends only after a yes", async () => {
+  it('shows the instant payout fee before an instant payout, and sends only after a yes', async () => {
     const user = userEvent.setup({ delay: null });
     state.instantAvailable = 4250;
     stubRunner();
@@ -671,30 +671,6 @@ describe('the admin panel parts', () => {
           });
         }
         if (path === '/staff/sos/sos-1/end') return reply({ message: 'Marked as over.' });
-        if (path === '/staff/referrals') {
-          return reply({
-            rewardPence: 15000,
-            needed: 100,
-            referrers: [
-              {
-                referrer: 'shopper:ngozi',
-                kind: 'shopper',
-                name: 'Ngozi',
-                joined: 104,
-                counted: 100,
-                notYet: 2,
-                excluded: { self: 0, sameCard: 1, sameAddress: 1 },
-                cardsChecked: true,
-                rewardsEarned: 1,
-                rewardsGiven: 0,
-                due: true,
-              },
-            ],
-          });
-        }
-        if (path === '/staff/referrals/reward') {
-          return reply({ message: '£150.00 for Ngozi, added to their account as credit.' });
-        }
         if (path === '/staff/runners/RABCD234/remove') {
           return reply({ message: 'Tomasz has been removed.' });
         }
@@ -722,23 +698,6 @@ describe('the admin panel parts', () => {
     expect(sent.find((r) => r.path === '/staff/sos/sos-1/end')?.body).toEqual({ by: 'Kemi' });
     await waitFor(() => {
       expect(news).toHaveBeenCalledWith('Marked as over.');
-    });
-  });
-
-  it('tracks the private referral reward, and gives it once due', async () => {
-    const user = userEvent.setup({ delay: null });
-    const sent = stubStaff();
-    const news = vi.fn();
-    render(<ReferralRewards staffKey="key" by="Anthony" onNews={news} />);
-    expect(await screen.findByRole('rowheader', { name: 'Ngozi (Shopper)' })).toBeInTheDocument();
-    expect(screen.getByText('0 themselves, 1 same card, 1 same address')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Give the reward to Ngozi' }));
-    expect(sent.find((r) => r.path === '/staff/referrals/reward')?.body).toEqual({
-      referrer: 'shopper:ngozi',
-      by: 'Anthony',
-    });
-    await waitFor(() => {
-      expect(news).toHaveBeenCalledWith('£150.00 for Ngozi, added to their account as credit.');
     });
   });
 

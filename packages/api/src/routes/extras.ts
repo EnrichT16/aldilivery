@@ -611,15 +611,22 @@ export async function registerExtrasRoutes(app: FastifyInstance): Promise<void> 
         people: z.string().trim().max(60).default(''),
         message: z.string().trim().max(1000).default(''),
         termsAgreed: z.boolean().default(false),
+        /** Anybody's referral link they came by, kept until staff set it up (30 October 2026). */
+        joinedVia: z
+          .string()
+          .trim()
+          .regex(/^(partner|organisation|staff|shopper|runner):[A-Za-z0-9_-]{1,40}$/)
+          .optional(),
       })
       .parse(request.body ?? {});
     const shop = body.kind === 'shop';
     if (!shop && !body.termsAgreed) {
       throw new BadRequestError('Please tick to agree to the Organisation terms.');
     }
-    const { termsAgreed, ...details } = body;
+    const { termsAgreed, joinedVia, ...details } = body;
     const enquiry = await repository.organisationEnquiries.create({
       ...details,
+      joinedVia: joinedVia ?? null,
       people: shop ? '' : details.people,
       termsAgreedAt: !shop && termsAgreed ? now() : null,
       termsVersion: !shop && termsAgreed ? ORGANISATION_TERMS_VERSION : null,

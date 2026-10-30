@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
+import { ReferralCard } from '../components/ReferralCard';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { storeConfig } from '../config';
 import {
@@ -361,6 +362,9 @@ export function OrganisationDashboard(): JSX.Element {
           </span>
         </p>
       </section>
+
+      {/* Their own referral link, and Ozi Ambassadors (Anthony, 30 October 2026). */}
+      <ReferralCard as="business" onNews={setNews} />
 
       <section aria-labelledby="people-heading" className="space-y-3">
         <h2 id="people-heading" className="text-lead font-bold m-0">

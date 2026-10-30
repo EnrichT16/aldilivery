@@ -43,6 +43,7 @@ import type {
 import type { AreaSettings } from './areas.js';
 import type { BrowseSettings } from './browse.js';
 import { excludedServiceKind, type PartnerPricing } from './partners.js';
+import type { AmbassadorSettings, ReferralSettings } from './referrals.js';
 
 export type CatalogueSourceMode = 'partner_feed' | 'community';
 
@@ -258,7 +259,7 @@ export interface StoreConfig {
     /** Owed by a Runner who leaves: written off at or below this, asked for above it. */
     readonly writeOffUpToPence: number;
   };
-  /** Runners' safety, pay timing, reminders and the private referral reward (Section M; rulings 12, 14, 16). */
+  /** Runners' safety, pay timing and reminders (Section M; rulings 14, 16). */
   readonly runners: {
     /** How long the private live-location link sent with an SOS keeps working, at most. */
     readonly sosLinkHours: number;
@@ -270,10 +271,15 @@ export interface StoreConfig {
     readonly instantPayoutFeeMinimumPence: number;
     /** Days before motor insurance runs out that a Runner who drives is reminded (ruling 14). */
     readonly insuranceReminderDays: readonly number[];
-    /** The private referral reward (rulings 12 and 16), never announced in the app. */
-    readonly referralRewardPence: number;
-    readonly referralsForReward: number;
   };
+  /**
+   * Referral reward levels for everybody (Anthony, 30 October 2026), which replaced the Runner
+   * reward of £150 at 100 referrals: so many active referrals, with at least
+   * `minimumActiveShare` of everyone who joined active.
+   */
+  readonly referrals: ReferralSettings;
+  /** Ozi Ambassadors, who introduce businesses (Anthony, 30 October 2026). */
+  readonly ambassador: AmbassadorSettings;
   readonly versionOneRestrictions: {
     readonly ageRestrictedGoodsAllowed: boolean;
   };
@@ -788,6 +794,81 @@ function parseBrowse(raw: Unknown, excluded: readonly string[]): BrowseSettings 
     serviceCategories,
     ofstedCategories,
     joinAddress: str(raw['joinAddress'] ?? '/business/join', 'browse.joinAddress'),
+  };
+}
+
+/**
+ * Referral levels (Anthony, 30 October 2026): 20, 30 and 40 active referrals for a £10, £15 and
+ * £20 voucher unless set, smallest first, with at least 70% of everyone who joined active.
+ */
+function parseReferrals(raw: Unknown): ReferralSettings {
+  const given = raw['levels'] ?? [
+    { activeReferrals: 20, rewardPence: 1000, label: '£10 voucher' },
+    { activeReferrals: 30, rewardPence: 1500, label: '£15 voucher' },
+    { activeReferrals: 40, rewardPence: 2000, label: '£20 voucher' },
+  ];
+  if (!Array.isArray(given) || given.length === 0) {
+    throw new StoreConfigError('referrals.levels must be a list of levels.');
+  }
+  const levels = given
+    .map((entry: unknown, index: number) => {
+      const level = object(entry, `referrals.levels[${index}]`);
+      return {
+        activeReferrals: wholeNumber(
+          level['activeReferrals'],
+          `referrals.levels[${index}].activeReferrals`,
+          1,
+        ),
+        rewardPence: wholeNumber(level['rewardPence'], `referrals.levels[${index}].rewardPence`, 1),
+        label: str(level['label'], `referrals.levels[${index}].label`).trim(),
+      };
+    })
+    .sort((a, b) => a.activeReferrals - b.activeReferrals);
+  if (new Set(levels.map((level) => level.activeReferrals)).size !== levels.length) {
+    throw new StoreConfigError('referrals.levels has two levels at the same number of referrals.');
+  }
+  const share = raw['minimumActiveShare'] ?? 0.7;
+  if (typeof share !== 'number' || !(share > 0) || share > 1) {
+    throw new StoreConfigError('referrals.minimumActiveShare must be a share above 0, up to 1.');
+  }
+  return {
+    levels,
+    minimumActiveShare: share,
+    givenAs: str(raw['givenAs'] ?? 'Amazon voucher', 'referrals.givenAs').trim(),
+  };
+}
+
+/** A share from 0 to 1, such as 0.02 for 2%. */
+function share(value: unknown, path: string): number {
+  if (typeof value !== 'number' || !(value >= 0) || value > 1) {
+    throw new StoreConfigError(`${path} must be a share from 0 to 1, such as 0.02 for 2%.`);
+  }
+  return value;
+}
+
+/**
+ * Ozi Ambassadors (Anthony, 30 October 2026, ruled again the same day): 2% of Ozi's profit on each
+ * order for 12 months from approval, a quarter of that on another branch through the same link,
+ * a one-off 5% of the first Partner Plus payment, held for 30 days after delivery before it can
+ * be paid, paid once £10 is available, and a month over £500 checked by the owner first.
+ */
+function parseAmbassador(raw: Unknown): AmbassadorSettings {
+  return {
+    profitShare: share(raw['profitShare'] ?? 0.02, 'ambassador.profitShare'),
+    months: wholeNumber(raw['months'] ?? 12, 'ambassador.months', 1),
+    planShare: share(raw['planShare'] ?? 0.05, 'ambassador.planShare'),
+    branchShareFactor: share(raw['branchShareFactor'] ?? 0.25, 'ambassador.branchShareFactor'),
+    holdDays: wholeNumber(raw['holdDays'] ?? 30, 'ambassador.holdDays', 0),
+    payoutMinimumPence: wholeNumber(
+      raw['payoutMinimumPence'] ?? 1000,
+      'ambassador.payoutMinimumPence',
+      0,
+    ),
+    reviewAbovePence: wholeNumber(
+      raw['reviewAbovePence'] ?? 50000,
+      'ambassador.reviewAbovePence',
+      0,
+    ),
   };
 }
 
@@ -1413,17 +1494,13 @@ export function parseStoreConfig(input: unknown): StoreConfig {
         0,
       ),
       insuranceReminderDays: [...new Set(reminderDays)].sort((a, b) => b - a),
-      referralRewardPence: wholeNumber(
-        runners['referralRewardPence'] ?? 15000,
-        'runners.referralRewardPence',
-        1,
-      ),
-      referralsForReward: wholeNumber(
-        runners['referralsForReward'] ?? 100,
-        'runners.referralsForReward',
-        1,
-      ),
     },
+    referrals: parseReferrals(
+      root['referrals'] === undefined ? {} : object(root['referrals'], 'referrals'),
+    ),
+    ambassador: parseAmbassador(
+      root['ambassador'] === undefined ? {} : object(root['ambassador'], 'ambassador'),
+    ),
     versionOneRestrictions: {
       ageRestrictedGoodsAllowed,
     },
