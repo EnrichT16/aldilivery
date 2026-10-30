@@ -329,8 +329,8 @@
       "topic": "referral",
       "when": ["refer a friend", "how do i invite another runner", "my runner id"],
       "replies": [
-        "Share your Runner ID. Anyone who signs up with it is linked to you.",
-        "Give friends your Runner ID from your Runner page."
+        "Share your referral link from the More tab. Anyone who signs up through it, as a Runner, a Shopper or a shop, is counted for you.",
+        "Your referral link is on the More tab, with a Share button."
       ]
     },
     {
@@ -2114,8 +2114,8 @@
         "do i get anything for inviting people"
       ],
       "replies": [
-        "Everyone who signs up with your link is linked to you. Nothing about rewards has been announced.",
-        "Your link links people to you. There's no announcement about rewards."
+        "Yes: a {referralLevels}. At least {activeShare} of the people you refer need to be active. Your progress is on the More tab.",
+        "Shopping vouchers for active referrals. See the More tab."
       ]
     },
     {
@@ -4349,6 +4349,14 @@
       "when": ["how do i change my bank details", "new bank account", "payout account"],
       "replies": [
         "Say change my bank details and I open the secure page. We never see your full details."
+      ]
+    },
+    {
+      "id": "runner-ambassador",
+      "topic": "share",
+      "when": ["can a runner be an ambassador", "introduce a shop", "ambassador earnings"],
+      "replies": [
+        "Yes. On the More tab, choose Become an {assistant} Ambassador. You earn {ambassadorShare} of our profit on orders from businesses you introduce, for {ambassadorMonths} months, paid once {ambassadorMinimum} is available."
       ]
     }
   ]

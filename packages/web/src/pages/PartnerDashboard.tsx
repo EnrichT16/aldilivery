@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 
 import { BrowseFields, readBrowseFields } from '../components/BrowseFields';
 import { ProductScanner } from '../components/ProductScanner';
+import { ReferralCard } from '../components/ReferralCard';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { storeConfig } from '../config';
 import {
@@ -774,6 +775,9 @@ export function PartnerDashboard(): JSX.Element {
           See my page as Shoppers do
         </Link>
       </section>
+
+      {/* Their own referral link, and Ozi Ambassadors (Anthony, 30 October 2026). */}
+      <ReferralCard as="business" onNews={setNews} />
 
       {!service && (
         <ProductScanner

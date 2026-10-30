@@ -16,6 +16,13 @@ import {
   fetchStaffAreas,
   pauseStaffArea,
   type AreaRow,
+  decideAmbassadorWithdrawal,
+  fetchStaffReferrals,
+  fetchStaffReferrer,
+  flagAmbassador,
+  markAmbassadorPaid,
+  markReferralRewardGiven,
+  type StaffReferrerDetail,
   fetchShopperAccount,
   fetchSignups,
   fetchStaffOrder,
@@ -680,6 +687,308 @@ export function Areas({
           ))}
         </ul>
       )}
+    </section>
+  );
+}
+
+/* ----------------------------------------------------------------------------- referrals */
+
+/**
+ * The Referrals tab (Anthony, 30 October 2026), for the founder and the operations manager:
+ *
+ * - everybody who has referred anybody, the most referrals first, with a search: their kind and
+ *   area, how many joined and how many are active, the share active, the reward level reached,
+ *   and "Mark reward given", which keeps who gave it and when. Opening a person lists each
+ *   person they referred, when they joined, and whether they are active and why;
+ * - the Ozi Ambassadors: their businesses, this month's earnings, what is pending, available and
+ *   paid, and any refunds taken off (ruled 30 October 2026); "Mark paid" pays only what is
+ *   available; withdrawals waiting for approval, to approve or refuse; and a flag that makes
+ *   every withdrawal of theirs wait for a person.
+ */
+export function Referrals({
+  staffKey,
+  by = 'Staff',
+  onNews = () => undefined,
+}: {
+  staffKey: string;
+  /** Whose name goes on a reward given or a payment. */
+  by?: string;
+  onNews?: (news: string) => void;
+}): JSX.Element {
+  const [search, setSearch] = useState('');
+  const [asked, setAsked] = useState('');
+  const list = useLoad(() => fetchStaffReferrals(staffKey, asked));
+  const { reload } = list;
+  useEffect(reload, [asked, reload]);
+  const [open, setOpen] = useState<{ kind: string; id: string } | null>(null);
+  const [detail, setDetail] = useState<StaffReferrerDetail | null>(null);
+  const [problem, setProblem] = useState('');
+  const [busy, setBusy] = useState('');
+  const data = list.data;
+
+  useEffect(() => {
+    if (!open) {
+      setDetail(null);
+      return;
+    }
+    fetchStaffReferrer(staffKey, open.kind, open.id).then(setDetail).catch(fail(setProblem));
+  }, [open, staffKey]);
+
+  function act(key: string, run: () => Promise<{ message: string }>): void {
+    if (busy !== '') return;
+    setBusy(key);
+    setProblem('');
+    run()
+      .then((result) => {
+        onNews(result.message);
+        reload();
+      })
+      .catch(fail(setProblem))
+      .finally(() => setBusy(''));
+  }
+
+  function find(event: FormEvent): void {
+    event.preventDefault();
+    setOpen(null);
+    setAsked(search.trim());
+  }
+
+  return (
+    <section aria-labelledby="referrals-heading" className="space-y-6 max-w-3xl">
+      <h2 id="referrals-heading" className="text-lead font-bold">
+        Referrals
+      </h2>
+      {data && (
+        <p className="m-0 extra">
+          Reward levels:{' '}
+          {data.levels
+            .map((level) => `${level.activeReferrals} active referrals, ${level.label}`)
+            .join('; ')}
+          . A level counts only when at least {data.minimumActivePercent}% of everyone a person
+          referred is active. Rewards are given by hand, as an {data.givenAs}. People never see who
+          they referred, only their own counts.
+        </p>
+      )}
+      <form onSubmit={find} className="space-y-2">
+        <label htmlFor="referrals-search" className="block font-bold">
+          Search by name, kind or area
+        </label>
+        <input
+          id="referrals-search"
+          type="search"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          className={FIELD}
+        />
+        <button type="submit" className="control bg-highlight text-on-accent">
+          Search
+        </button>
+      </form>
+      <Failure text={list.problem} />
+      <Failure text={problem} />
+
+      <section aria-labelledby="referrers-heading" className="space-y-3">
+        <h3 id="referrers-heading" className="text-lead font-bold m-0">
+          Who has referred people
+        </h3>
+        {data && data.referrers.length === 0 && (
+          <p className="m-0">
+            {asked === '' ? 'Nobody has referred anybody yet.' : 'Nobody found.'}
+          </p>
+        )}
+        {data && data.referrers.length > 0 && (
+          <ul className="list-none m-0 p-0 space-y-4">
+            {data.referrers.map((row) => {
+              const opened = open?.kind === row.kind && open.id === row.id;
+              return (
+                <li
+                  key={`${row.kind}:${row.id}`}
+                  className="border-2 border-paper rounded-2xl p-4 space-y-2"
+                >
+                  <h4 className="text-lead font-bold m-0">
+                    {row.name} <span className="font-normal">({row.kindWords})</span>
+                  </h4>
+                  <p className="m-0">
+                    {row.area}. {row.joined} joined, {row.active} active ({row.percent}).{' '}
+                    {row.level
+                      ? `Reached the ${row.level.label} level: ${row.level.given ? 'reward given' : 'reward not given yet'}.`
+                      : 'No reward level reached yet.'}
+                  </p>
+                  {row.levels
+                    .filter((level) => level.givenAt === null)
+                    .map((level) => (
+                      <button
+                        key={level.id}
+                        type="button"
+                        disabled={busy === level.id}
+                        onClick={() =>
+                          act(level.id, () => markReferralRewardGiven(staffKey, level.id, by))
+                        }
+                        aria-label={`Mark reward given: the ${level.label} for ${row.name}`}
+                        className="control bg-highlight text-on-accent disabled:opacity-70"
+                      >
+                        Mark reward given
+                      </button>
+                    ))}
+                  {row.levels
+                    .filter((level) => level.givenAt !== null)
+                    .map((level) => (
+                      <p key={level.id} className="m-0">
+                        The {level.label} was given by {level.givenBy ?? 'staff'},{' '}
+                        {when(level.givenAt!)}.
+                      </p>
+                    ))}
+                  <button
+                    type="button"
+                    aria-expanded={opened}
+                    onClick={() => setOpen(opened ? null : { kind: row.kind, id: row.id })}
+                    className="control border-paper bg-paper/10 text-paper"
+                  >
+                    {opened ? 'Hide' : 'Show'} the people {row.name} referred
+                  </button>
+                  {opened && detail && (
+                    <ul className="m-0 ps-6 space-y-1">
+                      {detail.people.map((person, index) => (
+                        <li key={`${person.name}-${index}`}>
+                          {person.name}, {person.kindWords}, joined {when(person.joinedAt)}:{' '}
+                          {person.active ? 'active' : 'not active'}. {person.reason}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="ambassadors-heading" className="space-y-3">
+        <h3 id="ambassadors-heading" className="text-lead font-bold m-0">
+          Ozi Ambassadors
+        </h3>
+        <p className="m-0 extra">
+          Earnings stay pending until the refund window after each delivery has passed. Only what is
+          available can be paid, and a refund after that is taken off what becomes available next.
+        </p>
+        {data && data.ambassadors.length === 0 && (
+          <p className="m-0">No Ambassador has introduced a business yet.</p>
+        )}
+        {data && data.ambassadors.length > 0 && (
+          <ul className="list-none m-0 p-0 space-y-4">
+            {data.ambassadors.map((row) => {
+              const key = `${row.kind}:${row.id}`;
+              return (
+                <li key={key} className="border-2 border-paper rounded-2xl p-4 space-y-2">
+                  <h4 className="text-lead font-bold m-0">
+                    {row.name} <span className="font-normal">({row.kindWords})</span>
+                  </h4>
+                  {row.flagged && (
+                    <p className="m-0 font-bold">
+                      Flagged{row.flagReason ? `: ${row.flagReason}` : ''}. Every withdrawal waits
+                      for a person.
+                    </p>
+                  )}
+                  <ul className="m-0 ps-6">
+                    {row.businesses.map((business) => (
+                      <li key={business.id}>
+                        {business.name}, {business.approved ? 'approved' : 'not approved yet'}
+                        {business.branch ? ', another branch' : ''}: {money(business.earnedPence)}{' '}
+                        earned
+                      </li>
+                    ))}
+                  </ul>
+                  <ul className="m-0 ps-6">
+                    <li>This month: {money(row.earnedThisMonthPence)}</li>
+                    <li>Pending: {money(row.pendingPence)}</li>
+                    <li>Available: {money(row.availablePence)}</li>
+                    <li>Paid: {money(row.paidPence)}</li>
+                    <li>Refunds taken off: {money(row.deductionsPence)}</li>
+                    {row.shortfallPence > 0 && (
+                      <li>Still to take off their next earnings: {money(row.shortfallPence)}</li>
+                    )}
+                  </ul>
+                  {row.deductions.map((line, index) => (
+                    <p key={`${line.at}-${index}`} className="m-0">
+                      {when(line.at)}: {line.words}
+                    </p>
+                  ))}
+                  {row.waitingWithdrawals.map((withdrawal) => (
+                    <div key={withdrawal.id} className="space-y-2">
+                      <p className="m-0 font-bold">
+                        Asked to withdraw {money(withdrawal.amountPence)},{' '}
+                        {when(withdrawal.requestedAt)}. {withdrawal.waitingReason ?? ''}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={busy !== ''}
+                          onClick={() =>
+                            act(withdrawal.id, () =>
+                              decideAmbassadorWithdrawal(staffKey, withdrawal.id, 'approve', by),
+                            )
+                          }
+                          className="control bg-highlight text-on-accent disabled:opacity-70"
+                        >
+                          Approve and send
+                          <span className="visually-hidden"> {row.name}&rsquo;s withdrawal</span>
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy !== ''}
+                          onClick={() =>
+                            act(withdrawal.id, () =>
+                              decideAmbassadorWithdrawal(staffKey, withdrawal.id, 'refuse', by),
+                            )
+                          }
+                          className="control border-paper bg-paper/10 text-paper disabled:opacity-70"
+                        >
+                          Refuse
+                          <span className="visually-hidden"> {row.name}&rsquo;s withdrawal</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex flex-wrap gap-2">
+                    {row.payable && (
+                      <button
+                        type="button"
+                        disabled={busy !== ''}
+                        onClick={() =>
+                          act(key, () => markAmbassadorPaid(staffKey, row.kind, row.id, by))
+                        }
+                        className="control bg-highlight text-on-accent disabled:opacity-70"
+                      >
+                        Mark paid {money(row.availablePence)}
+                        <span className="visually-hidden"> to {row.name}</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={busy !== ''}
+                      onClick={() =>
+                        act(`${key}:flag`, () =>
+                          flagAmbassador(
+                            staffKey,
+                            row.kind,
+                            row.id,
+                            !row.flagged,
+                            row.flagged ? '' : `Flagged by ${by}`,
+                          ),
+                        )
+                      }
+                      className="control border-paper bg-paper/10 text-paper disabled:opacity-70"
+                    >
+                      {row.flagged ? 'Take the flag off' : 'Flag'}
+                      <span className="visually-hidden"> {row.name}</span>
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
     </section>
   );
 }

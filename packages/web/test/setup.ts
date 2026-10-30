@@ -93,6 +93,77 @@ export interface RecordedRequest {
   body: unknown;
 }
 
+/**
+ * What `/referrals/me` answers (30 October 2026): a referral link with 2 joined and 1 active,
+ * not yet an Ambassador. Pass changes to see the other states.
+ */
+export function fakeReferrals(
+  link: string,
+  changes: {
+    referrals?: Record<string, unknown>;
+    ambassador?: Record<string, unknown>;
+  } = {},
+) {
+  return {
+    referrals: {
+      link,
+      joined: 2,
+      active: 1,
+      progress: '1 of 20 active referrals for your £10 voucher.',
+      minimumActivePercent: 70,
+      levels: [
+        {
+          activeReferrals: 20,
+          rewardPence: 1000,
+          label: '£10 voucher',
+          reached: false,
+          given: false,
+        },
+        {
+          activeReferrals: 30,
+          rewardPence: 1500,
+          label: '£15 voucher',
+          reached: false,
+          given: false,
+        },
+        {
+          activeReferrals: 40,
+          rewardPence: 2000,
+          label: '£20 voucher',
+          reached: false,
+          given: false,
+        },
+      ],
+      earned: [],
+      news: '',
+      ...changes.referrals,
+    },
+    ambassador: {
+      joined: false,
+      agreedAt: null,
+      termsVersion: '2026-10-30',
+      link: null,
+      termsPath: '/ambassador/terms',
+      profitShareWords: '2%',
+      branchShareWords: '0.5%',
+      planShareWords: '5%',
+      months: 12,
+      holdDays: 30,
+      payoutMinimumWords: '£10',
+      businesses: [],
+      earnedPence: 0,
+      pendingPence: 0,
+      availablePence: 0,
+      paidPence: 0,
+      deductions: [],
+      canWithdraw: false,
+      bankReady: false,
+      withdrawals: [],
+      ...changes.ambassador,
+    },
+  };
+}
+
 export interface ApiStubOptions {
   /** Present means signed in: a token is stored and `/me` answers with this Shopper. */
   shopper?:
@@ -190,6 +261,10 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
 
       if (path === '/share') {
         return reply({ link: 'https://example.test/join?via=shopper-margaret', joined: 2 });
+      }
+      // Referral links and Ozi Ambassadors (30 October 2026).
+      if (path === '/referrals/me') {
+        return reply(fakeReferrals('https://example.test/join?via=shopper-margaret'));
       }
 
       // Ozi's everyday replies live on the server (ruling 44); a few stand in for them here.

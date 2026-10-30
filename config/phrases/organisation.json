@@ -250,8 +250,8 @@
       "topic": "share",
       "when": ["how many have joined", "our meter", "referrals"],
       "replies": [
-        "The meter shows people linked or joined through your link, towards 100.",
-        "Look at the meter under your link."
+        "Your referral section shows how many joined through your link and how many are active.",
+        "Look under Your referral link on your dashboard."
       ]
     },
     {
@@ -1907,8 +1907,8 @@
       "topic": "share",
       "when": ["what is the meter", "what does the meter mean"],
       "replies": [
-        "It counts the people who linked or joined through your link, towards 100.",
-        "People linked or joined through your link."
+        "It counts the people who joined through your link, and how many are active, towards a {firstReward} voucher at {firstLevel} active referrals.",
+        "People who joined through your link, and how many are active."
       ]
     },
     {
@@ -1916,8 +1916,8 @@
       "topic": "share",
       "when": ["what happens at 100", "when we reach 100"],
       "replies": [
-        "The meter fills at 100. Our partnerships team would love to hear how you got there.",
-        "It is full at 100. Well done if you get there."
+        "Referral rewards are shopping vouchers: a {referralLevels}, when at least {activeShare} of the people you refer are active.",
+        "Shopping vouchers for active referrals."
       ]
     },
     {
@@ -1979,8 +1979,8 @@
       "topic": "share",
       "when": ["do we get a reward", "referral bonus", "do we earn anything"],
       "replies": [
-        "The meter shows how many joined through you. There is no payment for it.",
-        "No payment, just the count on your meter."
+        "Yes: a {referralLevels}, when at least {activeShare} of the people you refer are active. We send it by hand.",
+        "Shopping vouchers for active referrals."
       ]
     },
     {

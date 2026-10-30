@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 
 import { Layout } from './components/Layout';
+import { ReferralNews } from './components/ReferralCard';
 import { WeeklyReminder } from './components/WeeklyReminder';
+import { rememberLinkFrom } from './lib/referral';
 import { applyBrandToDocument, storeConfig } from './config';
 import { Addresses } from './pages/Addresses';
 import { Basket } from './pages/Basket';
@@ -22,6 +24,7 @@ import { Landing } from './pages/Landing';
 import { LookingAfter } from './pages/LookingAfter';
 import { MyOrder } from './pages/MyOrder';
 import { About } from './pages/About';
+import { AmbassadorTerms } from './pages/AmbassadorTerms';
 import { Orders } from './pages/Orders';
 import { PayByBank } from './pages/PayByBank';
 import { OrganisationDashboard } from './pages/OrganisationDashboard';
@@ -94,6 +97,19 @@ function RouteAnnouncer(): JSX.Element {
  * the product name. Some pages change their heading once they know who is signed in, so this
  * watches for that rather than reading it once.
  */
+/**
+ * A referral link on any page (Anthony, 30 October 2026): `?via=`, `?ref=` or `?ambassador=` is
+ * kept on the device until sign-up completes, so a Shopper's link to /runner/sign-up, or an
+ * Ambassador's to /business/join, is counted whichever page it lands on.
+ */
+function KeepReferralLink(): null {
+  const location = useLocation();
+  useEffect(() => {
+    if (location.search !== '') rememberLinkFrom(new URLSearchParams(location.search));
+  }, [location.search]);
+  return null;
+}
+
 function PageTitle(): null {
   const location = useLocation();
 
@@ -130,7 +146,9 @@ export function App(): JSX.Element {
           <OziProvider>
             <Layout>
               <RouteAnnouncer />
+              <KeepReferralLink />
               <WeeklyReminder />
+              <ReferralNews />
               <PageTitle />
               <Routes>
                 <Route path="/" element={<Landing />} />
@@ -192,6 +210,7 @@ export function App(): JSX.Element {
                 <Route path="/organisation" element={<OrganisationDashboard />} />
                 <Route path="/partner/terms" element={<PartnerTerms />} />
                 <Route path="/organisation/terms" element={<OrganisationTerms />} />
+                <Route path="/ambassador/terms" element={<AmbassadorTerms />} />
                 <Route path="/shops" element={<Shops />} />
                 <Route path="/restaurants" element={<BrowsePage section="restaurants" />} />
                 <Route path="/convenience" element={<BrowsePage section="convenience" />} />

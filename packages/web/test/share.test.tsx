@@ -22,9 +22,12 @@ describe('share links', () => {
   it('shows a signed-in Shopper their link and how many joined with it', async () => {
     stubApi({ shopper: FAKE_SHOPPER });
     renderAt('/settings');
-    expect(await screen.findByRole('heading', { name: 'Your share link' })).toBeInTheDocument();
+    // Since 30 October 2026 the Shopper's share link is their referral link, in the same format.
+    expect(await screen.findByRole('heading', { name: 'Your referral link' })).toBeInTheDocument();
     expect(screen.getByText('https://example.test/join?via=shopper-margaret')).toBeInTheDocument();
-    expect(screen.getByText('2 people have joined with your link.')).toBeInTheDocument();
+    expect(
+      screen.getByText('2 people have joined through your link, and 1 is active.'),
+    ).toBeInTheDocument();
   });
 
   it('remembers a staff member’s link for the sign-up form', () => {

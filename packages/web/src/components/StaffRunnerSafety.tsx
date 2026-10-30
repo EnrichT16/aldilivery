@@ -4,12 +4,9 @@ import { money } from '../lib/money';
 import {
   decideRunnerDeposit,
   endStaffSos,
-  fetchReferrals,
   fetchStaffSos,
   fetchWaitingDeposits,
-  giveReferralReward,
   removeRunner,
-  type ReferrerTally,
   type StaffSos,
   type WaitingDeposit,
 } from '../lib/runner-api';
@@ -21,7 +18,9 @@ import {
  * - ActiveSos, in Problems: every SOS still on, with where the Runner is and their own number.
  * - RemoveRunner, in Documents: ending a Runner's work with us, with the reason.
  * - WaitingDeposits, in Money owed: a cool bag deposit that waits for a written decision.
- * - ReferralRewards, in Money, the owner's alone: the private referral reward. Not announced.
+ *
+ * The private referral reward panel that was here went on 30 October 2026, when reward levels for
+ * everybody replaced it: see the Referrals page (Referrals in pages/StaffAdmin.tsx).
  */
 
 interface PanelProps {
@@ -294,87 +293,6 @@ export function WaitingDeposits({ staffKey, by, onNews }: PanelProps): JSX.Eleme
           </button>
         </form>
       ))}
-    </section>
-  );
-}
-
-export function ReferralRewards({ staffKey, by, onNews }: PanelProps): JSX.Element {
-  const load = useCallback(() => fetchReferrals(staffKey), [staffKey]);
-  const list = useLoad(load);
-  const [problem, setProblem] = useState('');
-  const data = list.data;
-  const rows: ReferrerTally[] = data?.referrers ?? [];
-  return (
-    <section aria-labelledby="referral-heading" className="space-y-3 max-w-3xl">
-      <h2 id="referral-heading" className="text-lead font-bold">
-        Referral reward (private)
-      </h2>
-      {data && (
-        <p className="m-0">
-          {money(data.rewardPence)} when someone has referred {data.needed} people who each paid for
-          an order that was not refunded. Not announced in the app. People who referred themselves,
-          or share a card or an address, are not counted.
-        </p>
-      )}
-      <Problem text={list.problem || problem} />
-      {data && rows.length === 0 && <p className="m-0">Nobody has referred anybody yet.</p>}
-      {rows.length > 0 && (
-        <table className="w-full border-collapse">
-          <caption className="text-left font-bold py-2">Who has referred people</caption>
-          <thead>
-            <tr>
-              {['Who', 'Joined', 'Counted', 'Not counted', 'Reward'].map((cell) => (
-                <th key={cell} scope="col" className="text-left border-b-2 border-paper p-2">
-                  {cell}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.referrer}>
-                <th scope="row" className="text-left font-normal border-b border-paper/40 p-2">
-                  {row.name} ({row.kind === 'runner' ? 'Runner' : 'Shopper'})
-                </th>
-                <td className="border-b border-paper/40 p-2">{row.joined}</td>
-                <td className="border-b border-paper/40 p-2">
-                  {row.counted}
-                  {row.notYet > 0 ? `, ${row.notYet} not paid yet` : ''}
-                </td>
-                <td className="border-b border-paper/40 p-2">
-                  {row.excluded.self} themselves, {row.excluded.sameCard} same card,{' '}
-                  {row.excluded.sameAddress} same address
-                </td>
-                <td className="border-b border-paper/40 p-2">
-                  {row.due ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setProblem('');
-                        giveReferralReward(staffKey, row.referrer, by)
-                          .then((result) => {
-                            onNews(result.message);
-                            list.reload();
-                          })
-                          .catch((failure: unknown) =>
-                            setProblem(
-                              failure instanceof Error ? failure.message : 'That did not work.',
-                            ),
-                          );
-                      }}
-                      className="control bg-highlight text-on-accent"
-                    >
-                      Give the reward<span className="visually-hidden"> to {row.name}</span>
-                    </button>
-                  ) : (
-                    `${row.rewardsGiven} given`
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
     </section>
   );
 }

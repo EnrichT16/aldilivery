@@ -43,6 +43,7 @@ import { AgreeByVoice } from '../components/AgreeByVoice';
 import { CallControls } from '../components/CallControls';
 import { DocumentsChecklist } from '../components/DocumentsChecklist';
 import { JobNavigation } from '../components/JobNavigation';
+import { ReferralCard } from '../components/ReferralCard';
 import { WrongAppWarning } from '../components/GetTheApp';
 import {
   DOCUMENT_CHECK_WORDS,
@@ -1317,20 +1318,6 @@ function More({
   const [sending, setSending] = useState(false);
   const [feedbackProblem, setFeedbackProblem] = useState('');
 
-  async function share(link: string): Promise<void> {
-    const text = `Deliver with ${storeConfig.productName}: ${link}`;
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: storeConfig.productName, text, url: link });
-        return;
-      }
-      await navigator.clipboard.writeText(link);
-      onNews('Your link is copied. You can paste it into a message.');
-    } catch {
-      // They closed the share sheet: nothing to say.
-    }
-  }
-
   return (
     <div className="space-y-8 max-w-xl">
       {/* Another app called Ozi is in the app stores; ours is not yet (Anthony, 30 October 2026). */}
@@ -1338,24 +1325,17 @@ function More({
       {dashboard && (
         <section aria-labelledby="id-heading" className="space-y-3">
           <h2 id="id-heading" className="text-lead font-bold">
-            Your ID and your link
+            Your Runner ID
           </h2>
           <p className="m-0">
             Your Runner ID is{' '}
             <span className="font-bold">{dashboard.runnerId.split('').join(' ')}</span>.
           </p>
-          <p className="m-0 break-all">{dashboard.shareLink}</p>
-          <button
-            type="button"
-            onClick={() => {
-              void share(dashboard.shareLink);
-            }}
-            className="control bg-highlight text-on-accent"
-          >
-            Share my link
-          </button>
         </section>
       )}
+
+      {/* Their referral link, which brings anybody, and Ozi Ambassadors (30 October 2026). */}
+      <ReferralCard as="runner" onNews={onNews} />
 
       <section aria-labelledby="documents-heading" className="space-y-3">
         <h2 id="documents-heading" className="text-lead font-bold">

@@ -63,6 +63,8 @@ export interface StaffLists {
   messages?: never[];
   /** Areas (30 October 2026): a screen of figures, not a list Ozi reads here. */
   areas?: never[];
+  /** Referrals and Ambassadors (30 October 2026): a screen of figures, not a list Ozi reads. */
+  referrals?: never[];
 }
 
 /** Parts that are figures or screens rather than things waiting for somebody. */
@@ -78,6 +80,7 @@ const NOT_WAITING: readonly StaffArea[] = [
   'audit',
   'messages',
   'areas',
+  'referrals',
 ];
 
 /** What each part is called aloud, as one and as many. */
@@ -118,6 +121,11 @@ export const AREA_WORDS: Record<StaffArea, { one: string; many: string; tab: str
   audit: { one: 'audit entry', many: 'audit entries', tab: 'Audit log' },
   messages: { one: 'message', many: 'messages', tab: 'Messages' },
   areas: { one: 'area', many: 'areas', tab: 'Areas' },
+  referrals: {
+    one: 'person who referred others',
+    many: 'people who referred others',
+    tab: 'Referrals',
+  },
 };
 
 /** The items of one part that are still waiting for somebody. */
@@ -232,6 +240,7 @@ function firstNoun(areas: readonly StaffArea[], lists: StaffLists): string {
     audit: 'audit log',
     messages: 'messages',
     areas: 'areas',
+    referrals: 'referrals',
   }[area];
 }
 
@@ -342,6 +351,7 @@ export function readItem(area: StaffArea, item: unknown, position: string): stri
     case 'audit':
     case 'messages':
     case 'areas':
+    case 'referrals':
       return '';
     case 'team': {
       const row = item as TeamMember;

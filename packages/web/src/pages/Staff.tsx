@@ -98,14 +98,10 @@ import { ShareCard } from '../components/ShareCard';
 import { StaffVoice } from '../components/StaffVoice';
 import { OziCall } from '../components/OziCall';
 import { OziCallSettings } from '../components/OziCallSettings';
-import {
-  ActiveSos,
-  ReferralRewards,
-  RemoveRunner,
-  WaitingDeposits,
-} from '../components/StaffRunnerSafety';
+import { ActiveSos, RemoveRunner, WaitingDeposits } from '../components/StaffRunnerSafety';
 import {
   Areas,
+  Referrals,
   AuditLog,
   Orders,
   Reports,
@@ -170,6 +166,7 @@ export const TABS: Array<{ key: TabKey; label: string; group: TabGroup }> = [
   { key: 'partners', label: 'Shops and organisations', group: 'people' },
   { key: 'enquiries', label: 'Enquiries', group: 'people' },
   { key: 'feedback', label: 'Feedback', group: 'people' },
+  { key: 'referrals', label: 'Referrals', group: 'people' },
   { key: 'accounts', label: 'Shopper accounts', group: 'people' },
   { key: 'audit', label: 'Audit log', group: 'settings' },
   { key: 'twostep', label: 'Two-step codes', group: 'settings' },
@@ -448,7 +445,6 @@ export function Staff(): JSX.Element {
               <LockedOut staffKey={key} owner={me.isOwner === true} onNews={setNews} />
             )}
             {shown === 'money' && <Money staffKey={key} />}
-            {shown === 'money' && <ReferralRewards staffKey={key} by={by} onNews={setNews} />}
             {shown === 'orders' && (
               <Orders
                 staffKey={key}
@@ -459,6 +455,7 @@ export function Staff(): JSX.Element {
             )}
             {shown === 'runners' && <RunnersNow staffKey={key} />}
             {shown === 'areas' && <Areas staffKey={key} by={by} onNews={setNews} />}
+            {shown === 'referrals' && <Referrals staffKey={key} by={by} onNews={setNews} />}
             {shown === 'reports' && <Reports staffKey={key} />}
             {shown === 'accounts' && <ShopperAccounts staffKey={key} />}
             {shown === 'messages' && <StaffMessages staffKey={key} onNews={setNews} />}
@@ -2554,6 +2551,43 @@ function Partners({
                   : 'none yet'}
                 .
               </p>
+              {/* Each branch is its own venture (Anthony, 30 October 2026): marked here when
+                  approving or editing, for the Ozi Ambassador's share on another branch. */}
+              {shop.status !== 'removed' && (
+                <div className="space-y-1">
+                  <label htmlFor={`branch-of-${shop.id}`} className="block font-bold">
+                    {shop.name} is a branch of
+                  </label>
+                  <select
+                    id={`branch-of-${shop.id}`}
+                    value={shop.branchOfShopId ?? ''}
+                    onChange={(event) => {
+                      const main = event.target.value === '' ? null : event.target.value;
+                      void setStaffPartnerState(staffKey, shop.id, { branchOfShopId: main })
+                        .then(() => {
+                          const other = list.data?.shops.find((one) => one.id === main);
+                          onNews(
+                            other
+                              ? `${shop.name} is marked a branch of ${other.name}.`
+                              : `${shop.name} is not marked a branch of anything.`,
+                          );
+                          list.reload();
+                        })
+                        .catch(fail);
+                    }}
+                    className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
+                  >
+                    <option value="">No other listing: its own business</option>
+                    {list.data?.shops
+                      .filter((other) => other.id !== shop.id && other.status !== 'removed')
+                      .map((other) => (
+                        <option key={other.id} value={other.id}>
+                          {other.name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+              )}
               <div className="flex flex-wrap gap-2">
                 {shop.status === 'pending' && (
                   <button

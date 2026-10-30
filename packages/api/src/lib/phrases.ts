@@ -24,6 +24,8 @@ import {
   normalisePhrase,
   phraseFingerprint,
   phraseWithoutName,
+  rewardWords,
+  shareWords,
   type PhraseNames,
   type StoreConfig,
 } from '@aldilivery/core';
@@ -115,6 +117,19 @@ export const BLANKS = [
   'pointsForPound',
   'pointsPendingDays',
   'reviewMinimum',
+  // Referral reward levels and Ozi Ambassadors (Anthony, 30 October 2026), from `referrals` and
+  // `ambassador` in the settings: "£10 voucher at 20 active referrals, ...", the first level's
+  // reward and count, the share of people who must be active, and the Ambassador rates.
+  'referralLevels',
+  'firstReward',
+  'firstLevel',
+  'activeShare',
+  'ambassadorShare',
+  'ambassadorBranch',
+  'ambassadorPlan',
+  'ambassadorMonths',
+  'ambassadorHold',
+  'ambassadorMinimum',
   'owner',
   // Filled from what is listed right now, by the route that answers (ruling 65): the shops on
   // the service, the kind of shop somebody asked for, and the shops of that kind.
@@ -304,6 +319,29 @@ export function fillIn(
     pointsForPound: String(Math.round(100 / config.feedback.reviews.pencePerPoint)),
     pointsPendingDays: `${config.feedback.reviews.pendingDays} days`,
     reviewMinimum: String(config.feedback.reviews.shopOfTheMonthMinimumReviews),
+    referralLevels: config.referrals.levels
+      .map(
+        (level) =>
+          `${rewardWords(level.rewardPence, config.store.currencySymbol)} voucher at ${level.activeReferrals} active referrals`,
+      )
+      .join(', '),
+    firstReward: rewardWords(
+      config.referrals.levels[0]?.rewardPence ?? 0,
+      config.store.currencySymbol,
+    ),
+    firstLevel: String(config.referrals.levels[0]?.activeReferrals ?? 0),
+    activeShare: `${Math.round(config.referrals.minimumActiveShare * 100)}%`,
+    ambassadorShare: shareWords(config.ambassador.profitShare),
+    ambassadorBranch: shareWords(
+      config.ambassador.profitShare * config.ambassador.branchShareFactor,
+    ),
+    ambassadorPlan: shareWords(config.ambassador.planShare),
+    ambassadorMonths: String(config.ambassador.months),
+    ambassadorHold: `${config.ambassador.holdDays} days`,
+    ambassadorMinimum: rewardWords(
+      config.ambassador.payoutMinimumPence,
+      config.store.currencySymbol,
+    ),
     owner: ownerAddress,
     shopsOnOzi: live.shopsOnOzi ?? 'The Local shops page lists every shop on here.',
     shopKind: live.shopKind ?? 'shop',

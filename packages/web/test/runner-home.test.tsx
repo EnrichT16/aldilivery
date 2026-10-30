@@ -19,6 +19,7 @@ import { storeConfig } from '../src/config';
 import { penceFrom, placeInLine } from '../src/pages/RunnerHome';
 import { setVoiceEngine } from '../src/voice';
 import { fakeEngine } from './fake-voice';
+import { fakeReferrals } from './setup';
 
 interface State {
   approved: boolean;
@@ -72,6 +73,9 @@ function stubRunnerApi(): void {
         return reply({ error: { message: 'You need to sign in again before doing that.' } }, 401);
       }
 
+      if (path === '/referrals/me') {
+        return reply(fakeReferrals('https://ozidelivery.co.uk/join?ref=RABCD234'));
+      }
       if (path === '/me') {
         return reply({
           role: 'runner',
@@ -869,7 +873,9 @@ describe('the Runner page tabs', () => {
     renderHome();
     await user.click(await screen.findByRole('button', { name: 'More' }));
     expect(screen.getByText('R A B C D 2 3 4')).toBeInTheDocument();
-    expect(screen.getByText('https://ozidelivery.co.uk/join?ref=RABCD234')).toBeInTheDocument();
+    expect(
+      await screen.findByText('https://ozidelivery.co.uk/join?ref=RABCD234'),
+    ).toBeInTheDocument();
 
     await user.type(
       screen.getByLabelText('What would you like to tell us?'),

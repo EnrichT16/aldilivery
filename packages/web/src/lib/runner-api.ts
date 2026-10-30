@@ -143,37 +143,6 @@ export function endStaffSos(key: string, id: string, by: string): Promise<{ mess
   });
 }
 
-export interface ReferrerTally {
-  referrer: string;
-  kind: 'shopper' | 'runner';
-  name: string;
-  joined: number;
-  counted: number;
-  notYet: number;
-  excluded: { self: number; sameCard: number; sameAddress: number };
-  cardsChecked: boolean;
-  rewardsEarned: number;
-  rewardsGiven: number;
-  due: boolean;
-}
-
-export function fetchReferrals(
-  key: string,
-): Promise<{ rewardPence: number; needed: number; referrers: ReferrerTally[] }> {
-  return staffRequest(key, '/staff/referrals');
-}
-
-export function giveReferralReward(
-  key: string,
-  referrer: string,
-  by: string,
-): Promise<{ message: string }> {
-  return staffRequest(key, '/staff/referrals/reward', {
-    method: 'POST',
-    body: JSON.stringify({ referrer, by }),
-  });
-}
-
 export function removeRunner(
   key: string,
   runner: string,
