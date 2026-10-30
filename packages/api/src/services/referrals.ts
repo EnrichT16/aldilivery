@@ -258,6 +258,39 @@ export function samePerson(
   return one.emails.some((email) => other.emails.includes(email));
 }
 
+/**
+ * "Did someone introduce you? Their code (optional)" (Anthony, 30 October 2026): the code a
+ * person typed at sign-up, as the kind:code a link carries, or null when it is nobody's. Takes a
+ * link's own code ("shopper-margaret"), a Runner ID ("R4K7Q2AB"), a Shopper's name in their link
+ * ("margaret"), an organisation's join code, or a shop's id, and even a whole link pasted in.
+ */
+export async function viaFromCode(
+  ctx: ReferralContext,
+  typed: string | null | undefined,
+): Promise<string | null> {
+  let code = (typed ?? '').trim();
+  if (code === '') return null;
+  // A whole link pasted in: its ref, via or ambassador.
+  const inLink = /[?&](?:ref|via|ambassador)=([A-Za-z0-9_:-]{1,60})/.exec(code);
+  if (inLink) code = inLink[1] ?? code;
+  const kinded = /^(shopper|runner|partner|organisation)[:-]([A-Za-z0-9_-]{1,40})$/i.exec(code);
+  if (kinded) {
+    const via = `${(kinded[1] ?? '').toLowerCase()}:${kinded[2] ?? ''}`;
+    return (await resolveVia(ctx, via)) ? via : null;
+  }
+  if (!/^[A-Za-z0-9_-]{1,40}$/.test(code)) return null;
+  const { repository } = ctx;
+  const runner = await repository.runners.findByReferralCode(code.toUpperCase());
+  if (runner) return `runner:${runner.referralCode}`;
+  const shopper = await repository.shoppers.findByHandle(code.toLowerCase());
+  if (shopper && !shopper.erasedAt) return `shopper:${shopper.handle}`;
+  const organisation = await repository.organisations.findByJoinCode(code.toUpperCase());
+  if (organisation) return `organisation:${organisation.joinCode ?? organisation.id}`;
+  const shop = await repository.partnerShops.findById(code);
+  if (shop) return `partner:${shop.id}`;
+  return null;
+}
+
 /* ------------------------------------------------------------------ links */
 
 /** The kind:code a person's own link carries. */

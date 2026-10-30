@@ -1,9 +1,11 @@
 /**
  * Ozi Ambassadors (Anthony, 30 October 2026; rules changed the same day). Anybody, a Shopper, a
- * Runner, a shop partner or an organisation, can choose to become an Ozi Ambassador: they press
- * "Become an Ozi Ambassador" and agree to the Ambassador terms at /ambassador/terms, and the
- * moment and the version are kept (`becomeAmbassador`). Only then do they have an Ambassador
- * link. It lands on `/business/join` and ties the new shop partner to them (`ambassadorKind` and
+ * Runner, a shop partner or an organisation, can apply to become an Ozi Ambassador: they agree to
+ * the Ambassador terms at /ambassador/terms, and the moment and the version are kept
+ * (`becomeAmbassador`); then they send their documents and have a short chat with the founder,
+ * and a person approves them (services/ambassador-applications.ts, the same day). Only an
+ * approved Ambassador has an Ambassador link, the Toolkit and withdrawals; those who opted in
+ * before applications began keep their link and earnings, as "documents needed". It lands on `/business/join` and ties the new shop partner to them (`ambassadorKind` and
  * `ambassadorId` on the shop). A shop owner cannot be the Ambassador of their own shop: the tie
  * is refused when the shop's phone or email is the Ambassador's. There is no limit on how many
  * businesses an Ambassador introduces.
@@ -56,6 +58,8 @@ import type { FastifyBaseLogger } from 'fastify';
 
 import {
   AMBASSADOR_TERMS_VERSION,
+  ambassadorApproved,
+  ambassadorLinkWorks,
   TERMS_CHANGED_WORDS,
   termsChanged,
   ambassadorAvailableAt,
@@ -126,6 +130,10 @@ export async function ambassadorAgreement(
  * the moment and the version are kept. Agreeing again to the same version changes nothing; an
  * Ambassador who agreed to an older version and agrees to the new one has the new version and
  * the moment kept (30 October 2026).
+ *
+ * Since applications began (Anthony, 30 October 2026) agreeing is the first step of applying: a
+ * new agreement is "applied", and nothing more until the documents, the chat and a person's
+ * "Approve". Agreeing again never changes how far an application has got.
  */
 export async function becomeAmbassador(
   ctx: Pick<AppContext, 'repository' | 'now'>,
@@ -171,7 +179,10 @@ export async function tieAmbassador(
   if (!via) return { tied: false, words: '' };
   const ambassador = await resolveVia(ctx, via);
   if (!ambassador || ambassador.closed) return { tied: false, words: '' };
-  if (!(await ambassadorAgreement(ctx, ambassador.kind, ambassador.id))) {
+  // Only an approved Ambassador's link ties a business, or a grandfathered one's, which keeps
+  // working as before (Anthony, 30 October 2026).
+  const agreement = await ambassadorAgreement(ctx, ambassador.kind, ambassador.id);
+  if (!agreement || !ambassadorLinkWorks(agreement.status)) {
     return { tied: false, words: '' };
   }
   if (ownBusiness(ambassador, shop)) {
@@ -701,6 +712,13 @@ export async function markAmbassadorPaid(
 ): Promise<{ message: string; amountPence: number }> {
   const account = await findAccount(ctx, kind, id);
   if (!account) throw new NotFoundError('Ambassador');
+  // Paid only once approved, as a withdrawal is (Anthony, 30 October 2026).
+  const agreement = await ambassadorAgreement(ctx, kind, id);
+  if (agreement && !ambassadorApproved(agreement.status)) {
+    throw new ConflictError(
+      `${account.name} is not an approved Ambassador yet, so nothing can be paid. Their earnings keep adding up.`,
+    );
+  }
   const summary = await ambassadorSummary(ctx, kind, id);
   if (!summary.payable) {
     throw new ConflictError(
@@ -741,6 +759,20 @@ async function agreed(
     throw new ConflictError('Please become an Ozi Ambassador first, agreeing to the terms.');
   }
   return agreement;
+}
+
+/** Why a withdrawal, or the Toolkit, waits: in plain words for each status. */
+export function notApprovedWords(status: AmbassadorAgreement['status']): string {
+  switch (status) {
+    case 'suspended':
+      return 'Your Ambassador account is suspended, so withdrawals wait. Please contact us.';
+    case 'declined':
+      return 'Your Ambassador application was not approved, so there is nothing to withdraw.';
+    case 'documents_needed':
+      return 'Your earnings keep adding up. To withdraw them, please send your documents and have a short chat with us first.';
+    default:
+      return 'You can withdraw once your Ambassador application is approved.';
+  }
 }
 
 /** Their own Stripe account for withdrawals: a Runner's payout account, or one made for this. */
@@ -875,6 +907,11 @@ export async function requestWithdrawal(
   log?: FastifyBaseLogger,
 ): Promise<{ withdrawal: AmbassadorWithdrawal; message: string }> {
   const agreement = await agreed(ctx, kind, id);
+  // Withdrawals only once approved (Anthony, 30 October 2026): a grandfathered Ambassador's
+  // earnings keep adding up, and wait for their documents and the chat.
+  if (!ambassadorApproved(agreement.status)) {
+    throw new ConflictError(notApprovedWords(agreement.status));
+  }
   // Terms changed since they agreed (30 October 2026): their link still works and earnings keep
   // coming in, but a withdrawal waits until they agree to the new terms.
   if (ambassadorTermsChanged(agreement)) {

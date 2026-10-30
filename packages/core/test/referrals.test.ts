@@ -63,6 +63,10 @@ describe('the referral figures in config/store.json', () => {
       holdDays: 30,
       payoutMinimumPence: 1000,
       reviewAbovePence: 50000,
+      // Applying (Anthony, 30 October 2026): proof of address within 3 months, and documents
+      // kept for 12 months after somebody stops.
+      addressWithinMonths: 3,
+      documentsKeptMonths: 12,
     });
     expect(shareWords(ambassadors.restaurantMarkupShare)).toBe('2%');
     expect(shareWords(ambassadors.groceryItemChargeShare)).toBe('1%');

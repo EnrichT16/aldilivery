@@ -56,6 +56,7 @@ export function RunnerSignUp(): JSX.Element {
     const name = String(data.get('runnerName') ?? '').trim();
     const phone = String(data.get('runnerPhone') ?? '').trim();
     const homePostcode = String(data.get('homePostcode') ?? '').trim();
+    const introducedBy = String(data.get('introducedBy') ?? '').trim();
     const travelModes = data.getAll('travelModes').map(String) as VehicleType[];
     const agreed = data.get('agreement') === 'yes';
 
@@ -97,6 +98,8 @@ export function RunnerSignUp(): JSX.Element {
         // The same tick says they are 18 or over; the server keeps it with its time.
         adult: true,
         homePostcode,
+        // "Did someone introduce you?" (30 October 2026): counted when no link was used.
+        ...(introducedBy ? { introducedBy } : {}),
       });
       // Kept as the Runner's own sign-in, so any Shopper signed in here stays signed in.
       writeRunnerToken(result.token);
@@ -198,6 +201,12 @@ export function RunnerSignUp(): JSX.Element {
           label="Your home postcode"
           hint="Jobs are offered in your own area, from where you live, like ME7 1AA."
           autoComplete="postal-code"
+        />
+        <Field
+          id="introducedBy"
+          label="Did someone introduce you? Their code (optional)"
+          hint="If a friend, a Runner or an Ozi Ambassador told you about us, type the code from their link. You can leave this empty."
+          autoComplete="off"
         />
 
         <fieldset className="space-y-2 border-0 p-0 m-0" aria-describedby="ways-hint">

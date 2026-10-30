@@ -68,6 +68,7 @@ import type {
   ReferralLevelReached,
   AmbassadorEntry,
   AmbassadorAgreement,
+  AmbassadorDocument,
   AmbassadorWithdrawal,
   SetItem,
   Shopper,
@@ -423,25 +424,24 @@ export interface Repository {
    * change with its order's final state (ruled the same day); nothing is ever removed.
    */
   ambassadors: {
-    /** Keeps their agreement to the Ambassador terms; a second time returns the first. */
+    /**
+     * Keeps their agreement to the Ambassador terms; a second time returns the first. A new one
+     * is an application, "applied", unless a status is given (30 October 2026).
+     */
     agree(
-      input: Omit<
-        AmbassadorAgreement,
-        'id' | 'stripeConnectedAccountId' | 'flaggedAt' | 'flagReason'
-      >,
+      input: Pick<AmbassadorAgreement, 'accountKind' | 'accountId' | 'agreedAt' | 'termsVersion'> &
+        Partial<Pick<AmbassadorAgreement, 'status'>>,
     ): Promise<AmbassadorAgreement>;
     findAgreement(
       accountKind: ReferralKind,
       accountId: string,
     ): Promise<AmbassadorAgreement | null>;
+    findAgreementById(id: string): Promise<AmbassadorAgreement | null>;
+    /** Every agreement, oldest first: the staff Ambassadors page and the retention sweep. */
+    listAgreements(): Promise<AmbassadorAgreement[]>;
     updateAgreement(
       id: string,
-      patch: Partial<
-        Pick<
-          AmbassadorAgreement,
-          'stripeConnectedAccountId' | 'flaggedAt' | 'flagReason' | 'termsVersion' | 'agreedAt'
-        >
-      >,
+      patch: Partial<Omit<AmbassadorAgreement, 'id' | 'accountKind' | 'accountId'>>,
     ): Promise<AmbassadorAgreement>;
     /** Adds it; one with the same reference already there gives null, and nothing is added. */
     add(
@@ -481,6 +481,40 @@ export interface Repository {
       ambassadorKind: ReferralKind,
       ambassadorId: string,
     ): Promise<AmbassadorWithdrawal[]>;
+  };
+
+  /**
+   * The documents sent with an Ambassador application (Anthony, 30 October 2026), newest first.
+   * Kept while the person is an Ambassador and for 12 months after they stop (retention.ts).
+   */
+  ambassadorDocuments: {
+    create(
+      input: Omit<
+        AmbassadorDocument,
+        | 'id'
+        | 'status'
+        | 'checkedAt'
+        | 'checkPassed'
+        | 'checkNote'
+        | 'checkName'
+        | 'checkIssuedOn'
+        | 'reviewNote'
+        | 'reviewedBy'
+        | 'reviewedAt'
+        | 'erasedAt'
+      >,
+    ): Promise<AmbassadorDocument>;
+    findById(id: string): Promise<AmbassadorDocument | null>;
+    /** Newest first. */
+    listForAgreement(agreementId: string): Promise<AmbassadorDocument[]>;
+    /** Waiting to be decided, oldest first. */
+    listSubmitted(): Promise<AmbassadorDocument[]>;
+    update(
+      id: string,
+      patch: Partial<Omit<AmbassadorDocument, 'id' | 'agreementId' | 'accountKind' | 'accountId'>>,
+    ): Promise<AmbassadorDocument>;
+    /** Removes every file and share code of theirs, keeping that a document was sent. */
+    eraseFor(accountKind: ReferralKind, accountId: string, at: Date): Promise<number>;
   };
 
   runnerFeedback: {
@@ -782,11 +816,17 @@ export interface Repository {
             | 'branchOfShopId'
             | 'agreedDiscountPercent'
             | 'agreedMarkupPercent'
+            | 'agreementReference'
+            | 'proposedMarkupPercent'
+            | 'proposedDiscountPercent'
+            | 'ownerAgreedName'
           >
         >,
     ): Promise<PartnerShop>;
     findById(id: string): Promise<PartnerShop | null>;
     findBySeedKey(seedKey: string): Promise<PartnerShop | null>;
+    /** The shop whose printed Shop Partner agreement sheet has this reference (30 October 2026). */
+    findByAgreementReference(reference: string): Promise<PartnerShop | null>;
     /** Oldest first. */
     list(): Promise<PartnerShop[]>;
     update(id: string, patch: Partial<Omit<PartnerShop, 'id'>>): Promise<PartnerShop>;

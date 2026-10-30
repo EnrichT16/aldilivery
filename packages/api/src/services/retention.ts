@@ -27,12 +27,18 @@
  * change their mind as a Shopper, once nothing is still owed either way (a job in hand, a
  * delivery not yet paid, a pay-back or deposit not yet sent). Their pay records stay, as money
  * records, and the record of their checks stays two years after they stopped, then goes.
+ *
+ * Ozi Ambassadors (Anthony, 30 October 2026): the photo ID, proof of address, face photo and any
+ * share code sent with an application are kept while the person is an Ambassador and for
+ * `ambassador.documentsKeptMonths` (12) after they stop (suspended) or are declined, then removed;
+ * that a document was sent and how it was decided stays. They go at once with the account.
  */
 
 import type { FastifyBaseLogger } from 'fastify';
 
 import type { AppContext } from '../app.js';
 import type { Order } from '../domain.js';
+import { removeOldAmbassadorDocuments } from './ambassador-applications.js';
 import { deleteOldRecordings } from './company-contact.js';
 import { depositHeld } from './runner-leaving.js';
 
@@ -82,6 +88,8 @@ export interface RetentionReport {
   receiptPhotosRemoved: number;
   /** Staff call recordings older than `companyContact.callRecordingDays` (90), deleted (ruling 77). */
   callRecordingsRemoved: number;
+  /** Ambassador application documents, 12 months after the person stopped (30 October 2026). */
+  ambassadorDocumentsRemoved: number;
 }
 
 function before(at: Date, days: number): Date {
@@ -225,5 +233,8 @@ export async function sweepRetention(
     ),
     ordersAnonymised: await step('orders', () => retention.anonymiseOrdersBefore(ordersBefore, at)),
     callRecordingsRemoved: await step('call recordings', () => deleteOldRecordings(ctx, log)),
+    ambassadorDocumentsRemoved: await step('Ambassador documents', () =>
+      removeOldAmbassadorDocuments(ctx),
+    ),
   };
 }

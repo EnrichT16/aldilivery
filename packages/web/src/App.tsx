@@ -25,7 +25,14 @@ import { Landing } from './pages/Landing';
 import { LookingAfter } from './pages/LookingAfter';
 import { MyOrder } from './pages/MyOrder';
 import { About } from './pages/About';
+import { Ambassador } from './pages/Ambassador';
+import { AmbassadorApply } from './pages/AmbassadorApply';
+import { AmbassadorHome } from './pages/AmbassadorHome';
+import { AmbassadorPresentation } from './pages/AmbassadorPresentation';
+import { AmbassadorPrint } from './pages/AmbassadorPrint';
+import { AmbassadorSignUpBusiness } from './pages/AmbassadorSignUpBusiness';
 import { AmbassadorTerms } from './pages/AmbassadorTerms';
+import { PartnerAgreementCheck } from './pages/PartnerAgreementCheck';
 import { Orders } from './pages/Orders';
 import { PayByBank } from './pages/PayByBank';
 import { OrganisationDashboard } from './pages/OrganisationDashboard';
@@ -213,6 +220,15 @@ export function App(): JSX.Element {
                 <Route path="/partner/terms" element={<PartnerTerms />} />
                 <Route path="/organisation/terms" element={<OrganisationTerms />} />
                 <Route path="/ambassador/terms" element={<AmbassadorTerms />} />
+                {/* Ozi Ambassadors (Anthony, 30 October 2026): finding out, applying, the
+                    dashboard and the Toolkit, and checking an agreement sheet's reference. */}
+                <Route path="/ambassador" element={<Ambassador />} />
+                <Route path="/ambassador/apply" element={<AmbassadorApply />} />
+                <Route path="/ambassador/home" element={<AmbassadorHome />} />
+                <Route path="/ambassador/presentation" element={<AmbassadorPresentation />} />
+                <Route path="/ambassador/sign-up-business" element={<AmbassadorSignUpBusiness />} />
+                <Route path="/ambassador/print/:kind/:id" element={<AmbassadorPrint />} />
+                <Route path="/business/agreement/:reference" element={<PartnerAgreementCheck />} />
                 <Route path="/shops" element={<Shops />} />
                 <Route path="/restaurants" element={<BrowsePage section="restaurants" />} />
                 <Route path="/convenience" element={<BrowsePage section="convenience" />} />

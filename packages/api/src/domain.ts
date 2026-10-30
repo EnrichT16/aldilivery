@@ -7,6 +7,10 @@
  */
 
 import type {
+  AmbassadorAddressType,
+  AmbassadorDocumentKind,
+  AmbassadorIdType,
+  AmbassadorStatus,
   ChargePlan,
   DeliveryWindow,
   PartnerKind,
@@ -363,6 +367,66 @@ export interface AmbassadorAgreement {
   /** Flagged by staff: every withdrawal waits for a person to approve it. */
   flaggedAt: Date | null;
   flagReason: string | null;
+  /**
+   * Their application (Anthony, 30 October 2026): applied, documents sent, documents checked,
+   * chat done, approved, declined or suspended. Those who agreed before applications began are
+   * "documents needed": their link and earnings carry on, the Toolkit and withdrawals wait.
+   */
+  status: AmbassadorStatus;
+  /** The photo ID they chose to send: a passport, driving licence or residence card. */
+  idType: AmbassadorIdType | null;
+  /** When every document needed was in. */
+  documentsSentAt: Date | null;
+  /** When every document needed was accepted, by the automatic check or by staff. */
+  documentsCheckedAt: Date | null;
+  /** The short chat with the founder, recorded by staff, with their notes. */
+  chatDoneAt: Date | null;
+  chatDoneBy: string | null;
+  chatNotes: string;
+  /** Approved, declined or suspended: when, by whom, and the reason the person sees. */
+  decidedAt: Date | null;
+  decidedBy: string | null;
+  decisionReason: string | null;
+  approvedAt: Date | null;
+  /**
+   * When they stopped being an Ambassador, or were declined: their ID and address documents are
+   * removed `ambassador.documentsKeptMonths` after this (services/retention.ts).
+   */
+  stoppedAt: Date | null;
+}
+
+/**
+ * A document sent with an Ambassador application (Anthony, 30 October 2026): a photo ID, the back
+ * of a card, a proof of address, a face photo, or a Home Office share code. Read by the automatic
+ * check like a Runner's; kept while they are an Ambassador and for 12 months after they stop.
+ */
+export interface AmbassadorDocument {
+  id: string;
+  agreementId: string;
+  accountKind: ReferralKind;
+  accountId: string;
+  kind: AmbassadorDocumentKind;
+  /** For a photo ID: which kind. */
+  idType: AmbassadorIdType | null;
+  /** For a proof of address: which kind. */
+  addressType: AmbassadorAddressType | null;
+  image: Uint8Array | null;
+  contentType: string | null;
+  shareCode: string | null;
+  status: 'submitted' | 'accepted' | 'rejected';
+  /** The automatic check: when it read it, whether it was clearly fine, why not, the name on it. */
+  checkedAt: Date | null;
+  checkPassed: boolean | null;
+  checkNote: string | null;
+  checkName: string | null;
+  /** The date on a proof of address, as read, YYYY-MM-DD. */
+  checkIssuedOn: string | null;
+  reviewNote: string | null;
+  reviewedBy: string | null;
+  reviewedAt: Date | null;
+  createdAt: Date;
+  /** When the file was removed: by the retention rule, or with the account. */
+  erasedAt: Date | null;
 }
 
 /**
@@ -1182,6 +1246,16 @@ export interface PartnerShop {
   /** Another listing of the same business, marked by staff: each branch is its own venture. */
   branchOfShopId: string | null;
   /**
+   * Signed up by an Ozi Ambassador with the owner present ("Sign up this business now", Anthony,
+   * 30 October 2026): the reference on the printed Shop Partner agreement sheet, checked by staff
+   * when they approve, the mark-up and discount agreed, proposed until staff confirm them, and the
+   * name the owner typed when they agreed to the terms.
+   */
+  agreementReference: string | null;
+  proposedMarkupPercent: number | null;
+  proposedDiscountPercent: number | null;
+  ownerAgreedName: string | null;
+  /**
    * A restaurant's agreed discount for Ozi, a whole percentage, set by staff (Anthony, 30
    * October 2026): it sells to Ozi at its shop price less this. 0 for none, and for every shop
    * and service. At `restaurants.preferredDiscountPercent` or more it is an Ozi Preferred
@@ -1528,7 +1602,11 @@ export type OwnerMatterKind =
   /** Somebody reached a referral reward level (Anthony, 30 October 2026): to hear, once. */
   | 'referral_level'
   /** An Ambassador's month is over the review figure: to check before paying, once a month. */
-  | 'ambassador_review';
+  | 'ambassador_review'
+  /** An Ambassador applicant's document the automatic check could not approve: to decide. */
+  | 'ambassador_document'
+  /** Somebody's Ambassador application has its documents in (30 October 2026): to hear. */
+  | 'ambassador_application';
 
 /** Approve, decline or later; or only "I have heard it", or later. */
 export type OwnerMatterOptions = 'decide' | 'acknowledge';

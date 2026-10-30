@@ -14,7 +14,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
-import { AMBASSADOR_EDUCATION, ReferralCard } from '../src/components/ReferralCard';
+import { ReferralCard } from '../src/components/ReferralCard';
 import { storeConfig } from '../src/config';
 import { rememberLinkFrom } from '../src/lib/referral';
 import { AmbassadorTerms } from '../src/pages/AmbassadorTerms';
@@ -192,189 +192,68 @@ describe('the referral card on a dashboard', () => {
   }, 15000);
 });
 
-describe('becoming an Ozi Ambassador', () => {
-  it('explains it with the rates from the settings and the education note, and needs the terms ticked', async () => {
-    let joined = false;
-    const sent = stubPaths((method, path) => {
-      if (path === '/referrals/me') {
-        return reply(
-          fakeReferrals('https://example.test/join?via=shopper-margaret', {
-            ambassador: joined
-              ? {
-                  joined: true,
-                  link: 'https://example.test/business/join?ambassador=shopper-margaret',
-                }
-              : {},
-          }),
-        );
-      }
-      if (path === '/ambassador/join' && method === 'POST') {
-        joined = true;
-        return reply({
-          link: 'https://example.test/business/join?ambassador=shopper-margaret',
-          message: 'Welcome, you are now an Ozi Ambassador.',
-        });
-      }
-      return null;
-    });
-    const news = vi.fn();
-    const user = userEvent.setup({ delay: null });
-    render(
-      <MemoryRouter>
-        <ReferralCard as="shopper" onNews={news} />
-      </MemoryRouter>,
+describe('the Ozi Ambassador card on a dashboard (applications, 30 October 2026)', () => {
+  it('says what it is in a line, with "Find out more" to /ambassador, and no instant opt-in', async () => {
+    stubPaths((_method, path) =>
+      path === '/referrals/me'
+        ? reply(fakeReferrals('https://example.test/join?via=shopper-margaret'))
+        : null,
     );
-    expect(
-      await screen.findByRole('heading', { name: 'Introduce a business' }),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/act as an independent marketer/)).toBeInTheDocument();
-    expect(
-      screen.getByText(/The more businesses you introduce, the more you earn/),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        /A share of what we keep on every order from a business you introduce, for 12 months/,
-      ),
-    ).toBeInTheDocument();
-    // Anthony's final ruling (30 October 2026): both sides of a restaurant's, and a shop's.
-    expect(
-      screen.getByText(/2% of the mark-up we keep .* and 2% of the discount we keep/),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/£10\.00 dish with a 50% mark-up and a 20% discount: .* £0\.14/),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/1% of the item charges on its things/)).toBeInTheDocument();
-    expect(
-      screen.getByText(/a quarter of each rate: 0\.5% and 0\.5% on a restaurant, 0\.25% on a shop/),
-    ).toBeInTheDocument();
-    expect(screen.getByText(AMBASSADOR_EDUCATION)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Read the Ozi Ambassador terms' })).toHaveAttribute(
-      'href',
-      '/ambassador/terms',
-    );
-    // No link to introduce a business before they choose to be an Ambassador.
-    expect(screen.queryByText(/business\/join\?ambassador=/)).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Become an Ozi Ambassador' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Please tick to agree to the Ozi Ambassador terms first.',
-    );
-    expect(sent.some((row) => row.path === '/ambassador/join')).toBe(false);
-
-    await user.click(screen.getByLabelText('I have read and agree to the Ozi Ambassador terms'));
-    await user.click(screen.getByRole('button', { name: 'Become an Ozi Ambassador' }));
-    expect(
-      await screen.findByText('https://example.test/business/join?ambassador=shopper-margaret'),
-    ).toBeInTheDocument();
-    expect(sent.find((row) => row.path === '/ambassador/join')?.body).toEqual({
-      termsAgreed: true,
-      termsVersion: '2026-10-30b',
-    });
-    expect(news).toHaveBeenCalledWith('Welcome, you are now an Ozi Ambassador.');
-    expect(
-      screen.getByRole('button', { name: 'Share my Introduce a business link' }),
-    ).toBeInTheDocument();
-  });
-
-  it('shows their businesses and money as pending, available and paid, with refunds taken off, and withdraws', async () => {
-    let withdrawn = false;
-    const sent = stubPaths((method, path) => {
-      if (path === '/referrals/me') {
-        return reply(
-          fakeReferrals('https://example.test/join?via=shopper-margaret', {
-            ambassador: {
-              joined: true,
-              link: 'https://example.test/business/join?ambassador=shopper-margaret',
-              businesses: [
-                { name: 'Corner Shop', approved: true },
-                { name: 'Bakery', approved: false },
-              ],
-              earnedPence: 2500,
-              pendingPence: 300,
-              availablePence: withdrawn ? 0 : 1200,
-              paidPence: withdrawn ? 2200 : 1000,
-              deductions: [
-                {
-                  at: '2026-11-01T10:00:00.000Z',
-                  words:
-                    'A refund on an order from Corner Shop came after your share was available: £0.30 taken off.',
-                },
-              ],
-              canWithdraw: !withdrawn,
-              bankReady: true,
-              withdrawals: withdrawn
-                ? [
-                    {
-                      id: 'w1',
-                      requestedAt: '2026-11-10T10:00:00.000Z',
-                      words: '£12.00: sent to your bank.',
-                    },
-                  ]
-                : [],
-            },
-          }),
-        );
-      }
-      if (path === '/ambassador/withdraw' && method === 'POST') {
-        withdrawn = true;
-        return reply({
-          status: 'sent',
-          amountPence: 1200,
-          message: '£12.00 is on its way to your bank.',
-        });
-      }
-      return null;
-    });
-    const news = vi.fn();
-    const user = userEvent.setup({ delay: null });
     const { container } = render(
-      <MemoryRouter>
-        <ReferralCard as="shopper" onNews={news} />
-      </MemoryRouter>,
-    );
-    expect(await screen.findByText('Corner Shop: approved')).toBeInTheDocument();
-    expect(screen.getByText('Bakery: waiting for approval')).toBeInTheDocument();
-    expect(
-      screen.getByText('Pending (waiting for the refund window to pass): £3.00'),
-    ).toBeInTheDocument();
-    expect(screen.getByText('Available: £12.00')).toBeInTheDocument();
-    expect(screen.getByText('Paid: £10.00')).toBeInTheDocument();
-    expect(screen.getByText(/£0\.30 taken off\./)).toBeInTheDocument();
-    await noViolations(container);
-
-    await user.click(screen.getByRole('button', { name: 'Withdraw £12.00 to my bank' }));
-    expect(await screen.findByText('£12.00: sent to your bank.')).toBeInTheDocument();
-    expect(sent.some((row) => row.path === '/ambassador/withdraw')).toBe(true);
-    expect(news).toHaveBeenCalledWith('£12.00 is on its way to your bank.');
-    expect(screen.queryByRole('button', { name: /Withdraw/ })).not.toBeInTheDocument();
-  });
-
-  it('asks for bank details on Stripe’s own form before a withdrawal', async () => {
-    stubPaths((_method, path) => {
-      if (path === '/referrals/me') {
-        return reply(
-          fakeReferrals('https://example.test/join?via=shopper-margaret', {
-            ambassador: {
-              joined: true,
-              link: 'https://example.test/business/join?ambassador=shopper-margaret',
-              availablePence: 1200,
-              canWithdraw: true,
-              bankReady: false,
-            },
-          }),
-        );
-      }
-      return null;
-    });
-    render(
       <MemoryRouter>
         <ReferralCard as="shopper" onNews={vi.fn()} />
       </MemoryRouter>,
     );
     expect(
-      await screen.findByRole('button', { name: 'Set up my bank details with Stripe' }),
+      await screen.findByRole('heading', { name: 'Earn as an Ozi Ambassador' }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Withdraw/ })).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Introduce restaurants and shops to Ozi and earn from their orders.'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Find out more' })).toHaveAttribute(
+      'href',
+      '/ambassador?as=shopper',
+    );
+    // Nobody becomes an Ambassador on the card any more: they apply on /ambassador.
+    expect(
+      screen.queryByRole('button', { name: 'Become an Ozi Ambassador' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/business\/join\?ambassador=/)).not.toBeInTheDocument();
+    await noViolations(container);
+  });
+
+  it('tells a grandfathered Ambassador plainly that their link carries on and the Toolkit waits', async () => {
+    stubPaths((_method, path) =>
+      path === '/referrals/me'
+        ? reply(
+            fakeReferrals('https://example.test/join?via=shopper-margaret', {
+              ambassador: {
+                joined: true,
+                status: 'documents_needed',
+                statusWords: 'Documents needed',
+                approved: false,
+                applicationMessage:
+                  'Your Ambassador link keeps working and your earnings keep adding up, as before. To use the Ambassador Toolkit and to withdraw your earnings, we now need to check your documents and have a short chat with you. Please send your documents.',
+                link: 'https://example.test/business/join?ambassador=shopper-margaret',
+              },
+            }),
+          )
+        : null,
+    );
+    render(
+      <MemoryRouter>
+        <ReferralCard as="shopper" onNews={vi.fn()} />
+      </MemoryRouter>,
+    );
+    expect(await screen.findByText('Your application: Documents needed.')).toBeInTheDocument();
+    expect(screen.getByText(/Your Ambassador link keeps working/)).toBeInTheDocument();
+    expect(
+      screen.getByText('https://example.test/business/join?ambassador=shopper-margaret'),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open my Ambassador dashboard' })).toHaveAttribute(
+      'href',
+      '/ambassador/home?as=shopper',
+    );
   });
 });
 

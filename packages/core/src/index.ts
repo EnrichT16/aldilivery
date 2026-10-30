@@ -202,6 +202,27 @@ export {
 } from './organisations.js';
 
 export {
+  AMBASSADOR_ADDRESS_TYPES,
+  AMBASSADOR_ADDRESS_WORDS,
+  AMBASSADOR_DOCUMENT_KINDS,
+  AMBASSADOR_DOCUMENT_WORDS,
+  AMBASSADOR_ID_TYPES,
+  AMBASSADOR_ID_WORDS,
+  AMBASSADOR_STATUSES,
+  AMBASSADOR_STATUS_WORDS,
+  addressDateRecent,
+  ambassadorApplying,
+  ambassadorApproved,
+  ambassadorDocumentsNeeded,
+  ambassadorLinkWorks,
+  firstNameOf,
+  type AmbassadorAddressType,
+  type AmbassadorDocumentKind,
+  type AmbassadorIdType,
+  type AmbassadorStatus,
+} from './ambassador-applications.js';
+
+export {
   activeShare,
   AMBASSADOR_TERMS_VERSION,
   ambassadorAvailableAt,

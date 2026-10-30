@@ -9,6 +9,7 @@ import {
 } from 'react';
 
 import { ReceiptPhoto, TillCases } from '../components/TillCases';
+import { StaffAmbassadors } from './StaffAmbassadors';
 
 import {
   addBusinessUser,
@@ -171,6 +172,7 @@ export const TABS: Array<{ key: TabKey; label: string; group: TabGroup }> = [
   { key: 'enquiries', label: 'Enquiries', group: 'people' },
   { key: 'feedback', label: 'Feedback', group: 'people' },
   { key: 'referrals', label: 'Referrals', group: 'people' },
+  { key: 'ambassadors', label: 'Ambassadors', group: 'people' },
   { key: 'accounts', label: 'Shopper accounts', group: 'people' },
   { key: 'audit', label: 'Audit log', group: 'settings' },
   { key: 'twostep', label: 'Two-step codes', group: 'settings' },
@@ -462,6 +464,9 @@ export function Staff(): JSX.Element {
             {shown === 'runners' && <RunnersNow staffKey={key} />}
             {shown === 'areas' && <Areas staffKey={key} by={by} onNews={setNews} />}
             {shown === 'referrals' && <Referrals staffKey={key} by={by} onNews={setNews} />}
+            {shown === 'ambassadors' && (
+              <StaffAmbassadors staffKey={key} by={by} onNews={setNews} />
+            )}
             {shown === 'reports' && <Reports staffKey={key} />}
             {shown === 'accounts' && <ShopperAccounts staffKey={key} />}
             {shown === 'messages' && <StaffMessages staffKey={key} onNews={setNews} />}
@@ -2676,12 +2681,43 @@ function Partners({
                   </select>
                 </div>
               )}
+              {shop.status === 'pending' && shop.agreementReference && (
+                <div className="space-y-2">
+                  {/* Signed up by an Ambassador (30 October 2026): approving it checks the
+                      reference on its printed sheet and confirms what was agreed. */}
+                  <p className="m-0">
+                    Signed up by an Ambassador with the owner. Proposed mark-up{' '}
+                    {shop.proposedMarkupPercent ?? 0}%, discount {shop.proposedDiscountPercent ?? 0}
+                    %: approving confirms them.
+                  </p>
+                  <label htmlFor={`reference-${shop.id}`} className="block font-bold">
+                    The reference on its agreement sheet
+                  </label>
+                  <input
+                    id={`reference-${shop.id}`}
+                    autoComplete="off"
+                    autoCapitalize="characters"
+                    className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
+                  />
+                </div>
+              )}
               <div className="flex flex-wrap gap-2">
                 {shop.status === 'pending' && (
                   <button
                     type="button"
                     onClick={() =>
-                      void setStaffPartnerState(staffKey, shop.id, { status: 'approved' })
+                      void setStaffPartnerState(staffKey, shop.id, {
+                        status: 'approved',
+                        ...(shop.agreementReference
+                          ? {
+                              agreementReference: (
+                                document.getElementById(
+                                  `reference-${shop.id}`,
+                                ) as HTMLInputElement | null
+                              )?.value.trim(),
+                            }
+                          : {}),
+                      })
                         .then(() => {
                           onNews(`${shop.name} is approved. Its page is public.`);
                           list.reload();

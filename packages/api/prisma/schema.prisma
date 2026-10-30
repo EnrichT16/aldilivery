@@ -1266,6 +1266,14 @@ model PartnerShop {
   /// An agreed mark-up on the partner's prices, a whole percentage (Anthony, 30 October 2026):
   /// Shoppers see and pay the shop price with this on it. 0 for none; never for a service.
   agreedMarkupPercent   Int @default(0)
+  /// Signed up by an Ozi Ambassador with the owner present (Anthony, 30 October 2026): the
+  /// reference on the printed Shop Partner agreement sheet, checked by staff when they approve;
+  /// the mark-up and discount agreed, proposed until staff confirm them; and the name the owner
+  /// typed when they agreed to the Shop Partner terms.
+  agreementReference      String? @unique
+  proposedMarkupPercent   Int?
+  proposedDiscountPercent Int?
+  ownerAgreedName         String?
 
   @@index([ambassadorKind, ambassadorId])
 }
@@ -1595,8 +1603,68 @@ model AmbassadorAgreement {
   /// Flagged by staff: every withdrawal waits for a person to approve it.
   flaggedAt                DateTime?
   flagReason               String?
+  /// The application (Anthony, 30 October 2026): applied, documents_sent, documents_checked,
+  /// chat_done, approved, declined or suspended. Those who agreed before applications began are
+  /// documents_needed: their link and earnings carry on, the Toolkit and withdrawals wait.
+  status                   String    @default("applied")
+  /// passport, driving_licence or residence_card.
+  idType                   String?
+  documentsSentAt          DateTime?
+  documentsCheckedAt       DateTime?
+  /// The short chat with the founder, recorded by staff, with their notes.
+  chatDoneAt               DateTime?
+  chatDoneBy               String?
+  chatNotes                String    @default("")
+  /// Approved, declined or suspended: when, by whom, and the reason the person sees.
+  decidedAt                DateTime?
+  decidedBy                String?
+  decisionReason           String?
+  approvedAt               DateTime?
+  /// When they stopped being an Ambassador, or were declined: their documents are removed 12
+  /// months after.
+  stoppedAt                DateTime?
+
+  documents AmbassadorDocument[]
 
   @@unique([accountKind, accountId])
+  @@index([status])
+}
+
+/// A document sent with an Ambassador application (Anthony, 30 October 2026): a photo ID, the back
+/// of a card, a proof of address, a face photo, or a Home Office share code. Read by the automatic
+/// check like a Runner's; kept while they are an Ambassador and for 12 months after they stop.
+model AmbassadorDocument {
+  id            String              @id @default(cuid())
+  agreementId   String
+  agreement     AmbassadorAgreement @relation(fields: [agreementId], references: [id])
+  accountKind   String
+  accountId     String
+  /// photo_id_front, photo_id_back, proof_of_address, face_photo or share_code.
+  kind          String
+  /// passport, driving_licence or residence_card, for a photo ID.
+  idType        String?
+  /// utility_bill, bank_letter or council_tax, for a proof of address.
+  addressType   String?
+  image         Bytes?
+  contentType   String?
+  shareCode     String?
+  /// submitted, accepted or rejected.
+  status        String              @default("submitted")
+  checkedAt     DateTime?
+  checkPassed   Boolean?
+  checkNote     String?
+  checkName     String?
+  /// The date on a proof of address, as read, YYYY-MM-DD.
+  checkIssuedOn String?
+  reviewNote    String?
+  reviewedBy    String?
+  reviewedAt    DateTime?
+  createdAt     DateTime            @default(now())
+  erasedAt      DateTime?
+
+  @@index([agreementId])
+  @@index([accountKind, accountId])
+  @@index([status])
 }
 
 /// What an Ozi Ambassador has earned and been paid (Anthony, 30 October 2026): a share of an

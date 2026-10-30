@@ -63,6 +63,10 @@ export function SignUp(): JSX.Element {
     channel: 'text' | 'call';
   } | null>(null);
   const codeField = useRef<HTMLInputElement>(null);
+  // Applying to be an Ozi Ambassador with no account yet (30 October 2026): set up the account,
+  // then straight back to the application. Only an Ambassador page on this site.
+  const requested = params.get('next') ?? '';
+  const next = /^\/ambassador(\/[a-z-]+)?$/.test(requested) ? requested : null;
 
   useEffect(() => {
     let cancelled = false;
@@ -116,6 +120,10 @@ export function SignUp(): JSX.Element {
       try {
         const result = await registerShopper(withProof(details));
         signedUp(result.token, result.shopper);
+        if (next) {
+          navigate(next);
+          return;
+        }
         // The card page says this first, so the two are one message and neither cuts the other off.
         navigate('/card', { state: { welcome: result.shopper.displayName } });
       } catch (error) {
@@ -127,7 +135,7 @@ export function SignUp(): JSX.Element {
         );
       }
     },
-    [navigate, ozi, signedUp],
+    [navigate, next, ozi, signedUp],
   );
 
   const confirmNumber: NumberConfirmation | undefined = codes?.confirmAtSignUp
@@ -195,6 +203,7 @@ export function SignUp(): JSX.Element {
     const phone = String(data.get('phone') ?? '').trim();
     const deliveryAddress = String(data.get('deliveryAddress') ?? '').trim();
     const doorstepProtocol = String(data.get('doorstepProtocol') ?? '').trim();
+    const introducedBy = String(data.get('introducedBy') ?? '').trim();
 
     const found: Array<{ field: string; message: string }> = [];
     if (displayName === '')
@@ -213,7 +222,13 @@ export function SignUp(): JSX.Element {
     }
 
     setErrors([]);
-    const details = { displayName, phone, deliveryAddress, doorstepProtocol };
+    const details = {
+      displayName,
+      phone,
+      deliveryAddress,
+      doorstepProtocol,
+      ...(introducedBy ? { introducedBy } : {}),
+    };
     if (codes?.confirmAtSignUp && proof.current?.phone !== phone) {
       setSaving(true);
       try {
@@ -239,6 +254,10 @@ export function SignUp(): JSX.Element {
     try {
       const result = await registerShopper(withProof(details));
       signedUp(result.token, result.shopper);
+      if (next) {
+        navigate(next);
+        return;
+      }
       // Straight on to the card, because that is the next thing standing between them and
       // being able to order. They can leave it and come back; nothing is charged there.
       navigate('/card');
@@ -403,6 +422,12 @@ export function SignUp(): JSX.Element {
           label="What should your Runner do at the door?"
           hint="For example: knock loudly and wait, I am slow to the door. You can leave this empty. If you tell us about your health or a disability here, we use it only to help you at the door, and your Runner sees it."
           multiline
+        />
+        <Field
+          id="introducedBy"
+          label="Did someone introduce you? Their code (optional)"
+          hint="If a friend, a Runner or an Ozi Ambassador told you about us, type the code from their link. You can leave this empty."
+          autoComplete="off"
         />
 
         <button

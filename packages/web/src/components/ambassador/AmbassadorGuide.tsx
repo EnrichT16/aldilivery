@@ -1,0 +1,123 @@
+import { useRef } from 'react';
+
+import { storeConfig } from '../../config';
+import { money } from '../../lib/money';
+import { AMBASSADOR_RULES, EXAMPLES_ONLY, earningLines } from '../../lib/ambassador';
+import { useOzi } from '../../state/ozi';
+
+/**
+ * The Ambassador Guide (Anthony, 30 October 2026): a plain page, read aloud by Ozi on request.
+ * The two-minute pitch for restaurant owners, answers to the questions they ask, how an
+ * Ambassador earns, and what never to say. Every figure from config/store.json. Written only from
+ * what the service really does: no supermarket partnership, no insurance, no promises.
+ */
+export function AmbassadorGuide({ headingLevel = 2 }: { headingLevel?: 2 | 3 }): JSX.Element {
+  const ozi = useOzi();
+  const page = useRef<HTMLDivElement>(null);
+  const product = storeConfig.productName;
+  const restaurants = storeConfig.restaurants;
+  const partners = storeConfig.extras.partners;
+  const H = headingLevel === 2 ? 'h2' : 'h3';
+  const Sub = headingLevel === 2 ? 'h3' : 'h4';
+
+  return (
+    <section aria-labelledby="guide-heading" className="space-y-6">
+      <H id="guide-heading" className="text-lead font-bold m-0">
+        The Ambassador Guide
+      </H>
+      <button
+        type="button"
+        onClick={() => {
+          void ozi.say(page.current?.innerText || page.current?.textContent || '');
+        }}
+        className="control border-paper bg-paper/10 text-paper"
+      >
+        Read the guide to me
+      </button>
+      <div ref={page} className="space-y-6">
+        <section aria-labelledby="guide-pitch" className="space-y-2">
+          <Sub id="guide-pitch" className="font-bold m-0">
+            The two-minute pitch for restaurant owners
+          </Sub>
+          <p className="m-0">
+            Hello, I am an Ambassador for {product}, a local delivery service made for everyone,
+            including older and disabled people and their carers, who order by speaking to Ozi or by
+            phone.
+          </p>
+          <p className="m-0">
+            Those customers find it hard to use other apps, so many of them will be new to you. Our
+            Runners (drivers) come to your counter and pay you in full, there and then. There is no
+            commission.
+          </p>
+          <p className="m-0">
+            Your own price stays the same. We add a small mark-up on our side, which you agree. If
+            you choose to give us a discount, of {restaurants.preferredDiscountPercent}% or more,
+            you become a Preferred Partner, shown first to customers.
+          </p>
+          <p className="m-0">
+            Joining is free and takes a few minutes. I can sign you up now, on my phone, or you can
+            scan the code on my flyer. A person at {product} checks every business before it goes
+            live.
+          </p>
+        </section>
+
+        <section aria-labelledby="guide-questions" className="space-y-3">
+          <Sub id="guide-questions" className="font-bold m-0">
+            Answers to common questions
+          </Sub>
+          <p className="m-0 font-bold">&ldquo;Why join when I have Just Eat?&rdquo;</p>
+          <p className="m-0">
+            You can do both. {product} reaches people other apps often miss: older and disabled
+            customers and their carers, ordering by voice or by phone. And there is no commission:
+            you are paid your price, in full, at the counter.
+          </p>
+          <p className="m-0 font-bold">&ldquo;What is the mark-up?&rdquo;</p>
+          <p className="m-0">
+            A percentage we add to your prices on {product}, agreed with you, at most{' '}
+            {restaurants.maximumMarkupPercent}%. The customer sees and pays it, and is told that
+            prices on {product} may be higher than in your shop. You still get your own price.
+          </p>
+          <p className="m-0 font-bold">&ldquo;When am I paid?&rdquo;</p>
+          <p className="m-0">
+            Straight away. The Runner pays you at the counter when they collect the order, in full,
+            less any discount you chose to give.
+          </p>
+          <p className="m-0 font-bold">&ldquo;Who are the customers?&rdquo;</p>
+          <p className="m-0">
+            Local people who find it hard to get out or to use apps: older people, disabled people
+            and people who are blind, and the families and carers who order for them.
+          </p>
+          <p className="m-0 font-bold">&ldquo;What does it cost?&rdquo;</p>
+          <p className="m-0">
+            A restaurant, café or takeaway listing is free. A shop can have a free basic listing
+            while they last, or Partner Plus at {money(partners.plusMonthlyPence)} a month
+            {partners.plusFirstMonthFree ? ', with the first month free' : ''}.
+          </p>
+        </section>
+
+        <section aria-labelledby="guide-earn" className="space-y-2">
+          <Sub id="guide-earn" className="font-bold m-0">
+            How you earn
+          </Sub>
+          <ul className="m-0 ps-6 space-y-1">
+            {earningLines().map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+          <p className="m-0">{EXAMPLES_ONLY}</p>
+        </section>
+
+        <section aria-labelledby="guide-never" className="space-y-2">
+          <Sub id="guide-never" className="font-bold m-0">
+            What never to say or do
+          </Sub>
+          <ul className="m-0 ps-6 space-y-1">
+            {AMBASSADOR_RULES.map((rule) => (
+              <li key={rule}>{rule}</li>
+            ))}
+          </ul>
+        </section>
+      </div>
+    </section>
+  );
+}

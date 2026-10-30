@@ -21,14 +21,21 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 
 import {
+  AMBASSADOR_ADDRESS_TYPES,
+  AMBASSADOR_DOCUMENT_KINDS,
+  AMBASSADOR_ID_TYPES,
+  AMBASSADOR_STATUS_WORDS,
   AMBASSADOR_TERMS_VERSION,
+  ambassadorApproved,
+  ambassadorLinkWorks,
+  firstNameOf,
   rewardWords,
   shareWords,
   TERMS_CHANGED_WORDS,
 } from '@aldilivery/core';
 
 import type { ReferralKind } from '../domain.js';
-import { BadRequestError, NotFoundError, UnauthorisedError } from '../errors.js';
+import { BadRequestError, ForbiddenError, NotFoundError, UnauthorisedError } from '../errors.js';
 import { recordAudit } from '../lib/audit.js';
 import { businessActor } from '../lib/business.js';
 import { decidedBy, staffActor } from '../lib/staff.js';
@@ -48,19 +55,35 @@ import {
   withdrawalWords,
   ambassadorTermsChanged,
 } from '../services/ambassadors.js';
+import {
+  approveAmbassador,
+  declineAmbassador,
+  decideAmbassadorDocument,
+  myApplication,
+  publicAmbassadorDocument,
+  recordChat,
+  sendAmbassadorDocument,
+  staffApplication,
+  staffApplications,
+  suspendAmbassador,
+} from '../services/ambassador-applications.js';
+import { checkAmbassadorDocument, checkInBackground } from '../services/auto-check.js';
 import { sendVoucher, staffVoucherView } from '../services/vouchers.js';
 import {
   findAccount,
   markRewardGiven,
   markTold,
   myReferrals,
+  referralLink,
   referralLog,
   referrerDetail,
   REFERRAL_KINDS,
 } from '../services/referrals.js';
 
 /** Who is asking about their own referrals: a business sign-in first, then a session. */
-async function whoAsks(request: FastifyRequest): Promise<{ kind: ReferralKind; id: string }> {
+export async function whoAsks(
+  request: FastifyRequest,
+): Promise<{ kind: ReferralKind; id: string }> {
   if (request.headers['x-business-token']) {
     const user = await businessActor(request);
     if (user.kind === 'partner' && user.partnerShopId) {
@@ -96,17 +119,29 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
     const withdrawals = agreement
       ? await app.ctx.repository.ambassadors.listWithdrawalsFor(kind, id)
       : [];
+    // Applications (Anthony, 30 October 2026): the link only for an approved Ambassador, or a
+    // grandfathered one's, which keeps working; the Toolkit and withdrawals only once approved.
+    const status = agreement?.status ?? null;
+    const linkWorks = ambassadorLinkWorks(status);
+    const approved = ambassadorApproved(status);
+    const application = agreement ? await myApplication(app.ctx, agreement) : null;
     return {
       referrals,
       ambassador: {
-        // An Ambassador only once they have chosen to be one and agreed to the terms.
+        // Applied, at least: they chose to be one and agreed to the terms.
         joined: agreement !== null,
+        status,
+        statusWords: status ? AMBASSADOR_STATUS_WORDS[status] : null,
+        approved,
+        applicationMessage: application?.message ?? null,
+        homePath: '/ambassador/home',
+        applyPath: '/ambassador/apply',
         agreedAt: agreement?.agreedAt ?? null,
         termsVersion: AMBASSADOR_TERMS_VERSION,
         // Agreed to older terms (30 October 2026): asked to agree again; withdrawals wait.
         termsChanged: ambassadorTermsChanged(agreement),
         termsChangedWords: ambassadorTermsChanged(agreement) ? TERMS_CHANGED_WORDS : null,
-        link: agreement ? ambassadorLink(env.primaryOrigin ?? '', account) : null,
+        link: linkWorks ? ambassadorLink(env.primaryOrigin ?? '', account) : null,
         termsPath: '/ambassador/terms',
         // Anthony's final ruling (30 October 2026): what each kind of business earns them.
         profitShareWords: shareWords(rates.restaurantMarkupShare),
@@ -125,13 +160,16 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
         businesses: summary.businesses.map((business) => ({
           name: business.name,
           approved: business.approved,
+          // The Ambassador dashboard's "My businesses" (30 October 2026): what each has earned.
+          earnedPence: business.earnedPence,
         })),
         earnedPence: summary.earnedPence,
         pendingPence: summary.pendingPence,
         availablePence: summary.availablePence,
         paidPence: summary.paidPence,
         deductions: summary.deductions.map((line) => ({ at: line.at, words: line.words })),
-        canWithdraw: agreement !== null && !ambassadorTermsChanged(agreement) && summary.payable,
+        canWithdraw:
+          agreement !== null && approved && !ambassadorTermsChanged(agreement) && summary.payable,
         bankReady: agreement ? await ambassadorBankReady(app.ctx, kind, id) : false,
         withdrawals: withdrawals.slice(0, 5).map((row) => ({
           id: row.id,
@@ -142,7 +180,11 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
     };
   });
 
-  /** "Become an Ozi Ambassador": agreeing to the Ambassador terms, kept with the version. */
+  /**
+   * Applying to be an Ozi Ambassador, step one: agreeing to the Ambassador terms, kept with the
+   * version (Anthony, 30 October 2026). No link yet: that comes once they are approved, after
+   * their documents and a chat. Agreeing again to new terms keeps how far they have got.
+   */
   app.post('/ambassador/join', async (request) => {
     const { kind, id } = await whoAsks(request);
     const body = z
@@ -155,10 +197,106 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
       .parse(request.body ?? {});
     const account = await findAccount(app.ctx, kind, id);
     if (!account) throw new UnauthorisedError('Please sign in to see your referral link.');
-    await becomeAmbassador(app.ctx, kind, id, body.termsVersion);
+    const agreement = await becomeAmbassador(app.ctx, kind, id, body.termsVersion);
+    const linkWorks = ambassadorLinkWorks(agreement.status);
     return {
-      link: ambassadorLink(env.primaryOrigin ?? '', account),
-      message: `Welcome, you are now an Ozi Ambassador. Your Introduce a business link is ready to share.`,
+      link: linkWorks ? ambassadorLink(env.primaryOrigin ?? '', account) : null,
+      application: await myApplication(app.ctx, agreement),
+      message: ambassadorApproved(agreement.status)
+        ? 'Thank you. You have agreed to the Ozi Ambassador terms.'
+        : linkWorks
+          ? 'Thank you. You have agreed to the Ozi Ambassador terms. Your link keeps working.'
+          : 'Thank you for applying to be an Ozi Ambassador. Next, please send your documents.',
+    };
+  });
+
+  /** Their own application: its status, what is still needed and what they have sent. */
+  app.get('/ambassador/application', async (request) => {
+    const { kind, id } = await whoAsks(request);
+    const agreement = await ambassadorAgreement(app.ctx, kind, id);
+    return { application: agreement ? await myApplication(app.ctx, agreement) : null };
+  });
+
+  /**
+   * Step two: a document, sent from the phone as a Runner's are (routes/runner-account.ts): a
+   * photo, or for a document a PDF, or a Home Office share code. Read by the automatic check in
+   * the background.
+   */
+  app.post('/ambassador/documents', { bodyLimit: 9 * 1024 * 1024 }, async (request, reply) => {
+    const { kind, id } = await whoAsks(request);
+    const body = z
+      .object({
+        kind: z.enum(AMBASSADOR_DOCUMENT_KINDS),
+        idType: z.enum(AMBASSADOR_ID_TYPES).optional(),
+        addressType: z.enum(AMBASSADOR_ADDRESS_TYPES).optional(),
+        image: z
+          .string()
+          .max(9 * 1024 * 1024)
+          .optional(),
+        contentType: z.string().max(40).optional(),
+        shareCode: z.string().trim().max(20).optional(),
+      })
+      .parse(request.body ?? {});
+    const agreement = await ambassadorAgreement(app.ctx, kind, id);
+    if (!agreement) {
+      throw new BadRequestError('Please read and agree to the Ozi Ambassador terms first.');
+    }
+    const document = await sendAmbassadorDocument(app.ctx, agreement, body, request.log);
+    await checkInBackground(app.ctx, request.log, () =>
+      checkAmbassadorDocument(app.ctx, document.id, request.log),
+    );
+    const latest = (await app.ctx.repository.ambassadorDocuments.findById(document.id)) ?? document;
+    const current = (await ambassadorAgreement(app.ctx, kind, id)) ?? agreement;
+    void reply.status(201);
+    return {
+      document: publicAmbassadorDocument(latest),
+      application: await myApplication(app.ctx, current),
+      message: 'Thank you. We will check it and let you know.',
+    };
+  });
+
+  /**
+   * The Ambassador Toolkit (Anthony, 30 October 2026), for approved Ambassadors only: their own
+   * links for each kind of material (the business link for business materials, their referral
+   * link for Shopper and Runner materials), their first name for "Your Ambassador: <first name>",
+   * and the businesses they introduced, each with its shop page for a counter card and sticker.
+   */
+  app.get('/ambassador/toolkit', async (request) => {
+    const { kind, id } = await whoAsks(request);
+    const agreement = await ambassadorAgreement(app.ctx, kind, id);
+    if (!agreement || !ambassadorApproved(agreement.status)) {
+      throw new ForbiddenError(
+        agreement?.status === 'documents_needed'
+          ? 'The Ambassador Toolkit opens once your documents are checked and you have had a short chat with us.'
+          : 'The Ambassador Toolkit is for approved Ozi Ambassadors.',
+      );
+    }
+    const account = await findAccount(app.ctx, kind, id);
+    if (!account) throw new UnauthorisedError('Please sign in.');
+    const origin = env.primaryOrigin ?? '';
+    const via = `${kind}-${encodeURIComponent(account.code)}`;
+    const shops = (await app.ctx.repository.partnerShops.list()).filter(
+      (shop) => shop.ambassadorKind === kind && shop.ambassadorId === id,
+    );
+    return {
+      name: account.name,
+      firstName: firstNameOf(account.name),
+      businessLink: ambassadorLink(origin, account),
+      shopperLink: referralLink(origin, account),
+      runnerLink: `${origin}/runner/sign-up?via=${via}`,
+      businesses: shops.map((shop) => ({
+        id: shop.id,
+        name: shop.name,
+        approved: shop.status === 'approved',
+        statusWords:
+          shop.status === 'approved'
+            ? 'Approved'
+            : shop.status === 'pending'
+              ? 'Waiting for approval'
+              : 'Removed',
+        shopLink: `${origin}/shops/${shop.id}`,
+        agreementReference: shop.agreementReference,
+      })),
     };
   });
 
@@ -316,6 +454,98 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
       .object({ by: z.string().trim().min(1, 'Please say who refused it.').max(80) })
       .parse(request.body ?? {});
     return refuseWithdrawal(app.ctx, id, decidedBy(actor, body.by));
+  });
+
+  /* ---------------------------------------------------------------- staff: applications */
+
+  /**
+   * The Ambassadors page (Anthony, 30 October 2026), for the founder and the operations manager:
+   * every application by status; each one with its documents, the checks, "Chat done" with notes,
+   * and Approve, Decline (with a reason the person sees) and Suspend.
+   */
+  app.get('/staff/ambassador-applications', async (request) => {
+    await staffActor(request, 'ambassadors');
+    return { groups: await staffApplications(app.ctx) };
+  });
+
+  const applicationParams = z.object({ id: z.string().min(1).max(60) });
+
+  app.get('/staff/ambassador-applications/:id', async (request) => {
+    await staffActor(request, 'ambassadors');
+    const { id } = applicationParams.parse(request.params);
+    return { application: await staffApplication(app.ctx, id) };
+  });
+
+  /** "Show photo" or "Show PDF": the document's file, never kept by the browser. */
+  app.get('/staff/ambassador-documents/:id/file', async (request, reply) => {
+    await staffActor(request, 'ambassadors');
+    const { id } = applicationParams.parse(request.params);
+    const document = await app.ctx.repository.ambassadorDocuments.findById(id);
+    if (!document?.image || !document.contentType) throw new NotFoundError('file');
+    void reply.header('content-type', document.contentType);
+    void reply.header('cache-control', 'no-store');
+    return reply.send(Buffer.from(document.image));
+  });
+
+  /** Accepting or turning down one document, with a reason for turning it down. */
+  app.post('/staff/ambassador-documents/:id/review', async (request) => {
+    const actor = await staffActor(request, 'ambassadors');
+    const { id } = applicationParams.parse(request.params);
+    const body = z
+      .object({
+        decision: z.enum(['accept', 'reject']),
+        by: z.string().trim().min(1, 'Please say who decided.').max(80),
+        note: z.string().trim().max(500).optional(),
+      })
+      .parse(request.body ?? {});
+    const document = await app.ctx.repository.ambassadorDocuments.findById(id);
+    if (!document) throw new NotFoundError('document');
+    if (body.decision === 'reject' && !body.note) {
+      throw new BadRequestError('Please say why, so they know what to send instead.');
+    }
+    const decided = await decideAmbassadorDocument(
+      app.ctx,
+      document,
+      { decision: body.decision, by: decidedBy(actor, body.by), note: body.note ?? null },
+      request.log,
+    );
+    return { document: publicAmbassadorDocument(decided) };
+  });
+
+  const byBody = z.object({ by: z.string().trim().min(1, 'Please say who it was.').max(80) });
+
+  app.post('/staff/ambassador-applications/:id/chat-done', async (request) => {
+    const actor = await staffActor(request, 'ambassadors');
+    const { id } = applicationParams.parse(request.params);
+    const body = byBody
+      .extend({ notes: z.string().trim().max(2000).default('') })
+      .parse(request.body ?? {});
+    return recordChat(app.ctx, id, decidedBy(actor, body.by), body.notes);
+  });
+
+  app.post('/staff/ambassador-applications/:id/approve', async (request) => {
+    const actor = await staffActor(request, 'ambassadors');
+    const { id } = applicationParams.parse(request.params);
+    const body = byBody.parse(request.body ?? {});
+    return approveAmbassador(app.ctx, id, decidedBy(actor, body.by));
+  });
+
+  const reasonBody = byBody.extend({
+    reason: z.string().trim().min(1, 'Please give the reason they will see.').max(500),
+  });
+
+  app.post('/staff/ambassador-applications/:id/decline', async (request) => {
+    const actor = await staffActor(request, 'ambassadors');
+    const { id } = applicationParams.parse(request.params);
+    const body = reasonBody.parse(request.body ?? {});
+    return declineAmbassador(app.ctx, id, decidedBy(actor, body.by), body.reason);
+  });
+
+  app.post('/staff/ambassador-applications/:id/suspend', async (request) => {
+    const actor = await staffActor(request, 'ambassadors');
+    const { id } = applicationParams.parse(request.params);
+    const body = reasonBody.parse(request.body ?? {});
+    return suspendAmbassador(app.ctx, id, decidedBy(actor, body.by), body.reason);
   });
 
   /** Flagged: every withdrawal of theirs waits for a person to approve it. */

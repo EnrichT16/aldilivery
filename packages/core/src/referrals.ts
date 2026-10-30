@@ -33,9 +33,11 @@ import { formatPence } from './money.js';
  * The version of the Ozi Ambassador terms at /ambassador/terms, kept with each agreement.
  * Changed in substance on 30 October 2026 (Anthony: the base on a restaurant's orders is its
  * discount alone), so an Ambassador who agreed to an earlier version agrees again before a
- * withdrawal; their link keeps working.
+ * withdrawal; their link keeps working. Changed again the same day (Anthony, Ambassador
+ * applications): an Ambassador is approved only after their documents are checked and a short chat
+ * with the founder, and we may decline or suspend.
  */
-export const AMBASSADOR_TERMS_VERSION = '2026-10-30b';
+export const AMBASSADOR_TERMS_VERSION = '2026-10-30c';
 
 /** One reward level: so many active referrals, the reward, and what it is called. */
 export interface ReferralLevel {
@@ -126,6 +128,13 @@ export interface AmbassadorSettings extends AmbassadorShares {
   readonly payoutMinimumPence: number;
   /** A month's earnings above this are checked by the owner before paying. No limit otherwise. */
   readonly reviewAbovePence: number;
+  /**
+   * Applying (Anthony, 30 October 2026): a proof of address must be dated within this many months
+   * (3), and the ID and address documents are kept for this many months after somebody stops
+   * being an Ambassador, or is declined (12), then removed.
+   */
+  readonly addressWithinMonths: number;
+  readonly documentsKeptMonths: number;
 }
 
 /** "2%", "2.5%" or "0.25%": a share as people read it, to two places at most. */

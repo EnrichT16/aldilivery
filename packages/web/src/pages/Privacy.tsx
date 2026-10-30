@@ -282,6 +282,15 @@ export function Privacy(): JSX.Element {
             how to reach you, and what you do on the organisation&rsquo;s pages, so the right people
             see the right orders. Reason: our agreement with your organisation.
           </li>
+          <li>
+            {/* Ambassador applications (Anthony, 30 October 2026). */}
+            If you apply to be an Ozi Ambassador, we keep the photo ID, proof of address, photo of
+            your face and any Home Office share code you send, and our notes from the chat with you.
+            The automated language service reads your ID and proof of address to check they are what
+            we asked for, readable, in date and in your name, and a person approves every
+            Ambassador. Reason: to know who we work with and to prevent fraud, our legitimate
+            interest, and the arrangement you apply for.
+          </li>
         </ul>
       </section>
 
@@ -388,6 +397,11 @@ export function Privacy(): JSX.Element {
           <li>
             Records of a Runner&rsquo;s checks: while they are a Runner, and two years after they
             stop.
+          </li>
+          <li>
+            An Ozi Ambassador&rsquo;s ID and address documents: while you are an Ambassador, and{' '}
+            {storeConfig.ambassador.documentsKeptMonths} months after you stop, or after we decline
+            your application. They are removed at once if you close your account.
           </li>
           <li>
             The figures about how the service is used, with codes instead of names: three years.

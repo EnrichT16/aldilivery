@@ -936,6 +936,17 @@ function parseAmbassador(raw: Unknown): AmbassadorSettings {
       'ambassador.reviewAbovePence',
       0,
     ),
+    // Applying to be an Ambassador (Anthony, 30 October 2026).
+    addressWithinMonths: wholeNumber(
+      raw['addressWithinMonths'] ?? 3,
+      'ambassador.addressWithinMonths',
+      1,
+    ),
+    documentsKeptMonths: wholeNumber(
+      raw['documentsKeptMonths'] ?? 12,
+      'ambassador.documentsKeptMonths',
+      1,
+    ),
   };
 }
 

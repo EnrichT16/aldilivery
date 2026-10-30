@@ -28,7 +28,7 @@ import {
   inFreeMonth,
 } from '../services/plans.js';
 import { agreementRecord, agreementSchema, hasAgreed } from '../services/runner-agreement.js';
-import { recordReferralFor } from '../services/referrals.js';
+import { recordReferralFor, viaFromCode } from '../services/referrals.js';
 import { MOTOR_MODES, canDrive, documentsNeeded } from './runner-account.js';
 
 /** Checked, and turned into `+44…`, so the same number always finds the same account. */
@@ -70,6 +70,11 @@ const shopperSchema = z.object({
     .trim()
     .regex(/^(partner|organisation|staff|shopper|runner):[A-Za-z0-9_-]{1,40}$/)
     .optional(),
+  /**
+   * "Did someone introduce you? Their code (optional)" (Anthony, 30 October 2026): recorded as
+   * their referral when no link was used.
+   */
+  introducedBy: z.string().trim().max(60).optional(),
 });
 
 const runnerSchema = z.object({
@@ -97,6 +102,8 @@ const runnerSchema = z.object({
     .regex(/^(partner|organisation|staff|shopper|runner):[A-Za-z0-9_-]{1,40}$/)
     .optional(),
   stripeConnectedAccountId: z.string().trim().max(120).optional(),
+  /** "Did someone introduce you? Their code (optional)" (Anthony, 30 October 2026). */
+  introducedBy: z.string().trim().max(60).optional(),
   /** Agreeing to the Runner agreement as they sign up (ruling 55). Or later, before a job. */
   agreement: agreementSchema.optional(),
   /** The tick "I am 18 or over" (Anthony, 30 October 2026): required, and kept with its time. */
@@ -172,6 +179,10 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       await repository.shoppers.update(shopper.id, { joinedVia: input.joinedVia });
       // Whoever's link it was, of any kind, is recorded as referring them (30 October 2026).
       await recordReferralFor(app.ctx, input.joinedVia, 'shopper', shopper.id, request.log);
+    } else if (input.introducedBy) {
+      // No link used: the code they typed, if it is somebody's (30 October 2026). Never their own.
+      const typed = await viaFromCode(app.ctx, input.introducedBy);
+      if (typed) await recordReferralFor(app.ctx, typed, 'shopper', shopper.id, request.log);
     }
     // Every area is open (Anthony, 30 October 2026): signing up says nothing about Runners in
     // their area. Any warning comes only as they place an order.
@@ -239,14 +250,15 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
       homePostcode: input.homePostcode,
       adultConfirmedAt: now(),
     });
-    // Who referred them (30 October 2026): a Runner's own ID first, as before, or anybody's link.
+    // Who referred them (30 October 2026): a Runner's own ID first, as before, or anybody's link,
+    // or, when no link was used, the code they typed.
     await recordReferralFor(
       app.ctx,
       referrer
         ? referrer.startsWith('shopper:')
           ? referrer
           : `runner:${referrer}`
-        : input.joinedVia,
+        : (input.joinedVia ?? (await viaFromCode(app.ctx, input.introducedBy))),
       'runner',
       runner.id,
       request.log,

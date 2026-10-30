@@ -248,7 +248,9 @@
     "branchShareFactor": 0.25,
     "holdDays": 30,
     "payoutMinimumPence": 1000,
-    "reviewAbovePence": 50000
+    "reviewAbovePence": 50000,
+    "addressWithinMonths": 3,
+    "documentsKeptMonths": 12
   },
   "admin": {
     "ownerOnlyRefundAbovePence": 2500,

@@ -73,7 +73,13 @@ export type StaffArea =
    * Checkout insights (Anthony, 30 October 2026): checkouts viewed, paid and left, and what
    * stopped people, for the founder and the operations manager.
    */
-  | 'insights';
+  | 'insights'
+  /**
+   * Ambassadors (Anthony, 30 October 2026): every Ambassador application, its documents and
+   * checks, the chat with the founder, and Approve, Decline and Suspend. The founder and the
+   * operations manager only.
+   */
+  | 'ambassadors';
 
 export type StaffRole =
   | 'founder'
@@ -109,6 +115,7 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
       'areas',
       'referrals',
       'insights',
+      'ambassadors',
     ],
   },
   operations_manager: {
@@ -128,6 +135,7 @@ export const STAFF_ROLES: Record<StaffRole, { title: string; areas: readonly Sta
       'areas',
       'referrals',
       'insights',
+      'ambassadors',
     ],
   },
   onboarding: { title: 'Runner onboarding officer', areas: ['documents', 'messages'] },

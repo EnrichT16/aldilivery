@@ -66,6 +66,7 @@ import type {
   ReferralVoucher,
   AmbassadorEntry,
   AmbassadorAgreement,
+  AmbassadorDocument,
   AmbassadorWithdrawal,
   SetItem,
   Shopper,
@@ -167,7 +168,25 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const levelsReached: ReferralLevelReached[] = [];
   const ambassadorEntries: AmbassadorEntry[] = [];
   const ambassadorAgreements: AmbassadorAgreement[] = [];
+  const ambassadorDocuments: AmbassadorDocument[] = [];
   const vouchers = new Map<string, ReferralVoucher>();
+  /** An Ambassador applicant's document files and share codes, removed (30 October 2026). */
+  const eraseAmbassadorDocuments = (accountKind: string, accountId: string, at: Date): number => {
+    let count = 0;
+    for (const [index, row] of ambassadorDocuments.entries()) {
+      if (row.accountKind !== accountKind || row.accountId !== accountId) continue;
+      if (row.image === null && row.shareCode === null) continue;
+      ambassadorDocuments[index] = {
+        ...row,
+        image: null,
+        contentType: null,
+        shareCode: null,
+        erasedAt: row.erasedAt ?? at,
+      };
+      count += 1;
+    }
+    return count;
+  };
   const eraseVouchers = (accountKind: string, accountId: string, at: Date): number => {
     let count = 0;
     for (const [key, row] of vouchers) {
@@ -752,11 +771,23 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         );
         if (found) return clone(found);
         const row: AmbassadorAgreement = {
+          status: 'applied',
           ...input,
           id: id(),
           stripeConnectedAccountId: null,
           flaggedAt: null,
           flagReason: null,
+          idType: null,
+          documentsSentAt: null,
+          documentsCheckedAt: null,
+          chatDoneAt: null,
+          chatDoneBy: null,
+          chatNotes: '',
+          decidedAt: null,
+          decidedBy: null,
+          decisionReason: null,
+          approvedAt: null,
+          stoppedAt: null,
         };
         ambassadorAgreements.push(row);
         return clone(row);
@@ -766,6 +797,13 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           (row) => row.accountKind === accountKind && row.accountId === accountId,
         );
         return found ? clone(found) : null;
+      },
+      async findAgreementById(key) {
+        const found = ambassadorAgreements.find((row) => row.id === key);
+        return found ? clone(found) : null;
+      },
+      async listAgreements() {
+        return ambassadorAgreements.map(clone);
       },
       async updateAgreement(key, patch) {
         const index = ambassadorAgreements.findIndex((row) => row.id === key);
@@ -838,6 +876,53 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
       async list() {
         return [...ambassadorEntries].sort((a, b) => a.at.getTime() - b.at.getTime()).map(clone);
+      },
+    },
+
+    ambassadorDocuments: {
+      async create(input) {
+        const row: AmbassadorDocument = {
+          ...input,
+          id: id(),
+          status: 'submitted',
+          checkedAt: null,
+          checkPassed: null,
+          checkNote: null,
+          checkName: null,
+          checkIssuedOn: null,
+          reviewNote: null,
+          reviewedBy: null,
+          reviewedAt: null,
+          erasedAt: null,
+        };
+        ambassadorDocuments.push(row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = ambassadorDocuments.find((row) => row.id === key);
+        return found ? clone(found) : null;
+      },
+      async listForAgreement(agreementId) {
+        return ambassadorDocuments
+          .filter((row) => row.agreementId === agreementId)
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map(clone);
+      },
+      async listSubmitted() {
+        return ambassadorDocuments
+          .filter((row) => row.status === 'submitted')
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async update(key, patch) {
+        const index = ambassadorDocuments.findIndex((row) => row.id === key);
+        if (index < 0) throw new NotFoundError('Ambassador document', key);
+        const updated = { ...ambassadorDocuments[index]!, ...patch };
+        ambassadorDocuments[index] = updated;
+        return clone(updated);
+      },
+      async eraseFor(accountKind, accountId, at) {
+        return eraseAmbassadorDocuments(accountKind, accountId, at);
       },
     },
 
@@ -1863,6 +1948,10 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           branchOfShopId: null,
           agreedDiscountPercent: 0,
           agreedMarkupPercent: 0,
+          agreementReference: null,
+          proposedMarkupPercent: null,
+          proposedDiscountPercent: null,
+          ownerAgreedName: null,
           ...input,
           id: id(),
           paidUntil: null,
@@ -1880,6 +1969,12 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
       async findBySeedKey(seedKey) {
         const found = [...partnerShops.values()].find((row) => row.seedKey === seedKey);
+        return found ? clone(found) : null;
+      },
+      async findByAgreementReference(reference) {
+        const found = [...partnerShops.values()].find(
+          (row) => row.agreementReference !== null && row.agreementReference === reference,
+        );
         return found ? clone(found) : null;
       },
       async list() {
@@ -2598,6 +2693,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         forgetCallNames('shopper', shopperId);
         // A sent voucher's code goes with the account (30 October 2026).
         eraseVouchers('shopper', shopperId, at);
+        // So do the documents sent with an Ambassador application (30 October 2026).
+        eraseAmbassadorDocuments('shopper', shopperId, at);
         for (const [key, order] of orders) {
           if (order.shopperId !== shopperId) continue;
           orders.set(key, {
@@ -2619,6 +2716,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         dropThread('runner', runnerId);
         forgetCallNames('runner', runnerId);
         eraseVouchers('runner', runnerId, at);
+        // Ambassador application documents go with the account (30 October 2026).
+        eraseAmbassadorDocuments('runner', runnerId, at);
       },
       async deleteRunnerChecksLeftBefore(before) {
         const gone = new Set(

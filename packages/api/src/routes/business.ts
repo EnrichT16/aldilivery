@@ -15,7 +15,7 @@
 
 import { randomInt } from 'node:crypto';
 
-import type { FastifyInstance } from 'fastify';
+import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import {
   BROWSE_SECTIONS,
   chosenFrom,
@@ -60,6 +60,7 @@ import type {
   PartnerPayment,
   PartnerProduct,
   PartnerShop,
+  ReferralKind,
   ServiceEnquiry,
   Shopper,
 } from '../domain.js';
@@ -67,6 +68,7 @@ import {
   ApiError,
   BadRequestError,
   ConflictError,
+  ForbiddenError,
   NotFoundError,
   UnauthorisedError,
 } from '../errors.js';
@@ -97,7 +99,15 @@ import {
   shopperPricePence,
 } from '../services/partner-products.js';
 import { tieAmbassador } from '../services/ambassadors.js';
-import { recordReferralFor, VIA_PATTERN } from '../services/referrals.js';
+import {
+  findAccount,
+  recordReferralFor,
+  samePerson,
+  viaFor,
+  viaFromCode,
+  VIA_PATTERN,
+} from '../services/referrals.js';
+import { whoAsks } from './referrals.js';
 import { hashPassword, passwordMatches, staffActor, temporaryPassword } from '../lib/staff.js';
 import { verifyPhoneProof } from '../lib/tokens.js';
 
@@ -1477,8 +1487,26 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       joinedVia: z.string().trim().regex(VIA_PATTERN).optional(),
       /** The Ozi Ambassador whose link brought the business, as kind:code (30 October 2026). */
       ambassador: z.string().trim().regex(VIA_PATTERN).optional(),
+      /**
+       * "Did someone introduce you? Their code (optional)" (Anthony, 30 October 2026): typed by
+       * the owner when no link was used.
+       */
+      introducedBy: z.string().trim().max(60).optional(),
     })
     .merge(browseFieldsSchema);
+  type JoinBody = z.infer<typeof joinSchema>;
+
+  /** An Ozi Ambassador signing a business up with its owner present (30 October 2026). */
+  interface AmbassadorSignUp {
+    kind: ReferralKind;
+    id: string;
+    name: string;
+    via: string;
+    reference: string;
+    proposedMarkupPercent: number;
+    proposedDiscountPercent: number;
+    ownerAgreedName: string;
+  }
 
   /**
    * A shop, café, takeaway or service joins by itself. The mobile is confirmed with a code
@@ -1487,6 +1515,22 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
    */
   app.post('/partner/join', async (request, reply) => {
     const body = joinSchema.parse(request.body ?? {});
+    const joined = await joinPartner(body, request.log, null);
+    void reply.status(201);
+    return joined;
+  });
+
+  /**
+   * Joining, the one way it is done: by the business itself at /business/join, or by an Ozi
+   * Ambassador with the owner present ("Sign up this business now", 30 October 2026), which makes
+   * exactly the same pending application, tied to that Ambassador, with the agreed mark-up and
+   * discount kept as proposed values for staff to confirm when they approve.
+   */
+  async function joinPartner(
+    body: JoinBody,
+    log: FastifyBaseLogger,
+    signUp: AmbassadorSignUp | null,
+  ) {
     const mobile = ukPhone(body.mobile);
     if (!mobile || !isUkMobile(mobile)) {
       throw new BadRequestError('Please give a UK mobile number, starting 07.');
@@ -1555,6 +1599,17 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       termsAgreedAt: now(),
       termsVersion: SHOP_PARTNER_TERMS_VERSION,
       ...browseFields,
+      // Signed up by an Ambassador: tied to them, with the sheet's reference and the proposals.
+      ...(signUp
+        ? {
+            ambassadorKind: signUp.kind,
+            ambassadorId: signUp.id,
+            agreementReference: signUp.reference,
+            proposedMarkupPercent: signUp.proposedMarkupPercent,
+            proposedDiscountPercent: signUp.proposedDiscountPercent,
+            ownerAgreedName: signUp.ownerAgreedName,
+          }
+        : {}),
     };
     const shop = claimed
       ? await repository.partnerShops.update(claimed.id, {
@@ -1563,16 +1618,27 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
           approvedAt: null,
         })
       : await repository.partnerShops.create({ ...details, source: 'self' });
-    locateLater(app.ctx, shop.postcode, request.log);
+    locateLater(app.ctx, shop.postcode, log);
     // The Ozi Ambassador who introduced it, never its own owner; and whoever referred it
     // (Anthony, 30 October 2026). An Ambassador's link is a referral too.
-    const introduced = await tieAmbassador(app.ctx, shop, body.ambassador);
+    // "Did someone introduce you?" (30 October 2026): their code, when no link was used, is a
+    // referral, and ties an approved Ambassador as their link would.
+    const typed =
+      signUp || body.joinedVia || body.ambassador
+        ? null
+        : await viaFromCode(app.ctx, body.introducedBy);
+    const introduced = signUp
+      ? { tied: true, words: '' }
+      : await tieAmbassador(app.ctx, shop, body.ambassador ?? typed);
     await recordReferralFor(
       app.ctx,
-      body.joinedVia ?? (introduced.tied ? body.ambassador : undefined),
+      body.joinedVia ??
+        signUp?.via ??
+        (introduced.tied ? (body.ambassador ?? typed) : typed) ??
+        undefined,
       'partner',
       shop.id,
-      request.log,
+      log,
     );
 
     const user = await repository.businessUsers.create({
@@ -1591,10 +1657,10 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       {
         kind: 'partner_shop',
         subjectId: shop.id,
-        summary: `A new ${body.kind === 'service' ? 'service' : body.kind === 'shop' ? 'shop' : 'café or takeaway'}, ${shop.name}, in ${shop.postcode.split(' ')[0] ?? shop.postcode}, has ${claimed ? 'claimed its listing' : 'joined'} and is waiting for approval.`,
+        summary: `A new ${body.kind === 'service' ? 'service' : body.kind === 'shop' ? 'shop' : 'café or takeaway'}, ${shop.name}, in ${shop.postcode.split(' ')[0] ?? shop.postcode}, has ${claimed ? 'claimed its listing' : 'joined'} and is waiting for approval.${signUp ? ` It was signed up by Ozi Ambassador ${signUp.name}, agreement ${signUp.reference}.` : ''}`,
         options: 'decide',
       },
-      request.log,
+      log,
     );
     const at = now();
 
@@ -1617,7 +1683,6 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         planMessage = ` ${started}`;
       }
     }
-    void reply.status(201);
     return {
       token: signBusinessToken(
         user.id,
@@ -1636,6 +1701,151 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         (freeForever ? ' Your basic listing is free, with no monthly fee.' : '') +
         planMessage +
         introduced.words,
+    };
+  }
+
+  /**
+   * "Sign up this business now" (Anthony, 30 October 2026): an approved Ozi Ambassador fills in
+   * the business, the owner and the agreed mark-up and discount, within the caps, with the owner
+   * present; then the OWNER reads the Shop Partner terms on the same screen and agrees, typing
+   * their name, and chooses the business's own sign-in. It makes the same pending application as
+   * /business/join, tied to the Ambassador, with a unique reference for the printed agreement
+   * sheet. The owner's phone or email may never be the Ambassador's own. The device stays signed
+   * in as the Ambassador: no business sign-in comes back.
+   */
+  app.post('/ambassador/businesses', async (request, reply) => {
+    const { kind, id } = await whoAsks(request);
+    const agreement = await repository.ambassadors.findAgreement(kind, id);
+    if (!agreement || agreement.status !== 'approved') {
+      throw new ForbiddenError('Signing up a business is for approved Ozi Ambassadors.');
+    }
+    const ambassador = await findAccount(app.ctx, kind, id);
+    if (!ambassador) throw new UnauthorisedError('Please sign in.');
+    const body = joinSchema
+      .omit({ claimShopId: true, ambassador: true, joinedVia: true, introducedBy: true })
+      .extend({
+        payNow: z.literal(false).default(false),
+        agreedMarkupPercent: markupSchema.default(0),
+        agreedDiscountPercent: discountSchema.default(0),
+        ownerName: z
+          .string()
+          .trim()
+          .min(2, 'Please type your name, as the owner or manager.')
+          .max(80),
+        ownerAgrees: z.literal(true, {
+          errorMap: () => ({
+            message: 'Please tick to say you are the owner or manager and you agree.',
+          }),
+        }),
+      })
+      .parse(request.body ?? {});
+    // The self-introduction block: the owner's phone or email may not be the Ambassador's.
+    const owner = {
+      kind: 'partner' as const,
+      id: '',
+      phones: [ukPhone(body.mobile) ?? body.mobile.replace(/\D/g, '')].filter(Boolean),
+      emails: [body.email.trim().toLowerCase()].filter(Boolean),
+    };
+    if (samePerson({ ...ambassador, kind: 'partner', id: '-' }, owner)) {
+      throw new ConflictError(
+        "The owner's phone number or email is yours. An Ambassador cannot introduce their own business. Please use the owner's own details.",
+      );
+    }
+    const proposedMarkupPercent = markupFor(body.kind, body.agreedMarkupPercent);
+    const proposedDiscountPercent = discountFor(body.kind, body.agreedDiscountPercent);
+    const reference = await newAgreementReference();
+    const {
+      ownerName,
+      ownerAgrees: _agrees,
+      agreedMarkupPercent: _m,
+      agreedDiscountPercent: _d,
+      ...join
+    } = body;
+    const joined = await joinPartner({ ...join, payNow: false }, request.log, {
+      kind,
+      id,
+      name: ambassador.name,
+      via: viaFor(ambassador),
+      reference,
+      proposedMarkupPercent,
+      proposedDiscountPercent,
+      ownerAgreedName: ownerName,
+    });
+    // Never the business's own sign-in on the Ambassador's device.
+    const { token: _token, checkout: _checkout, ...rest } = joined;
+    void reply.status(201);
+    return {
+      ...rest,
+      reference,
+      message: `${join.name} is signed up and waiting for our approval. Agreement reference ${reference}. ${body.contactName} can sign in with the username and password they chose. Print the Shop Partner agreement sheet from your Toolkit for them to keep.`,
+    };
+  });
+
+  /** A reference no other agreement sheet has: "OZA-" and eight letters and numbers. */
+  async function newAgreementReference(): Promise<string> {
+    const letters = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    for (;;) {
+      let code = 'OZA-';
+      for (let i = 0; i < 8; i += 1) {
+        if (i === 4) code += '-';
+        code += letters[randomInt(letters.length)];
+      }
+      if (!(await repository.partnerShops.findByAgreementReference(code))) return code;
+    }
+  }
+
+  /**
+   * The printed Shop Partner agreement sheet's details, for the Ambassador who signed the business
+   * up, and only while they are approved: printed only from the app.
+   */
+  app.get('/ambassador/agreements/:reference', async (request) => {
+    const { kind, id } = await whoAsks(request);
+    const agreement = await repository.ambassadors.findAgreement(kind, id);
+    if (!agreement || agreement.status !== 'approved') {
+      throw new ForbiddenError('The Ambassador Toolkit is for approved Ozi Ambassadors.');
+    }
+    const { reference } = z.object({ reference: z.string().trim().max(20) }).parse(request.params);
+    const shop = await repository.partnerShops.findByAgreementReference(reference.toUpperCase());
+    if (!shop || shop.ambassadorKind !== kind || shop.ambassadorId !== id) {
+      throw new NotFoundError('agreement');
+    }
+    const ambassador = await findAccount(app.ctx, kind, id);
+    return {
+      reference: shop.agreementReference,
+      business: shop.name,
+      kindWords: PARTNER_KIND_WORDS[shop.kind],
+      address: shop.address,
+      postcode: shop.postcode,
+      ownerName: shop.ownerAgreedName ?? shop.contactName,
+      agreedAt: shop.termsAgreedAt,
+      termsVersion: shop.termsVersion,
+      markupPercent: shop.proposedMarkupPercent ?? shop.agreedMarkupPercent,
+      discountPercent: shop.proposedDiscountPercent ?? shop.agreedDiscountPercent,
+      status: shop.status,
+      ambassadorName: ambassador?.name ?? '',
+      checkLink: `${env.primaryOrigin ?? ''}/business/agreement/${shop.agreementReference ?? ''}`,
+    };
+  });
+
+  /**
+   * Anyone with the sheet's QR code: whether the agreement with this reference is real, and
+   * where it stands. Only the business's name and whether it is approved, never anybody's details.
+   */
+  app.get('/partner-agreements/:reference', async (request) => {
+    const { reference } = z.object({ reference: z.string().trim().max(20) }).parse(request.params);
+    const shop = await repository.partnerShops.findByAgreementReference(reference.toUpperCase());
+    if (!shop) return { found: false, reference: reference.toUpperCase() };
+    return {
+      found: true,
+      reference: shop.agreementReference,
+      business: shop.name,
+      status: shop.status,
+      statusWords:
+        shop.status === 'approved'
+          ? 'Approved. This business is a Shop Partner.'
+          : shop.status === 'pending'
+            ? 'Waiting for our approval. Staff check this reference when they approve it.'
+            : 'Not going ahead.',
     };
   });
 
@@ -2343,6 +2553,11 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
          * things in the catalogue take the new price Shoppers pay at once.
          */
         agreedMarkupPercent: markupSchema.optional(),
+        /**
+         * The reference on the printed Shop Partner agreement sheet of a business an Ambassador
+         * signed up (30 October 2026), checked when approving it.
+         */
+        agreementReference: z.string().trim().max(20).optional(),
       })
       .merge(browseFieldsSchema)
       .parse(request.body ?? {});
@@ -2350,6 +2565,30 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     if (!shop) throw new NotFoundError('partner shop');
     const at = now();
     let updated = shop;
+    // A business an Ambassador signed up (30 October 2026): approving it needs the reference on
+    // its printed agreement sheet, so a photocopy or a forged sheet creates nothing on its own,
+    // and confirms the mark-up and discount agreed, unless staff give others now.
+    const confirming =
+      body.status === 'approved' && shop.status === 'pending' && shop.agreementReference !== null;
+    if (confirming) {
+      const given = (body.agreementReference ?? '').trim().toUpperCase();
+      if (given === '') {
+        throw new BadRequestError(
+          'This business was signed up by an Ambassador. Please type the reference on its agreement sheet to approve it.',
+        );
+      }
+      if (given !== shop.agreementReference) {
+        throw new ConflictError(
+          'That reference does not match the agreement for this business. Nothing was approved.',
+        );
+      }
+      if (body.agreedMarkupPercent === undefined && shop.proposedMarkupPercent !== null) {
+        body.agreedMarkupPercent = shop.proposedMarkupPercent;
+      }
+      if (body.agreedDiscountPercent === undefined && shop.proposedDiscountPercent !== null) {
+        body.agreedDiscountPercent = shop.proposedDiscountPercent;
+      }
+    }
     if (body.agreedDiscountPercent !== undefined) {
       updated = await repository.partnerShops.update(shop.id, {
         agreedDiscountPercent: discountFor(shop.kind, body.agreedDiscountPercent),

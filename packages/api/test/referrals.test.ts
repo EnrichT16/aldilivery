@@ -40,6 +40,16 @@ function post(url: string, payload: object, headers: Record<string, string> = {}
   return harness.app.inject({ method: 'POST', url, payload, headers });
 }
 
+/** The newest Ambassador application, approved, as staff would after the documents and chat. */
+async function approveLatestAmbassador(): Promise<void> {
+  const latest = (await harness.repository.ambassadors.listAgreements()).at(-1);
+  if (!latest) throw new Error('Nobody has applied.');
+  await harness.repository.ambassadors.updateAgreement(latest.id, {
+    status: 'approved',
+    approvedAt: harness.now(),
+  });
+}
+
 let joinedCount = 0;
 
 /** A business joining through /business/join, with whatever link it came by. */
@@ -450,6 +460,10 @@ describe('Ozi Ambassadors', () => {
     return { ...ada, via };
   }
 
+  /**
+   * Applies, and is approved as staff would approve them after their documents and the chat
+   * (Anthony, 30 October 2026: applications, proved in ambassador-applications.test.ts).
+   */
   async function optIn(headers: Record<string, string>) {
     const joined = await post(
       '/ambassador/join',
@@ -457,7 +471,8 @@ describe('Ozi Ambassadors', () => {
       headers,
     );
     expect(joined.statusCode, joined.body).toBe(200);
-    return joined.json();
+    await approveLatestAmbassador();
+    return { ...joined.json(), link: (await get('/referrals/me', headers)).json().ambassador.link };
   }
 
   async function approve(shopId: string) {
@@ -554,7 +569,7 @@ describe('Ozi Ambassadors', () => {
     );
 
     const mine = (await get('/referrals/me', ada.authHeader)).json().ambassador;
-    expect(mine.businesses).toEqual([{ name: tied!.name, approved: false }]);
+    expect(mine.businesses).toEqual([{ name: tied!.name, approved: false, earnedPence: 0 }]);
   });
 
   it('cannot introduce their own business: the same phone or email', async () => {
@@ -850,6 +865,7 @@ describe('Ambassador money is tamper-proof (ruled 30 October 2026)', () => {
       { termsAgreed: true, termsVersion: AMBASSADOR_TERMS_VERSION },
       ada.authHeader,
     );
+    await approveLatestAmbassador();
     const shop = await joinShop({ ambassador: via, kind, about: 'Things.' });
     await post(`/staff/partners/${shop.id}`, { status: 'approved' }, STAFF);
     return { ada, shop };

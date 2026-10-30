@@ -239,6 +239,56 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    ambassadorDocuments: {
+      async create(input) {
+        const { image, ...rest } = input;
+        return (await prisma.ambassadorDocument.create({
+          data: { ...rest, image: image ? Buffer.from(image) : null },
+        })) as any;
+      },
+      async findById(id) {
+        return (await prisma.ambassadorDocument.findUnique({ where: { id } })) as any;
+      },
+      async listForAgreement(agreementId) {
+        return (await prisma.ambassadorDocument.findMany({
+          where: { agreementId },
+          orderBy: { createdAt: 'desc' },
+        })) as any;
+      },
+      async listSubmitted() {
+        return (await prisma.ambassadorDocument.findMany({
+          where: { status: 'submitted' },
+          orderBy: { createdAt: 'asc' },
+        })) as any;
+      },
+      async update(id, patch) {
+        const { image, ...rest } = patch;
+        return (await prisma.ambassadorDocument.update({
+          where: { id },
+          data: {
+            ...rest,
+            ...(image === undefined ? {} : { image: image ? Buffer.from(image) : null }),
+          },
+        })) as any;
+      },
+      async eraseFor(accountKind, accountId, at) {
+        const kept = {
+          accountKind,
+          accountId,
+          OR: [{ image: { not: null } }, { shareCode: { not: null } }],
+        };
+        await prisma.ambassadorDocument.updateMany({
+          where: { ...kept, erasedAt: null },
+          data: { erasedAt: at },
+        });
+        const erased = await prisma.ambassadorDocument.updateMany({
+          where: kept,
+          data: { image: null, contentType: null, shareCode: null },
+        });
+        return erased.count;
+      },
+    },
+
     sos: {
       async create(input) {
         return (await prisma.runnerSos.create({ data: input })) as any;
@@ -390,6 +440,12 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         return (await prisma.ambassadorAgreement.findUnique({
           where: { accountKind_accountId: { accountKind, accountId } },
         })) as any;
+      },
+      async findAgreementById(id) {
+        return (await prisma.ambassadorAgreement.findUnique({ where: { id } })) as any;
+      },
+      async listAgreements() {
+        return (await prisma.ambassadorAgreement.findMany({ orderBy: { agreedAt: 'asc' } })) as any;
       },
       async updateAgreement(id, patch) {
         return (await prisma.ambassadorAgreement.update({ where: { id }, data: patch })) as any;
@@ -1077,6 +1133,9 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       async findBySeedKey(seedKey) {
         return (await prisma.partnerShop.findUnique({ where: { seedKey } })) as any;
       },
+      async findByAgreementReference(agreementReference) {
+        return (await prisma.partnerShop.findUnique({ where: { agreementReference } })) as any;
+      },
       async list() {
         return (await prisma.partnerShop.findMany({ orderBy: { createdAt: 'asc' } })) as any;
       },
@@ -1717,6 +1776,11 @@ export function prismaRepository(prisma: PrismaClient): Repository {
             where: { accountKind: 'shopper', accountId: shopperId },
             data: { code: '', link: null, nextReminderAt: null, ringingUntil: null, erasedAt: at },
           }),
+          // So do the documents sent with an Ambassador application (30 October 2026).
+          prisma.ambassadorDocument.updateMany({
+            where: { accountKind: 'shopper', accountId: shopperId },
+            data: { image: null, contentType: null, shareCode: null, erasedAt: at },
+          }),
           prisma.staffCall.updateMany({
             where: { accountKind: 'shopper', accountId: shopperId },
             data: { accountName: 'Closed account' },
@@ -1734,6 +1798,10 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           prisma.referralVoucher.updateMany({
             where: { accountKind: 'runner', accountId: runnerId },
             data: { code: '', link: null, nextReminderAt: null, ringingUntil: null, erasedAt: at },
+          }),
+          prisma.ambassadorDocument.updateMany({
+            where: { accountKind: 'runner', accountId: runnerId },
+            data: { image: null, contentType: null, shareCode: null, erasedAt: at },
           }),
           prisma.staffCall.updateMany({
             where: { accountKind: 'runner', accountId: runnerId },
