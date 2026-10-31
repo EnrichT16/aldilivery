@@ -49,7 +49,7 @@ import { checkWaiting } from './services/auto-check.js';
 import { fallBackToPhone, sweepOwnerDesk } from './services/owner-desk.js';
 import { sweepEmail } from './services/email-desk.js';
 import { reviewOziWeek } from './services/ozi-review.js';
-import { imapMailbox, mailboxSettings, smtpMailer } from './lib/mailbox.js';
+import { allMailboxSettings, imapMailbox, smtpMailer, type MailboxLink } from './lib/mailbox.js';
 
 async function main(): Promise<void> {
   const env = readEnv();
@@ -175,8 +175,28 @@ async function main(): Promise<void> {
       })
     : null;
 
+  // Every mailbox Ozi reads (ruling 85): the first (EMAIL_IMAP_*) and EMAIL_2_ to EMAIL_5_. Each
+  // has its own outgoing server for replies, or none. Passwords are never logged.
+  const mailSettings = allMailboxSettings(env);
+  const mailLinks: Array<MailboxLink & { settings: (typeof mailSettings)[number] }> =
+    mailSettings.map((settings) => ({
+      settings,
+      number: settings.number,
+      label: settings.label,
+      ownAddress: settings.user,
+      mailer: settings.smtp
+        ? smtpMailer({ ...settings, smtp: settings.smtp }, config.productName)
+        : null,
+    }));
+
   const app = await buildApp({
     config,
+    mailboxes: mailLinks.map(({ number, label, ownAddress, mailer }) => ({
+      number,
+      label,
+      ownAddress,
+      mailer,
+    })),
     calls,
     recorder,
     voice,
@@ -587,22 +607,23 @@ async function main(): Promise<void> {
   // emails are sorted: important ones go on Ozi's desk, spam, newsletters and notices are only
   // marked as read, and simple customer questions are answered only if EMAIL_AUTO_REPLY is on.
   // The password and the emails' words are never written to this log.
-  const mail = mailboxSettings(env);
-  let emailSweep: ReturnType<typeof setInterval> | null = null;
-  if (!mail) {
+  const emailSweeps: Array<ReturnType<typeof setInterval>> = [];
+  if (mailLinks.length === 0) {
     app.log.info(
-      'Ozi is not reading the business mailbox: EMAIL_IMAP_HOST, EMAIL_IMAP_USER and EMAIL_IMAP_PASSWORD are not all set.',
+      'Ozi is not reading any mailbox: EMAIL_IMAP_HOST, EMAIL_IMAP_USER and EMAIL_IMAP_PASSWORD (or a numbered EMAIL_2_ set) are not all set.',
     );
-  } else {
+  }
+  for (const link of mailLinks) {
+    const mail = link.settings;
     const mailbox = imapMailbox(mail);
-    const mailer = mail.smtp ? smtpMailer({ ...mail, smtp: mail.smtp }, config.productName) : null;
     app.log.info(
       {
+        mailbox: mail.number,
         host: mail.imap.host,
         port: mail.imap.port,
-        replies: mail.autoReply && mailer ? 'on' : 'off',
+        replies: mail.autoReply && link.mailer ? 'on' : 'off',
       },
-      `${config.assistantName} reads the business mailbox every five minutes.`,
+      `${config.assistantName} reads ${mail.label} every five minutes.`,
     );
     let emailRunning = false;
     const readMail = (): void => {
@@ -610,25 +631,36 @@ async function main(): Promise<void> {
       emailRunning = true;
       sweepEmail(
         app.ctx,
-        { mailbox, mailer, autoReply: mail.autoReply, ownAddress: mail.user },
+        {
+          mailbox,
+          mailer: link.mailer,
+          autoReply: mail.autoReply,
+          ownAddress: mail.user,
+          number: mail.number,
+          label: mail.label,
+        },
         app.log,
       )
         .then((report) => {
-          if (report.read > 0 || report.failed > 0) app.log.info(report, 'Email sweep');
+          if (report.read > 0 || report.failed > 0) {
+            app.log.info({ ...report, mailbox: mail.number }, 'Email sweep');
+          }
         })
         .catch((failure: unknown) => {
           app.log.error(
-            { err: failure instanceof Error ? failure.message : 'unknown' },
-            'The business mailbox could not be read',
+            { err: failure instanceof Error ? failure.message : 'unknown', mailbox: mail.number },
+            'A mailbox could not be read',
           );
         })
         .finally(() => {
           emailRunning = false;
         });
     };
-    emailSweep = setInterval(readMail, 5 * 60_000);
+    const emailSweep = setInterval(readMail, 5 * 60_000);
     emailSweep.unref();
-    setTimeout(readMail, 30_000).unref();
+    emailSweeps.push(emailSweep);
+    // Spread out a little, so several mailboxes are not all opened at the same moment.
+    setTimeout(readMail, 30_000 + (mail.number - 1) * 10_000).unref();
   }
 
   const shutdown = async (signal: string): Promise<void> => {
@@ -638,7 +670,7 @@ async function main(): Promise<void> {
     clearInterval(promiseSweep);
     clearInterval(deskSweep);
     clearInterval(deskFallback);
-    if (emailSweep) clearInterval(emailSweep);
+    for (const emailSweep of emailSweeps) clearInterval(emailSweep);
     clearInterval(paySweep);
     clearInterval(setSweep);
     clearInterval(retentionSweep);

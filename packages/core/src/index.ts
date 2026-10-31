@@ -74,6 +74,11 @@ export {
   type CatalogueSourceMode,
   type OwnerDeskSettings,
   type CompanyContactSettings,
+  ALERT_KINDS,
+  ALERT_WAYS,
+  type AlertKind,
+  type AlertWay,
+  type OwnerAlertSettings,
 } from './config.js';
 
 export {

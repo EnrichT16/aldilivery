@@ -18,6 +18,7 @@ import type { StoreConfig } from '@aldilivery/core';
 
 import type { StaffMember } from '../domain.js';
 import { ApiError, ForbiddenError } from '../errors.js';
+import { noteStaffSighting } from './staff-sightings.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
@@ -489,6 +490,8 @@ export async function staffActor(
     viewOnly,
   };
   request.staffActor = actor;
+  // Who is about, and roughly where (ruling 85): one sighting every few minutes at most.
+  await noteStaffSighting(request, member.id, 'activity');
   return actor;
 }
 

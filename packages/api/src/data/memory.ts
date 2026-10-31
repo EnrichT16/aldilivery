@@ -76,6 +76,9 @@ import type {
   ShopperFeedback,
   OziExchange,
   EmailRecord,
+  EmailSummary,
+  OwnerPreference,
+  StaffSighting,
   OwnerCall,
   OwnerMatter,
   PriceSighting,
@@ -215,6 +218,9 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const ownerMatters = new Map<string, OwnerMatter>();
   const ownerCalls = new Map<string, OwnerCall>();
   const emailRecords = new Map<string, EmailRecord>();
+  const emailSummaries = new Map<string, EmailSummary>();
+  const staffSightings: StaffSighting[] = [];
+  let ownerPreference: OwnerPreference | null = null;
   const inboxThreads = new Map<string, InboxThread>();
   const inboxMessages = new Map<string, InboxMessage>();
   const staffCodes = new Map<string, StaffCode>();
@@ -2587,6 +2593,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           ...input,
           emailFrom: input.emailFrom ?? null,
           emailSubject: input.emailSubject ?? null,
+          alertKind: input.alertKind ?? null,
+          alertedAt: null,
           id: id(),
           status: 'open',
           decision: null,
@@ -2796,6 +2804,95 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         return [...staffCalls.values()]
           .filter((row) => row.recordingKey !== null && row.startedAt < before)
           .map(clone);
+      },
+    },
+
+    emailSummaries: {
+      async save(input) {
+        for (const row of emailSummaries.values()) {
+          if (row.messageId === input.messageId) return clone(row);
+        }
+        const row: EmailSummary = {
+          ...input,
+          id: id(),
+          heard: false,
+          heardAt: null,
+          createdAt: now(),
+        };
+        emailSummaries.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = emailSummaries.get(key);
+        return found ? clone(found) : null;
+      },
+      async list(where) {
+        const name = where.fromName?.trim().toLowerCase();
+        return [...emailSummaries.values()]
+          .filter(
+            (row) =>
+              (!where.since || row.receivedAt >= where.since) &&
+              (where.heard === undefined || row.heard === where.heard) &&
+              (where.important === undefined || row.important === where.important) &&
+              (where.mailbox === undefined || row.mailbox === where.mailbox) &&
+              (!name || (row.fromName ?? '').toLowerCase().includes(name)),
+          )
+          .sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime())
+          .slice(0, where.limit ?? 50)
+          .map(clone);
+      },
+      async markHeard(ids, at) {
+        let changed = 0;
+        for (const key of ids) {
+          const row = emailSummaries.get(key);
+          if (!row || row.heard) continue;
+          emailSummaries.set(key, { ...row, heard: true, heardAt: at });
+          changed += 1;
+        }
+        return changed;
+      },
+      async deleteBefore(before) {
+        let removed = 0;
+        for (const [key, row] of emailSummaries) {
+          if (row.receivedAt < before) {
+            emailSummaries.delete(key);
+            removed += 1;
+          }
+        }
+        return removed;
+      },
+    },
+
+    staffSightings: {
+      async record(input) {
+        const row: StaffSighting = { ...input, id: id() };
+        staffSightings.push(row);
+        return clone(row);
+      },
+      async latestForEach(staffIds) {
+        const latest = new Map<string, StaffSighting>();
+        for (const row of staffSightings) {
+          if (!staffIds.includes(row.staffId)) continue;
+          const found = latest.get(row.staffId);
+          if (!found || row.at >= found.at) latest.set(row.staffId, row);
+        }
+        return [...latest.values()].map(clone);
+      },
+      async deleteBefore(before) {
+        const keep = staffSightings.filter((row) => row.at >= before);
+        const removed = staffSightings.length - keep.length;
+        staffSightings.splice(0, staffSightings.length, ...keep);
+        return removed;
+      },
+    },
+
+    ownerPreferences: {
+      async get() {
+        return ownerPreference ? clone(ownerPreference) : null;
+      },
+      async save(value) {
+        ownerPreference = clone(value);
+        return clone(value);
       },
     },
 

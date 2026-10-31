@@ -28,6 +28,7 @@ import type { CallRecorder } from './lib/call-recording.js';
 import type { CallProvider } from './lib/livekit.js';
 import type { VoiceEngineLink } from './lib/oluoma-voice.js';
 import type { OziBrain } from './lib/language-model.js';
+import type { MailboxLink } from './lib/mailbox.js';
 import type { OpenPricesLookup } from './lib/open-prices.js';
 import type { PaymentsGateway } from './lib/payments.js';
 import type { PostcodeLookup } from './lib/postcodes.js';
@@ -70,6 +71,7 @@ import { registerReviewRoutes } from './routes/reviews.js';
 import { registerReceiptPhotoRoutes } from './routes/receipt-photos.js';
 import { registerTillCaseRoutes } from './routes/till-cases.js';
 import { registerStaffRoutes } from './routes/staff.js';
+import { registerOwnerControlRoutes } from './routes/owner-controls.js';
 import { registerExtrasRoutes } from './routes/extras.js';
 import { registerProblemRoutes } from './routes/problems.js';
 import { registerRunnerAccountRoutes } from './routes/runner-account.js';
@@ -164,6 +166,11 @@ export interface AppContext {
    * reaches the network; areas then come from the postcode's letters alone.
    */
   findPostcode: PostcodeLookup | null;
+  /**
+   * The mailboxes Ozi reads (ruling 85), for the owner's reply by voice: each one's number, label,
+   * own address and outgoing server. Empty in the tests unless stand-ins are given.
+   */
+  mailboxes: MailboxLink[];
 }
 
 export interface Session {
@@ -203,6 +210,7 @@ export interface BuildAppOptions extends Partial<
     | 'lookUpPrices'
     | 'backgroundChecks'
     | 'findPostcode'
+    | 'mailboxes'
   >
 > {
   config: StoreConfig;
@@ -276,6 +284,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     lookUpPrices: options.lookUpPrices ?? false,
     backgroundChecks: options.backgroundChecks ?? false,
     findPostcode: options.findPostcode ?? null,
+    mailboxes: options.mailboxes ?? [],
   };
 
   app.decorate('ctx', ctx);
@@ -569,6 +578,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerSetRoutes(app);
   await registerWebhookRoutes(app);
   await registerStaffRoutes(app);
+  await registerOwnerControlRoutes(app);
   await registerBusinessRoutes(app);
   await registerAnalyticsRoutes(app);
   await registerOwnerRoutes(app);

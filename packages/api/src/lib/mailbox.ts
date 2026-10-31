@@ -8,6 +8,10 @@
  *
  * The password is never logged, and neither is any part of an email's words: the IMAP library's
  * own logging is switched off for that reason.
+ *
+ * Several mailboxes (ruling 85, 31 October 2026): the first is EMAIL_IMAP_* as before; up to four
+ * more are EMAIL_2_* to EMAIL_5_*, each with a label Ozi says aloud ("the Gmail"). A Gmail address
+ * is read the same way, at imap.gmail.com on port 993 with an app password.
  */
 
 import { createHash } from 'node:crypto';
@@ -60,6 +64,11 @@ export interface OutgoingEmail {
   text: string;
   /** The Message-ID being answered, so the reply sits in the same conversation. */
   inReplyTo: string | null;
+  /**
+   * Sent by Ozi by itself (the default), marked Auto-Submitted so other machines do not answer
+   * it; false for the owner's own reply, which he said yes to (ruling 85).
+   */
+  automatic?: boolean;
 }
 
 export interface Mailer {
@@ -72,6 +81,10 @@ export const TEXT_LIMIT = 2000;
 const SOURCE_LIMIT = 1_000_000;
 
 export interface MailboxSettings {
+  /** 1 for EMAIL_IMAP_*, 2 to 5 for EMAIL_2_* to EMAIL_5_* (ruling 85). */
+  number: number;
+  /** What Ozi calls it aloud: "the business mailbox", "the Gmail". */
+  label: string;
   imap: { host: string; port: number; secure: boolean };
   /** For replies only; null when no outgoing server is given. */
   smtp: { host: string; port: number; secure: boolean } | null;
@@ -80,14 +93,26 @@ export interface MailboxSettings {
   autoReply: boolean;
 }
 
+/** What the first mailbox is called aloud unless EMAIL_LABEL says otherwise. */
+export const FIRST_MAILBOX_LABEL = 'the business mailbox';
+
+/** A mailbox's label as Ozi says it: given, or "mailbox 2". */
+export function mailboxLabel(number: number, given: string | undefined): string {
+  const tidy = (given ?? '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  if (tidy) return tidy;
+  return number === 1 ? FIRST_MAILBOX_LABEL : `mailbox ${number}`;
+}
+
 /**
- * The mailbox's settings, or null when it is off: the IMAP host, the user and the password must
- * all be real values (a placeholder counts as nothing).
+ * The first mailbox's settings, or null when it is off: the IMAP host, the user and the password
+ * must all be real values (a placeholder counts as nothing).
  */
 export function mailboxSettings(env: Env): MailboxSettings | null {
   const { emailImapHost: host, emailImapUser: user, emailImapPassword: password } = env;
   if (!host || !user || !password) return null;
   return {
+    number: 1,
+    label: mailboxLabel(1, env.emailLabel),
     // 993 is IMAP over TLS; 143 starts plain and is upgraded with STARTTLS.
     imap: { host, port: env.emailImapPort, secure: env.emailImapPort !== 143 },
     smtp: env.emailSmtpHost
@@ -110,6 +135,42 @@ function firstAddress(from: AddressObject | AddressObject[] | undefined): {
     }
   }
   return { address: '', name: null };
+}
+
+/**
+ * Every mailbox that is set up (ruling 85): the first, then EMAIL_2_ to EMAIL_5_, in number
+ * order. The same address given twice is read once.
+ */
+export function allMailboxSettings(env: Env): MailboxSettings[] {
+  const all: MailboxSettings[] = [];
+  const first = mailboxSettings(env);
+  if (first) all.push(first);
+  for (const extra of env.extraMailboxes ?? []) {
+    if (all.some((one) => one.user.toLowerCase() === extra.user.toLowerCase())) continue;
+    all.push({
+      number: extra.number,
+      label: mailboxLabel(extra.number, extra.label),
+      imap: { host: extra.imapHost, port: extra.imapPort, secure: extra.imapPort !== 143 },
+      smtp: extra.smtpHost
+        ? { host: extra.smtpHost, port: extra.smtpPort, secure: extra.smtpPort === 465 }
+        : null,
+      user: extra.user,
+      password: extra.password,
+      autoReply: extra.autoReply,
+    });
+  }
+  return all;
+}
+
+/**
+ * What the owner's reply needs of a mailbox (ruling 85): its number and label, its own address
+ * (never said aloud), and its outgoing server, or null when it has none.
+ */
+export interface MailboxLink {
+  number: number;
+  label: string;
+  ownAddress: string;
+  mailer: Mailer | null;
 }
 
 /** An email's raw source turned into what the desk needs. Exported for the tests. */
@@ -223,8 +284,9 @@ export function smtpMailer(
         subject: email.subject,
         text: email.text,
         ...(email.inReplyTo ? { inReplyTo: email.inReplyTo, references: email.inReplyTo } : {}),
-        // An automatic reply says so (RFC 3834), so other machines do not answer it back.
-        headers: { 'Auto-Submitted': 'auto-replied' },
+        // An automatic reply says so (RFC 3834), so other machines do not answer it back. The
+        // owner's own reply, which he said yes to, is his and is not marked (ruling 85).
+        ...(email.automatic === false ? {} : { headers: { 'Auto-Submitted': 'auto-replied' } }),
       });
     },
   };

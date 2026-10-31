@@ -274,7 +274,9 @@
     "ownerOnlyRefundAbovePence": 2500,
     "staffTwoStepGraceDays": 14,
     "staffTwoStepFrom": "2026-10-17",
-    "staffRememberDays": 30
+    "staffRememberDays": 30,
+    "staffSightingsKeepDays": 90,
+    "staffOnlineMinutes": 15
   },
   "owner": {
     "spokenName": "Mr. Anthony"
@@ -295,6 +297,17 @@
     "lowRatingAtMost": 2,
     "checkConfidence": 0.9,
     "appRingSeconds": 30
+  },
+  "ownerAlerts": {
+    "urgentSafety": "call",
+    "importantEmail": "call",
+    "otherEmail": "none",
+    "approvals": "call",
+    "money": "call"
+  },
+  "emailDesk": {
+    "summaryKeepDays": 30,
+    "readAloudCharacters": 1500
   },
   "companyContact": {
     "messageCodeMinutes": 120,

@@ -26,6 +26,12 @@
  * the same attempt rings OWNER_ALERT_PHONE as before (`fallBackToPhone`). No device and no panel
  * open: straight to the phone. Answered in the app, Ozi says the same things, and his choices go
  * through `decideMatter` exactly as the keypad's do, recorded as decided in the app.
+ *
+ * His choice (ruling 85, Anthony, 31 October 2026): for each kind of matter he chooses a call, a
+ * text, a notification on his devices, or nothing (services/alert-preferences.ts), and his own
+ * quiet hours. Only matters he wants a call about start the calls above; a text or notification
+ * goes once for each matter, never in quiet hours, saying how many and what kind, never what.
+ * Urgent safety always calls, even in quiet hours.
  */
 
 import type { FastifyBaseLogger } from 'fastify';
@@ -47,6 +53,7 @@ import type {
 import { ApiError } from '../errors.js';
 import { orderReference } from '../routes/runner-account.js';
 import { countWords, needsYouItems, type NeedsYouItems } from './needs-you.js';
+import { alertKindOf, alertPreferences, wayFor } from './alert-preferences.js';
 import { decidePartnerProduct, withdrawPartnerProduct } from './partner-products.js';
 import { decideRunnerDocument, KIND_SPOKEN } from './runner-documents.js';
 
@@ -70,6 +77,8 @@ export interface AskOwnerInput {
   again?: boolean;
   /** For an email (ruling 76): who it is from and its subject, for the admin panel only. */
   email?: { from: string; subject: string };
+  /** Which of the owner's alert choices it follows (ruling 85), when not its kind's own. */
+  alertKind?: OwnerMatter['alertKind'];
 }
 
 /** A call still marked ringing after this long lost its status callback: treated as unanswered. */
@@ -110,6 +119,7 @@ export async function askOwner(
       summary,
       options: input.options,
       urgent: input.urgent ?? false,
+      ...(input.alertKind ? { alertKind: input.alertKind } : {}),
       ...(input.email
         ? {
             emailFrom: input.email.from.slice(0, 200),
@@ -785,19 +795,22 @@ export async function sweepOwnerDesk(
   await fallBackToPhone(ctx, log);
   const phone = ctx.env.ownerAlertPhone;
   const app = await inAppReach(ctx);
+  const desk = ctx.config.ownerDesk;
+  const at = ctx.now();
+  // His own choices (ruling 85): how each kind reaches him, and his quiet hours.
+  const preferences = await alertPreferences(ctx);
+  const quiet = inQuietHours(at, preferences.quietFrom, preferences.quietUntil);
+  const everythingOpen = inReadingOrder(unsettled);
+  if (!quiet) await sendQuietAlerts(ctx, everythingOpen, preferences, app.devices, log);
   if (!canRingPhone(ctx) && !app.reachable) {
     return { called: false, reason: 'not-set-up' };
   }
-  const open = inReadingOrder(unsettled);
+  // Only what he wants a call about starts a call; urgent safety always does.
+  const open = everythingOpen.filter((matter) => wayFor(preferences, matter) === 'call');
   if (open.length === 0) return { called: false, reason: 'nothing-open' };
 
-  const desk = ctx.config.ownerDesk;
-  const at = ctx.now();
-  const urgentOpen = open.some((matter) => matter.urgent);
-  if (
-    inQuietHours(at, desk.quietFrom, desk.quietUntil) &&
-    !(urgentOpen && desk.urgentInQuietHours)
-  ) {
+  const urgentOpen = open.some((matter) => alertKindOf(matter) === 'urgentSafety');
+  if (quiet && !urgentOpen) {
     return { called: false, reason: 'quiet-hours' };
   }
 
@@ -881,6 +894,95 @@ export async function sweepOwnerDesk(
     return { called: true, call };
   }
   return { called: true, call: await dialOwner(ctx, call, log) };
+}
+
+/* ------------------------------------------------------------------ a text or a notification (ruling 85) */
+
+const KIND_FOR_TEXT: Record<string, { one: string; many: string }> = {
+  importantEmail: { one: 'an important email', many: 'important emails' },
+  otherEmail: { one: 'an email', many: 'emails' },
+  approvals: { one: 'an approval', many: 'approvals' },
+  money: { one: 'a money matter', many: 'money matters' },
+};
+
+/** "2 important emails and an approval": what kind and how many, never what. */
+function kindsWords(matters: readonly OwnerMatter[]): string {
+  const counts = new Map<string, number>();
+  for (const matter of matters) {
+    const kind = alertKindOf(matter) ?? 'other';
+    counts.set(kind, (counts.get(kind) ?? 0) + 1);
+  }
+  const parts = [...counts.entries()].map(([kind, count]) => {
+    const words = KIND_FOR_TEXT[kind] ?? { one: 'a matter', many: 'matters' };
+    return count === 1 ? words.one : `${countWords(count)} ${words.many}`;
+  });
+  return parts.length <= 1
+    ? (parts[0] ?? '')
+    : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)!}`;
+}
+
+/**
+ * Matters he wants a text or a notification about, each told once (ruling 85): one message for
+ * each way, saying how many and what kind, never what. A notification with no device to show it
+ * goes as a text instead. Never called in quiet hours.
+ */
+async function sendQuietAlerts(
+  ctx: DeskContext,
+  open: readonly OwnerMatter[],
+  preferences: Awaited<ReturnType<typeof alertPreferences>>,
+  devices: readonly PushSubscription[],
+  log?: FastifyBaseLogger,
+): Promise<void> {
+  const waiting = open.filter((matter) => matter.alertedAt === null);
+  const byText = waiting.filter((matter) => wayFor(preferences, matter) === 'text');
+  const byNotification = waiting.filter((matter) => wayFor(preferences, matter) === 'notification');
+  const { productName, assistantName, owner } = ctx.config;
+  const at = ctx.now();
+  const sent = async (matters: readonly OwnerMatter[]): Promise<void> => {
+    for (const matter of matters) {
+      await ctx.repository.ownerDesk.updateMatter(matter.id, { alertedAt: at });
+    }
+  };
+  const words = (matters: readonly OwnerMatter[]): string =>
+    `${kindsWords(matters)} ${matters.length === 1 ? 'needs' : 'need'} you, ${owner.spokenName}. ${matters.length === 1 ? 'It is' : 'They are'} on the Needs you now page of the admin panel, or ask ${assistantName}.`;
+
+  const textLater: OwnerMatter[] = [...byText];
+  if (byNotification.length > 0) {
+    if (ctx.sendPush && devices.length > 0) {
+      let reached = false;
+      for (const device of devices) {
+        try {
+          const result = await ctx.sendPush(device, {
+            title: `${assistantName} for ${owner.spokenName}`,
+            body: words(byNotification),
+            url: '/staff',
+            tag: 'ozi-desk-alert',
+          });
+          if (result === 'gone') {
+            await ctx.repository.pushSubscriptions.deleteByEndpoint(device.endpoint);
+          } else {
+            reached = true;
+          }
+        } catch (failure) {
+          log?.warn({ err: failure }, 'A notification to the owner did not go.');
+        }
+      }
+      if (reached) await sent(byNotification);
+      else textLater.push(...byNotification);
+    } else {
+      // No device to show it: a text instead, so it is never lost.
+      textLater.push(...byNotification);
+    }
+  }
+  const phone = ctx.env.ownerAlertPhone;
+  if (textLater.length > 0 && ctx.sendText && phone) {
+    try {
+      await ctx.sendText(phone, `${productName}: ${words(textLater)}`);
+      await sent(textLater);
+    } catch (failure) {
+      log?.warn({ err: failure }, 'A text to the owner did not go.');
+    }
+  }
 }
 
 /* ------------------------------------------------------------------ in the app first (ruling 79) */

@@ -10,6 +10,11 @@
  * and read back in the server's own words; it is carried out only on a clear yes in his very next
  * turn, through the same `decideMatter` as the keypad and the admin panel, and written in the
  * audit log as his, by voice. Anything else in that turn, or a no, and nothing is done.
+ *
+ * Ruling 85 (31 October 2026) adds his staff, his emails and how Ozi reaches him: reading answers
+ * at once; every change (switching staff, marking emails heard, a reply, his alert choices) is a
+ * decision in exactly the same way, read back in fixed words and done only on his clear yes,
+ * through the same service functions as the admin panel (services/owner-voice.ts).
  */
 
 import type { FastifyBaseLogger, FastifyRequest } from 'fastify';
@@ -25,10 +30,19 @@ import {
   type DeskOutcome,
 } from '../services/owner-desk.js';
 import { KIND_SPOKEN } from '../services/runner-documents.js';
+import {
+  alertPreferencesForVoice,
+  carryOutOwnerAction,
+  listEmailsForVoice,
+  listStaffForVoice,
+  proposeOwnerAction,
+  readEmailForVoice,
+} from '../services/owner-voice.js';
 import { businessActor } from './business.js';
 import {
   HISTORY_TURNS,
   type DeskVoiceChoice,
+  type OwnerAction,
   type OwnerTools,
   type PastTurn,
   type Speaker,
@@ -173,12 +187,10 @@ export const SIMPLER_TODAY =
 
 /* ------------------------------------------------------------------ the owner's yes */
 
-export interface PendingDecision {
-  matterId: string;
-  choice: DeskVoiceChoice;
-  readBack: string;
-  at: number;
-}
+/** A decision on a desk matter, or a change he asked for (ruling 85), waiting for his yes. */
+export type PendingDecision =
+  | { matterId: string; choice: DeskVoiceChoice; readBack: string; at: number }
+  | { action: OwnerAction; readBack: string; at: number };
 
 /** How long a read-back waits for his yes before it is forgotten. */
 const PENDING_MS = 3 * 60_000;
@@ -233,7 +245,7 @@ function choiceWords(choice: DeskVoiceChoice, acknowledgeOnly: boolean, laterMin
 }
 
 /** The owner's desk tools for the model: reading, and proposing one decision for his yes. */
-export function ownerTools(ctx: DeskContext): OwnerTools {
+export function ownerTools(ctx: DeskContext & Pick<AppContext, 'mailboxes'>): OwnerTools {
   const { repository, config } = ctx;
   return {
     async needsYou() {
@@ -348,6 +360,12 @@ export function ownerTools(ctx: DeskContext): OwnerTools {
         readBack: `To be sure, ${config.owner.spokenName}: I will ${what}. ${matter.summary} Shall I go ahead? Say yes, or no.`,
       };
     },
+    // His staff, his emails and how Ozi reaches him (ruling 85).
+    listStaff: () => listStaffForVoice(ctx),
+    listEmails: (filter) => listEmailsForVoice(ctx, filter),
+    readEmail: (id) => readEmailForVoice(ctx, id),
+    getAlertPreferences: () => alertPreferencesForVoice(ctx),
+    proposeAction: (request) => proposeOwnerAction(ctx, request),
   };
 }
 
@@ -356,8 +374,26 @@ export function ownerTools(ctx: DeskContext): OwnerTools {
  * panel's, recorded in the audit log as the owner's, by voice.
  */
 export async function carryOutDecision(
-  ctx: DeskContext,
+  ctx: DeskContext & Pick<AppContext, 'mailboxes'>,
   pending: PendingDecision,
+  log?: FastifyBaseLogger,
+  seen: { actorId?: string | null; ip?: string } = {},
+): Promise<{ words: string }> {
+  if ('action' in pending) {
+    // A change he asked for (ruling 85): the same service functions as the admin panel.
+    const owner = seen.actorId ? await ctx.repository.staffMembers.findById(seen.actorId) : null;
+    return carryOutOwnerAction(ctx, pending.action, {
+      actorId: seen.actorId ?? null,
+      name: owner?.name ?? ctx.config.owner.spokenName,
+      ...(seen.ip !== undefined ? { ip: seen.ip } : {}),
+    });
+  }
+  return carryOutMatterDecision(ctx, pending, log, seen);
+}
+
+async function carryOutMatterDecision(
+  ctx: DeskContext,
+  pending: Extract<PendingDecision, { matterId: string }>,
   log?: FastifyBaseLogger,
   seen: { actorId?: string | null; ip?: string } = {},
 ): Promise<DeskOutcome> {

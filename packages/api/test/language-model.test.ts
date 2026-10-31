@@ -595,6 +595,11 @@ describe('a real conversation (31 October 2026)', () => {
         proposed.push(`${id}:${choice}`);
         return { ok: true, readBack: `I will ${choice} ${id}. Say yes, or no.` };
       },
+      listStaff: async () => ({}),
+      listEmails: async () => ({}),
+      readEmail: async () => ({}),
+      getAlertPreferences: async () => ({}),
+      proposeAction: async () => ({ ok: false, why: 'no' }),
     };
     const talk = await brain.talkWithOwner!({
       text: 'approve the new shop, and the other one',
@@ -623,6 +628,16 @@ describe('a real conversation (31 October 2026)', () => {
       'today_summary',
       'read_application',
       'decide_matter',
+      // His staff, his emails and how Ozi reaches him (ruling 85).
+      'list_staff',
+      'switch_staff',
+      'switch_all_staff_off',
+      'list_emails',
+      'read_email',
+      'mark_heard',
+      'reply_email',
+      'get_alert_preferences',
+      'set_alert_preferences',
     ]);
     expect(tools0.every((tool) => tool.strict)).toBe(true);
     // The tool's answer went back to the model as a result, after its own call.
@@ -637,6 +652,11 @@ describe('a real conversation (31 October 2026)', () => {
       todaySummary: async () => ({}),
       readApplication: async () => ({}),
       propose: async () => ({ ok: false, why: 'no' }),
+      listStaff: async () => ({}),
+      listEmails: async () => ({}),
+      readEmail: async () => ({}),
+      getAlertPreferences: async () => ({}),
+      proposeAction: async () => ({ ok: false, why: 'no' }),
     };
     const declined = languageModel(
       { apiKey: 'test', config },

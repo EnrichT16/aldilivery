@@ -19,6 +19,15 @@
  * Each email is recorded once, by its Message-ID (only the sender's domain is kept), before it
  * is marked as read, so nothing is read or rung about twice. Nothing of an email's words is ever
  * written to the log.
+ *
+ * Several mailboxes, and listening on request (ruling 85, Anthony, 31 October 2026): each sweep is
+ * for one mailbox, with its number and the label Ozi says aloud. Every email also leaves a short
+ * stored summary for the owner to ask about (who it is from by name, the subject, when, one or two
+ * sentences, the category, important or not, heard or not, and the start of its words with
+ * numbers, codes and addresses blanked), kept `emailDesk.summaryKeepDays`. Never an attachment.
+ * His alert choices decide whether an email rings, texts, notifies or only waits: an important one
+ * always goes on the desk; another email from a person goes there only if he asked to hear of
+ * other emails. The email is always data, never instructions: nothing in it is ever acted on.
  */
 
 import type { FastifyBaseLogger } from 'fastify';
@@ -26,7 +35,15 @@ import type { FastifyBaseLogger } from 'fastify';
 import type { AppContext } from '../app.js';
 import type { EmailCategory } from '../domain.js';
 import type { EmailTriage } from '../lib/language-model.js';
-import { emailKey, type IncomingEmail, type Mailbox, type Mailer } from '../lib/mailbox.js';
+import {
+  emailKey,
+  FIRST_MAILBOX_LABEL,
+  type IncomingEmail,
+  type Mailbox,
+  type Mailer,
+} from '../lib/mailbox.js';
+import { blankedExcerpt, blankPrivate } from '../lib/redact.js';
+import { alertPreferences } from './alert-preferences.js';
 import { askOwner, auditAutomatic } from './owner-desk.js';
 
 export type EmailContext = Pick<AppContext, 'repository' | 'config' | 'brain' | 'now'>;
@@ -41,6 +58,10 @@ export interface EmailDeskOptions {
   ownAddress: string;
   /** How many emails one sweep reads at most. */
   limit?: number;
+  /** Which mailbox this is (ruling 85): 1 unless given. */
+  number?: number;
+  /** What Ozi calls it aloud: "the business mailbox" unless given. */
+  label?: string;
 }
 
 export interface EmailSweepReport {
@@ -108,6 +129,8 @@ function shortSubject(subject: string): string {
 interface Decision {
   category: EmailCategory;
   important: boolean;
+  /** One or two spoken sentences for the stored summary (ruling 85). */
+  summary: string;
   /** What Ozi says, when it goes on the desk. */
   ask: string | null;
   /** A reply to send instead, when it may be answered automatically. */
@@ -136,24 +159,30 @@ async function decide(
     });
   }
 
+  const to = (options.number ?? 1) > 1 ? ` to ${options.label ?? 'another mailbox'}` : '';
+  const plain = `An email${to} from ${who}, with the subject: ${subject}.`;
   if (!triage) {
     // No model, or it did not answer: a person is asked about, a machine or a list is not.
-    if (newsletter) return { category: 'newsletter', important: false, ask: null, reply: null };
-    if (automated) {
-      return { category: 'automated_notification', important: false, ask: null, reply: null };
+    if (newsletter) {
+      return { category: 'newsletter', important: false, summary: plain, ask: null, reply: null };
     }
-    return {
-      category: 'other',
-      important: true,
-      ask: `An email from ${who}, with the subject: ${subject}.`,
-      reply: null,
-    };
+    if (automated) {
+      return {
+        category: 'automated_notification',
+        important: false,
+        summary: plain,
+        ask: null,
+        reply: null,
+      };
+    }
+    return { category: 'other', important: true, summary: plain, ask: plain, reply: null };
   }
 
   const { category } = triage;
-  const ask = `An email from ${who}, with the subject: ${subject}. ${triage.summary}`;
+  const summary = triage.summary;
+  const ask = `${plain} ${summary}`;
   if (NEVER_RINGS.has(category)) {
-    return { category, important: false, ask: null, reply: null };
+    return { category, important: false, summary, ask: null, reply: null };
   }
   if (category === 'customer_question') {
     const mayReply =
@@ -164,11 +193,18 @@ async function decide(
       !automated &&
       !newsletter;
     return mayReply
-      ? { category, important: false, ask: null, reply: triage.suggestedReply }
-      : { category, important: triage.important, ask, reply: null };
+      ? { category, important: false, summary, ask: null, reply: triage.suggestedReply }
+      : { category, important: triage.important, summary, ask, reply: null };
   }
   const important = triage.important || ALWAYS_RINGS.has(category);
-  return { category, important, ask: important ? ask : null, reply: null };
+  return { category, important, summary, ask: important ? ask : null, reply: null };
+}
+
+/** The display name only, never an address (ruling 85). */
+function displayName(email: IncomingEmail): string | null {
+  const name = email.fromName?.replace(/\s+/g, ' ').trim() ?? '';
+  if (!name || name.includes('@')) return null;
+  return blankPrivate(name).slice(0, 80);
 }
 
 /** The reply as sent: short, polite, signed as the service (Rule Nine). */
@@ -235,6 +271,24 @@ export async function sweepEmail(
           }
         }
 
+        // Another email from a person goes on the desk only if he asked to hear of them (ruling
+        // 85); spam, newsletters and notices never do.
+        let alertKind: 'importantEmail' | 'otherEmail' = 'importantEmail';
+        if (
+          !ask &&
+          !replied &&
+          !decision.important &&
+          !NEVER_RINGS.has(decision.category) &&
+          !isAutomated(email, options.ownAddress) &&
+          !isNewsletter(email)
+        ) {
+          const preferences = await alertPreferences(ctx);
+          if (preferences.ways.otherEmail !== 'none') {
+            ask = `An email${(options.number ?? 1) > 1 ? ` to ${options.label ?? 'another mailbox'}` : ''} from ${spokenSender(email)}, with the subject: ${shortSubject(email.subject)}. ${decision.summary}`;
+            alertKind = 'otherEmail';
+          }
+        }
+
         if (ask && !replied) {
           const matter = await askOwner(
             ctx,
@@ -243,6 +297,7 @@ export async function sweepEmail(
               subjectId: key,
               summary: ask,
               options: 'acknowledge',
+              ...(alertKind === 'otherEmail' ? { alertKind } : {}),
               email: {
                 from: email.fromName
                   ? `${email.fromName} <${email.fromAddress}>`
@@ -261,6 +316,23 @@ export async function sweepEmail(
         } else {
           report.quiet += 1;
         }
+
+        // The short summary for the owner to listen to (ruling 85). Never an attachment; the
+        // address only to send his reply, never shown or said.
+        const received = email.date ? new Date(email.date) : ctx.now();
+        await ctx.repository.emailSummaries.save({
+          messageId: key,
+          mailbox: options.number ?? 1,
+          mailboxLabel: options.label ?? FIRST_MAILBOX_LABEL,
+          fromName: displayName(email),
+          replyTo: email.fromAddress,
+          subject: blankPrivate(email.subject).slice(0, 300),
+          receivedAt: Number.isNaN(received.getTime()) ? ctx.now() : received,
+          summary: blankPrivate(decision.summary).slice(0, 400),
+          category: decision.category,
+          important: decision.important,
+          excerpt: blankedExcerpt(email.text, ctx.config.emailDesk.readAloudCharacters),
+        });
 
         await ctx.repository.emails.record({
           messageId: key,
