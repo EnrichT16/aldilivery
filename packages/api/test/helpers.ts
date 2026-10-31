@@ -27,6 +27,7 @@ import type { VoiceEngineLink } from '../src/lib/oluoma-voice.js';
 import type { SendPush } from '../src/lib/push.js';
 import type { PlaceCall } from '../src/lib/twilio-voice.js';
 import type { PostcodeLookup } from '../src/lib/postcodes.js';
+import type { MailboxLink } from '../src/lib/mailbox.js';
 
 export const TEST_SECRET = 'test-secret-that-is-long-enough-for-hmac';
 
@@ -78,6 +79,8 @@ export const testEnv: Env = {
   emailSmtpHost: undefined,
   emailSmtpPort: 465,
   emailAutoReply: false,
+  emailLabel: undefined,
+  extraMailboxes: [],
   recordingS3Endpoint: undefined,
   recordingS3Bucket: undefined,
   recordingS3Key: undefined,
@@ -143,6 +146,8 @@ export interface TestAppOptions {
   recorder?: CallRecorder;
   /** Postcodes into places (30 October 2026). Off unless a test hands in a stand-in: no network. */
   findPostcode?: PostcodeLookup;
+  /** The mailboxes, for the owner's reply by voice (ruling 85). None unless a test hands them in. */
+  mailboxes?: MailboxLink[];
 }
 
 export async function buildTestApp(
@@ -188,6 +193,7 @@ export async function buildTestApp(
     ...(options.placeCall ? { placeCall: options.placeCall } : {}),
     ...(options.recorder ? { recorder: options.recorder } : {}),
     ...(options.findPostcode ? { findPostcode: options.findPostcode } : {}),
+    ...(options.mailboxes ? { mailboxes: options.mailboxes } : {}),
     deliverCode:
       options.deliverCode ??
       (async (phone, code) => {

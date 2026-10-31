@@ -103,6 +103,8 @@ import { ShareCard } from '../components/ShareCard';
 import { StaffVoice } from '../components/StaffVoice';
 import { OziCall } from '../components/OziCall';
 import { OziCallSettings } from '../components/OziCallSettings';
+import { OwnerAlertSettings } from '../components/OwnerAlertSettings';
+import { OwnerStaffControls } from '../components/OwnerStaffControls';
 import { ActiveSos, RemoveRunner, WaitingDeposits } from '../components/StaffRunnerSafety';
 import {
   Areas,
@@ -506,6 +508,7 @@ export function Staff(): JSX.Element {
             )}
             {shown === 'mine' && (
               <MySettings
+                owner={me.isOwner === true}
                 staffKey={key}
                 twoStep={me.twoStep ?? null}
                 onNews={setNews}
@@ -2142,6 +2145,8 @@ function Team({
           ))}
         </ul>
       </section>
+      {/* The owner sees and controls all staff (ruling 85): sign-ins, places, switches. */}
+      {owner && <OwnerStaffControls staffKey={staffKey} onNews={onNews} />}
       {rows?.length === 0 && <p className="m-0">Nobody added yet.</p>}
       <ul className="m-0 p-0 list-none space-y-3">
         {rows?.map((member) => (
@@ -3824,12 +3829,15 @@ const VIEWER_AREA_WORDS: Record<string, string> = {
 
 /** The owner's own settings: passcode, two-step codes, the kill switch, and who sees what. */
 function MySettings({
+  owner = false,
   staffKey,
   twoStep,
   onNews,
   onSignOut,
   onSession,
 }: {
+  /** The owner's own account: how Ozi reaches him (ruling 85). */
+  owner?: boolean;
   staffKey: string;
   twoStep: StaffTwoStep | null;
   onNews: (text: string) => void;
@@ -3875,6 +3883,8 @@ function MySettings({
       )}
 
       <OziCallSettings staffKey={staffKey} onNews={onNews} />
+
+      {owner && <OwnerAlertSettings staffKey={staffKey} onNews={onNews} />}
 
       <section aria-labelledby="viewers-heading" className="space-y-4">
         <h3 id="viewers-heading" className="text-lead font-bold m-0">

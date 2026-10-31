@@ -89,6 +89,10 @@ export interface RetentionReport {
   receiptPhotosRemoved: number;
   /** Staff call recordings older than `companyContact.callRecordingDays` (90), deleted (ruling 77). */
   callRecordingsRemoved: number;
+  /** Staff sightings older than `admin.staffSightingsKeepDays` (90), removed (ruling 85). */
+  staffSightingsRemoved: number;
+  /** Email summaries older than `emailDesk.summaryKeepDays` (30), removed (ruling 85). */
+  emailSummariesRemoved: number;
 }
 
 function before(at: Date, days: number): Date {
@@ -232,5 +236,17 @@ export async function sweepRetention(
     ),
     ordersAnonymised: await step('orders', () => retention.anonymiseOrdersBefore(ordersBefore, at)),
     callRecordingsRemoved: await step('call recordings', () => deleteOldRecordings(ctx, log)),
+    staffSightingsRemoved: config
+      ? await step('staff sightings', () =>
+          ctx.repository.staffSightings.deleteBefore(
+            before(at, config.admin.staffSightingsKeepDays),
+          ),
+        )
+      : 0,
+    emailSummariesRemoved: config
+      ? await step('email summaries', () =>
+          ctx.repository.emailSummaries.deleteBefore(before(at, config.emailDesk.summaryKeepDays)),
+        )
+      : 0,
   };
 }

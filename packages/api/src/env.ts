@@ -176,6 +176,18 @@ export interface Env {
   /** Answer simple customer questions by email without the owner. Off unless exactly "on". */
   emailAutoReply: boolean;
   /**
+   * What Ozi calls the first mailbox aloud (ruling 85), EMAIL_LABEL, such as "your own address";
+   * "the business mailbox" unless given.
+   */
+  emailLabel: string | undefined;
+  /**
+   * Mailboxes 2 to 5 (ruling 85, 31 October 2026): EMAIL_2_IMAP_HOST, EMAIL_2_IMAP_USER,
+   * EMAIL_2_IMAP_PASSWORD, EMAIL_2_LABEL and EMAIL_2_SMTP_HOST, and so on up to EMAIL_5_. Each
+   * is used only when its host, user and password are all real values. A Gmail address works
+   * with imap.gmail.com and an app password. The passwords are never logged.
+   */
+  extraMailboxes: ExtraMailboxEnv[];
+  /**
    * Where staff call recordings are kept (ruling 77): any S3-compatible storage, such as
    * DigitalOcean Spaces. The endpoint (`lon1.digitaloceanspaces.com`), the bucket, the access
    * key, its secret and the region. The secret is environment only and never logged. Without all
@@ -203,6 +215,44 @@ function looksLikePlaceholder(value: string | undefined): boolean {
   if (!value) return true;
   const lowered = value.toLowerCase();
   return PLACEHOLDER_MARKERS.some((marker) => lowered.includes(marker));
+}
+
+/** One numbered mailbox, EMAIL_2_ to EMAIL_5_ (ruling 85). */
+export interface ExtraMailboxEnv {
+  number: number;
+  imapHost: string;
+  imapPort: number;
+  user: string;
+  password: string;
+  /** Said aloud, such as "the Gmail". */
+  label: string | undefined;
+  smtpHost: string | undefined;
+  smtpPort: number;
+  autoReply: boolean;
+}
+
+/** The numbered mailboxes that are fully set: host, user and password all real. */
+export function extraMailboxesFrom(source: NodeJS.ProcessEnv): ExtraMailboxEnv[] {
+  const found: ExtraMailboxEnv[] = [];
+  for (let number = 2; number <= 5; number += 1) {
+    const key = (name: string): string | undefined => source[`EMAIL_${number}_${name}`];
+    const imapHost = realValue(key('IMAP_HOST')?.trim() || undefined);
+    const user = realValue(key('IMAP_USER')?.trim() || undefined);
+    const password = realValue(key('IMAP_PASSWORD') || undefined);
+    if (!imapHost || !user || !password) continue;
+    found.push({
+      number,
+      imapHost,
+      imapPort: integer(key('IMAP_PORT'), 993),
+      user,
+      password,
+      label: realValue(key('LABEL')?.trim() || undefined),
+      smtpHost: realValue(key('SMTP_HOST')?.trim() || undefined),
+      smtpPort: integer(key('SMTP_PORT'), 465),
+      autoReply: key('AUTO_REPLY')?.trim().toLowerCase() === 'on',
+    });
+  }
+  return found;
 }
 
 /** A value we can actually use, or nothing. A placeholder is nothing. */
@@ -340,6 +390,8 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     emailSmtpHost: realValue(source['EMAIL_SMTP_HOST']?.trim() || undefined),
     emailSmtpPort: integer(source['EMAIL_SMTP_PORT'], 465),
     emailAutoReply: source['EMAIL_AUTO_REPLY']?.trim().toLowerCase() === 'on',
+    emailLabel: realValue(source['EMAIL_LABEL']?.trim() || undefined),
+    extraMailboxes: extraMailboxesFrom(source),
     recordingS3Endpoint: realValue(source['RECORDING_S3_ENDPOINT']?.trim() || undefined),
     recordingS3Bucket: realValue(source['RECORDING_S3_BUCKET']?.trim() || undefined),
     recordingS3Key: realValue(source['RECORDING_S3_KEY']?.trim() || undefined),

@@ -7,6 +7,8 @@
  */
 
 import type {
+  AlertKind,
+  AlertWay,
   AmbassadorAddressType,
   AmbassadorDocumentKind,
   AmbassadorIdType,
@@ -1770,6 +1772,13 @@ export interface OwnerMatter {
    */
   emailFrom: string | null;
   emailSubject: string | null;
+  /**
+   * Which of the owner's alert choices it follows (ruling 85), or null to follow its kind: an
+   * email matter is "importantEmail" unless the email desk says "otherEmail".
+   */
+  alertKind: AlertKind | null;
+  /** When a text or notification about it went to the owner, by his alert choices (ruling 85). */
+  alertedAt: Date | null;
 }
 
 /** What an email to the business mailbox was sorted as (ruling 76). */
@@ -1803,6 +1812,54 @@ export interface EmailRecord {
   replied: boolean;
   processedAt: Date;
 }
+
+/**
+ * A staff sign-in or spell of activity (ruling 85): a keyed one-way code of the internet address,
+ * a rough place from the platform's own header (a town or a country), and the kind of device.
+ */
+export interface StaffSighting {
+  id: string;
+  staffId: string;
+  at: Date;
+  event: 'sign_in' | 'activity';
+  ipHash: string;
+  /** A town or a country; null when the platform said nothing. */
+  place: string | null;
+  userAgentKind: 'phone' | 'tablet' | 'computer' | 'other';
+}
+
+/**
+ * A short spoken summary of one email, for the owner to listen to (ruling 85). The sender's
+ * address (`replyTo`) is kept only to send his reply, and is never shown or said.
+ */
+export interface EmailSummary {
+  id: string;
+  messageId: string;
+  /** 1 for EMAIL_IMAP_*, 2 to 5 for EMAIL_2_* to EMAIL_5_*. */
+  mailbox: number;
+  mailboxLabel: string;
+  /** The display name only, never an address; null when there was none. */
+  fromName: string | null;
+  replyTo: string;
+  subject: string;
+  receivedAt: Date;
+  summary: string;
+  category: EmailCategory;
+  important: boolean;
+  heard: boolean;
+  heardAt: Date | null;
+  /** The start of the plain words, with numbers, codes and addresses blanked. */
+  excerpt: string;
+  createdAt: Date;
+}
+
+/** The owner's choices for how Ozi reaches him (ruling 85): one row. */
+export type OwnerPreference = { [kind in AlertKind]: AlertWay } & {
+  quietFrom: string;
+  quietUntil: string;
+  updatedAt: Date;
+  updatedBy: string;
+};
 
 /** One call Ozi placed to the owner: which cascade, which call of it, and how it went. */
 export interface OwnerCall {

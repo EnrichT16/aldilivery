@@ -472,6 +472,26 @@ describe('the configuration parser refuses to contradict a rule', () => {
     expect(() => parseStoreConfig(quick)).toThrow(/ownerDesk\.appRingSeconds/);
   });
 
+  it('reads how Ozi reaches the owner, the staff sightings and the email summaries (ruling 85)', () => {
+    expect(config.ownerAlerts).toEqual({
+      urgentSafety: 'call',
+      importantEmail: 'call',
+      otherEmail: 'none',
+      approvals: 'call',
+      money: 'call',
+    });
+    expect(config.admin.staffSightingsKeepDays).toBe(90);
+    expect(config.admin.staffOnlineMinutes).toBe(15);
+    expect(config.emailDesk).toEqual({ summaryKeepDays: 30, readAloudCharacters: 1500 });
+    const odd = goodConfig();
+    odd['ownerAlerts'] = { ...(odd['ownerAlerts'] as object), money: 'pigeon' };
+    expect(() => parseStoreConfig(odd)).toThrow(/ownerAlerts\.money must be one of/);
+    // Urgent safety always rings, whatever is written.
+    const silent = goodConfig();
+    silent['ownerAlerts'] = { ...(silent['ownerAlerts'] as object), urgentSafety: 'text' };
+    expect(() => parseStoreConfig(silent)).toThrow(/urgentSafety must be call/);
+  });
+
   it('reads the company inbox settings: message codes for two hours, recordings kept 90 days (ruling 77)', () => {
     expect(config.companyContact).toEqual({ messageCodeMinutes: 120, callRecordingDays: 90 });
     const raw = goodConfig();

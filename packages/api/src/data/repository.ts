@@ -77,6 +77,9 @@ import type {
   Shopper,
   OziExchange,
   EmailRecord,
+  EmailSummary,
+  OwnerPreference,
+  StaffSighting,
   OwnerCall,
   OwnerMatter,
   ReviewPointsSpend,
@@ -1160,7 +1163,7 @@ export interface Repository {
   ownerDesk: {
     createMatter(
       input: Pick<OwnerMatter, 'kind' | 'subjectId' | 'summary' | 'options' | 'urgent'> &
-        Partial<Pick<OwnerMatter, 'emailFrom' | 'emailSubject'>>,
+        Partial<Pick<OwnerMatter, 'emailFrom' | 'emailSubject' | 'alertKind'>>,
     ): Promise<OwnerMatter>;
     findMatter(id: string): Promise<OwnerMatter | null>;
     /** Every matter about this thing, newest first. */
@@ -1182,6 +1185,44 @@ export interface Repository {
     findByMessageId(messageId: string): Promise<EmailRecord | null>;
     /** Keeps the record; a second record of the same Message-ID returns the first. */
     record(input: Omit<EmailRecord, 'id'>): Promise<EmailRecord>;
+  };
+
+  /**
+   * Short spoken summaries of emails from every mailbox, for the owner to listen to (ruling 85).
+   * Kept `emailDesk.summaryKeepDays`, then swept away.
+   */
+  emailSummaries: {
+    /** Keeps the summary; a second one for the same Message-ID returns the first. */
+    save(
+      input: Omit<EmailSummary, 'id' | 'createdAt' | 'heard' | 'heardAt'>,
+    ): Promise<EmailSummary>;
+    findById(id: string): Promise<EmailSummary | null>;
+    /** Newest first. `fromName` matches part of the name, any case. */
+    list(where: {
+      since?: Date;
+      heard?: boolean;
+      important?: boolean;
+      fromName?: string;
+      mailbox?: number;
+      limit?: number;
+    }): Promise<EmailSummary[]>;
+    /** Marks these as heard; says how many changed. */
+    markHeard(ids: readonly string[], at: Date): Promise<number>;
+    deleteBefore(before: Date): Promise<number>;
+  };
+
+  /** Staff sign-ins and spells of activity, with a rough place (ruling 85). */
+  staffSightings: {
+    record(input: Omit<StaffSighting, 'id'>): Promise<StaffSighting>;
+    /** The newest sighting of each of these accounts (one each at most). */
+    latestForEach(staffIds: readonly string[]): Promise<StaffSighting[]>;
+    deleteBefore(before: Date): Promise<number>;
+  };
+
+  /** The owner's choices for how Ozi reaches him (ruling 85): one row, or none yet. */
+  ownerPreferences: {
+    get(): Promise<OwnerPreference | null>;
+    save(value: OwnerPreference): Promise<OwnerPreference>;
   };
 
   /**

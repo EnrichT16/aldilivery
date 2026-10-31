@@ -325,6 +325,45 @@ services:
         scope: RUN_TIME
         value: "off"
 
+      # Optional (ruling 85, 31 October 2026): what Ozi calls the first mailbox aloud, such as
+      # "your own address". Left out, it is "the business mailbox".
+      # - key: EMAIL_LABEL
+      #   scope: RUN_TIME
+      #   value: the business mailbox
+
+      # Optional (ruling 85): up to four more mailboxes, EMAIL_2_ to EMAIL_5_, read the same way
+      # every five minutes, each with a label Ozi says aloud. Each is used only once its host,
+      # user and password are all real; leave the placeholders and it stays off. Passwords are
+      # never logged or read aloud.
+      #
+      # A Gmail address works by IMAP with an app password, not the normal Gmail password:
+      # 1. At myaccount.google.com, Security, switch on 2-Step Verification if it is not on.
+      # 2. Then Security, App passwords: make one called "Ozi". Google shows 16 letters once.
+      # 3. Enter: EMAIL_2_IMAP_HOST imap.gmail.com, EMAIL_2_IMAP_USER the full Gmail address,
+      #    EMAIL_2_IMAP_PASSWORD the 16 letters, EMAIL_2_LABEL "the Gmail", and, for the owner's
+      #    replies by voice, EMAIL_2_SMTP_HOST smtp.gmail.com. Ports 993 and 465 are the defaults.
+      # For a third mailbox, copy these five as EMAIL_3_, and so on up to EMAIL_5_.
+      - key: EMAIL_2_IMAP_HOST
+        scope: RUN_TIME
+        value: replace_with_imap.gmail.com_or_another_incoming_server_optional
+
+      - key: EMAIL_2_IMAP_USER
+        scope: RUN_TIME
+        value: replace_with_the_full_email_address_optional
+
+      - key: EMAIL_2_IMAP_PASSWORD
+        scope: RUN_TIME
+        type: SECRET
+        value: replace_with_the_app_password_optional
+
+      - key: EMAIL_2_LABEL
+        scope: RUN_TIME
+        value: the Gmail
+
+      - key: EMAIL_2_SMTP_HOST
+        scope: RUN_TIME
+        value: replace_with_smtp.gmail.com_or_another_outgoing_server_optional
+
       # Recording staff calls (ruling 77) into S3-compatible storage. DigitalOcean Spaces (about
       # $5 a month) can hold them: a Space, and a Spaces access key. Without all five, calls
       # still work and are not recorded.

@@ -141,6 +141,13 @@ export const AUDIT_WORDS: Record<string, string> = {
   'POST /staff/team': 'Added someone to the team',
   'POST /staff/team/:id': "Changed someone's job or turned their account on or off",
   'POST /staff/team/:id/reset': "Reset someone's password",
+  // The owner's own controls (ruling 85), in the panel or by voice.
+  'staff.switched-off': 'Switched a staff account off, signing it out everywhere',
+  'staff.switched-on': 'Switched a staff account back on',
+  'staff.all-switched-off': 'Switched off every staff account except the owner',
+  'owner.alerts-changed': 'Changed how Ozi reaches the owner',
+  'email.marked-heard': 'Marked emails as heard',
+  'email.replied': 'Replied to an email by voice',
   // Unlocking anybody, and resetting a PIN or a password (ruling 81).
   'unlock.staff-password-reset': 'Gave a staff member a temporary password',
   'unlock.shopper-pin': "Unlocked a Shopper's PIN",

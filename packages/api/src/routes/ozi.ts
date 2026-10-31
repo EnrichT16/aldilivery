@@ -274,6 +274,8 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
       if (pending) {
         if (isClearYes(text)) {
           const outcome = await carryOutDecision(app.ctx, pending, request.log, {
+            // The owner's own account, from his sign-in (ruling 85): the audit log's actor.
+            actorId: request.staffActor?.id ?? null,
             ip: request.ip ?? '',
           });
           kept(outcome.words, 'flow', 'answered');

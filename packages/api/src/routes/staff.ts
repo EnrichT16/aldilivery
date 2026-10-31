@@ -16,6 +16,7 @@ import { z } from 'zod';
 import type { StaffMember } from '../domain.js';
 import { recordAudit } from '../lib/audit.js';
 import { phraseBook } from '../lib/phrases.js';
+import { noteStaffSighting } from '../lib/staff-sightings.js';
 import { mayAllocate } from '../services/allocate.js';
 import { codeLockouts } from '../services/company-contact.js';
 import { mayUnlock, requireUnlocker } from '../services/unlock.js';
@@ -196,6 +197,8 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
         .filter(Boolean)
         .join(', '),
     });
+    // The sign-in, with a rough place from the platform's header (ruling 85).
+    await noteStaffSighting(request, updated.id, 'sign_in');
     const kept = sessionFor(updated, at, { setup: setupOnly, remember: body.remember === true });
     return {
       token: kept.token,

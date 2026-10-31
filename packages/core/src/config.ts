@@ -455,8 +455,44 @@ export interface StoreConfig {
      * kept on a person's own phone lasts before they sign in again. 30 unless set.
      */
     readonly staffRememberDays: number;
+    /**
+     * Who is signed in, and roughly where (ruling 85, 31 October 2026): each staff sign-in and
+     * each spell of activity is kept this many days, then swept away. 90 unless set.
+     */
+    readonly staffSightingsKeepDays: number;
+    /** Seen within this many minutes counts as "signed in now" on the owner's staff list. 15. */
+    readonly staffOnlineMinutes: number;
+  };
+  /**
+   * How Ozi reaches the owner (ruling 85, 31 October 2026): for each kind of matter, a call, a
+   * text, a notification or nothing. These are the defaults; the owner changes them by voice or
+   * in My settings, and his choice is kept in the database. Urgent safety always calls, even in
+   * quiet hours. The quiet hours' defaults are `ownerDesk.quietFrom` and `ownerDesk.quietUntil`.
+   */
+  readonly ownerAlerts: OwnerAlertSettings;
+  /**
+   * The email desk (ruling 85): how long each email's short spoken summary is kept for the owner
+   * to listen to (30 days), and how much of an email's plain words Ozi reads him at most.
+   */
+  readonly emailDesk: {
+    readonly summaryKeepDays: number;
+    readonly readAloudCharacters: number;
   };
 }
+
+/** How Ozi lets the owner know about one kind of matter (ruling 85). */
+export const ALERT_WAYS = ['call', 'text', 'notification', 'none'] as const;
+export type AlertWay = (typeof ALERT_WAYS)[number];
+/** The kinds of matter the owner chooses a way for (ruling 85). */
+export const ALERT_KINDS = [
+  'urgentSafety',
+  'importantEmail',
+  'otherEmail',
+  'approvals',
+  'money',
+] as const;
+export type AlertKind = (typeof ALERT_KINDS)[number];
+export type OwnerAlertSettings = { readonly [kind in AlertKind]: AlertWay };
 
 /** Ozi's desk (ruling 74): when and how often Ozi rings the owner. Times are "HH:MM", UK time. */
 export interface OwnerDeskSettings {
@@ -465,6 +501,7 @@ export interface OwnerDeskSettings {
   readonly hoursBetweenCascades: number;
   readonly quietFrom: string;
   readonly quietUntil: string;
+  /** No longer consulted (ruling 85): urgent safety always calls, even in quiet hours. */
   readonly urgentInQuietHours: boolean;
   readonly laterAfterMinutes: number;
   readonly lowRatingAtMost: number;
@@ -1975,8 +2012,55 @@ export function parseStoreConfig(input: unknown): StoreConfig {
         'admin.staffRememberDays',
         1,
       ),
+      staffSightingsKeepDays: wholeNumber(
+        admin['staffSightingsKeepDays'] ?? 90,
+        'admin.staffSightingsKeepDays',
+        1,
+      ),
+      staffOnlineMinutes: wholeNumber(
+        admin['staffOnlineMinutes'] ?? 15,
+        'admin.staffOnlineMinutes',
+        1,
+      ),
     },
+    ownerAlerts: parseOwnerAlerts(
+      root['ownerAlerts'] === undefined ? {} : object(root['ownerAlerts'], 'ownerAlerts'),
+    ),
+    emailDesk: ((raw: Unknown) => ({
+      summaryKeepDays: wholeNumber(raw['summaryKeepDays'] ?? 30, 'emailDesk.summaryKeepDays', 1),
+      readAloudCharacters: wholeNumber(
+        raw['readAloudCharacters'] ?? 1500,
+        'emailDesk.readAloudCharacters',
+        100,
+      ),
+    }))(root['emailDesk'] === undefined ? {} : object(root['emailDesk'], 'emailDesk')),
   };
+}
+
+/** The owner's alert defaults (ruling 85). Urgent safety may only ever be a call. */
+function parseOwnerAlerts(raw: Unknown): OwnerAlertSettings {
+  const defaults: OwnerAlertSettings = {
+    urgentSafety: 'call',
+    importantEmail: 'call',
+    otherEmail: 'none',
+    approvals: 'call',
+    money: 'call',
+  };
+  const parsed = Object.fromEntries(
+    ALERT_KINDS.map((kind) => {
+      const value = raw[kind] ?? defaults[kind];
+      if (typeof value !== 'string' || !(ALERT_WAYS as readonly string[]).includes(value)) {
+        throw new StoreConfigError(`ownerAlerts.${kind} must be one of ${ALERT_WAYS.join(', ')}.`);
+      }
+      return [kind, value];
+    }),
+  ) as OwnerAlertSettings;
+  if (parsed.urgentSafety !== 'call') {
+    throw new StoreConfigError(
+      'ownerAlerts.urgentSafety must be call: urgent safety always rings.',
+    );
+  }
+  return parsed;
 }
 
 export type { ProcessorModel };

@@ -1724,6 +1724,79 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    emailSummaries: {
+      async save(input) {
+        // Two sweeps at once can only ever keep one summary of an email.
+        return (await prisma.emailSummary.upsert({
+          where: { messageId: input.messageId },
+          create: input,
+          update: {},
+        })) as any;
+      },
+      async findById(id) {
+        return (await prisma.emailSummary.findUnique({ where: { id } })) as any;
+      },
+      async list(where) {
+        return (await prisma.emailSummary.findMany({
+          where: {
+            ...(where.since ? { receivedAt: { gte: where.since } } : {}),
+            ...(where.heard !== undefined ? { heard: where.heard } : {}),
+            ...(where.important !== undefined ? { important: where.important } : {}),
+            ...(where.mailbox !== undefined ? { mailbox: where.mailbox } : {}),
+            ...(where.fromName?.trim()
+              ? { fromName: { contains: where.fromName.trim(), mode: 'insensitive' as const } }
+              : {}),
+          },
+          orderBy: { receivedAt: 'desc' },
+          take: where.limit ?? 50,
+        })) as any;
+      },
+      async markHeard(ids, at) {
+        const result = await prisma.emailSummary.updateMany({
+          where: { id: { in: [...ids] }, heard: false },
+          data: { heard: true, heardAt: at },
+        });
+        return result.count;
+      },
+      async deleteBefore(before) {
+        const result = await prisma.emailSummary.deleteMany({
+          where: { receivedAt: { lt: before } },
+        });
+        return result.count;
+      },
+    },
+
+    staffSightings: {
+      async record(input) {
+        return (await prisma.staffSighting.create({ data: input })) as any;
+      },
+      async latestForEach(staffIds) {
+        if (staffIds.length === 0) return [];
+        return (await prisma.staffSighting.findMany({
+          where: { staffId: { in: [...staffIds] } },
+          orderBy: { at: 'desc' },
+          distinct: ['staffId'],
+        })) as any;
+      },
+      async deleteBefore(before) {
+        const result = await prisma.staffSighting.deleteMany({ where: { at: { lt: before } } });
+        return result.count;
+      },
+    },
+
+    ownerPreferences: {
+      async get() {
+        return (await prisma.ownerPreference.findUnique({ where: { key: 'owner' } })) as any;
+      },
+      async save(value) {
+        return (await prisma.ownerPreference.upsert({
+          where: { key: 'owner' },
+          create: { ...value, key: 'owner' },
+          update: value,
+        })) as any;
+      },
+    },
+
     emails: {
       async findByMessageId(messageId) {
         return (await prisma.emailMessage.findUnique({ where: { messageId } })) as any;

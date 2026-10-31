@@ -1949,6 +1949,11 @@ model OwnerMatter {
   /// For an email (ruling 76): who it is from and its subject, for the admin panel.
   emailFrom    String?
   emailSubject String?
+  /// Which of the owner's alert choices it follows (ruling 85): urgentSafety, importantEmail,
+  /// otherEmail, approvals or money; null to follow its kind.
+  alertKind    String?
+  /// When a text or notification about it went to the owner, by his alert choices (ruling 85).
+  alertedAt    DateTime?
 
   @@index([status, createdAt])
   @@index([kind, subjectId])
@@ -2115,4 +2120,72 @@ model AreaWaiting {
 
   @@unique([area, shopperId])
   @@index([area, textedAt])
+}
+
+/// Who signed in to the admin panel, and roughly where (ruling 85, 31 October 2026): each sign-in
+/// and each spell of activity. Never the internet address itself, only a keyed one-way code of
+/// it; the place is only what the hosting platform's own header says (a town or a country), never
+/// looked up anywhere. Kept `admin.staffSightingsKeepDays` (90), then swept away.
+model StaffSighting {
+  id            String   @id @default(cuid())
+  staffId       String
+  at            DateTime @default(now())
+  /// sign_in or activity.
+  event         String   @default("activity")
+  /// A keyed one-way code of the internet address, so two sightings can be matched, no more.
+  ipHash        String
+  /// A town or a country, from the platform's header; null when nothing said.
+  place         String?
+  /// phone, tablet, computer or other.
+  userAgentKind String   @default("other")
+
+  @@index([staffId, at])
+  @@index([at])
+}
+
+/// A short spoken summary of one email, for the owner to listen to (ruling 85): which mailbox,
+/// who it is from (the display name only), the subject, when it came, one or two sentences, the
+/// category, and whether it is important and whether he has heard it. The start of its plain
+/// words is kept with phone numbers, card numbers, codes and email addresses blanked. Never an
+/// attachment. The sender's address is kept only to send his reply, and is never shown or said.
+/// Kept `emailDesk.summaryKeepDays` (30), then swept away.
+model EmailSummary {
+  id           String    @id @default(cuid())
+  messageId    String    @unique
+  /// 1 for the first mailbox (EMAIL_IMAP_*), 2 to 5 for EMAIL_2_* to EMAIL_5_*.
+  mailbox      Int       @default(1)
+  mailboxLabel String
+  fromName     String?
+  /// For his reply only. Never shown, never read aloud.
+  replyTo      String    @default("")
+  subject      String    @default("")
+  receivedAt   DateTime
+  summary      String
+  category     String
+  important    Boolean   @default(false)
+  heard        Boolean   @default(false)
+  heardAt      DateTime?
+  /// The start of the plain words, blanked as above.
+  excerpt      String    @default("")
+  createdAt    DateTime  @default(now())
+
+  @@index([receivedAt])
+  @@index([heard, receivedAt])
+}
+
+/// The owner's own choices for how Ozi reaches him (ruling 85): one row, keyed "owner". Each kind
+/// of matter is call, text, notification or none; urgent safety is always call. The quiet hours
+/// are UK time, "HH:MM". Config/store.json's ownerAlerts and ownerDesk are the defaults.
+model OwnerPreference {
+  id             String   @id @default(cuid())
+  key            String   @unique
+  urgentSafety   String   @default("call")
+  importantEmail String   @default("call")
+  otherEmail     String   @default("none")
+  approvals      String   @default("call")
+  money          String   @default("call")
+  quietFrom      String
+  quietUntil     String
+  updatedAt      DateTime @default(now())
+  updatedBy      String   @default("")
 }
