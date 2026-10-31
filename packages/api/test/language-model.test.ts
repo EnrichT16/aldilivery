@@ -95,7 +95,7 @@ describe('understanding', () => {
         }),
       ),
     );
-    expect(brain.model).toBe('claude-haiku-5-5');
+    expect(brain.model).toBe('claude-sonnet-5-5');
     const heard = await brain.understand({
       text: "get me 2 kilos of flour, I've run out, and a couple of crates of Lion's Gate eggs",
       account: 'shopper',

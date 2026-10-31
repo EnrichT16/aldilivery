@@ -21,10 +21,16 @@ import { z } from 'zod';
 
 import { deliveryStepsWords, formatPence, type StoreConfig } from '@aldilivery/core';
 
-/** The model used unless LANGUAGE_MODEL names another: the cheapest current one. */
-export const DEFAULT_MODEL = 'claude-haiku-5-5';
-/** How long to wait for the model before carrying on with the hand-built parts alone. */
-export const WAIT_MS = 4000;
+/**
+ * The model used unless LANGUAGE_MODEL names another: the mid-sized current one (Anthony,
+ * 31 October 2026: the smallest was not sensible enough to help people properly).
+ */
+export const DEFAULT_MODEL = 'claude-sonnet-5-5';
+/**
+ * How long to wait for the model before carrying on with the hand-built parts alone. The
+ * mid-sized model takes a little longer than the smallest, so this is 6 seconds, not 4.
+ */
+export const WAIT_MS = 6000;
 
 const understanding = z.object({
   kind: z.enum([
