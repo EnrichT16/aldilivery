@@ -1721,6 +1721,21 @@ function Learning({
               Asked by {ACCOUNT_WORDS[row.account] ?? row.account}, {row.timesHeard}{' '}
               {row.timesHeard === 1 ? 'time' : 'times'}.
             </p>
+            {row.suggestedReply && (
+              <div className="space-y-2">
+                <p className="m-0">
+                  Ozi&rsquo;s suggestion, from its weekly review: &ldquo;{row.suggestedReply}
+                  &rdquo; It is not used until you approve it.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setAnswers({ ...answers, [row.id]: row.suggestedReply ?? '' })}
+                  className="control border-paper bg-paper/10 text-paper"
+                >
+                  Use the suggestion<span className="visually-hidden">: {row.text}</span>
+                </button>
+              </div>
+            )}
             <label htmlFor={`answer-${row.id}`} className="block font-bold">
               Ozi&rsquo;s answer
             </label>

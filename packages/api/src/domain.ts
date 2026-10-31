@@ -1554,6 +1554,12 @@ export interface LearnedPhrase {
   reply: string | null;
   decidedBy: string | null;
   decidedAt: Date | null;
+  /**
+   * A better answer Ozi suggested in its weekly self-review (31 October 2026), for a person to
+   * approve or change. Never spoken until a person approves it. Optional: rows from before it.
+   */
+  suggestedReply?: string | null;
+  suggestedAt?: Date | null;
 }
 
 /** A photo of the till receipt, kept with the order (STILL_TO_DO item 2). */
@@ -1641,6 +1647,12 @@ export interface OziExchange {
   betterReply: string | null;
   ratedBy: string | null;
   ratedAt: Date | null;
+  /** The exact model that answered, when brain is "model" (31 October 2026). */
+  model?: string | null;
+  /** Who was speaking: shopper, runner, partner, organisation, staff, owner or visitor. */
+  accountKind?: string | null;
+  /** When Ozi's weekly self-review looked at it, so it is never looked at twice. */
+  reviewedAt?: Date | null;
 }
 
 /**
@@ -1723,7 +1735,8 @@ export type OwnerMatterStatus = 'open' | 'later' | 'decided' | 'handled';
 export type OwnerMatterDecision = 'approve' | 'decline' | 'acknowledge' | 'settled';
 /** By the keypad on Ozi's call, in the admin panel, or by itself (dealt with elsewhere). */
 /** How a matter was decided: on the phone's keypad, in the admin panel, on Ozi's call in the app (ruling 79), or by itself. */
-export type OwnerMatterVia = 'phone' | 'panel' | 'app' | 'automatic';
+/** `voice`: the owner talking to Ozi in the app, after his clear yes (31 October 2026). */
+export type OwnerMatterVia = 'phone' | 'panel' | 'app' | 'voice' | 'automatic';
 
 export interface OwnerMatter {
   id: string;

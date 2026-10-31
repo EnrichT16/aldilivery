@@ -278,6 +278,11 @@
   "owner": {
     "spokenName": "Mr. Anthony"
   },
+  "ozi": {
+    "reviewEveryDays": 7,
+    "reviewMostExchanges": 50,
+    "maxModelTurnsPerDay": 200
+  },
   "ownerDesk": {
     "callsInARow": 3,
     "minutesBetweenCalls": 2,

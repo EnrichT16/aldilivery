@@ -274,11 +274,19 @@ services:
       # The language model behind Ozi (ruling 69): asked only when the phrase book and the
       # shopping parser give up. Make the key in the provider's console with a monthly spend
       # limit; without it the model is off and everything else works as before. LANGUAGE_MODEL
-      # may be left out: the smallest current model is used.
+      # may be left out: the mid-sized current model is used.
       - key: LANGUAGE_MODEL_KEY
         scope: RUN_TIME
         type: SECRET
         value: replace_with_the_language_model_key
+
+      # Optional (31 October 2026): the model Ozi uses when the owner himself speaks, with his
+      # desk tools (what needs him, today's summary, applications, approve or decline after his
+      # yes). Leave it out to use the largest current model; everybody else stays on
+      # LANGUAGE_MODEL.
+      # - key: OWNER_LANGUAGE_MODEL
+      #   scope: RUN_TIME
+      #   value: replace_with_a_model_name
 
       # The business mailbox Ozi reads every five minutes (ruling 76), on the company's existing
       # mail host; no DNS or MX record changes. Off unless host, user and password are real.

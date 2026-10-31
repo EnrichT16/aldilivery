@@ -28,7 +28,7 @@ import type {
 } from '../domain.js';
 import { erasedOrderPatch, erasedRunnerPatch, erasedShopperPatch } from './erasure.js';
 import type { CatalogueSearchOptions, Repository } from './repository.js';
-import { SCHEDULED_WAITING } from './repository.js';
+import { REVIEW_OUTCOMES, SCHEDULED_WAITING } from './repository.js';
 
 export function createPrismaClient(databaseUrl?: string): PrismaClient {
   return new PrismaClient(databaseUrl ? { datasources: { db: { url: databaseUrl } } } : undefined);
@@ -1359,6 +1359,40 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         ]);
         return { total, unrated, right, wrong };
       },
+      async listConversation(conversationKey, limit) {
+        const rows = await prisma.oziExchange.findMany({
+          where: { conversationKey },
+          orderBy: { at: 'desc' },
+          take: limit,
+        });
+        return rows.reverse() as any;
+      },
+      async listToReview(since, limit) {
+        return (await prisma.oziExchange.findMany({
+          where: {
+            at: { gte: since },
+            reviewedAt: null,
+            OR: [{ verdict: 'wrong' }, { outcome: { in: [...REVIEW_OUTCOMES] } }],
+          },
+          orderBy: { at: 'asc' },
+          take: limit,
+        })) as any;
+      },
+      async markReviewed(ids, at) {
+        if (ids.length === 0) return;
+        await prisma.oziExchange.updateMany({
+          where: { id: { in: ids } },
+          data: { reviewedAt: at },
+        });
+      },
+      async lastReviewedAt() {
+        const row = await prisma.oziExchange.findFirst({
+          where: { reviewedAt: { not: null } },
+          orderBy: { reviewedAt: 'desc' },
+          select: { reviewedAt: true },
+        });
+        return row?.reviewedAt ?? null;
+      },
     },
 
     learned: {
@@ -1386,6 +1420,12 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
       async decide(id, patch) {
         return (await prisma.learnedPhrase.update({ where: { id }, data: patch })) as any;
+      },
+      async suggest(id, reply, at) {
+        return (await prisma.learnedPhrase.update({
+          where: { id },
+          data: { suggestedReply: reply, suggestedAt: at },
+        })) as any;
       },
     },
 

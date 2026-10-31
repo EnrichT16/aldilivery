@@ -287,6 +287,8 @@ describe('judging in the admin panel', () => {
       conversation: 'abc',
       turn: 2,
       at: START.toISOString(),
+      model: null,
+      accountKind: null,
     });
   });
 });

@@ -33,6 +33,7 @@ export const TEST_SECRET = 'test-secret-that-is-long-enough-for-hmac';
 export const testEnv: Env = {
   languageModelKey: undefined,
   languageModelName: undefined,
+  ownerLanguageModelName: undefined,
   nodeEnv: 'test',
   isProduction: false,
   host: '127.0.0.1',

@@ -75,8 +75,13 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 /** The word on Ozi's button for its state; the same on the round button and the bottom bar. */
-export function presenceWord(ozi: { talking: boolean; presence: string }): string {
+export function presenceWord(ozi: {
+  talking: boolean;
+  presence: string;
+  waiting?: boolean;
+}): string {
   if (ozi.talking) return 'Talking';
+  if (ozi.waiting) return 'One moment';
   switch (ozi.presence) {
     case 'listening':
       return 'Listening';
@@ -182,28 +187,32 @@ export function OziBubble({ docked = false }: { docked?: boolean } = {}): JSX.El
 
   const label = ozi.talking
     ? 'Talking'
-    : listening
-      ? 'Listening'
-      : paused
-        ? 'Paused'
-        : ozi.presence === 'needs-tap'
-          ? 'Tap to talk'
-          : ozi.presence === 'cannot-listen'
-            ? 'Can’t listen'
-            : 'Starting';
+    : ozi.waiting
+      ? 'One moment'
+      : listening
+        ? 'Listening'
+        : paused
+          ? 'Paused'
+          : ozi.presence === 'needs-tap'
+            ? 'Tap to talk'
+            : ozi.presence === 'cannot-listen'
+              ? 'Can’t listen'
+              : 'Starting';
   // The button's name is exactly its visible word, so a voice control user says what they
   // see. What a press does is its description, read after the name.
   const action = ozi.talking
     ? `${assistant} is talking. Press to stop.`
-    : listening
-      ? `${assistant} is listening. Press to pause.`
-      : paused
-        ? `${assistant} is paused and not listening. Press to listen.`
-        : ozi.presence === 'needs-tap'
-          ? `${assistant} is ready. Press to talk; your phone will ask to use the microphone.`
-          : ozi.presence === 'cannot-listen'
-            ? `${assistant} can’t listen on this phone or browser. Press to hear why.`
-            : `${assistant} is starting.`;
+    : ozi.waiting
+      ? `${assistant} is working out an answer. One moment.`
+      : listening
+        ? `${assistant} is listening. Press to pause.`
+        : paused
+          ? `${assistant} is paused and not listening. Press to listen.`
+          : ozi.presence === 'needs-tap'
+            ? `${assistant} is ready. Press to talk; your phone will ask to use the microphone.`
+            : ozi.presence === 'cannot-listen'
+              ? `${assistant} can’t listen on this phone or browser. Press to hear why.`
+              : `${assistant} is starting.`;
 
   function placeFromPointer(clientX: number, clientY: number): { x: number; y: number } {
     const half = size / 2;
@@ -302,7 +311,7 @@ export function OziBubble({ docked = false }: { docked?: boolean } = {}): JSX.El
               </p>
             )}
             <p role="status" aria-live={captionLive} className="m-0 leading-snug">
-              {captionText}
+              {ozi.waiting && !ozi.talking ? 'One moment…' : captionText}
             </p>
           </div>
           {captionVisible && (

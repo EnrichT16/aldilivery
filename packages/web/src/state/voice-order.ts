@@ -167,7 +167,7 @@ const OPEN_SHOP = /^(?:please\s+)?(?:open|show me|go to|take me to)\s+(.{2,60})$
 /** How long the app waits for something not in the list to be looked up. */
 const SUGGEST_WAIT_MS = 6000;
 /** How long the app waits for the server's phrase book and the language model before going on alone. */
-const ASK_WAIT_MS = 6500;
+const ASK_WAIT_MS = 8000;
 /**
  * A sentence the parser would chop badly, so the language model hears it whole (ruling 69): a reason
  * given ("I've run out of"), a request wrapped in politeness, or a long sentence.
@@ -219,6 +219,8 @@ export function useVoiceOrdering(
   speak: (text: string) => Promise<SpeakOutcome>,
   /** No account yet: Ozi asks whether to open one now, by talking. */
   offerAccount?: () => void,
+  /** Shows "One moment" while the server works out an answer (31 October 2026). */
+  think: <T>(work: Promise<T>) => Promise<T> = (work) => work,
 ): VoiceOrdering {
   const { shopper, refresh } = useSession();
   // Ozi's memory (ruling 68): everything said here is kept with the words it answered, which
@@ -296,15 +298,17 @@ export function useVoiceOrdering(
     ): Promise<{ reply: string | null; understood?: OziUnderstanding } | null> => {
       const basket = live.current.basket.lines.map((line) => line.item.name);
       try {
-        return await Promise.race([
-          askOzi(text, 'within', chatterTurn.current, { kind: 'shopper' }, basket),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), ASK_WAIT_MS)),
-        ]);
+        return await think(
+          Promise.race([
+            askOzi(text, 'within', chatterTurn.current, { kind: 'shopper' }, basket),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), ASK_WAIT_MS)),
+          ]),
+        );
       } catch {
         return null;
       }
     },
-    [],
+    [think],
   );
 
   /**

@@ -195,6 +195,7 @@ export function PartnerDashboard(): JSX.Element {
           { kind: 'business' },
           say,
           `Sorry, I didn't catch that. ${partnerHelp()}`,
+          (work) => latest.current.ozi.think(work),
         );
         return true;
       }

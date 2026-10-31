@@ -393,6 +393,105 @@ describe('Ozi and the owner (ruling 44)', () => {
   });
 });
 
+describe('the owner talking to Ozi (31 October 2026)', () => {
+  it('is a conversation, never an offer of an account, and his yes goes back to be checked', async () => {
+    window.localStorage.setItem('ozidelivery.voice.settings', JSON.stringify({ introHeard: true }));
+    const asked: Array<{ text: string; mode: string }> = [];
+    const reply = (body: unknown): Response =>
+      ({
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => Promise.resolve(body),
+      }) as unknown as Response;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string, init?: RequestInit) => {
+        const path = String(url)
+          .replace(/^https?:\/\/[^/]+/, '')
+          .replace(/^\/api(?=\/|$)/, '');
+        if (path === '/staff/sign-in') {
+          return reply({
+            token: 'st1.owner.sig',
+            name: 'Anthony',
+            role: 'founder',
+            title: 'Founder',
+            areas: ['team'],
+            mustChangePassword: false,
+          });
+        }
+        if (path === '/staff/me') {
+          return reply({
+            name: 'Anthony',
+            role: 'founder',
+            title: 'Founder',
+            areas: ['team'],
+            account: true,
+            mustChangePassword: false,
+            isOwner: true,
+            address: 'Mr Anthony',
+          });
+        }
+        if (path === '/staff/team') return reply({ members: [] });
+        if (path === '/ozi/reply') {
+          const body = JSON.parse(String(init?.body)) as { text: string; mode: string };
+          asked.push(body);
+          if (body.mode === 'exact') return reply({ reply: null });
+          if (/owner and founder/.test(body.text)) {
+            return reply({ reply: 'Hello, Mr. Anthony. Lovely to hear you. One thing needs you.' });
+          }
+          if (/approve/.test(body.text)) {
+            return reply({
+              reply: 'To be sure, Mr. Anthony: I will approve this. A new shop. Shall I go ahead?',
+              awaitingYes: true,
+            });
+          }
+          if (body.text === 'yes') return reply({ reply: 'Approved.' });
+          return reply({ reply: null });
+        }
+        return reply({});
+      }),
+    );
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    const user = userEvent.setup({ delay: null });
+    render(
+      <MemoryRouter initialEntries={['/staff']}>
+        <App />
+      </MemoryRouter>,
+    );
+    await user.type(await screen.findByLabelText('Username'), 'anthony');
+    await user.type(screen.getByLabelText('Password'), 'a long password');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => {
+      expect(engine.listening).not.toBeNull();
+    });
+    engine.hear('Hello Ozi, this is your owner and founder, Mr. Anthony');
+    await waitFor(() => {
+      expect(engine.spoken.at(-1)?.text).toBe(
+        'Hello, Mr. Anthony. Lovely to hear you. One thing needs you.',
+      );
+    });
+    // Without his name, straight after: still the conversation.
+    await waitFor(() => expect(engine.listening).not.toBeNull());
+    engine.hear('approve the new shop');
+    await waitFor(() => {
+      expect(engine.spoken.at(-1)?.text).toMatch(/I will approve this/);
+    });
+    await waitFor(() => expect(engine.listening).not.toBeNull());
+    engine.hear('yes');
+    await waitFor(() => {
+      expect(engine.spoken.at(-1)?.text).toBe('Approved.');
+    });
+    expect(asked.filter((body) => body.mode === 'within').map((body) => body.text)).toEqual([
+      'Hello Ozi, this is your owner and founder, Mr. Anthony',
+      'approve the new shop',
+      'yes',
+    ]);
+    expect(engine.spoken.map((s) => s.text).join(' ')).not.toMatch(/create an account/i);
+  });
+});
+
 describe('the owner’s spoken questions about the business (Section Q)', () => {
   it('understands them, and the periods people say', () => {
     expect(understand('how many signups this month')).toEqual({

@@ -397,7 +397,9 @@ export async function decideMatter(
       ? 'by phone'
       : via === 'app'
         ? "on Ozi's call in the app"
-        : 'in the admin panel';
+        : via === 'voice'
+          ? 'by voice, talking to Ozi'
+          : 'in the admin panel';
   const audit = (entry: { actorName: string; action: string; target: string; detail: string }) =>
     auditEntry(ctx, { ...entry, ...seen });
 
@@ -426,7 +428,14 @@ export async function decideMatter(
 
   try {
     if (decision !== 'acknowledge') {
-      const named = via === 'phone' ? `${by}, by phone` : via === 'app' ? `${by}, in the app` : by;
+      const named =
+        via === 'phone'
+          ? `${by}, by phone`
+          : via === 'app'
+            ? `${by}, in the app`
+            : via === 'voice'
+              ? `${by}, by voice`
+              : by;
       await carryOut(ctx, matter, decision, named, log);
     }
   } catch (failure) {
