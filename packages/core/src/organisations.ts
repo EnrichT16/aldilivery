@@ -17,9 +17,11 @@ export const ORGANISATION_CONSENT_VERSION = 'organisation-consent-2026-11-05';
 /**
  * The Shop Partner terms at /partner/terms. Changed in substance on 30 October 2026 (Anthony:
  * restaurant fee and Ambassador base), so a partner who agreed to an earlier version is asked to
- * agree again (`termsChanged`). Versions are compared for equality, never by order.
+ * agree again (`termsChanged`). Versions are compared for equality, never by order. Changed
+ * again on 31 October 2026 (Anthony): the payment warning, that joining is always free and never
+ * to pay an Ambassador, is a clause of its own, with how to report an Ambassador.
  */
-export const SHOP_PARTNER_TERMS_VERSION = 'shop-partner-terms-2026-10-30b';
+export const SHOP_PARTNER_TERMS_VERSION = 'shop-partner-terms-2026-10-31a';
 
 /** What a partner or Ambassador whose agreed terms are older is told, until they agree again. */
 export const TERMS_CHANGED_WORDS = 'Our terms have changed. Please read and agree to keep going.';

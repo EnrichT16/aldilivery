@@ -10,6 +10,7 @@ import {
   reviewAmbassadorDocument,
   type StaffAmbassadorApplication,
 } from '../lib/api';
+import { HeldShares } from '../components/StaffAmbassadorChecks';
 
 /**
  * The staff Ambassadors page (Anthony, 30 October 2026), for the founder and the operations
@@ -80,6 +81,7 @@ export function StaffAmbassadors({
         Ambassador applications
       </h2>
       <Failure text={problem} />
+      <HeldShares staffKey={staffKey} by={by} onNews={onNews} />
       {groups?.map((group) => (
         <section key={group.status} aria-labelledby={`amb-${group.status}`} className="space-y-2">
           <h3 id={`amb-${group.status}`} className="font-bold m-0">

@@ -47,6 +47,12 @@ export function Cookies(): JSX.Element {
             Stripe&rsquo;s own privacy notice.
           </li>
           <li>
+            <strong>Stopping fraud</strong>: a random number made on your device, kept until you
+            clear it. Nothing is read from your device to make it. We use it only to stop people
+            earning from orders they placed themselves, such as an Ambassador ordering from a
+            business they introduced.
+          </li>
+          <li>
             <strong>An invitation code</strong> from a link someone shared with you, kept until the
             tab is closed so the sign-up form can use it, and which kind of link brought you here,
             kept until you have signed up so the person who shared it is counted.

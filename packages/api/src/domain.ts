@@ -404,6 +404,11 @@ export interface AmbassadorAgreement {
   suspendedFrom: AmbassadorStatus | null;
   /** When the retention sweep removed a declined or removed Ambassador's files. */
   documentsRemovedAt: Date | null;
+  /**
+   * Their code on the public "Check an Ambassador" page and every printed QR code (Anthony, 31
+   * October 2026): six letters and numbers, made once they are approved. Null until then.
+   */
+  checkCode: string | null;
 }
 
 /**
@@ -497,6 +502,45 @@ export interface AmbassadorEntry {
   cancelledAt: Date | null;
   cancelledPence: number;
   cancelReason: string | null;
+  /**
+   * Held for a person to check (Anthony, 31 October 2026): the order's Shopper matched the
+   * Ambassador or the business owner. It counts for nothing until staff release it.
+   */
+  heldAt: Date | null;
+  heldReason: string | null;
+}
+
+/**
+ * A device an account was seen using (Anthony, 31 October 2026): a random id the app makes and
+ * keeps on the device. Only to spot an order from an Ambassador's own device or the owner's.
+ */
+export interface DeviceSighting {
+  id: string;
+  deviceId: string;
+  accountKind: 'shopper' | 'runner' | 'partner';
+  accountId: string;
+  firstSeenAt: Date;
+  lastSeenAt: Date;
+}
+
+/**
+ * An Ambassador's claim to have brought a business in (Anthony, 31 October 2026): waiting for the
+ * business to confirm with the code sent to its own phone, confirmed, or refused. Only a keyed
+ * hash of the code is kept. The first confirmed claim wins.
+ */
+export interface AmbassadorClaim {
+  id: string;
+  partnerShopId: string;
+  ambassadorKind: ReferralKind;
+  ambassadorId: string;
+  status: 'waiting' | 'confirmed' | 'refused';
+  codeHash: string | null;
+  codeExpiresAt: Date | null;
+  codeSentAt: Date | null;
+  attempts: number;
+  refusedReason: string | null;
+  createdAt: Date;
+  confirmedAt: Date | null;
 }
 
 /**
@@ -1309,6 +1353,25 @@ export interface PartnerShop {
    * 0 for none, at most `restaurants.maximumMarkupPercent`; never for a service.
    */
   agreedMarkupPercent: number;
+  /**
+   * Protections against Ambassadors misusing the name (Anthony, 31 October 2026): a business an
+   * Ambassador signed up confirms with a code sent to its own phone before the Ambassador earns
+   * anything from it; when the Ambassador's introduction was confirmed (the first confirmed claim
+   * wins).
+   */
+  ambassadorConfirmNeeded: boolean;
+  ambassadorConfirmedAt: Date | null;
+  /**
+   * "Were you promised anything that isn't in your agreement?", asked once about a week after a
+   * business joins through an Ambassador: when the text went, the answer (yes, no, or not_asked
+   * for a business that joined before the question) and the note, and when.
+   */
+  promiseTextSentAt: Date | null;
+  promiseAnswer: 'yes' | 'no' | 'not_asked' | null;
+  promiseNote: string | null;
+  promiseAnsweredAt: Date | null;
+  /** The welcome text with the payment warning, sent once to the business's own number. */
+  welcomeTextSentAt: Date | null;
 }
 
 export type ServiceEnquiryKind = 'quote' | 'call_back';
@@ -1646,7 +1709,13 @@ export type OwnerMatterKind =
   /** An Ambassador applicant's document the automatic check could not approve: to decide. */
   | 'ambassador_document'
   /** Somebody's Ambassador application has its documents in (30 October 2026): to hear. */
-  | 'ambassador_application';
+  | 'ambassador_application'
+  /** Somebody reported an Ambassador (31 October 2026): from the check page or a business. */
+  | 'ambassador_report'
+  /** A business said it was promised something not in its agreement (31 October 2026). */
+  | 'ambassador_promise'
+  /** An Ambassador's share was held: the Shopper matched the Ambassador or the owner. */
+  | 'ambassador_share_held';
 
 /** Approve, decline or later; or only "I have heard it", or later. */
 export type OwnerMatterOptions = 'decide' | 'acknowledge';

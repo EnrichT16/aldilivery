@@ -28,7 +28,9 @@ import {
   AMBASSADOR_TERMS_VERSION,
   ambassadorApproved,
   ambassadorLinkWorks,
+  checkLink,
   COUNTER_CARD_WAIT_WORDS,
+  freeJoiningWords,
   counterCardsAllowed,
   firstNameOf,
   rewardWords,
@@ -74,6 +76,7 @@ import {
   suspendAmbassador,
 } from '../services/ambassador-applications.js';
 import { checkAmbassadorDocument, checkInBackground } from '../services/auto-check.js';
+import { ensureCheckCode } from '../services/ambassador-protection.js';
 import { sendVoucher, staffVoucherView } from '../services/vouchers.js';
 import {
   findAccount,
@@ -325,13 +328,28 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
     const shops = (await app.ctx.repository.partnerShops.list()).filter(
       (shop) => shop.ambassadorKind === kind && shop.ambassadorId === id,
     );
+    const businessLink = ambassadorLink(origin, account);
+    const shopperLink = referralLink(origin, account);
+    const runnerLink = `${origin}/runner/sign-up?via=${via}`;
+    // Every printed QR code goes through the public check page first (31 October 2026), so a
+    // suspension takes effect at once on paper already printed.
+    const checkCode = await ensureCheckCode(app.ctx, agreement);
+    const onward = (link: string): string => link.slice(origin.length);
     return {
       cardsWaitWords: COUNTER_CARD_WAIT_WORDS,
       name: account.name,
       firstName: firstNameOf(account.name),
-      businessLink: ambassadorLink(origin, account),
-      shopperLink: referralLink(origin, account),
-      runnerLink: `${origin}/runner/sign-up?via=${via}`,
+      businessLink,
+      shopperLink,
+      runnerLink,
+      checkCode,
+      checkLink: checkLink(origin, checkCode),
+      printLinks: {
+        business: checkLink(origin, checkCode, onward(businessLink)),
+        shopper: checkLink(origin, checkCode, onward(shopperLink)),
+        runner: checkLink(origin, checkCode, onward(runnerLink)),
+      },
+      freeJoiningWords: freeJoiningWords(config),
       businesses: shops.map((shop) => ({
         id: shop.id,
         name: shop.name,
@@ -368,10 +386,15 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
       throw new NotFoundError('business');
     }
     if (!counterCardsAllowed(shop)) throw new ForbiddenError(COUNTER_CARD_WAIT_WORDS);
+    const origin = env.primaryOrigin ?? '';
+    const checkCode = await ensureCheckCode(app.ctx, agreement);
     return {
       id: shop.id,
       name: shop.name,
-      shopLink: `${env.primaryOrigin ?? ''}/shops/${shop.id}`,
+      shopLink: `${origin}/shops/${shop.id}`,
+      // The card's QR code goes through the check page first, as every printed one does.
+      printLink: checkLink(origin, checkCode, `/shops/${shop.id}`),
+      checkCode,
     };
   });
 

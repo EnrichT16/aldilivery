@@ -27,6 +27,7 @@ import { MyOrder } from './pages/MyOrder';
 import { About } from './pages/About';
 import { Ambassador } from './pages/Ambassador';
 import { AmbassadorApply } from './pages/AmbassadorApply';
+import { AmbassadorCheck } from './pages/AmbassadorCheck';
 import { AmbassadorHome } from './pages/AmbassadorHome';
 import { AmbassadorPresentation } from './pages/AmbassadorPresentation';
 import { AmbassadorPrint } from './pages/AmbassadorPrint';
@@ -228,6 +229,8 @@ export function App(): JSX.Element {
                 <Route path="/ambassador/presentation" element={<AmbassadorPresentation />} />
                 <Route path="/ambassador/sign-up-business" element={<AmbassadorSignUpBusiness />} />
                 <Route path="/ambassador/print/:kind/:id" element={<AmbassadorPrint />} />
+                <Route path="/ambassador/check" element={<AmbassadorCheck />} />
+                <Route path="/ambassador/check/:code" element={<AmbassadorCheck />} />
                 <Route path="/business/agreement/:reference" element={<PartnerAgreementCheck />} />
                 <Route path="/shops" element={<Shops />} />
                 <Route path="/restaurants" element={<BrowsePage section="restaurants" />} />

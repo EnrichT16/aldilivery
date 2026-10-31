@@ -35,9 +35,11 @@ import { formatPence } from './money.js';
  * discount alone), so an Ambassador who agreed to an earlier version agrees again before a
  * withdrawal; their link keeps working. Changed again the same day (Anthony, Ambassador
  * applications): an Ambassador is approved only after their documents are checked and a short chat
- * with the founder, and we may decline or suspend.
+ * with the founder, and we may decline or suspend. Changed again on 31 October 2026 (Anthony,
+ * protections against misuse): never ask for or take money, never promise anything not in the
+ * agreement, never collect bank or card details; breaking any of them is removal for fraud.
  */
-export const AMBASSADOR_TERMS_VERSION = '2026-10-30c';
+export const AMBASSADOR_TERMS_VERSION = '2026-10-31a';
 
 /** One reward level: so many active referrals, the reward, and what it is called. */
 export interface ReferralLevel {

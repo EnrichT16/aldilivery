@@ -1274,6 +1274,20 @@ model PartnerShop {
   proposedMarkupPercent   Int?
   proposedDiscountPercent Int?
   ownerAgreedName         String?
+  /// Protections against Ambassadors misusing the name (Anthony, 31 October 2026). A business an
+  /// Ambassador signed up must confirm with a code sent to its own phone, on its own device, before
+  /// the Ambassador earns anything from it (ambassadorConfirmNeeded); ambassadorConfirmedAt is when
+  /// the Ambassador's introduction was confirmed, the first confirmed claim winning.
+  ambassadorConfirmNeeded Boolean   @default(false)
+  ambassadorConfirmedAt   DateTime?
+  /// "Were you promised anything that isn't in your agreement?", asked once about a week after a
+  /// business joins through an Ambassador: when the text went, and the answer (yes or no) and note.
+  promiseTextSentAt       DateTime?
+  promiseAnswer           String?
+  promiseNote             String?
+  promiseAnsweredAt       DateTime?
+  /// The welcome text with the payment warning, sent once to the business's own number.
+  welcomeTextSentAt       DateTime?
 
   @@index([ambassadorKind, ambassadorId])
 }
@@ -1631,6 +1645,9 @@ model AmbassadorAgreement {
   suspendedFrom            String?
   /// When the files of a declined or removed Ambassador were removed by the retention sweep.
   documentsRemovedAt       DateTime?
+  /// Their code on the public "Check an Ambassador" page and on every printed QR code (31 October
+  /// 2026): six letters and numbers, made when they are approved. Never their name or number.
+  checkCode                String?   @unique
 
   documents AmbassadorDocument[]
 
@@ -1732,10 +1749,54 @@ model AmbassadorEntry {
   cancelledAt    DateTime?
   cancelledPence Int       @default(0)
   cancelReason   String?
+  /// Held for a person to check (Anthony, 31 October 2026): the order's Shopper matched the
+  /// Ambassador or the business owner (card, phone, device or delivery address). A held share
+  /// counts for nothing until staff release it.
+  heldAt         DateTime?
+  heldReason     String?
 
   @@index([ambassadorKind, ambassadorId])
   @@index([partnerShopId])
   @@index([orderId])
+}
+
+/// A device an account was seen using (Anthony, 31 October 2026): a random id the app makes and
+/// keeps on the device, never anything read from it. Used only to see when an order that would
+/// earn an Ambassador a share came from the Ambassador's own device, or the business owner's.
+model DeviceSighting {
+  id          String   @id @default(cuid())
+  deviceId    String
+  /// shopper, runner or partner.
+  accountKind String
+  accountId   String
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  @@unique([deviceId, accountKind, accountId])
+  @@index([accountKind, accountId])
+}
+
+/// An Ambassador's claim to have brought a business in (Anthony, 31 October 2026): waiting for the
+/// business to confirm with the code sent to its own phone, confirmed, or refused (another
+/// Ambassador's confirmed claim came first, or the business said no). Only a keyed hash of the code
+/// is kept. The first confirmed claim wins.
+model AmbassadorClaim {
+  id             String    @id @default(cuid())
+  partnerShopId  String
+  ambassadorKind String
+  ambassadorId   String
+  /// waiting, confirmed or refused.
+  status         String    @default("waiting")
+  codeHash       String?
+  codeExpiresAt  DateTime?
+  codeSentAt     DateTime?
+  attempts       Int       @default(0)
+  refusedReason  String?
+  createdAt      DateTime  @default(now())
+  confirmedAt    DateTime?
+
+  @@index([partnerShopId])
+  @@index([ambassadorKind, ambassadorId])
 }
 
 /// An Ambassador asking for their available money to go to their bank (ruled 30 October 2026):

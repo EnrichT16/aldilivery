@@ -272,7 +272,7 @@ describe('applying', () => {
     ).toBeInTheDocument();
     expect(sent.find((row) => row.path === '/ambassador/join')?.body).toEqual({
       termsAgreed: true,
-      termsVersion: '2026-10-30c',
+      termsVersion: '2026-10-31a',
     });
     await noViolations(container);
 
@@ -511,9 +511,9 @@ describe('the Ambassador dashboard', () => {
     expect(screen.getByText('“When am I paid?”')).toBeInTheDocument();
     expect(screen.getByText('“Who are the customers?”')).toBeInTheDocument();
     expect(
-      screen.getByText('Never collect money from a business, for anything.'),
+      screen.getByText('Never ask for or take money from anybody, for anything. Joining is always free.'),
     ).toBeInTheDocument();
-    expect(screen.getByText('Never ask anyone for their card details.')).toBeInTheDocument();
+    expect(screen.getByText('Never collect bank or card details from anybody.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Read the guide to me' })).toBeInTheDocument();
     await noViolations(container);
   });
@@ -620,7 +620,7 @@ describe('the Toolkit’s printed things', () => {
             postcode: 'ME7 5TP',
             ownerName: 'Chika Eze',
             agreedAt: '2026-11-10T10:00:00.000Z',
-            termsVersion: 'shop-partner-terms-2026-10-30b',
+            termsVersion: 'shop-partner-terms-2026-10-31a',
             markupPercent: 30,
             discountPercent: 20,
             status: 'pending',
@@ -887,7 +887,7 @@ describe('the staff Ambassadors page', () => {
         return reply({
           application: {
             ...APPLICATION,
-            termsVersion: '2026-10-30c',
+            termsVersion: '2026-10-31a',
             idType: 'passport',
             chatDoneBy: null,
             chatNotes: '',
@@ -1047,7 +1047,7 @@ describe('ending a suspension on the staff Ambassadors page (31 October 2026)', 
         return reply({
           application: {
             ...SUSPENDED,
-            termsVersion: '2026-10-30c',
+            termsVersion: '2026-10-31a',
             idType: 'passport',
             chatDoneBy: 'Anthony',
             chatNotes: '',

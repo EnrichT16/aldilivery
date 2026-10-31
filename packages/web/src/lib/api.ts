@@ -90,6 +90,28 @@ export class ApiError extends Error {
   }
 }
 
+const DEVICE_KEY = 'ozidelivery.device';
+
+/**
+ * A random id for this device, made here and kept here (Anthony, 31 October 2026). Nothing is read
+ * from the device to make it. The server notes it with whoever is signed in, only to spot an order
+ * that would earn an Ambassador a share coming from the Ambassador's own phone, or the business
+ * owner's. Empty when the browser keeps nothing.
+ */
+export function deviceId(): string {
+  try {
+    const kept = window.localStorage.getItem(DEVICE_KEY);
+    if (kept && /^[A-Za-z0-9_-]{16,64}$/.test(kept)) return kept;
+    const bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+    const made = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    window.localStorage.setItem(DEVICE_KEY, made);
+    return made;
+  } catch {
+    return '';
+  }
+}
+
 export async function request<T>(
   path: string,
   init?: RequestInit,
@@ -98,10 +120,12 @@ export async function request<T>(
   let response: Response;
   try {
     const token = as === 'runner' ? readRunnerToken() : readToken();
+    const device = deviceId();
     response = await fetch(`${BASE_URL}${path}`, {
       ...init,
       headers: {
         'content-type': 'application/json',
+        ...(device ? { 'x-device-id': device } : {}),
         // Only sent when there is one. An anonymous browse must stay anonymous.
         ...(token ? { authorization: `Bearer ${token}` } : {}),
         ...(init?.headers ?? {}),
@@ -3561,6 +3585,14 @@ export interface AmbassadorToolkit {
   businessLink: string;
   shopperLink: string;
   runnerLink: string;
+  /**
+   * Their code on the public check page, and the links every printed QR code carries: the check
+   * page first, then on to the link (31 October 2026). Missing from an older server.
+   */
+  checkCode?: string;
+  checkLink?: string;
+  printLinks?: { business: string; shopper: string; runner: string };
+  freeJoiningWords?: string;
   /** What is said for a business that has not signed the partner agreement in the app. */
   cardsWaitWords?: string;
   businesses: Array<{
@@ -3586,8 +3618,136 @@ export function fetchAmbassadorToolkit(as: ReferralAs): Promise<AmbassadorToolki
 export function fetchCounterCard(
   as: ReferralAs,
   shopId: string,
-): Promise<{ id: string; name: string; shopLink: string }> {
+): Promise<{ id: string; name: string; shopLink: string; printLink?: string; checkCode?: string }> {
   return referralRequest(as, `/ambassador/cards/${encodeURIComponent(shopId)}`);
+}
+
+/* Protections against Ambassadors misusing the name (31 October 2026). */
+
+/** What anybody sees about an Ambassador's check code: never a surname or a number. */
+export type AmbassadorCheck =
+  | { known: false; code: string; words: string }
+  | {
+      known: true;
+      code: string;
+      active: boolean;
+      firstName: string;
+      approvedAt: string | null;
+      approvedWords: string | null;
+      hasPhoto: boolean;
+      words: string;
+    };
+
+export function checkAmbassador(code: string): Promise<AmbassadorCheck> {
+  return request(`/ambassador/check/${encodeURIComponent(code)}`);
+}
+
+/** Where an active Ambassador's face photo is shown from. */
+export function ambassadorCheckPhotoUrl(code: string): string {
+  return `${BASE_URL}/ambassador/check/${encodeURIComponent(code)}/photo`;
+}
+
+export function reportAmbassadorCheck(code: string, note: string): Promise<{ message: string }> {
+  return request(`/ambassador/check/${encodeURIComponent(code)}/report`, {
+    method: 'POST',
+    body: JSON.stringify({ note }),
+  });
+}
+
+/** The partner dashboard's box about joining being free, and its Ambassador. */
+export interface PartnerProtection {
+  freeJoiningWords: string;
+  costLines: { joining: string; preferred: string; extras: string };
+  ambassador: {
+    firstName: string;
+    confirmed: boolean;
+    confirmedAt: string | null;
+    waiting: boolean;
+  } | null;
+  promise: { question: string } | null;
+}
+
+export function fetchPartnerProtection(): Promise<PartnerProtection> {
+  return businessRequest('/partner/ambassador');
+}
+
+export function confirmPartnerAmbassador(
+  code: string,
+): Promise<{ message: string; confirmed: boolean; view: PartnerProtection }> {
+  return businessRequest('/partner/ambassador/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}
+
+export function resendPartnerAmbassadorCode(): Promise<{ message: string }> {
+  return businessRequest('/partner/ambassador/resend', { method: 'POST', body: '{}' });
+}
+
+export function refusePartnerAmbassador(): Promise<{ message: string }> {
+  return businessRequest('/partner/ambassador/refuse', { method: 'POST', body: '{}' });
+}
+
+export function reportPartnerAmbassador(input: {
+  note: string;
+  who: string;
+}): Promise<{ message: string }> {
+  return businessRequest('/partner/ambassador/report', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+}
+
+export function answerPartnerPromise(
+  answer: 'yes' | 'no',
+  note: string,
+): Promise<{ message: string }> {
+  return businessRequest('/partner/ambassador/promise', {
+    method: 'POST',
+    body: JSON.stringify({ answer, note }),
+  });
+}
+
+/** Shares held for a person to check: the Shopper matched the Ambassador or the owner. */
+export interface HeldShare {
+  id: string;
+  ambassadorName: string;
+  business: string;
+  orderId: string | null;
+  amountPence: number;
+  amountWords: string;
+  heldAt: string | null;
+  reason: string;
+}
+
+export function fetchHeldShares(key: string): Promise<{ held: HeldShare[] }> {
+  return staffRequest(key, '/staff/ambassador-protection/held');
+}
+
+export function decideHeldShare(
+  key: string,
+  id: string,
+  decision: 'release' | 'cancel',
+  by: string,
+): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/ambassador-protection/held/${encodeURIComponent(id)}/${decision}`, {
+    method: 'POST',
+    body: JSON.stringify({ by }),
+  });
+}
+
+/** "Check this business": the two search links, filled in. Links only. */
+export interface BusinessCheck {
+  name: string;
+  postcode: string;
+  companiesHouse: string;
+  hygieneRating: string;
+  ambassadorConfirmedAt: string | null;
+  claims: Array<{ id: string; status: string; createdAt: string; confirmedAt: string | null }>;
+}
+
+export function fetchBusinessCheck(key: string, shopId: string): Promise<BusinessCheck> {
+  return staffRequest(key, `/staff/partners/${encodeURIComponent(shopId)}/check`);
 }
 
 export interface SignUpBusinessInput {
@@ -3642,9 +3802,14 @@ export function fetchAgreementSheet(as: ReferralAs, reference: string): Promise<
 }
 
 /** Anyone: whether a Shop Partner agreement with this reference is real, and where it stands. */
-export function checkPartnerAgreement(
-  reference: string,
-): Promise<{ found: boolean; reference: string; business?: string; statusWords?: string }> {
+export function checkPartnerAgreement(reference: string): Promise<{
+  found: boolean;
+  reference: string;
+  business?: string;
+  statusWords?: string;
+  /** The Ambassador check first (31 October 2026), when an Ambassador signed it up. */
+  ambassador?: AmbassadorCheck | null;
+}> {
   return request(`/partner-agreements/${encodeURIComponent(reference)}`);
 }
 

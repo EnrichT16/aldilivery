@@ -255,6 +255,21 @@
     "declinedDocumentsDeleteAfterDays": 30,
     "declinedNoteKeptMonths": 12
   },
+  "ambassadorProtection": {
+    "about": "Protections against Ambassadors misusing the name (Anthony, 31 October 2026). 'freeJoiningWords' is the payment warning, shown word for word at the top of every business sign-up, on the partner dashboard, in the Shop Partner terms, on every printed Ambassador item and in the Ambassador Guide ({name} is the assistant's name, {extras} the 'paidExtras' joined with 'and'). A business an Ambassador signs up confirms with a code sent to its own phone, lasting 'confirmCodeMinutes', with 'confirmCodeTries' tries. 'promisedQuestion' is asked once, 'promisedAskAfterDays' after a business joins through an Ambassador. The public check page allows 'checksPerTenMinutes' lookups and 'reportsPerTenMinutes' reports from one internet address in ten minutes, and says 'notActiveWords' or 'unknownCodeWords'. 'companiesHouseSearch' and 'hygieneRatingSearch' are links for staff only ({name} and {postcode} filled in); the service never calls them.",
+    "freeJoiningWords": "Joining {name} is always free. We never charge you to join. Paid extras are optional: {extras}. You only pay if you choose them. Never pay an Ambassador. All payments are made only inside the app.",
+    "paidExtras": ["Spotlight", "Partner Plus"],
+    "confirmCodeMinutes": 60,
+    "confirmCodeTries": 5,
+    "promisedAskAfterDays": 7,
+    "promisedQuestion": "Were you promised anything that isn't in your agreement?",
+    "checksPerTenMinutes": 30,
+    "reportsPerTenMinutes": 5,
+    "notActiveWords": "Not active. Please do not deal with this person on {name}'s behalf. Report it.",
+    "unknownCodeWords": "We don't know this code.",
+    "companiesHouseSearch": "https://find-and-update.company-information.service.gov.uk/search/companies?q={name}",
+    "hygieneRatingSearch": "https://ratings.food.gov.uk/search?name={name}&location={postcode}"
+  },
   "admin": {
     "ownerOnlyRefundAbovePence": 2500,
     "staffTwoStepGraceDays": 14,

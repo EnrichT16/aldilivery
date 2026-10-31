@@ -5,6 +5,9 @@
  * flyer, their referral link on the others) and a small "Your Ambassador: <first name>" line.
  * Printed, or saved as a PDF, from the browser's print window at A5.
  *
+ * Since 31 October 2026 every QR code goes through the public check page first, and every flyer
+ * carries the payment warning, word for word ("Joining … is always free").
+ *
  * Every name, number and price comes from config/store.json. No supermarket is named, nothing is
  * said about insurance, and nothing promises anybody an income.
  */
@@ -14,6 +17,7 @@ import { rewardWords } from '@aldilivery/core';
 import { storeConfig } from '../../config';
 import type { AmbassadorToolkit } from '../../lib/api';
 import { money } from '../../lib/money';
+import { FREE_JOINING_WORDS } from '../FreeJoiningNotice';
 import { QrCode } from '../QrCode';
 
 const NAVY = storeConfig.brand.colours.navy;
@@ -48,7 +52,28 @@ export const FLYER_BASE_CSS = `
   .fl-page .qr svg { display: block; width: 100%; height: 100%; }
   .fl-page .legal { position: absolute; left: 0; right: 0; bottom: 0; font-size: 2.3mm; text-align: center; padding: 1.8mm 6mm; color: #fff; }
   .fl-page .amb { font-size: 3mm; font-weight: 800; margin-top: 1mm; }
+  .fl-page .fl-warn { position: absolute; left: 0; right: 0; bottom: 5.5mm; background: #fff; color: ${NAVY}; font-size: 2.2mm; font-weight: 700; line-height: 1.3; text-align: center; padding: 1mm 5mm; }
 `;
+
+/**
+ * Where each printed QR code goes (31 October 2026): the public check page first, then on to the
+ * link, so a suspension takes effect at once on paper already printed. An older server without
+ * print links gives the link itself.
+ */
+export function printLinkFor(toolkit: AmbassadorToolkit, which: 'business' | 'shopper' | 'runner'): string {
+  const own =
+    which === 'business'
+      ? toolkit.businessLink
+      : which === 'shopper'
+        ? toolkit.shopperLink
+        : toolkit.runnerLink;
+  return toolkit.printLinks?.[which] ?? own;
+}
+
+/** The payment warning, word for word, on every flyer. */
+function Warning(): JSX.Element {
+  return <p className="fl-warn" style={{ margin: 0 }}>{FREE_JOINING_WORDS}</p>;
+}
 
 function Qr({ link, label }: { link: string; label: string }): JSX.Element {
   return (
@@ -59,11 +84,15 @@ function Qr({ link, label }: { link: string; label: string }): JSX.Element {
 }
 
 function Ambassador({ toolkit, link }: { toolkit: AmbassadorToolkit; link: string }): JSX.Element {
-  const code = codeOf(link);
+  const code = toolkit.checkCode ?? codeOf(link);
   return (
     <div className="amb">
       Your Ambassador: {toolkit.firstName}
-      {code ? ` · Code ${code}` : ''}
+      {toolkit.checkCode
+        ? ` · Check code ${code} at ${site()}/ambassador/check`
+        : code
+          ? ` · Code ${code}`
+          : ''}
     </div>
   );
 }
@@ -72,6 +101,7 @@ function Ambassador({ toolkit, link }: { toolkit: AmbassadorToolkit; link: strin
 
 function ShoppersFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element {
   const link = toolkit.shopperLink;
+  const qr = printLinkFor(toolkit, 'shopper');
   const extras = storeConfig.extras;
   return (
     <div
@@ -96,14 +126,14 @@ function ShoppersFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element
         .sa-step .e { font-size:9mm; display:block; margin-bottom:1.5mm; }
         .sa-step b { display:block; font-size:4.2mm; }
         .sa-step small { display:block; font-size:2.9mm; line-height:1.3; margin-top:1mm; }
-        .sa-burst { position:absolute; right:8mm; top:131mm; width:33mm; height:33mm; border-radius:50%; background:${NAVY}; color:#FFE27A; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; transform: rotate(-10deg); }
+        .sa-burst { position:absolute; right:8mm; top:127mm; width:33mm; height:33mm; border-radius:50%; background:${NAVY}; color:#FFE27A; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; transform: rotate(-10deg); }
         .sa-burst b { font-size:9mm; line-height:1; }
         .sa-burst small { font-size:3mm; font-weight:800; color:#fff; line-height:1.15; margin-top:1mm; }
         .sa-call { position:absolute; left:10mm; top:132mm; width:84mm; }
         .sa-call .row { font-size:4.1mm; font-weight:800; color:#fff; margin-bottom:1.6mm; }
         .sa-call .tel { font-size:7.4mm; font-weight:900; color:${NAVY}; }
-        .sa-bottom { position:absolute; left:8mm; right:8mm; bottom:9mm; background:#fff; border-radius:6mm; padding:3.5mm; display:flex; gap:4mm; align-items:center; }
-        .sa-bottom .qr { width:26mm; height:26mm; padding:0; flex:none; }
+        .sa-bottom { position:absolute; left:8mm; right:8mm; bottom:15mm; background:#fff; border-radius:6mm; padding:3.5mm; display:flex; gap:4mm; align-items:center; }
+        .sa-bottom .qr { width:24mm; height:24mm; padding:0; flex:none; }
         .sa-bottom b { font-size:5.4mm; display:block; }
         .sa-bottom .url { font-size:4.6mm; font-weight:900; color:#C2185B; }
         .sa-bottom small { font-size:3mm; display:block; margin-top:.8mm; }
@@ -170,7 +200,7 @@ function ShoppersFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element
         </div>
       )}
       <div className="sa-bottom">
-        <Qr link={link} label={`QR code: ${toolkit.firstName}'s link to start shopping`} />
+        <Qr link={qr} label={`QR code: ${toolkit.firstName}'s link to start shopping`} />
         <div>
           <b>Scan to start</b>
           <div className="url">{site()}</div>
@@ -181,6 +211,7 @@ function ShoppersFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element
           <Ambassador toolkit={toolkit} link={link} />
         </div>
       </div>
+      <Warning />
       <div className="legal">{legalLine()}</div>
     </div>
   );
@@ -190,6 +221,7 @@ function ShoppersFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element
 
 function CarersFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element {
   const link = toolkit.shopperLink;
+  const qr = printLinkFor(toolkit, 'shopper');
   const extras = storeConfig.extras;
   return (
     <div
@@ -210,7 +242,7 @@ function CarersFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element {
         .sb-carer .e { font-size:10mm; }
         .sb-carer b { font-size:4.4mm; color:#FFE27A; display:block; }
         .sb-carer small { font-size:3.1mm; line-height:1.3; display:block; }
-        .sb-bottom { position:absolute; left:8mm; right:8mm; bottom:9mm; display:flex; gap:4mm; align-items:center; color:#fff; }
+        .sb-bottom { position:absolute; left:8mm; right:8mm; bottom:15mm; display:flex; gap:4mm; align-items:center; color:#fff; }
         .sb-bottom .qr { width:30mm; height:30mm; flex:none; }
         .sb-bottom .big { font-size:6mm; font-weight:900; line-height:1.1; }
         .sb-bottom .free { display:inline-block; background:#FFE27A; color:${NAVY}; font-weight:900; font-size:3.6mm; padding:1.2mm 3mm; border-radius:10mm; margin-top:2mm; }
@@ -285,7 +317,7 @@ function CarersFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element {
         </div>
       </div>
       <div className="sb-bottom">
-        <Qr link={link} label={`QR code: ${toolkit.firstName}'s link to join`} />
+        <Qr link={qr} label={`QR code: ${toolkit.firstName}'s link to join`} />
         <div>
           <div className="big">
             Scan or visit
@@ -297,6 +329,7 @@ function CarersFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element {
           <Ambassador toolkit={toolkit} link={link} />
         </div>
       </div>
+      <Warning />
       <div className="legal">{legalLine()}</div>
     </div>
   );
@@ -306,6 +339,7 @@ function CarersFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element {
 
 function BusinessFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element {
   const link = toolkit.businessLink;
+  const qr = printLinkFor(toolkit, 'business');
   const partners = storeConfig.extras.partners;
   return (
     <div
@@ -330,7 +364,7 @@ function BusinessFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element
         .pa-scan b { color:#FFE27A; font-size:4.5mm; display:block; }
         .pa-scan small { font-size:3.1mm; line-height:1.3; display:block; }
         .pa-food { position:absolute; left:10mm; top:157mm; font-size:3.6mm; font-weight:800; color:${NAVY}; }
-        .pa-bottom { position:absolute; left:8mm; right:8mm; bottom:9mm; background:#fff; border-radius:6mm; padding:3.5mm; display:flex; gap:4mm; align-items:center; }
+        .pa-bottom { position:absolute; left:8mm; right:8mm; bottom:15mm; background:#fff; border-radius:6mm; padding:3.5mm; display:flex; gap:4mm; align-items:center; }
         .pa-bottom .qr { width:26mm; height:26mm; padding:0; flex:none; }
         .pa-bottom b { font-size:5.6mm; display:block; }
         .pa-bottom .url { font-size:4.4mm; font-weight:900; color:#C2185B; }
@@ -385,7 +419,7 @@ function BusinessFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element
       </div>
       <div className="pa-food">Restaurants: no commission. Paid instantly, in full.</div>
       <div className="pa-bottom">
-        <Qr link={link} label={`QR code: ${toolkit.firstName}'s link for a business to join`} />
+        <Qr link={qr} label={`QR code: ${toolkit.firstName}'s link for a business to join`} />
         <div>
           <b>Join free today</b>
           <div className="url">{site()}/business</div>
@@ -393,6 +427,7 @@ function BusinessFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element
           <Ambassador toolkit={toolkit} link={link} />
         </div>
       </div>
+      <Warning />
       <div className="legal">{legalLine()}</div>
     </div>
   );
@@ -402,6 +437,7 @@ function BusinessFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element
 
 function RunnersFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element {
   const link = toolkit.runnerLink;
+  const qr = printLinkFor(toolkit, 'runner');
   const fees = storeConfig.fees;
   const symbol = storeConfig.store.currencySymbol;
   return (
@@ -421,11 +457,11 @@ function RunnersFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element 
         .ra-tile .e { font-size:7.5mm; }
         .ra-tile b { display:block; font-size:4.1mm; margin-top:1mm; }
         .ra-tile small { display:block; font-size:2.95mm; line-height:1.3; margin-top:.6mm; }
-        .ra-need { position:absolute; left:8mm; right:8mm; top:146mm; background:${NAVY}; color:#fff; border-radius:5mm; padding:3.2mm 4mm; }
+        .ra-need { position:absolute; left:8mm; right:8mm; top:142mm; background:${NAVY}; color:#fff; border-radius:5mm; padding:3.2mm 4mm; }
         .ra-need b { color:#FFE27A; font-size:4.2mm; display:block; margin-bottom:1mm; }
         .ra-need small { font-size:3.05mm; line-height:1.35; display:block; }
-        .ra-bottom { position:absolute; left:8mm; right:8mm; bottom:9mm; background:#fff; border-radius:6mm; padding:3.5mm; display:flex; gap:4mm; align-items:center; }
-        .ra-bottom .qr { width:24mm; height:24mm; padding:0; flex:none; }
+        .ra-bottom { position:absolute; left:8mm; right:8mm; bottom:15mm; background:#fff; border-radius:6mm; padding:3.5mm; display:flex; gap:4mm; align-items:center; }
+        .ra-bottom .qr { width:22mm; height:22mm; padding:0; flex:none; }
         .ra-bottom b { font-size:5.4mm; display:block; }
         .ra-bottom .url { font-size:4.2mm; font-weight:900; color:#0B6B4D; }
         .ra-bottom small { font-size:2.9mm; display:block; margin-top:.8mm; }
@@ -481,7 +517,7 @@ function RunnersFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element 
         </small>
       </div>
       <div className="ra-bottom">
-        <Qr link={link} label={`QR code: ${toolkit.firstName}'s link to sign up as a Runner`} />
+        <Qr link={qr} label={`QR code: ${toolkit.firstName}'s link to sign up as a Runner`} />
         <div>
           <b>Sign up on the app</b>
           <div className="url">{site()}/runner</div>
@@ -489,6 +525,7 @@ function RunnersFlyer({ toolkit }: { toolkit: AmbassadorToolkit }): JSX.Element 
           <Ambassador toolkit={toolkit} link={link} />
         </div>
       </div>
+      <Warning />
       <div className="legal">{legalLine()}</div>
     </div>
   );
@@ -499,8 +536,10 @@ export type FlyerKey = 'shoppers' | 'carers' | 'business' | 'runners';
 export const FLYERS: ReadonlyArray<{
   key: FlyerKey;
   title: string;
-  /** Which of their links the flyer's QR code carries. */
+  /** Which of their links the flyer is shared with. */
   link: (toolkit: AmbassadorToolkit) => string;
+  /** What its printed QR code carries: the check page first, then that link. */
+  printLink: (toolkit: AmbassadorToolkit) => string;
   shareText: string;
   Flyer: (props: { toolkit: AmbassadorToolkit }) => JSX.Element;
 }> = [
@@ -508,6 +547,7 @@ export const FLYERS: ReadonlyArray<{
     key: 'shoppers',
     title: 'Shoppers',
     link: (toolkit) => toolkit.shopperLink,
+    printLink: (toolkit) => printLinkFor(toolkit, 'shopper'),
     shareText: `Shopping brought to your door by ${storeConfig.productName}:`,
     Flyer: ShoppersFlyer,
   },
@@ -515,6 +555,7 @@ export const FLYERS: ReadonlyArray<{
     key: 'carers',
     title: 'Carers and families',
     link: (toolkit) => toolkit.shopperLink,
+    printLink: (toolkit) => printLinkFor(toolkit, 'shopper'),
     shareText: `${storeConfig.productName} does the shopping for the people you look after:`,
     Flyer: CarersFlyer,
   },
@@ -522,6 +563,7 @@ export const FLYERS: ReadonlyArray<{
     key: 'business',
     title: 'Restaurants and shops',
     link: (toolkit) => toolkit.businessLink,
+    printLink: (toolkit) => printLinkFor(toolkit, 'business'),
     shareText: `Put your business on ${storeConfig.productName}, free:`,
     Flyer: BusinessFlyer,
   },
@@ -529,6 +571,7 @@ export const FLYERS: ReadonlyArray<{
     key: 'runners',
     title: 'Runners (drivers)',
     link: (toolkit) => toolkit.runnerLink,
+    printLink: (toolkit) => printLinkFor(toolkit, 'runner'),
     shareText: `Deliver for ${storeConfig.productName}, on your own hours:`,
     Flyer: RunnersFlyer,
   },

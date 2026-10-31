@@ -231,6 +231,25 @@ export {
 } from './ambassador-applications.js';
 
 export {
+  AMBASSADOR_PROTECTION_DEFAULTS,
+  andList,
+  businessCheckLinks,
+  CHECK_CODE_ALPHABET,
+  CHECK_CODE_PATTERN,
+  checkLink,
+  freeJoiningWords,
+  notActiveWords,
+  paidExtrasWords,
+  partnerCostLines,
+  safeNextPath,
+  sameAddress,
+  tidyCheckCode,
+  welcomeTextWords,
+  type AmbassadorProtectionSettings,
+  type PartnerCostFigures,
+} from './ambassador-protection.js';
+
+export {
   activeShare,
   AMBASSADOR_TERMS_VERSION,
   ambassadorAvailableAt,

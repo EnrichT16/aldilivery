@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { openPrint } from '../components/ambassador/PrintSheet';
+import { FREE_JOINING_WORDS } from '../components/FreeJoiningNotice';
 import { QrCode } from '../components/QrCode';
 import { storeConfig } from '../config';
 import { fetchAmbassadorToolkit, type AmbassadorToolkit } from '../lib/api';
@@ -103,7 +104,7 @@ export function presentationSlides(toolkit: AmbassadorToolkit): Slide[] {
         <div className="flex flex-wrap gap-6 items-start">
           <div className="w-40 bg-paper p-2 rounded-2xl">
             <QrCode
-              value={toolkit.businessLink}
+              value={toolkit.printLinks?.business ?? toolkit.businessLink}
               label={`QR code: ${toolkit.firstName}'s link for a business to join`}
             />
           </div>
@@ -111,6 +112,12 @@ export function presentationSlides(toolkit: AmbassadorToolkit): Slide[] {
             <li>Scan the code with your phone and join, free.</li>
             <li>Or I can sign you up now, here, with you.</li>
             <li>A person at {product} checks every business before it goes live.</li>
+            {toolkit.checkCode && (
+              <li>
+                Check me first: my Ambassador code is {toolkit.checkCode}, at{' '}
+                {storeConfig.contact.website.replace(/^www\./, '')}/ambassador/check.
+              </li>
+            )}
           </ul>
         </div>
       ),
@@ -263,6 +270,8 @@ export function AmbassadorPresentation(): JSX.Element {
             </p>
             <h2 className="text-display font-bold m-0">{slide.title}</h2>
             {slide.body}
+            {/* The payment warning on every slide (31 October 2026). */}
+            <p className="m-0 border-t-2 border-paper/40 pt-3 font-bold">{FREE_JOINING_WORDS}</p>
           </section>
         ))}
         <div className="slide-controls flex flex-wrap gap-2">

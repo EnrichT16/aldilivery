@@ -66,6 +66,8 @@ import type {
   ReferralVoucher,
   AmbassadorEntry,
   AmbassadorAgreement,
+  AmbassadorClaim,
+  DeviceSighting,
   AmbassadorNote,
   AmbassadorDocument,
   AmbassadorWithdrawal,
@@ -206,6 +208,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
     return count;
   };
   const ambassadorWithdrawals: AmbassadorWithdrawal[] = [];
+  const ambassadorClaims: AmbassadorClaim[] = [];
+  const deviceSightings: DeviceSighting[] = [];
   const auditEntries: AuditEntry[] = [];
   const cardAuthorizations = new Map<string, CardAuthorization>();
   const ownerMatters = new Map<string, OwnerMatter>();
@@ -794,6 +798,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           faceCompareConsentAt: null,
           suspendedFrom: null,
           documentsRemovedAt: null,
+          checkCode: null,
         };
         ambassadorAgreements.push(row);
         return clone(row);
@@ -806,6 +811,10 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
       async findAgreementById(key) {
         const found = ambassadorAgreements.find((row) => row.id === key);
+        return found ? clone(found) : null;
+      },
+      async findAgreementByCheckCode(checkCode) {
+        const found = ambassadorAgreements.find((row) => row.checkCode === checkCode);
         return found ? clone(found) : null;
       },
       async listAgreements() {
@@ -823,6 +832,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         const row: AmbassadorEntry = {
           availableAt: null,
           disputedAt: null,
+          heldAt: null,
+          heldReason: null,
           ...input,
           cancelledAt: null,
           cancelledPence: 0,
@@ -890,6 +901,70 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
       async list() {
         return [...ambassadorEntries].sort((a, b) => a.at.getTime() - b.at.getTime()).map(clone);
+      },
+    },
+
+    deviceSightings: {
+      async record(deviceId, accountKind, accountId, at) {
+        const found = deviceSightings.find(
+          (row) =>
+            row.deviceId === deviceId &&
+            row.accountKind === accountKind &&
+            row.accountId === accountId,
+        );
+        if (found) {
+          found.lastSeenAt = at;
+          return;
+        }
+        deviceSightings.push({
+          id: id(),
+          deviceId,
+          accountKind,
+          accountId,
+          firstSeenAt: at,
+          lastSeenAt: at,
+        });
+      },
+      async listForAccount(accountKind, accountId) {
+        return deviceSightings
+          .filter((row) => row.accountKind === accountKind && row.accountId === accountId)
+          .map((row) => row.deviceId);
+      },
+    },
+
+    ambassadorClaims: {
+      async create(input) {
+        const row: AmbassadorClaim = {
+          status: 'waiting',
+          codeHash: null,
+          codeExpiresAt: null,
+          codeSentAt: null,
+          confirmedAt: null,
+          refusedReason: null,
+          ...input,
+          attempts: 0,
+          id: id(),
+          createdAt: now(),
+        };
+        ambassadorClaims.push(row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = ambassadorClaims.find((row) => row.id === key);
+        return found ? clone(found) : null;
+      },
+      async listForShop(partnerShopId) {
+        return ambassadorClaims
+          .filter((row) => row.partnerShopId === partnerShopId)
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+      async update(key, patch) {
+        const index = ambassadorClaims.findIndex((row) => row.id === key);
+        if (index < 0) throw new NotFoundError('Ambassador claim', key);
+        const updated = { ...ambassadorClaims[index]!, ...patch };
+        ambassadorClaims[index] = updated;
+        return clone(updated);
       },
     },
 
@@ -1984,6 +2059,13 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           proposedMarkupPercent: null,
           proposedDiscountPercent: null,
           ownerAgreedName: null,
+          ambassadorConfirmNeeded: false,
+          ambassadorConfirmedAt: null,
+          promiseTextSentAt: null,
+          promiseAnswer: null,
+          promiseNote: null,
+          promiseAnsweredAt: null,
+          welcomeTextSentAt: null,
           ...input,
           id: id(),
           paidUntil: null,

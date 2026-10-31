@@ -123,6 +123,7 @@ import { money } from '../lib/money';
 import { StaffMessages } from './StaffMessages';
 import { useOzi } from '../state/ozi';
 import { nameHeardIn } from '../voice/name';
+import { CheckThisBusiness } from '../components/StaffAmbassadorChecks';
 
 /**
  * The admin panel, for the people who run the service: Runner documents waiting, problems to
@@ -2681,6 +2682,8 @@ function Partners({
                   </select>
                 </div>
               )}
+              {/* Links to check the business is real (31 October 2026). Links only. */}
+              <CheckThisBusiness staffKey={staffKey} shopId={shop.id} shopName={shop.name} />
               {shop.status === 'pending' && shop.agreementReference && (
                 <div className="space-y-2">
                   {/* Signed up by an Ambassador (30 October 2026): approving it checks the

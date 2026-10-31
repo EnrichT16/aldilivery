@@ -2,7 +2,13 @@ import { useRef } from 'react';
 
 import { storeConfig } from '../../config';
 import { money } from '../../lib/money';
-import { AMBASSADOR_RULES, EXAMPLES_ONLY, earningLines } from '../../lib/ambassador';
+import {
+  AMBASSADOR_RULES,
+  EXAMPLES_ONLY,
+  REMOVAL_FOR_FRAUD_WORDS,
+  earningLines,
+} from '../../lib/ambassador';
+import { FREE_JOINING_WORDS } from '../FreeJoiningNotice';
 import { useOzi } from '../../state/ozi';
 
 /**
@@ -36,6 +42,21 @@ export function AmbassadorGuide({ headingLevel = 2 }: { headingLevel?: 2 | 3 }):
         Read the guide to me
       </button>
       <div ref={page} className="space-y-6">
+        <section
+          aria-labelledby="guide-free"
+          className="space-y-2 border-4 border-highlight rounded-2xl p-4"
+        >
+          <Sub id="guide-free" className="font-bold m-0">
+            Say this to every business: joining is free
+          </Sub>
+          <p className="m-0">{FREE_JOINING_WORDS}</p>
+          <p className="m-0">
+            Every business you sign up confirms it with a code we text to its own phone. They type
+            it in themselves, on their own phone or computer. Anybody can check your Ambassador
+            code on our website.
+          </p>
+        </section>
+
         <section aria-labelledby="guide-pitch" className="space-y-2">
           <Sub id="guide-pitch" className="font-bold m-0">
             The two-minute pitch for restaurant owners
@@ -120,6 +141,7 @@ export function AmbassadorGuide({ headingLevel = 2 }: { headingLevel?: 2 | 3 }):
               <li key={rule}>{rule}</li>
             ))}
           </ul>
+          <p className="m-0 font-bold">{REMOVAL_FOR_FRAUD_WORDS}</p>
         </section>
       </div>
     </section>

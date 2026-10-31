@@ -78,7 +78,7 @@ describe('a partner on older Shop Partner terms', () => {
       version: SHOP_PARTNER_TERMS_VERSION,
       path: '/partner/terms',
     });
-    expect(SHOP_PARTNER_TERMS_VERSION).toBe('shop-partner-terms-2026-10-30b');
+    expect(SHOP_PARTNER_TERMS_VERSION).toBe('shop-partner-terms-2026-10-31a');
   });
 
   it('keeps the listing live, but pauses every change but agreeing', async () => {

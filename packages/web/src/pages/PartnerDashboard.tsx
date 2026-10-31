@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { BrowseFields, readBrowseFields } from '../components/BrowseFields';
+import { PartnerProtection } from '../components/PartnerProtection';
 import { ProductScanner } from '../components/ProductScanner';
 import { ReferralCard } from '../components/ReferralCard';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
@@ -504,6 +505,9 @@ export function PartnerDashboard(): JSX.Element {
           {problem}
         </p>
       )}
+
+      {/* The payment warning, kept on the dashboard, and the business's Ambassador (31 October 2026). */}
+      <PartnerProtection />
 
       <section
         aria-labelledby="plan-heading"

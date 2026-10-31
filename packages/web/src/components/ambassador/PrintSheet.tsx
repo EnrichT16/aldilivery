@@ -1,11 +1,16 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
+import { FREE_JOINING_WORDS } from '../FreeJoiningNotice';
+
 /**
  * A page of the Ambassador Toolkit to print, or save as a PDF, from the browser (30 October 2026):
  * its own heading and buttons on the screen, and only the sheet itself on paper, at the size it
  * is made for. `?action=print` or `?action=pdf`, from the Toolkit's buttons, opens the print
  * window at once; for a PDF the person chooses "Save as PDF" there, as the screen says.
+ *
+ * Every sheet printed from here carries the payment warning (31 October 2026), and its QR code goes
+ * through the public check page first.
  */
 
 /** Opens the browser's print window, where there is one. */
@@ -56,6 +61,9 @@ export function PrintSheet({
       `}</style>
       <div className="space-y-3 no-print">
         <h1 className="text-display font-bold m-0">{title}</h1>
+        <p className="m-0 border-2 border-highlight rounded-2xl p-3">
+          Printed on it, for everybody who reads it: {FREE_JOINING_WORDS}
+        </p>
         <p className="m-0">
           To save it as a PDF, press Download PDF, then choose &ldquo;Save as PDF&rdquo; in the
           print window.

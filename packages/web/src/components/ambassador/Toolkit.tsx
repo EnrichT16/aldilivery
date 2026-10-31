@@ -112,6 +112,13 @@ export function Toolkit({
         Everything here carries your own QR code and link, so whoever joins through it is counted
         for you. Print it, or save it as a PDF from the print window.
       </p>
+      {toolkit.checkCode && (
+        <p className="m-0 border-2 border-highlight rounded-2xl p-4">
+          Your Ambassador code is <strong>{toolkit.checkCode}</strong>. Every printed QR code shows
+          your check first, so people can see you are active, then carries on to your link. Anybody
+          can type your code at /ambassador/check on our website.
+        </p>
+      )}
 
       <section aria-labelledby="signup-heading" className="space-y-2">
         <h3 id="signup-heading" className="font-bold m-0">

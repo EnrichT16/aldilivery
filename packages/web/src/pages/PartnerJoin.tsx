@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { BrowseFields, readBrowseFields } from '../components/BrowseFields';
 import { Field } from '../components/FormFields';
+import { FreeJoiningNotice } from '../components/FreeJoiningNotice';
 import { storeConfig } from '../config';
 import {
   fetchPartnerJoinOptions,
@@ -405,6 +407,8 @@ export function PartnerJoin(): JSX.Element {
       <h1 className="text-display font-bold m-0">
         {claimedName ? `Claim ${claimedName}` : 'Join as a shop'}
       </h1>
+      {/* The payment warning, before any field (Anthony, 31 October 2026). */}
+      <FreeJoiningNotice />
       <p className="m-0">
         For shops, cafés, takeaways and services in the area. Fill this in, confirm your mobile with
         a code, and you can add your {kind === 'service' ? 'services' : 'products'} straight away.
