@@ -11,7 +11,12 @@ import {
 
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { heardBrowse } from '@aldilivery/core';
+import {
+  heardBrowse,
+  knownGreeting,
+  knownSpeakerReply,
+  SHOPPER_ACCOUNT_FOR_ORDERS,
+} from '@aldilivery/core';
 
 import { storeConfig } from '../config';
 import { browseNoun, browsePath, browseQuery, emptyWords, postcodeIn } from '../lib/browse';
@@ -36,6 +41,7 @@ import {
 import { addNamedItems, currentOffers, listInWords } from '../lib/extras';
 import { READ_MESSAGES, readMessagesAloud } from '../lib/inbox-api';
 import { readRunnerToken } from '../lib/session';
+import { currentAsker, KNOWN_NAMES, knownHere } from '../lib/ozi-asker';
 import { CLOSE_QUESTION, leaveRunning } from '../lib/runner-api';
 import {
   ALLOW_LINE,
@@ -47,7 +53,13 @@ import {
   type BrowserFacts,
 } from '../voice/microphone-help';
 import { nameHeardIn, onlyName } from '../voice/name';
-import { phraseReply } from '../voice/phrases';
+import {
+  converse,
+  CONVERSE_WAIT_MS,
+  isKnownPhrase,
+  OWNER_CONVERSE_WAIT_MS,
+  phraseReply,
+} from '../voice/phrases';
 import { answerShoppingQuestion, orderWhere } from '../voice/shopping-questions';
 import { useBasket } from './basket';
 import type { SpeakOutcome } from '../voice';
@@ -182,6 +194,12 @@ const GIFTS = /\b(gift|gifts|present|presents)\b(?!\s+(bag|card))/;
 /** "What's your phone number?", "can I ring you", "the number to call". */
 const PHONE =
   /\b(phone|telephone)\s+number\b|\bnumber\s+to\s+(call|ring)\b|\b(call|ring|phone)\s+(you|the number|someone|a person)\b/;
+
+/**
+ * After Ozi answers the owner or staff, what is said next is taken as said to Ozi for this long,
+ * without its name (ruling 84), as in the admin panel.
+ */
+const KNOWN_CONVERSING_MS = 45_000;
 
 /** Answers to "Hey Ozi" on its own, taken in turn. */
 const HERE = [
@@ -632,6 +650,12 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
         void sayRef.current(`I'm here. ${pending}`).then(() => {
           lastSaid.current = pending;
         });
+      } else if (window.location.pathname.startsWith('/staff') && pageCommandsRef.current) {
+        // The admin panel's own voice answers there (ruling 84): one voice on /staff.
+        pageCommandsRef.current(text);
+      } else if (talksAsKnown()) {
+        // "Hello Ozi" from the owner: his conversation, never the Shopper's welcome (ruling 84).
+        knownTalk(text);
       } else {
         ordering.expectOrder();
         void sayRef.current(HERE[hereCount.current++ % HERE.length]!);
@@ -647,6 +671,30 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     setHeard(text);
     // The page's own commands come before anything about shopping.
     if (pageCommandsRef.current?.(text)) return;
+    // The owner or staff, known on this device and not also shopping here (ruling 84): what they
+    // say is their conversation with the server, which knows them. Pausing still works; shopping
+    // is kindly sent to a Shopper account by the server, never ordered from a staff sign-in.
+    if (talksAsKnown()) {
+      if (/\bmute\b|\bpause\b|\bstop listening\b|\bbe quiet\b/.test(words)) {
+        mute();
+        return;
+      }
+      void (async () => {
+        const meant =
+          nameHeardIn(text) ||
+          Date.now() < knownConversingUntil.current ||
+          knownSpeakerReply(
+            text,
+            knownHere() ?? { kind: 'staff', firstName: null },
+            KNOWN_NAMES,
+            new Date(),
+          ) !== null ||
+          (await isKnownPhrase(text, currentAsker()));
+        // Ozi does not talk back to the television.
+        if (meant) knownTalk(text);
+      })();
+      return;
+    }
     // "Read my messages": the company inbox (ruling 77), for a Shopper or a Runner signed in.
     if (!ordering.busy() && READ_MESSAGES.test(words)) {
       const runnerPage = window.location.pathname.startsWith('/runner');
@@ -924,10 +972,8 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       return;
     }
     void (async () => {
-      // Runners hear the Runner collection on their own pages; everywhere else, the Shopper's.
-      const as = window.location.pathname.startsWith('/runner')
-        ? ({ kind: 'runner' } as const)
-        : ({ kind: 'shopper' } as const);
+      // Whoever is signed in on this device (ruling 84): staff, a shop, a Runner or a Shopper.
+      const as = currentAsker();
       // An everyday phrase, the whole sentence: "thank you", "who are you", "how much is
       // delivery". Asked before an order is looked for, so "Ozi, thank you" is never ordered.
       if (!ordering.busy()) {
@@ -1020,6 +1066,48 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     })();
   };
 
+  /**
+   * The owner or staff known on this device, and no Shopper signed in here too (ruling 84):
+   * everything they say goes to their own conversation on the server.
+   */
+  const talksAsKnown = (): boolean => knownHere() !== null && !accountRef.current.shopper;
+  const knownConversingUntil = useRef(0);
+
+  /**
+   * One turn of the owner's or staff's conversation with the server (ruling 84), as the admin
+   * panel's: it knows who is speaking, and for the owner reads his desk. A decision read back
+   * waits for his yes, and his very next words go straight back, so only that answer can be the
+   * yes (Rule One). Slow or away, Ozi still greets him by name, from configuration.
+   */
+  const knownTalk = (text: string): void => {
+    const who = knownHere();
+    const as = currentAsker();
+    void (async () => {
+      const answer = await think(
+        converse(
+          text,
+          phraseTurn.current,
+          as,
+          who?.kind === 'owner' ? OWNER_CONVERSE_WAIT_MS : CONVERSE_WAIT_MS,
+        ),
+      );
+      phraseTurn.current += 1;
+      knownConversingUntil.current = Date.now() + KNOWN_CONVERSING_MS;
+      if (answer?.reply) {
+        if (answer.awaitingYes) {
+          listenFor(answer.reply, (reply) => knownTalk(reply));
+          return;
+        }
+        await sayRef.current(answer.reply);
+        return;
+      }
+      const local = who ? knownSpeakerReply(text, who, KNOWN_NAMES, new Date()) : null;
+      await sayRef.current(
+        local ?? "Sorry, I couldn't answer that just now. Please say it again in a moment.",
+      );
+    })();
+  };
+
   const repeats = useRef(0);
   const hereCount = useRef(0);
   const phraseTurn = useRef(0);
@@ -1101,6 +1189,8 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     // Runner, on their own pages or with their own sign-in.
     if (
       accountRef.current.shopper ||
+      // The owner or staff signed in on this device (ruling 84), on any page.
+      knownHere() !== null ||
       businessToken() !== '' ||
       readRunnerToken() !== null ||
       /^\/(staff|runner|partner|business|organisation(?!s)|join\/organisation)/.test(
@@ -1109,7 +1199,9 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     ) {
       void sayRef.current(
         lead.startsWith('To order')
-          ? "You're signed in already. To order shopping, use a Shopper account in the shop."
+          ? knownHere() !== null && !accountRef.current.shopper
+            ? SHOPPER_ACCOUNT_FOR_ORDERS
+            : "You're signed in already. To order shopping, use a Shopper account in the shop."
           : 'How can I help?',
       );
       return;
@@ -1340,6 +1432,8 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
    */
   const askAboutHelpRef = useRef<() => void>(() => {});
   askAboutHelpRef.current = () => {
+    // Never to the owner or staff signed in on this device (ruling 84): they are known.
+    if (knownHere() !== null) return;
     const next = (): void => {
       if (!accountRef.current.shopper) offerAccountRef.current('', true);
     };
@@ -1402,6 +1496,18 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
         cannotReason.current = { kind: 'unsupported', text: unsupportedMessage(browser) };
       }
       setPresence(ready.canListen ? (needsTap ? 'needs-tap' : 'listening') : 'cannot-listen');
+      // The owner on his own phone (ruling 84): no introduction, no extra-help question and no
+      // account offer. His first words from Ozi are a greeting for the time of day, by name. In
+      // the admin panel its own voice opens instead, so only one voice speaks there.
+      const known = knownHere();
+      if (known) {
+        if (window.location.pathname.startsWith('/staff')) {
+          listenRef.current();
+          return;
+        }
+        await sayRef.current(knownGreeting(known, KNOWN_NAMES, new Date()));
+        return;
+      }
       if (settings.introHeard) {
         listenRef.current();
         return;

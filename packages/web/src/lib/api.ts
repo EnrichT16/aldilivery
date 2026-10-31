@@ -1529,17 +1529,29 @@ export interface StaffSignedIn {
   twoStep?: StaffTwoStep;
   /** Said when a recovery code was used. */
   message?: string;
+  /** When the session ends (ruling 84). */
+  expiresAt?: string;
+  /** Made to be remembered on this phone (ruling 84). */
+  remembered?: boolean;
 }
 
 export function staffSignIn(
   username: string,
   password: string,
-  extra: { passcode?: string; code?: string } = {},
+  extra: { passcode?: string; code?: string; remember?: boolean } = {},
 ): Promise<StaffSignedIn> {
   return request('/staff/sign-in', {
     method: 'POST',
     body: JSON.stringify({ username, password, ...extra }),
   });
+}
+
+/**
+ * "Sign out of this phone" (ruling 84): every session remembered on a phone for this account
+ * stops on the server; other devices stay signed in.
+ */
+export function signOutOfPhone(key: string): Promise<{ message: string }> {
+  return staffRequest(key, '/staff/sign-out-phone', { method: 'POST', body: '{}' });
 }
 
 export function fetchStaffMe(key: string): Promise<

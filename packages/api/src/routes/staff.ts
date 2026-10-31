@@ -44,6 +44,7 @@ import {
   passwordMatches,
   signStaffToken,
   staffActor,
+  verifyStaffToken,
   STAFF_ROLES,
   STAFF_SESSION_HOURS,
   temporaryPassword,
@@ -108,6 +109,11 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
          * recovery codes given when they were switched on.
          */
         code: z.string().max(20).optional(),
+        /**
+         * "Remember me on this phone" (ruling 84, 31 October 2026): the session lasts
+         * `admin.staffRememberDays` instead of a working day, until "Sign out of this phone".
+         */
+        remember: z.boolean().optional(),
       })
       .parse(request.body ?? {});
     const member = await repository.staffMembers.findByUsername(body.username);
@@ -185,17 +191,17 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
       detail: [
         recoveryLeft !== null ? 'with a recovery code' : '',
         setupOnly ? 'to set up two-step codes only' : '',
+        body.remember ? 'remembered on this phone' : '',
       ]
         .filter(Boolean)
         .join(', '),
     });
+    const kept = sessionFor(updated, at, { setup: setupOnly, remember: body.remember === true });
     return {
-      token: signStaffToken(
-        updated.id,
-        new Date(at.getTime() + STAFF_SESSION_HOURS * 3_600_000),
-        env.authTokenSecret,
-        { version: updated.sessionVersion, passcode: updated.isOwner, setup: setupOnly },
-      ),
+      token: kept.token,
+      // When the session ends (ruling 84), so the phone can say so and forget it.
+      expiresAt: kept.expiresAt,
+      remembered: kept.remembered,
       name: updated.name,
       role,
       title: STAFF_ROLES[role].title,
@@ -208,6 +214,61 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
           }
         : {}),
     };
+  });
+
+  /**
+   * A staff session (ruling 84): a working day, or, remembered on the person's own phone,
+   * `admin.staffRememberDays`. A set-up-only session is never long: it only carries the wish to
+   * be remembered, so the session given once two-step codes are on can be.
+   */
+  function sessionFor(
+    member: StaffMember,
+    at: Date,
+    options: { setup?: boolean; remember?: boolean } = {},
+  ): { token: string; expiresAt: Date; remembered: boolean } {
+    const long = options.remember === true && options.setup !== true;
+    const expiresAt = new Date(
+      at.getTime() +
+        (long ? config.admin.staffRememberDays * 24 * 3_600_000 : STAFF_SESSION_HOURS * 3_600_000),
+    );
+    return {
+      token: signStaffToken(member.id, expiresAt, env.authTokenSecret, {
+        version: member.sessionVersion,
+        passcode: member.isOwner,
+        ...(options.setup ? { setup: true } : {}),
+        ...(options.remember ? { remembered: member.rememberedVersion ?? 0 } : {}),
+      }),
+      expiresAt,
+      remembered: long,
+    };
+  }
+
+  /** Whether the request's own session was one remembered on a phone (ruling 84). */
+  function rememberedSession(request: { headers: Record<string, unknown> }): boolean {
+    const given = request.headers['x-staff-token'];
+    const token = Array.isArray(given) ? given[0] : given;
+    if (typeof token !== 'string') return false;
+    return verifyStaffToken(token, env.authTokenSecret, now())?.remembered != null;
+  }
+
+  /**
+   * "Sign out of this phone" (ruling 84): every session remembered on a phone for this account
+   * stops at once; sessions on other devices carry on. The phone forgets its copy too.
+   */
+  app.post('/staff/sign-out-phone', async (request) => {
+    const actor = await staffActor(request, undefined, { allowSetup: true });
+    const member = actor.id ? await repository.staffMembers.findById(actor.id) : null;
+    if (member) {
+      await repository.staffMembers.update(member.id, {
+        rememberedVersion: (member.rememberedVersion ?? 0) + 1,
+      });
+      await recordAudit(request, {
+        actor: { id: member.id, name: member.name, role: member.role },
+        action: 'staff.signed-out-phone',
+        detail: 'every remembered phone signed out',
+      });
+    }
+    return { message: 'Signed out of this phone. You will need to sign in again here.' };
   });
 
   /** Where someone's two-step codes stand, for the screen. */
@@ -518,7 +579,7 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
     };
   }
 
-  async function confirmTwoStep(member: StaffMember, code: string) {
+  async function confirmTwoStep(member: StaffMember, code: string, remember = false) {
     if (!member.totpSecret || !totpMatches(member.totpSecret, code, now())) {
       throw new BadRequestError('That code was not right. Please try the newest one.');
     }
@@ -532,13 +593,9 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
       message:
         'Two-step codes are on. You will be asked for one each time you sign in. Keep the recovery codes somewhere safe: each one works once, if you lose your phone.',
       recoveryCodes: codes,
-      // A fresh session, so someone who could only set up two-step codes can now carry on.
-      token: signStaffToken(
-        updated.id,
-        new Date(at.getTime() + STAFF_SESSION_HOURS * 3_600_000),
-        env.authTokenSecret,
-        { version: updated.sessionVersion, passcode: updated.isOwner },
-      ),
+      // A fresh session, so someone who could only set up two-step codes can now carry on;
+      // remembered on this phone if they asked to be when they signed in (ruling 84).
+      token: sessionFor(updated, at, { remember }).token,
     };
   }
 
@@ -564,7 +621,7 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
   app.post('/staff/two-step/confirm', async (request) => {
     const { member } = await ownAccount(request);
     const { code } = z.object({ code: z.string().max(10) }).parse(request.body ?? {});
-    return confirmTwoStep(member, code);
+    return confirmTwoStep(member, code, rememberedSession(request));
   });
 
   /** Before the grace period ends, two-step codes can be switched off again, with the password. */
@@ -692,7 +749,7 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
   app.post('/staff/owner/two-step/confirm', async (request) => {
     const member = await owner(request, true);
     const { code } = z.object({ code: z.string().max(10) }).parse(request.body ?? {});
-    return confirmTwoStep(member, code);
+    return confirmTwoStep(member, code, rememberedSession(request));
   });
 
   app.post('/staff/owner/two-step/off', async (request) => {

@@ -450,6 +450,11 @@ export interface StoreConfig {
     readonly staffTwoStepGraceDays: number;
     /** The day the grace period starts for accounts that already exist, as YYYY-MM-DD. */
     readonly staffTwoStepFrom: string;
+    /**
+     * "Remember me on this phone" (ruling 84, 31 October 2026): how many days a staff session
+     * kept on a person's own phone lasts before they sign in again. 30 unless set.
+     */
+    readonly staffRememberDays: number;
   };
 }
 
@@ -1965,6 +1970,11 @@ export function parseStoreConfig(input: unknown): StoreConfig {
         0,
       ),
       staffTwoStepFrom,
+      staffRememberDays: wholeNumber(
+        admin['staffRememberDays'] ?? 30,
+        'admin.staffRememberDays',
+        1,
+      ),
     },
   };
 }

@@ -2,6 +2,7 @@ import { phraseFingerprint, phraseWithoutName } from '@aldilivery/core';
 
 import { storeConfig } from '../config';
 import { askOzi, businessToken, fetchKnownPhrases, type OziAsker } from '../lib/api';
+import { currentAsker } from '../lib/ozi-asker';
 import { nameHeardIn } from './name';
 
 /**
@@ -91,7 +92,8 @@ export async function phraseReply(
   text: string,
   turn: number,
   mode: 'exact' | 'within',
-  as: OziAsker = { kind: 'shopper' },
+  /** Whoever is signed in on this device (ruling 84): the owner is known on any page. */
+  as: OziAsker = currentAsker(),
   /** How long to wait for a sentence looked within; the conversation's own wait by default. */
   waitMs: number = CONVERSE_WAIT_MS,
 ): Promise<string | null> {
@@ -107,6 +109,18 @@ export async function phraseReply(
     mode === 'within' ? waitMs : WAIT_MS,
     null,
   );
+}
+
+/**
+ * Whether the whole sentence is one of this account's everyday phrases, known at once from the
+ * fingerprints, without asking for an answer (ruling 84: the owner's and staff's answers come
+ * from the conversation, so a phrase only says it was meant for Ozi). False when unsure.
+ */
+export async function isKnownPhrase(text: string, as: OziAsker): Promise<boolean> {
+  const fingerprints = await withTimeout(knownFor(as), WAIT_MS, null);
+  if (!fingerprints) return false;
+  const said = phraseWithoutName(text, NAMES);
+  return said !== '' && fingerprints.has(phraseFingerprint(said));
 }
 
 /**

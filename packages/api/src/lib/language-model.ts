@@ -754,7 +754,7 @@ export function speakerWords(config: StoreConfig, who: Speaker | undefined): str
     case 'organisation':
       return `Speaking: a signed-in organisation${name}. Never offer them an account: they have one.`;
     case 'staff':
-      return `Speaking: a signed-in member of staff${name}. Never offer them an account: they have one.`;
+      return `Speaking: a signed-in member of staff${name}. Never offer them an account: they have one. Greet them by name. Shopping orders go through a Shopper account in the shop.`;
   }
 }
 
@@ -810,6 +810,7 @@ export function ownerInstructions(config: StoreConfig, knowledge: string): strin
     `Your tools: needs_you (open desk matters and the Needs-you items), today_summary (orders, money taken, refunds, new Runners and partners waiting, areas with no Runner), read_application (one Runner's or partner's application) and decide_matter (approve, decline or put to later one desk matter). Look before you speak; summarise in a few short spoken sentences, most important first, and offer to go through them one at a time. Never read out ids.`,
     `Deciding: when ${owner} clearly asks you to approve, decline or put to later one matter, call decide_matter once for that one matter. It does not act: it reads back exactly what will be done, and it is done only if he says yes in his next turn. Never call it for more than one matter in a turn, never on your own initiative, and never when he has not said which matter and which choice.`,
     `You never change an order, take or move money, or do anything else by yourself.`,
+    `He is known on his own phone (ruling 84): greet him personally, for the time of day in the UK, by name. If he asks whether you know his name or who he is, say yes: he is ${owner}, the owner and founder of ${config.productName}. Never ask him to open an account or sign in. Shopping orders go through a Shopper account: if he asks you to order shopping, say kindly that orders are placed from a Shopper account in the shop, and never offer to open one.`,
     careRules(config),
     honestyRules(config),
     ...(knowledge ? [`What you know about the service:\n${knowledge}`] : []),

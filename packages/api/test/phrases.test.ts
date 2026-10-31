@@ -319,8 +319,9 @@ describe('POST /ozi/reply', () => {
       password: 'a long password',
       passcode: '123456#',
     });
+    // Known by name, for the time of day, from config (ruling 84): 10am in London.
     expect((await ask('hello', owner)).json().reply).toBe(
-      'Good day, Mr Anthony. How can I help, sir?',
+      'Good morning, Mr. Anthony. How can I help?',
     );
 
     for (const kind of ['family', 'investor'] as const) {

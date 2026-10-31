@@ -39,6 +39,7 @@ import {
   type ExchangeOutcome,
   type OziUnderstanding,
 } from '../lib/api';
+import { currentAsker } from '../lib/ozi-asker';
 import { money, sellable, shownPrice, tooDearWords } from '../lib/money';
 import { completeBankCheck } from '../lib/stripe';
 import { parseChoice, parseQuantity, parseYesNo, splitItems, wantsToStop } from '../voice/ordering';
@@ -234,13 +235,16 @@ export function useVoiceOrdering(
   const say = useCallback(
     async (text: string): Promise<SpeakOutcome> => {
       const outcome = await speak(text);
-      recordExchange({
-        heard: lastHeard.current,
-        said: text,
-        brain: note.current.brain,
-        outcome: note.current.outcome,
-        turn: turn.current,
-      });
+      recordExchange(
+        {
+          heard: lastHeard.current,
+          said: text,
+          brain: note.current.brain,
+          outcome: note.current.outcome,
+          turn: turn.current,
+        },
+        currentAsker(),
+      );
       turn.current += 1;
       note.current = { brain: 'flow', outcome: 'asked' };
       return outcome;
@@ -300,7 +304,7 @@ export function useVoiceOrdering(
       try {
         return await think(
           Promise.race([
-            askOzi(text, 'within', chatterTurn.current, { kind: 'shopper' }, basket),
+            askOzi(text, 'within', chatterTurn.current, currentAsker(), basket),
             new Promise<null>((resolve) => setTimeout(() => resolve(null), ASK_WAIT_MS)),
           ]),
         );

@@ -49,6 +49,7 @@ import {
   resetTeamTwoStep,
   type StaffTwoStep,
   staffSignIn,
+  signOutOfPhone,
   updateTeamMember,
   decideFind,
   decideProblem,
@@ -116,6 +117,12 @@ import {
 } from './StaffAdmin';
 import { storeConfig } from '../config';
 import { setTeamAllocator } from '../lib/allocate-api';
+import {
+  forgetStaffSession,
+  keepStaffSession,
+  markStaffSession,
+  readStaffSession,
+} from '../lib/staff-session';
 import { setTeamAuthoriser } from '../lib/inbox-api';
 import { setTeamUnlocker, unlockStaff } from '../lib/unlock-api';
 import { LockedOut } from '../components/Unlock';
@@ -130,12 +137,12 @@ import { CheckThisBusiness } from '../components/StaffAmbassadorChecks';
  * decide, money Runners owe, and Runner feedback. Built to the same accessibility rules as the
  * rest, because the people running it include a blind owner.
  *
- * It signs in with the staff key (STAFF_API_KEY), kept only for this browser tab. Every decision
- * records the name of whoever made it.
+ * It signs in with a username, password (and two-step code), or with the staff key
+ * (STAFF_API_KEY). Kept only for this browser tab, unless "Remember me on this phone" was ticked
+ * (ruling 84): then the session token, never the staff key, is kept on the phone until it ends
+ * or "Sign out of this phone" is pressed (`lib/staff-session.ts`). Every decision records the
+ * name of whoever made it.
  */
-
-const KEY = 'ozidelivery.staff.key';
-const NAME = 'ozidelivery.staff.name';
 
 type TabKey = StaffArea | 'mine' | 'twostep';
 type StaffMe = Awaited<ReturnType<typeof fetchStaffMe>>;
@@ -245,26 +252,11 @@ function TabList<K extends string>({
   );
 }
 
-function remembered(name: string): string {
-  try {
-    return window.sessionStorage.getItem(name) ?? '';
-  } catch {
-    return '';
-  }
-}
-
-function remember(name: string, value: string | null): void {
-  try {
-    if (value === null) window.sessionStorage.removeItem(name);
-    else window.sessionStorage.setItem(name, value);
-  } catch {
-    // Private browsing: they sign in again next time.
-  }
-}
-
 export function Staff(): JSX.Element {
-  const [key, setKey] = useState(() => remembered(KEY));
-  const [by, setBy] = useState(() => remembered(NAME));
+  const [key, setKey] = useState(() => readStaffSession()?.key ?? '');
+  const [by, setBy] = useState(() => readStaffSession()?.name ?? '');
+  // Kept on this phone (ruling 84): the sign-out button then says "Sign out of this phone".
+  const [onPhone, setOnPhone] = useState(() => readStaffSession()?.remembered === true);
   const [me, setMe] = useState<StaffMe | null>(null);
   const [tab, setTab] = useState<TabKey | null>(null);
   const [news, setNews] = useState('');
@@ -272,8 +264,8 @@ export function Staff(): JSX.Element {
   const [refresh, setRefresh] = useState(0);
 
   const signOut = useCallback(() => {
-    remember(KEY, null);
-    remember(NAME, null);
+    forgetStaffSession();
+    setOnPhone(false);
     setKey('');
     setBy('');
     setMe(null);
@@ -288,16 +280,36 @@ export function Staff(): JSX.Element {
       .then((result) => {
         setMe(result);
         if (result.account) setBy(result.name);
+        // So Ozi knows the owner on any page of this device (ruling 84).
+        markStaffSession({
+          owner: result.isOwner === true && result.account,
+          ...(result.account ? { name: result.name } : {}),
+        });
       })
       .catch(signOut);
   }, [key, signOut]);
 
+  /**
+   * "Sign out of this phone" (ruling 84): the server stops every session remembered on a phone
+   * for this account, and this phone forgets its copy, even if the server cannot be reached.
+   */
+  const signOutHere = (): void => {
+    const was = key;
+    signOut();
+    void signOutOfPhone(was).catch(() => undefined);
+  };
+
   if (key === '' || by === '') {
     return (
       <SignIn
-        onSignedIn={(signedKey, name) => {
-          remember(KEY, signedKey);
-          remember(NAME, name);
+        onSignedIn={(signedKey, name, kept) => {
+          keepStaffSession({
+            key: signedKey,
+            name,
+            remember: kept.remember,
+            expiresAt: kept.expiresAt ?? null,
+          });
+          setOnPhone(kept.remember && signedKey.startsWith('st1.'));
           setKey(signedKey);
           setBy(name);
         }}
@@ -324,7 +336,8 @@ export function Staff(): JSX.Element {
         : // Needs you now carries the "Locked out" list, for whoever may unlock (ruling 81).
           me.areas.includes(key) || (key === 'overview' && me.canUnlock === true);
   const freshSession = (token: string): void => {
-    remember(KEY, token);
+    // Kept where the sign-in was kept: on this phone if it was remembered (ruling 84).
+    keepStaffSession({ key: token, name: by, remember: onPhone, owner: me.isOwner === true });
     setKey(token);
   };
   const tabs = TABS.filter((item) => allowed(item.key));
@@ -343,10 +356,20 @@ export function Staff(): JSX.Element {
       <p className="m-0">
         Signed in as {by}, {me.isOwner ? 'Founder and owner' : me.title}.
         {me.viewOnly ? ' You can look, but not change anything.' : ''}{' '}
-        <button type="button" onClick={signOut} className="underline bg-transparent text-paper">
-          Sign out
+        <button
+          type="button"
+          onClick={onPhone ? signOutHere : signOut}
+          className="underline bg-transparent text-paper"
+        >
+          {onPhone ? 'Sign out of this phone' : 'Sign out'}
         </button>
       </p>
+      {onPhone && (
+        <p className="m-0">
+          This phone remembers you, so {storeConfig.assistantName} knows you on every page. Other
+          phones and computers still need your full sign-in.
+        </p>
+      )}
       <p role="status" className="m-0 min-h-control">
         {news}
       </p>
@@ -382,7 +405,7 @@ export function Staff(): JSX.Element {
               setNews(text);
               setRefresh((value) => value + 1);
             }}
-            onSignOut={signOut}
+            onSignOut={onPhone ? signOutHere : signOut}
           />
           {/* Ozi rings the owner here first, then his phone (ruling 79). */}
           {me.isOwner === true && me.account && (
@@ -515,8 +538,19 @@ export function Staff(): JSX.Element {
   );
 }
 
-function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => void }): JSX.Element {
+function SignIn({
+  onSignedIn,
+}: {
+  onSignedIn: (
+    key: string,
+    name: string,
+    kept: { remember: boolean; expiresAt?: string | undefined },
+  ) => void;
+}): JSX.Element {
   const [withKey, setWithKey] = useState(false);
+  // "Remember me on this phone" (ruling 84): on by default for the owner, known when his
+  // passcode is asked for; anyone may tick or untick it themselves.
+  const [rememberChoice, setRememberChoice] = useState<boolean | null>(null);
   // The founder's way in with the staff key is offered only once a staff username has been
   // typed: a visitor who lands here sees a plain sign-in and nothing about keys.
   const [username, setUsername] = useState('');
@@ -528,7 +562,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
   // password is never asked for aloud, so nobody nearby hears it.
   useEffect(() => {
     const words =
-      'Admin sign in. Type your username, then your password. For your privacy, I never ask you to say a password out loud.';
+      'Admin sign in. Type your username, then your password. On your own phone, tick Remember me on this phone, and I will know you on every page. For your privacy, I never ask you to say a password out loud.';
     voice.current.setPageCommands((text) => {
       if (nameHeardIn(text) || /\b(help|what do i do|how)\b/i.test(text))
         void voice.current.say(words);
@@ -542,6 +576,7 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
   // The owner's account asks for the passcode, and a two-step code if turned on, after the
   // password. The username and password stay in the boxes meanwhile.
   const [needs, setNeeds] = useState<string[]>([]);
+  const remember = rememberChoice ?? needs.includes('passcode');
 
   const submit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -554,8 +589,9 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
         return;
       }
       setBusy(true);
+      // The staff key is never kept on a phone: only a session from a username can be.
       checkStaffKey(value('staff-key'))
-        .then(() => onSignedIn(value('staff-key'), value('staff-name')))
+        .then(() => onSignedIn(value('staff-key'), value('staff-name'), { remember: false }))
         .catch(() => {
           setProblem('That staff key was not accepted.');
           setBusy(false);
@@ -570,8 +606,14 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
     staffSignIn(value('staff-username'), String(data.get('staff-password') ?? ''), {
       ...(needs.includes('passcode') ? { passcode: String(data.get('staff-passcode') ?? '') } : {}),
       ...(needs.includes('code') ? { code: value('staff-code') } : {}),
+      ...(remember ? { remember: true } : {}),
     })
-      .then((result) => onSignedIn(result.token, result.name))
+      .then((result) =>
+        onSignedIn(result.token, result.name, {
+          remember,
+          expiresAt: result.expiresAt,
+        }),
+      )
       .catch((failure: unknown) => {
         const asked = (failure as { details?: { needs?: unknown } }).details?.needs;
         if (Array.isArray(asked)) setNeeds(asked.map(String));
@@ -655,6 +697,34 @@ function SignIn({ onSignedIn }: { onSignedIn: (key: string, name: string) => voi
             </>
           )}
         </Fragment>
+      )}
+      {withKey ? (
+        <p className="m-0">
+          The staff key is never remembered on a phone. To stay signed in on your own phone, sign in
+          with your username instead.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          <div className="flex items-center gap-3 min-h-control">
+            <input
+              id="staff-remember"
+              name="staff-remember"
+              type="checkbox"
+              checked={remember}
+              onChange={(event) => setRememberChoice(event.target.checked)}
+              aria-describedby="staff-remember-hint"
+              className="h-8 w-8 shrink-0"
+            />
+            <label htmlFor="staff-remember" className="font-bold">
+              Remember me on this phone
+            </label>
+          </div>
+          <p id="staff-remember-hint" className="m-0">
+            Only on your own phone. You stay signed in for {storeConfig.admin.staffRememberDays}{' '}
+            days, so {storeConfig.assistantName} knows you on every page, until you sign out of this
+            phone. Other phones and computers still need your full sign-in.
+          </p>
+        </div>
       )}
       {problem !== '' && (
         <p role="alert" className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0">
