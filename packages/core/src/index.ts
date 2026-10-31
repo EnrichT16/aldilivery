@@ -128,6 +128,15 @@ export {
   type PhraseNames,
 } from './phrase-text.js';
 
+export {
+  knownGreeting,
+  knownSpeakerReply,
+  SHOPPER_ACCOUNT_FOR_ORDERS,
+  ukPartOfDay,
+  type KnownSpeaker,
+  type KnownSpeakerNames,
+} from './known-speaker.js';
+
 export { RUNNER_AGREEMENT_VERSION } from './runner-agreement.js';
 
 export {

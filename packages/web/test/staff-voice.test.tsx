@@ -8,6 +8,8 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { phraseFingerprint } from '@aldilivery/core';
+
 import { App } from '../src/App';
 import { spokenDate } from '../src/components/StaffVoice';
 import type { RefundsReport, StaffProblem } from '../src/lib/api';
@@ -355,6 +357,7 @@ describe('Ozi and the owner (ruling 44)', () => {
           });
         }
         if (path === '/staff/team') return reply({ members: [] });
+        if (path === '/ozi/known') return reply({ fingerprints: [phraseFingerprint('thank you')] });
         if (path === '/ozi/reply') {
           asked.push({ headers: init?.headers, body: JSON.parse(String(init?.body)) });
           return reply({ reply: 'My pleasure, Mr Anthony. Always, sir.' });
@@ -386,9 +389,11 @@ describe('Ozi and the owner (ruling 44)', () => {
     await waitFor(() => {
       expect(engine.spoken.at(-1)?.text).toBe('My pleasure, Mr Anthony. Always, sir.');
     });
+    // An everyday phrase from the owner is his conversation (ruling 84), never a phrase book
+    // answer first.
     expect(asked[0]).toMatchObject({
       headers: expect.objectContaining({ 'x-staff-token': 'st1.owner.sig' }),
-      body: { text: 'thank you', mode: 'exact', turn: 0 },
+      body: { text: 'thank you', mode: 'within', turn: 0 },
     });
   });
 });

@@ -273,7 +273,8 @@
   "admin": {
     "ownerOnlyRefundAbovePence": 2500,
     "staffTwoStepGraceDays": 14,
-    "staffTwoStepFrom": "2026-10-17"
+    "staffTwoStepFrom": "2026-10-17",
+    "staffRememberDays": 30
   },
   "owner": {
     "spokenName": "Mr. Anthony"

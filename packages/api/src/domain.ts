@@ -1253,6 +1253,11 @@ export interface StaffMember {
   allowedAreas: string;
   /** Raised to sign every session of this account out at once. */
   sessionVersion: number;
+  /**
+   * Raised by "Sign out of this phone" (ruling 84, 31 October 2026): every session remembered on
+   * a phone for this account is signed out; sessions on other devices carry on.
+   */
+  rememberedVersion: number;
   /** Two-step recovery codes, each hashed, comma separated; one is used up each time. */
   recoveryCodes: string;
   /**

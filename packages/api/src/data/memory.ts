@@ -1995,6 +1995,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           totpEnabled: false,
           allowedAreas: '',
           sessionVersion: 0,
+          rememberedVersion: 0,
           recoveryCodes: '',
           canAuthorise: false,
           canAllocate: false,

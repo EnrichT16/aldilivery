@@ -44,7 +44,15 @@ import {
 import { money } from '../lib/money';
 import { useOzi } from '../state/ozi';
 import { nameHeardIn } from '../voice/name';
-import { converse, CONVERSE_WAIT_MS, OWNER_CONVERSE_WAIT_MS, phraseReply } from '../voice/phrases';
+import { knownSpeakerReply } from '@aldilivery/core';
+
+import { KNOWN_NAMES } from '../lib/ozi-asker';
+import {
+  converse,
+  CONVERSE_WAIT_MS,
+  isKnownPhrase,
+  OWNER_CONVERSE_WAIT_MS,
+} from '../voice/phrases';
 import {
   analyticsWords,
   cancellationsWords,
@@ -359,6 +367,12 @@ export function StaffVoice({
         );
         turn.current += 1;
         if (!answer?.reply) {
+          // Slow or away: still personal (ruling 84), "Good morning, Mr. Anthony", from config.
+          const local = knownSpeakerReply(text, whoIsHere(), KNOWN_NAMES, new Date());
+          if (local) {
+            void latest.current.ozi.say(local);
+            return;
+          }
           say(`Sorry, I didn't catch that. ${help(mine)}`);
           return;
         }
@@ -374,6 +388,14 @@ export function StaffVoice({
       })();
     }
 
+    /** Who is signed in here, for Ozi's own words when the server is slow (ruling 84). */
+    function whoIsHere(): { kind: 'owner' | 'staff'; firstName: string | null } {
+      const { address: owner, name: who } = latest.current;
+      return owner
+        ? { kind: 'owner', firstName: null }
+        : { kind: 'staff', firstName: who.trim().split(/\s+/)[0] || null };
+    }
+
     function needs(area: StaffArea): boolean {
       if (cursor.current?.area === area && current()) return true;
       say(
@@ -386,22 +408,18 @@ export function StaffVoice({
       const { staffKey: key, by: who, areas: mine } = latest.current;
       const command = understand(text);
       if (!command) {
-        // An everyday phrase for this account, from the server (ruling 44): the owner's has
-        // everybody's. Nothing said in the admin panel is ever taken as a shopping order.
-        // Anything else said to Ozi by name, or soon after Ozi answered, is a real conversation
-        // (31 October 2026): the server knows who is speaking, and for the owner looks at his
-        // desk; "One moment" shows meanwhile.
-        const named = nameHeardIn(text) || Date.now() < conversingUntil.current;
+        // Nothing said in the admin panel is ever taken as a shopping order. Anything said to
+        // Ozi by name, soon after Ozi answered, a greeting, or one of this account's everyday
+        // phrases is a real conversation (31 October 2026, ruling 84): the server knows who is
+        // speaking, "hello" included, and for the owner looks at his desk; "One moment" shows
+        // meanwhile. Anything else is the room, not Ozi, and is left alone.
         void (async () => {
-          const as = { kind: 'staff', key } as const;
-          const everyday = await phraseReply(text, turn.current, 'exact', as);
-          if (everyday) {
-            turn.current += 1;
-            void latest.current.ozi.say(everyday);
-            return;
-          }
-          if (!named) return;
-          talk(text);
+          const meant =
+            nameHeardIn(text) ||
+            Date.now() < conversingUntil.current ||
+            knownSpeakerReply(text, whoIsHere(), KNOWN_NAMES, new Date()) !== null ||
+            (await isKnownPhrase(text, { kind: 'staff', key }));
+          if (meant) talk(text);
         })();
         return true;
       }

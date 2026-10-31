@@ -241,13 +241,19 @@ export interface StaffSession {
    * has not set them up yet. It opens nothing else.
    */
   setup: boolean;
+  /**
+   * Kept on the person's own phone ("Remember me on this phone", ruling 84): the account's
+   * remembered version when it was made, or null for an ordinary session. "Sign out of this
+   * phone" raises the account's version, and every remembered session with the old one stops.
+   */
+  remembered: number | null;
 }
 
 export function signStaffToken(
   staffId: string,
   expiresAt: Date,
   secret: string,
-  extra: { version?: number; passcode?: boolean; setup?: boolean } = {},
+  extra: { version?: number; passcode?: boolean; setup?: boolean; remembered?: number } = {},
 ): string {
   const body = Buffer.from(
     JSON.stringify({
@@ -256,6 +262,7 @@ export function signStaffToken(
       v: extra.version ?? 0,
       pc: extra.passcode ?? false,
       ...(extra.setup ? { su: true } : {}),
+      ...(extra.remembered !== undefined ? { rm: extra.remembered } : {}),
     }),
   ).toString('base64url');
   const mac = createHmac('sha256', `${LABEL}${secret}`).update(body).digest('base64url');
@@ -276,6 +283,7 @@ export function verifyStaffToken(token: string, secret: string, now: Date): Staf
       v?: number;
       pc?: boolean;
       su?: boolean;
+      rm?: number;
     };
     if (typeof parsed.id !== 'string' || parsed.exp <= now.getTime()) return null;
     return {
@@ -283,6 +291,7 @@ export function verifyStaffToken(token: string, secret: string, now: Date): Staf
       version: parsed.v ?? 0,
       passcode: parsed.pc === true,
       setup: parsed.su === true,
+      remembered: typeof parsed.rm === 'number' ? parsed.rm : null,
     };
   } catch {
     return null;
@@ -436,7 +445,9 @@ export async function staffActor(
     !member ||
     !member.active ||
     !isStaffRole(member.role) ||
-    member.sessionVersion !== session.version
+    member.sessionVersion !== session.version ||
+    // "Sign out of this phone" (ruling 84) ends every remembered session of the account.
+    (session.remembered !== null && session.remembered !== (member.rememberedVersion ?? 0))
   ) {
     throw new ForbiddenError('Please sign in to the admin panel.');
   }

@@ -1190,6 +1190,9 @@ model StaffMember {
   allowedAreas       String    @default("")
   /// Raised to sign every session of this account out at once.
   sessionVersion     Int       @default(0)
+  /// Raised by "Sign out of this phone" (ruling 84): every remembered phone of this account is
+  /// signed out; sessions on other devices are not.
+  rememberedVersion  Int       @default(0)
   /// Two-step recovery codes, each hashed, comma separated. One is used up each time.
   recoveryCodes      String    @default("")
   /// May issue message and call codes, and message and call without one (ruling 77).

@@ -9,7 +9,12 @@
  */
 
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import { PARTNER_KIND_WORDS } from '@aldilivery/core';
+import {
+  knownSpeakerReply,
+  PARTNER_KIND_WORDS,
+  SHOPPER_ACCOUNT_FOR_ORDERS,
+  type KnownSpeaker,
+} from '@aldilivery/core';
 import { z } from 'zod';
 
 import type { LearnedPhrase, PartnerShop } from '../domain.js';
@@ -307,15 +312,44 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         }
       }
     }
-    // The phrase book first, but only for a clear, known phrase: the whole sentence (31 October
-    // 2026). Questions, chat, worries and anything open go to the model below.
-    const exact = phraseReply(text, turn, 'exact', account, config, book, live);
-    if (exact) {
-      kept(exact, 'phrases', 'answered');
-      return { reply: exact };
+    // The owner and staff are known (ruling 84, 31 October 2026): with the model on, everything
+    // they say, "hello" and "good morning" included, goes to the conversation, never to a phrase
+    // book first, so the owner is never greeted as a Shopper. Without it, the owner's greeting,
+    // "do you know my name" and "this is the owner" are answered personally, from configuration;
+    // staff, family and investors have their own books, never the Shopper's.
+    const brain = app.ctx.brain;
+    const knownWho: KnownSpeaker | null =
+      account === 'owner'
+        ? { kind: 'owner', firstName: null }
+        : account === 'staff' || account === 'family' || account === 'investor'
+          ? { kind: 'staff', firstName: speaker.firstName }
+          : null;
+    const personal = (): { reply: string } | null => {
+      if (knownWho?.kind !== 'owner') return null;
+      const words = knownSpeakerReply(
+        text,
+        knownWho,
+        { ...names, spokenName: config.owner.spokenName },
+        now(),
+      );
+      if (!words) return null;
+      kept(words, 'flow', 'answered');
+      return { reply: words };
+    };
+    const toTheModel = knownWho !== null && brain !== null && brain !== undefined;
+    if (!toTheModel) {
+      const known = personal();
+      if (known) return known;
+      // The phrase book first, but only for a clear, known phrase: the whole sentence (31
+      // October 2026). Questions, chat, worries and anything open go to the model below.
+      const exact = phraseReply(text, turn, 'exact', account, config, book, live);
+      if (exact) {
+        kept(exact, 'phrases', 'answered');
+        return { reply: exact };
+      }
+      // An exact look-up that found nothing is the app checking before it shops: not a turn.
+      if (mode !== 'within') return { reply: null };
     }
-    // An exact look-up that found nothing is the app checking before it shops: not a turn.
-    if (mode !== 'within') return { reply: null };
     // Said to Ozi, and not understood. Swearing is answered kindly and forgotten at once;
     // anything else fit to keep goes to the list for a person to approve an answer.
     if (containsBanned(text, banned)) {
@@ -343,7 +377,6 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
       return { reply: words };
     };
 
-    const brain = app.ctx.brain;
     const owner = account === 'owner';
     // The cost guard (31 October 2026): at most `ozi.maxModelTurnsPerDay` model turns a day for
     // each account; the owner has no limit. Past it, Ozi says so once and carries on without.
@@ -351,6 +384,8 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
       const day = now().toISOString().slice(0, 10);
       const first = !toldSimpler.has(`${day}:${allowanceKey}`);
       if (first) toldSimpler.add(`${day}:${allowanceKey}`);
+      const known = personal();
+      if (known) return known;
       const answered = looser(first ? `${SIMPLER_TODAY} ` : '');
       if (answered) return answered;
       kept(null, 'none', 'unanswered');
@@ -392,6 +427,12 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         ...(input.basket ? { basket: input.basket } : {}),
       });
       if (understood && (understood.kind === 'items' || understood.kind === 'remove')) {
+        // Staff are not Shoppers (ruling 84): orders stay safe behind a Shopper account, said
+        // kindly, never with an offer to open one.
+        if (knownWho && understood.items.length > 0) {
+          kept(SHOPPER_ACCOUNT_FOR_ORDERS, 'flow', 'refused');
+          return { reply: SHOPPER_ACCOUNT_FOR_ORDERS };
+        }
         if (understood.items.length > 0) {
           kept(
             `[${understood.kind}: ${understood.items.map(itemWords).join(', ')}]`,
@@ -407,6 +448,9 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         return { reply: understood.reply, understood };
       }
     }
+    // The model slow, away or silent: the owner and staff are still known (ruling 84).
+    const known = personal();
+    if (known) return known;
     const fallback = looser();
     if (fallback) return fallback;
     kept(null, 'none', 'unanswered');
