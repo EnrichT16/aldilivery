@@ -29,6 +29,7 @@ import { twilioDialler } from './lib/twilio-voice.js';
 import { sweepAllocations } from './services/allocate.js';
 import { sweepOffers } from './services/dispatch.js';
 import { refundUntakenOrders } from './services/order-rescue.js';
+import { sweepAmbassadorRetention } from './services/ambassador-applications.js';
 import { sweepVoucherReminders } from './services/vouchers.js';
 import { sweepScheduled } from './services/scheduled.js';
 import { sweepPayouts } from './services/pay-runner.js';
@@ -297,6 +298,7 @@ async function main(): Promise<void> {
   // offer any paid order that nobody has yet. A sweep that fails is logged and tried again.
   // Jobs the office sent to a chosen Runner come first (ruling 80): ones that ran out go to the
   // backup or back to the queue, and a Runner whose hands are free is offered their next.
+  let lastAmbassadorSweep = 0;
   const sweep = setInterval(() => {
     sweepAllocations(app.ctx, (id, failure) => {
       app.log.warn({ id, err: failure }, 'Could not move on a job the office sent');
@@ -322,6 +324,21 @@ async function main(): Promise<void> {
       })
       .catch((failure: unknown) => {
         app.log.error({ err: failure }, 'The no-Runner refund sweep failed');
+      })
+      // Ozi Ambassadors' documents and notes past their time (31 October 2026): at most once
+      // every ten minutes on this timer; running it again removes nothing more.
+      .then(() => {
+        if (Date.now() - lastAmbassadorSweep < 600_000) return null;
+        lastAmbassadorSweep = Date.now();
+        return sweepAmbassadorRetention(app.ctx);
+      })
+      .then((report) => {
+        if (report && (report.documentsRemoved > 0 || report.notesRemoved > 0)) {
+          app.log.info(report, 'Ambassador documents and notes removed');
+        }
+      })
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, 'The Ambassador retention sweep failed');
       });
   }, 10_000);
   sweep.unref();

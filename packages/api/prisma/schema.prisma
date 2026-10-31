@@ -1623,6 +1623,14 @@ model AmbassadorAgreement {
   /// When they stopped being an Ambassador, or were declined: their documents are removed 12
   /// months after.
   stoppedAt                DateTime?
+  /// The separate yes or no to comparing their face photo with the photo on their ID (Anthony,
+  /// 31 October 2026), and when they answered. Null until they answer; no means a person checks.
+  faceCompareConsent       Boolean?
+  faceCompareConsentAt     DateTime?
+  /// The status they had when suspended, to go back to if the suspension is lifted.
+  suspendedFrom            String?
+  /// When the files of a declined or removed Ambassador were removed by the retention sweep.
+  documentsRemovedAt       DateTime?
 
   documents AmbassadorDocument[]
 
@@ -1667,6 +1675,30 @@ model AmbassadorDocument {
   @@index([status])
 }
 
+/// A short note kept after an Ambassador application is declined, or an Ambassador removed for
+/// fraud (Anthony, 31 October 2026): the name, the name on their ID, the date of birth if held,
+/// the date and the reason. Used only to enforce the wait before applying again, to bar somebody
+/// removed for fraud, and to spot an application under a false identity. A declined note is
+/// removed after `ambassador.declinedNoteKeptMonths` (deleteAfter); a fraud bar stays (null).
+model AmbassadorNote {
+  id          String    @id @default(cuid())
+  agreementId String?
+  accountKind String
+  accountId   String
+  /// declined or fraud.
+  kind        String
+  name        String
+  nameOnId    String?
+  /// YYYY-MM-DD, only if staff had it.
+  dateOfBirth String?
+  reason      String
+  at          DateTime  @default(now())
+  deleteAfter DateTime?
+
+  @@index([accountKind, accountId])
+  @@index([deleteAfter])
+}
+
 /// What an Ozi Ambassador has earned and been paid (Anthony, 30 October 2026): a share of an
 /// order's profit, the Partner Plus bonus, a deduction for a refund that came after a share was
 /// available, or a payment. A pending share follows its order's final state (ruled the same day);
@@ -1695,6 +1727,11 @@ model AmbassadorEntry {
   reference      String    @unique
   recordedBy     String?
   at             DateTime  @default(now())
+  /// Removed for fraud (Anthony, 31 October 2026): the unpaid part cancelled, how much, and why.
+  /// What is left is in amountPence.
+  cancelledAt    DateTime?
+  cancelledPence Int       @default(0)
+  cancelReason   String?
 
   @@index([ambassadorKind, ambassadorId])
   @@index([partnerShopId])

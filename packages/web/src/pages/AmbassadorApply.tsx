@@ -1,4 +1,4 @@
-import { AMBASSADOR_TERMS_VERSION } from '@aldilivery/core';
+import { AMBASSADOR_TERMS_VERSION, FACE_CONSENT_QUESTION } from '@aldilivery/core';
 import { useCallback, useEffect, useId, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
@@ -8,6 +8,7 @@ import {
   becomeAmbassador,
   fetchAmbassadorApplication,
   sendAmbassadorDocument,
+  setAmbassadorFaceConsent,
   type AmbassadorAddressType,
   type AmbassadorApplication,
   type AmbassadorDocumentKind,
@@ -25,11 +26,14 @@ import { isPdf, preparePdf, preparePhoto } from '../lib/photo';
  * 2. Send the documents from the phone, as a Runner does (PhotoChoice: take a photo, or choose a
  *    photo or a PDF): a photo ID (passport, driving licence or biometric residence card), the
  *    front and for a card the back; a proof of address from the last three months; a face photo;
- *    and, for somebody who is not British, a Home Office share code if they wish.
+ *    and, for somebody who is not British, a Home Office share code if they wish. Before the face
+ *    photo, a separate yes or no (31 October 2026): may we compare it automatically with the photo
+ *    on the ID? With a no, a person checks it in the chat; nobody is declined for saying no.
  * 3. "We'll contact you to have a short chat before you start."
  *
  * Then a person approves them. Somebody who opted in before applications sees, plainly, that their
- * link and earnings carry on and the Toolkit and withdrawals wait for this.
+ * link and earnings carry on and the Toolkit and withdrawals wait for this. Somebody declined sees
+ * when they may apply again (6 months after), and step 1 again once they may.
  */
 
 const ID_WORDS: Record<AmbassadorIdType, string> = {
@@ -118,7 +122,8 @@ export function AmbassadorApply(): JSX.Element {
   }
 
   const status = application?.status;
-  const closed = status === 'declined' || status === 'suspended';
+  const closed = status === 'declined' || status === 'suspended' || status === 'removed';
+  const canApply = application === null || application?.canApplyAgain === true;
 
   return (
     <div className="space-y-8 max-w-2xl">
@@ -146,7 +151,7 @@ export function AmbassadorApply(): JSX.Element {
         </section>
       )}
 
-      {application === null && (
+      {canApply && (
         <section aria-labelledby="step-1" className="space-y-3">
           <h2 id="step-1" className="text-lead font-bold m-0">
             Step 1: read and agree to the terms
@@ -174,7 +179,11 @@ export function AmbassadorApply(): JSX.Element {
             onClick={apply}
             className="control bg-highlight text-on-accent"
           >
-            {busy ? 'One moment…' : 'Apply to be an Ambassador'}
+            {busy
+              ? 'One moment…'
+              : application
+                ? 'Apply again to be an Ambassador'
+                : 'Apply to be an Ambassador'}
           </button>
         </section>
       )}
@@ -268,7 +277,9 @@ function DocumentsStep({
     photo_id_back: 'The back of the card, flat, with all four corners showing.',
     proof_of_address: `A letter with your name and home address, dated within the last ${months} months. A photo, or the PDF it came as.`,
     face_photo:
-      'Look straight at the camera, in good light, with nothing covering your face. We compare it with your photo ID.',
+      application.faceConsent === true
+        ? 'Look straight at the camera, in good light, with nothing covering your face. We compare it with the photo on your ID, as you agreed.'
+        : 'Look straight at the camera, in good light, with nothing covering your face. A person compares it with the photo on your ID.',
   };
 
   return (
@@ -324,6 +335,8 @@ function DocumentsStep({
           ))}
         </fieldset>
       )}
+
+      <FaceConsent as={as} application={application} onSent={onSent} onProblem={onProblem} />
 
       <ul className="list-none m-0 p-0 space-y-6">
         {application.stillNeeded.map((row) => (
@@ -395,6 +408,82 @@ function DocumentsStep({
           </ul>
         </section>
       )}
+    </section>
+  );
+}
+
+/**
+ * The separate yes or no about comparing faces (Anthony, 31 October 2026): its own question, its
+ * own two buttons, never ticked for them. The answer and its moment are kept by the server.
+ */
+function FaceConsent({
+  as,
+  application,
+  onSent,
+  onProblem,
+}: {
+  as: ReferralAs;
+  application: AmbassadorApplication;
+  onSent: (message: string, next: AmbassadorApplication) => void;
+  onProblem: (problem: string) => void;
+}): JSX.Element {
+  const [sending, setSending] = useState(false);
+  const answer = application.faceConsent;
+
+  async function choose(consent: boolean): Promise<void> {
+    setSending(true);
+    try {
+      const result = await setAmbassadorFaceConsent(as, consent);
+      onSent(result.message, result.application);
+    } catch (failure) {
+      onProblem(
+        failure instanceof Error ? failure.message : 'That did not send. Please try again.',
+      );
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <section
+      aria-labelledby="face-consent-heading"
+      className="space-y-3 border-2 border-paper/40 rounded-2xl p-4"
+    >
+      <h3 id="face-consent-heading" className="font-bold m-0">
+        A question about your face photo
+      </h3>
+      <p id="face-consent-question" className="m-0">
+        {application.faceConsentQuestion ?? FACE_CONSENT_QUESTION}
+      </p>
+      <p className="m-0">
+        {answer === true
+          ? 'You said yes. You can change your answer.'
+          : answer === false
+            ? 'You said no. A person will check your face photo. You can change your answer.'
+            : 'Please answer yes or no. Either is fine.'}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={sending}
+          aria-pressed={answer === true}
+          aria-describedby="face-consent-question"
+          onClick={() => void choose(true)}
+          className="control bg-highlight text-on-accent"
+        >
+          Yes, compare my face photo
+        </button>
+        <button
+          type="button"
+          disabled={sending}
+          aria-pressed={answer === false}
+          aria-describedby="face-consent-question"
+          onClick={() => void choose(false)}
+          className="control border-paper bg-paper/10 text-paper"
+        >
+          No, a person checks it
+        </button>
+      </div>
     </section>
   );
 }

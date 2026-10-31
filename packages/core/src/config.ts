@@ -947,6 +947,22 @@ function parseAmbassador(raw: Unknown): AmbassadorSettings {
       'ambassador.documentsKeptMonths',
       1,
     ),
+    // Declined, suspended and removed Ambassadors (Anthony, 31 October 2026).
+    reapplyAfterMonths: wholeNumber(
+      raw['reapplyAfterMonths'] ?? 6,
+      'ambassador.reapplyAfterMonths',
+      0,
+    ),
+    declinedDocumentsDeleteAfterDays: wholeNumber(
+      raw['declinedDocumentsDeleteAfterDays'] ?? 30,
+      'ambassador.declinedDocumentsDeleteAfterDays',
+      0,
+    ),
+    declinedNoteKeptMonths: wholeNumber(
+      raw['declinedNoteKeptMonths'] ?? 12,
+      'ambassador.declinedNoteKeptMonths',
+      1,
+    ),
   };
 }
 

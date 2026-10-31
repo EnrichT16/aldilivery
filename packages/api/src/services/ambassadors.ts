@@ -57,6 +57,7 @@
 import type { FastifyBaseLogger } from 'fastify';
 
 import {
+  addMonths,
   AMBASSADOR_TERMS_VERSION,
   ambassadorApproved,
   ambassadorLinkWorks,
@@ -74,6 +75,7 @@ import {
   itemChargePence,
   isRestaurantKind,
   type AmbassadorBase,
+  longDate,
   rewardWords,
   withinAmbassadorMonths,
 } from '@aldilivery/core';
@@ -147,6 +149,12 @@ export async function becomeAmbassador(
     );
   }
   const found = await ctx.repository.ambassadors.findAgreement(kind, id);
+  // Declined or removed (Anthony, 31 October 2026): removed for fraud, never again; declined,
+  // again only after the wait, and then as a new application.
+  if (found && (found.status === 'declined' || found.status === 'removed')) {
+    return applyAgain(ctx, found, version);
+  }
+  if (await barredForFraud(ctx, kind, id)) throw new ConflictError(BARRED_WORDS);
   if (found && found.termsVersion !== version) {
     return ctx.repository.ambassadors.updateAgreement(found.id, {
       termsVersion: version,
@@ -158,6 +166,94 @@ export async function becomeAmbassador(
     accountId: id,
     agreedAt: ctx.now(),
     termsVersion: version,
+  });
+}
+
+/** What somebody removed for fraud is told if they try to apply again. */
+export const BARRED_WORDS =
+  'You were removed as an Ozi Ambassador, so we cannot accept a new application from you.';
+
+/** Whether a note bars this account for ever: they were removed for fraud. */
+async function barredForFraud(
+  ctx: Pick<AppContext, 'repository'>,
+  kind: ReferralKind,
+  id: string,
+): Promise<boolean> {
+  return (await ctx.repository.ambassadorNotes.list()).some(
+    (note) => note.kind === 'fraud' && note.accountKind === kind && note.accountId === id,
+  );
+}
+
+/**
+ * When somebody declined may apply again: `reapplyAfterMonths` (6) after the decline, from the
+ * application itself or the note kept after it, whichever is later. Null when they may now.
+ */
+export async function reapplyFrom(
+  ctx: Pick<AppContext, 'repository' | 'now'> & Partial<Pick<AppContext, 'config'>>,
+  agreement: AmbassadorAgreement,
+): Promise<Date | null> {
+  if (agreement.status !== 'declined') return null;
+  const months = ctx.config?.ambassador.reapplyAfterMonths ?? 6;
+  const declinedAt = (await ctx.repository.ambassadorNotes.list())
+    .filter(
+      (note) =>
+        note.kind === 'declined' &&
+        note.accountKind === agreement.accountKind &&
+        note.accountId === agreement.accountId,
+    )
+    .map((note) => note.at)
+    .concat(agreement.decidedAt ? [agreement.decidedAt] : [])
+    .sort((a, b) => b.getTime() - a.getTime())[0];
+  if (!declinedAt) return null;
+  const from = addMonths(declinedAt, months);
+  return from.getTime() > ctx.now().getTime() ? from : null;
+}
+
+/**
+ * Applying again (Anthony, 31 October 2026). Somebody removed for fraud never may. Somebody
+ * declined may once `reapplyAfterMonths` have passed since the decline, and is told the date
+ * plainly before then; it is then a new application from the start, with new documents.
+ */
+async function applyAgain(
+  ctx: Pick<AppContext, 'repository' | 'now'> & Partial<Pick<AppContext, 'config'>>,
+  found: AmbassadorAgreement,
+  version: string,
+): Promise<AmbassadorAgreement> {
+  if (
+    found.status === 'removed' ||
+    (await barredForFraud(ctx, found.accountKind, found.accountId))
+  ) {
+    throw new ConflictError(BARRED_WORDS);
+  }
+  const from = await reapplyFrom(ctx, found);
+  if (from) {
+    const when = found.decidedAt ? ` on ${longDate(found.decidedAt)}` : '';
+    throw new ConflictError(
+      `Your last application was not approved${when}. You can apply again from ${longDate(from)}.`,
+    );
+  }
+  const at = ctx.now();
+  // Anything of the old application still kept goes now: a new application needs new documents.
+  await ctx.repository.ambassadorDocuments.eraseFor(found.accountKind, found.accountId, at);
+  return ctx.repository.ambassadors.updateAgreement(found.id, {
+    status: 'applied',
+    agreedAt: at,
+    termsVersion: version,
+    idType: null,
+    documentsSentAt: null,
+    documentsCheckedAt: null,
+    chatDoneAt: null,
+    chatDoneBy: null,
+    chatNotes: '',
+    decidedAt: null,
+    decidedBy: null,
+    decisionReason: null,
+    approvedAt: null,
+    stoppedAt: null,
+    faceCompareConsent: null,
+    faceCompareConsentAt: null,
+    suspendedFrom: null,
+    documentsRemovedAt: null,
   });
 }
 
@@ -364,6 +460,15 @@ async function reviewIfHigh(
   );
 }
 
+/** Removed for fraud (Anthony, 31 October 2026): they earn nothing more, from any business. */
+async function removedAmbassador(
+  ctx: Pick<AppContext, 'repository'>,
+  kind: ReferralKind,
+  id: string,
+): Promise<boolean> {
+  return (await ctx.repository.ambassadors.findAgreement(kind, id))?.status === 'removed';
+}
+
 function earning(entry: AmbassadorEntry): boolean {
   return entry.kind === 'share' || entry.kind === 'bonus';
 }
@@ -388,6 +493,8 @@ export async function creditAmbassadorShares(
     for (const { shop, profitPence, base } of (await profitByShop(ctx, order)).values()) {
       if (!shop.ambassadorKind || !shop.ambassadorId) continue;
       if (shop.status !== 'approved') continue;
+      // Removed for fraud (31 October 2026): nothing more is earned.
+      if (await removedAmbassador(ctx, shop.ambassadorKind, shop.ambassadorId)) continue;
       if (!withinAmbassadorMonths(shop.approvedAt, at, ctx.config.ambassador)) continue;
       const amountPence = await shareWorth(ctx, order, shop, base, false);
       if (amountPence <= 0) continue;
@@ -514,6 +621,7 @@ export async function settlePlusBonuses(
 ): Promise<void> {
   for (const shop of shops) {
     if (!shop.ambassadorKind || !shop.ambassadorId) continue;
+    if (await removedAmbassador(ctx, shop.ambassadorKind, shop.ambassadorId)) continue;
     const first = (await ctx.repository.partnerPayments.listForShop(shop.id))
       .filter((payment) => payment.kind === 'plan' && payment.amountPence > 0)
       .sort((a, b) => a.paidAt.getTime() - b.paidAt.getTime())[0];
@@ -576,6 +684,8 @@ export interface AmbassadorSummary {
   shortfallPence: number;
   /** At least the minimum is available: it can be paid or withdrawn. */
   payable: boolean;
+  /** Unpaid shares cancelled when they were removed for fraud (31 October 2026). */
+  cancelledPence: number;
 }
 
 /**
@@ -644,6 +754,7 @@ export async function ambassadorSummary(
     withdrawingPence,
     shortfallPence: Math.max(0, -netPence),
     payable: ambassadorPayable(availablePence, ctx.config.ambassador),
+    cancelledPence: entries.reduce((total, entry) => total + entry.cancelledPence, 0),
   };
 }
 
@@ -713,10 +824,14 @@ export async function markAmbassadorPaid(
   const account = await findAccount(ctx, kind, id);
   if (!account) throw new NotFoundError('Ambassador');
   // Paid only once approved, as a withdrawal is (Anthony, 30 October 2026).
+  // Somebody removed for fraud may still be paid by hand what is left once the shares from the
+  // businesses marked as fraud are cancelled (31 October 2026).
   const agreement = await ambassadorAgreement(ctx, kind, id);
-  if (agreement && !ambassadorApproved(agreement.status)) {
+  if (agreement && !ambassadorApproved(agreement.status) && agreement.status !== 'removed') {
     throw new ConflictError(
-      `${account.name} is not an approved Ambassador yet, so nothing can be paid. Their earnings keep adding up.`,
+      agreement.status === 'suspended'
+        ? `${account.name} is suspended, so their earnings are held. They are released in full if the suspension is lifted.`
+        : `${account.name} is not an approved Ambassador yet, so nothing can be paid. Their earnings keep adding up.`,
     );
   }
   const summary = await ambassadorSummary(ctx, kind, id);
@@ -761,11 +876,17 @@ async function agreed(
   return agreement;
 }
 
+/** What a suspended Ambassador is told about their earnings (Anthony, 31 October 2026). */
+export const HELD_WORDS =
+  'Your earnings from real, completed orders are kept safe, and released in full if the suspension is lifted.';
+
 /** Why a withdrawal, or the Toolkit, waits: in plain words for each status. */
 export function notApprovedWords(status: AmbassadorAgreement['status']): string {
   switch (status) {
     case 'suspended':
-      return 'Your Ambassador account is suspended, so withdrawals wait. Please contact us.';
+      return `Your Ambassador account is suspended, so withdrawals wait. ${HELD_WORDS} Please contact us.`;
+    case 'removed':
+      return 'You were removed as an Ozi Ambassador, so there are no withdrawals. If anything is still owed to you, we will contact you.';
     case 'declined':
       return 'Your Ambassador application was not approved, so there is nothing to withdraw.';
     case 'documents_needed':
@@ -989,6 +1110,14 @@ export async function approveWithdrawal(
     throw new ConflictError('That withdrawal is not waiting for approval.');
   }
   const agreement = await agreed(ctx, withdrawal.ambassadorKind, withdrawal.ambassadorId);
+  // Held while suspended, and never sent once removed (Anthony, 31 October 2026).
+  if (!ambassadorApproved(agreement.status)) {
+    throw new ConflictError(
+      agreement.status === 'suspended'
+        ? 'They are suspended, so their withdrawals are held until the suspension is lifted.'
+        : 'They are not an approved Ambassador, so this withdrawal cannot be sent. Please refuse it.',
+    );
+  }
   // A deduction since it was asked for can leave less to send than was held back for it.
   const summary = await ambassadorSummary(ctx, withdrawal.ambassadorKind, withdrawal.ambassadorId);
   if (summary.shortfallPence > 0) {

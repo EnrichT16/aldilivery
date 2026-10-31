@@ -135,6 +135,16 @@ export interface AmbassadorSettings extends AmbassadorShares {
    */
   readonly addressWithinMonths: number;
   readonly documentsKeptMonths: number;
+  /**
+   * Declined, suspended and removed (Anthony, 31 October 2026): a declined applicant may apply
+   * again this many months after the decline (6); their ID, proof of address and face photo are
+   * removed this many days after it (30); a short note (name, date of birth if held, date,
+   * reason) is kept this many months (12), then removed too, except the note that bars somebody
+   * removed for fraud, which stays.
+   */
+  readonly reapplyAfterMonths: number;
+  readonly declinedDocumentsDeleteAfterDays: number;
+  readonly declinedNoteKeptMonths: number;
 }
 
 /** "2%", "2.5%" or "0.25%": a share as people read it, to two places at most. */

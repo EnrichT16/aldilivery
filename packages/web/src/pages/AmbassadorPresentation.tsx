@@ -60,6 +60,7 @@ export function presentationSlides(toolkit: AmbassadorToolkit): Slide[] {
           <li>Our Runner (driver) comes to your counter and pays for the order there and then.</li>
           <li>Paid instantly, in full.</li>
           <li>No commission. Nothing taken off later.</li>
+          <li>Other delivery apps pay you later and take a commission.</li>
         </ul>
       ),
     },

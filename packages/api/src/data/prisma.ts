@@ -289,6 +289,21 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    ambassadorNotes: {
+      async create(input) {
+        return (await prisma.ambassadorNote.create({ data: input })) as any;
+      },
+      async list() {
+        return (await prisma.ambassadorNote.findMany({ orderBy: { at: 'asc' } })) as any;
+      },
+      async deleteDue(at) {
+        const removed = await prisma.ambassadorNote.deleteMany({
+          where: { deleteAfter: { not: null, lte: at } },
+        });
+        return removed.count;
+      },
+    },
+
     sos: {
       async create(input) {
         return (await prisma.runnerSos.create({ data: input })) as any;

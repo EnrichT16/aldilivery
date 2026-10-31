@@ -59,9 +59,20 @@ export function AmbassadorTerms(): JSX.Element {
         <p className="m-0">
           We approve you only after we have checked your documents and had that chat. Only then do
           you get your &ldquo;Introduce a business&rdquo; link, the Ambassador Toolkit and your
-          earnings. We may decline an application, and we tell you why. We may suspend an Ambassador
-          at any time, for example while we look into a complaint; while you are suspended your
-          link, the Toolkit and withdrawals stop.
+          earnings. We may decline an application, and we tell you why. If we decline it, you have
+          earned nothing, and you may apply again {rates.reapplyAfterMonths} months after.
+        </p>
+        <p className="m-0">
+          We may suspend an Ambassador at any time, for example while we look into a complaint.
+          While you are suspended your link, the Toolkit and withdrawals stop, but you keep what you
+          earned from real, completed orders that were not refunded: it is held, and released in
+          full if we lift the suspension. If we find fraud, we remove you as an Ambassador: the
+          unpaid earnings from the businesses involved are cancelled, and you cannot apply again.
+        </p>
+        <p className="m-0">
+          We ask you a separate question: may we compare your face photo with the photo on your ID
+          automatically? You can say no. Then a person checks it in your chat with the founder, and
+          your application goes on just the same.
         </p>
         <p className="m-0">
           If you became an Ambassador before applications began, your link keeps working and your
@@ -70,7 +81,9 @@ export function AmbassadorTerms(): JSX.Element {
         </p>
         <p className="m-0">
           We keep your documents while you are an Ambassador and for {rates.documentsKeptMonths}{' '}
-          months after you stop, as our privacy notice says.
+          months after you stop or are removed. If we decline your application, we delete them{' '}
+          {rates.declinedDocumentsDeleteAfterDays} days after, and keep only a short note for{' '}
+          {rates.declinedNoteKeptMonths} months, as our privacy notice says.
         </p>
       </section>
 

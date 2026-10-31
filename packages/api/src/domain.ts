@@ -393,6 +393,39 @@ export interface AmbassadorAgreement {
    * removed `ambassador.documentsKeptMonths` after this (services/retention.ts).
    */
   stoppedAt: Date | null;
+  /**
+   * The separate yes or no to comparing their face photo with the photo on their ID (Anthony,
+   * 31 October 2026), and when they answered. Null until they answer; a no, or no answer, means a
+   * person checks it instead. Nobody is declined for saying no.
+   */
+  faceCompareConsent: boolean | null;
+  faceCompareConsentAt: Date | null;
+  /** The status they had when suspended, to go back to if the suspension is lifted. */
+  suspendedFrom: AmbassadorStatus | null;
+  /** When the retention sweep removed a declined or removed Ambassador's files. */
+  documentsRemovedAt: Date | null;
+}
+
+/**
+ * A short note kept after an Ambassador application is declined, or an Ambassador removed for
+ * fraud (Anthony, 31 October 2026): the name, the name read on their ID, the date of birth if
+ * held, the date and the reason. Only to enforce the wait before applying again, to bar somebody
+ * removed for fraud, and to spot an application under a false identity. A declined note goes
+ * after `ambassador.declinedNoteKeptMonths`; a fraud bar stays (`deleteAfter` null).
+ */
+export interface AmbassadorNote {
+  id: string;
+  agreementId: string | null;
+  accountKind: ReferralKind;
+  accountId: string;
+  kind: 'declined' | 'fraud';
+  name: string;
+  nameOnId: string | null;
+  /** YYYY-MM-DD, only if staff had it. */
+  dateOfBirth: string | null;
+  reason: string;
+  at: Date;
+  deleteAfter: Date | null;
 }
 
 /**
@@ -457,6 +490,13 @@ export interface AmbassadorEntry {
   reference: string;
   recordedBy: string | null;
   at: Date;
+  /**
+   * Removed for fraud (Anthony, 31 October 2026): when the unpaid part of a share or bonus was
+   * cancelled, how much (what is left is `amountPence`), and why.
+   */
+  cancelledAt: Date | null;
+  cancelledPence: number;
+  cancelReason: string | null;
 }
 
 /**

@@ -11,7 +11,11 @@
  * 4. Staff record the chat with the founder: CHAT DONE.
  * 5. The founder or staff press "Approve": APPROVED. Nothing is ever approved by itself.
  *
- * Or DECLINED, with a reason the person sees, or SUSPENDED. Ambassadors who opted in before this
+ * Or DECLINED, with a reason the person sees, or SUSPENDED. A suspension ends one of two ways
+ * (Anthony, 31 October 2026): lifted (back as they were, their held earnings released), or
+ * REMOVED for fraud (unpaid shares from the businesses staff mark cancelled, and never again an
+ * Ambassador). A declined applicant may apply again `reapplyAfterMonths` (6) after the decline.
+ * Ambassadors who opted in before this
  * keep their link and their earnings as before, as DOCUMENTS NEEDED: the Toolkit and withdrawals
  * wait until they are approved.
  *
@@ -27,6 +31,7 @@ export const AMBASSADOR_STATUSES = [
   'declined',
   'suspended',
   'documents_needed',
+  'removed',
 ] as const;
 export type AmbassadorStatus = (typeof AMBASSADOR_STATUSES)[number];
 
@@ -40,6 +45,7 @@ export const AMBASSADOR_STATUS_WORDS: Record<AmbassadorStatus, string> = {
   declined: 'Declined',
   suspended: 'Suspended',
   documents_needed: 'Documents needed',
+  removed: 'Removed for fraud',
 };
 
 /** Only an approved Ambassador has the Toolkit and can withdraw. */
@@ -133,3 +139,58 @@ export function addressDateRecent(issuedOn: string, today: string, months: numbe
 export function firstNameOf(name: string): string {
   return name.trim().split(/\s+/)[0] ?? '';
 }
+
+/* ------------------------------------------------------------------ 31 October 2026 rulings */
+
+/** `at` moved on by whole calendar months (negative to go back), in UTC. */
+export function addMonths(at: Date, months: number): Date {
+  const moved = new Date(at.getTime());
+  moved.setUTCMonth(moved.getUTCMonth() + months);
+  return moved;
+}
+
+/** `at` moved on by whole days (negative to go back). */
+export function daysAfter(at: Date, days: number): Date {
+  return new Date(at.getTime() + days * 24 * 3600 * 1000);
+}
+
+/** "3 May 2027": a date as people read it, in the UK. */
+export function longDate(at: Date): string {
+  return at.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Europe/London',
+  });
+}
+
+/**
+ * The separate yes or no about comparing faces (Anthony, 31 October 2026). A face is special
+ * category data under UK data law, so the automatic comparison runs only with a clear yes; with a
+ * no a person checks it instead, and nobody is declined for saying no.
+ */
+export const FACE_CONSENT_QUESTION =
+  'May we compare your face photo with the photo on your ID? This uses your face, which UK data law treats as sensitive. If you say no, a person will check it instead in your chat with the founder.';
+
+/** What staff see when the face was not compared automatically, because the answer was no. */
+export const FACE_BY_PERSON_WORDS = 'Check by a person: face not compared automatically';
+
+/** What staff see when the answer was yes but there was nothing to compare automatically with. */
+export const FACE_BY_EYE_WORDS =
+  'Compare by eye: they agreed to an automatic face comparison, but it could not be done, so please compare the face photo with the photo on their ID yourself';
+
+/**
+ * Counter cards, window stickers and any printed material showing a business as working with Ozi
+ * are made only for a business that has signed the Shop Partner agreement in the app (Anthony,
+ * 31 October 2026): approved, with the moment it agreed to the Shop Partner terms kept.
+ */
+export function counterCardsAllowed(shop: {
+  status: string;
+  termsAgreedAt: Date | string | null;
+}): boolean {
+  return shop.status === 'approved' && shop.termsAgreedAt !== null;
+}
+
+/** What the Ambassador sees for any other business. */
+export const COUNTER_CARD_WAIT_WORDS =
+  'Counter cards are printed once the business has signed the partner agreement in the app.';

@@ -3417,6 +3417,11 @@ export interface MyReferrals {
     paidPence: number;
     /** Refunds that came after a share was available, each taken off. */
     deductions: Array<{ at: string; words: string }>;
+    /** Suspended (31 October 2026): their earnings are kept, held until it ends. */
+    held?: boolean;
+    heldWords?: string | null;
+    /** Declined, and the wait is over: they may apply again (31 October 2026). */
+    canApplyAgain?: boolean;
     canWithdraw: boolean;
     /** Their bank details are set up with Stripe. */
     bankReady: boolean;
@@ -3476,7 +3481,8 @@ export type AmbassadorStatus =
   | 'approved'
   | 'declined'
   | 'suspended'
-  | 'documents_needed';
+  | 'documents_needed'
+  | 'removed';
 
 export type AmbassadorDocumentKind =
   'photo_id_front' | 'photo_id_back' | 'proof_of_address' | 'face_photo' | 'share_code';
@@ -3504,6 +3510,25 @@ export interface AmbassadorApplication {
   reason: string | null;
   approved: boolean;
   message: string;
+  /** The separate yes or no about comparing faces (31 October 2026). Missing from an older server. */
+  faceConsentQuestion?: string;
+  faceConsent?: boolean | null;
+  faceConsentAt?: string | null;
+  /** Declined, and the wait is over: they may apply again. */
+  canApplyAgain?: boolean;
+  applyAgainFrom?: string | null;
+  held?: boolean;
+}
+
+/** The separate yes or no to comparing their face photo with the photo on their ID. */
+export function setAmbassadorFaceConsent(
+  as: ReferralAs,
+  consent: boolean,
+): Promise<{ application: AmbassadorApplication; message: string }> {
+  return referralRequest(as, '/ambassador/face-consent', {
+    method: 'POST',
+    body: JSON.stringify({ consent }),
+  });
 }
 
 export function fetchAmbassadorApplication(
@@ -3536,18 +3561,33 @@ export interface AmbassadorToolkit {
   businessLink: string;
   shopperLink: string;
   runnerLink: string;
+  /** What is said for a business that has not signed the partner agreement in the app. */
+  cardsWaitWords?: string;
   businesses: Array<{
     id: string;
     name: string;
     approved: boolean;
     statusWords: string;
-    shopLink: string;
+    /**
+     * Counter cards and window stickers only once it signed the partner agreement in the app (31
+     * October 2026). Without it there is no shop link to print.
+     */
+    cardsAllowed?: boolean;
+    shopLink: string | null;
     agreementReference: string | null;
   }>;
 }
 
 export function fetchAmbassadorToolkit(as: ReferralAs): Promise<AmbassadorToolkit> {
   return referralRequest(as, '/ambassador/toolkit');
+}
+
+/** One business's counter card or window sticker: refused unless it signed the agreement. */
+export function fetchCounterCard(
+  as: ReferralAs,
+  shopId: string,
+): Promise<{ id: string; name: string; shopLink: string }> {
+  return referralRequest(as, `/ambassador/cards/${encodeURIComponent(shopId)}`);
 }
 
 export interface SignUpBusinessInput {
@@ -3624,6 +3664,8 @@ export interface StaffAmbassadorApplicationRow {
   documentsCheckedAt: string | null;
   chatDoneAt: string | null;
   waitingDocuments: number;
+  /** How the face is checked: by a person unless they said yes (31 October 2026). */
+  faceCheck?: string;
 }
 
 export interface StaffAmbassadorApplication extends StaffAmbassadorApplicationRow {
@@ -3638,6 +3680,15 @@ export interface StaffAmbassadorApplication extends StaffAmbassadorApplicationRo
   stillNeeded: Array<{ kind: AmbassadorDocumentKind; name: string }>;
   canRecordChat: boolean;
   canApprove: boolean;
+  /** Suspend, Lift and Remove for fraud (31 October 2026). Missing from an older server. */
+  canSuspend?: boolean;
+  canDecline?: boolean;
+  canLift?: boolean;
+  canRemoveForFraud?: boolean;
+  faceCompareConsent?: boolean | null;
+  faceCompareConsentAt?: string | null;
+  businesses?: Array<{ id: string; name: string; unpaidPence: number }>;
+  identityMatches?: Array<{ id: string; kind: 'declined' | 'fraud'; words: string }>;
   documents: Array<{
     id: string;
     kind: AmbassadorDocumentKind;
@@ -3687,12 +3738,21 @@ export function reviewAmbassadorDocument(
   });
 }
 
-/** "Chat done", "Approve", "Decline" or "Suspend" on one application. */
+/**
+ * "Chat done", "Approve", "Decline" or "Suspend" on one application; or, to end a suspension,
+ * "Lift" or "Remove for fraud" (31 October 2026).
+ */
 export function decideAmbassadorApplication(
   key: string,
   id: string,
-  action: 'chat-done' | 'approve' | 'decline' | 'suspend',
-  body: { by: string; notes?: string; reason?: string },
+  action: 'chat-done' | 'approve' | 'decline' | 'suspend' | 'lift' | 'remove-for-fraud',
+  body: {
+    by: string;
+    notes?: string;
+    reason?: string;
+    dateOfBirth?: string;
+    shops?: string[] | 'all';
+  },
 ): Promise<{ message: string }> {
   return staffRequest(key, `/staff/ambassador-applications/${encodeURIComponent(id)}/${action}`, {
     method: 'POST',

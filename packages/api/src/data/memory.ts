@@ -66,6 +66,7 @@ import type {
   ReferralVoucher,
   AmbassadorEntry,
   AmbassadorAgreement,
+  AmbassadorNote,
   AmbassadorDocument,
   AmbassadorWithdrawal,
   SetItem,
@@ -169,6 +170,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const ambassadorEntries: AmbassadorEntry[] = [];
   const ambassadorAgreements: AmbassadorAgreement[] = [];
   const ambassadorDocuments: AmbassadorDocument[] = [];
+  let ambassadorNotes: AmbassadorNote[] = [];
   const vouchers = new Map<string, ReferralVoucher>();
   /** An Ambassador applicant's document files and share codes, removed (30 October 2026). */
   const eraseAmbassadorDocuments = (accountKind: string, accountId: string, at: Date): number => {
@@ -788,6 +790,10 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           decisionReason: null,
           approvedAt: null,
           stoppedAt: null,
+          faceCompareConsent: null,
+          faceCompareConsentAt: null,
+          suspendedFrom: null,
+          documentsRemovedAt: null,
         };
         ambassadorAgreements.push(row);
         return clone(row);
@@ -814,7 +820,15 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
       async add(input) {
         if (ambassadorEntries.some((row) => row.reference === input.reference)) return null;
-        const row: AmbassadorEntry = { availableAt: null, disputedAt: null, ...input, id: id() };
+        const row: AmbassadorEntry = {
+          availableAt: null,
+          disputedAt: null,
+          ...input,
+          cancelledAt: null,
+          cancelledPence: 0,
+          cancelReason: null,
+          id: id(),
+        };
         ambassadorEntries.push(row);
         return clone(row);
       },
@@ -923,6 +937,24 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
       async eraseFor(accountKind, accountId, at) {
         return eraseAmbassadorDocuments(accountKind, accountId, at);
+      },
+    },
+
+    ambassadorNotes: {
+      async create(input) {
+        const row: AmbassadorNote = { ...input, id: id() };
+        ambassadorNotes.push(row);
+        return clone(row);
+      },
+      async list() {
+        return [...ambassadorNotes].sort((a, b) => a.at.getTime() - b.at.getTime()).map(clone);
+      },
+      async deleteDue(at) {
+        const before = ambassadorNotes.length;
+        ambassadorNotes = ambassadorNotes.filter(
+          (row) => row.deleteAfter === null || row.deleteAfter.getTime() > at.getTime(),
+        );
+        return before - ambassadorNotes.length;
       },
     },
 

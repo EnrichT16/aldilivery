@@ -12,7 +12,11 @@ import {
   ambassadorApproved,
   ambassadorDocumentsNeeded,
   ambassadorLinkWorks,
+  addMonths,
+  daysAfter,
+  counterCardsAllowed,
   firstNameOf,
+  longDate,
 } from '../src/ambassador-applications.js';
 
 describe('an Ambassador application', () => {
@@ -26,6 +30,7 @@ describe('an Ambassador application', () => {
       'Declined',
       'Suspended',
       'Documents needed',
+      'Removed for fraud',
     ]);
   });
 
@@ -41,6 +46,10 @@ describe('an Ambassador application', () => {
     expect(ambassadorLinkWorks('declined')).toBe(false);
     expect(ambassadorApplying('documents_needed')).toBe(true);
     expect(ambassadorApplying('declined')).toBe(false);
+    // Removed for fraud (31 October 2026): nothing works again.
+    expect(ambassadorApproved('removed')).toBe(false);
+    expect(ambassadorLinkWorks('removed')).toBe(false);
+    expect(ambassadorApplying('removed')).toBe(false);
   });
 
   it('asks for the back of a card, but not of a passport', () => {
@@ -68,5 +77,21 @@ describe('an Ambassador application', () => {
 
   it('says the first name on a flyer', () => {
     expect(firstNameOf('  Ada Obi ')).toBe('Ada');
+  });
+
+  it('works out the dates of the waits and the removals (31 October 2026)', () => {
+    const declined = new Date('2026-11-03T10:00:00.000Z');
+    expect(addMonths(declined, 6).toISOString()).toBe('2027-05-03T10:00:00.000Z');
+    expect(addMonths(declined, -12).toISOString()).toBe('2025-11-03T10:00:00.000Z');
+    expect(daysAfter(declined, 30).toISOString()).toBe('2026-12-03T10:00:00.000Z');
+    expect(longDate(addMonths(declined, 6))).toBe('3 May 2027');
+  });
+
+  it('offers counter cards only for an approved business that signed the partner agreement in the app', () => {
+    const signed = new Date('2026-10-31T10:00:00.000Z');
+    expect(counterCardsAllowed({ status: 'approved', termsAgreedAt: signed })).toBe(true);
+    expect(counterCardsAllowed({ status: 'approved', termsAgreedAt: null })).toBe(false);
+    expect(counterCardsAllowed({ status: 'pending', termsAgreedAt: signed })).toBe(false);
+    expect(counterCardsAllowed({ status: 'removed', termsAgreedAt: signed })).toBe(false);
   });
 });

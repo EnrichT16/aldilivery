@@ -28,6 +28,8 @@ import {
   AMBASSADOR_TERMS_VERSION,
   ambassadorApproved,
   ambassadorLinkWorks,
+  COUNTER_CARD_WAIT_WORDS,
+  counterCardsAllowed,
   firstNameOf,
   rewardWords,
   shareWords,
@@ -49,6 +51,7 @@ import {
   approveWithdrawal,
   becomeAmbassador,
   flagAmbassador,
+  HELD_WORDS,
   markAmbassadorPaid,
   refuseWithdrawal,
   requestWithdrawal,
@@ -59,10 +62,13 @@ import {
   approveAmbassador,
   declineAmbassador,
   decideAmbassadorDocument,
+  liftSuspension,
   myApplication,
   publicAmbassadorDocument,
   recordChat,
+  removeForFraud,
   sendAmbassadorDocument,
+  setFaceConsent,
   staffApplication,
   staffApplications,
   suspendAmbassador,
@@ -168,6 +174,10 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
         availablePence: summary.availablePence,
         paidPence: summary.paidPence,
         deductions: summary.deductions.map((line) => ({ at: line.at, words: line.words })),
+        // Suspended (31 October 2026): what they earned is kept, held until the suspension ends.
+        held: status === 'suspended',
+        heldWords: status === 'suspended' ? HELD_WORDS : null,
+        canApplyAgain: application?.canApplyAgain ?? false,
         canWithdraw:
           agreement !== null && approved && !ambassadorTermsChanged(agreement) && summary.payable,
         bankReady: agreement ? await ambassadorBankReady(app.ctx, kind, id) : false,
@@ -215,6 +225,43 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
     const { kind, id } = await whoAsks(request);
     const agreement = await ambassadorAgreement(app.ctx, kind, id);
     return { application: agreement ? await myApplication(app.ctx, agreement) : null };
+  });
+
+  /**
+   * The separate yes or no to comparing their face photo with the photo on their ID (Anthony,
+   * 31 October 2026), kept with the moment. A face photo already waiting is looked at again.
+   */
+  app.post('/ambassador/face-consent', async (request) => {
+    const { kind, id } = await whoAsks(request);
+    const body = z
+      .object({
+        consent: z.boolean({
+          required_error: 'Please answer yes or no.',
+          invalid_type_error: 'Please answer yes or no.',
+        }),
+      })
+      .parse(request.body ?? {});
+    const agreement = await ambassadorAgreement(app.ctx, kind, id);
+    if (!agreement) {
+      throw new BadRequestError('Please read and agree to the Ozi Ambassador terms first.');
+    }
+    const { agreement: updated, faceToCheck } = await setFaceConsent(
+      app.ctx,
+      agreement,
+      body.consent,
+    );
+    if (faceToCheck) {
+      await checkInBackground(app.ctx, request.log, () =>
+        checkAmbassadorDocument(app.ctx, faceToCheck, request.log),
+      );
+    }
+    const current = (await ambassadorAgreement(app.ctx, kind, id)) ?? updated;
+    return {
+      application: await myApplication(app.ctx, current),
+      message: body.consent
+        ? 'Thank you. We will compare your face photo with the photo on your ID.'
+        : 'Thank you. A person will check your face photo instead, in your chat with the founder.',
+    };
   });
 
   /**
@@ -279,6 +326,7 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
       (shop) => shop.ambassadorKind === kind && shop.ambassadorId === id,
     );
     return {
+      cardsWaitWords: COUNTER_CARD_WAIT_WORDS,
       name: account.name,
       firstName: firstNameOf(account.name),
       businessLink: ambassadorLink(origin, account),
@@ -294,9 +342,36 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
             : shop.status === 'pending'
               ? 'Waiting for approval'
               : 'Removed',
-        shopLink: `${origin}/shops/${shop.id}`,
+        // Counter cards and window stickers only for a business that signed the partner
+        // agreement in the app (Anthony, 31 October 2026); for any other, no shop link to print.
+        cardsAllowed: counterCardsAllowed(shop),
+        shopLink: counterCardsAllowed(shop) ? `${origin}/shops/${shop.id}` : null,
         agreementReference: shop.agreementReference,
       })),
+    };
+  });
+
+  /**
+   * One business's counter card or window sticker (Anthony, 31 October 2026): its name and the
+   * QR link to its shop page, given only to the approved Ambassador who introduced it, and only
+   * once it has signed the partner agreement in the app. Refused otherwise, with the reason.
+   */
+  app.get('/ambassador/cards/:shopId', async (request) => {
+    const { kind, id } = await whoAsks(request);
+    const agreement = await ambassadorAgreement(app.ctx, kind, id);
+    if (!agreement || !ambassadorApproved(agreement.status)) {
+      throw new ForbiddenError('The Ambassador Toolkit is for approved Ozi Ambassadors.');
+    }
+    const { shopId } = z.object({ shopId: z.string().min(1).max(60) }).parse(request.params);
+    const shop = await app.ctx.repository.partnerShops.findById(shopId);
+    if (!shop || shop.ambassadorKind !== kind || shop.ambassadorId !== id) {
+      throw new NotFoundError('business');
+    }
+    if (!counterCardsAllowed(shop)) throw new ForbiddenError(COUNTER_CARD_WAIT_WORDS);
+    return {
+      id: shop.id,
+      name: shop.name,
+      shopLink: `${env.primaryOrigin ?? ''}/shops/${shop.id}`,
     };
   });
 
@@ -533,12 +608,65 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
   const reasonBody = byBody.extend({
     reason: z.string().trim().min(1, 'Please give the reason they will see.').max(500),
   });
+  /** A date of birth from their ID, kept on the short note only if staff have it. */
+  const dateOfBirth = z
+    .string()
+    .trim()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Please give the date of birth as a date, or leave it empty.')
+    .optional()
+    .or(z.literal('').transform(() => undefined));
 
   app.post('/staff/ambassador-applications/:id/decline', async (request) => {
     const actor = await staffActor(request, 'ambassadors');
     const { id } = applicationParams.parse(request.params);
-    const body = reasonBody.parse(request.body ?? {});
-    return declineAmbassador(app.ctx, id, decidedBy(actor, body.by), body.reason);
+    const body = reasonBody.extend({ dateOfBirth }).parse(request.body ?? {});
+    return declineAmbassador(
+      app.ctx,
+      id,
+      decidedBy(actor, body.by),
+      body.reason,
+      body.dateOfBirth ?? null,
+    );
+  });
+
+  /** Ending a suspension (31 October 2026): lifted, with everything held released. */
+  app.post('/staff/ambassador-applications/:id/lift', async (request) => {
+    const actor = await staffActor(request, 'ambassadors');
+    const { id } = applicationParams.parse(request.params);
+    const body = byBody.parse(request.body ?? {});
+    return liftSuspension(app.ctx, id, decidedBy(actor, body.by), request.log);
+  });
+
+  /**
+   * Ending a suspension (31 October 2026): removed for fraud. The unpaid shares from the
+   * businesses marked (or all of them) are cancelled, and they may never apply again.
+   */
+  app.post('/staff/ambassador-applications/:id/remove-for-fraud', async (request) => {
+    const actor = await staffActor(request, 'ambassadors');
+    const { id } = applicationParams.parse(request.params);
+    const body = reasonBody
+      .extend({
+        shops: z.union([z.literal('all'), z.array(z.string().min(1).max(60)).max(500)], {
+          errorMap: () => ({
+            message: 'Please mark the businesses that were fraudulent, or choose all of them.',
+          }),
+        }),
+        dateOfBirth,
+      })
+      .parse(request.body ?? {});
+    const result = await removeForFraud(app.ctx, id, {
+      by: decidedBy(actor, body.by),
+      reason: body.reason,
+      shops: body.shops,
+      dateOfBirth: body.dateOfBirth ?? null,
+    });
+    await recordAudit(request, {
+      actor: { id: actor.id, name: actor.name, role: actor.role },
+      action: 'ambassadors.removed-for-fraud',
+      target: `ambassador-application=${id}`,
+      detail: result.message,
+    });
+    return { message: result.message };
   });
 
   app.post('/staff/ambassador-applications/:id/suspend', async (request) => {

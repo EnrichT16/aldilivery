@@ -13,9 +13,13 @@
  *   rings the owner with the reason in one sentence. A share code cannot be checked by the model,
  *   so it always goes to the owner, to check on GOV.UK.
  * - **Ozi Ambassador applicants' documents** (30 October 2026) are read the same way: the photo
- *   ID, the back of a card, the proof of address (also whether it is dated within the last three
- *   months) and the face photo. Clear ones are marked checked; unclear ones go to the owner and to
- *   staff. Nobody is ever approved as an Ambassador automatically.
+ *   ID, the back of a card and the proof of address (also whether it is dated within the last
+ *   three months). Clear ones are marked checked; unclear ones go to the owner and to staff.
+ *   Nobody is ever approved as an Ambassador automatically. The face photo (31 October 2026) is
+ *   compared with the photo on the ID by the same comparison as a Runner's, and only when the
+ *   applicant said yes to the separate question; with a no, or no answer, nothing reads the face
+ *   and staff see "Check by a person: face not compared automatically". Nobody is declined for
+ *   saying no.
  * - **Shop products.** Clear ones are approved automatically. Clearly restricted ones are refused
  *   automatically only by the existing rule lists (things never brought, excluded services, the
  *   most one product may cost): a rule, not a judgement. Doubtful ones go to the owner.
@@ -29,6 +33,8 @@ import type { FastifyBaseLogger } from 'fastify';
 
 import {
   addressDateRecent,
+  FACE_BY_EYE_WORDS,
+  FACE_BY_PERSON_WORDS,
   excludedServiceKind,
   excludedServiceWords,
   formatPence,
@@ -465,9 +471,137 @@ export async function checkAmbassadorDocument(
   documentId: string,
   log?: FastifyBaseLogger,
 ): Promise<void> {
-  const { repository, config } = ctx;
-  const document = await repository.ambassadorDocuments.findById(documentId);
+  const document = await ctx.repository.ambassadorDocuments.findById(documentId);
   if (!document || document.status !== 'submitted') return;
+  if (document.kind === 'face_photo') {
+    await checkAmbassadorFace(ctx, document, log);
+    return;
+  }
+  await readAmbassadorDocument(ctx, document, log);
+  // A face photo waiting for the photo ID to compare with is compared now.
+  if (document.kind === 'photo_id_front') {
+    const face = (await ctx.repository.ambassadorDocuments.listForAgreement(document.agreementId))
+      .filter((one) => !one.erasedAt)
+      .find((one) => one.kind === 'face_photo');
+    if (face && face.status === 'submitted' && face.checkedAt === null) {
+      await checkAmbassadorFace(ctx, face, log);
+    }
+  }
+}
+
+/**
+ * An Ambassador applicant's face photo (Anthony, 31 October 2026). A face is special category
+ * data, so it is compared with the photo on their ID automatically only after a clear yes to the
+ * separate question, using the same comparison as a Runner's (no other service). With a no, or no
+ * answer, nothing reads it: it waits for a person, marked "Check by a person: face not compared
+ * automatically". With a yes but nothing to compare with yet, it waits for the ID; with no
+ * automatic check switched on, or an ID that is a PDF, staff compare it by eye.
+ */
+async function checkAmbassadorFace(
+  ctx: CheckContext,
+  document: AmbassadorDocument,
+  log?: FastifyBaseLogger,
+): Promise<void> {
+  const { repository, config } = ctx;
+  const agreement = await repository.ambassadors.findAgreementById(document.agreementId);
+  const account = await findAccount(ctx, document.accountKind, document.accountId);
+  if (!agreement || !account) return;
+  const at = ctx.now();
+  const target = `ambassador-document=${document.id}`;
+  const forPerson = async (note: string): Promise<void> => {
+    await repository.ambassadorDocuments.update(document.id, {
+      checkedAt: at,
+      checkPassed: false,
+      checkNote: `${note}.`,
+      checkName: null,
+      checkIssuedOn: null,
+    });
+    await auditAutomatic(ctx, target, `Not compared automatically: ${note}.`);
+  };
+  if (agreement.faceCompareConsent !== true) {
+    await forPerson(FACE_BY_PERSON_WORDS);
+    return;
+  }
+  const id = (await repository.ambassadorDocuments.listForAgreement(document.agreementId))
+    .filter((one) => !one.erasedAt && one.kind === 'photo_id_front' && one.status !== 'rejected')
+    .at(0);
+  // Nothing to compare with yet: it is compared when the photo ID comes.
+  if (!id?.image) return;
+  const facePhoto = photoOf(document);
+  const idPhoto = photoOf(id);
+  if (!ctx.brain?.checkDocument || !facePhoto || !idPhoto) {
+    await forPerson(FACE_BY_EYE_WORDS);
+    return;
+  }
+  const reading = await ctx.brain.checkDocument({
+    kind: 'face_photo',
+    photo: facePhoto,
+    idPhoto,
+    accountName: account.name,
+    today: ukDate(at),
+  });
+  const reason =
+    reading?.samePerson === false
+      ? 'the face photo and the photo on the ID do not appear to be the same person.'
+      : !reading ||
+          reading.samePerson !== true ||
+          reading.clearRealFace !== true ||
+          reading.confidence < config.ownerDesk.checkConfidence
+        ? 'the automatic check could not be sure the face photo and the ID show the same person.'
+        : null;
+  if (reason) {
+    await repository.ambassadorDocuments.update(document.id, {
+      checkedAt: at,
+      checkPassed: false,
+      checkNote: `Compared with their consent: ${reason}`,
+      checkName: null,
+      checkIssuedOn: null,
+    });
+    await askOwner(
+      ctx,
+      {
+        kind: 'ambassador_document',
+        subjectId: document.id,
+        summary: `Ambassador applicant ${account.name}'s face photo needs you: ${reason}`,
+        options: 'decide',
+      },
+      log,
+    );
+    await auditAutomatic(ctx, target, `Not marked checked; asked the owner. Face photo: ${reason}`);
+    return;
+  }
+  await repository.ambassadorDocuments.update(document.id, {
+    checkedAt: at,
+    checkPassed: true,
+    checkNote: null,
+    checkName: null,
+    checkIssuedOn: null,
+  });
+  const decided = await decideAmbassadorDocument(
+    ctx,
+    { ...document, checkPassed: true },
+    {
+      decision: 'accept',
+      by: AUTOMATIC,
+      note: 'Compared with the photo ID by the automatic check, with their consent.',
+    },
+    log,
+  );
+  await settleMattersFor(ctx, 'ambassador_document', decided.id, 'automatic', AUTOMATIC);
+  await auditAutomatic(
+    ctx,
+    target,
+    `Marked checked: face photo. Compared with the photo ID, with their consent (confidence ${reading!.confidence.toFixed(2)}).`,
+  );
+}
+
+/** Reads one of an Ambassador applicant's documents other than the face photo. */
+async function readAmbassadorDocument(
+  ctx: CheckContext,
+  document: AmbassadorDocument,
+  log?: FastifyBaseLogger,
+): Promise<void> {
+  const { repository, config } = ctx;
   const account = await findAccount(ctx, document.accountKind, document.accountId);
   if (!account) return;
   const at = ctx.now();

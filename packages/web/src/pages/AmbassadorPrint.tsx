@@ -9,6 +9,7 @@ import { storeConfig } from '../config';
 import {
   fetchAgreementSheet,
   fetchAmbassadorToolkit,
+  fetchCounterCard,
   type AgreementSheet,
   type AmbassadorToolkit,
 } from '../lib/api';
@@ -20,7 +21,9 @@ import { ambassadorAs } from '../lib/ambassador';
  *
  * - `/ambassador/print/flyer/<shoppers|carers|business|runners>`: an A5 flyer.
  * - `/ambassador/print/card/<shop>` and `/ambassador/print/sticker/<shop>`: "Order from us on
- *   <product>" with a QR code to that shop's page, for a business they introduced.
+ *   <product>" with a QR code to that shop's page, for a business they introduced, and only once
+ *   it has signed the partner agreement in the app (31 October 2026): the server gives the shop's
+ *   name and link only then, and says why not otherwise.
  * - `/ambassador/print/agreement/<reference>`: the Shop Partner agreement sheet of a business they
  *   signed up, with its unique reference and its own QR code, watermarked with the Ambassador's
  *   name and the date, stating the agreed mark-up and discount. The reference is checked by staff
@@ -32,6 +35,8 @@ export function AmbassadorPrint(): JSX.Element {
   const as = ambassadorAs(params.get('as'));
   const [toolkit, setToolkit] = useState<AmbassadorToolkit | null>(null);
   const [sheet, setSheet] = useState<AgreementSheet | null>(null);
+  const [card, setCard] = useState<Awaited<ReturnType<typeof fetchCounterCard>> | null>(null);
+  const isCard = kind === 'card' || kind === 'sticker';
   const [problem, setProblem] = useState('');
   const [news, setNews] = useState('');
 
@@ -44,9 +49,10 @@ export function AmbassadorPrint(): JSX.Element {
       setProblem(failure instanceof Error ? failure.message : 'That could not be opened.');
     fetchAmbassadorToolkit(as).then(setToolkit).catch(fail);
     if (kind === 'agreement') fetchAgreementSheet(as, id).then(setSheet).catch(fail);
+    if (kind === 'card' || kind === 'sticker') fetchCounterCard(as, id).then(setCard).catch(fail);
   }, [as, kind, id]);
 
-  if (problem !== '' || !toolkit || (kind === 'agreement' && !sheet)) {
+  if (problem !== '' || !toolkit || (kind === 'agreement' && !sheet) || (isCard && !card)) {
     return (
       <div className="space-y-4">
         <h1 className="text-display font-bold m-0">Ambassador Toolkit</h1>
@@ -96,15 +102,13 @@ export function AmbassadorPrint(): JSX.Element {
     );
   }
 
-  if (kind === 'card' || kind === 'sticker') {
-    const business = toolkit.businesses.find((one) => one.id === id && one.approved);
-    if (!business) return <Missing />;
+  if ((kind === 'card' || kind === 'sticker') && card) {
     return (
       <PrintSheet
-        title={`${kind === 'card' ? 'Counter card' : 'Window sticker'} for ${business.name}`}
+        title={`${kind === 'card' ? 'Counter card' : 'Window sticker'} for ${card.name}`}
         pageSize={kind === 'card' ? 'A6' : '120mm 120mm'}
       >
-        <OrderFromUs name={business.name} link={business.shopLink} kind={kind} />
+        <OrderFromUs name={card.name} link={card.shopLink} kind={kind} />
       </PrintSheet>
     );
   }

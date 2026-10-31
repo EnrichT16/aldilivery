@@ -81,10 +81,22 @@ const TOOLKIT = {
       name: 'Mama Put Kitchen',
       approved: true,
       statusWords: 'Approved',
+      cardsAllowed: true,
       shopLink: 'https://example.test/shops/shop1',
       agreementReference: 'OZA-ABCD-EFGH',
     },
+    {
+      id: 'shop2',
+      name: 'Corner Café',
+      approved: false,
+      statusWords: 'Waiting for approval',
+      cardsAllowed: false,
+      shopLink: null,
+      agreementReference: null,
+    },
   ],
+  cardsWaitWords:
+    'Counter cards are printed once the business has signed the partner agreement in the app.',
 };
 
 const APPROVED = {
@@ -211,6 +223,17 @@ describe('applying', () => {
             'Thank you for applying to be an Ozi Ambassador. Next, please send your documents.',
         });
       }
+      if (path === '/ambassador/face-consent' && method === 'POST') {
+        application = {
+          ...(application ?? base),
+          faceConsent: (body as { consent: boolean }).consent,
+        };
+        return reply({
+          application,
+          message:
+            'Thank you. A person will check your face photo instead, in your chat with the founder.',
+        });
+      }
       if (path === '/ambassador/documents' && method === 'POST') {
         const kind = (body as { kind: string }).kind;
         const left = needed.filter((row) => row.kind !== kind);
@@ -284,6 +307,27 @@ describe('applying', () => {
           contentType: 'application/pdf',
         }),
       ),
+    );
+    // The separate yes or no about comparing faces (31 October 2026): either is fine.
+    expect(
+      screen.getByText(
+        'May we compare your face photo with the photo on your ID? This uses your face, which UK data law treats as sensitive. If you say no, a person will check it instead in your chat with the founder.',
+      ),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'No, a person checks it' }));
+    await waitFor(() =>
+      expect(sent.find((row) => row.path === '/ambassador/face-consent')?.body).toEqual({
+        consent: false,
+      }),
+    );
+    expect(
+      await screen.findByText(
+        'You said no. A person will check your face photo. You can change your answer.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'No, a person checks it' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
     );
     const face = (await screen.findByRole('heading', { name: 'A photo of your face' })).closest(
       'section',
@@ -429,6 +473,15 @@ describe('the Ambassador dashboard', () => {
     expect(
       screen.getByRole('link', { name: 'Print the counter card for Mama Put Kitchen' }),
     ).toBeInTheDocument();
+    // Not offered for a business that has not signed the partner agreement in the app.
+    expect(
+      screen.queryByRole('link', { name: 'Print the counter card for Corner Café' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByText(
+        /Counter cards are printed once the business has signed the partner agreement in the app\./,
+      ).length,
+    ).toBeGreaterThan(1);
     expect(
       screen.getByRole('link', { name: 'Print the agreement sheet for Mama Put Kitchen' }),
     ).toHaveAttribute('href', '/ambassador/print/agreement/OZA-ABCD-EFGH?action=print');
@@ -447,7 +500,13 @@ describe('the Ambassador dashboard', () => {
     expect(
       await screen.findByRole('heading', { name: 'The two-minute pitch for restaurant owners' }),
     ).toBeInTheDocument();
-    expect(screen.getByText('“Why join when I have Just Eat?”')).toBeInTheDocument();
+    // No other delivery app is named (31 October 2026); the comparison stays.
+    expect(
+      screen.getByText('“Why join when I am already on other delivery apps?”'),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Other delivery apps pay you later and take a commission\./),
+    ).toBeInTheDocument();
     expect(screen.getByText('“What is the mark-up?”')).toBeInTheDocument();
     expect(screen.getByText('“When am I paid?”')).toBeInTheDocument();
     expect(screen.getByText('“Who are the customers?”')).toBeInTheDocument();
@@ -507,7 +566,15 @@ describe('the Toolkit’s printed things', () => {
   });
 
   it('makes a counter card and a window sticker with the shop’s own page', async () => {
-    stubToolkit();
+    stubToolkit((path) =>
+      path === '/ambassador/cards/shop1'
+        ? reply({
+            id: 'shop1',
+            name: 'Mama Put Kitchen',
+            shopLink: 'https://example.test/shops/shop1',
+          })
+        : null,
+    );
     const { container } = renderAt('/ambassador/print/card/shop1');
     expect(
       await screen.findByRole('heading', { name: 'Counter card for Mama Put Kitchen' }),
@@ -519,6 +586,27 @@ describe('the Toolkit’s printed things', () => {
       screen.getByRole('img', { name: `QR code: Mama Put Kitchen on ${storeConfig.productName}` }),
     ).toHaveAttribute('data-qr-value', 'https://example.test/shops/shop1');
     await noViolations(container);
+  });
+
+  it('says why there is no counter card for a business that has not signed the partner agreement', async () => {
+    stubToolkit((path) =>
+      path === '/ambassador/cards/shop2'
+        ? reply(
+            {
+              error: {
+                message:
+                  'Counter cards are printed once the business has signed the partner agreement in the app.',
+              },
+            },
+            403,
+          )
+        : null,
+    );
+    renderAt('/ambassador/print/card/shop2');
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Counter cards are printed once the business has signed the partner agreement in the app.',
+    );
+    expect(screen.queryByRole('img', { name: /QR code/ })).not.toBeInTheDocument();
   });
 
   it('prints the Shop Partner agreement sheet with its reference, QR code, terms and watermark', async () => {
@@ -779,6 +867,8 @@ describe('the staff Ambassadors page', () => {
       mustChangePassword: false,
     };
     return stubWith((method, path) => {
+      const custom = answer(method, path);
+      if (custom) return custom;
       if (path === '/staff/sign-in') return reply({ token: 'st1.k.sig', ...me });
       if (path === '/staff/me') return reply(me);
       if (path === '/staff/ambassador-applications') {
@@ -904,7 +994,7 @@ describe('the staff Ambassadors page', () => {
     await user.click(screen.getByRole('button', { name: 'Decline' }));
     expect(await screen.findByText('Please give the reason they will see.')).toBeInTheDocument();
     await user.type(
-      screen.getByLabelText('Reason, for Decline or Suspend (they see it)'),
+      screen.getByLabelText('Reason, for Decline, Suspend or Remove for fraud (they see it)'),
       'Not in your area yet.',
     );
     await user.click(screen.getByRole('button', { name: 'Decline' }));
@@ -915,6 +1005,115 @@ describe('the staff Ambassadors page', () => {
         by: 'Kemi',
         reason: 'Not in your area yet.',
       }),
+    );
+  });
+});
+
+describe('ending a suspension on the staff Ambassadors page (31 October 2026)', () => {
+  const SUSPENDED = {
+    id: 'agr9',
+    kind: 'shopper',
+    kindWords: 'Shopper',
+    accountId: 's9',
+    name: 'Bea Obi',
+    area: 'Medway',
+    status: 'suspended',
+    statusWords: 'Suspended',
+    agreedAt: '2026-11-10T10:00:00.000Z',
+    documentsSentAt: '2026-11-10T10:05:00.000Z',
+    documentsCheckedAt: '2026-11-10T10:06:00.000Z',
+    chatDoneAt: '2026-11-11T10:00:00.000Z',
+    waitingDocuments: 0,
+    faceCheck: 'Check by a person: face not compared automatically',
+  };
+
+  it('lifts the suspension, or removes for fraud with the businesses marked', async () => {
+    const me = {
+      name: 'Kemi',
+      role: 'operations_manager',
+      title: 'Operations manager',
+      areas: ['orders', 'ambassadors'],
+      mustChangePassword: false,
+    };
+    const sent = stubWith((method, path) => {
+      if (path === '/staff/sign-in') return reply({ token: 'st1.k.sig', ...me });
+      if (path === '/staff/me') return reply(me);
+      if (path === '/staff/ambassador-applications') {
+        return reply({
+          groups: [{ status: 'suspended', words: 'Suspended', applications: [SUSPENDED] }],
+        });
+      }
+      if (path === '/staff/ambassador-applications/agr9') {
+        return reply({
+          application: {
+            ...SUSPENDED,
+            termsVersion: '2026-10-30c',
+            idType: 'passport',
+            chatDoneBy: 'Anthony',
+            chatNotes: '',
+            decidedAt: '2026-11-20T10:00:00.000Z',
+            decidedBy: 'Anthony',
+            decisionReason: 'Orders look made up.',
+            approvedAt: '2026-11-12T10:00:00.000Z',
+            stillNeeded: [],
+            canRecordChat: false,
+            canApprove: true,
+            canSuspend: false,
+            canDecline: false,
+            canLift: true,
+            canRemoveForFraud: true,
+            businesses: [
+              { id: 'shop1', name: 'Mama Put Kitchen', unpaidPence: 1500 },
+              { id: 'shop2', name: 'Corner Café', unpaidPence: 2500 },
+            ],
+            identityMatches: [],
+            documents: [],
+          },
+        });
+      }
+      if (method === 'POST' && path.startsWith('/staff/ambassador-applications/agr9/')) {
+        return reply({ message: 'Done.' });
+      }
+      return null;
+    });
+    const user = userEvent.setup({ delay: null });
+    renderAt('/staff');
+    await user.type(await screen.findByLabelText('Username'), 'kemi');
+    await user.type(screen.getByLabelText('Password'), 'a long password');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    await screen.findByRole('navigation', { name: 'Admin pages' });
+    await openPage(user, 'Ambassadors');
+    await user.click(await screen.findByRole('button', { name: 'Open Bea Obi' }));
+    expect(
+      await screen.findByText('Face photo: Check by a person: face not compared automatically'),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Decline' })).not.toBeInTheDocument();
+    await noViolations(document.body);
+
+    await user.click(screen.getByRole('button', { name: 'Lift the suspension' }));
+    await waitFor(() =>
+      expect(
+        sent.find((row) => row.path === '/staff/ambassador-applications/agr9/lift')?.body,
+      ).toEqual({ by: 'Kemi' }),
+    );
+
+    await user.type(
+      screen.getByLabelText('Reason, for Decline, Suspend or Remove for fraud (they see it)'),
+      'Made-up orders.',
+    );
+    await user.click(screen.getByRole('button', { name: 'Remove for fraud' }));
+    expect(
+      await screen.findByText(
+        'Please mark the businesses that were fraudulent, or choose all of them.',
+      ),
+    ).toBeInTheDocument();
+    await user.click(screen.getByLabelText('Corner Café: £25.00 unpaid'));
+    await user.click(screen.getByRole('button', { name: 'Remove for fraud' }));
+    await waitFor(() =>
+      expect(
+        sent.find((row) => row.path === '/staff/ambassador-applications/agr9/remove-for-fraud')
+          ?.body,
+      ).toEqual({ by: 'Kemi', reason: 'Made-up orders.', shops: ['shop2'] }),
     );
   });
 });
