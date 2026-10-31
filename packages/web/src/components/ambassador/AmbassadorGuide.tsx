@@ -9,7 +9,8 @@ import { useOzi } from '../../state/ozi';
  * The Ambassador Guide (Anthony, 30 October 2026): a plain page, read aloud by Ozi on request.
  * The two-minute pitch for restaurant owners, answers to the questions they ask, how an
  * Ambassador earns, and what never to say. Every figure from config/store.json. Written only from
- * what the service really does: no supermarket partnership, no insurance, no promises.
+ * what the service really does: no supermarket partnership, no insurance, no promises. No other
+ * company is named (Anthony, 31 October 2026): Ambassadors say "other delivery apps".
  */
 export function AmbassadorGuide({ headingLevel = 2 }: { headingLevel?: 2 | 3 }): JSX.Element {
   const ozi = useOzi();
@@ -65,11 +66,14 @@ export function AmbassadorGuide({ headingLevel = 2 }: { headingLevel?: 2 | 3 }):
           <Sub id="guide-questions" className="font-bold m-0">
             Answers to common questions
           </Sub>
-          <p className="m-0 font-bold">&ldquo;Why join when I have Just Eat?&rdquo;</p>
+          <p className="m-0 font-bold">
+            &ldquo;Why join when I am already on other delivery apps?&rdquo;
+          </p>
           <p className="m-0">
             You can do both. {product} reaches people other apps often miss: older and disabled
-            customers and their carers, ordering by voice or by phone. And there is no commission:
-            you are paid your price, in full, at the counter.
+            customers and their carers, ordering by voice or by phone. And {product} pays you at the
+            counter straight away, your price in full, with no commission. Other delivery apps pay
+            you later and take a commission.
           </p>
           <p className="m-0 font-bold">&ldquo;What is the mark-up?&rdquo;</p>
           <p className="m-0">

@@ -69,6 +69,7 @@ import type {
   AmbassadorEntry,
   AmbassadorAgreement,
   AmbassadorDocument,
+  AmbassadorNote,
   AmbassadorWithdrawal,
   SetItem,
   Shopper,
@@ -445,14 +446,25 @@ export interface Repository {
     ): Promise<AmbassadorAgreement>;
     /** Adds it; one with the same reference already there gives null, and nothing is added. */
     add(
-      input: Omit<AmbassadorEntry, 'id' | 'availableAt' | 'disputedAt'> &
+      input: Omit<
+        AmbassadorEntry,
+        'id' | 'availableAt' | 'disputedAt' | 'cancelledAt' | 'cancelledPence' | 'cancelReason'
+      > &
         Partial<Pick<AmbassadorEntry, 'availableAt' | 'disputedAt'>>,
     ): Promise<AmbassadorEntry | null>;
     findByReference(reference: string): Promise<AmbassadorEntry | null>;
-    /** Only a share's worth, or a deduction's, as an order's final state changes. */
+    /**
+     * Only a share's worth, or a deduction's, as an order's final state changes; or the unpaid
+     * part of a share cancelled when its Ambassador is removed for fraud (31 October 2026).
+     */
     updateEntry(
       id: string,
-      patch: Partial<Pick<AmbassadorEntry, 'amountPence' | 'disputedAt'>>,
+      patch: Partial<
+        Pick<
+          AmbassadorEntry,
+          'amountPence' | 'disputedAt' | 'cancelledAt' | 'cancelledPence' | 'cancelReason'
+        >
+      >,
     ): Promise<AmbassadorEntry>;
     /** Oldest first. */
     listFor(ambassadorKind: ReferralKind, ambassadorId: string): Promise<AmbassadorEntry[]>;
@@ -515,6 +527,18 @@ export interface Repository {
     ): Promise<AmbassadorDocument>;
     /** Removes every file and share code of theirs, keeping that a document was sent. */
     eraseFor(accountKind: ReferralKind, accountId: string, at: Date): Promise<number>;
+  };
+
+  /**
+   * The short notes kept after an Ambassador is declined or removed for fraud (Anthony, 31
+   * October 2026): to enforce the wait, the fraud bar, and to spot a false identity.
+   */
+  ambassadorNotes: {
+    create(input: Omit<AmbassadorNote, 'id'>): Promise<AmbassadorNote>;
+    /** Every note, oldest first. */
+    list(): Promise<AmbassadorNote[]>;
+    /** Removes every note whose `deleteAfter` is at or before `at`; a fraud bar never goes. */
+    deleteDue(at: Date): Promise<number>;
   };
 
   runnerFeedback: {

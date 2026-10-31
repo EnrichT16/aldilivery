@@ -291,6 +291,21 @@ export function Privacy(): JSX.Element {
             Ambassador. Reason: to know who we work with and to prevent fraud, our legitimate
             interest, and the arrangement you apply for.
           </li>
+          <li>
+            {/* Comparing faces only with consent (Anthony, 31 October 2026). */}
+            We ask you a separate question: may we compare your face photo with the photo on your ID
+            automatically? That uses your face, which UK data law treats as sensitive, so we do it
+            only if you say yes, and we keep your answer and when you gave it. If you say no,
+            nothing reads your face automatically: a person checks it in your chat with the founder.
+            Nobody is turned down for saying no.
+          </li>
+          <li>
+            If we decline your Ambassador application, or remove an Ambassador for fraud, we keep a
+            short note: your name, the name on your ID, your date of birth if we have it, the date
+            and the reason. We use it only to apply the wait before you may apply again, to stop
+            somebody removed for fraud applying again, and to spot an application made under a false
+            name. Reason: to prevent fraud, our legitimate interest.
+          </li>
         </ul>
       </section>
 
@@ -399,9 +414,17 @@ export function Privacy(): JSX.Element {
             stop.
           </li>
           <li>
-            An Ozi Ambassador&rsquo;s ID and address documents: while you are an Ambassador, and{' '}
-            {storeConfig.ambassador.documentsKeptMonths} months after you stop, or after we decline
-            your application. They are removed at once if you close your account.
+            An Ozi Ambassador&rsquo;s ID, proof of address and face photo: while you are an
+            Ambassador, and {storeConfig.ambassador.documentsKeptMonths} months after you stop or
+            are removed. If we decline your application, they are deleted{' '}
+            {storeConfig.ambassador.declinedDocumentsDeleteAfterDays} days after we decline it. They
+            are removed at once if you close your account.
+          </li>
+          <li>
+            The short note kept after we decline an Ambassador application (your name, date of birth
+            if we have it, the date and the reason): {storeConfig.ambassador.declinedNoteKeptMonths}{' '}
+            months, then deleted. The note about somebody removed as an Ambassador for fraud is
+            kept, so they cannot apply again.
           </li>
           <li>
             The figures about how the service is used, with codes instead of names: three years.

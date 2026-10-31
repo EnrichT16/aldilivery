@@ -22,14 +22,35 @@
  * earnings keep coming in as before, but the Toolkit and withdrawals wait until they are approved.
  * They stay "documents needed" while they apply, so their link never stops on the way.
  *
- * The ID and address documents are kept while the person is an Ambassador and for
- * `ambassador.documentsKeptMonths` (12) after they stop or are declined (retention.ts), and go with
- * the account when it is removed.
+ * Declined, suspended and removed (Anthony, 31 October 2026):
+ *
+ * - A declined applicant was never approved, so has no earnings. They may apply again
+ *   `ambassador.reapplyAfterMonths` (6) after the decline; before then the API says the date.
+ * - A suspended Ambassador keeps what they earned from real, completed orders, held (no
+ *   withdrawal) while suspended. Staff end a suspension one of two ways: "Lift" (back as they
+ *   were, everything held released), or "Remove for fraud": the unpaid part of the shares from
+ *   the businesses staff mark (or all of them) is cancelled, and they may never apply again.
+ * - The face photo is compared with the photo on the ID automatically only with a separate,
+ *   clear yes (a face is special category data); with a no, a person checks it.
+ *
+ * How long the documents are kept (the same day): an approved Ambassador's while they are one;
+ * a declined applicant's ID, proof of address and face photo `declinedDocumentsDeleteAfterDays`
+ * (30) after the decline, with a short note (name, the name on the ID, a date of birth if held,
+ * the date and the reason) kept `declinedNoteKeptMonths` (12) and then removed; somebody removed
+ * for fraud, their documents `documentsKeptMonths` (12) after, and the note barring them stays.
+ * Swept by `sweepAmbassadorRetention`, on the same timer as the no-Runner refunds. Everything
+ * goes at once with the account.
  */
 
 import type { FastifyBaseLogger } from 'fastify';
 
 import {
+  addMonths,
+  daysAfter,
+  FACE_BY_PERSON_WORDS,
+  FACE_CONSENT_QUESTION,
+  formatPence,
+  longDate,
   AMBASSADOR_ADDRESS_WORDS,
   AMBASSADOR_DOCUMENT_WORDS,
   AMBASSADOR_ID_WORDS,
@@ -45,8 +66,15 @@ import {
 } from '@aldilivery/core';
 
 import type { AppContext } from '../app.js';
-import type { AmbassadorAgreement, AmbassadorDocument, ReferralKind } from '../domain.js';
+import type {
+  AmbassadorAgreement,
+  AmbassadorDocument,
+  AmbassadorEntry,
+  AmbassadorNote,
+  ReferralKind,
+} from '../domain.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
+import { HELD_WORDS, reapplyFrom } from './ambassadors.js';
 import { askOwner, settleMattersFor } from './owner-desk.js';
 import { findAccount, KIND_WORDS, type ReferralContext } from './referrals.js';
 
@@ -69,8 +97,9 @@ function latestByKind(
   documents: readonly AmbassadorDocument[],
 ): Map<AmbassadorDocumentKind, AmbassadorDocument> {
   const latest = new Map<AmbassadorDocumentKind, AmbassadorDocument>();
+  // A removed file counts for nothing: somebody applying again sends new documents.
   for (const document of documents)
-    if (!latest.has(document.kind)) latest.set(document.kind, document);
+    if (!document.erasedAt && !latest.has(document.kind)) latest.set(document.kind, document);
   return latest;
 }
 
@@ -146,13 +175,22 @@ export async function myApplication(ctx: Context, agreement: AmbassadorAgreement
   else if (status === 'declined') {
     message = `Your application was not approved.${agreement.decisionReason ? ` ${agreement.decisionReason}` : ''}`;
   } else if (status === 'suspended') {
-    message = `Your Ambassador account is suspended.${agreement.decisionReason ? ` ${agreement.decisionReason}` : ''} Please contact us.`;
+    message = `Your Ambassador account is suspended.${agreement.decisionReason ? ` ${agreement.decisionReason}` : ''} ${HELD_WORDS} Please contact us.`;
+  } else if (status === 'removed') {
+    message =
+      'You were removed as an Ozi Ambassador, so you cannot apply again. If anything is still owed to you, we will contact you.';
   } else if (needed.length === 0) {
     message = agreement.chatDoneAt
       ? 'Thank you for the chat. The founder will approve your application soon.'
       : CHAT_WORDS;
   } else if (status === 'documents_needed') message = DOCUMENTS_NEEDED_WORDS;
   else message = 'Thank you for applying. Next, please send your documents.';
+  const from = await reapplyFrom(ctx, agreement);
+  if (status === 'declined') {
+    message += from
+      ? ` You can apply again from ${longDate(from)}.`
+      : ' You can apply again now if you wish.';
+  }
   return {
     status,
     statusWords: stageWords(agreement),
@@ -164,6 +202,13 @@ export async function myApplication(ctx: Context, agreement: AmbassadorAgreement
     reason: status === 'declined' || status === 'suspended' ? agreement.decisionReason : null,
     approved: ambassadorApproved(status),
     message,
+    // The separate yes or no about comparing faces (31 October 2026).
+    faceConsentQuestion: FACE_CONSENT_QUESTION,
+    faceConsent: agreement.faceCompareConsent,
+    faceConsentAt: agreement.faceCompareConsentAt,
+    canApplyAgain: status === 'declined' && from === null,
+    applyAgainFrom: from,
+    held: status === 'suspended',
   };
 }
 
@@ -176,6 +221,38 @@ export interface DocumentInput {
   image?: string;
   contentType?: string;
   shareCode?: string;
+}
+
+/**
+ * The separate yes or no to comparing their face photo with the photo on their ID (Anthony,
+ * 31 October 2026), kept with the moment. Asked while applying; it may be changed until they are
+ * decided. Nobody is declined for saying no: a person checks the face instead. A face photo
+ * already sent and still waiting is looked at again under the new answer.
+ */
+export async function setFaceConsent(
+  ctx: Context,
+  agreement: AmbassadorAgreement,
+  consent: boolean,
+): Promise<{ agreement: AmbassadorAgreement; faceToCheck: string | null }> {
+  if (!ambassadorApplying(agreement.status)) {
+    throw new ConflictError('Your application is not waiting for this. Please contact us.');
+  }
+  const updated = await ctx.repository.ambassadors.updateAgreement(agreement.id, {
+    faceCompareConsent: consent,
+    faceCompareConsentAt: ctx.now(),
+  });
+  const face = latestByKind(
+    await ctx.repository.ambassadorDocuments.listForAgreement(agreement.id),
+  ).get('face_photo');
+  if (!face || face.status !== 'submitted') return { agreement: updated, faceToCheck: null };
+  if (face.checkedAt !== null) {
+    await ctx.repository.ambassadorDocuments.update(face.id, {
+      checkedAt: null,
+      checkPassed: null,
+      checkNote: null,
+    });
+  }
+  return { agreement: updated, faceToCheck: face.id };
 }
 
 /**
@@ -359,7 +436,18 @@ async function staffRow(ctx: ReferralContext, agreement: AmbassadorAgreement) {
     documentsCheckedAt: agreement.documentsCheckedAt,
     chatDoneAt: agreement.chatDoneAt,
     waitingDocuments: documents.filter((document) => document.status === 'submitted').length,
+    faceCheck: faceCheckWords(agreement),
   };
+}
+
+/** How the face is checked, as staff see it: by a person unless they said yes (31 October 2026). */
+export function faceCheckWords(agreement: Pick<AmbassadorAgreement, 'faceCompareConsent'>): string {
+  if (agreement.faceCompareConsent === true) {
+    return 'They agreed to the automatic face comparison';
+  }
+  return agreement.faceCompareConsent === false
+    ? FACE_BY_PERSON_WORDS
+    : `${FACE_BY_PERSON_WORDS} (they have not answered the question yet)`;
 }
 
 /** Every application, for staff, grouped by status in the order they move through. */
@@ -396,6 +484,15 @@ export async function staffApplication(ctx: ReferralContext, agreementId: string
     })),
     canRecordChat: ambassadorApplying(agreement.status) && agreement.documentsCheckedAt !== null,
     canApprove: canApprove(agreement),
+    // Suspend, Lift and Remove for fraud (31 October 2026).
+    canSuspend: !['suspended', 'removed', 'declined'].includes(agreement.status),
+    canDecline: canDecline(agreement),
+    canLift: agreement.status === 'suspended',
+    canRemoveForFraud: agreement.status === 'suspended',
+    faceCompareConsent: agreement.faceCompareConsent,
+    faceCompareConsentAt: agreement.faceCompareConsentAt,
+    businesses: await businessesOf(ctx, agreement),
+    identityMatches: await identityMatches(ctx, agreement, documents),
     documents: documents.map((document) => ({
       ...publicAmbassadorDocument(document),
       shareCode: document.shareCode,
@@ -414,8 +511,83 @@ export async function staffApplication(ctx: ReferralContext, agreementId: string
 
 /** Approve only after the chat, or to lift a suspension of somebody approved before. */
 function canApprove(agreement: AmbassadorAgreement): boolean {
-  if (agreement.status === 'suspended') return agreement.approvedAt !== null;
+  if (agreement.status === 'suspended') {
+    return agreement.approvedAt !== null && (agreement.suspendedFrom ?? 'approved') === 'approved';
+  }
   return ambassadorApplying(agreement.status) && agreement.chatDoneAt !== null;
+}
+
+/**
+ * Decline is for an application, never for somebody already approved: they are suspended, then
+ * lifted or removed for fraud.
+ */
+function canDecline(agreement: AmbassadorAgreement): boolean {
+  if (agreement.status === 'suspended') return agreement.approvedAt === null;
+  return ambassadorApplying(agreement.status);
+}
+
+/** The businesses tied to them, with what is still unpaid from each: for "Remove for fraud". */
+async function businessesOf(ctx: ReferralContext, agreement: AmbassadorAgreement) {
+  const entries = await ctx.repository.ambassadors.listFor(
+    agreement.accountKind,
+    agreement.accountId,
+  );
+  const unpaid = unpaidByEntry(entries);
+  return (await ctx.repository.partnerShops.list())
+    .filter(
+      (shop) =>
+        shop.ambassadorKind === agreement.accountKind && shop.ambassadorId === agreement.accountId,
+    )
+    .map((shop) => ({
+      id: shop.id,
+      name: shop.name,
+      unpaidPence: entries
+        .filter((entry) => entry.partnerShopId === shop.id)
+        .reduce((total, entry) => total + (unpaid.get(entry.id) ?? 0), 0),
+    }));
+}
+
+/** The words of a name, for comparing: lower case, letters only, in any order. */
+function nameKey(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/)
+    .filter((word) => word.length > 1)
+    .sort()
+    .join(' ');
+}
+
+/**
+ * Notes kept after an application was declined or somebody removed for fraud whose account is
+ * this one, or whose name matches this applicant's or the name read on their ID: for staff, to
+ * catch an application under a false identity.
+ */
+async function identityMatches(
+  ctx: ReferralContext,
+  agreement: AmbassadorAgreement,
+  documents: readonly AmbassadorDocument[],
+) {
+  const account = await findAccount(ctx, agreement.accountKind, agreement.accountId);
+  const names = new Set(
+    [account?.name ?? '', ...documents.map((document) => document.checkName ?? '')]
+      .map(nameKey)
+      .filter((key) => key !== ''),
+  );
+  return (await ctx.repository.ambassadorNotes.list())
+    .filter(
+      (note) =>
+        (note.accountKind === agreement.accountKind && note.accountId === agreement.accountId) ||
+        names.has(nameKey(note.name)) ||
+        (note.nameOnId !== null && names.has(nameKey(note.nameOnId))),
+    )
+    .map((note) => ({
+      id: note.id,
+      kind: note.kind,
+      words: `${note.kind === 'fraud' ? 'Removed for fraud' : 'Declined'} on ${longDate(note.at)}: ${note.name}${note.nameOnId ? ` (name on the ID: ${note.nameOnId})` : ''}${note.dateOfBirth ? `, born ${note.dateOfBirth}` : ''}. Reason: ${note.reason}`,
+    }));
 }
 
 async function agreementFor(ctx: Context, agreementId: string): Promise<AmbassadorAgreement> {
@@ -474,20 +646,33 @@ export async function approveAmbassador(
     decisionReason: null,
     approvedAt: agreement.approvedAt ?? at,
     stoppedAt: null,
+    suspendedFrom: null,
   });
   await settleMattersFor(ctx, 'ambassador_application', agreement.id, 'panel', by);
   return { message: `${await nameOf(ctx, agreement)} is approved as an Ozi Ambassador, by ${by}.` };
 }
 
-/** "Decline", with a reason the person sees. Their documents go 12 months later. */
+/**
+ * "Decline", with a reason the person sees (31 October 2026): they may apply again
+ * `reapplyAfterMonths` later; their ID, proof of address and face photo go
+ * `declinedDocumentsDeleteAfterDays` after, and a short note is kept `declinedNoteKeptMonths`.
+ */
 export async function declineAmbassador(
   ctx: Context,
   agreementId: string,
   by: string,
   reason: string,
+  dateOfBirth: string | null = null,
 ): Promise<{ message: string }> {
   const agreement = await agreementFor(ctx, agreementId);
   if (agreement.status === 'declined') throw new ConflictError('They are already declined.');
+  if (!canDecline(agreement)) {
+    throw new ConflictError(
+      agreement.status === 'removed'
+        ? 'They were removed for fraud.'
+        : 'They were approved before, so they are not declined. Suspend them instead, then lift the suspension or remove them for fraud.',
+    );
+  }
   const at = ctx.now();
   await ctx.repository.ambassadors.updateAgreement(agreement.id, {
     status: 'declined',
@@ -495,9 +680,48 @@ export async function declineAmbassador(
     decidedBy: by,
     decisionReason: reason,
     stoppedAt: at,
+    suspendedFrom: null,
   });
+  const rates = ctx.config.ambassador;
+  await keepNote(
+    ctx,
+    agreement,
+    'declined',
+    reason,
+    dateOfBirth,
+    addMonths(at, rates.declinedNoteKeptMonths),
+  );
   await settleMattersFor(ctx, 'ambassador_application', agreement.id, 'panel', by);
-  return { message: `${await nameOf(ctx, agreement)} is declined, by ${by}. They see the reason.` };
+  return {
+    message: `${await nameOf(ctx, agreement)} is declined, by ${by}. They see the reason, and may apply again from ${longDate(addMonths(at, rates.reapplyAfterMonths))}.`,
+  };
+}
+
+/** The short note kept after a decline or a removal for fraud (31 October 2026). */
+async function keepNote(
+  ctx: Context,
+  agreement: AmbassadorAgreement,
+  kind: AmbassadorNote['kind'],
+  reason: string,
+  dateOfBirth: string | null,
+  deleteAfter: Date | null,
+): Promise<void> {
+  const documents = await ctx.repository.ambassadorDocuments.listForAgreement(agreement.id);
+  const nameOnId =
+    documents.find((document) => document.kind === 'photo_id_front' && document.checkName)
+      ?.checkName ?? null;
+  await ctx.repository.ambassadorNotes.create({
+    agreementId: agreement.id,
+    accountKind: agreement.accountKind,
+    accountId: agreement.accountId,
+    kind,
+    name: (await findAccount(ctx, agreement.accountKind, agreement.accountId))?.name ?? 'Not known',
+    nameOnId,
+    dateOfBirth,
+    reason,
+    at: ctx.now(),
+    deleteAfter,
+  });
 }
 
 /** "Suspend": the link, the Toolkit and withdrawals stop until approved again. */
@@ -510,6 +734,7 @@ export async function suspendAmbassador(
   const agreement = await agreementFor(ctx, agreementId);
   if (agreement.status === 'suspended') throw new ConflictError('They are already suspended.');
   if (agreement.status === 'declined') throw new ConflictError('They were declined.');
+  if (agreement.status === 'removed') throw new ConflictError('They were removed for fraud.');
   const at = ctx.now();
   await ctx.repository.ambassadors.updateAgreement(agreement.id, {
     status: 'suspended',
@@ -517,33 +742,193 @@ export async function suspendAmbassador(
     decidedBy: by,
     decisionReason: reason,
     stoppedAt: at,
+    suspendedFrom: agreement.status,
   });
-  return { message: `${await nameOf(ctx, agreement)} is suspended, by ${by}.` };
+  return {
+    message: `${await nameOf(ctx, agreement)} is suspended, by ${by}. Their earnings are held until the suspension is lifted.`,
+  };
+}
+
+/**
+ * "Lift the suspension" (Anthony, 31 October 2026): back as they were, with everything they
+ * earned released in full, nothing taken off.
+ */
+export async function liftSuspension(
+  ctx: Context,
+  agreementId: string,
+  by: string,
+  log?: FastifyBaseLogger,
+): Promise<{ message: string }> {
+  const agreement = await agreementFor(ctx, agreementId);
+  if (agreement.status !== 'suspended') throw new ConflictError('They are not suspended.');
+  const back: AmbassadorStatus =
+    agreement.suspendedFrom ?? (agreement.approvedAt ? 'approved' : 'applied');
+  await ctx.repository.ambassadors.updateAgreement(agreement.id, {
+    status: back,
+    decidedAt: ctx.now(),
+    decidedBy: by,
+    decisionReason: null,
+    stoppedAt: null,
+    suspendedFrom: null,
+  });
+  if (back !== 'approved') await refreshApplication(ctx, agreement.id, log);
+  return {
+    message: `${await nameOf(ctx, agreement)}'s suspension is lifted, by ${by}. Everything they earned is released.`,
+  };
+}
+
+/**
+ * How much of each share and bonus is still unpaid: what they were paid, and refunds taken off,
+ * cover the oldest earnings first.
+ */
+export function unpaidByEntry(entries: readonly AmbassadorEntry[]): Map<string, number> {
+  let covered = entries
+    .filter((entry) => entry.kind === 'payment' || entry.kind === 'deduction')
+    .reduce((total, entry) => total + entry.amountPence, 0);
+  const unpaid = new Map<string, number>();
+  for (const entry of [...entries].sort((a, b) => a.at.getTime() - b.at.getTime())) {
+    if (entry.kind !== 'share' && entry.kind !== 'bonus') continue;
+    const paid = Math.min(covered, entry.amountPence);
+    covered -= paid;
+    unpaid.set(entry.id, entry.amountPence - paid);
+  }
+  return unpaid;
+}
+
+/**
+ * "Remove for fraud" (Anthony, 31 October 2026), only to end a suspension: the unpaid part of
+ * every share and bonus from the businesses staff mark as fraudulent (or from all of them) is
+ * cancelled, with when and why kept on each line; any withdrawal waiting is refused; they earn
+ * nothing more; and a note bars them from ever applying again.
+ */
+export async function removeForFraud(
+  ctx: Context,
+  agreementId: string,
+  input: { by: string; reason: string; shops: string[] | 'all'; dateOfBirth?: string | null },
+): Promise<{ message: string; cancelledPence: number }> {
+  const agreement = await agreementFor(ctx, agreementId);
+  if (agreement.status === 'removed') throw new ConflictError('They are already removed.');
+  if (agreement.status !== 'suspended') {
+    throw new ConflictError('Please suspend them first. Removal for fraud ends a suspension.');
+  }
+  const { accountKind: kind, accountId: id } = agreement;
+  if (input.shops !== 'all' && input.shops.length === 0) {
+    throw new BadRequestError(
+      'Please mark the businesses that were fraudulent, or choose all of them.',
+    );
+  }
+  const at = ctx.now();
+  for (const withdrawal of await ctx.repository.ambassadors.listWithdrawalsFor(kind, id)) {
+    if (withdrawal.status !== 'waiting_approval') continue;
+    await ctx.repository.ambassadors.updateWithdrawal(withdrawal.id, {
+      status: 'refused',
+      decidedAt: at,
+      decidedBy: input.by,
+    });
+  }
+  const entries = await ctx.repository.ambassadors.listFor(kind, id);
+  const unpaid = unpaidByEntry(entries);
+  const marked = input.shops === 'all' ? null : new Set(input.shops);
+  let cancelledPence = 0;
+  for (const entry of entries) {
+    const left = unpaid.get(entry.id) ?? 0;
+    if (left <= 0) continue;
+    if (marked && !(entry.partnerShopId && marked.has(entry.partnerShopId))) continue;
+    await ctx.repository.ambassadors.updateEntry(entry.id, {
+      amountPence: entry.amountPence - left,
+      cancelledPence: entry.cancelledPence + left,
+      cancelledAt: at,
+      cancelReason: `Removed for fraud: ${input.reason}`,
+    });
+    cancelledPence += left;
+  }
+  await ctx.repository.ambassadors.updateAgreement(agreement.id, {
+    status: 'removed',
+    decidedAt: at,
+    decidedBy: input.by,
+    decisionReason: input.reason,
+    stoppedAt: at,
+    suspendedFrom: null,
+  });
+  await keepNote(ctx, agreement, 'fraud', input.reason, input.dateOfBirth ?? null, null);
+  const money = formatPence(cancelledPence, ctx.config.store.currencySymbol);
+  return {
+    message: `${await nameOf(ctx, agreement)} is removed for fraud, by ${input.by}. ${money} of unpaid shares cancelled. They can never apply again.`,
+    cancelledPence,
+  };
 }
 
 /* ------------------------------------------------------------------ retention */
 
+export interface AmbassadorRetentionReport {
+  /** Files and share codes removed. */
+  documentsRemoved: number;
+  /** Declined notes past their 12 months, removed. A fraud bar never goes. */
+  notesRemoved: number;
+  /** Declined applications whose reason was cleared after the 12 months. */
+  reasonsCleared: number;
+}
+
 /**
- * The retention rule (30 October 2026): the ID and address documents of somebody who stopped
- * being an Ambassador, or was declined, more than `documentsKeptMonths` ago are removed. Gives
- * how many files went.
+ * The retention rules (Anthony, 31 October 2026), safe to run as often as wanted: running it
+ * again removes nothing more.
+ *
+ * - Declined: the ID, proof of address and face photo (and any share code), and the chat notes,
+ *   `declinedDocumentsDeleteAfterDays` (30) after the decline; the reason they were given,
+ *   `declinedNoteKeptMonths` (12) after.
+ * - Removed for fraud, or stopped any other way: the documents `documentsKeptMonths` (12) after.
+ * - Approved, suspended or still applying: kept.
+ * - The notes: a declined note `declinedNoteKeptMonths` after it was made; a fraud bar stays.
  */
-export async function removeOldAmbassadorDocuments(
+export async function sweepAmbassadorRetention(
   ctx: Pick<AppContext, 'repository' | 'now'> & Partial<Pick<AppContext, 'config'>>,
-): Promise<number> {
-  const months = ctx.config?.ambassador.documentsKeptMonths ?? 12;
+): Promise<AmbassadorRetentionReport> {
+  const rates = ctx.config?.ambassador;
+  const keptMonths = rates?.documentsKeptMonths ?? 12;
+  const declinedDays = rates?.declinedDocumentsDeleteAfterDays ?? 30;
+  const noteMonths = rates?.declinedNoteKeptMonths ?? 12;
   const at = ctx.now();
-  const cutoff = new Date(at);
-  cutoff.setUTCMonth(cutoff.getUTCMonth() - months);
-  let removed = 0;
+  const due = (when: Date) => when.getTime() <= at.getTime();
+  const report: AmbassadorRetentionReport = {
+    documentsRemoved: 0,
+    notesRemoved: 0,
+    reasonsCleared: 0,
+  };
   for (const agreement of await ctx.repository.ambassadors.listAgreements()) {
-    if (!agreement.stoppedAt || agreement.stoppedAt.getTime() > cutoff.getTime()) continue;
-    if (agreement.status === 'approved') continue;
-    removed += await ctx.repository.ambassadorDocuments.eraseFor(
-      agreement.accountKind as ReferralKind,
+    const kind = agreement.accountKind as ReferralKind;
+    if (agreement.status === 'declined') {
+      const declinedAt = agreement.decidedAt ?? agreement.stoppedAt;
+      if (!declinedAt) continue;
+      if (due(daysAfter(declinedAt, declinedDays))) {
+        report.documentsRemoved += await ctx.repository.ambassadorDocuments.eraseFor(
+          kind,
+          agreement.accountId,
+          at,
+        );
+        if (!agreement.documentsRemovedAt || agreement.chatNotes !== '') {
+          await ctx.repository.ambassadors.updateAgreement(agreement.id, {
+            documentsRemovedAt: agreement.documentsRemovedAt ?? at,
+            chatNotes: '',
+          });
+        }
+      }
+      if (due(addMonths(declinedAt, noteMonths)) && agreement.decisionReason !== null) {
+        await ctx.repository.ambassadors.updateAgreement(agreement.id, { decisionReason: null });
+        report.reasonsCleared += 1;
+      }
+      continue;
+    }
+    if (agreement.status === 'approved' || agreement.status === 'suspended') continue;
+    if (!agreement.stoppedAt || !due(addMonths(agreement.stoppedAt, keptMonths))) continue;
+    report.documentsRemoved += await ctx.repository.ambassadorDocuments.eraseFor(
+      kind,
       agreement.accountId,
       at,
     );
+    if (!agreement.documentsRemovedAt) {
+      await ctx.repository.ambassadors.updateAgreement(agreement.id, { documentsRemovedAt: at });
+    }
   }
-  return removed;
+  report.notesRemoved = await ctx.repository.ambassadorNotes.deleteDue(at);
+  return report;
 }

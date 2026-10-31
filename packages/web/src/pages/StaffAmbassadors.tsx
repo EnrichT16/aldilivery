@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { money } from '../lib/money';
+
 import {
   decideAmbassadorApplication,
   fetchStaffAmbassadorApplication,
@@ -15,6 +17,12 @@ import {
  * PDF), what the automatic check found, Accept or Send back for each, "Chat done" with notes, and
  * Approve, Decline (with a reason the person sees) and Suspend. Nobody is approved without a
  * person pressing Approve after the chat.
+ *
+ * 31 October 2026: how the face is to be checked ("Check by a person: face not compared
+ * automatically" unless they said yes); any note from an earlier decline or removal that matches
+ * the applicant; and, to end a suspension, "Lift the suspension" (everything held released) or
+ * "Remove for fraud", marking the businesses that were fraudulent, or all of them, whose unpaid
+ * shares are cancelled. A date of birth from the ID may be kept on the note, if staff have it.
  */
 
 function when(at: string | null): string {
@@ -133,6 +141,9 @@ function Application({
   const [problem, setProblem] = useState('');
   const [notes, setNotes] = useState('');
   const [reason, setReason] = useState('');
+  const [born, setBorn] = useState('');
+  const [fraudShops, setFraudShops] = useState<string[]>([]);
+  const [allShops, setAllShops] = useState(false);
 
   const load = useCallback(() => {
     fetchStaffAmbassadorApplication(staffKey, id)
@@ -146,16 +157,28 @@ function Application({
 
   if (!application) return <Failure text={problem} />;
 
-  const act = (action: 'chat-done' | 'approve' | 'decline' | 'suspend'): void => {
+  const act = (
+    action: 'chat-done' | 'approve' | 'decline' | 'suspend' | 'lift' | 'remove-for-fraud',
+  ): void => {
     setProblem('');
-    if ((action === 'decline' || action === 'suspend') && reason.trim() === '') {
+    const needsReason =
+      action === 'decline' || action === 'suspend' || action === 'remove-for-fraud';
+    if (needsReason && reason.trim() === '') {
       setProblem('Please give the reason they will see.');
+      return;
+    }
+    if (action === 'remove-for-fraud' && !allShops && fraudShops.length === 0) {
+      setProblem('Please mark the businesses that were fraudulent, or choose all of them.');
       return;
     }
     decideAmbassadorApplication(staffKey, id, action, {
       by,
       ...(action === 'chat-done' ? { notes: notes.trim() } : {}),
-      ...(action === 'decline' || action === 'suspend' ? { reason: reason.trim() } : {}),
+      ...(needsReason ? { reason: reason.trim() } : {}),
+      ...((action === 'decline' || action === 'remove-for-fraud') && born !== ''
+        ? { dateOfBirth: born }
+        : {}),
+      ...(action === 'remove-for-fraud' ? { shops: allShops ? ('all' as const) : fraudShops } : {}),
     })
       .then((result) => {
         onDone(result.message);
@@ -186,11 +209,24 @@ function Application({
             ? `done ${when(application.chatDoneAt)}, by ${application.chatDoneBy ?? 'staff'}`
             : 'not yet'}
         </li>
+        {application.faceCheck && <li>Face photo: {application.faceCheck}</li>}
         {application.decisionReason && <li>Reason given: {application.decisionReason}</li>}
         {application.stillNeeded.length > 0 && (
           <li>Still needed: {application.stillNeeded.map((row) => row.name).join(', ')}</li>
         )}
       </ul>
+      {(application.identityMatches ?? []).length > 0 && (
+        <section aria-label={`Earlier notes that match ${application.name}`} className="space-y-1">
+          <p className="m-0 font-bold">
+            Please check: an earlier note matches this name or account.
+          </p>
+          <ul className="m-0 ps-6 space-y-1">
+            {(application.identityMatches ?? []).map((match) => (
+              <li key={match.id}>{match.words}</li>
+            ))}
+          </ul>
+        </section>
+      )}
       <Failure text={problem} />
 
       <h5 className="font-bold m-0">Documents</h5>
@@ -239,12 +275,23 @@ function Application({
 
       <h5 className="font-bold m-0">Decision</h5>
       <label htmlFor={`reason-${id}`} className="block font-bold">
-        Reason, for Decline or Suspend (they see it)
+        Reason, for Decline, Suspend or Remove for fraud (they see it)
       </label>
       <textarea
         id={`reason-${id}`}
         value={reason}
         onChange={(event) => setReason(event.target.value)}
+        className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
+      />
+      <label htmlFor={`born-${id}`} className="block font-bold">
+        Date of birth on their ID, for the note kept after Decline or Remove for fraud (only if you
+        have it)
+      </label>
+      <input
+        id={`born-${id}`}
+        type="date"
+        value={born}
+        onChange={(event) => setBorn(event.target.value)}
         className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
       />
       <div className="flex flex-wrap gap-2">
@@ -256,21 +303,92 @@ function Application({
         >
           Approve
         </button>
-        <button
-          type="button"
-          onClick={() => act('decline')}
-          className="control border-paper bg-paper/10 text-paper"
-        >
-          Decline
-        </button>
-        <button
-          type="button"
-          onClick={() => act('suspend')}
-          className="control border-paper bg-paper/10 text-paper"
-        >
-          Suspend
-        </button>
+        {application.canDecline !== false && (
+          <button
+            type="button"
+            onClick={() => act('decline')}
+            className="control border-paper bg-paper/10 text-paper"
+          >
+            Decline
+          </button>
+        )}
+        {application.canSuspend !== false && (
+          <button
+            type="button"
+            onClick={() => act('suspend')}
+            className="control border-paper bg-paper/10 text-paper"
+          >
+            Suspend
+          </button>
+        )}
       </div>
+
+      {(application.canLift || application.canRemoveForFraud) && (
+        <section aria-labelledby={`end-${id}`} className="space-y-3">
+          <h5 id={`end-${id}`} className="font-bold m-0">
+            End the suspension
+          </h5>
+          <p className="m-0">
+            Lift it if there was no problem: everything they earned from real, completed orders is
+            released. Or remove them for fraud: the unpaid shares from the businesses you mark are
+            cancelled, and they can never apply again.
+          </p>
+          {application.canLift && (
+            <button
+              type="button"
+              onClick={() => act('lift')}
+              className="control bg-highlight text-on-accent"
+            >
+              Lift the suspension
+            </button>
+          )}
+          {application.canRemoveForFraud && (
+            <fieldset className="space-y-2 border-2 border-paper/40 rounded-2xl p-3 m-0">
+              <legend className="font-bold">Which businesses were fraudulent?</legend>
+              <div className="flex items-center gap-3 min-h-control">
+                <input
+                  type="checkbox"
+                  id={`fraud-all-${id}`}
+                  checked={allShops}
+                  onChange={(event) => setAllShops(event.target.checked)}
+                  className="h-6 w-6"
+                />
+                <label htmlFor={`fraud-all-${id}`} className="m-0">
+                  All of them: cancel every unpaid share
+                </label>
+              </div>
+              {(application.businesses ?? []).map((business) => (
+                <div key={business.id} className="flex items-center gap-3 min-h-control">
+                  <input
+                    type="checkbox"
+                    id={`fraud-${id}-${business.id}`}
+                    checked={allShops || fraudShops.includes(business.id)}
+                    disabled={allShops}
+                    onChange={(event) =>
+                      setFraudShops((now) =>
+                        event.target.checked
+                          ? [...now, business.id]
+                          : now.filter((one) => one !== business.id),
+                      )
+                    }
+                    className="h-6 w-6"
+                  />
+                  <label htmlFor={`fraud-${id}-${business.id}`} className="m-0">
+                    {business.name}: {money(business.unpaidPence)} unpaid
+                  </label>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => act('remove-for-fraud')}
+                className="control border-paper bg-paper/10 text-paper"
+              >
+                Remove for fraud
+              </button>
+            </fieldset>
+          )}
+        </section>
+      )}
     </article>
   );
 }

@@ -67,6 +67,10 @@ describe('the referral figures in config/store.json', () => {
       // kept for 12 months after somebody stops.
       addressWithinMonths: 3,
       documentsKeptMonths: 12,
+      // Declined, suspended and removed (Anthony, 31 October 2026).
+      reapplyAfterMonths: 6,
+      declinedDocumentsDeleteAfterDays: 30,
+      declinedNoteKeptMonths: 12,
     });
     expect(shareWords(ambassadors.restaurantMarkupShare)).toBe('2%');
     expect(shareWords(ambassadors.groceryItemChargeShare)).toBe('1%');

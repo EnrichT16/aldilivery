@@ -11,7 +11,8 @@ import { AMBASSADOR_TERMS_VERSION } from '@aldilivery/core';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { DocumentCheckInput, DocumentReading, OziBrain } from '../src/lib/language-model.js';
-import { sweepRetention } from '../src/services/retention.js';
+import { sweepAmbassadorRetention } from '../src/services/ambassador-applications.js';
+import { becomeAmbassador } from '../src/services/ambassadors.js';
 import {
   buildTestApp,
   signUpShopper,
@@ -54,7 +55,8 @@ function clearReading(input: DocumentCheckInput): DocumentReading {
     expiresOn: input.kind === 'ambassador_passport' ? '2031-05-01' : null,
     dbsRecordsSomething: null,
     clearRealFace: input.kind === 'face_photo' ? true : null,
-    samePerson: null,
+    // The face compared with the ID only when the ID is given: only with consent (31 October).
+    samePerson: input.kind === 'face_photo' && input.idPhoto ? true : null,
     concern: null,
     confidence: 0.97,
     issuedOn: input.kind === 'ambassador_proof_of_address' ? '2026-10-01' : null,
@@ -98,7 +100,9 @@ function sendDocument(headers: Record<string, string>, payload: object) {
 }
 
 /** A passport, a council tax letter as a PDF and a face photo: everything needed. */
-async function sendEverything(headers: Record<string, string>) {
+async function sendEverything(headers: Record<string, string>, faceConsent = true) {
+  const consent = await post('/ambassador/face-consent', { consent: faceConsent }, headers);
+  expect(consent.statusCode, consent.body).toBe(200);
   for (const payload of [
     { kind: 'photo_id_front', idType: 'passport', image: PHOTO, contentType: 'image/jpeg' },
     {
@@ -433,6 +437,7 @@ describe('the staff Ambassadors page', () => {
       'Declined',
       'Suspended',
       'Documents needed',
+      'Removed for fraud',
     ]);
     expect(groups[0]!.applications.map((row) => row.name)).toEqual(['Ada Obi']);
     // A Shopper cannot open it either.
@@ -482,7 +487,7 @@ describe('the staff Ambassadors page', () => {
         status: 'declined',
         reason: 'We are not taking Ambassadors in your area yet.',
         message:
-          'Your application was not approved. We are not taking Ambassadors in your area yet.',
+          'Your application was not approved. We are not taking Ambassadors in your area yet. You can apply again from 10 May 2027.',
       }),
     );
     expect((await agreementOf(ada.shopperId)).stoppedAt).toEqual(harness.now());
@@ -614,11 +619,13 @@ describe('the Ambassador Toolkit', () => {
         ),
       }),
     );
+    // Waiting for approval: no counter card yet (31 October 2026).
     expect(toolkit.businesses).toEqual([
       expect.objectContaining({
         id: shop.shop.id,
         statusWords: 'Waiting for approval',
-        shopLink: expect.stringMatching(new RegExp(`/shops/${shop.shop.id}$`)),
+        cardsAllowed: false,
+        shopLink: null,
       }),
     ]);
   });
@@ -866,51 +873,462 @@ describe('"Did someone introduce you? Their code (optional)" at sign-up', () => 
   });
 });
 
-describe('how long Ambassador documents are kept', () => {
-  it('keeps them while an Ambassador and for 12 months after they stop, and removes them with the account', async () => {
+describe('how long Ambassador documents are kept (31 October 2026)', () => {
+  it('removes a declined applicant’s ID, address and face photo 30 days after, and the note after 12 months', async () => {
     await build({ brain: standInBrain() });
     const ada = await applicant();
     await agree(ada.authHeader);
     await sendEverything(ada.authHeader);
     const id = (await agreementOf(ada.shopperId)).id;
     await post(
-      `/staff/ambassador-applications/${id}/decline`,
-      { by: 'Anthony', reason: 'Not now.' },
+      `/staff/ambassador-applications/${id}/chat-done`,
+      { by: 'Anthony', notes: 'Did not seem right.' },
       STAFF,
     );
+    const declined = await post(
+      `/staff/ambassador-applications/${id}/decline`,
+      { by: 'Anthony', reason: 'Not now.', dateOfBirth: '1990-04-02' },
+      STAFF,
+    );
+    expect(declined.statusCode, declined.body).toBe(200);
+    // Only the short note is kept: name, the name on the ID, the date of birth, date and reason.
+    const [note] = await harness.repository.ambassadorNotes.list();
+    expect(note).toEqual(
+      expect.objectContaining({
+        kind: 'declined',
+        name: 'Ada Obi',
+        nameOnId: 'OBI, ADA NGOZI',
+        dateOfBirth: '1990-04-02',
+        reason: 'Not now.',
+        at: START,
+        deleteAfter: new Date('2027-11-10T10:00:00.000Z'),
+      }),
+    );
 
-    harness.setNow(new Date('2027-11-09T10:00:00.000Z'));
-    expect((await sweepRetention(harness.app.ctx)).ambassadorDocumentsRemoved).toBe(0);
+    harness.setNow(new Date('2026-12-09T10:00:00.000Z'));
+    expect((await sweepAmbassadorRetention(harness.app.ctx)).documentsRemoved).toBe(0);
     let documents = await harness.repository.ambassadorDocuments.listForAgreement(id);
     expect(documents.every((row) => row.image !== null)).toBe(true);
 
-    harness.setNow(new Date('2027-11-11T10:00:00.000Z'));
-    expect((await sweepRetention(harness.app.ctx)).ambassadorDocumentsRemoved).toBe(3);
+    harness.setNow(new Date('2026-12-10T10:00:00.000Z'));
+    expect((await sweepAmbassadorRetention(harness.app.ctx)).documentsRemoved).toBe(3);
     documents = await harness.repository.ambassadorDocuments.listForAgreement(id);
     expect(documents.every((row) => row.image === null && row.erasedAt !== null)).toBe(true);
-    // That they were sent, and how they were decided, stays.
+    // That they were sent, and how they were decided, stays; the chat notes go.
     expect(documents.map((row) => row.status)).toEqual(['accepted', 'accepted', 'accepted']);
+    expect(await agreementOf(ada.shopperId)).toEqual(
+      expect.objectContaining({ chatNotes: '', decisionReason: 'Not now.' }),
+    );
+    // Running it again removes nothing more.
+    expect(await sweepAmbassadorRetention(harness.app.ctx)).toEqual({
+      documentsRemoved: 0,
+      notesRemoved: 0,
+      reasonsCleared: 0,
+    });
 
-    // An approved Ambassador's are kept however long ago they applied.
+    harness.setNow(new Date('2027-11-09T10:00:00.000Z'));
+    expect((await sweepAmbassadorRetention(harness.app.ctx)).notesRemoved).toBe(0);
+    harness.setNow(new Date('2027-11-10T10:00:00.000Z'));
+    expect(await sweepAmbassadorRetention(harness.app.ctx)).toEqual({
+      documentsRemoved: 0,
+      notesRemoved: 1,
+      reasonsCleared: 1,
+    });
+    expect(await harness.repository.ambassadorNotes.list()).toEqual([]);
+    expect((await agreementOf(ada.shopperId)).decisionReason).toBeNull();
+    expect(await sweepAmbassadorRetention(harness.app.ctx)).toEqual({
+      documentsRemoved: 0,
+      notesRemoved: 0,
+      reasonsCleared: 0,
+    });
+  });
+
+  it('keeps an approved Ambassador’s while active, removes a removed one’s 12 months after, keeps the fraud bar, and removes them with the account', async () => {
+    await build({ brain: standInBrain() });
+    const ada = await applicant();
+    await agree(ada.authHeader);
+    await sendEverything(ada.authHeader);
+    const agreement = await agreementOf(ada.shopperId);
+    await harness.repository.ambassadors.updateAgreement(agreement.id, {
+      status: 'approved',
+      approvedAt: harness.now(),
+    });
+    harness.setNow(new Date('2029-01-01T10:00:00.000Z'));
+    expect((await sweepAmbassadorRetention(harness.app.ctx)).documentsRemoved).toBe(0);
+
+    // Suspended: kept while it is looked into.
+    await post(
+      `/staff/ambassador-applications/${agreement.id}/suspend`,
+      { by: 'Anthony', reason: 'Looking into orders.' },
+      STAFF,
+    );
+    harness.setNow(new Date('2030-06-01T10:00:00.000Z'));
+    expect((await sweepAmbassadorRetention(harness.app.ctx)).documentsRemoved).toBe(0);
+    const removed = await post(
+      `/staff/ambassador-applications/${agreement.id}/remove-for-fraud`,
+      { by: 'Anthony', reason: 'Made-up orders.', shops: 'all' },
+      STAFF,
+    );
+    expect(removed.statusCode, removed.body).toBe(200);
+    harness.setNow(new Date('2031-05-31T10:00:00.000Z'));
+    expect((await sweepAmbassadorRetention(harness.app.ctx)).documentsRemoved).toBe(0);
+    harness.setNow(new Date('2031-06-01T10:00:00.000Z'));
+    expect((await sweepAmbassadorRetention(harness.app.ctx)).documentsRemoved).toBe(3);
+    // The fraud bar stays for ever.
+    harness.setNow(new Date('2040-01-01T10:00:00.000Z'));
+    expect((await sweepAmbassadorRetention(harness.app.ctx)).notesRemoved).toBe(0);
+    expect((await harness.repository.ambassadorNotes.list()).map((note) => note.kind)).toEqual([
+      'fraud',
+    ]);
+
+    // Removed with the account, at once.
     const bea = await applicant('Bea Obi', '+447700900501');
     await agree(bea.authHeader);
     await sendEverything(bea.authHeader);
     const beaAgreement = await agreementOf(bea.shopperId);
-    await harness.repository.ambassadors.updateAgreement(beaAgreement.id, { status: 'approved' });
-    harness.setNow(new Date('2029-01-01T10:00:00.000Z'));
-    await sweepRetention(harness.app.ctx);
-    expect(
-      (await harness.repository.ambassadorDocuments.listForAgreement(beaAgreement.id)).every(
-        (row) => row.image !== null,
-      ),
-    ).toBe(true);
-
-    // Removed with the account.
     await harness.repository.retention.eraseShopper(bea.shopperId, harness.now());
     expect(
       (await harness.repository.ambassadorDocuments.listForAgreement(beaAgreement.id)).every(
         (row) => row.image === null,
       ),
     ).toBe(true);
+  });
+});
+
+describe('declined Ambassadors may apply again after 6 months (31 October 2026)', () => {
+  it('refuses an earlier application with the date, then starts a new one with new documents', async () => {
+    await build({ brain: standInBrain() });
+    const ada = await applicant();
+    await agree(ada.authHeader);
+    await sendEverything(ada.authHeader);
+    const id = (await agreementOf(ada.shopperId)).id;
+    const declined = await post(
+      `/staff/ambassador-applications/${id}/decline`,
+      { by: 'Anthony', reason: 'Not now.' },
+      STAFF,
+    );
+    expect(declined.json().message).toMatch(/may apply again from 10 May 2027/);
+    const mine = (await get('/ambassador/application', ada.authHeader)).json().application;
+    expect(mine.message).toBe(
+      'Your application was not approved. Not now. You can apply again from 10 May 2027.',
+    );
+    expect(mine.canApplyAgain).toBe(false);
+
+    harness.setNow(new Date('2027-05-09T10:00:00.000Z'));
+    const early = await post(
+      '/ambassador/join',
+      { termsAgreed: true, termsVersion: AMBASSADOR_TERMS_VERSION },
+      ada.authHeader,
+    );
+    expect(early.statusCode).toBe(409);
+    expect(early.json().error.message).toBe(
+      'Your last application was not approved on 10 November 2026. You can apply again from 10 May 2027.',
+    );
+
+    harness.setNow(new Date('2027-05-10T10:00:00.000Z'));
+    const again = await agree(ada.authHeader);
+    expect(again.application).toEqual(
+      expect.objectContaining({ status: 'applied', documentsIn: false, faceConsent: null }),
+    );
+    expect(again.application.stillNeeded.map((row: { kind: string }) => row.kind)).toEqual([
+      'photo_id_front',
+      'photo_id_back',
+      'proof_of_address',
+      'face_photo',
+    ]);
+    const agreement = await agreementOf(ada.shopperId);
+    expect(agreement).toEqual(
+      expect.objectContaining({ decisionReason: null, chatDoneAt: null, stoppedAt: null }),
+    );
+    expect(
+      (await harness.repository.ambassadorDocuments.listForAgreement(id)).every(
+        (row) => row.image === null,
+      ),
+    ).toBe(true);
+  });
+
+  it('shows staff a note whose name matches a new applicant on another account', async () => {
+    await build({ brain: standInBrain() });
+    const ada = await applicant();
+    await agree(ada.authHeader);
+    await sendEverything(ada.authHeader);
+    const first = (await agreementOf(ada.shopperId)).id;
+    await post(
+      `/staff/ambassador-applications/${first}/decline`,
+      { by: 'Anthony', reason: 'Documents did not match.' },
+      STAFF,
+    );
+    // The same name on the ID, from another account.
+    const other = await applicant('Ada Ngozi Obi', '+447700900509');
+    await agree(other.authHeader);
+    await sendEverything(other.authHeader);
+    const second = (await agreementOf(other.shopperId)).id;
+    const detail = (await get(`/staff/ambassador-applications/${second}`, STAFF)).json()
+      .application;
+    expect(detail.identityMatches).toEqual([
+      expect.objectContaining({
+        kind: 'declined',
+        words: expect.stringMatching(/^Declined on 10 November 2026: Ada Obi/),
+      }),
+    ]);
+  });
+});
+
+describe('suspended Ambassadors (31 October 2026)', () => {
+  async function withShares() {
+    const ada = await approvedAmbassador();
+    const honest = await joinShop({ ambassador: ada.via });
+    const fraud = await joinShop({ ambassador: ada.via });
+    const add = (reference: string, shop: string, amountPence: number, at: string) =>
+      harness.repository.ambassadors.add({
+        ambassadorKind: 'shopper',
+        ambassadorId: ada.shopperId,
+        kind: 'share',
+        partnerShopId: shop,
+        orderId: null,
+        profitPence: 0,
+        amountPence,
+        availableAt: new Date('2026-11-01T10:00:00.000Z'),
+        reference,
+        recordedBy: null,
+        at: new Date(at),
+      });
+    await add('share:1', honest.shop.id, 1500, '2026-10-01T10:00:00.000Z');
+    await add('share:2', fraud.shop.id, 2000, '2026-10-02T10:00:00.000Z');
+    await add('share:3', fraud.shop.id, 1000, '2026-10-03T10:00:00.000Z');
+    await add('share:4', honest.shop.id, 700, '2026-10-04T10:00:00.000Z');
+    // £20 already paid: it covers the oldest share and part of the next.
+    await harness.repository.ambassadors.add({
+      ambassadorKind: 'shopper',
+      ambassadorId: ada.shopperId,
+      kind: 'payment',
+      partnerShopId: null,
+      orderId: null,
+      profitPence: 0,
+      amountPence: 2000,
+      reference: 'payment:1',
+      recordedBy: 'Anthony',
+      at: new Date('2026-10-20T10:00:00.000Z'),
+    });
+    const id = (await agreementOf(ada.shopperId)).id;
+    return { ada, honest, fraud, id };
+  }
+
+  it('holds their earnings while suspended and releases them in full when lifted', async () => {
+    await build();
+    const { ada, id } = await withShares();
+    await post(
+      `/staff/ambassador-applications/${id}/suspend`,
+      { by: 'Anthony', reason: 'A complaint is being looked into.' },
+      STAFF,
+    );
+    const held = (await get('/referrals/me', ada.authHeader)).json().ambassador;
+    expect(held).toEqual(
+      expect.objectContaining({ held: true, availablePence: 3200, canWithdraw: false }),
+    );
+    expect(held.heldWords).toMatch(/released in full if the suspension is lifted/);
+    const paid = await post(
+      `/staff/ambassadors/shopper/${ada.shopperId}/paid`,
+      { by: 'Anthony' },
+      STAFF,
+    );
+    expect(paid.statusCode).toBe(409);
+    expect(paid.json().error.message).toMatch(/held/);
+    expect((await get(`/staff/ambassador-applications/${id}`, STAFF)).json().application).toEqual(
+      expect.objectContaining({ canLift: true, canRemoveForFraud: true }),
+    );
+
+    const lifted = await post(
+      `/staff/ambassador-applications/${id}/lift`,
+      { by: 'Anthony' },
+      STAFF,
+    );
+    expect(lifted.statusCode, lifted.body).toBe(200);
+    expect(lifted.json().message).toMatch(
+      /suspension is lifted, by .*Everything they earned is released/,
+    );
+    const after = (await get('/referrals/me', ada.authHeader)).json().ambassador;
+    expect(after).toEqual(
+      expect.objectContaining({ status: 'approved', held: false, availablePence: 3200 }),
+    );
+  });
+
+  it('removes for fraud: cancels the unpaid shares from the businesses marked, and bars them for ever', async () => {
+    await build();
+    const { ada, fraud, id } = await withShares();
+    expect(
+      (
+        await post(
+          `/staff/ambassador-applications/${id}/remove-for-fraud`,
+          { by: 'Anthony', reason: 'Made-up orders.', shops: [fraud.shop.id] },
+          STAFF,
+        )
+      ).statusCode,
+    ).toBe(409);
+    await post(
+      `/staff/ambassador-applications/${id}/suspend`,
+      { by: 'Anthony', reason: 'Orders look made up.' },
+      STAFF,
+    );
+    const detail = (await get(`/staff/ambassador-applications/${id}`, STAFF)).json().application;
+    expect(
+      detail.businesses
+        .map((row: { unpaidPence: number }) => row.unpaidPence)
+        .sort((a: number, b: number) => a - b),
+    ).toEqual([700, 2500]);
+    const removed = await post(
+      `/staff/ambassador-applications/${id}/remove-for-fraud`,
+      { by: 'Anthony', reason: 'Made-up orders.', shops: [fraud.shop.id] },
+      STAFF,
+    );
+    expect(removed.statusCode, removed.body).toBe(200);
+    // Share 2 was £5 paid and £15 unpaid; share 3 £10 unpaid: £25 cancelled.
+    expect(removed.json().message).toMatch(/£25\.00 of unpaid shares cancelled/);
+    const entries = await harness.repository.ambassadors.listFor('shopper', ada.shopperId);
+    expect(
+      entries
+        .filter((row) => row.kind === 'share')
+        .map((row) => [row.reference, row.amountPence, row.cancelledPence]),
+    ).toEqual([
+      ['share:1', 1500, 0],
+      ['share:2', 500, 1500],
+      ['share:3', 0, 1000],
+      ['share:4', 700, 0],
+    ]);
+    expect(entries.find((row) => row.reference === 'share:3')?.cancelReason).toBe(
+      'Removed for fraud: Made-up orders.',
+    );
+    // What is left from the honest business may still be paid by hand.
+    const mine = (await get('/referrals/me', ada.authHeader)).json().ambassador;
+    expect(mine).toEqual(expect.objectContaining({ status: 'removed', availablePence: 700 }));
+    // Never again.
+    const again = await post(
+      '/ambassador/join',
+      { termsAgreed: true, termsVersion: AMBASSADOR_TERMS_VERSION },
+      ada.authHeader,
+    );
+    expect(again.statusCode).toBe(409);
+    expect(again.json().error.message).toBe(
+      'You were removed as an Ozi Ambassador, so we cannot accept a new application from you.',
+    );
+    harness.setNow(new Date('2035-01-01T10:00:00.000Z'));
+    await sweepAmbassadorRetention(harness.app.ctx);
+    // Still barred years later, after every sweep (the sign-in has long run out by then).
+    await expect(
+      becomeAmbassador(harness.app.ctx, 'shopper', ada.shopperId, AMBASSADOR_TERMS_VERSION),
+    ).rejects.toThrow(/cannot accept a new application from you/);
+  });
+
+  it('cancels every unpaid share when staff choose all', async () => {
+    await build();
+    const { ada, id } = await withShares();
+    await post(
+      `/staff/ambassador-applications/${id}/suspend`,
+      { by: 'Anthony', reason: 'Orders look made up.' },
+      STAFF,
+    );
+    const removed = await post(
+      `/staff/ambassador-applications/${id}/remove-for-fraud`,
+      { by: 'Anthony', reason: 'Made-up orders.', shops: 'all' },
+      STAFF,
+    );
+    expect(removed.json().message).toMatch(/£32\.00 of unpaid shares cancelled/);
+    expect((await get('/referrals/me', ada.authHeader)).json().ambassador.availablePence).toBe(0);
+  });
+});
+
+describe('the face compared with the ID only with consent (31 October 2026)', () => {
+  it('with a no, nothing reads the face: a person checks it, and nobody is declined', async () => {
+    const brain = standInBrain();
+    await build({ brain });
+    const ada = await applicant();
+    await agree(ada.authHeader);
+    await sendEverything(ada.authHeader, false);
+    const agreement = await agreementOf(ada.shopperId);
+    expect(agreement).toEqual(
+      expect.objectContaining({
+        faceCompareConsent: false,
+        faceCompareConsentAt: START,
+        status: 'documents_sent',
+      }),
+    );
+    expect(brain.asked.some((input) => input.kind === 'face_photo')).toBe(false);
+    const face = (await harness.repository.ambassadorDocuments.listForAgreement(agreement.id)).find(
+      (row) => row.kind === 'face_photo',
+    )!;
+    expect(face).toEqual(
+      expect.objectContaining({
+        status: 'submitted',
+        checkPassed: false,
+        checkNote: 'Check by a person: face not compared automatically.',
+      }),
+    );
+    const detail = (await get(`/staff/ambassador-applications/${agreement.id}`, STAFF)).json()
+      .application;
+    expect(detail.faceCheck).toBe('Check by a person: face not compared automatically');
+    // A person accepts it, and the application goes on as any other.
+    const accepted = await post(
+      `/staff/ambassador-documents/${face.id}/review`,
+      { decision: 'accept', by: 'Anthony' },
+      STAFF,
+    );
+    expect(accepted.statusCode, accepted.body).toBe(200);
+    expect((await agreementOf(ada.shopperId)).status).toBe('documents_checked');
+  });
+
+  it('with a yes, compares the face with the photo on the ID', async () => {
+    const brain = standInBrain();
+    await build({ brain });
+    const ada = await applicant();
+    await agree(ada.authHeader);
+    await sendEverything(ada.authHeader, true);
+    const compared = brain.asked.find((input) => input.kind === 'face_photo');
+    expect(compared?.idPhoto).toBeDefined();
+    expect((await agreementOf(ada.shopperId)).status).toBe('documents_checked');
+  });
+
+  it('asks the question in plain words, and needs a yes or a no', async () => {
+    await build();
+    const ada = await applicant();
+    await agree(ada.authHeader);
+    const application = (await get('/ambassador/application', ada.authHeader)).json().application;
+    expect(application.faceConsentQuestion).toBe(
+      'May we compare your face photo with the photo on your ID? This uses your face, which UK data law treats as sensitive. If you say no, a person will check it instead in your chat with the founder.',
+    );
+    expect(application.faceConsent).toBeNull();
+    const blank = await post('/ambassador/face-consent', {}, ada.authHeader);
+    expect(blank.statusCode).toBe(400);
+  });
+});
+
+describe('counter cards only for businesses that signed the partner agreement (31 October 2026)', () => {
+  it('refuses a card for a business that has not, on the API as well as on the screen', async () => {
+    await build();
+    const ada = await approvedAmbassador();
+    const shop = await joinShop({ ambassador: ada.via });
+    const waiting = await get(`/ambassador/cards/${shop.shop.id}`, ada.authHeader);
+    expect(waiting.statusCode).toBe(403);
+    expect(waiting.json().error.message).toBe(
+      'Counter cards are printed once the business has signed the partner agreement in the app.',
+    );
+    await harness.repository.partnerShops.update(shop.shop.id, {
+      status: 'approved',
+      approvedAt: harness.now(),
+    });
+    const card = await get(`/ambassador/cards/${shop.shop.id}`, ada.authHeader);
+    expect(card.statusCode, card.body).toBe(200);
+    expect(card.json().shopLink).toMatch(new RegExp(`/shops/${shop.shop.id}$`));
+    const toolkit = (await get('/ambassador/toolkit', ada.authHeader)).json();
+    expect(toolkit.businesses[0]).toEqual(expect.objectContaining({ cardsAllowed: true }));
+
+    // Approved but never agreed to the Shop Partner terms in the app (added from a paper form).
+    await harness.repository.partnerShops.update(shop.shop.id, {
+      termsAgreedAt: null,
+      termsVersion: null,
+    });
+    expect((await get(`/ambassador/cards/${shop.shop.id}`, ada.authHeader)).statusCode).toBe(403);
+    expect((await get('/ambassador/toolkit', ada.authHeader)).json().businesses[0]).toEqual(
+      expect.objectContaining({ cardsAllowed: false, shopLink: null }),
+    );
   });
 });

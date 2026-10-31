@@ -250,7 +250,10 @@
     "payoutMinimumPence": 1000,
     "reviewAbovePence": 50000,
     "addressWithinMonths": 3,
-    "documentsKeptMonths": 12
+    "documentsKeptMonths": 12,
+    "reapplyAfterMonths": 6,
+    "declinedDocumentsDeleteAfterDays": 30,
+    "declinedNoteKeptMonths": 12
   },
   "admin": {
     "ownerOnlyRefundAbovePence": 2500,

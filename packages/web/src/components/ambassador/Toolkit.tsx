@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { COUNTER_CARD_WAIT_WORDS } from '@aldilivery/core';
+
 import { storeConfig } from '../../config';
 import { fetchAmbassadorToolkit, type AmbassadorToolkit, type ReferralAs } from '../../lib/api';
 import { FLYERS } from './Flyers';
@@ -98,7 +100,7 @@ export function Toolkit({
     );
   }
 
-  const joined = toolkit.businesses.filter((business) => business.approved);
+  const cardsWait = toolkit.cardsWaitWords ?? COUNTER_CARD_WAIT_WORDS;
   const signed = toolkit.businesses.filter((business) => business.agreementReference);
 
   return (
@@ -201,23 +203,29 @@ export function Toolkit({
         </h3>
         <p className="m-0">
           &ldquo;Order from us on {storeConfig.productName}&rdquo;, with a QR code to the
-          shop&rsquo;s own page, for each business you introduced once it is approved.
+          shop&rsquo;s own page, for each business you introduced. {cardsWait}
         </p>
-        {joined.length === 0 ? (
+        {toolkit.businesses.length === 0 ? (
           <p className="m-0">None yet.</p>
         ) : (
           <ul className="list-none m-0 p-0 space-y-3">
-            {joined.map((business) => (
+            {toolkit.businesses.map((business) => (
               <li key={business.id} className="space-y-2">
                 <p className="m-0 font-bold">{business.name}</p>
-                <PrintButtons
-                  to={`/ambassador/print/card/${business.id}`}
-                  what={`the counter card for ${business.name}`}
-                />
-                <PrintButtons
-                  to={`/ambassador/print/sticker/${business.id}`}
-                  what={`the window sticker for ${business.name}`}
-                />
+                {business.cardsAllowed === true && business.shopLink ? (
+                  <>
+                    <PrintButtons
+                      to={`/ambassador/print/card/${business.id}`}
+                      what={`the counter card for ${business.name}`}
+                    />
+                    <PrintButtons
+                      to={`/ambassador/print/sticker/${business.id}`}
+                      what={`the window sticker for ${business.name}`}
+                    />
+                  </>
+                ) : (
+                  <p className="m-0">{cardsWait}</p>
+                )}
               </li>
             ))}
           </ul>

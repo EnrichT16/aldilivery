@@ -94,13 +94,20 @@ export function AmbassadorHome(): JSX.Element {
         <div className="space-y-3 border-2 border-highlight rounded-2xl p-4">
           <p className="m-0 font-bold">Status: {ambassador.statusWords}.</p>
           <p className="m-0">{ambassador.applicationMessage}</p>
-          {ambassador.status !== 'declined' && ambassador.status !== 'suspended' && (
+          {ambassador.status === 'declined' && ambassador.canApplyAgain && (
             <Link to="/ambassador/apply" className="control bg-highlight text-on-accent">
-              {ambassador.status === 'documents_needed'
-                ? 'Send my documents'
-                : 'Carry on with my application'}
+              Apply again
             </Link>
           )}
+          {ambassador.status !== 'declined' &&
+            ambassador.status !== 'suspended' &&
+            ambassador.status !== 'removed' && (
+              <Link to="/ambassador/apply" className="control bg-highlight text-on-accent">
+                {ambassador.status === 'documents_needed'
+                  ? 'Send my documents'
+                  : 'Carry on with my application'}
+              </Link>
+            )}
         </div>
       )}
       {ambassador?.joined && ambassador.termsChanged && (
@@ -277,7 +284,8 @@ function Overview({
             {problem}
           </p>
         )}
-        {!approved && (
+        {!approved && ambassador.held && <p className="m-0">{ambassador.heldWords}</p>}
+        {!approved && !ambassador.held && ambassador.status !== 'removed' && (
           <p className="m-0">Withdrawals open once your Ambassador application is approved.</p>
         )}
         {approved && !ambassador.bankReady && (
