@@ -3216,7 +3216,7 @@ export function askOzi(
   turn: number,
   as: OziAsker,
   basket?: string[],
-): Promise<{ reply: string | null; understood?: OziUnderstanding }> {
+): Promise<{ reply: string | null; understood?: OziUnderstanding; awaitingYes?: boolean }> {
   const init: RequestInit = {
     method: 'POST',
     body: JSON.stringify({
@@ -3730,10 +3730,14 @@ export function decideHeldShare(
   decision: 'release' | 'cancel',
   by: string,
 ): Promise<{ message: string }> {
-  return staffRequest(key, `/staff/ambassador-protection/held/${encodeURIComponent(id)}/${decision}`, {
-    method: 'POST',
-    body: JSON.stringify({ by }),
-  });
+  return staffRequest(
+    key,
+    `/staff/ambassador-protection/held/${encodeURIComponent(id)}/${decision}`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ by }),
+    },
+  );
 }
 
 /** "Check this business": the two search links, filled in. Links only. */
@@ -4128,6 +4132,8 @@ export interface LearningRow {
   text: string;
   timesHeard: number;
   lastHeardAt: string;
+  /** Ozi's own suggestion from its weekly review (31 October 2026), for a person to judge. */
+  suggestedReply?: string | null;
 }
 
 export function fetchLearning(key: string): Promise<{ waiting: LearningRow[] }> {

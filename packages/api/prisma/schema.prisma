@@ -1452,6 +1452,10 @@ model LearnedPhrase {
   reply        String?
   decidedBy    String?
   decidedAt    DateTime?
+  /// Ozi's own weekly review (31 October 2026): a better answer it suggests, for a person to
+  /// approve or change. Never used until a person approves it.
+  suggestedReply String?
+  suggestedAt    DateTime?
 
   @@unique([account, text])
   @@index([status, timesHeard])
@@ -1475,10 +1479,17 @@ model OziExchange {
   betterReply     String?
   ratedBy         String?
   ratedAt         DateTime?
+  /// The exact model that answered, when brain is "model" (31 October 2026).
+  model           String?
+  /// Who was speaking: shopper, runner, partner, organisation, staff, owner or visitor.
+  accountKind     String?
+  /// When Ozi's weekly self-review looked at this exchange, so it is never looked at twice.
+  reviewedAt      DateTime?
 
   @@index([at])
   @@index([verdict, at])
   @@index([channel, at])
+  @@index([conversationKey, at])
 }
 
 /// A Runner pressing SOS (Section M): where they are, kept up to date while it is on, and a

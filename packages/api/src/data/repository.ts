@@ -150,6 +150,12 @@ export type CreateOrderItem = Pick<OrderItem, 'name' | 'quantity' | 'estimatedPr
   Partial<Pick<OrderItem, 'catalogueItemId' | 'note' | 'shopPricePence' | 'counterPricePence'>>;
 
 /** The statuses of a booked order (ruling 78) that is not yet being shopped. */
+/**
+ * How an exchange ended badly, for Ozi's weekly self-review (31 October 2026): not answered,
+ * refused, the thing not found, or the person gave up.
+ */
+export const REVIEW_OUTCOMES: readonly string[] = ['unanswered', 'refused', 'not-found', 'stopped'];
+
 export const SCHEDULED_WAITING: readonly OrderStatus[] = [
   'confirmed',
   'paid',
@@ -522,7 +528,10 @@ export interface Repository {
       at: Date,
     ): Promise<void>;
     /** The device ids this account was seen with. */
-    listForAccount(accountKind: DeviceSighting['accountKind'], accountId: string): Promise<string[]>;
+    listForAccount(
+      accountKind: DeviceSighting['accountKind'],
+      accountId: string,
+    ): Promise<string[]>;
   };
 
   /**
@@ -999,6 +1008,8 @@ export interface Repository {
       id: string,
       patch: Pick<LearnedPhrase, 'status' | 'reply' | 'decidedBy' | 'decidedAt'>,
     ): Promise<LearnedPhrase>;
+    /** Ozi's own suggested answer (31 October 2026), kept beside the question for a person. */
+    suggest(id: string, reply: string, at: Date): Promise<LearnedPhrase>;
   };
 
   /**
@@ -1021,6 +1032,16 @@ export interface Repository {
     /** Oldest first, from a moment: the training export. */
     listSince(since: Date, limit: number): Promise<OziExchange[]>;
     counts(): Promise<{ total: number; unrated: number; right: number; wrong: number }>;
+    /** One conversation's latest turns, oldest first, so Ozi follows the thread (31 October 2026). */
+    listConversation(conversationKey: string, limit: number): Promise<OziExchange[]>;
+    /**
+     * For Ozi's weekly self-review: exchanges since a moment, not yet reviewed, that were rated
+     * wrong, went unanswered, or ended badly (refused, not found, stopped); oldest first.
+     */
+    listToReview(since: Date, limit: number): Promise<OziExchange[]>;
+    markReviewed(ids: string[], at: Date): Promise<void>;
+    /** When the self-review last looked at anything, or null. */
+    lastReviewedAt(): Promise<Date | null>;
   };
 
   income: {

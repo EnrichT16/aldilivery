@@ -393,6 +393,17 @@ export interface StoreConfig {
     readonly spokenName: string;
   };
   /**
+   * Ozi's conversations (Anthony, 31 October 2026): how often Ozi reviews its own week of
+   * conversations for better replies (`reviewEveryDays`, at most `reviewMostExchanges` a time,
+   * each a suggestion for a person to approve), and the most turns the language model takes for
+   * one account in a UK day (`maxModelTurnsPerDay`; the owner has no limit).
+   */
+  readonly ozi: {
+    readonly reviewEveryDays: number;
+    readonly reviewMostExchanges: number;
+    readonly maxModelTurnsPerDay: number;
+  };
+  /**
    * Ozi's desk (ruling 74, 22 October 2026): Ozi rings the owner about anything that needs him.
    * Up to `callsInARow` calls `minutesBetweenCalls` apart; unanswered, it waits
    * `hoursBetweenCascades` and starts again, until he answers and every matter is decided or put
@@ -993,7 +1004,10 @@ function httpsTemplate(value: unknown, path: string): string {
  */
 function parseAmbassadorProtection(raw: Unknown): AmbassadorProtectionSettings {
   const d = AMBASSADOR_PROTECTION_DEFAULTS;
-  const words = str(raw['freeJoiningWords'] ?? d.freeJoiningWords, 'ambassadorProtection.freeJoiningWords');
+  const words = str(
+    raw['freeJoiningWords'] ?? d.freeJoiningWords,
+    'ambassadorProtection.freeJoiningWords',
+  );
   if (!/free/i.test(words) || !/never pay an ambassador/i.test(words)) {
     throw new StoreConfigError(
       'ambassadorProtection.freeJoiningWords must say that joining is free and "Never pay an Ambassador".',
@@ -1386,6 +1400,7 @@ export function parseStoreConfig(input: unknown): StoreConfig {
   const admin = root['admin'] === undefined ? {} : object(root['admin'], 'admin');
   const dispatch = root['dispatch'] === undefined ? {} : object(root['dispatch'], 'dispatch');
   const ownerRaw = root['owner'] === undefined ? {} : object(root['owner'], 'owner');
+  const oziRaw = root['ozi'] === undefined ? {} : object(root['ozi'], 'ozi');
   const ownerDeskRaw =
     root['ownerDesk'] === undefined ? {} : object(root['ownerDesk'], 'ownerDesk');
   const dunsRaw = store['dunsNumber'];
@@ -1912,6 +1927,19 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     },
     owner: {
       spokenName: str(ownerRaw['spokenName'] ?? 'Mr. Anthony', 'owner.spokenName'),
+    },
+    ozi: {
+      reviewEveryDays: wholeNumber(oziRaw['reviewEveryDays'] ?? 7, 'ozi.reviewEveryDays', 1),
+      reviewMostExchanges: wholeNumber(
+        oziRaw['reviewMostExchanges'] ?? 50,
+        'ozi.reviewMostExchanges',
+        1,
+      ),
+      maxModelTurnsPerDay: wholeNumber(
+        oziRaw['maxModelTurnsPerDay'] ?? 200,
+        'ozi.maxModelTurnsPerDay',
+        1,
+      ),
     },
     ownerDesk: parseOwnerDesk(ownerDeskRaw),
     companyContact: parseCompanyContact(

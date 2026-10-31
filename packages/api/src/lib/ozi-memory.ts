@@ -87,6 +87,10 @@ export interface Heard {
   said: string;
   brain: Brain;
   outcome: Outcome;
+  /** The exact model that answered, when the brain is the model (31 October 2026). */
+  model?: string | null;
+  /** Who was speaking: shopper, runner, partner, organisation, staff, owner or visitor. */
+  accountKind?: string | null;
 }
 
 /** Writes one exchange, scrubbed, unless it holds a banned word. Never throws. */
@@ -116,6 +120,9 @@ export async function remember(
       betterReply: null,
       ratedBy: null,
       ratedAt: null,
+      model: input.brain === 'model' ? (input.model ?? null) : null,
+      accountKind: input.accountKind ?? null,
+      reviewedAt: null,
     });
   } catch (failure) {
     log?.warn({ err: failure }, "An exchange could not be kept in Ozi's memory.");
@@ -152,5 +159,7 @@ export function trainingLine(row: OziExchange): string {
     conversation: row.conversationKey,
     turn: row.turn,
     at: row.at.toISOString(),
+    model: row.model ?? null,
+    accountKind: row.accountKind ?? null,
   });
 }

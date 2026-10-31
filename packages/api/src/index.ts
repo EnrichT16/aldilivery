@@ -48,6 +48,7 @@ import { refreshPrices } from './services/prices.js';
 import { checkWaiting } from './services/auto-check.js';
 import { fallBackToPhone, sweepOwnerDesk } from './services/owner-desk.js';
 import { sweepEmail } from './services/email-desk.js';
+import { reviewOziWeek } from './services/ozi-review.js';
 import { imapMailbox, mailboxSettings, smtpMailer } from './lib/mailbox.js';
 
 async function main(): Promise<void> {
@@ -165,7 +166,13 @@ async function main(): Promise<void> {
   // The language model behind Ozi (ruling 69), when the key is real. The key never leaves
   // this server, and the provider is named nowhere a person can see.
   const brain = env.languageModelKey
-    ? languageModel({ apiKey: env.languageModelKey, model: env.languageModelName, config })
+    ? languageModel({
+        apiKey: env.languageModelKey,
+        model: env.languageModelName,
+        // The owner's own conversations, on the largest model unless OWNER_LANGUAGE_MODEL says.
+        ownerModel: env.ownerLanguageModelName,
+        config,
+      })
     : null;
 
   const app = await buildApp({
@@ -468,6 +475,16 @@ async function main(): Promise<void> {
       })
       .catch((failure: unknown) => {
         app.log.error({ err: failure }, 'The shop review sweep failed');
+      });
+    // Ozi's weekly self-review (31 October 2026): once every `ozi.reviewEveryDays`, better
+    // replies to the week's exchanges that went wrong, as suggestions on the Learning list for a
+    // person to approve. Never applied by itself; running again changes nothing.
+    reviewOziWeek(app.ctx, app.log)
+      .then((report) => {
+        if (report.reviewed > 0) app.log.info(report, "Ozi's weekly self-review");
+      })
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, "Ozi's weekly self-review failed");
       });
   }, 3_600_000);
   retentionSweep.unref();

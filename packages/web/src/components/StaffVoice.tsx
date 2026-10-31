@@ -44,7 +44,7 @@ import {
 import { money } from '../lib/money';
 import { useOzi } from '../state/ozi';
 import { nameHeardIn } from '../voice/name';
-import { phraseReply } from '../voice/phrases';
+import { converse, CONVERSE_WAIT_MS, OWNER_CONVERSE_WAIT_MS, phraseReply } from '../voice/phrases';
 import {
   analyticsWords,
   cancellationsWords,
@@ -68,6 +68,8 @@ import {
 } from '../voice/staff-voice';
 
 const YES = /\b(yes|yeah|yep|correct|that'?s right|go ahead|confirm|do it|ok|okay)\b/i;
+/** After Ozi answers, what is said next is taken as said to Ozi for this long, without its name. */
+const CONVERSING_MS = 45_000;
 
 const DECISION_WORDS = {
   no_fault: 'nobody was at fault',
@@ -185,6 +187,7 @@ export function StaffVoice({
   };
   const turn = useRef(0);
   const acknowledge = useRef(false);
+  const conversingUntil = useRef(0);
 
   useEffect(() => {
     const { ozi: voice } = latest.current;
@@ -342,6 +345,35 @@ export function StaffVoice({
       });
     }
 
+    /**
+     * One turn of a conversation with the server (31 October 2026). When it reads a decision
+     * back (the owner's desk, Rule One), his very next words go straight back to it, so only
+     * that answer can be the yes.
+     */
+    function talk(text: string): void {
+      const { staffKey: key, areas: mine, address: owner } = latest.current;
+      const as = { kind: 'staff', key } as const;
+      void (async () => {
+        const answer = await latest.current.ozi.think(
+          converse(text, turn.current, as, owner ? OWNER_CONVERSE_WAIT_MS : CONVERSE_WAIT_MS),
+        );
+        turn.current += 1;
+        if (!answer?.reply) {
+          say(`Sorry, I didn't catch that. ${help(mine)}`);
+          return;
+        }
+        conversingUntil.current = Date.now() + CONVERSING_MS;
+        if (answer.awaitingYes) {
+          latest.current.ozi.listenFor(answer.reply, (reply) => {
+            talk(reply);
+            if (YES.test(reply)) void load();
+          });
+          return;
+        }
+        void latest.current.ozi.say(answer.reply);
+      })();
+    }
+
     function needs(area: StaffArea): boolean {
       if (cursor.current?.area === area && current()) return true;
       say(
@@ -356,18 +388,20 @@ export function StaffVoice({
       if (!command) {
         // An everyday phrase for this account, from the server (ruling 44): the owner's has
         // everybody's. Nothing said in the admin panel is ever taken as a shopping order.
-        const named = nameHeardIn(text);
+        // Anything else said to Ozi by name, or soon after Ozi answered, is a real conversation
+        // (31 October 2026): the server knows who is speaking, and for the owner looks at his
+        // desk; "One moment" shows meanwhile.
+        const named = nameHeardIn(text) || Date.now() < conversingUntil.current;
         void (async () => {
           const as = { kind: 'staff', key } as const;
-          const reply =
-            (await phraseReply(text, turn.current, 'exact', as)) ??
-            (named ? await phraseReply(text, turn.current, 'within', as) : null);
-          if (reply) {
+          const everyday = await phraseReply(text, turn.current, 'exact', as);
+          if (everyday) {
             turn.current += 1;
-            void latest.current.ozi.say(reply);
-          } else if (named) {
-            say(`Sorry, I didn't catch that. ${help(mine)}`);
+            void latest.current.ozi.say(everyday);
+            return;
           }
+          if (!named) return;
+          talk(text);
         })();
         return true;
       }
@@ -484,6 +518,12 @@ export function StaffVoice({
                   approve ? 'Accepted. It is live now.' : 'Turned down.',
                 ),
             );
+            return true;
+          }
+          // The owner, with nothing being read to him: "approve the new shop" is about his desk,
+          // so it goes to the conversation, which reads it back and waits for his yes.
+          if (latest.current.address && !(cursor.current?.area === 'documents' && current())) {
+            talk(text);
             return true;
           }
           if (!needs('documents')) return true;

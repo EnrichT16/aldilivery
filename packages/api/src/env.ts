@@ -149,6 +149,11 @@ export interface Env {
   languageModelKey: string | undefined;
   languageModelName: string | undefined;
   /**
+   * The model Ozi uses when the owner speaks (Anthony, 31 October 2026): the largest current one
+   * unless OWNER_LANGUAGE_MODEL names another. Everybody else stays on LANGUAGE_MODEL.
+   */
+  ownerLanguageModelName: string | undefined;
+  /**
    * The demo sign-in for app store reviewers (ruling 60): one telephone number that accepts one
    * fixed code without a text. Both, or it is off. The code is a secret: environment only, never
    * in the repository and never in a log.
@@ -325,6 +330,7 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     oluomaVoiceKey: realValue(source['OLUOMA_VOICE_KEY']),
     languageModelKey: realValue(source['LANGUAGE_MODEL_KEY']),
     languageModelName: realValue(source['LANGUAGE_MODEL']?.trim() || undefined),
+    ownerLanguageModelName: realValue(source['OWNER_LANGUAGE_MODEL']?.trim() || undefined),
     demoSignInPhone: realValue(source['DEMO_SIGNIN_PHONE']?.trim() || undefined),
     demoSignInCode: realValue(source['DEMO_SIGNIN_CODE']?.trim() || undefined),
     emailImapHost: realValue(source['EMAIL_IMAP_HOST']?.trim() || undefined),

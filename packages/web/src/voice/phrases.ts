@@ -17,6 +17,13 @@ import { nameHeardIn } from './name';
 
 /** How long Ozi waits for the server before going on without an everyday reply. */
 const WAIT_MS = 2500;
+/**
+ * How long Ozi waits for a sentence said to it by name, which the server may answer with the
+ * language model (31 October 2026): about 8 seconds, and 12 for the owner, whose turns may look
+ * things up first. "One moment" shows meanwhile; too long, and Ozi goes on as before.
+ */
+export const CONVERSE_WAIT_MS = 8000;
+export const OWNER_CONVERSE_WAIT_MS = 12_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
   return new Promise((resolve) => {
@@ -85,6 +92,8 @@ export async function phraseReply(
   turn: number,
   mode: 'exact' | 'within',
   as: OziAsker = { kind: 'shopper' },
+  /** How long to wait for a sentence looked within; the conversation's own wait by default. */
+  waitMs: number = CONVERSE_WAIT_MS,
 ): Promise<string | null> {
   if (mode === 'exact') {
     const fingerprints = await withTimeout(knownFor(as), WAIT_MS, null);
@@ -95,7 +104,26 @@ export async function phraseReply(
   }
   return withTimeout(
     askOzi(text, mode, turn, as).then(({ reply }) => reply),
-    WAIT_MS,
+    mode === 'within' ? waitMs : WAIT_MS,
+    null,
+  );
+}
+
+/**
+ * The whole answer to a sentence said to Ozi (31 October 2026): the reply, and whether a decision
+ * was read back and waits for a yes (the owner's desk, Rule One). Null when the server was slow.
+ */
+export function converse(
+  text: string,
+  turn: number,
+  as: OziAsker,
+  waitMs: number = CONVERSE_WAIT_MS,
+): Promise<{ reply: string | null; awaitingYes?: boolean } | null> {
+  return withTimeout(
+    askOzi(text, 'within', turn, as).then(({ reply, awaitingYes }) =>
+      awaitingYes ? { reply, awaitingYes } : { reply },
+    ),
+    waitMs,
     null,
   );
 }
@@ -111,12 +139,14 @@ export function everydayOr(
   as: OziAsker,
   say: (words: string) => void,
   notUnderstood: string,
+  /** Shows "One moment" while a sentence said to Ozi is answered (31 October 2026). */
+  think: (work: Promise<string | null>) => Promise<string | null> = (work) => work,
 ): void {
   const named = nameHeardIn(text);
   void (async () => {
     const reply =
       (await phraseReply(text, turn.current, 'exact', as)) ??
-      (named ? await phraseReply(text, turn.current, 'within', as) : null);
+      (named ? await think(phraseReply(text, turn.current, 'within', as)) : null);
     if (reply) {
       turn.current += 1;
       say(reply);

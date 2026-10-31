@@ -125,6 +125,7 @@ export function OrganisationDashboard(): JSX.Element {
           { kind: 'business' },
           say,
           `Sorry, I didn't catch that. ${organisationHelp()}`,
+          (work) => latest.current.ozi.think(work),
         );
         return true;
       }

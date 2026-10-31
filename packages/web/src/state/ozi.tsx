@@ -17,6 +17,7 @@ import { storeConfig } from '../config';
 import { browseNoun, browsePath, browseQuery, emptyWords, postcodeIn } from '../lib/browse';
 import { inPairs, pairsAloud } from '../lib/phone-aloud';
 import {
+  businessToken,
   cancelPlan,
   closeAccount,
   fetchMyOrder,
@@ -218,6 +219,13 @@ interface OziValue {
   announce: boolean;
   /** The last thing Ozi heard. */
   heard: string;
+  /**
+   * Ozi is working out an answer (31 October 2026): "One moment" shows on its button and is
+   * announced, so nobody wonders whether they were heard.
+   */
+  waiting: boolean;
+  /** Shows "One moment" while `work` runs, and gives back what it gives. */
+  think: <T>(work: Promise<T>) => Promise<T>;
   /** Say something as Ozi: shown, spoken unless talking is off, announced when not spoken. */
   say: (text: string) => Promise<SpeakOutcome>;
   /** Press of the button: pause when listening, listen when paused, stop when talking. */
@@ -281,6 +289,20 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   const [waitingForTouch, setWaitingForTouch] = useState(false);
   const [micNote, setMicNote] = useState<MicNote | null>(null);
   const [captionOff, setCaptionOff] = useState(false);
+  // "One moment" while the server works an answer out (31 October 2026); counted, so two waits
+  // at once end only when both have.
+  const [waiting, setWaiting] = useState(false);
+  const waits = useRef(0);
+  const think = useCallback(async <T,>(work: Promise<T>): Promise<T> => {
+    waits.current += 1;
+    setWaiting(true);
+    try {
+      return await work;
+    } finally {
+      waits.current -= 1;
+      if (waits.current === 0) setWaiting(false);
+    }
+  }, []);
   const browser = useMemo(() => currentBrowser(), []);
   // Whether listening may start without a tap: false until the microphone has been allowed
   // once this visit, when the engine says the first listening needs one (ruling 62).
@@ -546,6 +568,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   const ordering = useVoiceOrdering(
     useCallback((text: string) => sayRef.current(text), []),
     useCallback(() => offerAccountRef.current('To order, you need an account first. '), []),
+    think,
   );
 
   const wake = useCallback(() => {
@@ -919,7 +942,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       // Words not about an order are not answered unless they were said to Ozi: Ozi does not
       // talk back to the television.
       if (nameHeardIn(text)) {
-        const everyday = await phraseReply(text, phraseTurn.current, 'within', as);
+        const everyday = await think(phraseReply(text, phraseTurn.current, 'within', as));
         phraseTurn.current += 1;
         await sayRef.current(
           everyday ??
@@ -1073,6 +1096,24 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
    * offers the phone. Anything else is answered as if no question had been asked.
    */
   offerAccountRef.current = (lead = '', doors = false) => {
+    // Never to somebody already signed in (31 October 2026: the owner, on his own dashboard, was
+    // asked whether he would like to create an account): staff, a shop or an organisation, or a
+    // Runner, on their own pages or with their own sign-in.
+    if (
+      accountRef.current.shopper ||
+      businessToken() !== '' ||
+      readRunnerToken() !== null ||
+      /^\/(staff|runner|partner|business|organisation(?!s)|join\/organisation)/.test(
+        window.location.pathname,
+      )
+    ) {
+      void sayRef.current(
+        lead.startsWith('To order')
+          ? "You're signed in already. To order shopping, use a Shopper account in the shop."
+          : 'How can I help?',
+      );
+      return;
+    }
     captureRef.current = (answer) => {
       const said = answer.toLowerCase();
       if (SIGN_IN.test(said) || /\b(existing|already)\b/.test(said)) {
@@ -1462,6 +1503,8 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       said,
       announce,
       heard,
+      waiting,
+      think,
       say: (text: string) => sayRef.current(text),
       press,
       mute,
@@ -1484,6 +1527,8 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       said,
       announce,
       heard,
+      waiting,
+      think,
       press,
       mute,
       wake,

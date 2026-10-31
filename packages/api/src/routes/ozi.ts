@@ -16,7 +16,17 @@ import type { LearnedPhrase, PartnerShop } from '../domain.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../errors.js';
 import { businessActor } from '../lib/business.js';
 import { bannedList, containsBanned, fitToKeep } from '../lib/banned.js';
-import { itemWords } from '../lib/language-model.js';
+import { itemWords, type Speaker } from '../lib/language-model.js';
+import {
+  carryOutDecision,
+  isClearYes,
+  modelTurnsOf,
+  ownerTools,
+  PendingDecisions,
+  recentTurns,
+  SIMPLER_TODAY,
+  whoIsSpeaking,
+} from '../lib/ozi-conversation.js';
 import {
   BRAINS,
   CHANNELS,
@@ -135,6 +145,8 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
     said: string | null,
     brain: Brain,
     outcome: Outcome,
+    /** Who was speaking, and the exact model when it answered (31 October 2026). */
+    extra: { speaker?: Speaker; model?: string | null } = {},
   ): void {
     void remember(
       app.ctx,
@@ -147,11 +159,19 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         said: said ?? '',
         brain,
         outcome,
+        accountKind: extra.speaker?.kind ?? null,
+        model: extra.model ?? null,
       },
       request.log,
       banned,
     );
   }
+
+  // The day's model turns for each account, and the owner's one decision waiting for his yes
+  // (31 October 2026), kept by this server.
+  const modelTurns = modelTurnsOf(app.ctx);
+  const toldSimpler = new Set<string>();
+  const pendingDecisions = new PendingDecisions();
 
   const names = {
     product: config.productName,
@@ -236,7 +256,33 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
   app.post('/ozi/reply', async (request) => {
     const input = body.parse(request.body ?? {});
     const { text, mode, turn, conversation } = input;
-    const account = await accountOf(request);
+    // Who is speaking comes from the sign-in alone, never from the request's words (31 October
+    // 2026): the owner, staff, a partner, an organisation, a Runner, a Shopper or a visitor.
+    const { account, speaker, allowanceKey } = await whoIsSpeaking(request);
+    const kept = (said: string | null, brain: Brain, outcome: Outcome, model?: string | null) =>
+      keep(request, account, conversation, turn, text, said, brain, outcome, { speaker, model });
+
+    // Rule One for the owner's desk by voice (31 October 2026): a decision read back last turn is
+    // carried out only on a clear yes now, and forgotten on anything else.
+    if (account === 'owner' && mode === 'within' && conversation) {
+      const pending = pendingDecisions.take(conversation, Date.now());
+      if (pending) {
+        if (isClearYes(text)) {
+          const outcome = await carryOutDecision(app.ctx, pending, request.log, {
+            ip: request.ip ?? '',
+          });
+          kept(outcome.words, 'flow', 'answered');
+          return { reply: outcome.words };
+        }
+        if (/^\s*(no|nope|no thanks?|no thank you|don'?t|leave it|not now|cancel)\b/i.test(text)) {
+          const words = "All right, I haven't done it.";
+          kept(words, 'flow', 'stopped');
+          return { reply: words };
+        }
+        // Anything else: nothing is done, and what he said is answered as itself.
+      }
+    }
+
     // Which shops are on here, and whether there is a barber (ruling 65): answered from what is
     // listed right now, in the words of the phrases file, never with a shop's name in code.
     const live: LiveBlanks = {};
@@ -256,18 +302,20 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
           },
         );
         if (reply) {
-          keep(request, account, conversation, turn, text, reply, 'shops', 'answered');
+          kept(reply, 'shops', 'answered');
           return { reply };
         }
       }
     }
-    const reply = phraseReply(text, turn, mode, account, config, book, live);
-    if (reply) {
-      keep(request, account, conversation, turn, text, reply, 'phrases', 'answered');
-      return { reply };
+    // The phrase book first, but only for a clear, known phrase: the whole sentence (31 October
+    // 2026). Questions, chat, worries and anything open go to the model below.
+    const exact = phraseReply(text, turn, 'exact', account, config, book, live);
+    if (exact) {
+      kept(exact, 'phrases', 'answered');
+      return { reply: exact };
     }
     // An exact look-up that found nothing is the app checking before it shops: not a turn.
-    if (mode !== 'within') return { reply };
+    if (mode !== 'within') return { reply: null };
     // Said to Ozi, and not understood. Swearing is answered kindly and forgotten at once;
     // anything else fit to keep goes to the list for a person to approve an answer.
     if (containsBanned(text, banned)) {
@@ -286,36 +334,82 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
           request.log.warn({ err: failure }, 'Could not keep an unanswered question.');
         });
     };
-    // The language model behind Ozi (ruling 69): asked only now, when the phrase book has nothing. It
-    // either hears shopping in the words, which the app shops for as it would any list, or
-    // gives one short answer within Ozi's purpose. Its answers still go to the Learning list,
-    // so a person approves them before they become phrases. Too slow, and it is as if absent.
-    const understood = await app.ctx.brain?.understand({
-      text,
-      account,
-      channel: 'app',
-      ...(input.basket ? { basket: input.basket } : {}),
-    });
-    if (understood && (understood.kind === 'items' || understood.kind === 'remove')) {
-      if (understood.items.length > 0) {
-        keep(
-          request,
-          account,
-          conversation,
-          turn,
-          text,
-          `[${understood.kind}: ${understood.items.map(itemWords).join(', ')}]`,
-          'model',
-          'answered',
-        );
-        return { reply: null, understood };
-      }
-    } else if (understood?.reply && !containsBanned(understood.reply, banned)) {
-      keep(request, account, conversation, turn, text, understood.reply, 'model', 'answered');
+    /** The phrase book's looser match, when the model is away, slow or used up for today. */
+    const looser = (lead = ''): { reply: string | null } | null => {
+      const reply = phraseReply(text, turn, 'within', account, config, book, live);
+      if (!reply && !lead) return null;
+      const words = `${lead}${reply ?? ''}`.trim();
+      kept(words, reply ? 'phrases' : 'flow', 'answered');
+      return { reply: words };
+    };
+
+    const brain = app.ctx.brain;
+    const owner = account === 'owner';
+    // The cost guard (31 October 2026): at most `ozi.maxModelTurnsPerDay` model turns a day for
+    // each account; the owner has no limit. Past it, Ozi says so once and carries on without.
+    if (brain && !modelTurns.take(allowanceKey, config.ozi.maxModelTurnsPerDay, now(), owner)) {
+      const day = now().toISOString().slice(0, 10);
+      const first = !toldSimpler.has(`${day}:${allowanceKey}`);
+      if (first) toldSimpler.add(`${day}:${allowanceKey}`);
+      const answered = looser(first ? `${SIMPLER_TODAY} ` : '');
+      if (answered) return answered;
+      kept(null, 'none', 'unanswered');
       keepForLearning();
-      return { reply: understood.reply, understood };
+      return { reply: null };
     }
-    keep(request, account, conversation, turn, text, null, 'none', 'unanswered');
+
+    const history = brain && conversation ? await recentTurns(app.ctx, conversation) : [];
+
+    // The owner on the largest model, with his desk tools (31 October 2026). It may read; a
+    // decision is only read back here, and waits for his yes in his next turn.
+    if (owner && brain?.talkWithOwner) {
+      const talk = await brain.talkWithOwner({
+        text,
+        channel: 'app',
+        history,
+        tools: ownerTools(app.ctx),
+      });
+      if (talk && !containsBanned(talk.reply, banned)) {
+        if (talk.proposal && conversation) {
+          pendingDecisions.set(conversation, { ...talk.proposal, at: Date.now() });
+        }
+        kept(talk.reply, 'model', 'answered', brain.ownerModel ?? brain.model);
+        return talk.proposal && conversation
+          ? { reply: talk.reply, awaitingYes: true }
+          : { reply: talk.reply };
+      }
+    } else if (brain) {
+      // Everybody else (ruling 69, now a conversation): it either hears shopping in the words,
+      // which the app shops for as it would any list, or answers, knowing who is speaking and
+      // what was said before. Its answers still go to the Learning list. Too slow, and it is as
+      // if absent.
+      const understood = await brain.understand({
+        text,
+        account,
+        channel: 'app',
+        who: speaker,
+        history,
+        ...(input.basket ? { basket: input.basket } : {}),
+      });
+      if (understood && (understood.kind === 'items' || understood.kind === 'remove')) {
+        if (understood.items.length > 0) {
+          kept(
+            `[${understood.kind}: ${understood.items.map(itemWords).join(', ')}]`,
+            'model',
+            'answered',
+            brain.model,
+          );
+          return { reply: null, understood };
+        }
+      } else if (understood?.reply && !containsBanned(understood.reply, banned)) {
+        kept(understood.reply, 'model', 'answered', brain.model);
+        keepForLearning();
+        return { reply: understood.reply, understood };
+      }
+    }
+    const fallback = looser();
+    if (fallback) return fallback;
+    kept(null, 'none', 'unanswered');
     keepForLearning();
     return { reply: null };
   });
@@ -327,7 +421,7 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
    */
   app.post('/ozi/heard', async (request) => {
     const input = heardBody.parse(request.body ?? {});
-    const account = await accountOf(request);
+    const { account, speaker } = await whoIsSpeaking(request);
     await remember(
       app.ctx,
       {
@@ -339,6 +433,7 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         said: input.said,
         brain: input.brain,
         outcome: input.outcome,
+        accountKind: speaker.kind,
       },
       request.log,
       banned,
@@ -365,6 +460,8 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         text: row.text,
         timesHeard: row.timesHeard,
         lastHeardAt: row.lastHeardAt,
+        // Ozi's own suggestion from its weekly review (31 October 2026), for a person to judge.
+        suggestedReply: row.suggestedReply ?? null,
       })),
     };
   });
@@ -436,6 +533,8 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         verdict: row.verdict,
         betterReply: row.betterReply,
         ratedBy: row.ratedBy,
+        model: row.model ?? null,
+        accountKind: row.accountKind ?? null,
       })),
     };
   });

@@ -101,7 +101,7 @@ import type {
   CreateShopper,
   Repository,
 } from './repository.js';
-import { SCHEDULED_WAITING } from './repository.js';
+import { REVIEW_OUTCOMES, SCHEDULED_WAITING } from './repository.js';
 
 const id = (): string => randomUUID();
 
@@ -2330,6 +2330,35 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           wrong: count('wrong'),
         };
       },
+      async listConversation(conversationKey, limit) {
+        return exchanges
+          .filter((row) => row.conversationKey === conversationKey)
+          .sort((a, b) => a.at.getTime() - b.at.getTime())
+          .slice(-limit)
+          .map(clone);
+      },
+      async listToReview(since, limit) {
+        return exchanges
+          .filter(
+            (row) =>
+              row.at >= since &&
+              !row.reviewedAt &&
+              (row.verdict === 'wrong' || REVIEW_OUTCOMES.includes(row.outcome)),
+          )
+          .sort((a, b) => a.at.getTime() - b.at.getTime())
+          .slice(0, limit)
+          .map(clone);
+      },
+      async markReviewed(ids, at) {
+        for (const row of exchanges) if (ids.includes(row.id)) row.reviewedAt = at;
+      },
+      async lastReviewedAt() {
+        let latest: Date | null = null;
+        for (const row of exchanges) {
+          if (row.reviewedAt && (!latest || row.reviewedAt > latest)) latest = row.reviewedAt;
+        }
+        return latest;
+      },
     },
 
     learned: {
@@ -2374,6 +2403,13 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         const row = learned.find((candidate) => candidate.id === key);
         if (!row) throw new NotFoundError('Learned phrase', key);
         Object.assign(row, patch);
+        return clone(row);
+      },
+      async suggest(key, reply, at) {
+        const row = learned.find((candidate) => candidate.id === key);
+        if (!row) throw new NotFoundError('Learned phrase', key);
+        row.suggestedReply = reply;
+        row.suggestedAt = at;
         return clone(row);
       },
     },

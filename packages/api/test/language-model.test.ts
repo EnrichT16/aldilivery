@@ -10,13 +10,19 @@ import { loadStoreConfig } from '@aldilivery/core/node';
 import {
   documentInstructions,
   emailInstructions,
+  fillKnowledge,
   instructions,
+  knowledgeText,
+  ownerInstructions,
   productInstructions,
   itemWords,
   languageModel,
+  readKnowledge,
+  safeSpoken,
   serviceFacts,
   ukNow,
   type BrainClient,
+  type OwnerTools,
 } from '../src/lib/language-model.js';
 
 const config = loadStoreConfig();
@@ -54,7 +60,9 @@ describe('the instructions', () => {
   it('carry the service facts from configuration, and answer only from them', () => {
     const text = instructions(config);
     expect(text).toContain(serviceFacts(config));
-    expect(text).toMatch(/only from these facts; if they don't cover it, say you're not sure/);
+    expect(text).toMatch(
+      /only from these facts and what you know above; if they don't cover it, say you're not sure/,
+    );
     const facts = serviceFacts(config);
     const money = (pence: number) => `£${(pence / 100).toFixed(2)}`;
     expect(facts).toContain(money(config.extras.membershipPence));
@@ -405,5 +413,242 @@ describe('sorting an email (ruling 76)', () => {
     expect(text).toContain(config.productName);
     expect(text).toContain(serviceFacts(config));
     expect(text).not.toMatch(/anthropic|claude/i);
+  });
+});
+
+describe('what Ozi knows (docs/ozi-knowledge.md, 31 October 2026)', () => {
+  const raw = readKnowledge();
+
+  it('is there, and carries no store figure or name written in: every one is a blank', () => {
+    expect(raw.length).toBeGreaterThan(2000);
+    const prose = raw
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/\{\{[^}]*\}\}/g, '')
+      // Numbered steps are not figures.
+      .replace(/^\d+\. /gm, '');
+    expect(prose).not.toMatch(/£\s?\d/);
+    expect(prose).not.toMatch(/\b\d+p\b/);
+    expect(prose).not.toMatch(/\d\s?%/);
+    // The only figure written in is the emergency number.
+    for (const figure of prose.match(/\d+/g) ?? []) expect(figure).toBe('999');
+    for (const name of [
+      config.productName,
+      config.store.displayName,
+      config.store.legalEntityName,
+      config.owner.spokenName,
+      config.contact.telephonePlaceholder,
+      config.contact.email,
+    ]) {
+      expect(prose).not.toContain(name);
+    }
+    expect(prose).not.toMatch(new RegExp(`\\b${config.assistantName}\\b`));
+    expect(prose).not.toMatch(/anthropic|claude|AI model/i);
+  });
+
+  it('is filled from configuration, every blank resolved, the comment taken out', () => {
+    const text = knowledgeText(config, raw);
+    expect(text).not.toMatch(/\{\{|\}\}|<!--/);
+    expect(text).toContain(config.productName);
+    expect(text).toContain(config.owner.spokenName);
+    const money = (pence: number) => `£${(pence / 100).toFixed(2)}`;
+    expect(text).toContain(money(config.fees.runnerPaymentPence));
+    expect(text).toContain(money(config.restaurants.minimumOrderPence));
+    expect(text).toContain(`${config.scheduled.maxDaysAhead} days`);
+    expect(() => fillKnowledge('{{money:fees.noSuchThing}}', config)).toThrow(/names nothing/);
+  });
+
+  it('goes into the standing instructions with how Ozi speaks, for everyone and the owner', () => {
+    const knowledge = knowledgeText(config, raw);
+    for (const text of [instructions(config, knowledge), ownerInstructions(config, knowledge)]) {
+      expect(text).toContain(knowledge);
+      expect(text).toMatch(/Warm, patient and kind/);
+      expect(text).toMatch(/I don't know, I'll ask a person/);
+      expect(text).toMatch(/Never talk about insurance/);
+      expect(text).not.toMatch(/AI model|anthropic|claude/i);
+    }
+    expect(ownerInstructions(config, knowledge)).toContain(
+      `Always address him as ${config.owner.spokenName}`,
+    );
+  });
+});
+
+describe('what Ozi will never say (31 October 2026)', () => {
+  const safe = `I'm ${config.assistantName}, the assistant of ${config.productName}. How can I help you?`;
+
+  it('replaces a reply naming its maker, a model or a vendor with a safe line', () => {
+    for (const said of [
+      'I was made by Anthropic.',
+      "I'm Claude, nice to meet you.",
+      'I run on a large language model.',
+      'This is the Sonnet model speaking.',
+      'I am an AI model built by OpenAI.',
+    ]) {
+      expect(safeSpoken(said, config)).toBe(safe);
+    }
+    expect(safeSpoken('Your shopping is on its way.', config)).toBe('Your shopping is on its way.');
+  });
+
+  it('sends insurance to customer service, and never reads a long number out', () => {
+    expect(safeSpoken('Your insurance covers that.', config)).toMatch(/customer service/);
+    expect(safeSpoken('Your insurance certificate is waiting.', config, { owner: true })).toMatch(
+      /insurance certificate/,
+    );
+    expect(safeSpoken('Ring 01634 980059 any time.', config)).not.toMatch(/\d{4}/);
+  });
+
+  it('replaces such a reply from the model itself before anyone hears it', async () => {
+    const brain = languageModel(
+      { apiKey: 'test', config },
+      stubClient(async () =>
+        message({ kind: 'question', items: [], reply: 'I am Claude, made by Anthropic.' }),
+      ),
+    );
+    const heard = await brain.understand({
+      text: 'who made you',
+      account: 'shopper',
+      channel: 'app',
+    });
+    expect(heard?.reply).toBe(safe);
+  });
+});
+
+describe('a real conversation (31 October 2026)', () => {
+  it('knows who is speaking and the thread so far, after the cached instructions', async () => {
+    const sent: Array<Record<string, unknown>> = [];
+    const brain = languageModel({ apiKey: 'test', config, knowledge: readKnowledge() }, {
+      messages: {
+        create: async (body: Record<string, unknown>) => {
+          sent.push(body);
+          return message({
+            kind: 'chatter',
+            items: [],
+            reply: 'Hello Margaret, lovely to hear from you.',
+          });
+        },
+      },
+    } as unknown as BrainClient);
+    const heard = await brain.understand({
+      text: 'hello again',
+      account: 'shopper',
+      channel: 'app',
+      who: { kind: 'shopper', firstName: 'Margaret' },
+      history: [{ heard: 'is the milk fresh', said: 'Yes, the Runner picks it fresh.' }],
+    });
+    expect(heard?.reply).toBe('Hello Margaret, lovely to hear from you.');
+    const body = sent[0]!;
+    expect(body['model']).toBe('claude-sonnet-5-5');
+    expect(body['max_tokens']).toBe(2000);
+    expect(body['output_config']).toMatchObject({ effort: 'low' });
+    for (const banned of ['thinking', 'temperature', 'top_p', 'top_k']) {
+      expect(body).not.toHaveProperty(banned);
+    }
+    const system = body['system'] as Array<{ text: string; cache_control?: unknown }>;
+    expect(system[system.length - 1]!.cache_control).toEqual({ type: 'ephemeral' });
+    expect(system[0]!.text).not.toContain('Margaret');
+    const turn = (body['messages'] as Array<{ content: string }>)[0]!.content;
+    expect(turn).toMatch(/signed-in Shopper called Margaret\. Never offer them an account/);
+    expect(turn).toContain(
+      `They: is the milk fresh\n${config.assistantName}: Yes, the Runner picks it fresh.`,
+    );
+  });
+
+  it('the owner: the larger model, his tools, and a decision only read back, never done', async () => {
+    const sent: Array<Record<string, unknown>> = [];
+    const replies = [
+      {
+        stop_reason: 'tool_use',
+        content: [{ type: 'tool_use', id: 't1', name: 'needs_you', input: {} }],
+      },
+      {
+        stop_reason: 'tool_use',
+        content: [
+          {
+            type: 'tool_use',
+            id: 't2',
+            name: 'decide_matter',
+            input: { matter_id: 'm1', choice: 'approve' },
+          },
+          {
+            type: 'tool_use',
+            id: 't3',
+            name: 'decide_matter',
+            input: { matter_id: 'm2', choice: 'approve' },
+          },
+        ],
+      },
+    ];
+    const brain = languageModel({ apiKey: 'test', config }, {
+      messages: {
+        create: async (body: Record<string, unknown>) => {
+          sent.push(structuredClone(body));
+          return replies.shift();
+        },
+      },
+    } as unknown as BrainClient);
+    expect(brain.ownerModel).toBe('claude-opus-5-5');
+    const proposed: string[] = [];
+    const tools: OwnerTools = {
+      needsYou: async () => ({ matters: [{ id: 'm1', summary: 'A new shop.' }] }),
+      todaySummary: async () => ({}),
+      readApplication: async () => ({}),
+      propose: async (id, choice) => {
+        proposed.push(`${id}:${choice}`);
+        return { ok: true, readBack: `I will ${choice} ${id}. Say yes, or no.` };
+      },
+    };
+    const talk = await brain.talkWithOwner!({
+      text: 'approve the new shop, and the other one',
+      channel: 'app',
+      history: [],
+      tools,
+    });
+    // One decision for one yes: the second was refused, and nothing was done.
+    expect(proposed).toEqual(['m1:approve']);
+    expect(talk).toEqual({
+      reply: 'I will approve m1. Say yes, or no.',
+      proposal: {
+        matterId: 'm1',
+        choice: 'approve',
+        readBack: 'I will approve m1. Say yes, or no.',
+      },
+    });
+    const first = sent[0]!;
+    expect(first['model']).toBe('claude-opus-5-5');
+    expect(first['output_config']).toEqual({ effort: 'medium' });
+    expect(first['tool_choice']).toEqual({ type: 'auto' });
+    expect(first).not.toHaveProperty('thinking');
+    const tools0 = first['tools'] as Array<{ name: string; strict: boolean }>;
+    expect(tools0.map((tool) => tool.name)).toEqual([
+      'needs_you',
+      'today_summary',
+      'read_application',
+      'decide_matter',
+    ]);
+    expect(tools0.every((tool) => tool.strict)).toBe(true);
+    // The tool's answer went back to the model as a result, after its own call.
+    const second = sent[1]!['messages'] as Array<{ role: string; content: unknown }>;
+    expect(second.map((entry) => entry.role)).toEqual(['user', 'assistant', 'user']);
+    expect(JSON.stringify(second[2]!.content)).toContain('A new shop.');
+  });
+
+  it('the owner hears a safe line when the model declines, and nothing when it is too slow', async () => {
+    const tools: OwnerTools = {
+      needsYou: async () => ({}),
+      todaySummary: async () => ({}),
+      readApplication: async () => ({}),
+      propose: async () => ({ ok: false, why: 'no' }),
+    };
+    const declined = languageModel(
+      { apiKey: 'test', config },
+      stubClient(async () => ({ stop_reason: 'refusal', content: [] })),
+    );
+    expect(
+      (await declined.talkWithOwner!({ text: 'x', channel: 'app', history: [], tools }))?.reply,
+    ).toMatch(/I'll leave it for a person/);
+    const slow = languageModel(
+      { apiKey: 'test', config },
+      stubClient(() => Promise.reject(new Error('timed out'))),
+    );
+    expect(await slow.talkWithOwner!({ text: 'x', channel: 'app', history: [], tools })).toBeNull();
   });
 });

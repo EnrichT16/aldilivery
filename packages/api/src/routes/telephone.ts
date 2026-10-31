@@ -54,6 +54,7 @@ import {
 import { itemWords } from '../lib/language-model.js';
 import { remember, spokenIn, type Brain, type Outcome } from '../lib/ozi-memory.js';
 import { phraseReply } from '../lib/phrases.js';
+import { modelTurnsOf, recentTurns } from '../lib/ozi-conversation.js';
 import {
   carriedPence,
   orderItemFor,
@@ -104,7 +105,13 @@ interface Remembered {
 declare module 'fastify' {
   interface FastifyRequest {
     /** Which part of Ozi answered this turn of a call, and how it went, for Ozi's memory. */
-    oziNote?: { brain: Brain; outcome: Outcome };
+    oziNote?: {
+      brain: Brain;
+      outcome: Outcome;
+      /** The exact model, when it answered, and who was calling (31 October 2026). */
+      model?: string | null;
+      accountKind?: 'shopper' | 'visitor';
+    };
   }
 }
 
@@ -225,6 +232,8 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
           said: spokenIn(twiml),
           brain: note?.brain ?? 'flow',
           outcome: note?.outcome ?? (twiml.includes('<Hangup/>') ? 'ended' : 'asked'),
+          model: note?.model ?? null,
+          accountKind: note?.accountKind ?? null,
         },
         request.log,
       );
@@ -801,10 +810,12 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
           // Not shopping at all, perhaps: "how are you", "what do you deliver", "thank you".
           // The telephone answers from the same phrase book as the app (ruling 68), learned
           // answers included, before it says it could not find anything.
+          // Only a clear, known phrase is answered from the book first (31 October 2026); anything
+          // open goes to the model, and the book's looser match is kept for when it is away.
           const known = phraseReply(
             heard,
             state.lines.length,
-            'within',
+            'exact',
             'shopper',
             config,
             liveBook(app),
@@ -814,16 +825,49 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
             return reply(response, more({ ...state, lines }, sid, known));
           }
           // Then the language model (ruling 69): "grab me a couple of crates of eggs, I've run out" is
-          // shopping the parser cannot see; a question gets one short answer.
+          // shopping the parser cannot see; a question gets an answer. The line knows the caller
+          // when their number is on an account, and the call so far (31 October 2026).
           const basketItems = await repository.catalogue.findManyByIds(
             state.lines.map(([id]) => id),
           );
-          const understood = await app.ctx.brain?.understand({
-            text: heard,
-            account: 'shopper',
-            channel: 'phone',
-            basket: basketItems.map((item) => item.name),
-          });
+          const caller = state.shopperId
+            ? await repository.shoppers.findById(state.shopperId)
+            : null;
+          const accountKind = caller ? ('shopper' as const) : ('visitor' as const);
+          const allowed =
+            app.ctx.brain !== null &&
+            modelTurnsOf(app.ctx).take(
+              caller ? `shopper:${caller.id}` : `call:${sid}`,
+              config.ozi.maxModelTurnsPerDay,
+              now(),
+            );
+          const understood = allowed
+            ? await app.ctx.brain?.understand({
+                text: heard,
+                account: 'shopper',
+                channel: 'phone',
+                basket: basketItems.map((item) => item.name),
+                who: {
+                  kind: accountKind,
+                  firstName: caller ? firstName(caller.displayName) : null,
+                },
+                history: await recentTurns(app.ctx, sid),
+              })
+            : null;
+          if (!understood) {
+            const looser = phraseReply(
+              heard,
+              state.lines.length,
+              'within',
+              'shopper',
+              config,
+              liveBook(app),
+            );
+            if (looser) {
+              request.oziNote = { brain: 'phrases', outcome: 'answered', accountKind };
+              return reply(response, more({ ...state, lines }, sid, looser));
+            }
+          }
           if (understood) {
             brain = 'model';
             if (understood.kind === 'items' && understood.items.length > 0) {
@@ -838,7 +882,12 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
               request.oziNote = { brain, outcome: 'stopped' };
               return reply(response, goodbye('All right, nothing has been ordered. Goodbye.'));
             } else if (understood.reply) {
-              request.oziNote = { brain, outcome: 'answered' };
+              request.oziNote = {
+                brain,
+                outcome: 'answered',
+                model: app.ctx.brain?.model ?? null,
+                accountKind,
+              };
               return reply(response, more({ ...state, lines }, sid, understood.reply));
             }
           }
