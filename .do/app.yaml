@@ -280,10 +280,11 @@ services:
         type: SECRET
         value: replace_with_the_language_model_key
 
-      # Optional (31 October 2026): the model Ozi uses when the owner himself speaks, with his
-      # desk tools (what needs him, today's summary, applications, approve or decline after his
-      # yes). Leave it out to use the largest current model; everybody else stays on
-      # LANGUAGE_MODEL.
+      # Optional (31 October 2026, ruling 86): the model Ozi uses when the owner himself speaks,
+      # with his desk tools (what needs him, today's summary, new partner shops, applications,
+      # approve or decline after his yes). Leave it out to use the newest, largest Opus; a model
+      # named here must accept effort and strict tools with no thinking settings. Everybody else
+      # stays on LANGUAGE_MODEL.
       # - key: OWNER_LANGUAGE_MODEL
       #   scope: RUN_TIME
       #   value: replace_with_a_model_name

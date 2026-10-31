@@ -183,6 +183,13 @@ export async function registerOwnerRoutes(app: FastifyInstance): Promise<void> {
         problemsWaiting: (await repository.problems.listOpen()).length,
         documentsWaiting: (await repository.runnerDocuments.listSubmitted()).length,
         shopProductsWaiting: (await repository.partnerProducts.listPending()).length,
+        // New partner shops waiting for approval (ruling 86), apart from their products.
+        partnerShopsWaiting: shops.filter((shop) => shop.status === 'pending').length,
+        partnerShopsWaitingNames: shops
+          .filter((shop) => shop.status === 'pending')
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+          .slice(0, 10)
+          .map((shop) => shop.name),
         findItWaiting: (await repository.findRequests.listLooking()).length,
       },
     };

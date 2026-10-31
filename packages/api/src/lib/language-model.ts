@@ -43,21 +43,26 @@ export const DEFAULT_MODEL = 'claude-sonnet-5-5';
 export const WAIT_MS = 6000;
 /**
  * The model used when the owner himself speaks, unless OWNER_LANGUAGE_MODEL names another: the
- * largest current one (Anthony, 31 October 2026), with his desk tools.
+ * newest, largest Opus (rulings 83 and 86, Anthony, 31 October 2026), with his desk tools. Its
+ * thinking cannot be switched off: owner requests never send `thinking`, sampling settings, a
+ * prefill or a forced `tool_choice` (each is refused by it); depth is set by
+ * `output_config.effort` alone, "low" for a plain turn and "medium" once a tool's answer is used.
  */
 export const DEFAULT_OWNER_MODEL = 'claude-opus-5-5';
 /**
  * How long a conversation turn may take on the server before it carries on without the model
  * (31 October 2026). The app waits a little longer than these: about 8 seconds for everyone, and
- * 12 for the owner, whose turns may look things up first.
+ * about 20 for the owner (ruling 86), whose model thinks first and may look things up.
  */
 export const CONVERSE_WAIT_MS = 7_500;
-export const OWNER_WAIT_MS = 11_000;
+export const OWNER_WAIT_MS = 19_500;
 /**
  * Room for the model's own thinking as well as the short spoken reply (31 October 2026). The
  * thinking is adaptive, so most turns use far less; the reply itself is kept short to speak.
  */
 export const CONVERSE_MAX_TOKENS = 2000;
+/** The owner's model always thinks first (ruling 86), so it is given more room for that. */
+export const OWNER_MAX_TOKENS = 4000;
 /** How many of the conversation's latest turns the model is given, so it follows the thread. */
 export const HISTORY_TURNS = 10;
 
@@ -204,6 +209,12 @@ export interface OwnerTools {
   needsYou(): Promise<unknown>;
   /** Today's orders, money taken, refunds, who is waiting, and areas with no Runner. */
   todaySummary(): Promise<unknown>;
+  /**
+   * New partner shops (Shop Partners) waiting for approval, each by name with its desk matter
+   * when there is one, and, apart from them, how many shop products wait to be checked (ruling
+   * 86): two different things, never to be confused.
+   */
+  partnerApprovals(): Promise<unknown>;
   /** One Runner's or partner's application. */
   readApplication(kind: 'runner' | 'partner', id: string): Promise<unknown>;
   /**
@@ -868,8 +879,11 @@ export function ownerInstructions(config: StoreConfig, knowledge: string): strin
   const owner = config.owner.spokenName;
   return [
     `You are ${config.assistantName}, the assistant of ${config.productName}, talking to its owner and founder. Always address him as ${owner}. He is registered blind and runs the business by voice, so everything you say is heard, not read.`,
-    `Be genuinely useful to him: a warm, clear, capable assistant who knows the business. Answer from your tools for anything about today, the desk or applications; never guess at figures.`,
-    `Your tools: needs_you (open desk matters and the Needs-you items), today_summary (orders, money taken, refunds, new Runners and partners waiting, areas with no Runner), read_application (one Runner's or partner's application) and decide_matter (approve, decline or put to later one desk matter). Look before you speak; summarise in a few short spoken sentences, most important first, and offer to go through them one at a time. Never read out ids.`,
+    `Be genuinely useful to him: a warm, clear, capable assistant who knows the business. Answer the question he actually asked, and only that, from your tools for anything about today, the desk or applications; never guess at figures.`,
+    `Speak in short, natural sentences, as a person would on the phone: the answer first, in a sentence or two, then offer more if there is more. No lists read like a form, no headings, no repeating his question back.`,
+    `Your tools: needs_you (open desk matters and the Needs-you items), today_summary (orders, money taken, refunds, new Runners and new partner shops waiting, areas with no Runner), partner_approvals (new partner shops waiting for approval, by name, and separately how many shop products wait to be checked), read_application (one Runner's or partner shop's application) and decide_matter (approve, decline or put to later one desk matter). Look before you speak; summarise in a few short spoken sentences, most important first, and offer to go through them one at a time. Never read out ids.`,
+    `Partner shops and shop products are different things. A partner shop, also called a Shop Partner, a shop partner, a partner or a new shop, is a business that has applied to join and waits for him to approve it. A shop product is one item a partner shop already with us has added, waiting to be checked. When he asks about partners, partner shops, shop partners or new shops, answer about partner shops waiting for approval, by name, from partner_approvals; only when he asks about products answer about shop products. Never answer one when he asked about the other.`,
+    `When he corrects you ("I don't mean X, I mean Y"), say briefly that you understand, then answer Y properly, looking it up if you need to. Never give the same answer again after he has said it was wrong; if you truly cannot tell what he means, ask him one short question.`,
     `Deciding: when ${owner} clearly asks you to approve, decline or put to later one matter, call decide_matter once for that one matter. It does not act: it reads back exactly what will be done, and it is done only if he says yes in his next turn. Never call it for more than one matter in a turn, never on your own initiative, and never when he has not said which matter and which choice.`,
     `Staff: list_staff tells you every staff account, its job, whether it is on or switched off, whether it is signed in now, when it was last seen and roughly where (a town or a country, or "place not known"). switch_staff switches one account on or off, and switch_all_staff_off switches off everyone but him. His own account can never be switched off. Like decide_matter, they only prepare: the exact words are read back and nothing is done until his clear yes.`,
     `Emails: list_emails gives the short summaries of emails from all his mailboxes, each with the mailbox's name ("the Gmail"), who it is from by name, the subject, when, the summary, whether important and whether heard; read_email gives one email's summary and the start of its words. Say who an email is from by name only; never read out an email address, a phone number, a card number or a code. mark_heard marks emails as heard, and reply_email replies to one email in his exact words from the same mailbox; both are read back and wait for his yes. Never reply unless he has told you what to say.`,
@@ -896,14 +910,21 @@ export const OWNER_TOOLS: Anthropic.Tool[] = [
   {
     name: 'today_summary',
     description:
-      'Today so far in the UK: orders, money taken, refunds, new Runners and partners waiting for approval, and areas with no Runner. Use it when he asks how the day or the business is going.',
+      'Today so far in the UK: orders, money taken, refunds, new Runners and new partner shops waiting for approval, and areas with no Runner. Use it when he asks how the day or the business is going.',
+    strict: true,
+    input_schema: { type: 'object', additionalProperties: false, properties: {}, required: [] },
+  },
+  {
+    name: 'partner_approvals',
+    description:
+      'New partner shops (Shop Partners: businesses that applied to join) waiting for his approval, each with its name, kind, town, when it applied and its desk matter id for decide_matter when it has one; and, separately, how many shop products (items from shops already with us) wait to be checked. Use it whenever he asks about partners, shop partners, partner shops, new shops or approvals. Partner shops and shop products are different things: answer the one he asked about.',
     strict: true,
     input_schema: { type: 'object', additionalProperties: false, properties: {}, required: [] },
   },
   {
     name: 'read_application',
     description:
-      'One application in detail: a Runner (by Runner id) with their documents and checks, or a partner shop (by shop id). Ids come from needs_you.',
+      'One application in detail: a Runner (by Runner id) with their documents and checks, or a partner shop (by shop id). Ids come from needs_you or partner_approvals.',
     strict: true,
     input_schema: {
       type: 'object',
@@ -1136,7 +1157,7 @@ export function languageModel(
   settings: {
     apiKey: string;
     model?: string;
-    /** The owner's model (OWNER_LANGUAGE_MODEL), the largest current one if not given. */
+    /** The owner's model (OWNER_LANGUAGE_MODEL), the newest Opus if not given (ruling 86). */
     ownerModel?: string;
     config: StoreConfig;
     /** The raw guide (docs/ozi-knowledge.md); read from disk when not given. */
@@ -1219,8 +1240,10 @@ export function languageModel(
       }
     },
     async talkWithOwner(input) {
-      // The largest model at effort "medium" (31 October 2026): the owner's turns read the desk,
-      // the day's figures and applications and must get them right, and he waits a little longer.
+      // The newest Opus (ruling 86): its thinking is always on, so no `thinking`, no
+      // sampling settings, no prefill and `tool_choice` auto only. Effort "low" for a plain turn,
+      // so he is not kept waiting, and "medium" once a tool's answer is being used, since
+      // figures, names and applications must be right.
       const deadline = Date.now() + OWNER_WAIT_MS;
       const history = historyWords(config, input.history);
       const messages: Anthropic.MessageParam[] = [
@@ -1236,8 +1259,8 @@ export function languageModel(
           const response = await client.messages.create(
             {
               model: ownerModel,
-              max_tokens: CONVERSE_MAX_TOKENS,
-              output_config: { effort: 'medium' },
+              max_tokens: OWNER_MAX_TOKENS,
+              output_config: { effort: step === 0 ? 'low' : 'medium' },
               tools: OWNER_TOOLS,
               tool_choice: { type: 'auto' },
               system: [{ type: 'text', text: ownerSystem, cache_control: { type: 'ephemeral' } }],
@@ -1266,6 +1289,8 @@ export function languageModel(
                   return input.tools.needsYou();
                 case 'today_summary':
                   return input.tools.todaySummary();
+                case 'partner_approvals':
+                  return input.tools.partnerApprovals();
                 case 'read_application': {
                   const asked = applicationInput.parse(use.input);
                   return input.tools.readApplication(asked.kind, asked.id);

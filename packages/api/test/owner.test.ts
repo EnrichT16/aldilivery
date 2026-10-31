@@ -213,6 +213,14 @@ describe('family and investors', () => {
     const overview = (await get('/staff/overview', headers)).json();
     expect(overview.people).toEqual(expect.objectContaining({ shoppers: 1, runners: 0, staff: 1 }));
     expect(JSON.stringify(overview)).not.toMatch(/Pence/);
+    // New partner shops waiting for approval, apart from shop products (ruling 86).
+    expect(overview.work).toEqual(
+      expect.objectContaining({
+        partnerShopsWaiting: 0,
+        partnerShopsWaitingNames: [],
+        shopProductsWaiting: 0,
+      }),
+    );
   });
 });
 

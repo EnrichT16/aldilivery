@@ -20,11 +20,12 @@ import { nameHeardIn } from './name';
 const WAIT_MS = 2500;
 /**
  * How long Ozi waits for a sentence said to it by name, which the server may answer with the
- * language model (31 October 2026): about 8 seconds, and 12 for the owner, whose turns may look
- * things up first. "One moment" shows meanwhile; too long, and Ozi goes on as before.
+ * language model (31 October 2026): about 8 seconds, and 20 for the owner (ruling 86), whose
+ * model thinks first and may look things up; after about 3 seconds he hears "One moment, Mr.
+ * Anthony." "One moment" shows meanwhile; too long, and Ozi goes on as before.
  */
 export const CONVERSE_WAIT_MS = 8000;
-export const OWNER_CONVERSE_WAIT_MS = 12_000;
+export const OWNER_CONVERSE_WAIT_MS = 20_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
   return new Promise((resolve) => {

@@ -408,7 +408,37 @@ export type StaffCommand =
   /** "Unlock Yvette" (ruling 81): whatever that person is locked out of. */
   | { kind: 'unlock'; name: string }
   /** "Reset Yvette's PIN" (ruling 81): a Shopper chooses a new one the next time. */
-  | { kind: 'reset-pin'; name: string };
+  | { kind: 'reset-pin'; name: string }
+  /**
+   * "Do I have any shop partners I need to approve?" (ruling 86): new partner shops waiting for
+   * approval, never their products, which are the 'partners' list.
+   */
+  | { kind: 'partner-shops' };
+
+/** Partner shops: "shop partner(s)", "partner shop(s)", "partner(s)", "new shop(s)", "shops". */
+const PARTNER_SHOP_WORDS = /\b(shop ?partners?|partner ?shops?|partners?|new shops?|shops)\b/;
+/** Their products, a different thing: "product(s)", "shop product(s)". */
+const PRODUCT_WORDS = /\bproducts?\b/;
+
+/**
+ * What was said with any "I don't mean X" taken out (ruling 86), so "I do not mean shop
+ * products. I am saying shop partner to approve." is about shop partners.
+ */
+export function withoutCorrection(said: string): string {
+  return said
+    .toLowerCase()
+    .replace(/’/g, "'")
+    .replace(
+      /\b(?:i )?(?:do not|don'?t|did not|didn'?t|am not|wasn'?t|was not) (?:mean|meaning|asking about|talking about|saying)\b[^.?!;]*?(?=[.?!;]|\b(?:i mean|i'?m saying|i am saying|i'?m asking|i am asking|but)\b|$)/g,
+      ' ',
+    );
+}
+
+/** Whether what was said is about new partner shops rather than shop products (ruling 86). */
+export function aboutPartnerShops(said: string): boolean {
+  const text = withoutCorrection(said).replace(/[?.!,;]+/g, ' ');
+  return PARTNER_SHOP_WORDS.test(text) && !PRODUCT_WORDS.test(text);
+}
 
 /**
  * "unlock Yvette", "please unlock Kemi", "reset Yvette's PIN", "reset the PIN for Yvette"
@@ -586,7 +616,8 @@ const AREA_PATTERNS: Array<[StaffArea, RegExp]> = [
   ['owed', /\b(money owed|owed|owes|debts?|write[ -]?offs?)\b/],
   ['finds', /\b(finds? it|finds|searches|looking for)\b/],
   ['enquiries', /\b(enquir(y|ies)|inquir(y|ies)|messages?|emails?|web ?mail|organisations?)\b/],
-  ['partners', /\b(shop products?|products?|partner shops?|partners?|shops?)\b/],
+  // Shop products waiting to be checked. New partner shops are 'partner-shops' (ruling 86).
+  ['partners', /\b(shop products?|products?)\b/],
   ['team', /\b(team|staff|colleagues?)\b/],
   [
     'learning',
@@ -646,6 +677,16 @@ export function understand(said: string): StaffCommand | null {
   // Unlocking someone, or resetting a Shopper's PIN (ruling 81).
   const unlock = unlockCommand(said);
   if (unlock) return unlock;
+  // New partner shops waiting for approval, never their products (ruling 86), before "approve"
+  // and the lists: "Do I have any shop partners I need to approve?"
+  if (aboutPartnerShops(said)) return { kind: 'partner-shops' };
+  // "I don't mean partner shops, I mean products": the products, whatever else was said.
+  if (
+    /\b(?:i )?(?:do not|don'?t|did not|didn'?t) mean\b/.test(text) &&
+    PRODUCT_WORDS.test(withoutCorrection(said))
+  ) {
+    return { kind: 'open', area: 'partners' };
+  }
   if (/\b(help|what can (you|i) (do|say))\b/.test(text)) return { kind: 'help' };
   if (/\b(what'?s waiting|summary|anything new|what'?s new|catch me up|overview)\b/.test(text)) {
     return { kind: 'summary' };
@@ -757,8 +798,83 @@ export function overviewWords(data: StaffOverview): string {
     `${p.shopPartners} Shop Partners, ${p.organisations} organisations and ${p.staff} staff. ` +
     `${w.ordersLastDay} orders in the last day, ${w.ordersLastWeek} in the last week. Waiting: ` +
     `${w.problemsWaiting} problems to decide, ${w.documentsWaiting} Runner documents, ` +
-    `${w.shopProductsWaiting} shop products and ${w.findItWaiting} Finds It requests.`
+    (w.partnerShopsWaiting !== undefined
+      ? `${w.partnerShopsWaiting} new shop ${w.partnerShopsWaiting === 1 ? 'partner' : 'partners'} waiting for approval, `
+      : '') +
+    `${w.shopProductsWaiting} shop products to check and ${w.findItWaiting} Finds It requests.`
   );
+}
+
+/**
+ * New partner shops waiting for approval, by name (ruling 86): "You have 2 new shop partners
+ * waiting for approval: Corner Shop and Bakery." Never their products.
+ */
+export function partnerShopsWords(count: number, names: readonly string[]): string {
+  if (count === 0) return 'No new shop partners are waiting for approval.';
+  const shown = names.slice(0, 5);
+  const more = count - shown.length;
+  const which =
+    shown.length === 0 ? '' : `: ${listWords(more > 0 ? [...shown, `${more} more`] : [...shown])}`;
+  return `You have ${count} new shop ${count === 1 ? 'partner' : 'partners'} waiting for approval${which}. They are on the Shops and organisations tab.`;
+}
+
+/**
+ * For the owner, what the admin panel still answers by itself (ruling 86): everything else he
+ * says goes to his conversation first, and comes back here only when that is away, slow or
+ * silent. Kept here: signing out, explicit moves ("open the documents tab", "go to orders",
+ * "read me the complaints"), short moves and decisions on the item being read to him, and the
+ * commands with their own read-back that the conversation cannot carry out (sending jobs to a
+ * Runner, unlocking, resetting a PIN). His questions, requests and statements are not.
+ */
+export function ownerAnswersHere(
+  command: StaffCommand | null,
+  said: string,
+  readingItem: boolean,
+): boolean {
+  if (!command) return false;
+  const text = said
+    .toLowerCase()
+    .replace(/[?.!,]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^(ozi |please )+/, '')
+    .replace(/ please$/, '');
+  const short = text.split(' ').length <= 8;
+  switch (command.kind) {
+    case 'sign-out':
+    case 'allocate':
+    case 'unlock':
+    case 'reset-pin':
+      return true;
+    case 'help':
+      return /^(help|what can (you|i) (do|say))$/.test(text);
+    case 'open':
+    case 'partner-shops':
+    case 'runners-now':
+    case 'cancellations':
+      // An explicit move, not a question: "open the documents tab", "go to orders".
+      return (
+        short &&
+        !text.includes(' mean') &&
+        /^(open|go to|show( me)?|take me to|switch to|read( me)?|read out)( the| my)? \S/.test(text)
+      );
+    case 'next':
+    case 'previous':
+    case 'again':
+      return readingItem && short;
+    case 'decide':
+    case 'accept':
+    case 'reject':
+    case 'write-off':
+    case 'not-found':
+    case 'found':
+    case 'rung-back':
+      return readingItem && short;
+    case 'summary':
+    case 'signups':
+    case 'refunds':
+      return false;
+  }
 }
 
 /** The owner's money, read aloud: today and the last month, by gateway. */

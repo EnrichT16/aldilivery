@@ -3099,6 +3099,10 @@ export interface StaffOverview {
     problemsWaiting: number;
     documentsWaiting: number;
     shopProductsWaiting: number;
+    /** New partner shops waiting for approval (ruling 86). Older servers leave it out. */
+    partnerShopsWaiting?: number;
+    /** Their names, the first ten, oldest first. */
+    partnerShopsWaitingNames?: string[];
     findItWaiting: number;
   };
 }

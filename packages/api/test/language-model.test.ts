@@ -21,6 +21,9 @@ import {
   safeSpoken,
   serviceFacts,
   ukNow,
+  DEFAULT_OWNER_MODEL,
+  OWNER_TOOLS,
+  OWNER_WAIT_MS,
   type BrainClient,
   type OwnerTools,
 } from '../src/lib/language-model.js';
@@ -590,6 +593,7 @@ describe('a real conversation (31 October 2026)', () => {
     const tools: OwnerTools = {
       needsYou: async () => ({ matters: [{ id: 'm1', summary: 'A new shop.' }] }),
       todaySummary: async () => ({}),
+      partnerApprovals: async () => ({}),
       readApplication: async () => ({}),
       propose: async (id, choice) => {
         proposed.push(`${id}:${choice}`);
@@ -619,13 +623,16 @@ describe('a real conversation (31 October 2026)', () => {
     });
     const first = sent[0]!;
     expect(first['model']).toBe('claude-opus-5-5');
-    expect(first['output_config']).toEqual({ effort: 'medium' });
+    // A plain turn at effort "low"; once a tool's answer is used, "medium" (ruling 86).
+    expect(first['output_config']).toEqual({ effort: 'low' });
+    expect(sent[1]!['output_config']).toEqual({ effort: 'medium' });
     expect(first['tool_choice']).toEqual({ type: 'auto' });
     expect(first).not.toHaveProperty('thinking');
     const tools0 = first['tools'] as Array<{ name: string; strict: boolean }>;
     expect(tools0.map((tool) => tool.name)).toEqual([
       'needs_you',
       'today_summary',
+      'partner_approvals',
       'read_application',
       'decide_matter',
       // His staff, his emails and how Ozi reaches him (ruling 85).
@@ -646,10 +653,106 @@ describe('a real conversation (31 October 2026)', () => {
     expect(JSON.stringify(second[2]!.content)).toContain('A new shop.');
   });
 
+  it('the owner stays on the newest Opus, and every owner request keeps its rules (ruling 86)', async () => {
+    expect(DEFAULT_OWNER_MODEL).toBe('claude-opus-5-5');
+    expect(OWNER_WAIT_MS).toBeGreaterThanOrEqual(15_000);
+    expect(OWNER_WAIT_MS).toBeLessThanOrEqual(20_000);
+    const sent: Array<Record<string, unknown>> = [];
+    const replies = [
+      {
+        stop_reason: 'tool_use',
+        content: [{ type: 'tool_use', id: 't1', name: 'partner_approvals', input: {} }],
+      },
+      {
+        stop_reason: 'end_turn',
+        content: [
+          {
+            type: 'text',
+            text: 'You have 2 new shop partners waiting for approval: Corner Shop and Bakery.',
+          },
+        ],
+      },
+    ];
+    const brain = languageModel({ apiKey: 'test', config }, {
+      messages: {
+        create: async (body: Record<string, unknown>) => {
+          sent.push(structuredClone(body));
+          return replies.shift();
+        },
+      },
+    } as unknown as BrainClient);
+    expect(brain.ownerModel).toBe('claude-opus-5-5');
+    // OWNER_LANGUAGE_MODEL still names another.
+    expect(languageModel({ apiKey: 'test', config, ownerModel: 'another' }).ownerModel).toBe(
+      'another',
+    );
+    let asked = 0;
+    const tools: OwnerTools = {
+      needsYou: async () => ({}),
+      todaySummary: async () => ({}),
+      partnerApprovals: async () => {
+        asked += 1;
+        return {
+          newPartnerShopsWaitingForApproval: 2,
+          newPartnerShops: [{ name: 'Corner Shop' }, { name: 'Bakery' }],
+          shopProductsWaitingToBeChecked: 0,
+        };
+      },
+      readApplication: async () => ({}),
+      propose: async () => ({ ok: false, why: 'no' }),
+      listStaff: async () => ({}),
+      listEmails: async () => ({}),
+      readEmail: async () => ({}),
+      getAlertPreferences: async () => ({}),
+      proposeAction: async () => ({ ok: false, why: 'no' }),
+    };
+    const talk = await brain.talkWithOwner!({
+      text: 'Do I have any shop partners I need to approve?',
+      channel: 'app',
+      history: [],
+      tools,
+    });
+    expect(asked).toBe(1);
+    expect(talk?.reply).toMatch(/2 new shop partners waiting for approval/);
+    expect(sent).toHaveLength(2);
+    for (const body of sent) {
+      expect(body['model']).toBe('claude-opus-5-5');
+      for (const banned of ['thinking', 'temperature', 'top_p', 'top_k']) {
+        expect(body).not.toHaveProperty(banned);
+      }
+      // No forced tool use: "auto" only, never "any" or one named tool.
+      expect(body['tool_choice']).toEqual({ type: 'auto' });
+      // No prefill: the last message is always his, or the tools' answers.
+      const messages = body['messages'] as Array<{ role: string }>;
+      expect(messages.at(-1)!.role).toBe('user');
+    }
+    expect(sent.map((body) => body['output_config'])).toEqual([
+      { effort: 'low' },
+      { effort: 'medium' },
+    ]);
+  });
+
+  it('the owner’s tools and instructions keep partner shops apart from shop products (ruling 86)', () => {
+    const tool = OWNER_TOOLS.find((one) => one.name === 'partner_approvals');
+    expect(tool?.description).toMatch(/New partner shops \(Shop Partners/);
+    expect(tool?.description).toMatch(/shop products/);
+    expect(tool?.description).toMatch(/different things/);
+    const summary = OWNER_TOOLS.find((one) => one.name === 'today_summary');
+    expect(summary?.description).toMatch(/new partner shops waiting for approval/);
+    const text = ownerInstructions(config, '');
+    expect(text).toMatch(/Partner shops and shop products are different things/);
+    expect(text).toMatch(/partner_approvals/);
+    expect(text).toMatch(/I don't mean X, I mean Y/);
+    expect(text).toMatch(/Never give the same answer again/);
+    expect(text).toMatch(/short, natural sentences/);
+    expect(text).not.toMatch(/\b(claude|anthropic|opus|fable)\b/i);
+  });
+
   it('the owner hears a safe line when the model declines, and nothing when it is too slow', async () => {
     const tools: OwnerTools = {
       needsYou: async () => ({}),
       todaySummary: async () => ({}),
+      partnerApprovals: async () => ({}),
       readApplication: async () => ({}),
       propose: async () => ({ ok: false, why: 'no' }),
       listStaff: async () => ({}),

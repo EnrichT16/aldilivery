@@ -169,7 +169,8 @@ async function main(): Promise<void> {
     ? languageModel({
         apiKey: env.languageModelKey,
         model: env.languageModelName,
-        // The owner's own conversations, on the largest model unless OWNER_LANGUAGE_MODEL says.
+        // The owner's own conversations, on the newest Opus unless OWNER_LANGUAGE_MODEL says
+        // another (ruling 86).
         ownerModel: env.ownerLanguageModelName,
         config,
       })
