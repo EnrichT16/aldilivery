@@ -167,7 +167,7 @@ const OPEN_SHOP = /^(?:please\s+)?(?:open|show me|go to|take me to)\s+(.{2,60})$
 /** How long the app waits for something not in the list to be looked up. */
 const SUGGEST_WAIT_MS = 6000;
 /** How long the app waits for the server's phrase book and the language model before going on alone. */
-const ASK_WAIT_MS = 4500;
+const ASK_WAIT_MS = 6500;
 /**
  * A sentence the parser would chop badly, so the language model hears it whole (ruling 69): a reason
  * given ("I've run out of"), a request wrapped in politeness, or a long sentence.
