@@ -16,6 +16,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
 import { currentAsker } from '../src/lib/ozi-asker';
+import { keepStaffSession } from '../src/lib/staff-session';
 import { setVoiceEngine } from '../src/voice';
 import { forgetKnownPhrases } from '../src/voice/phrases';
 import { fakeEngine, type FakeEngine } from './fake-voice';
@@ -313,5 +314,63 @@ describe('a visitor with nothing signed in', () => {
     );
     await waitFor(() => expect(engine.spoken[0]?.text).toMatch(/^Hello, I'm /));
     await waitFor(() => expect(engine.spoken.map((s) => s.text).join(' ')).toMatch(/extra help/));
+  });
+});
+
+/**
+ * 31 October 2026, the founder's exact experience: on a new phone he opened the admin page,
+ * Ozi asked whether he was blind and whether he wanted an account, and after he signed in his
+ * question "Do I have any shop partners I need to approve?" was taken as the answer to that
+ * waiting question. Neither may ever happen again.
+ */
+describe('a new phone opening the admin page', () => {
+  it('hears how to sign in, never the Shopper introduction or the extra-help question', async () => {
+    forgetKnownPhrases();
+    firstVisit();
+    const asked: Asked[] = [];
+    stubServer(asked);
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    render(
+      <MemoryRouter initialEntries={['/staff']}>
+        <App />
+      </MemoryRouter>,
+    );
+    await waitFor(() =>
+      expect(engine.spoken.map((s) => s.text).join(' ')).toMatch(/Admin sign in/),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(engine.spoken.map((s) => s.text).join(' ')).not.toMatch(NEVER);
+  });
+
+  it("signing in as the owner drops any waiting Shopper question, and his next words are his own", async () => {
+    forgetKnownPhrases();
+    firstVisit();
+    const asked: Asked[] = [];
+    stubServer(asked);
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <App />
+      </MemoryRouter>,
+    );
+    // A visitor's welcome, with its question left waiting for yes or no.
+    await waitFor(() => expect(engine.spoken.map((s) => s.text).join(' ')).toMatch(/extra help/));
+    const before = engine.spoken.length;
+    // He signs in as the owner (what the admin page does once his passcode is accepted).
+    keepStaffSession({ key: TOKEN, name: 'Anthony Ibe', remember: true, owner: true });
+    await waitFor(() => expect(engine.spoken.at(-1)?.text).toMatch(GREETING));
+    await say(engine, 'Do I have any shop partners I need to approve?');
+    await waitFor(() => expect(oziReplies(asked)).toHaveLength(1));
+    expect(oziReplies(asked)[0]).toMatchObject({
+      headers: expect.objectContaining({ 'x-staff-token': TOKEN }),
+      body: { text: 'Do I have any shop partners I need to approve?', mode: 'within' },
+    });
+    await waitFor(() =>
+      expect(engine.spoken.at(-1)?.text).toBe('Hello, Mr. Anthony. How can I help?'),
+    );
+    const since = engine.spoken.slice(before).map((s) => s.text).join(' ');
+    expect(since).not.toMatch(NEVER);
   });
 });

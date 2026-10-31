@@ -42,6 +42,7 @@ import { addNamedItems, currentOffers, listInWords } from '../lib/extras';
 import { READ_MESSAGES, readMessagesAloud } from '../lib/inbox-api';
 import { readRunnerToken } from '../lib/session';
 import { currentAsker, KNOWN_NAMES, knownHere } from '../lib/ozi-asker';
+import { STAFF_SESSION_EVENT } from '../lib/staff-session';
 import { CLOSE_QUESTION, leaveRunning } from '../lib/runner-api';
 import {
   ALLOW_LINE,
@@ -67,6 +68,14 @@ import { useSession } from './session';
 import { spokenDigits } from './voice-sign-up';
 import { useVoiceOrdering } from './voice-order';
 import { useVoice } from './voice';
+
+/**
+ * The pages with a voice of their own: the admin panel, a Runner's, a shop's and an
+ * organisation's. The Shopper's introduction, the extra-help question and the account offer
+ * are never spoken there (ruling 84: the owner, opening the admin page on a new phone, was
+ * asked whether he was blind and whether he wanted an account).
+ */
+const ACCOUNT_PAGES = /^\/(staff|runner|partner|business|organisation|join\/organisation)(\/|$)/;
 
 /**
  * Ozi, present on every screen: introducing itself, listening, paused, and reminding.
@@ -297,6 +306,10 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   const { engine, settings } = voice;
   const navigate = useNavigate();
   const location = useLocation();
+  // The page open now, for effects that run once and for listeners: the router's own path, so
+  // it is right in the phone app and under test alike.
+  const pathRef = useRef(location.pathname);
+  pathRef.current = location.pathname;
   const assistant = storeConfig.assistantName;
 
   const [presence, setPresenceState] = useState<Presence>('starting');
@@ -1108,6 +1121,23 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     })();
   };
 
+  // Signing in or out as staff on this device (ruling 84): Ozi knows at once, with no reload.
+  // Any question the Shopper's welcome left waiting is dropped, so the owner's next words are
+  // his own and never taken as an answer to it (31 October 2026: his question about shop
+  // partners was swallowed that way), and on the shop's pages he is greeted by name.
+  useEffect(() => {
+    const onChange = (): void => {
+      captureRef.current = null;
+      const known = knownHere();
+      if (!known) return;
+      knownConversingUntil.current = Date.now() + KNOWN_CONVERSING_MS;
+      if (ACCOUNT_PAGES.test(pathRef.current)) return;
+      void sayRef.current(knownGreeting(known, KNOWN_NAMES, new Date()));
+    };
+    window.addEventListener(STAFF_SESSION_EVENT, onChange);
+    return () => window.removeEventListener(STAFF_SESSION_EVENT, onChange);
+  }, []);
+
   const repeats = useRef(0);
   const hereCount = useRef(0);
   const phraseTurn = useRef(0);
@@ -1501,11 +1531,16 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       // the admin panel its own voice opens instead, so only one voice speaks there.
       const known = knownHere();
       if (known) {
-        if (window.location.pathname.startsWith('/staff')) {
+        if (pathRef.current.startsWith('/staff')) {
           listenRef.current();
           return;
         }
         await sayRef.current(knownGreeting(known, KNOWN_NAMES, new Date()));
+        return;
+      }
+      // A page with its own voice says what to do there; nobody is welcomed as a Shopper on it.
+      if (ACCOUNT_PAGES.test(pathRef.current)) {
+        listenRef.current();
         return;
       }
       if (settings.introHeard) {
@@ -1530,12 +1565,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     // Not on the admin panel or another account's pages (21 October 2026: "What shopping would
     // you like today?" greeted the owner signing in to the admin panel). Welcomed later, in the
     // shop, instead.
-    if (
-      /^\/(staff|runner|partner|business|organisation|join\/organisation)(\/|$)/.test(
-        location.pathname,
-      )
-    )
-      return;
+    if (ACCOUNT_PAGES.test(location.pathname)) return;
     try {
       if (window.sessionStorage.getItem('ozidelivery.welcomed') === shopper.id) return;
       window.sessionStorage.setItem('ozidelivery.welcomed', shopper.id);
