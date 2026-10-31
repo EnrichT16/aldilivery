@@ -32,6 +32,7 @@ import {
   fetchRunnersNow,
   fetchSignups,
   fetchStaffOrders,
+  fetchStaffPartners,
 } from '../lib/api';
 import { allocateJobs, fetchAllocateBoard, runnerNamed } from '../lib/allocate-api';
 import {
@@ -70,14 +71,19 @@ import {
   understand,
   OWNER_ACKNOWLEDGEMENTS,
   orderNumbersMeant,
+  ownerAnswersHere,
+  partnerShopsWords,
   toOwner,
   waiting,
+  type StaffCommand,
   type StaffLists,
 } from '../voice/staff-voice';
 
 const YES = /\b(yes|yeah|yep|correct|that'?s right|go ahead|confirm|do it|ok|okay)\b/i;
 /** After Ozi answers, what is said next is taken as said to Ozi for this long, without its name. */
 const CONVERSING_MS = 45_000;
+/** The owner is never left in silence (ruling 86): "One moment" if no answer after this long. */
+export const ONE_MOMENT_AFTER_MS = 3000;
 
 const DECISION_WORDS = {
   no_fault: 'nobody was at fault',
@@ -358,14 +364,29 @@ export function StaffVoice({
      * back (the owner's desk, Rule One), his very next words go straight back to it, so only
      * that answer can be the yes.
      */
-    function talk(text: string): void {
+    function talk(text: string, fallback?: () => void): void {
       const { staffKey: key, areas: mine, address: owner } = latest.current;
       const as = { kind: 'staff', key } as const;
+      // The owner's model may think for a while (ruling 86): after about 3 seconds he hears
+      // "One moment, Mr. Anthony." once, so he is never left in silence.
+      let answered = false;
+      const moment = owner
+        ? window.setTimeout(() => {
+            if (!answered) void latest.current.ozi.say(`One moment, ${KNOWN_NAMES.spokenName}.`);
+          }, ONE_MOMENT_AFTER_MS)
+        : null;
       void (async () => {
         const answer = await latest.current.ozi.think(
           converse(text, turn.current, as, owner ? OWNER_CONVERSE_WAIT_MS : CONVERSE_WAIT_MS),
         );
+        answered = true;
+        if (moment !== null) window.clearTimeout(moment);
         turn.current += 1;
+        if (!answer?.reply && fallback) {
+          // Away, slow or silent: the panel's own answer, which names the right thing.
+          fallback();
+          return;
+        }
         if (!answer?.reply) {
           // Slow or away: still personal (ruling 84), "Good morning, Mr. Anthony", from config.
           const local = knownSpeakerReply(text, whoIsHere(), KNOWN_NAMES, new Date());
@@ -404,10 +425,23 @@ export function StaffVoice({
       return false;
     }
 
+    /** Whether an item of a list is being read out now, for "next", "accept" and the like. */
+    function readingNow(): boolean {
+      return cursor.current !== null && current() !== undefined;
+    }
+
     function handle(text: string): boolean {
-      const { staffKey: key, by: who, areas: mine } = latest.current;
       const command = understand(text);
+      // The owner (ruling 86): everything he says goes to his conversation first, questions,
+      // requests and statements alike; the panel answers by itself only for explicit moves,
+      // signing out and the item being read to him, and otherwise only when the conversation is
+      // away, slow or silent.
+      if (latest.current.address && !ownerAnswersHere(command, text, readingNow())) {
+        talk(text, command ? () => run(command, true) : undefined);
+        return true;
+      }
       if (!command) {
+        const { staffKey: key } = latest.current;
         // Nothing said in the admin panel is ever taken as a shopping order. Anything said to
         // Ozi by name, soon after Ozi answered, a greeting, or one of this account's everyday
         // phrases is a real conversation (31 October 2026, ruling 84): the server knows who is
@@ -423,6 +457,12 @@ export function StaffVoice({
         })();
         return true;
       }
+      return run(command, false);
+    }
+
+    /** Carries out what was understood. `fallback`: the owner's conversation did not answer. */
+    function run(command: StaffCommand, fallback: boolean): boolean {
+      const { staffKey: key, by: who, areas: mine } = latest.current;
       acknowledge.current = command.kind !== 'help' && command.kind !== 'summary';
       switch (command.kind) {
         case 'help':
@@ -539,9 +579,13 @@ export function StaffVoice({
             return true;
           }
           // The owner, with nothing being read to him: "approve the new shop" is about his desk,
-          // so it goes to the conversation, which reads it back and waits for his yes.
+          // which only his conversation reads back and decides; it did not answer this time.
           if (latest.current.address && !(cursor.current?.area === 'documents' && current())) {
-            talk(text);
+            say(
+              fallback
+                ? "I can't reach your desk just now, so nothing was done. Please ask me again in a moment."
+                : 'First, say "read me the documents", and I\'ll read them one at a time.',
+            );
             return true;
           }
           if (!needs('documents')) return true;
@@ -808,6 +852,45 @@ export function StaffVoice({
             })
             .catch((failure: unknown) =>
               say(failure instanceof Error ? failure.message : 'I could not look just now.'),
+            );
+          return true;
+        }
+        case 'partner-shops': {
+          // New partner shops waiting for approval, by name, never their products (ruling 86):
+          // from the overview where this job has it, otherwise from the shops themselves.
+          const overview = mine.includes('overview');
+          const shops = mine.includes('partners');
+          if (!overview && !shops) {
+            say("New shop partners aren't part of your job, so I can't answer that.");
+            return true;
+          }
+          // They are on the Shops and organisations tab, shown on the screen too.
+          if (shops) latest.current.onOpen('partners');
+          const fromOverview: Promise<string | null> = overview
+            ? fetchStaffOverview(key).then((data) =>
+                data.work.partnerShopsWaiting === undefined
+                  ? null
+                  : partnerShopsWords(
+                      data.work.partnerShopsWaiting,
+                      data.work.partnerShopsWaitingNames ?? [],
+                    ),
+              )
+            : Promise.resolve(null);
+          void fromOverview
+            .catch(() => null)
+            .then(async (words) => {
+              if (words) return words;
+              if (!shops) throw new Error('Not loaded.');
+              const data = await fetchStaffPartners(key);
+              const pending = data.shops.filter((shop) => shop.status === 'pending');
+              return partnerShopsWords(
+                pending.length,
+                pending.map((shop) => shop.name),
+              );
+            })
+            .then((words) => say(words))
+            .catch(() =>
+              say("I couldn't load the new shop partners just now, so I don't know yet."),
             );
           return true;
         }

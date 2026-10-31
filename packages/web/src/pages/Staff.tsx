@@ -3378,7 +3378,8 @@ function Overview({
         ['Orders in the last week', data.work.ordersLastWeek],
         ['Problems to decide', data.work.problemsWaiting],
         ['Runner documents waiting', data.work.documentsWaiting],
-        ['Shop products waiting', data.work.shopProductsWaiting],
+        ['New partner shops waiting for approval', data.work.partnerShopsWaiting ?? 0],
+        ['Shop products waiting to be checked', data.work.shopProductsWaiting],
         ['Finds It waiting', data.work.findItWaiting],
       ]
     : [];

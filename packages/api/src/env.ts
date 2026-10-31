@@ -149,8 +149,9 @@ export interface Env {
   languageModelKey: string | undefined;
   languageModelName: string | undefined;
   /**
-   * The model Ozi uses when the owner speaks (Anthony, 31 October 2026): the largest current one
-   * unless OWNER_LANGUAGE_MODEL names another. Everybody else stays on LANGUAGE_MODEL.
+   * The model Ozi uses when the owner speaks (Anthony, 31 October 2026): the newest Opus
+   * (ruling 86) unless OWNER_LANGUAGE_MODEL names another. Everybody else stays on
+   * LANGUAGE_MODEL.
    */
   ownerLanguageModelName: string | undefined;
   /**

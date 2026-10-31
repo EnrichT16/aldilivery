@@ -397,8 +397,8 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
 
     const history = brain && conversation ? await recentTurns(app.ctx, conversation) : [];
 
-    // The owner on the largest model, with his desk tools (31 October 2026). It may read; a
-    // decision is only read back here, and waits for his yes in his next turn.
+    // The owner on the newest Opus (ruling 86), with his desk tools (31 October 2026). It may
+    // read; a decision is only read back here, and waits for his yes in his next turn.
     if (owner && brain?.talkWithOwner) {
       const talk = await brain.talkWithOwner({
         text,

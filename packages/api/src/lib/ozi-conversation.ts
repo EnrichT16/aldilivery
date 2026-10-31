@@ -306,9 +306,32 @@ export function ownerTools(ctx: DeskContext & Pick<AppContext, 'mailboxes'>): Ow
         refundsPence: -refunds.reduce((sum, row) => sum + row.amountPence, 0),
         refunds: refunds.length,
         runnersWaitingForApproval: runnersWaiting,
-        partnersWaitingForApproval: partnersWaiting,
+        newPartnerShopsWaitingForApproval: partnersWaiting,
         areasWithNoRunner: noRunner.slice(0, 15),
         moreAreasWithNoRunner: Math.max(0, noRunner.length - 15),
+      };
+    },
+    async partnerApprovals() {
+      // New partner shops waiting for approval, by name, and apart from them the shop products
+      // waiting to be checked (ruling 86): two different things he must never hear confused.
+      const shops = (await repository.partnerShops.list())
+        .filter((shop) => shop.status === 'pending')
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      const matters = (await repository.ownerDesk.listUnsettled()).filter(
+        (matter) => matter.kind === 'partner_shop',
+      );
+      return {
+        newPartnerShopsWaitingForApproval: shops.length,
+        newPartnerShops: shops.slice(0, 15).map((shop) => ({
+          shopId: shop.id,
+          name: shop.name,
+          kind: shop.kind,
+          town: shop.address.split(',').slice(-2).join(',').trim().slice(0, 80),
+          appliedOn: shop.createdAt.toISOString().slice(0, 10),
+          deskMatterId: matters.find((matter) => matter.subjectId === shop.id)?.id ?? null,
+        })),
+        moreNewPartnerShops: Math.max(0, shops.length - 15),
+        shopProductsWaitingToBeChecked: (await repository.partnerProducts.listPending()).length,
       };
     },
     async readApplication(kind, id) {

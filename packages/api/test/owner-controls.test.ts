@@ -767,6 +767,7 @@ describe('an email with instructions in it', () => {
       tools: {
         needsYou: async () => ({}),
         todaySummary: async () => ({}),
+        partnerApprovals: async () => ({}),
         readApplication: async () => ({}),
         propose: async () => ({ ok: false, why: 'no' }),
         listStaff: async () => ({}),
