@@ -100,6 +100,13 @@ import {
 } from '../services/partner-products.js';
 import { tieAmbassador } from '../services/ambassadors.js';
 import {
+  ensureCheckCode,
+  FIRST_CLAIM_WORDS,
+  publicCheck,
+  sendWelcomeText,
+  startClaim,
+} from '../services/ambassador-protection.js';
+import {
   findAccount,
   recordReferralFor,
   samePerson,
@@ -115,6 +122,9 @@ const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
 const ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
+
+/** Anything that looks like bank or card details: never taken through an Ambassador. */
+const BANK_FIELD = /sort.?code|account.?number|iban|bic|swift|bank|card.?number|cvc|cvv|expiry/i;
 
 /** Easy to read out: no O, 0, I, 1 or L. */
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -1651,6 +1661,11 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       passwordHash: hashPassword(body.password),
     });
     await repository.businessUsers.update(user.id, { mustChangePassword: false });
+    // Signed up by an Ambassador: the business confirms with a code sent to its own phone, on
+    // its own device, before the Ambassador earns anything from it (31 October 2026).
+    const claim = signUp ? await startClaim(app.ctx, shop, signUp.kind, signUp.id, log) : null;
+    // The welcome text, with the payment warning and how to report an Ambassador (31 October 2026).
+    await sendWelcomeText(app.ctx, (await repository.partnerShops.findById(shop.id)) ?? shop, log);
     // A new shop waiting for approval: Ozi rings the owner about it (ruling 74).
     await askOwner(
       app.ctx,
@@ -1696,6 +1711,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       mustChangePassword: false,
       shop: { id: shop.id, status: shop.status, plan: shop.plan, freeForever: shop.freeForever },
       checkout,
+      confirmCodeSent: claim?.sent ?? false,
       message:
         `Welcome, ${body.contactName}. ${shop.name} is set up${claimed ? ' and claimed' : ''}. You can add ${body.kind === 'service' ? 'services' : 'products'} now; your page goes public once we have checked it, usually within one working day.` +
         (freeForever ? ' Your basic listing is free, with no monthly fee.' : '') +
@@ -1721,6 +1737,14 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     }
     const ambassador = await findAccount(app.ctx, kind, id);
     if (!ambassador) throw new UnauthorisedError('Please sign in.');
+    // Bank or card details are never collected through an Ambassador (31 October 2026): a
+    // business is never asked for them at all, and anything like them is refused, not kept.
+    const sent = (request.body ?? {}) as Record<string, unknown>;
+    if (Object.keys(sent).some((key) => BANK_FIELD.test(key))) {
+      throw new BadRequestError(
+        'An Ambassador never takes bank or card details. Nothing was saved. The business never needs to give them to join.',
+      );
+    }
     const body = joinSchema
       .omit({ claimShopId: true, ambassador: true, joinedVia: true, introducedBy: true })
       .extend({
@@ -1751,6 +1775,21 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         "The owner's phone number or email is yours. An Ambassador cannot introduce their own business. Please use the owner's own details.",
       );
     }
+    // The first confirmed claim wins (31 October 2026): a business another Ambassador already
+    // introduced is refused politely, before anything is made.
+    const sameBusiness = (await repository.partnerShops.list()).find(
+      (other) =>
+        other.ambassadorConfirmedAt !== null &&
+        other.ambassadorId !== null &&
+        !(other.ambassadorKind === kind && other.ambassadorId === id) &&
+        samePerson(owner, {
+          kind: 'partner',
+          id: other.id,
+          phones: [ukPhone(other.mobile) ?? other.mobile.replace(/\D/g, '')].filter(Boolean),
+          emails: [other.email.trim().toLowerCase()].filter(Boolean),
+        }),
+    );
+    if (sameBusiness) throw new ConflictError(FIRST_CLAIM_WORDS);
     const proposedMarkupPercent = markupFor(body.kind, body.agreedMarkupPercent);
     const proposedDiscountPercent = discountFor(body.kind, body.agreedDiscountPercent);
     const reference = await newAgreementReference();
@@ -1777,7 +1816,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     return {
       ...rest,
       reference,
-      message: `${join.name} is signed up and waiting for our approval. Agreement reference ${reference}. ${body.contactName} can sign in with the username and password they chose. Print the Shop Partner agreement sheet from your Toolkit for them to keep.`,
+      message: `${join.name} is signed up and waiting for our approval. Agreement reference ${reference}. ${body.contactName} can sign in with the username and password they chose. ${joined.confirmCodeSent ? 'We have texted a code to the business mobile.' : 'We will text a code to the business mobile.'} The owner confirms you introduced them by typing it into their partner dashboard, on their own phone or computer, not yours. Your share starts only once they have. Print the Shop Partner agreement sheet from your Toolkit for them to keep.`,
     };
   });
 
@@ -1835,7 +1874,18 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     const { reference } = z.object({ reference: z.string().trim().max(20) }).parse(request.params);
     const shop = await repository.partnerShops.findByAgreementReference(reference.toUpperCase());
     if (!shop) return { found: false, reference: reference.toUpperCase() };
+    // The Ambassador check first (31 October 2026): the sheet's QR code shows whether the
+    // Ambassador who printed it is still active, as every printed QR code does.
+    const agreement =
+      shop.ambassadorKind && shop.ambassadorId
+        ? await repository.ambassadors.findAgreement(shop.ambassadorKind, shop.ambassadorId)
+        : null;
+    const ambassador =
+      agreement && (agreement.checkCode || agreement.status === 'approved')
+        ? await publicCheck(app.ctx, await ensureCheckCode(app.ctx, agreement))
+        : null;
     return {
+      ambassador,
       found: true,
       reference: shop.agreementReference,
       business: shop.name,

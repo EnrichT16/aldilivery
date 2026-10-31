@@ -99,9 +99,13 @@ export function exampleLines(): string[] {
 export const AMBASSADOR_RULES: readonly string[] = [
   'Never promise anyone an income, or say how much a business will earn.',
   'Never say we have a partnership with any supermarket. We do not.',
-  'Never promise anything on our behalf, such as prices, places or approval.',
-  'Never collect money from a business, for anything.',
-  'Never ask anyone for their card details.',
+  'Never promise anything that is not in the agreement, such as prices, places or approval.',
+  'Never ask for or take money from anybody, for anything. Joining is always free.',
+  'Never collect bank or card details from anybody.',
   'Never introduce your own business.',
   'Always say who you are: an independent Ambassador, not our employee.',
 ];
+
+/** Said with the rules (Anthony, 31 October 2026). */
+export const REMOVAL_FOR_FRAUD_WORDS =
+  'Asking for or taking money, promising anything not in the agreement, or collecting bank or card details is fraud: it means removal as an Ambassador.';

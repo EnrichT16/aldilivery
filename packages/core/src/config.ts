@@ -44,6 +44,10 @@ import type { AreaSettings } from './areas.js';
 import type { BrowseSettings } from './browse.js';
 import { excludedServiceKind, type PartnerPricing } from './partners.js';
 import type { AmbassadorSettings, ReferralSettings } from './referrals.js';
+import {
+  AMBASSADOR_PROTECTION_DEFAULTS,
+  type AmbassadorProtectionSettings,
+} from './ambassador-protection.js';
 import type { RestaurantSettings } from './restaurants.js';
 
 export type CatalogueSourceMode = 'partner_feed' | 'community';
@@ -282,6 +286,13 @@ export interface StoreConfig {
   readonly referrals: ReferralSettings;
   /** Ozi Ambassadors, who introduce businesses (Anthony, 30 October 2026). */
   readonly ambassador: AmbassadorSettings;
+  /**
+   * Protections against Ambassadors misusing the name (Anthony, 31 October 2026): the payment
+   * warning's words and the paid extras it names, the business's confirmation code, the "Were you
+   * promised anything" question, the public check page's limits and words, and the staff links to
+   * check a business (packages/core/src/ambassador-protection.ts).
+   */
+  readonly ambassadorProtection: AmbassadorProtectionSettings;
   /**
    * Restaurant, café and takeaway pricing (Anthony, 30 October 2026): the flat restaurant fee in
    * place of delivery, the smallest restaurant order, and the agreed discount that makes a
@@ -962,6 +973,61 @@ function parseAmbassador(raw: Unknown): AmbassadorSettings {
       raw['declinedNoteKeptMonths'] ?? 12,
       'ambassador.declinedNoteKeptMonths',
       1,
+    ),
+  };
+}
+
+/** A link template for staff: an https address. */
+function httpsTemplate(value: unknown, path: string): string {
+  const text = str(value, path).trim();
+  if (!/^https:\/\/[^\s]+$/.test(text)) {
+    throw new StoreConfigError(`${path} must be an https address.`);
+  }
+  return text;
+}
+
+/**
+ * Protections against Ambassadors misusing the name (Anthony, 31 October 2026). The payment
+ * warning must keep its two promises, whatever words are chosen: that joining is free, and never
+ * to pay an Ambassador.
+ */
+function parseAmbassadorProtection(raw: Unknown): AmbassadorProtectionSettings {
+  const d = AMBASSADOR_PROTECTION_DEFAULTS;
+  const words = str(raw['freeJoiningWords'] ?? d.freeJoiningWords, 'ambassadorProtection.freeJoiningWords');
+  if (!/free/i.test(words) || !/never pay an ambassador/i.test(words)) {
+    throw new StoreConfigError(
+      'ambassadorProtection.freeJoiningWords must say that joining is free and "Never pay an Ambassador".',
+    );
+  }
+  const paidExtras =
+    raw['paidExtras'] === undefined
+      ? [...d.paidExtras]
+      : wordList(raw['paidExtras'], 'ambassadorProtection.paidExtras');
+  if (paidExtras.length === 0) {
+    throw new StoreConfigError('ambassadorProtection.paidExtras must name the paid extras.');
+  }
+  const text = (key: keyof AmbassadorProtectionSettings): string =>
+    str(raw[key] ?? d[key], `ambassadorProtection.${key}`);
+  const whole = (key: keyof AmbassadorProtectionSettings, minimum: number): number =>
+    wholeNumber(raw[key] ?? d[key], `ambassadorProtection.${key}`, minimum);
+  return {
+    freeJoiningWords: words,
+    paidExtras,
+    confirmCodeMinutes: whole('confirmCodeMinutes', 5),
+    confirmCodeTries: whole('confirmCodeTries', 1),
+    promisedAskAfterDays: whole('promisedAskAfterDays', 1),
+    promisedQuestion: text('promisedQuestion'),
+    checksPerTenMinutes: whole('checksPerTenMinutes', 1),
+    reportsPerTenMinutes: whole('reportsPerTenMinutes', 1),
+    notActiveWords: text('notActiveWords'),
+    unknownCodeWords: text('unknownCodeWords'),
+    companiesHouseSearch: httpsTemplate(
+      raw['companiesHouseSearch'] ?? d.companiesHouseSearch,
+      'ambassadorProtection.companiesHouseSearch',
+    ),
+    hygieneRatingSearch: httpsTemplate(
+      raw['hygieneRatingSearch'] ?? d.hygieneRatingSearch,
+      'ambassadorProtection.hygieneRatingSearch',
     ),
   };
 }
@@ -1715,6 +1781,11 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     ),
     ambassador: parseAmbassador(
       root['ambassador'] === undefined ? {} : object(root['ambassador'], 'ambassador'),
+    ),
+    ambassadorProtection: parseAmbassadorProtection(
+      root['ambassadorProtection'] === undefined
+        ? {}
+        : object(root['ambassadorProtection'], 'ambassadorProtection'),
     ),
     checkoutInsights: parseCheckoutInsights(
       root['checkoutInsights'] === undefined

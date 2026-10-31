@@ -306,6 +306,17 @@ export function Privacy(): JSX.Element {
             somebody removed for fraud applying again, and to spot an application made under a false
             name. Reason: to prevent fraud, our legitimate interest.
           </li>
+          <li>
+            {/* Protections against Ambassadors misusing the name (Anthony, 31 October 2026). */}
+            Anybody can check an Ambassador&rsquo;s code on our website. It shows only their first
+            name, their face photo while they are active, whether they are active and the day they
+            were approved: never a surname, a phone number or an email. To stop an Ambassador
+            earning from orders that are not real, we compare an order&rsquo;s phone number, card
+            (by the card&rsquo;s fingerprint from our payment company, never its number), delivery
+            address and a random device number with the Ambassador&rsquo;s and the business
+            owner&rsquo;s. A match holds the Ambassador&rsquo;s share until a person checks it.
+            Reason: to prevent fraud, our legitimate interest.
+          </li>
         </ul>
       </section>
 

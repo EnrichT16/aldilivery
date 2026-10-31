@@ -177,7 +177,21 @@ export function AmbassadorTerms(): JSX.Element {
             business will earn.
           </li>
           <li>Do not say anything about {name} that is untrue or misleading.</li>
+          <li>
+            Never ask for or take money from anybody, for anything. Joining is always free, and every
+            payment is made only inside the app.
+          </li>
+          <li>Never promise anything that is not in the business&rsquo;s agreement.</li>
+          <li>Never collect anybody&rsquo;s bank or card details.</li>
         </ul>
+        <p className="m-0 font-bold">
+          Breaking any of the last three is fraud: you are removed as an Ambassador for fraud,
+          nothing more is earned, and the unpaid shares from the businesses concerned are cancelled.
+        </p>
+        <p className="m-0">
+          Every business you sign up confirms it with a code we text to the business itself, and
+          anybody can check your Ambassador code on our website.
+        </p>
         <p className="m-0">
           We may end the arrangement, and not pay what was earned through it, if you misuse it or
           make misleading claims. You can stop at any time by telling us.

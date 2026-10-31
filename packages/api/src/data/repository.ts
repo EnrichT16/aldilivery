@@ -68,6 +68,8 @@ import type {
   ReferralLevelReached,
   AmbassadorEntry,
   AmbassadorAgreement,
+  AmbassadorClaim,
+  DeviceSighting,
   AmbassadorDocument,
   AmbassadorNote,
   AmbassadorWithdrawal,
@@ -438,6 +440,8 @@ export interface Repository {
       accountId: string,
     ): Promise<AmbassadorAgreement | null>;
     findAgreementById(id: string): Promise<AmbassadorAgreement | null>;
+    /** The agreement with this public check code (31 October 2026), or null. */
+    findAgreementByCheckCode(checkCode: string): Promise<AmbassadorAgreement | null>;
     /** Every agreement, oldest first: the staff Ambassadors page and the retention sweep. */
     listAgreements(): Promise<AmbassadorAgreement[]>;
     updateAgreement(
@@ -448,9 +452,16 @@ export interface Repository {
     add(
       input: Omit<
         AmbassadorEntry,
-        'id' | 'availableAt' | 'disputedAt' | 'cancelledAt' | 'cancelledPence' | 'cancelReason'
+        | 'id'
+        | 'availableAt'
+        | 'disputedAt'
+        | 'cancelledAt'
+        | 'cancelledPence'
+        | 'cancelReason'
+        | 'heldAt'
+        | 'heldReason'
       > &
-        Partial<Pick<AmbassadorEntry, 'availableAt' | 'disputedAt'>>,
+        Partial<Pick<AmbassadorEntry, 'availableAt' | 'disputedAt' | 'heldAt' | 'heldReason'>>,
     ): Promise<AmbassadorEntry | null>;
     findByReference(reference: string): Promise<AmbassadorEntry | null>;
     /**
@@ -462,7 +473,13 @@ export interface Repository {
       patch: Partial<
         Pick<
           AmbassadorEntry,
-          'amountPence' | 'disputedAt' | 'cancelledAt' | 'cancelledPence' | 'cancelReason'
+          | 'amountPence'
+          | 'disputedAt'
+          | 'cancelledAt'
+          | 'cancelledPence'
+          | 'cancelReason'
+          | 'heldAt'
+          | 'heldReason'
         >
       >,
     ): Promise<AmbassadorEntry>;
@@ -493,6 +510,42 @@ export interface Repository {
       ambassadorKind: ReferralKind,
       ambassadorId: string,
     ): Promise<AmbassadorWithdrawal[]>;
+  };
+
+  /** Devices each account was seen using (31 October 2026): a random id the app keeps. */
+  deviceSightings: {
+    /** Notes the device with the account, once; a later sighting moves `lastSeenAt` on. */
+    record(
+      deviceId: string,
+      accountKind: DeviceSighting['accountKind'],
+      accountId: string,
+      at: Date,
+    ): Promise<void>;
+    /** The device ids this account was seen with. */
+    listForAccount(accountKind: DeviceSighting['accountKind'], accountId: string): Promise<string[]>;
+  };
+
+  /**
+   * Ambassadors' claims to have brought a business in (Anthony, 31 October 2026), confirmed by the
+   * business with a code sent to its own phone. The first confirmed claim wins.
+   */
+  ambassadorClaims: {
+    create(
+      input: Pick<AmbassadorClaim, 'partnerShopId' | 'ambassadorKind' | 'ambassadorId'> &
+        Partial<
+          Pick<
+            AmbassadorClaim,
+            'status' | 'codeHash' | 'codeExpiresAt' | 'codeSentAt' | 'confirmedAt' | 'refusedReason'
+          >
+        >,
+    ): Promise<AmbassadorClaim>;
+    findById(id: string): Promise<AmbassadorClaim | null>;
+    /** Every claim on this business, oldest first. */
+    listForShop(partnerShopId: string): Promise<AmbassadorClaim[]>;
+    update(
+      id: string,
+      patch: Partial<Omit<AmbassadorClaim, 'id' | 'partnerShopId' | 'createdAt'>>,
+    ): Promise<AmbassadorClaim>;
   };
 
   /**

@@ -239,6 +239,41 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    deviceSightings: {
+      async record(deviceId, accountKind, accountId, at) {
+        await prisma.deviceSighting.upsert({
+          where: { deviceId_accountKind_accountId: { deviceId, accountKind, accountId } },
+          create: { deviceId, accountKind, accountId, firstSeenAt: at, lastSeenAt: at },
+          update: { lastSeenAt: at },
+        });
+      },
+      async listForAccount(accountKind, accountId) {
+        const rows = await prisma.deviceSighting.findMany({
+          where: { accountKind, accountId },
+          select: { deviceId: true },
+        });
+        return rows.map((row) => row.deviceId);
+      },
+    },
+
+    ambassadorClaims: {
+      async create(input) {
+        return (await prisma.ambassadorClaim.create({ data: input })) as any;
+      },
+      async findById(id) {
+        return (await prisma.ambassadorClaim.findUnique({ where: { id } })) as any;
+      },
+      async listForShop(partnerShopId) {
+        return (await prisma.ambassadorClaim.findMany({
+          where: { partnerShopId },
+          orderBy: { createdAt: 'asc' },
+        })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.ambassadorClaim.update({ where: { id }, data: patch })) as any;
+      },
+    },
+
     ambassadorDocuments: {
       async create(input) {
         const { image, ...rest } = input;
@@ -458,6 +493,9 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
       async findAgreementById(id) {
         return (await prisma.ambassadorAgreement.findUnique({ where: { id } })) as any;
+      },
+      async findAgreementByCheckCode(checkCode) {
+        return (await prisma.ambassadorAgreement.findUnique({ where: { checkCode } })) as any;
       },
       async listAgreements() {
         return (await prisma.ambassadorAgreement.findMany({ orderBy: { agreedAt: 'asc' } })) as any;

@@ -30,6 +30,7 @@ import { sweepAllocations } from './services/allocate.js';
 import { sweepOffers } from './services/dispatch.js';
 import { refundUntakenOrders } from './services/order-rescue.js';
 import { sweepAmbassadorRetention } from './services/ambassador-applications.js';
+import { sweepAmbassadorFollowUps } from './services/ambassador-protection.js';
 import { sweepVoucherReminders } from './services/vouchers.js';
 import { sweepScheduled } from './services/scheduled.js';
 import { sweepPayouts } from './services/pay-runner.js';
@@ -349,6 +350,15 @@ async function main(): Promise<void> {
   // one morning summary on Ozi's desk. Offering them on the day is the offer sweep's, above.
   // Every minute: Ozi's reminder calls about sent vouchers still unopened (30 October 2026),
   // never in quiet hours.
+  // Every ten minutes: "Were you promised anything that isn't in your agreement?", texted once to
+  // each business about a week after it joined through an Ambassador (31 October 2026).
+  const promiseSweep = setInterval(() => {
+    sweepAmbassadorFollowUps(app.ctx, app.log).catch((failure: unknown) => {
+      app.log.error({ err: failure }, 'The Ambassador follow-up sweep failed');
+    });
+  }, 600_000);
+  promiseSweep.unref();
+
   const voucherSweep = setInterval(() => {
     sweepVoucherReminders(app.ctx, app.log).catch((failure: unknown) => {
       app.log.error({ err: failure }, 'The voucher reminder sweep failed');
@@ -608,6 +618,7 @@ async function main(): Promise<void> {
     clearInterval(sweep);
     clearInterval(bookedSweep);
     clearInterval(voucherSweep);
+    clearInterval(promiseSweep);
     clearInterval(deskSweep);
     clearInterval(deskFallback);
     if (emailSweep) clearInterval(emailSweep);

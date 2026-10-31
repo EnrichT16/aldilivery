@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { Field } from '../components/FormFields';
+import { FreeJoiningNotice } from '../components/FreeJoiningNotice';
 import { storeConfig } from '../config';
 import {
   fetchSignInOptions,
@@ -75,6 +76,10 @@ export function AmbassadorSignUpBusiness(): JSX.Element {
         </h1>
         <p role="status" className="m-0">
           {done.message}
+        </p>
+        <p className="m-0 font-bold">
+          Next, the owner signs in to their partner dashboard on their own phone or computer and
+          types the code we texted to the business. Never type it in for them.
         </p>
         <div className="flex flex-wrap gap-2">
           <Link
@@ -230,6 +235,8 @@ export function AmbassadorSignUpBusiness(): JSX.Element {
   return (
     <div className="space-y-8 max-w-2xl">
       <h1 className="text-display font-bold m-0">Sign up this business now</h1>
+      {/* The payment warning, before any field, for the owner to read (31 October 2026). */}
+      <FreeJoiningNotice />
       <p className="m-0">
         Fill this in with the owner or manager beside you. Then hand them the phone to read the
         terms and agree in their own name.

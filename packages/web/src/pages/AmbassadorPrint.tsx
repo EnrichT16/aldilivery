@@ -4,6 +4,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { FLYER_BASE_CSS, FLYERS } from '../components/ambassador/Flyers';
 import { PrintSheet } from '../components/ambassador/PrintSheet';
 import { shareLink } from '../components/ambassador/Toolkit';
+import { FREE_JOINING_WORDS } from '../components/FreeJoiningNotice';
 import { QrCode } from '../components/QrCode';
 import { storeConfig } from '../config';
 import {
@@ -108,7 +109,7 @@ export function AmbassadorPrint(): JSX.Element {
         title={`${kind === 'card' ? 'Counter card' : 'Window sticker'} for ${card.name}`}
         pageSize={kind === 'card' ? 'A6' : '120mm 120mm'}
       >
-        <OrderFromUs name={card.name} link={card.shopLink} kind={kind} />
+        <OrderFromUs name={card.name} link={card.printLink ?? card.shopLink} kind={kind} />
       </PrintSheet>
     );
   }
@@ -199,6 +200,12 @@ export function OrderFromUs({
       </div>
       <p style={{ margin: 0, fontSize: '3.6mm', fontWeight: 700 }}>
         Scan to order, or ring {storeConfig.contact.telephonePlaceholder}
+      </p>
+      <p
+        className="free-joining"
+        style={{ margin: 0, fontSize: kind === 'card' ? '2.4mm' : '2.1mm', lineHeight: 1.3 }}
+      >
+        {FREE_JOINING_WORDS}
       </p>
     </div>
   );
@@ -309,7 +316,9 @@ export function AgreementPaper({
               dark={navy}
               className="w-full"
             />
-            <p style={{ margin: '1mm 0 0', fontSize: '3mm' }}>Scan to check this agreement</p>
+            <p style={{ margin: '1mm 0 0', fontSize: '3mm' }}>
+              Scan to check this agreement and the Ambassador
+            </p>
           </div>
         </div>
         <p style={{ margin: '8mm 0 0' }}>
@@ -318,9 +327,9 @@ export function AgreementPaper({
           mark-up and discount above were agreed with them. They are proposed until {product} staff
           confirm them, when they check this reference and approve the business.
         </p>
+        <p style={{ margin: '4mm 0 0', fontWeight: 800 }}>{FREE_JOINING_WORDS}</p>
         <p style={{ margin: '4mm 0 0' }}>
-          Nobody needs to pay anything to join. An Ambassador never collects money and never asks
-          for card details. Questions? Ring {storeConfig.contact.telephonePlaceholder} or email{' '}
+          An Ambassador never collects money and never asks for bank or card details. Questions? Ring {storeConfig.contact.telephonePlaceholder} or email{' '}
           {storeConfig.contact.email}.
         </p>
         <p style={{ margin: '4mm 0 0', fontWeight: 800 }}>{watermark}.</p>

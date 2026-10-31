@@ -1,4 +1,5 @@
 import {
+  freeJoiningWords,
   counterPricePence,
   markedUpPricePence,
   markupDisclosureWords,
@@ -84,6 +85,28 @@ export function PartnerTerms({
           <li>
             If {assistant} listed your shop from public details, you can claim its page, except a
             branch of a national chain. We check a claim before the page goes live again.
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="free-to-join" className="space-y-3">
+        <H2 id="free-to-join" className="text-lead font-bold">
+          Joining is free, and paying only in the app
+        </H2>
+        <p className="m-0">{freeJoiningWords(storeConfig)}</p>
+        <ul className="m-0 ps-6 space-y-2">
+          <li>
+            An Ambassador is independent. They may never ask you for money, take money from you,
+            promise you anything that is not in this agreement, or ask for your bank or card
+            details.
+          </li>
+          <li>
+            If an Ambassador signed you up, we text a code to your business mobile. Only you type it
+            in, in your partner dashboard, on your own phone or computer.
+          </li>
+          <li>
+            If anybody asks you to pay them to join, or for anything else, use &ldquo;Report an
+            Ambassador&rdquo; in your partner dashboard, or ring us.
           </li>
         </ul>
       </section>

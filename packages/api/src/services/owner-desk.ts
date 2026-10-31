@@ -296,7 +296,14 @@ async function stillNeedsOwner(ctx: DeskContext, matter: OwnerMatter): Promise<b
     case 'referral_level':
     case 'ambassador_review':
     case 'ambassador_application':
+    case 'ambassador_report':
+    case 'ambassador_promise':
       return true;
+    case 'ambassador_share_held': {
+      // Until staff release or cancel the held share (31 October 2026).
+      const entry = await repository.ambassadors.findByReference(matter.subjectId);
+      return entry !== null && entry.heldAt !== null;
+    }
     case 'ambassador_document': {
       // An Ambassador applicant's document (30 October 2026): until it is decided.
       const document = await repository.ambassadorDocuments.findById(matter.subjectId);

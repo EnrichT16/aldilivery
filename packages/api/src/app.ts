@@ -23,6 +23,7 @@ import { bankSettings } from './lib/bank.js';
 import { askedByStaff, withoutStaffOnlyFields } from './lib/staff-only.js';
 import { auditChange } from './lib/audit.js';
 import { addSecurityHeaders, limiter } from './lib/guard.js';
+import { verifyBusinessToken } from './lib/business.js';
 import type { CallRecorder } from './lib/call-recording.js';
 import type { CallProvider } from './lib/livekit.js';
 import type { VoiceEngineLink } from './lib/oluoma-voice.js';
@@ -76,6 +77,7 @@ import { registerRunnerMoneyRoutes } from './routes/runner-money.js';
 import { registerRunnerCardRoutes } from './routes/runner-card.js';
 import { registerRunnerSafetyRoutes } from './routes/runner-safety.js';
 import { registerReferralRoutes } from './routes/referrals.js';
+import { registerAmbassadorProtectionRoutes } from './routes/ambassador-protection.js';
 import { registerPushRoutes } from './routes/push.js';
 import { registerSetRoutes } from './routes/sets.js';
 import { registerWebhookRoutes } from './routes/webhooks.js';
@@ -337,7 +339,39 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
         'Too many tries from here. Please wait ten minutes and try again.',
       );
     }
+    // The app's random device id, noted with whoever is signed in (31 October 2026), so an order
+    // from an Ambassador's own device, or the business owner's, can be held for a person.
+    await noteDevice(request);
   });
+
+  /** Each device and account once a day at most, so this costs almost nothing. */
+  const devicesNoted = new Map<string, number>();
+  async function noteDevice(request: FastifyRequest): Promise<void> {
+    const given = request.headers['x-device-id'];
+    const deviceId = Array.isArray(given) ? given[0] : given;
+    if (!deviceId || !/^[A-Za-z0-9_-]{16,64}$/.test(deviceId)) return;
+    let account: { kind: 'shopper' | 'runner' | 'partner'; id: string } | null = null;
+    if (request.session?.role === 'shopper' || request.session?.role === 'runner') {
+      account = { kind: request.session.role, id: request.session.accountId };
+    } else {
+      const header = request.headers['x-business-token'];
+      const token = Array.isArray(header) ? header[0] : header;
+      const userId = token ? verifyBusinessToken(token, ctx.env.authTokenSecret, ctx.now()) : null;
+      const user = userId ? await ctx.repository.businessUsers.findById(userId) : null;
+      if (user?.partnerShopId) account = { kind: 'partner', id: user.partnerShopId };
+    }
+    if (!account) return;
+    const key = `${deviceId} ${account.kind} ${account.id}`;
+    const at = ctx.now().getTime();
+    if ((devicesNoted.get(key) ?? 0) > at - 24 * 3_600_000) return;
+    devicesNoted.set(key, at);
+    if (devicesNoted.size > 50_000) devicesNoted.clear();
+    try {
+      await ctx.repository.deviceSightings.record(deviceId, account.kind, account.id, ctx.now());
+    } catch (failure) {
+      request.log.warn({ err: failure }, 'A device could not be noted.');
+    }
+  }
 
   // A partner's till prices, counter prices, discount and mark-up go to staff alone (30 October
   // 2026): taken out of every other response here, so no route can forget.
@@ -555,6 +589,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerRunnerMoneyRoutes(app);
   await registerRunnerCardRoutes(app);
   await registerReferralRoutes(app);
+  await registerAmbassadorProtectionRoutes(app);
   await registerAdminRoutes(app);
   await registerAllocateRoutes(app);
   await registerUnlockRoutes(app);

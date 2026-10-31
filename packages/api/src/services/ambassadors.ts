@@ -90,6 +90,13 @@ import type {
   ReferralKind,
 } from '../domain.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
+import {
+  ambassadorMayEarn,
+  confirmOwnSignUp,
+  FIRST_CLAIM_WORDS,
+  raiseHeldShare,
+  selfDealingReason,
+} from './ambassador-protection.js';
 import { askOwner } from './owner-desk.js';
 import {
   findAccount,
@@ -101,7 +108,8 @@ import {
   type ReferralContext,
 } from './referrals.js';
 
-type MoneyContext = Pick<AppContext, 'repository' | 'config' | 'now'>;
+type MoneyContext = Pick<AppContext, 'repository' | 'config' | 'now'> &
+  Partial<Pick<AppContext, 'payments'>>;
 
 /** The kind:code in an Ambassador's link, the same codes as their referral link. */
 export function ambassadorLink(origin: string, account: Pick<ReferralAccount, 'kind' | 'code'>) {
@@ -292,6 +300,10 @@ export async function tieAmbassador(
     ambassadorKind: ambassador.kind,
     ambassadorId: ambassador.id,
   });
+  // The business joined by itself, on its own device: that is its confirmation (31 October
+  // 2026). Another Ambassador's confirmed introduction first, and this one is refused politely.
+  const confirmed = await confirmOwnSignUp(ctx, shop, ambassador.kind, ambassador.id);
+  if (!confirmed.confirmed) return { tied: false, words: ` ${FIRST_CLAIM_WORDS}` };
   return { tied: true, words: ` You were introduced by ${ambassador.name}, an Ozi Ambassador.` };
 }
 
@@ -469,8 +481,9 @@ async function removedAmbassador(
   return (await ctx.repository.ambassadors.findAgreement(kind, id))?.status === 'removed';
 }
 
+/** A share or bonus that counts: never one held for a check (31 October 2026). */
 function earning(entry: AmbassadorEntry): boolean {
-  return entry.kind === 'share' || entry.kind === 'bonus';
+  return (entry.kind === 'share' || entry.kind === 'bonus') && entry.heldAt === null;
 }
 
 /**
@@ -493,11 +506,16 @@ export async function creditAmbassadorShares(
     for (const { shop, profitPence, base } of (await profitByShop(ctx, order)).values()) {
       if (!shop.ambassadorKind || !shop.ambassadorId) continue;
       if (shop.status !== 'approved') continue;
+      // Not until the business has confirmed its Ambassador with its own code (31 October 2026).
+      if (!ambassadorMayEarn(shop)) continue;
       // Removed for fraud (31 October 2026): nothing more is earned.
       if (await removedAmbassador(ctx, shop.ambassadorKind, shop.ambassadorId)) continue;
       if (!withinAmbassadorMonths(shop.approvedAt, at, ctx.config.ambassador)) continue;
       const amountPence = await shareWorth(ctx, order, shop, base, false);
       if (amountPence <= 0) continue;
+      // Only orders from real, distinct Shoppers count (31 October 2026): one that looks like the
+      // Ambassador's or the owner's own is held for a person, and staff are told.
+      const heldReason = await selfDealingReason(ctx, order, shop);
       const entry = await ctx.repository.ambassadors.add({
         ambassadorKind: shop.ambassadorKind,
         ambassadorId: shop.ambassadorId,
@@ -510,9 +528,14 @@ export async function creditAmbassadorShares(
         reference: `share:${order.id}:${shop.id}`,
         recordedBy: null,
         at,
+        ...(heldReason ? { heldAt: ctx.now(), heldReason } : {}),
       });
       if (!entry) continue;
       made.push(entry);
+      if (entry.heldAt) {
+        await raiseHeldShare(ctx, entry, shop, log);
+        continue;
+      }
       await reviewIfHigh(ctx, entry.ambassadorKind, entry.ambassadorId, at, log);
     }
   } catch (failure) {
@@ -540,7 +563,8 @@ export async function reconcileOrder(ctx: MoneyContext, orderId: string): Promis
         ? await shareWorth(ctx, order, found.shop, found.base, share.disputedAt !== null)
         : 0;
     const pending = share.availableAt !== null && share.availableAt.getTime() > now;
-    if (pending) {
+    // A share held for a check follows its order as a pending one does: never a deduction.
+    if (pending || share.heldAt !== null) {
       if (worth < share.amountPence) {
         await ctx.repository.ambassadors.updateEntry(share.id, { amountPence: worth });
       }
@@ -621,6 +645,7 @@ export async function settlePlusBonuses(
 ): Promise<void> {
   for (const shop of shops) {
     if (!shop.ambassadorKind || !shop.ambassadorId) continue;
+    if (!ambassadorMayEarn(shop)) continue;
     if (await removedAmbassador(ctx, shop.ambassadorKind, shop.ambassadorId)) continue;
     const first = (await ctx.repository.partnerPayments.listForShop(shop.id))
       .filter((payment) => payment.kind === 'plan' && payment.amountPence > 0)
@@ -686,6 +711,8 @@ export interface AmbassadorSummary {
   payable: boolean;
   /** Unpaid shares cancelled when they were removed for fraud (31 October 2026). */
   cancelledPence: number;
+  /** Shares held for a person to check (31 October 2026): not counted until released. */
+  heldPence: number;
 }
 
 /**
@@ -755,6 +782,7 @@ export async function ambassadorSummary(
     shortfallPence: Math.max(0, -netPence),
     payable: ambassadorPayable(availablePence, ctx.config.ambassador),
     cancelledPence: entries.reduce((total, entry) => total + entry.cancelledPence, 0),
+    heldPence: sum(entries.filter((entry) => entry.heldAt !== null)),
   };
 }
 

@@ -112,7 +112,7 @@ describe('the terms-changed notice', () => {
     await waitFor(() => expect(screen.queryByText(WORDS)).toBeNull());
     expect(sent.find((row) => row.path === '/ambassador/join')?.body).toEqual({
       termsAgreed: true,
-      termsVersion: '2026-10-30c',
+      termsVersion: '2026-10-31a',
     });
     expect(news).toHaveBeenCalledWith(
       'Thank you. You have agreed to the new Ozi Ambassador terms.',

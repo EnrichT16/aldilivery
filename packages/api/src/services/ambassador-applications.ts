@@ -75,6 +75,7 @@ import type {
 } from '../domain.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../errors.js';
 import { HELD_WORDS, reapplyFrom } from './ambassadors.js';
+import { ensureCheckCode } from './ambassador-protection.js';
 import { askOwner, settleMattersFor } from './owner-desk.js';
 import { findAccount, KIND_WORDS, type ReferralContext } from './referrals.js';
 
@@ -648,6 +649,8 @@ export async function approveAmbassador(
     stoppedAt: null,
     suspendedFrom: null,
   });
+  // Their code for the public check page and every printed QR code (31 October 2026).
+  await ensureCheckCode(ctx, agreement);
   await settleMattersFor(ctx, 'ambassador_application', agreement.id, 'panel', by);
   return { message: `${await nameOf(ctx, agreement)} is approved as an Ozi Ambassador, by ${by}.` };
 }
