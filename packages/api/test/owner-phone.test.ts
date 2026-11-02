@@ -221,7 +221,7 @@ describe('Remember me on this phone', () => {
     // The next morning, after the phone app was closed: still signed in on the phone.
     harness.setNow(new Date(START.getTime() + 20 * 3_600_000));
     expect((await me(phoneHeaders)).json().isOwner).toBe(true);
-    expect((await me(computerHeaders)).statusCode).toBe(403);
+    expect((await me(computerHeaders)).statusCode).toBe(401);
 
     // A fresh computer session, then Sign out of this phone, from the phone.
     const later = await signIn();
@@ -232,13 +232,13 @@ describe('Remember me on this phone', () => {
       headers: phoneHeaders,
     });
     expect(out.statusCode, out.body).toBe(200);
-    expect((await me(phoneHeaders)).statusCode).toBe(403);
+    expect((await me(phoneHeaders)).statusCode).toBe(401);
     expect((await me(laterHeaders)).statusCode).toBe(200);
 
     // And it ends: past the configured days, signing in again is needed.
     const again = await signIn(true);
     const againHeaders = { 'x-staff-token': again.json().token as string };
     harness.setNow(new Date(harness.now().getTime() + (days + 1) * 24 * 3_600_000));
-    expect((await me(againHeaders)).statusCode).toBe(403);
+    expect((await me(againHeaders)).statusCode).toBe(401);
   });
 });

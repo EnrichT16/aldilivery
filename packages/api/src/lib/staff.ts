@@ -17,13 +17,16 @@ import type { FastifyRequest } from 'fastify';
 import type { StoreConfig } from '@aldilivery/core';
 
 import type { StaffMember } from '../domain.js';
-import { ApiError, ForbiddenError } from '../errors.js';
+import { ApiError, ForbiddenError, SessionInvalidError } from '../errors.js';
 import { noteStaffSighting } from './staff-sightings.js';
+import type { TokenRefusal } from './tokens.js';
 
 declare module 'fastify' {
   interface FastifyRequest {
     /** Who in the admin panel made this request, once checked: what the audit log records. */
     staffActor?: StaffActor;
+    /** The staff session token this request carried, once checked; none for the staff key. */
+    staffSession?: StaffSession;
   }
 }
 
@@ -248,18 +251,29 @@ export interface StaffSession {
    * phone" raises the account's version, and every remembered session with the old one stops.
    */
   remembered: number | null;
+  /** When the session ends, in milliseconds since 1970, so "me" can renew it (ruling 88). */
+  expiresAtMs: number;
+  /** When it was signed, or null for a token from before 2 November 2026. */
+  issuedAtMs: number | null;
 }
 
 export function signStaffToken(
   staffId: string,
   expiresAt: Date,
   secret: string,
-  extra: { version?: number; passcode?: boolean; setup?: boolean; remembered?: number } = {},
+  extra: {
+    version?: number;
+    passcode?: boolean;
+    setup?: boolean;
+    remembered?: number;
+    issuedAt?: Date;
+  } = {},
 ): string {
   const body = Buffer.from(
     JSON.stringify({
       id: staffId,
       exp: expiresAt.getTime(),
+      ...(extra.issuedAt ? { ia: extra.issuedAt.getTime() } : {}),
       v: extra.version ?? 0,
       pc: extra.passcode ?? false,
       ...(extra.setup ? { su: true } : {}),
@@ -271,31 +285,49 @@ export function signStaffToken(
 }
 
 export function verifyStaffToken(token: string, secret: string, now: Date): StaffSession | null {
+  const outcome = inspectStaffToken(token, secret, now);
+  return 'session' in outcome ? outcome.session : null;
+}
+
+/** Like `verifyStaffToken`, but says why a token was refused (ruling 88). */
+export function inspectStaffToken(
+  token: string,
+  secret: string,
+  now: Date,
+): { session: StaffSession } | { refused: TokenRefusal } {
   const [version, body, mac] = token.split('.');
-  if (version !== 'st1' || !body || !mac) return null;
+  if (version !== 'st1' || !body || !mac) return { refused: 'invalid' };
   const expected = createHmac('sha256', `${LABEL}${secret}`).update(body).digest('base64url');
   const a = Buffer.from(mac);
   const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return { refused: 'invalid' };
   try {
     const parsed = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as {
       id: string;
       exp: number;
+      ia?: number;
       v?: number;
       pc?: boolean;
       su?: boolean;
       rm?: number;
     };
-    if (typeof parsed.id !== 'string' || parsed.exp <= now.getTime()) return null;
+    if (typeof parsed.id !== 'string' || typeof parsed.exp !== 'number') {
+      return { refused: 'invalid' };
+    }
+    if (parsed.exp <= now.getTime()) return { refused: 'expired' };
     return {
-      id: parsed.id,
-      version: parsed.v ?? 0,
-      passcode: parsed.pc === true,
-      setup: parsed.su === true,
-      remembered: typeof parsed.rm === 'number' ? parsed.rm : null,
+      session: {
+        id: parsed.id,
+        version: parsed.v ?? 0,
+        passcode: parsed.pc === true,
+        setup: parsed.su === true,
+        remembered: typeof parsed.rm === 'number' ? parsed.rm : null,
+        expiresAtMs: parsed.exp,
+        issuedAtMs: typeof parsed.ia === 'number' ? parsed.ia : null,
+      },
     };
   } catch {
-    return null;
+    return { refused: 'invalid' };
   }
 }
 
@@ -439,10 +471,16 @@ export async function staffActor(
   }
 
   const token = header(request, 'x-staff-token');
-  const session = token ? verifyStaffToken(token, env.authTokenSecret, now()) : null;
-  const member = session ? await repository.staffMembers.findById(session.id) : null;
+  // Nothing sent is not a refusal of a sign-in: it is simply not signed in (ruling 88).
+  if (!token)
+    throw new ForbiddenError('Please sign in to the admin panel.', { code: 'no_session' });
+  const inspected = inspectStaffToken(token, env.authTokenSecret, now());
+  // A token that is bad or has ended, or whose account is off or signed out everywhere, is the
+  // one answer that may make the admin panel forget its sign-in.
+  if ('refused' in inspected) throw new SessionInvalidError(inspected.refused);
+  const { session } = inspected;
+  const member = await repository.staffMembers.findById(session.id);
   if (
-    !session ||
     !member ||
     !member.active ||
     !isStaffRole(member.role) ||
@@ -450,8 +488,9 @@ export async function staffActor(
     // "Sign out of this phone" (ruling 84) ends every remembered session of the account.
     (session.remembered !== null && session.remembered !== (member.rememberedVersion ?? 0))
   ) {
-    throw new ForbiddenError('Please sign in to the admin panel.');
+    throw new SessionInvalidError('invalid', 'Please sign in to the admin panel.');
   }
+  request.staffSession = session;
   // A session made only so two-step codes can be set up opens nothing else.
   if (session.setup && !options.allowSetup) {
     throw new ApiError(

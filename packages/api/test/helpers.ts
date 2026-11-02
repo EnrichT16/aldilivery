@@ -51,6 +51,7 @@ export const testEnv: Env = {
   authTokenSecret: TEST_SECRET,
   // Long, because several tests move the clock weeks forward to reach a recurring order.
   authTokenTtlHours: 24 * 365,
+  allowShortSessions: false,
   otpLength: 6,
   otpTtlSeconds: 600,
   otpDelivery: 'log',

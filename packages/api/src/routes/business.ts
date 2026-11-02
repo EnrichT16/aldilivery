@@ -80,6 +80,7 @@ import {
   verifyPartnerCheckout,
 } from '../lib/business.js';
 import { textPdf } from '../lib/pdf.js';
+import { pastHalfLife } from '../lib/sessions.js';
 import { isUkMobile, ukPhone } from '../lib/phone.js';
 import { NEVER_FOUND } from '../lib/restricted.js';
 import { loadShopsSeed, seedShops } from '../lib/shops-seed.js';
@@ -661,6 +662,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         user.id,
         new Date(at.getTime() + BUSINESS_SESSION_HOURS * 3_600_000),
         env.authTokenSecret,
+        at,
       ),
       ...(await describe(user)),
     };
@@ -689,7 +691,20 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     };
   }
 
-  app.get('/business/me', async (request) => describe(await businessActor(request)));
+  app.get('/business/me', async (request) => {
+    const user = await businessActor(request);
+    // Past half its life, the session is renewed for a full working day again (ruling 88).
+    const session = request.businessSession;
+    const at = now();
+    const renewed =
+      session && pastHalfLife(session, BUSINESS_SESSION_HOURS * 3_600_000, at)
+        ? (({ expiresAt }) => ({
+            refreshedToken: signBusinessToken(user.id, expiresAt, env.authTokenSecret, at),
+            expiresAt,
+          }))({ expiresAt: new Date(at.getTime() + BUSINESS_SESSION_HOURS * 3_600_000) })
+        : {};
+    return { ...(await describe(user)), ...renewed };
+  });
 
   app.post('/business/password', async (request) => {
     const user = await businessActor(request);
@@ -1703,6 +1718,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         user.id,
         new Date(at.getTime() + BUSINESS_SESSION_HOURS * 3_600_000),
         env.authTokenSecret,
+        at,
       ),
       kind: 'partner' as const,
       name: user.name,

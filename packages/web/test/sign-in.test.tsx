@@ -44,7 +44,8 @@ describe('a Runner signing in on a new phone (16 October 2026)', () => {
     });
     await user.type(await screen.findByLabelText('The code from the text'), '123456');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
-    expect(await screen.findByRole('heading', { name: 'Your Runner page' })).toBeInTheDocument();
+    // Their own page, greeted by name: not the signed-out page, which shares its address.
+    expect(await screen.findByRole('heading', { name: 'Hello, Tomasz' })).toBeInTheDocument();
     expect(recorded.find((r) => r.path === '/auth/verify-code')?.body).toMatchObject({
       role: 'runner',
     });

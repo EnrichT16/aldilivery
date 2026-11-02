@@ -314,14 +314,14 @@ describe('the switches', () => {
     expect(off.statusCode, off.body).toBe(200);
     expect(off.json().message).toMatch(/switched off, and signed out everywhere/);
     // Her phone, kept signed in, stops on its very next request.
-    expect((await get('/staff/me', yvette.headers)).statusCode).toBe(403);
+    expect((await get('/staff/me', yvette.headers)).statusCode).toBe(401);
     const member = await harness.repository.staffMembers.findById(yvette.id);
     expect(member).toMatchObject({ active: false });
 
     // Switched back on, the old token stays dead, and she signs in again.
     const on = await post(`/staff/owner/staff/${yvette.id}/switch`, { on: true }, owner.headers);
     expect(on.statusCode, on.body).toBe(200);
-    expect((await get('/staff/me', yvette.headers)).statusCode).toBe(403);
+    expect((await get('/staff/me', yvette.headers)).statusCode).toBe(401);
     expect((await harness.repository.staffMembers.findById(yvette.id))?.active).toBe(true);
 
     const audit = await harness.repository.audit.list({ search: 'staff.switched' });
@@ -343,8 +343,8 @@ describe('the switches', () => {
     const all = await post('/staff/owner/staff/switch-all-off', {}, owner.headers);
     expect(all.statusCode, all.body).toBe(200);
     expect(all.json().count).toBe(2);
-    expect((await get('/staff/me', yvette.headers)).statusCode).toBe(403);
-    expect((await get('/staff/me', chidi.headers)).statusCode).toBe(403);
+    expect((await get('/staff/me', yvette.headers)).statusCode).toBe(401);
+    expect((await get('/staff/me', chidi.headers)).statusCode).toBe(401);
     // His own session, on his own phone, carries on.
     expect((await get('/staff/me', owner.headers)).statusCode).toBe(200);
   });
@@ -390,7 +390,7 @@ describe('the owner by voice', () => {
 
     const yes = await ask('yes', owner.headers);
     expect(yes.json().reply).toMatch(/switched off, and signed out everywhere/);
-    expect((await get('/staff/me', yvette.headers)).statusCode).toBe(403);
+    expect((await get('/staff/me', yvette.headers)).statusCode).toBe(401);
     const [entry] = await harness.repository.audit.list({ search: 'staff.switched-off' });
     expect(entry).toMatchObject({ actorId: owner.id, actorRole: 'owner' });
     expect(entry!.detail).toMatch(/by voice, talking to Ozi/);

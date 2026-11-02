@@ -14,6 +14,7 @@ import {
   type BusinessMe,
   type OrganisationDashboard as Dashboard,
 } from '../lib/api';
+import { confirmedSignedOut, useGentleRefresh } from '../lib/session-guard';
 import { money } from '../lib/money';
 import { useOzi } from '../state/ozi';
 import { InboxLink } from '../components/Inbox';
@@ -95,6 +96,7 @@ export function OrganisationDashboard(): JSX.Element {
   const [me, setMe] = useState<BusinessMe | null>(null);
   const [data, setData] = useState<Dashboard | null>(null);
   const [news, setNews] = useState('');
+  const [problem, setProblem] = useState('');
   const latest = useRef({ ozi, data, navigate });
   const phraseTurn = useRef(0);
   latest.current = { ozi, data, navigate };
@@ -106,7 +108,14 @@ export function OrganisationDashboard(): JSX.Element {
           setData(result);
           return result;
         })
-        .catch(() => {
+        .catch(async (failure: unknown) => {
+          // Only the server's own word that the sign-in itself has ended, said twice ten seconds
+          // apart, sends anyone back to sign in (ruling 88). Anything else is said plainly.
+          if (!(await confirmedSignedOut(failure, fetchBusinessMe))) {
+            setProblem(failure instanceof Error ? failure.message : 'Something went wrong.');
+            return null;
+          }
+          rememberBusinessToken(null);
           navigate('/business');
           return null;
         }),
@@ -229,8 +238,31 @@ export function OrganisationDashboard(): JSX.Element {
     setNews('Your statement is downloading.');
   };
 
+  // Coming back to the screen, and once an hour while open, asks "me" again, so a session in use
+  // is renewed before it ends (ruling 88). Never signs anybody out.
+  const keepFresh = useCallback(async () => {
+    await fetchBusinessMe().catch(() => undefined);
+  }, []);
+  useGentleRefresh(keepFresh);
+
   if (!data) {
-    return (
+    return problem ? (
+      <div className="space-y-4">
+        <p role="alert" className="m-0">
+          {problem}
+        </p>
+        <button
+          type="button"
+          className="control bg-paper text-ink"
+          onClick={() => {
+            setProblem('');
+            void load();
+          }}
+        >
+          Try again
+        </button>
+      </div>
+    ) : (
       <p role="status" className="m-0">
         One moment.
       </p>

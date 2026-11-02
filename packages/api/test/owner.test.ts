@@ -248,8 +248,8 @@ describe('the kill switch', () => {
       (await post('/staff/owner/kill-switch', { passcode: '123456#' }, headers)).statusCode,
     ).toBe(200);
 
-    expect((await get('/staff/me', investor)).statusCode).toBe(403);
-    expect((await get('/staff/me', headers)).statusCode).toBe(403);
+    expect((await get('/staff/me', investor)).statusCode).toBe(401);
+    expect((await get('/staff/me', headers)).statusCode).toBe(401);
     const again = {
       'x-staff-token': (await signIn({ username: 'investor', password: added.password })).json()
         .token as string,

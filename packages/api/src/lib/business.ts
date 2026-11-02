@@ -10,35 +10,81 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import type { FastifyRequest } from 'fastify';
 
 import type { BusinessKind, BusinessUser } from '../domain.js';
-import { ForbiddenError } from '../errors.js';
+import { ForbiddenError, SessionInvalidError } from '../errors.js';
+import type { TokenRefusal } from './tokens.js';
+
+declare module 'fastify' {
+  interface FastifyRequest {
+    /** The business session token this request carried, once checked (ruling 88). */
+    businessSession?: BusinessSession;
+  }
+}
 
 const LABEL = 'business-session:';
 export const BUSINESS_SESSION_HOURS = 12;
 
-export function signBusinessToken(userId: string, expiresAt: Date, secret: string): string {
-  const body = Buffer.from(JSON.stringify({ id: userId, exp: expiresAt.getTime() })).toString(
-    'base64url',
-  );
+/** What a business token carries: who, and until when. */
+export interface BusinessSession {
+  userId: string;
+  /** When the session ends, in milliseconds since 1970. */
+  expiresAtMs: number;
+  /** When it was signed, or null for a token from before 2 November 2026. */
+  issuedAtMs: number | null;
+}
+
+export function signBusinessToken(
+  userId: string,
+  expiresAt: Date,
+  secret: string,
+  issuedAt?: Date,
+): string {
+  const body = Buffer.from(
+    JSON.stringify({
+      id: userId,
+      exp: expiresAt.getTime(),
+      ...(issuedAt ? { ia: issuedAt.getTime() } : {}),
+    }),
+  ).toString('base64url');
   const mac = createHmac('sha256', `${LABEL}${secret}`).update(body).digest('base64url');
   return `bz1.${body}.${mac}`;
 }
 
 export function verifyBusinessToken(token: string, secret: string, now: Date): string | null {
+  const outcome = inspectBusinessToken(token, secret, now);
+  return 'session' in outcome ? outcome.session.userId : null;
+}
+
+/** Like `verifyBusinessToken`, but says why a token was refused (ruling 88). */
+export function inspectBusinessToken(
+  token: string,
+  secret: string,
+  now: Date,
+): { session: BusinessSession } | { refused: TokenRefusal } {
   const [version, body, mac] = token.split('.');
-  if (version !== 'bz1' || !body || !mac) return null;
+  if (version !== 'bz1' || !body || !mac) return { refused: 'invalid' };
   const expected = createHmac('sha256', `${LABEL}${secret}`).update(body).digest('base64url');
   const a = Buffer.from(mac);
   const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return { refused: 'invalid' };
   try {
     const parsed = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as {
       id: string;
       exp: number;
+      ia?: number;
     };
-    if (typeof parsed.id !== 'string' || parsed.exp <= now.getTime()) return null;
-    return parsed.id;
+    if (typeof parsed.id !== 'string' || typeof parsed.exp !== 'number') {
+      return { refused: 'invalid' };
+    }
+    if (parsed.exp <= now.getTime()) return { refused: 'expired' };
+    return {
+      session: {
+        userId: parsed.id,
+        expiresAtMs: parsed.exp,
+        issuedAtMs: typeof parsed.ia === 'number' ? parsed.ia : null,
+      },
+    };
   } catch {
-    return null;
+    return { refused: 'invalid' };
   }
 }
 
@@ -98,9 +144,15 @@ export async function businessActor(
   const { env, repository, now } = request.server.ctx;
   const given = request.headers['x-business-token'];
   const token = Array.isArray(given) ? given[0] : given;
-  const userId = token ? verifyBusinessToken(token, env.authTokenSecret, now()) : null;
-  const user = userId ? await repository.businessUsers.findById(userId) : null;
-  if (!user || !user.active) throw new ForbiddenError('Please sign in.');
+  // Nothing sent is not a refusal of a sign-in: it is simply not signed in (ruling 88).
+  if (!token) throw new ForbiddenError('Please sign in.', { code: 'no_session' });
+  const inspected = inspectBusinessToken(token, env.authTokenSecret, now());
+  // A bad or ended token, or an account switched off, is the one answer that may make the
+  // dashboard forget its sign-in.
+  if ('refused' in inspected) throw new SessionInvalidError(inspected.refused);
+  const user = await repository.businessUsers.findById(inspected.session.userId);
+  if (!user || !user.active) throw new SessionInvalidError('invalid', 'Please sign in.');
+  request.businessSession = inspected.session;
   if (kind && user.kind !== kind) {
     throw new ForbiddenError(
       kind === 'partner' ? 'That is for partner shops.' : 'That is for organisations.',

@@ -124,7 +124,9 @@ describe('staff accounts', () => {
       url: '/staff/documents',
       headers: { 'x-staff-token': token },
     });
-    expect(refused.statusCode).toBe(403);
+    // The one refusal that may make the admin panel forget its sign-in (ruling 88).
+    expect(refused.statusCode).toBe(401);
+    expect(refused.json().error.details).toEqual({ code: 'session_invalid', reason: 'invalid' });
   });
 
   it('records the signed-in person as the one who decided, whatever the screen sent', async () => {
@@ -174,8 +176,13 @@ describe('staff accounts', () => {
         url: '/staff/enquiries',
         headers: { 'x-staff-token': token },
       });
-      expect(response.statusCode).toBe(403);
+      expect(response.statusCode).toBe(401);
+      expect(response.json().error.details.code).toBe('session_invalid');
     }
+    // No token at all is not a refused sign-in: it is simply not signed in.
+    const none = await harness.app.inject({ method: 'GET', url: '/staff/enquiries' });
+    expect(none.statusCode).toBe(403);
+    expect(none.json().error.details).toEqual({ code: 'no_session' });
   });
 
   it('only the founder manages the team, and resets a forgotten password', async () => {

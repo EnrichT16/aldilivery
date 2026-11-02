@@ -344,7 +344,7 @@ describe('POST /ozi/reply', () => {
     const shopper = await signUpShopper(harness);
     const reply = (await ask('hello', { ...shopper.authHeader })).json().reply as string;
     expect(reply).not.toMatch(/sir/);
-    expect((await ask('hello', { 'x-staff-token': 'st1.nonsense' })).statusCode).toBe(403);
+    expect((await ask('hello', { 'x-staff-token': 'st1.nonsense' })).statusCode).toBe(401);
   });
 
   it('answers null when it is not a phrase, and refuses an empty question', async () => {

@@ -24,6 +24,7 @@ import { languageModel } from './lib/language-model.js';
 import { openPrices } from './lib/open-prices.js';
 import { postcodesIo } from './lib/postcodes.js';
 import { webPushSender } from './lib/push.js';
+import { MINIMUM_SESSION_HOURS, sessionTtlRaised } from './lib/sessions.js';
 import { callScript, codeMessage, senderName, twilioCaller, twilioSender } from './lib/sms.js';
 import { twilioDialler } from './lib/twilio-voice.js';
 import { sweepAllocations } from './services/allocate.js';
@@ -281,6 +282,12 @@ async function main(): Promise<void> {
   if (!pushReady) {
     app.log.info(
       "Notifications are off: VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY are not both set. A Runner's question still appears on the Your order page.",
+    );
+  }
+
+  if (sessionTtlRaised(env)) {
+    app.log.warn(
+      `AUTH_TOKEN_TTL_HOURS is ${env.authTokenTtlHours}, below ${MINIMUM_SESSION_HOURS} (thirty days), so ${MINIMUM_SESSION_HOURS} is used: nobody is signed out while using the app (ruling 88). Set ALLOW_SHORT_SESSIONS=on if a shorter sign-in is really meant.`,
     );
   }
 

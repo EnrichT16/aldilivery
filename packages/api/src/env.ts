@@ -92,7 +92,13 @@ export interface Env {
    */
   stripeIssuingEnabled: boolean;
   authTokenSecret: string;
+  /**
+   * How long a Shopper's or Runner's sign-in lasts. Below 720 (thirty days) it is ignored and
+   * 720 used, with a warning at start, unless `allowShortSessions` (ruling 88).
+   */
   authTokenTtlHours: number;
+  /** `ALLOW_SHORT_SESSIONS=on`: a figure below thirty days is meant, so it is used. */
+  allowShortSessions: boolean;
   otpLength: number;
   otpTtlSeconds: number;
   /** `log` writes the code to the server log, for development. `sms` sends it with Twilio. */
@@ -357,6 +363,7 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     stripeIssuingEnabled: source['STRIPE_ISSUING_ENABLED'] === 'true',
     authTokenSecret: authTokenSecret ?? 'development-only-secret-not-for-production',
     authTokenTtlHours: integer(source['AUTH_TOKEN_TTL_HOURS'], 720),
+    allowShortSessions: source['ALLOW_SHORT_SESSIONS']?.trim().toLowerCase() === 'on',
     otpLength: integer(source['OTP_LENGTH'], 6),
     otpTtlSeconds: integer(source['OTP_TTL_SECONDS'], 600),
     otpDelivery: source['OTP_DELIVERY'] === 'sms' ? 'sms' : 'log',

@@ -80,6 +80,18 @@ export const FAKE_SHOPPER = {
   budgetCapPence: null,
 };
 
+/** A Runner who has signed in, for the Runner page (ruling 88: it must really open). */
+export const FAKE_RUNNER = {
+  id: 'runner-1',
+  name: 'Tomasz',
+  phone: '+447700900123',
+  rightToWorkVerified: true,
+  criminalRecordCheckVerified: true,
+  available: false,
+  agreementCurrent: true,
+  agreementAcceptedAt: '2026-10-01T10:00:00.000Z',
+};
+
 export const FAKE_CARD = {
   id: 'pm-row-1',
   lastFour: '4242',
@@ -216,6 +228,7 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
   const recorded: RecordedRequest[] = [];
   const runnerDocumentsSent: string[] = [];
   let askWhy = options.askWhy ?? false;
+  let verifiedRole: 'shopper' | 'runner' = 'shopper';
 
   /**
    * Signed in, or signed out — never "whatever the last test left behind".
@@ -353,6 +366,9 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
 
       if (path === '/auth/verify-code' && method === 'POST') {
         const result = options.verifyResult ?? 'signed-in';
+        // The token handed out belongs to whoever just verified: a Shopper, or a Runner.
+        verifiedRole =
+          (body as { role?: string } | undefined)?.role === 'runner' ? 'runner' : 'shopper';
         if (result === 'wrong-code') {
           return reply({ error: { message: 'That code was not right. Try again.' } }, 401);
         }
@@ -367,10 +383,13 @@ export function stubApi(options: ApiStubOptions = {}): RecordedRequest[] {
         return reply({ registrationRequired: false, token: 'signed-in-token' });
       }
 
-      // A token handed out by signing in belongs to the fake Shopper.
+      // A token handed out by signing in belongs to the fake Shopper, or to the fake Runner
+      // when it was a Runner who signed in (the Runner page asks /me as the Runner).
       const authorisation = (init?.headers as Record<string, string> | undefined)?.authorization;
       if (path === '/me' && method === 'GET' && authorisation === 'Bearer signed-in-token') {
-        return reply({ role: 'shopper', shopper: FAKE_SHOPPER });
+        return verifiedRole === 'runner'
+          ? reply({ role: 'runner', runner: FAKE_RUNNER })
+          : reply({ role: 'shopper', shopper: FAKE_SHOPPER });
       }
 
       if (path === '/me' && method === 'GET') {
