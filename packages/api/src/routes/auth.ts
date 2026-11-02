@@ -19,6 +19,7 @@ import {
   UnavailableError,
 } from '../errors.js';
 import { isUkMobile, NOT_A_UK_NUMBER, ukPhone } from '../lib/phone.js';
+import { sessionClaimsNow } from '../lib/sessions.js';
 import { codesMatch, generateCode, hashCode, signPhoneProof, signSession } from '../lib/tokens.js';
 import { demoRunner, demoShopper, isDemoCode, isDemoPhone } from '../services/demo.js';
 
@@ -244,8 +245,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       }
       const account =
         role === 'runner' ? await demoRunner(app.ctx, phone) : await demoShopper(app.ctx, phone);
-      const expiresAt = Math.floor(now().getTime() / 1000) + env.authTokenTtlHours * 3600;
-      const token = signSession({ accountId: account.id, role, expiresAt }, env.authTokenSecret);
+      const token = signSession(sessionClaimsNow(account.id, role, env, now()), env.authTokenSecret);
       return { registrationRequired: false, role, token, accountId: account.id, demo: true };
     }
 
@@ -293,8 +293,7 @@ export async function registerAuthRoutes(app: FastifyInstance): Promise<void> {
       };
     }
 
-    const expiresAt = Math.floor(now().getTime() / 1000) + env.authTokenTtlHours * 3600;
-    const token = signSession({ accountId: account.id, role, expiresAt }, env.authTokenSecret);
+    const token = signSession(sessionClaimsNow(account.id, role, env, now()), env.authTokenSecret);
 
     return { registrationRequired: false, role, token, accountId: account.id };
   });

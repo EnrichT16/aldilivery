@@ -17,7 +17,13 @@ import type { StoreConfig } from '@aldilivery/core';
 
 import type { Repository } from './data/repository.js';
 import type { SessionRole } from './domain.js';
-import { ApiError, ForbiddenError, TooManyRequestsError, UnauthorisedError } from './errors.js';
+import {
+  ApiError,
+  ForbiddenError,
+  SessionInvalidError,
+  TooManyRequestsError,
+  UnauthorisedError,
+} from './errors.js';
 import type { Env } from './env.js';
 import { bankSettings } from './lib/bank.js';
 import { askedByStaff, withoutStaffOnlyFields } from './lib/staff-only.js';
@@ -35,7 +41,9 @@ import type { PostcodeLookup } from './lib/postcodes.js';
 import type { SendPush } from './lib/push.js';
 import type { SendText } from './lib/sms.js';
 import type { PlaceCall } from './lib/twilio-voice.js';
-import { verifySession } from './lib/tokens.js';
+import { STAFF_SESSION_HOURS } from './lib/staff.js';
+import { sessionTtlHours } from './lib/sessions.js';
+import { inspectSession, type TokenRefusal } from './lib/tokens.js';
 import { gitCommit } from './lib/version.js';
 import { registerAdminRoutes } from './routes/admin.js';
 import { registerAllocateRoutes } from './routes/allocate.js';
@@ -176,6 +184,10 @@ export interface AppContext {
 export interface Session {
   accountId: string;
   role: SessionRole;
+  /** When the token ends, in milliseconds since 1970, so "me" can renew it in time (ruling 88). */
+  expiresAtMs: number;
+  /** When it was signed, or null for a token from before 2 November 2026. */
+  issuedAtMs: number | null;
 }
 
 declare module 'fastify' {
@@ -184,6 +196,11 @@ declare module 'fastify' {
   }
   interface FastifyRequest {
     session?: Session;
+    /**
+     * Set when a bearer token was sent and refused (ruling 88): the one case in which a
+     * route may tell the app that the sign-in itself has ended.
+     */
+    sessionRefused?: TokenRefusal;
   }
 }
 
@@ -234,10 +251,32 @@ export function phoneConfirmedAtSignUp(
 
 /** Read and verify the bearer token, if there is one. Never throws. */
 export function readSession(request: FastifyRequest, secret: string, now: Date): Session | null {
+  const outcome = inspectBearer(request, secret, now);
+  return outcome && 'session' in outcome ? outcome.session : null;
+}
+
+/**
+ * The bearer token, if there is one, as a session or as the reason it was refused. Null when
+ * nothing was sent, which is not a refusal: an anonymous browse is allowed.
+ */
+export function inspectBearer(
+  request: FastifyRequest,
+  secret: string,
+  now: Date,
+): { session: Session } | { refused: TokenRefusal } | null {
   const header = request.headers.authorization;
   if (!header?.startsWith('Bearer ')) return null;
-  const claims = verifySession(header.slice('Bearer '.length).trim(), secret, now);
-  return claims ? { accountId: claims.accountId, role: claims.role } : null;
+  const outcome = inspectSession(header.slice('Bearer '.length).trim(), secret, now);
+  if ('refused' in outcome) return outcome;
+  const { claims } = outcome;
+  return {
+    session: {
+      accountId: claims.accountId,
+      role: claims.role,
+      expiresAtMs: claims.expiresAt * 1000,
+      issuedAtMs: typeof claims.issuedAt === 'number' ? claims.issuedAt * 1000 : null,
+    },
+  };
 }
 
 export async function buildApp(options: BuildAppOptions): Promise<FastifyInstance> {
@@ -289,7 +328,10 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
 
   app.decorate('ctx', ctx);
   app.decorateRequest('session', undefined);
+  app.decorateRequest('sessionRefused', undefined);
   app.decorateRequest('staffActor', undefined);
+  app.decorateRequest('staffSession', undefined);
+  app.decorateRequest('businessSession', undefined);
 
   // The browser origins allowed to call this API. In production this is exactly the site
   // the web app is served from, named in `ALLOWED_ORIGIN`, and nothing else.
@@ -338,8 +380,9 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
   );
 
   app.addHook('onRequest', async (request) => {
-    const session = readSession(request, ctx.env.authTokenSecret, ctx.now());
-    if (session) request.session = session;
+    const bearer = inspectBearer(request, ctx.env.authTokenSecret, ctx.now());
+    if (bearer && 'session' in bearer) request.session = bearer.session;
+    else if (bearer) request.sessionRefused = bearer.refused;
     // One internet address may only try to sign in so often (ruling 44), or ask for a voice
     // pass so often (ruling 53).
     const path = request.url.split('?')[0]!.replace(/^\/api(?=\/)/, '');
@@ -350,7 +393,12 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     }
     // The app's random device id, noted with whoever is signed in (31 October 2026), so an order
     // from an Ambassador's own device, or the business owner's, can be held for a person.
-    await noteDevice(request);
+    // Noting a device is never allowed to fail the request it came with (ruling 88).
+    try {
+      await noteDevice(request);
+    } catch (failure) {
+      request.log.warn({ err: failure }, 'A device could not be noted.');
+    }
   });
 
   /** Each device and account once a day at most, so this costs almost nothing. */
@@ -491,8 +539,17 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
     // Whether Oluoma Voice's two settings are in place (ruling 53). Not whether it answers:
     // asking it from here would make this check depend on another server.
     voiceEnabled: ctx.voice !== null,
-    // Whether a language model stands behind Ozi (ruling 69). Never which: its name is private.
+    // Whether a language model stands behind Ozi (ruling 69), and which model ids are configured
+    // (ruling 88, for the live check). The ids are for operators, not secrets; the provider's
+    // name is still shown nowhere a Shopper, Runner or partner reads.
     brainEnabled: ctx.brain !== null,
+    brain: ctx.brain ? { model: ctx.brain.model, ownerModel: ctx.brain.ownerModel ?? null } : null,
+    // How long sign-ins last (ruling 88), so the live settings can be read off this check.
+    sessions: {
+      shopperRunnerHours: sessionTtlHours(ctx.env),
+      staffTabHours: STAFF_SESSION_HOURS,
+      staffRememberDays: ctx.config.admin.staffRememberDays,
+    },
     // Ozi's desk (ruling 79): whether OWNER_ALERT_PHONE is a real UK number, and whether Ozi can
     // ring it (that, Twilio's voice settings and our own address). Never the number itself.
     ownerPhoneSet: ownerPhoneSet(ctx.env.ownerAlertPhone),
@@ -636,9 +693,17 @@ export function requireStaff(request: FastifyRequest, staffKey: string | undefin
   };
 }
 
-/** Require a signed-in account, optionally of a particular kind. */
+/**
+ * Require a signed-in account, optionally of a particular kind.
+ *
+ * A token that was sent and refused answers `session_invalid`, the one answer that may make the
+ * app forget a sign-in; nothing sent at all answers `no_session` (ruling 88).
+ */
 export function requireSession(request: FastifyRequest, role?: SessionRole): Session {
-  if (!request.session) throw new UnauthorisedError();
+  if (!request.session) {
+    if (request.sessionRefused) throw new SessionInvalidError(request.sessionRefused);
+    throw new UnauthorisedError(undefined, { code: 'no_session' });
+  }
   if (role && request.session.role !== role) {
     throw new UnauthorisedError(
       role === 'runner' ? 'That part is for Runners.' : 'That part is for Shoppers.',

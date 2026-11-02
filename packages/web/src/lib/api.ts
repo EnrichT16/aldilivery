@@ -9,7 +9,9 @@
 import { ORGANISATION_CONSENT_VERSION } from '@aldilivery/core';
 
 import { storeConfig } from '../config';
-import { readRunnerToken, readToken } from './session';
+import { screenSnapshot } from './screen';
+import { readRunnerToken, readToken, writeRunnerToken, writeToken } from './session';
+import { renewStaffSession } from './staff-session';
 
 export interface CatalogueItem {
   id: string;
@@ -670,8 +672,19 @@ export function sendRunnerFeedback(
   );
 }
 
-export function fetchRunnerMe(): Promise<{ runner: RunnerAccount }> {
-  return request<{ runner: RunnerAccount }>('/me', undefined, 'runner');
+/**
+ * A "me" reply may carry a fresh token once the current one is past half its life (ruling 88).
+ * It is kept where the old one was, so a sign-in in use never runs out.
+ */
+export interface Renewed {
+  refreshedToken?: string;
+  expiresAt?: string;
+}
+
+export async function fetchRunnerMe(): Promise<{ runner: RunnerAccount } & Renewed> {
+  const me = await request<{ runner: RunnerAccount } & Renewed>('/me', undefined, 'runner');
+  if (me.refreshedToken) writeRunnerToken(me.refreshedToken);
+  return me;
 }
 
 export function setRunnerAvailability(available: boolean): Promise<{ runner: RunnerAccount }> {
@@ -998,8 +1011,11 @@ export function answerQuestion(
 }
 
 /** Who the stored token belongs to. Used to restore a session when the app opens. */
-export function fetchMe(): Promise<{ role: string; shopper?: Shopper }> {
-  return request<{ role: string; shopper?: Shopper }>('/me');
+export async function fetchMe(): Promise<{ role: string; shopper?: Shopper } & Renewed> {
+  const me = await request<{ role: string; shopper?: Shopper } & Renewed>('/me');
+  // A fresh token, past half the old one's life, is kept where the old one was (ruling 88).
+  if (me.refreshedToken) writeToken(me.refreshedToken);
+  return me;
 }
 
 /**
@@ -1554,9 +1570,11 @@ export function signOutOfPhone(key: string): Promise<{ message: string }> {
   return staffRequest(key, '/staff/sign-out-phone', { method: 'POST', body: '{}' });
 }
 
-export function fetchStaffMe(key: string): Promise<
+export async function fetchStaffMe(key: string): Promise<
   Omit<StaffSignedIn, 'token'> & {
     account: boolean;
+    /** A fresh session token, once the current one is past half its life (ruling 88). */
+    refreshedToken?: string;
     isOwner?: boolean;
     /** How Ozi addresses the owner, such as "Mr Anthony"; null for everyone else. */
     address?: string | null;
@@ -1570,7 +1588,10 @@ export function fetchStaffMe(key: string): Promise<
     canUnlock?: boolean;
   }
 > {
-  return staffRequest(key, '/staff/me');
+  const me = await staffRequest<Awaited<ReturnType<typeof fetchStaffMe>>>(key, '/staff/me');
+  // Kept where the old one was: this tab, or this phone when remembered (ruling 88).
+  if (me.refreshedToken) renewStaffSession(key, me.refreshedToken, me.expiresAt ?? null);
+  return me;
 }
 
 export function changeStaffPassword(
@@ -2085,8 +2106,11 @@ export function businessSignIn(
   });
 }
 
-export function fetchBusinessMe(): Promise<BusinessMe> {
-  return businessRequest('/business/me');
+export async function fetchBusinessMe(): Promise<BusinessMe> {
+  const me = await businessRequest<BusinessMe & Renewed>('/business/me');
+  // A fresh token, past half the old one's life, takes the old one's place (ruling 88).
+  if (me.refreshedToken) rememberBusinessToken(me.refreshedToken);
+  return me;
 }
 
 export function changeBusinessPassword(
@@ -3233,6 +3257,8 @@ export function askOzi(
   as: OziAsker,
   basket?: string[],
 ): Promise<{ reply: string | null; understood?: OziUnderstanding; awaitingYes?: boolean }> {
+  // What is on the screen right now (ruling 89): words already shown, never a field's value.
+  const screen = screenSnapshot();
   const init: RequestInit = {
     method: 'POST',
     body: JSON.stringify({
@@ -3241,6 +3267,7 @@ export function askOzi(
       turn,
       conversation: conversationId(),
       ...(basket && basket.length > 0 ? { basket } : {}),
+      ...(screen ? { screen } : {}),
     }),
   };
   if (as.kind === 'staff') return staffRequest(as.key, '/ozi/reply', init);

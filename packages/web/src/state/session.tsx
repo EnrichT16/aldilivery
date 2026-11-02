@@ -8,8 +8,9 @@ import {
   type ReactNode,
 } from 'react';
 
-import { ApiUnavailableError, fetchMe, type Shopper } from '../lib/api';
+import { fetchMe, type Shopper } from '../lib/api';
 import { clearToken, readToken, writeToken } from '../lib/session';
+import { confirmedSignedOut, useGentleRefresh } from '../lib/session-guard';
 
 interface SessionValue {
   /** The signed-in Shopper, or null. */
@@ -41,10 +42,12 @@ const SessionContext = createContext<SessionValue | null>(null);
  * every screen would look signed in and every action would fail. If the check says no, the
  * token is thrown away quietly.
  *
- * A server that cannot be reached is treated differently from a server that says no. If
- * the service is simply down we keep the token, because it is probably still good, and the
- * screens have their own plain sentence for not being able to reach us. Throwing a session
- * away because the network hiccupped would sign people out for no reason.
+ * A server that cannot be reached, or that fails, is treated differently from a server that
+ * refuses the sign-in itself (ruling 88). Only `session_invalid`, said twice ten seconds apart,
+ * clears the token: a 404, a 429, a 500 or no answer keeps it, because it is probably still
+ * good, and the screens have their own plain sentence for not being able to reach us. Throwing
+ * a session away because the network hiccupped would sign people out for no reason. And every
+ * "me" reply may carry a fresh token, kept here, so a sign-in in use never runs out.
  */
 export function SessionProvider({ children }: { children: ReactNode }): JSX.Element {
   const [shopper, setShopper] = useState<Shopper | null>(null);
@@ -59,8 +62,9 @@ export function SessionProvider({ children }: { children: ReactNode }): JSX.Elem
         const me = await fetchMe();
         if (!cancelled && me.shopper) setShopper(me.shopper);
       } catch (error) {
-        // Down is not the same as refused. Only a refusal clears the token.
-        if (!cancelled && !(error instanceof ApiUnavailableError)) clearToken();
+        // Down, or failing, is not the same as refused. Only the server's own word that this
+        // sign-in has ended, said twice, clears the token (ruling 88).
+        if (!cancelled && (await confirmedSignedOut(error, fetchMe)) && !cancelled) clearToken();
       } finally {
         if (!cancelled) setRestoring(false);
       }
@@ -98,6 +102,10 @@ export function SessionProvider({ children }: { children: ReactNode }): JSX.Elem
       // Kept as it was: the server checks the price again before anything is charged.
     }
   }, []);
+
+  // Coming back to the screen, and once an hour while open, asks "me" again, so a sign-in in use
+  // is renewed before it ends (ruling 88). Never signs anybody out.
+  useGentleRefresh(shopper ? refresh : null);
 
   const value = useMemo<SessionValue>(
     () => ({

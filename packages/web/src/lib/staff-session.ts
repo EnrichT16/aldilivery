@@ -141,6 +141,29 @@ export function markStaffSession(change: { name?: string; owner: boolean }): voi
   if (here.owner !== change.owner) told();
 }
 
+/**
+ * The server renewed the session (ruling 88): the fresh token takes the old one's place, wherever
+ * it was kept, with the new end. Nothing happens if the old one is not the one kept here.
+ */
+export function renewStaffSession(
+  oldKey: string,
+  token: string,
+  expiresAt: string | Date | null,
+): void {
+  const here = readStaffSession();
+  if (!here || here.key !== oldKey || !token.startsWith('st1.')) return;
+  const store = storage(here.remembered ? 'local' : 'session');
+  try {
+    store?.setItem(STAFF_KEY, token);
+    if (here.remembered) {
+      const given = expiresAt ? new Date(expiresAt).getTime() : NaN;
+      if (Number.isFinite(given)) store?.setItem(STAFF_EXPIRES, String(given));
+    }
+  } catch {
+    // Private browsing: the old token still works until it ends.
+  }
+}
+
 /** Signing out: forgotten from this tab and from this phone. */
 export function forgetStaffSession(): void {
   clear(storage('session'));

@@ -18,6 +18,7 @@ import { recordAudit } from '../lib/audit.js';
 import { phraseBook } from '../lib/phrases.js';
 import { noteStaffSighting } from '../lib/staff-sightings.js';
 import { mayAllocate } from '../services/allocate.js';
+import { pastHalfLife } from '../lib/sessions.js';
 import { codeLockouts } from '../services/company-contact.js';
 import { mayUnlock, requireUnlocker } from '../services/unlock.js';
 import {
@@ -227,7 +228,7 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
   function sessionFor(
     member: StaffMember,
     at: Date,
-    options: { setup?: boolean; remember?: boolean } = {},
+    options: { setup?: boolean; remember?: boolean; passcode?: boolean } = {},
   ): { token: string; expiresAt: Date; remembered: boolean } {
     const long = options.remember === true && options.setup !== true;
     const expiresAt = new Date(
@@ -236,8 +237,10 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
     );
     return {
       token: signStaffToken(member.id, expiresAt, env.authTokenSecret, {
+        issuedAt: at,
         version: member.sessionVersion,
-        passcode: member.isOwner,
+        // A renewed session carries exactly what the old one did, the passcode flag included.
+        passcode: options.passcode ?? member.isOwner,
         ...(options.setup ? { setup: true } : {}),
         ...(options.remember ? { remembered: member.rememberedVersion ?? 0 } : {}),
       }),
@@ -291,7 +294,25 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
     const actor = await staffActor(request, undefined, { allowSetup: true });
     const member = actor.id ? await repository.staffMembers.findById(actor.id) : null;
     const twoStep = member ? twoStepState(member, now()) : null;
+    // Past half its life, the session is renewed for its full lifetime again (ruling 88): a tab
+    // session keeps its working day, a remembered one its `admin.staffRememberDays`.
+    const session = request.staffSession;
+    const lifetimeMs =
+      session?.remembered !== null && session?.remembered !== undefined
+        ? config.admin.staffRememberDays * 24 * 3_600_000
+        : STAFF_SESSION_HOURS * 3_600_000;
+    const renewed =
+      member && session && pastHalfLife(session, lifetimeMs, now())
+        ? (({ token, expiresAt }) => ({ refreshedToken: token, expiresAt }))(
+            sessionFor(member, now(), {
+              setup: session.setup,
+              remember: session.remembered !== null,
+              passcode: session.passcode,
+            }),
+          )
+        : {};
     return {
+      ...renewed,
       name: actor.name,
       role: actor.role,
       title: STAFF_ROLES[actor.role].title,

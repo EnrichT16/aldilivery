@@ -19,6 +19,8 @@ import {
   languageModel,
   readKnowledge,
   safeSpoken,
+  screenWords,
+  SCREEN_MAX_CHARACTERS,
   serviceFacts,
   ukNow,
   DEFAULT_OWNER_MODEL,
@@ -773,5 +775,190 @@ describe('a real conversation (31 October 2026)', () => {
       stubClient(() => Promise.reject(new Error('timed out'))),
     );
     expect(await slow.talkWithOwner!({ text: 'x', channel: 'app', history: [], tools })).toBeNull();
+  });
+});
+
+describe('what is on the screen (ruling 89, 2 November 2026)', () => {
+  const noisyScreen = {
+    path: '/staff',
+    title: 'Admin panel',
+    headings: ['Needs you now', 'Runner documents'],
+    section: 'Today',
+    status: ['3 Runner documents waiting'],
+    lines: [
+      'Ring Margaret on 07700 900123',
+      'Card 4242 4242 4242 4242 on file',
+      'Reply to margaret@example.com',
+      'Passcode 123456# for the door',
+      'x'.repeat(500),
+      ...Array.from({ length: 30 }, (_, index) => `Line ${index}`),
+    ],
+  };
+
+  it('is blanked, cut short and put in the user turn after the cached instructions', async () => {
+    const sent: Array<Record<string, unknown>> = [];
+    const brain = languageModel({ apiKey: 'test', config, knowledge: readKnowledge() }, {
+      messages: {
+        create: async (body: Record<string, unknown>) => {
+          sent.push(body);
+          return message({ kind: 'question', items: [], reply: 'The first one is a licence.' });
+        },
+      },
+    } as unknown as BrainClient);
+    const heard = await brain.understand({
+      text: 'what does the first one say',
+      account: 'staff',
+      channel: 'app',
+      who: { kind: 'staff', firstName: 'Precious' },
+      screen: noisyScreen,
+    });
+    expect(heard?.reply).toBe('The first one is a licence.');
+    const body = sent[0]!;
+    const system = body['system'] as Array<{ text: string }>;
+    expect(system[0]!.text).not.toContain('What is on their screen now');
+    const turn = (body['messages'] as Array<{ content: string }>)[0]!.content;
+    expect(turn).toContain('What is on their screen now: page /staff. titled "Admin panel"');
+    expect(turn).toContain('headings: Needs you now; Runner documents');
+    expect(turn).toContain('open tab or section: Today');
+    expect(turn).toContain('status: 3 Runner documents waiting');
+    // Blanked again on the server, whatever the app sent.
+    expect(turn).not.toMatch(/07700|4242|margaret@|123456/);
+    expect(turn).toContain('[phone number]');
+    expect(turn).toContain('[card number]');
+    expect(turn).toContain('[email address]');
+    expect(turn).toContain('Passcode [code]');
+    // Each line cut short, and at most twelve of them.
+    expect(turn).not.toContain('x'.repeat(121));
+    expect(turn).toContain('Line 0');
+    expect(turn).not.toContain('Line 20');
+    expect(turn).toContain('They said: "what does the first one say"');
+    // Staff are given a staff assistant, never a shopping one.
+    expect(turn).toMatch(/assistant for staff work/);
+    expect(turn).toMatch(/never offer to shop or order for them/);
+  });
+
+  it('the owner is given his screen too, in the turn, never in his cached instructions', async () => {
+    const sent: Array<Record<string, unknown>> = [];
+    const brain = languageModel({ apiKey: 'test', config, knowledge: readKnowledge() }, {
+      messages: {
+        create: async (body: Record<string, unknown>) => {
+          sent.push(body);
+          return {
+            stop_reason: 'end_turn',
+            content: [{ type: 'text', text: 'Three Runner documents are waiting, Mr. Anthony.' }],
+          };
+        },
+      },
+    } as unknown as BrainClient);
+    const tools: OwnerTools = {
+      needsYou: async () => ({}),
+      todaySummary: async () => ({}),
+      partnerApprovals: async () => ({}),
+      readApplication: async () => ({}),
+      propose: async () => ({ ok: false, why: 'no' }),
+      listStaff: async () => ({}),
+      listEmails: async () => ({}),
+      readEmail: async () => ({}),
+      getAlertPreferences: async () => ({}),
+      proposeAction: async () => ({ ok: false, why: 'no' }),
+    };
+    const talk = await brain.talkWithOwner!({
+      text: 'how many is that',
+      channel: 'app',
+      history: [],
+      tools,
+      screen: noisyScreen,
+    });
+    expect(talk?.reply).toBe('Three Runner documents are waiting, Mr. Anthony.');
+    const body = sent[0]!;
+    const system = body['system'] as Array<{ text: string }>;
+    expect(system[0]!.text).not.toContain('What is on their screen now');
+    const turn = (body['messages'] as Array<{ content: string }>)[0]!.content;
+    expect(turn).toContain('What is on their screen now: page /staff');
+    expect(turn).not.toMatch(/07700|4242|margaret@/);
+    expect(turn).toContain('He said: "how many is that"');
+  });
+
+  it('the standing instructions say how to use it, for everyone and for the owner', () => {
+    for (const text of [instructions(config), ownerInstructions(config, '')]) {
+      expect(text).toMatch(/"this one"/);
+      expect(text).toMatch(/Needs you now page/);
+    }
+    expect(instructions(config)).toMatch(/treat it as small talk/);
+    expect(instructions(config)).toMatch(/"reply" may be one full, natural sentence or two/);
+    expect(instructions(config)).toMatch(/not a shopping assistant/);
+  });
+
+  it('screenWords: nothing without a screen or a path, and the whole kept under the cap', () => {
+    expect(screenWords(undefined)).toBe('');
+    expect(screenWords({ path: '   ' })).toBe('');
+    const huge = screenWords({
+      path: '/orders',
+      headings: Array.from({ length: 10 }, () => 'h'.repeat(300)),
+      status: Array.from({ length: 10 }, () => 's'.repeat(300)),
+      lines: Array.from({ length: 100 }, () => 'l'.repeat(300)),
+    });
+    expect(huge.length).toBeLessThanOrEqual(SCREEN_MAX_CHARACTERS);
+    expect(huge.startsWith('What is on their screen now: page /orders')).toBe(true);
+  });
+});
+
+describe('the guide covers the whole service (ruling 89)', () => {
+  const knowledge = knowledgeText(config, readKnowledge());
+
+  it('says what the service is and why it exists, in its own words', () => {
+    expect(knowledge).toMatch(/registered blind/);
+    expect(knowledge).toMatch(
+      /blind,\s+partially sighted,\s+older,\s+disabled,\s+or caring for others/,
+    );
+    expect(knowledge).toMatch(/by voice from start to\s+finish/);
+    expect(knowledge).toMatch(/in the app or on the\s+telephone/);
+    expect(knowledge).toMatch(/patient, honest and\s+trustworthy/);
+    expect(knowledge).toContain(config.motto);
+  });
+
+  it('names the six kinds of account and what each does', () => {
+    expect(knowledge).toMatch(/The six kinds of account/);
+    for (const kind of [
+      /\*\*Shoppers\*\* are the customers/,
+      /\*\*Runners\*\* are the people who shop and deliver/,
+      /\*\*Shop Partners\*\* are businesses that list themselves/,
+      /\*\*Organisations\*\* are councils, charities, care providers/,
+      /\*\*Staff\*\* run the business in the admin panel/,
+      new RegExp(`\\*\\*The owner\\*\\* is ${config.owner.spokenName.replace('.', '\\.')}`),
+    ]) {
+      expect(knowledge).toMatch(kind);
+    }
+  });
+
+  it('covers ordering end to end, plans, restaurants, areas, referrals, the panel and the phone', () => {
+    for (const heading of [
+      '## How ordering works, from start to finish',
+      '## Plans and delivery prices',
+      '## Restaurants, cafés and takeaways',
+      '## Areas and the no-Runner warning',
+      '## Runners, pay and safety',
+      '## Referrals, vouchers and Ambassadors',
+      '## Problems, refunds and SOS',
+      '## Help from a person, and the telephone line',
+      '## The partner dashboard',
+      '## The admin panel',
+      "## The owner's desk",
+      '## What you must never do or say',
+    ]) {
+      expect(knowledge).toContain(heading);
+    }
+    expect(knowledge).toContain('Send my order and pay');
+    expect(knowledge).toMatch(/never tell a Shopper\s+the restaurant's own counter price/);
+    expect(knowledge).toMatch(/Never promise anything that is not\s+built/);
+    for (const page of ['Needs you now', 'Learning', 'Audit log', 'Shops and organisations']) {
+      expect(knowledge).toContain(page);
+    }
+    // Every figure comes from configuration.
+    const money = (pence: number) => `£${(pence / 100).toFixed(2)}`;
+    expect(knowledge).toContain(money(config.voice.paymentCeilingPence));
+    expect(knowledge).toContain(money(config.fees.delivery.allowance.extraChargePence));
+    expect(knowledge).toContain(money(config.extras.membershipPence));
+    expect(knowledge).toContain(`${config.fees.delivery.allowance.plusOrders} orders a month`);
   });
 });

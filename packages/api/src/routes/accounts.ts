@@ -10,10 +10,11 @@ import type { FastifyInstance } from 'fastify';
 import { formatPence, RUNNER_PAYMENT_PENCE, tidyPostcode } from '@aldilivery/core';
 import { z } from 'zod';
 
-import { phoneConfirmedAtSignUp, requireSession, type AppContext } from '../app.js';
+import { phoneConfirmedAtSignUp, requireSession, type AppContext, type Session } from '../app.js';
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../errors.js';
 import { NOT_A_UK_NUMBER, ukPhone } from '../lib/phone.js';
 import { newReferralCode } from '../lib/referral.js';
+import { pastHalfLife, sessionClaimsNow, sessionTtlHours } from '../lib/sessions.js';
 import { hashCode, signSession, suggestHandle, verifyPhoneProof } from '../lib/tokens.js';
 import { locateLater } from '../services/areas.js';
 import { sweepOffers } from '../services/dispatch.js';
@@ -188,9 +189,8 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
     // their area. Any warning comes only as they place an order.
     locateLater(app.ctx, shopper.deliveryAddress, request.log);
 
-    const expiresAt = Math.floor(now().getTime() / 1000) + env.authTokenTtlHours * 3600;
     const token = signSession(
-      { accountId: shopper.id, role: 'shopper', expiresAt },
+      sessionClaimsNow(shopper.id, 'shopper', env, now()),
       env.authTokenSecret,
     );
 
@@ -266,9 +266,8 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
     // Its place is looked up in the background: a sign-up never waits for it.
     locateLater(app.ctx, input.homePostcode, request.log);
 
-    const expiresAt = Math.floor(now().getTime() / 1000) + env.authTokenTtlHours * 3600;
     const token = signSession(
-      { accountId: runner.id, role: 'runner', expiresAt },
+      sessionClaimsNow(runner.id, 'runner', env, now()),
       env.authTokenSecret,
     );
 
@@ -299,15 +298,31 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
 
   app.get('/me', async (request) => {
     const session = requireSession(request);
+    // Past half its life, the sign-in is renewed for the full lifetime (ruling 88): the Runner
+    // page asks every five seconds, so a Runner on shift is never timed out.
+    const renewed = renewedSession(session);
     if (session.role === 'runner') {
       const runner = await repository.runners.findById(session.accountId);
       if (!runner) throw new NotFoundError('account');
-      return { role: 'runner', runner: publicRunner(runner) };
+      return { role: 'runner', runner: publicRunner(runner), ...renewed };
     }
     const shopper = await repository.shoppers.findById(session.accountId);
     if (!shopper) throw new NotFoundError('account');
-    return { role: 'shopper', shopper: await publicShopper(app.ctx, shopper) };
+    return { role: 'shopper', shopper: await publicShopper(app.ctx, shopper), ...renewed };
   });
+
+  /** A fresh token with the same claims, when the current one is past half its life. */
+  function renewedSession(
+    session: Session,
+  ): Partial<{ refreshedToken: string; expiresAt: string }> {
+    const lifetimeMs = sessionTtlHours(env) * 3_600_000;
+    if (!pastHalfLife(session, lifetimeMs, now())) return {};
+    const claims = sessionClaimsNow(session.accountId, session.role, env, now());
+    return {
+      refreshedToken: signSession(claims, env.authTokenSecret),
+      expiresAt: new Date(claims.expiresAt * 1000).toISOString(),
+    };
+  }
 
   app.patch('/me', async (request) => {
     const session = requireSession(request, 'shopper');

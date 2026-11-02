@@ -14,6 +14,7 @@ import {
   answerPartnerEnquiry,
   confirmPartnerCheckout,
   downloadBusinessStatement,
+  fetchBusinessMe,
   fetchPartnerDashboard,
   savePartnerProfile,
   PARTNER_RECEIPT_KEY,
@@ -26,6 +27,7 @@ import {
   type PartnerProductRow,
 } from '../lib/api';
 import { click } from '../lib/alert';
+import { confirmedSignedOut, useGentleRefresh } from '../lib/session-guard';
 import { money } from '../lib/money';
 import { preparePhoto } from '../lib/photo';
 import { useOzi } from '../state/ozi';
@@ -92,12 +94,26 @@ export function PartnerDashboard(): JSX.Element {
           setData(result);
           return result;
         })
-        .catch(() => {
-          navigate('/business');
+        .catch(async (failure: unknown) => {
+          // Only the server's own word that the sign-in itself has ended, said twice ten seconds
+          // apart, sends anyone back to sign in (ruling 88). Anything else is said plainly.
+          if (await confirmedSignedOut(failure, fetchBusinessMe)) {
+            rememberBusinessToken(null);
+            navigate('/business');
+          } else {
+            setProblem(failure instanceof Error ? failure.message : 'Something went wrong.');
+          }
           return null;
         }),
     [navigate],
   );
+
+  // Coming back to the screen, and once an hour while open, asks "me" again, so a session in use
+  // is renewed before it ends (ruling 88). Never signs anybody out.
+  const keepFresh = useCallback(async () => {
+    await fetchBusinessMe().catch(() => undefined);
+  }, []);
+  useGentleRefresh(keepFresh);
 
   const shareUrl = data ? `${window.location.origin}${data.sharePath}` : '';
 

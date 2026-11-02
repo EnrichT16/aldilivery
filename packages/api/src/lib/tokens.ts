@@ -77,7 +77,15 @@ export interface SessionClaims {
   role: SessionRole;
   /** Seconds since the epoch. */
   expiresAt: number;
+  /**
+   * Seconds since the epoch, when the token was signed (ruling 88). Absent on tokens signed
+   * before 2 November 2026, whose lifetime is then taken as the configured one.
+   */
+  issuedAt?: number;
 }
+
+/** Why a token was not accepted: it has run out, or it was never ours (or is damaged). */
+export type TokenRefusal = 'expired' | 'invalid';
 
 function base64url(input: Buffer | string): string {
   return Buffer.from(input).toString('base64url');
@@ -94,26 +102,42 @@ export function verifySession(
   secret: string,
   now = new Date(),
 ): SessionClaims | null {
+  const outcome = inspectSession(token, secret, now);
+  return 'claims' in outcome ? outcome.claims : null;
+}
+
+/**
+ * Like `verifySession`, but says why a token was refused, so the app can tell a sign-in that
+ * has really ended from any other no (ruling 88).
+ */
+export function inspectSession(
+  token: string,
+  secret: string,
+  now = new Date(),
+): { claims: SessionClaims } | { refused: TokenRefusal } {
   const parts = token.split('.');
-  if (parts.length !== 2) return null;
+  if (parts.length !== 2) return { refused: 'invalid' };
   const [payload, signature] = parts as [string, string];
 
   const expected = createHmac('sha256', secret).update(payload).digest('base64url');
   const given = Buffer.from(signature, 'utf8');
   const wanted = Buffer.from(expected, 'utf8');
-  if (given.length !== wanted.length || !timingSafeEqual(given, wanted)) return null;
+  if (given.length !== wanted.length || !timingSafeEqual(given, wanted)) {
+    return { refused: 'invalid' };
+  }
 
   let claims: SessionClaims;
   try {
     claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')) as SessionClaims;
   } catch {
-    return null;
+    return { refused: 'invalid' };
   }
 
-  if (typeof claims.expiresAt !== 'number' || claims.expiresAt * 1000 <= now.getTime()) {
-    return null;
+  if (typeof claims.expiresAt !== 'number' || typeof claims.accountId !== 'string') {
+    return { refused: 'invalid' };
   }
-  return claims;
+  if (claims.expiresAt * 1000 <= now.getTime()) return { refused: 'expired' };
+  return { claims };
 }
 
 /** A short, speakable handle, for a Shopper who does not want to invent one. */

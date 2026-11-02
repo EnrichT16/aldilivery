@@ -34,15 +34,40 @@ export class BadRequestError extends ApiError {
   }
 }
 
+/**
+ * Not signed in, or a sign-in the server no longer accepts.
+ *
+ * `details.code` says which, because the app acts on the difference (ruling 88, 2 November
+ * 2026: nobody is signed out while using the app). `session_invalid` means the token itself is
+ * bad or has ended, or the account is off: the only answer that may make the app forget a
+ * sign-in. `no_session` means nothing was sent at all. Any other 401 is the request's own
+ * refusal and never ends a sign-in.
+ */
 export class UnauthorisedError extends ApiError {
-  constructor(message = 'You need to sign in again before doing that.') {
-    super(401, 'unauthorised', message);
+  constructor(
+    message = 'You need to sign in again before doing that.',
+    details?: Record<string, unknown>,
+  ) {
+    super(401, 'unauthorised', message, details);
+  }
+}
+
+/** The one refusal that ends a sign-in: the token is bad or has ended, or the account is off. */
+export class SessionInvalidError extends UnauthorisedError {
+  constructor(reason: 'expired' | 'invalid', message?: string) {
+    super(
+      message ??
+        (reason === 'expired'
+          ? 'Your sign-in has ended. Please sign in again.'
+          : 'That sign-in is no longer accepted. Please sign in again.'),
+      { code: 'session_invalid', reason },
+    );
   }
 }
 
 export class ForbiddenError extends ApiError {
-  constructor(message = 'That is not yours to change.') {
-    super(403, 'forbidden', message);
+  constructor(message = 'That is not yours to change.', details?: Record<string, unknown>) {
+    super(403, 'forbidden', message, details);
   }
 }
 

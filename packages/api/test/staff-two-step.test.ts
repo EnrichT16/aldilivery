@@ -202,7 +202,7 @@ describe('two-step codes for every staff sign-in', () => {
     await setUp({ 'x-staff-token': token });
     const reset = await post(`/staff/team/${member.id}/two-step-reset`, {});
     expect(reset.statusCode, reset.body).toBe(200);
-    expect((await get('/staff/problems', { 'x-staff-token': token })).statusCode).toBe(403);
+    expect((await get('/staff/problems', { 'x-staff-token': token })).statusCode).toBe(401);
     expect((await signIn(member.username, member.password)).statusCode).toBe(200);
 
     await post('/staff/owner', {

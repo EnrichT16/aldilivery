@@ -96,6 +96,7 @@ import {
   type BankPaymentRow,
   type TinyExtraRow,
 } from '../lib/api';
+import { confirmedSignedOut, useGentleRefresh } from '../lib/session-guard';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { CheckoutInsightsPage, RestaurantPartners } from '../components/StaffRestaurants';
 import { BrowseFields, readBrowseFields } from '../components/BrowseFields';
@@ -264,6 +265,8 @@ export function Staff(): JSX.Element {
   const [news, setNews] = useState('');
   // Bumped after a decision made by voice, so the lists on the screen load again too.
   const [refresh, setRefresh] = useState(0);
+  // Bumped by "Try again" when the server could not say who this is (ruling 88).
+  const [attempt, setAttempt] = useState(0);
 
   const signOut = useCallback(() => {
     forgetStaffSession();
@@ -287,9 +290,30 @@ export function Staff(): JSX.Element {
           owner: result.isOwner === true && result.account,
           ...(result.account ? { name: result.name } : {}),
         });
+        // A renewed session (ruling 88) is already kept where the old one was; use it from here.
+        if (result.refreshedToken) setKey(result.refreshedToken);
       })
-      .catch(signOut);
-  }, [key, signOut]);
+      .catch(async (failure: unknown) => {
+        // Only the server's own word that the sign-in itself has ended, said twice ten seconds
+        // apart, signs out (ruling 88). A failing server, or no answer, keeps the sign-in and
+        // says so.
+        if (await confirmedSignedOut(failure, () => fetchStaffMe(key))) signOut();
+        else setNews(failure instanceof Error ? failure.message : 'Something went wrong.');
+      });
+  }, [key, signOut, attempt]);
+
+  // Coming back to the screen, and once an hour while open, asks the server again, so a session
+  // in use is renewed before it ends (ruling 88). Never signs anybody out.
+  const keepFresh = useCallback(async () => {
+    if (key === '') return;
+    try {
+      const result = await fetchStaffMe(key);
+      if (result.refreshedToken) setKey(result.refreshedToken);
+    } catch {
+      // Said nothing: the page is as it was, and the next action says what is wrong.
+    }
+  }, [key]);
+  useGentleRefresh(key === '' ? null : keepFresh);
 
   /**
    * "Sign out of this phone" (ruling 84): the server stops every session remembered on a phone
@@ -320,7 +344,28 @@ export function Staff(): JSX.Element {
   }
 
   if (!me) {
-    return (
+    // A failing server, or no answer, is said plainly and never signs anybody out (ruling 88).
+    return news !== '' ? (
+      <div className="space-y-4">
+        <p role="alert" className="m-0">
+          {news}
+        </p>
+        <p className="m-0">You are still signed in.</p>
+        <button
+          type="button"
+          className="control bg-paper text-ink"
+          onClick={() => {
+            setNews('');
+            setAttempt((value) => value + 1);
+          }}
+        >
+          Try again
+        </button>
+        <button type="button" onClick={signOut} className="underline bg-transparent text-paper">
+          Sign out
+        </button>
+      </div>
+    ) : (
       <p role="status" className="m-0">
         One moment.
       </p>

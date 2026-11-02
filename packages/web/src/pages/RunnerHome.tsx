@@ -37,6 +37,7 @@ import {
   type RunnerAccount,
   type RunnerPay,
 } from '../lib/api';
+import { SignOutGuard } from '../lib/session-guard';
 import { useOzi } from '../state/ozi';
 import { InboxLink } from '../components/Inbox';
 import { AgreeByVoice } from '../components/AgreeByVoice';
@@ -126,7 +127,8 @@ export function penceFrom(typed: string): number | null {
 }
 
 export function RunnerHome(): JSX.Element {
-  const signedIn = readRunnerToken() !== null;
+  // Held as state, so forgetting the token (ruling 88) shows the signed-out page at once.
+  const [signedIn, setSignedIn] = useState(() => readRunnerToken() !== null);
   const [runner, setRunner] = useState<RunnerAccount | null>(null);
   const [offers, setOffers] = useState<OfferedJob[]>([]);
   const [job, setJob] = useState<CurrentJob | null>(null);
@@ -151,6 +153,8 @@ export function RunnerHome(): JSX.Element {
   const problemRef = useRef<HTMLParagraphElement>(null);
   // Offers already chimed for, so a new one sounds once and a look every few seconds is silent.
   const heardOffers = useRef(new Set<string>());
+  // Only the server's own word that the sign-in has ended, twice in a row, signs out (ruling 88).
+  const signOutGuard = useRef(new SignOutGuard());
 
   // Every check, the face photo included (Anthony, 30 October 2026).
   const approved = runner
@@ -162,6 +166,7 @@ export function RunnerHome(): JSX.Element {
   const refresh = useCallback(async () => {
     try {
       const me = await fetchRunnerMe();
+      signOutGuard.current.reset();
       setRunner(me.runner);
       // Earnings, jobs and travel. Never allowed to stop the rest of the page working.
       fetchRunnerDashboard()
@@ -220,13 +225,16 @@ export function RunnerHome(): JSX.Element {
         setQueue(null);
       }
     } catch (failure) {
-      if (failure instanceof ApiUnavailableError) {
-        // Down is not the same as refused: keep the sign-in and say so.
-        setProblem(failure.message);
-      } else if (failure instanceof Error && /sign in/i.test(failure.message)) {
-        // The server no longer accepts this sign-in. Forget it rather than fail on every step.
+      if (signOutGuard.current.shouldSignOut(failure)) {
+        // The server has said twice, ten seconds apart, that this sign-in itself has ended
+        // (ruling 88). Forget it rather than fail on every step. Nothing else ever does this:
+        // a 500, a 429, a passing 401 or no answer keeps the sign-in and says so below.
         clearRunnerToken();
         setRunner(null);
+        setSignedIn(false);
+      } else if (failure instanceof ApiUnavailableError) {
+        // Down is not the same as refused: keep the sign-in and say so.
+        setProblem(failure.message);
       } else {
         setProblem(failure instanceof Error ? failure.message : 'Something went wrong.');
       }
@@ -273,7 +281,10 @@ export function RunnerHome(): JSX.Element {
     }
   }
 
-  if (!signedIn || (!loading && !runner)) {
+  // Signed out only when there is no token here. A token the server has not answered for yet, or
+  // answered with a passing failure, is still a sign-in (ruling 88): the problem is said below
+  // and the page keeps trying, rather than telling a Runner on shift he is not signed in.
+  if (!signedIn) {
     return (
       <div className="space-y-6">
         <h1 className="text-display font-bold m-0">Your Runner page</h1>
@@ -292,7 +303,19 @@ export function RunnerHome(): JSX.Element {
   }
 
   if (loading || !runner) {
-    return (
+    return problem !== '' ? (
+      <div className="space-y-4">
+        <p
+          ref={problemRef}
+          tabIndex={-1}
+          role="alert"
+          className="border-2 border-paper bg-paper text-ink p-4 rounded-2xl m-0 max-w-xl"
+        >
+          {problem}
+        </p>
+        <p className="m-0 max-w-xl">You are still signed in. We keep trying.</p>
+      </div>
+    ) : (
       <p role="status" className="m-0">
         One moment.
       </p>
