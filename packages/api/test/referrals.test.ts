@@ -615,7 +615,13 @@ describe('Ozi Ambassadors', () => {
     expect(await creditAmbassadorShares(harness.app.ctx, nearly)).toHaveLength(1);
 
     const summary = await ambassadorSummary(harness.app.ctx, 'shopper', ada.shopperId);
-    expect(summary.earnedPence).toBe(60);
+    // 60p of shares; and this, their first confirmed business, has now completed four paid
+    // orders, so the one-off £10 first-business bonus is due too (ruling 91).
+    const shares = (await harness.repository.ambassadors.listFor('shopper', ada.shopperId)).filter(
+      (row) => row.kind === 'share',
+    );
+    expect(shares.reduce((sum, row) => sum + row.amountPence, 0)).toBe(60);
+    expect(summary.earnedPence).toBe(60 + 1000);
   });
 
   it('earns 2% of a restaurant’s mark-up and 2% of its discount, never the item charges', async () => {

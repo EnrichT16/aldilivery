@@ -29,6 +29,7 @@ import {
   type DeskContext,
   type DeskOutcome,
 } from '../services/owner-desk.js';
+import { ambassadorPrizesForVoice } from '../services/ambassador-prizes.js';
 import { KIND_SPOKEN } from '../services/runner-documents.js';
 import {
   alertPreferencesForVoice,
@@ -385,6 +386,8 @@ export function ownerTools(ctx: DeskContext & Pick<AppContext, 'mailboxes'>): Ow
     },
     // His staff, his emails and how Ozi reaches him (ruling 85).
     listStaff: () => listStaffForVoice(ctx),
+    // Who won the Ambassador prize (ruling 91): read-only.
+    ambassadorPrizes: () => ambassadorPrizesForVoice(ctx),
     listEmails: (filter) => listEmailsForVoice(ctx, filter),
     readEmail: (id) => readEmailForVoice(ctx, id),
     getAlertPreferences: () => alertPreferencesForVoice(ctx),

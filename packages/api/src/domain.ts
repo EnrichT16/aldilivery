@@ -478,12 +478,15 @@ export interface AmbassadorDocument {
  * - `deduction`: a refund that came after a share was already available (a late complaint, a
  *   card chargeback), taken off what is available next, never below zero.
  * - `payment`: what was paid to them, by hand or by a withdrawal to their bank.
+ * - `prize`: the Top Ambassador of the month prize (Anthony, 2 November 2026, ruling 91), under
+ *   the same hold as a share; `first-business-bonus`: the one-off bonus when their first confirmed
+ *   business has completed its orders (the same ruling).
  */
 export interface AmbassadorEntry {
   id: string;
   ambassadorKind: ReferralKind;
   ambassadorId: string;
-  kind: 'share' | 'bonus' | 'deduction' | 'payment';
+  kind: 'share' | 'bonus' | 'deduction' | 'payment' | 'prize' | 'first-business-bonus';
   partnerShopId: string | null;
   orderId: string | null;
   profitPence: number;
@@ -543,6 +546,25 @@ export interface AmbassadorClaim {
   refusedReason: string | null;
   createdAt: Date;
   confirmedAt: Date | null;
+}
+
+/**
+ * One month's Top Ambassador decision (Anthony, 2 November 2026, ruling 91), made once by the
+ * hourly sweep on or after the 1st of the next month: who won (null when nobody had enough
+ * businesses), how many confirmed, ordering businesses they had, whether Ozi's net income from
+ * Ambassador-brought businesses reached the bar, and that net. The prize is credited only when the
+ * bar was met and there is a winner.
+ */
+export interface AmbassadorPrize {
+  id: string;
+  /** "2026-11": the calendar month, UK time. */
+  month: string;
+  winnerKind: ReferralKind | null;
+  winnerId: string | null;
+  qualifyingBusinesses: number;
+  barMet: boolean;
+  netPence: number;
+  decidedAt: Date;
 }
 
 /**

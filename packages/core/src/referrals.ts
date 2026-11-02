@@ -38,8 +38,11 @@ import { formatPence } from './money.js';
  * with the founder, and we may decline or suspend. Changed again on 31 October 2026 (Anthony,
  * protections against misuse): never ask for or take money, never promise anything not in the
  * agreement, never collect bank or card details; breaking any of them is removal for fraud.
+ * Changed on 2 November 2026 (Anthony, ruling 91): the Top Ambassador of the month prize, paid
+ * only in a month whose net income from Ambassador-brought businesses reaches the bar, and the
+ * one-off first-business bonus.
  */
-export const AMBASSADOR_TERMS_VERSION = '2026-10-31a';
+export const AMBASSADOR_TERMS_VERSION = '2026-11-02';
 
 /** One reward level: so many active referrals, the reward, and what it is called. */
 export interface ReferralLevel {
@@ -147,6 +150,26 @@ export interface AmbassadorSettings extends AmbassadorShares {
   readonly reapplyAfterMonths: number;
   readonly declinedDocumentsDeleteAfterDays: number;
   readonly declinedNoteKeptMonths: number;
+  /**
+   * Top Ambassador of the month (Anthony, 2 November 2026, ruling 91): the prize (£25) for the
+   * Ambassador who brought in the most confirmed, ordering businesses in a calendar month (UK
+   * time), at least `monthlyPrizeMinimumBusinesses` (2) of them; paid only when Ozi's net income
+   * that month from the businesses Ambassadors brought in is at least `monthlyPrizeBarPence`
+   * (£125, five times the prize); from `monthlyPrizeFromMonth` ("2026-11") to
+   * `monthlyPrizeUntilMonth` ("2027-11"), both counted, when the owner reviews it.
+   */
+  readonly monthlyPrizePence: number;
+  readonly monthlyPrizeMinimumBusinesses: number;
+  readonly monthlyPrizeBarPence: number;
+  readonly monthlyPrizeFromMonth: string;
+  readonly monthlyPrizeUntilMonth: string;
+  /**
+   * The first-business bonus (ruling 91): once in an Ambassador's life, £10, when their first
+   * confirmed business has completed `firstBusinessBonusAfterOrders` (4) paid, non-refunded
+   * orders.
+   */
+  readonly firstBusinessBonusPence: number;
+  readonly firstBusinessBonusAfterOrders: number;
 }
 
 /** "2%", "2.5%" or "0.25%": a share as people read it, to two places at most. */

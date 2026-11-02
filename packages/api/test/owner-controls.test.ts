@@ -127,6 +127,10 @@ function ownerBrain(triage?: (input: EmailTriageInput) => EmailTriage | null) {
         results.push(staff);
         return { reply: 'Here is your team.', proposal: null };
       }
+      if (/^who won the ambassador prize/i.test(text)) {
+        results.push(await input.tools.ambassadorPrizes());
+        return { reply: 'Here are the prizes.', proposal: null };
+      }
       if ((match = /^switch (off|on) (.+)$/i.exec(text))) {
         if (/^everyone$/i.test(match[2]!)) {
           return propose(input, { kind: 'switch_all_staff_off' });
@@ -442,6 +446,46 @@ describe('the owner by voice', () => {
         }),
       ]),
     });
+  });
+
+  it('ambassador_prizes tells him who won the Ambassador prize last month, and only reads (ruling 91)', async () => {
+    const { brain, results, seen } = ownerBrain();
+    await build({ brain });
+    const owner = await ownerSignedIn();
+    const ada = await harness.repository.shoppers.create({
+      displayName: 'Ada Obi',
+      phone: '+447700900555',
+      handle: 'ada-obi',
+    });
+    await harness.repository.ambassadorPrizes.decide({
+      month: '2026-10',
+      winnerKind: 'shopper',
+      winnerId: ada.id,
+      qualifyingBusinesses: 2,
+      barMet: true,
+      netPence: 13208,
+      decidedAt: harness.now(),
+    });
+    await ask('who won the ambassador prize last month', owner.headers);
+    expect(results[0]).toEqual(
+      expect.objectContaining({
+        lastMonth: expect.any(String),
+        prizes: [
+          expect.objectContaining({
+            month: 'October 2026',
+            winner: 'Ada Obi',
+            qualifyingBusinesses: 2,
+            barMet: true,
+            netIncome: '£132.08',
+            outcome: 'Ada Obi won £25.',
+          }),
+        ],
+        firstBusinessBonuses: [],
+      }),
+    );
+    // Nothing was proposed or done: it only reads.
+    expect(seen).toHaveLength(1);
+    expect(await harness.repository.ambassadorPrizes.list()).toHaveLength(1);
   });
 
   it('a staff member talking to Ozi is never the owner: no tools, no switches', async () => {
@@ -771,6 +815,7 @@ describe('an email with instructions in it', () => {
         readApplication: async () => ({}),
         propose: async () => ({ ok: false, why: 'no' }),
         listStaff: async () => ({}),
+        ambassadorPrizes: async () => ({}),
         listEmails: async () => ({}),
         readEmail: async () => ({}),
         getAlertPreferences: async () => ({}),

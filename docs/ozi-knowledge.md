@@ -252,6 +252,15 @@ They earn a small share of what the businesses they bring in generate, for
 Ambassador" page by their code. Joining is always free: nobody should ever pay an Ambassador. If
 someone was promised something that is not in their agreement, they should report it.
 
+Each calendar month, the Ambassador who brings in the most confirmed, ordering businesses (at
+least {{value:ambassador.monthlyPrizeMinimumBusinesses}}) is Top Ambassador of the month and wins
+{{money:ambassador.monthlyPrizePence}}, announced by first name on every Ambassador's dashboard on
+the first day of the next month. It is paid only in a month when enough came in from the businesses
+Ambassadors brought in; a month below that bar pays no prize, and the dashboard says so. An
+Ambassador also earns a one-off {{money:ambassador.firstBusinessBonusPence}} when their first
+confirmed business has completed {{value:ambassador.firstBusinessBonusAfterOrders}} paid orders.
+Both are held for {{value:ambassador.holdDays}} days like other earnings.
+
 ## Problems, refunds and SOS
 
 If something went wrong with an order (something missing, damaged or wrong), the Shopper reports

@@ -69,6 +69,7 @@ import type {
   AmbassadorEntry,
   AmbassadorAgreement,
   AmbassadorClaim,
+  AmbassadorPrize,
   DeviceSighting,
   AmbassadorDocument,
   AmbassadorNote,
@@ -558,6 +559,18 @@ export interface Repository {
       id: string,
       patch: Partial<Omit<AmbassadorClaim, 'id' | 'partnerShopId' | 'createdAt'>>,
     ): Promise<AmbassadorClaim>;
+  };
+
+  /**
+   * The Top Ambassador of the month decisions (Anthony, 2 November 2026, ruling 91): one a month,
+   * never changed once made.
+   */
+  ambassadorPrizes: {
+    /** Records the month's decision; one already there for the month gives null, nothing added. */
+    decide(input: Omit<AmbassadorPrize, 'id'>): Promise<AmbassadorPrize | null>;
+    findByMonth(month: string): Promise<AmbassadorPrize | null>;
+    /** Every decision, newest month first. */
+    list(): Promise<AmbassadorPrize[]>;
   };
 
   /**

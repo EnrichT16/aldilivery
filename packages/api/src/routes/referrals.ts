@@ -75,6 +75,7 @@ import {
   staffApplications,
   suspendAmbassador,
 } from '../services/ambassador-applications.js';
+import { firstBusinessBonusLog, prizeLog, prizePanel } from '../services/ambassador-prizes.js';
 import { checkAmbassadorDocument, checkInBackground } from '../services/auto-check.js';
 import { ensureCheckCode } from '../services/ambassador-protection.js';
 import { sendVoucher, staffVoucherView } from '../services/vouchers.js';
@@ -189,6 +190,9 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
           requestedAt: row.requestedAt,
           words: withdrawalWords(row, symbol),
         })),
+        // Top Ambassador of the month and the first-business bonus (ruling 91): their own
+        // standing, met or not met, last month's winner by first name; never anybody else's count.
+        prize: agreement ? await prizePanel(app.ctx, kind, id) : null,
       },
     };
   });
@@ -525,6 +529,21 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
       .object({ by: z.string().trim().min(1, 'Please say who gave it.').max(80) })
       .parse(request.body ?? {});
     return markRewardGiven(app.ctx, id, decidedBy(actor, body.by));
+  });
+
+  /**
+   * "Prizes and bonuses" (ruling 91), for the owner alone: every month's Top Ambassador decision
+   * with the winner, whether the bar was met and the net, and every first-business bonus credited.
+   * The net is a company figure, so it is behind the owner's own money area.
+   */
+  app.get('/staff/ambassadors/prizes', async (request) => {
+    await staffActor(request, 'money');
+    return {
+      prizePence: config.ambassador.monthlyPrizePence,
+      barPence: config.ambassador.monthlyPrizeBarPence,
+      prizes: await prizeLog(app.ctx),
+      firstBusinessBonuses: await firstBusinessBonusLog(app.ctx),
+    };
   });
 
   app.post('/staff/ambassadors/:kind/:id/paid', async (request) => {

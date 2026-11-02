@@ -1042,6 +1042,81 @@ function parseAmbassador(raw: Unknown): AmbassadorSettings {
       'ambassador.declinedNoteKeptMonths',
       1,
     ),
+    // Top Ambassador of the month, and the first-business bonus (Anthony, 2 November 2026,
+    // ruling 91). The bar must be at least the prize: a prize is never paid before Ozi has been.
+    ...parseAmbassadorPrizes(raw),
+  };
+}
+
+/** "2026-11": a calendar month as the prize settings write it. */
+function monthText(value: unknown, path: string): string {
+  const text = str(value, path).trim();
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(text)) {
+    throw new StoreConfigError(`${path} must be a month written YYYY-MM, such as 2026-11.`);
+  }
+  return text;
+}
+
+function parseAmbassadorPrizes(
+  raw: Unknown,
+): Pick<
+  AmbassadorSettings,
+  | 'monthlyPrizePence'
+  | 'monthlyPrizeMinimumBusinesses'
+  | 'monthlyPrizeBarPence'
+  | 'monthlyPrizeFromMonth'
+  | 'monthlyPrizeUntilMonth'
+  | 'firstBusinessBonusPence'
+  | 'firstBusinessBonusAfterOrders'
+> {
+  const monthlyPrizePence = wholeNumber(
+    raw['monthlyPrizePence'] ?? 2500,
+    'ambassador.monthlyPrizePence',
+    0,
+  );
+  const monthlyPrizeBarPence = wholeNumber(
+    raw['monthlyPrizeBarPence'] ?? 12500,
+    'ambassador.monthlyPrizeBarPence',
+    0,
+  );
+  if (monthlyPrizeBarPence < monthlyPrizePence) {
+    throw new StoreConfigError(
+      'ambassador.monthlyPrizeBarPence must be at least ambassador.monthlyPrizePence: the prize is only ever paid out of money the businesses have already brought in.',
+    );
+  }
+  const monthlyPrizeFromMonth = monthText(
+    raw['monthlyPrizeFromMonth'] ?? '2026-11',
+    'ambassador.monthlyPrizeFromMonth',
+  );
+  const monthlyPrizeUntilMonth = monthText(
+    raw['monthlyPrizeUntilMonth'] ?? '2027-11',
+    'ambassador.monthlyPrizeUntilMonth',
+  );
+  if (monthlyPrizeUntilMonth < monthlyPrizeFromMonth) {
+    throw new StoreConfigError(
+      'ambassador.monthlyPrizeUntilMonth must not be before ambassador.monthlyPrizeFromMonth.',
+    );
+  }
+  return {
+    monthlyPrizePence,
+    monthlyPrizeMinimumBusinesses: wholeNumber(
+      raw['monthlyPrizeMinimumBusinesses'] ?? 2,
+      'ambassador.monthlyPrizeMinimumBusinesses',
+      1,
+    ),
+    monthlyPrizeBarPence,
+    monthlyPrizeFromMonth,
+    monthlyPrizeUntilMonth,
+    firstBusinessBonusPence: wholeNumber(
+      raw['firstBusinessBonusPence'] ?? 1000,
+      'ambassador.firstBusinessBonusPence',
+      0,
+    ),
+    firstBusinessBonusAfterOrders: wholeNumber(
+      raw['firstBusinessBonusAfterOrders'] ?? 4,
+      'ambassador.firstBusinessBonusAfterOrders',
+      1,
+    ),
   };
 }
 

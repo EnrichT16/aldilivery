@@ -1746,8 +1746,8 @@ model AmbassadorEntry {
   id             String    @id @default(cuid())
   ambassadorKind String
   ambassadorId   String
-  /// share (of an order's profit), bonus (of the first Partner Plus payment), deduction or
-  /// payment.
+  /// share (of an order's profit), bonus (of the first Partner Plus payment), deduction,
+  /// payment, prize (Top Ambassador of the month, ruling 91) or first-business-bonus (the same).
   kind           String
   /// The business it was earned from; null for a payment.
   partnerShopId  String?
@@ -1840,6 +1840,25 @@ model AmbassadorWithdrawal {
 
   @@index([ambassadorKind, ambassadorId])
   @@index([status])
+}
+
+/// One month's Top Ambassador decision (Anthony, 2 November 2026, ruling 91): made once by the
+/// hourly sweep on or after the 1st of the next month, never changed. The winner is null when
+/// nobody had enough confirmed, ordering businesses; the prize is credited (an AmbassadorEntry of
+/// kind "prize") only when barMet is true and there is a winner.
+model AmbassadorPrize {
+  id                   String   @id @default(cuid())
+  /// "2026-11": the calendar month, UK time.
+  month                String   @unique
+  winnerKind           String?
+  winnerId             String?
+  qualifyingBusinesses Int      @default(0)
+  barMet               Boolean  @default(false)
+  /// Ozi's net income that month from the businesses Ambassadors brought in, in pence.
+  netPence             Int      @default(0)
+  decidedAt            DateTime @default(now())
+
+  @@index([winnerKind, winnerId])
 }
 
 /// Who did what in the admin panel, and when (Section Q). Only ever added to: the server has

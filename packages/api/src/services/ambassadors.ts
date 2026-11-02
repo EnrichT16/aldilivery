@@ -97,6 +97,7 @@ import {
   raiseHeldShare,
   selfDealingReason,
 } from './ambassador-protection.js';
+import { settleFirstBusinessBonus } from './ambassador-prizes.js';
 import { askOwner } from './owner-desk.js';
 import {
   findAccount,
@@ -381,13 +382,14 @@ export async function profitByShop(
   return result;
 }
 
-const EARNS = new Set(['delivered', 'completed']);
+/** The statuses of an order that was paid and delivered: the only ones that earn anything. */
+export const EARNS = new Set(['delivered', 'completed']);
 
 /**
  * What the Shopper finally paid for the order, and what has been given back since: complaint
  * refunds and goodwill refunds. A cancelled or refunded order is given back whole.
  */
-async function paidAndRefunded(
+export async function paidAndRefunded(
   ctx: Pick<AppContext, 'repository'>,
   order: Order,
 ): Promise<{ paidPence: number; refundedPence: number }> {
@@ -481,9 +483,17 @@ async function removedAmbassador(
   return (await ctx.repository.ambassadors.findAgreement(kind, id))?.status === 'removed';
 }
 
+/** What is earned: a share, a bonus, a prize or the first-business bonus (ruling 91). */
+const EARNED_KINDS = new Set<AmbassadorEntry['kind']>([
+  'share',
+  'bonus',
+  'prize',
+  'first-business-bonus',
+]);
+
 /** A share or bonus that counts: never one held for a check (31 October 2026). */
 function earning(entry: AmbassadorEntry): boolean {
-  return (entry.kind === 'share' || entry.kind === 'bonus') && entry.heldAt === null;
+  return EARNED_KINDS.has(entry.kind) && entry.heldAt === null;
 }
 
 /**
@@ -728,6 +738,8 @@ export async function ambassadorSummary(
     (shop) => shop.ambassadorKind === kind && shop.ambassadorId === id,
   );
   await settlePlusBonuses(ctx, shops);
+  // The one-off first-business bonus (ruling 91), credited the moment it is due.
+  await settleFirstBusinessBonus(ctx, kind, id);
   await reconcileAmbassador(ctx, kind, id);
   const branches = new Set<string>();
   for (const shop of shops) {

@@ -1,4 +1,9 @@
-import { AMBASSADOR_TERMS_VERSION, rewardWords, shareWords } from '@aldilivery/core';
+import {
+  AMBASSADOR_TERMS_VERSION,
+  prizeTermsWords,
+  rewardWords,
+  shareWords,
+} from '@aldilivery/core';
 
 import { CompanyDetails, DetailsToFollowNotice, companyFacts } from '../components/CompanyDetails';
 import { storeConfig } from '../config';
@@ -14,6 +19,9 @@ import { ambassadorEarningWords } from '../lib/partnership';
  * from `ambassador` in config/store.json, so a change of rate there changes these words too.
  * Changed the same day for the founder's rulings: a quarter of the rate on another branch, and
  * earnings held for the refund window, following refunds, and withdrawn to a bank through Stripe.
+ * Changed on 2 November 2026 (ruling 91): the Top Ambassador of the month prize, its bar, the
+ * two-business minimum and its dates, and the one-off first-business bonus; the version is bumped
+ * so every Ambassador agrees again.
  */
 export function AmbassadorTerms(): JSX.Element {
   const name = storeConfig.productName;
@@ -24,6 +32,7 @@ export function AmbassadorTerms(): JSX.Element {
   const plan = shareWords(rates.planShare);
   const minimum = rewardWords(rates.payoutMinimumPence, symbol);
   const review = rewardWords(rates.reviewAbovePence, symbol);
+  const prizes = prizeTermsWords(rates, symbol);
 
   return (
     <article className="space-y-8 max-w-2xl">
@@ -122,6 +131,12 @@ export function AmbassadorTerms(): JSX.Element {
             payment.
           </li>
           <li>
+            <strong>Top Ambassador of the month.</strong> {prizes.prize}
+          </li>
+          <li>
+            <strong>First-business bonus.</strong> {prizes.bonus}
+          </li>
+          <li>
             Only businesses we have approved, with real orders, earn you anything. Your dashboard
             shows the businesses you introduced, what is pending, what is available and what we have
             paid you. It never shows a business&rsquo;s orders.
@@ -178,8 +193,8 @@ export function AmbassadorTerms(): JSX.Element {
           </li>
           <li>Do not say anything about {name} that is untrue or misleading.</li>
           <li>
-            Never ask for or take money from anybody, for anything. Joining is always free, and every
-            payment is made only inside the app.
+            Never ask for or take money from anybody, for anything. Joining is always free, and
+            every payment is made only inside the app.
           </li>
           <li>Never promise anything that is not in the business&rsquo;s agreement.</li>
           <li>Never collect anybody&rsquo;s bank or card details.</li>

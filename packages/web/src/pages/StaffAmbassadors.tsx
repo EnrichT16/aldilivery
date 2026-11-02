@@ -6,6 +6,7 @@ import {
   decideAmbassadorApplication,
   fetchStaffAmbassadorApplication,
   fetchStaffAmbassadorApplications,
+  fetchStaffAmbassadorPrizes,
   fetchStaffFile,
   reviewAmbassadorDocument,
   type StaffAmbassadorApplication,
@@ -24,6 +25,9 @@ import { HeldShares } from '../components/StaffAmbassadorChecks';
  * the applicant; and, to end a suspension, "Lift the suspension" (everything held released) or
  * "Remove for fraud", marking the businesses that were fraudulent, or all of them, whose unpaid
  * shares are cancelled. A date of birth from the ID may be kept on the note, if staff have it.
+ *
+ * 2 November 2026 (ruling 91), for the owner alone: "Prizes and bonuses", every month's Top
+ * Ambassador decision (month, winner, bar met, net) and every first-business bonus credited.
  */
 
 function when(at: string | null): string {
@@ -54,10 +58,13 @@ export function StaffAmbassadors({
   staffKey,
   by,
   onNews,
+  owner = false,
 }: {
   staffKey: string;
   by: string;
   onNews: (words: string) => void;
+  /** The owner alone sees "Prizes and bonuses" (ruling 91): the net is a company figure. */
+  owner?: boolean;
 }): JSX.Element {
   const [groups, setGroups] = useState<
     Awaited<ReturnType<typeof fetchStaffAmbassadorApplications>>['groups'] | null
@@ -82,6 +89,7 @@ export function StaffAmbassadors({
       </h2>
       <Failure text={problem} />
       <HeldShares staffKey={staffKey} by={by} onNews={onNews} />
+      {owner && <PrizesAndBonuses staffKey={staffKey} />}
       {groups?.map((group) => (
         <section key={group.status} aria-labelledby={`amb-${group.status}`} className="space-y-2">
           <h3 id={`amb-${group.status}`} className="font-bold m-0">
@@ -124,6 +132,82 @@ export function StaffAmbassadors({
           )}
         </section>
       ))}
+    </section>
+  );
+}
+
+/**
+ * "Prizes and bonuses" (ruling 91), the owner alone: each month's Top Ambassador decision, and
+ * each first-business bonus credited. Read from the owner's money area; nothing to change here.
+ */
+function PrizesAndBonuses({ staffKey }: { staffKey: string }): JSX.Element {
+  const [found, setFound] = useState<Awaited<ReturnType<typeof fetchStaffAmbassadorPrizes>> | null>(
+    null,
+  );
+  const [problem, setProblem] = useState('');
+  useEffect(() => {
+    fetchStaffAmbassadorPrizes(staffKey).then(setFound).catch(fail(setProblem));
+  }, [staffKey]);
+  return (
+    <section aria-labelledby="prizes-heading" className="space-y-3">
+      <h3 id="prizes-heading" className="font-bold m-0">
+        Prizes and bonuses
+      </h3>
+      <Failure text={problem} />
+      {found && (
+        <>
+          <p className="m-0">
+            Top Ambassador of the month: {money(found.prizePence)}, paid only in a month whose net
+            income from Ambassador-brought businesses is at least {money(found.barPence)}.
+          </p>
+          {found.prizes.length === 0 ? (
+            <p className="m-0">No month has been decided yet.</p>
+          ) : (
+            <table className="w-full text-left">
+              <caption className="visually-hidden">
+                Each month's Top Ambassador decision: the winner, whether the bar was met and the
+                net income
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Month</th>
+                  <th scope="col">Winner</th>
+                  <th scope="col">Businesses</th>
+                  <th scope="col">Bar</th>
+                  <th scope="col">Net</th>
+                  <th scope="col">Paid</th>
+                </tr>
+              </thead>
+              <tbody>
+                {found.prizes.map((row) => (
+                  <tr key={row.month}>
+                    <th scope="row" className="font-normal">
+                      {row.monthWords}
+                    </th>
+                    <td>{row.winnerName ?? 'Nobody'}</td>
+                    <td>{row.qualifyingBusinesses}</td>
+                    <td>{row.barMet ? 'Met' : 'Not met'}</td>
+                    <td>{row.netWords}</td>
+                    <td>{row.prizePence > 0 ? money(row.prizePence) : 'No prize'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <h4 className="font-bold m-0">First-business bonuses credited</h4>
+          {found.firstBusinessBonuses.length === 0 ? (
+            <p className="m-0">None yet.</p>
+          ) : (
+            <ul className="m-0 ps-6 space-y-1">
+              {found.firstBusinessBonuses.map((row) => (
+                <li key={`${row.ambassadorName}-${row.at}`}>
+                  {row.ambassadorName}: {row.amountWords} for {row.business}, {when(row.at)}.
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
     </section>
   );
 }
