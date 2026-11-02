@@ -9,6 +9,7 @@
 import { ORGANISATION_CONSENT_VERSION } from '@aldilivery/core';
 
 import { storeConfig } from '../config';
+import { screenSnapshot } from './screen';
 import { readRunnerToken, readToken, writeRunnerToken, writeToken } from './session';
 import { renewStaffSession } from './staff-session';
 
@@ -3256,6 +3257,8 @@ export function askOzi(
   as: OziAsker,
   basket?: string[],
 ): Promise<{ reply: string | null; understood?: OziUnderstanding; awaitingYes?: boolean }> {
+  // What is on the screen right now (ruling 89): words already shown, never a field's value.
+  const screen = screenSnapshot();
   const init: RequestInit = {
     method: 'POST',
     body: JSON.stringify({
@@ -3264,6 +3267,7 @@ export function askOzi(
       turn,
       conversation: conversationId(),
       ...(basket && basket.length > 0 ? { basket } : {}),
+      ...(screen ? { screen } : {}),
     }),
   };
   if (as.kind === 'staff') return staffRequest(as.key, '/ozi/reply', init);

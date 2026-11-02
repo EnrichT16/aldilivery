@@ -308,3 +308,62 @@ describe("Ozi's weekly self-review", () => {
     ).toHaveLength(1);
   });
 });
+
+describe('what is on the screen (ruling 89, 2 November 2026)', () => {
+  it('goes with the words to the model, bounded; a malformed one is simply left out', async () => {
+    const { brain, heard } = standIn();
+    await build(brain);
+    const shopper = await signUpShopper(harness, { displayName: 'Margaret Ade' });
+    await ask('what does the first one say', shopper.authHeader, 'visit:one', {
+      screen: {
+        path: '/orders',
+        title: 'My orders',
+        headings: ['Your orders'],
+        status: ['2 orders on the way'],
+        section: 'Today',
+        lines: Array.from({ length: 40 }, (_, index) => `Order ${index} `.repeat(30)),
+        extra: 'ignored',
+      },
+    });
+    expect(heard[0]!.screen).toMatchObject({
+      path: '/orders',
+      title: 'My orders',
+      headings: ['Your orders'],
+      status: ['2 orders on the way'],
+      section: 'Today',
+    });
+    expect(heard[0]!.screen).not.toHaveProperty('extra');
+    expect(heard[0]!.screen!.lines).toHaveLength(12);
+    for (const line of heard[0]!.screen!.lines!) expect(line.length).toBeLessThanOrEqual(120);
+    await ask('and this one', shopper.authHeader, 'visit:one', { screen: 'not a screen' });
+    expect(heard[1]!.screen).toBeUndefined();
+    await ask('and this one', shopper.authHeader, 'visit:one', { screen: { title: 'no path' } });
+    expect(heard[2]!.screen).toBeUndefined();
+    await ask('and this one', shopper.authHeader, 'visit:one');
+    expect(heard[3]!.screen).toBeUndefined();
+  });
+
+  it("goes to the owner's conversation too, and is never kept in Ozi's memory", async () => {
+    const { brain, owner } = standIn();
+    await build(brain);
+    const headers = await ownerHeaders();
+    await ask('how many is that', headers, 'visit:owner', {
+      screen: {
+        path: '/staff',
+        headings: ['Needs you now'],
+        lines: ['3 Runner documents waiting'],
+      },
+    });
+    expect(owner[0]!.screen).toEqual({
+      path: '/staff',
+      headings: ['Needs you now'],
+      lines: ['3 Runner documents waiting'],
+    });
+    await settle();
+    const rows = await harness.repository.memory.list({ limit: 5 });
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(`${row.heard} ${row.said}`).not.toMatch(/Needs you now|Runner documents|\/staff/);
+    }
+  });
+});

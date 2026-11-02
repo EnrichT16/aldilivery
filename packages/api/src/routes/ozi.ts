@@ -57,6 +57,40 @@ import {
 import { rankedForListing } from '../lib/partner-standing.js';
 import { staffActor } from '../lib/staff.js';
 
+/** One short line of what is on the screen: cut, never refused, so a long page still arrives. */
+const screenLine = (most: number) =>
+  z
+    .string()
+    .transform((text) => text.replace(/\s+/g, ' ').trim().slice(0, most))
+    .pipe(z.string());
+const screenLines = (each: number, most: number) =>
+  z
+    .array(z.string())
+    .max(200)
+    .transform((lines) =>
+      lines
+        .map((line) => line.replace(/\s+/g, ' ').trim().slice(0, each))
+        .filter((line) => line !== '')
+        .slice(0, most),
+    )
+    .optional();
+
+/**
+ * What is on the person's screen (ruling 89): bounded here, blanked again by `screenWords`
+ * before the model sees it, and never kept in Ozi's memory. The app never sends a form field's
+ * value; the server would blank anything like a number, a code or an email address anyway.
+ */
+const screenShape = z
+  .object({
+    path: screenLine(200).pipe(z.string().min(1)),
+    title: screenLine(120).optional(),
+    headings: screenLines(120, 6),
+    status: screenLines(200, 4),
+    section: screenLine(80).optional(),
+    lines: screenLines(120, 12),
+  })
+  .strip();
+
 const body = z.object({
   text: z.string().trim().min(1).max(300),
   mode: z.enum(['exact', 'within']),
@@ -65,6 +99,8 @@ const body = z.object({
   conversation: z.string().trim().min(1).max(80).optional(),
   /** What is in the basket, in words, so the model understands "take off the milk" (ruling 69). */
   basket: z.array(z.string().trim().max(80)).max(40).optional(),
+  /** What is on their screen now (ruling 89). A malformed one is simply left out. */
+  screen: screenShape.optional().catch(undefined),
 });
 
 /** What the app said back on its own, for Ozi's memory (ruling 68). */
@@ -405,6 +441,7 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         channel: 'app',
         history,
         tools: ownerTools(app.ctx),
+        ...(input.screen ? { screen: input.screen } : {}),
       });
       if (talk && !containsBanned(talk.reply, banned)) {
         if (talk.proposal && conversation) {
@@ -427,6 +464,7 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         who: speaker,
         history,
         ...(input.basket ? { basket: input.basket } : {}),
+        ...(input.screen ? { screen: input.screen } : {}),
       });
       if (understood && (understood.kind === 'items' || understood.kind === 'remove')) {
         // Staff are not Shoppers (ruling 84): orders stay safe behind a Shopper account, said
