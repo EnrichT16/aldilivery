@@ -264,6 +264,26 @@ export {
 } from './ambassador-protection.js';
 
 export {
+  decideMonthlyPrize,
+  firstBusinessBonusDue,
+  firstBusinessBonusWords,
+  lastMonthPrizeWords,
+  monthAfter,
+  monthBefore,
+  monthWords,
+  oziNetOnOrderPence,
+  prizeBarMet,
+  prizeBarWords,
+  prizeMonthRuns,
+  prizeStandingWords,
+  prizeTermsWords,
+  ukMonthKey,
+  type OrderTake,
+  type PrizeDecision,
+  type PrizeStanding,
+} from './ambassador-prizes.js';
+
+export {
   activeShare,
   AMBASSADOR_TERMS_VERSION,
   ambassadorAvailableAt,

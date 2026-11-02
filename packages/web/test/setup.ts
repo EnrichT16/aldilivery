@@ -153,7 +153,7 @@ export function fakeReferrals(
     ambassador: {
       joined: false,
       agreedAt: null,
-      termsVersion: '2026-10-31a',
+      termsVersion: '2026-11-02',
       link: null,
       termsPath: '/ambassador/terms',
       profitShareWords: '2%',

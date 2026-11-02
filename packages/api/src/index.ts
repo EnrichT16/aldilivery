@@ -32,6 +32,7 @@ import { sweepOffers } from './services/dispatch.js';
 import { refundUntakenOrders } from './services/order-rescue.js';
 import { sweepAmbassadorRetention } from './services/ambassador-applications.js';
 import { sweepAmbassadorFollowUps } from './services/ambassador-protection.js';
+import { sweepAmbassadorPrizes } from './services/ambassador-prizes.js';
 import { sweepVoucherReminders } from './services/vouchers.js';
 import { sweepScheduled } from './services/scheduled.js';
 import { sweepPayouts } from './services/pay-runner.js';
@@ -556,6 +557,8 @@ async function main(): Promise<void> {
   // Every hour: anybody who has reached a new referral reward level is kept, and the owner told
   // once on Ozi's desk (Anthony, 30 October 2026). A level is also checked the moment a delivery
   // makes somebody active, so the hour this lands in does not matter.
+  // On the same hour (ruling 91): the Top Ambassador of the month, decided once for each month
+  // that is over, and the first-business bonus credited when it is due. Idempotent.
   const referralSweep = setInterval(() => {
     sweepReferralLevels(app.ctx, app.log)
       .then((reached) => {
@@ -563,6 +566,15 @@ async function main(): Promise<void> {
       })
       .catch((failure: unknown) => {
         app.log.error({ err: failure }, 'The referral level sweep failed');
+      });
+    sweepAmbassadorPrizes(app.ctx, app.log)
+      .then((report) => {
+        if (report.decided > 0 || report.bonuses > 0) {
+          app.log.info(report, 'Ambassador prizes and bonuses');
+        }
+      })
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, 'The Ambassador prize sweep failed');
       });
   }, 3_600_000);
   referralSweep.unref();

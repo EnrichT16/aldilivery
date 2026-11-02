@@ -320,6 +320,22 @@ function Overview({
         )}
       </section>
 
+      {ambassador.prize && (
+        <section aria-labelledby="top-ambassador-heading" className="space-y-2">
+          <h2 id="top-ambassador-heading" className="text-lead font-bold m-0">
+            Top Ambassador
+          </h2>
+          {/*
+           * Ruling 91: their own standing, met or not met, last month's winner by first name,
+           * and their first-business bonus. Never anybody else's count, never a company figure.
+           */}
+          <p className="m-0">{ambassador.prize.standingWords}</p>
+          {ambassador.prize.barWords !== '' && <p className="m-0">{ambassador.prize.barWords}</p>}
+          <p className="m-0">{ambassador.prize.lastMonthWords}</p>
+          <p className="m-0">{ambassador.prize.firstBusinessWords}</p>
+        </section>
+      )}
+
       <section aria-labelledby="introduced-heading" className="space-y-2">
         <h2 id="introduced-heading" className="text-lead font-bold m-0">
           Businesses you introduced

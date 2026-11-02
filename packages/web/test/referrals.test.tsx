@@ -315,6 +315,16 @@ describe('the Ozi Ambassador terms page', () => {
     expect(text).toMatch(/misleading claims/);
     expect(text).toMatch(/law of England and/);
     expect(text).toMatch(/Become an Ozi\s+Ambassador/);
+    // Ruling 91: the prize, the bar as pounds, the two-business minimum, the dates, no prize
+    // below the bar, and the first-business bonus; the version bumped so everyone agrees again.
+    expect(text).toMatch(/Top Ambassador of the month\./);
+    expect(text).toMatch(/From November 2026 to November 2027/);
+    expect(text).toMatch(/wins £25, with at least 2 such businesses/);
+    expect(text).toMatch(/is at least £125/);
+    expect(text).toMatch(/A month below that pays no prize/);
+    expect(text).toMatch(/First-business bonus\./);
+    expect(text).toMatch(/completed 4 paid orders that were not refunded, you earn a one-off £10/);
+    expect(text).toMatch(/Version 2026-11-02\./);
     expect(text).toContain(storeConfig.store.legalEntityName);
     expect(text.toLowerCase()).not.toContain('insurance');
     await noViolations(container);

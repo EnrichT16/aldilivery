@@ -16,6 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App';
 import { qrMatrix } from '../src/components/QrCode';
 import { storeConfig } from '../src/config';
+import { StaffAmbassadors } from '../src/pages/StaffAmbassadors';
 import { FAKE_SHOPPER, fakeReferrals, stubApi, type RecordedRequest } from './setup';
 import { openPage, pageTabs } from './staff-tabs';
 
@@ -272,7 +273,7 @@ describe('applying', () => {
     ).toBeInTheDocument();
     expect(sent.find((row) => row.path === '/ambassador/join')?.body).toEqual({
       termsAgreed: true,
-      termsVersion: '2026-10-31a',
+      termsVersion: '2026-11-02',
     });
     await noViolations(container);
 
@@ -419,6 +420,60 @@ describe('the Ambassador dashboard', () => {
     expect(screen.queryByText('Flyers (A5)')).not.toBeInTheDocument();
   });
 
+  it('shows the Top Ambassador panel: their standing, met or not met, last month by first name, and the first-business bonus (ruling 91)', async () => {
+    stubWith((method, path) =>
+      path === '/referrals/me'
+        ? reply(
+            fakeReferrals('https://example.test/join?via=shopper-ada', {
+              ambassador: {
+                ...APPROVED,
+                prize: {
+                  runs: true,
+                  standingWords: 'You have 1 confirmed, ordering business this month.',
+                  barWords: 'The £25 prize is on this month.',
+                  lastMonthWords: 'No prize last month, as not enough orders came in.',
+                  firstBusinessWords:
+                    'Your first business has completed 2 of 4 orders. At 4, you earn a £10 one-off bonus.',
+                },
+              },
+            }),
+          )
+        : null,
+    );
+    const { container } = renderAt('/ambassador/home');
+    const panel = (await screen.findByRole('heading', { name: 'Top Ambassador' })).closest(
+      'section',
+    )!;
+    expect(
+      within(panel).getByText('You have 1 confirmed, ordering business this month.'),
+    ).toBeInTheDocument();
+    expect(within(panel).getByText('The £25 prize is on this month.')).toBeInTheDocument();
+    expect(
+      within(panel).getByText('No prize last month, as not enough orders came in.'),
+    ).toBeInTheDocument();
+    expect(
+      within(panel).getByText(
+        'Your first business has completed 2 of 4 orders. At 4, you earn a £10 one-off bonus.',
+      ),
+    ).toBeInTheDocument();
+    await noViolations(container);
+  });
+
+  it('shows no Top Ambassador panel from an older server, or before they have applied', async () => {
+    stubWith((method, path) =>
+      path === '/referrals/me'
+        ? reply(
+            fakeReferrals('https://example.test/join?via=shopper-ada', {
+              ambassador: { ...APPROVED, prize: null },
+            }),
+          )
+        : null,
+    );
+    renderAt('/ambassador/home');
+    await screen.findByRole('tablist', { name: 'Ambassador dashboard' });
+    expect(screen.queryByRole('heading', { name: 'Top Ambassador' })).not.toBeInTheDocument();
+  });
+
   it('gives an approved Ambassador the four tabs, the money, the businesses, the Toolkit and the Guide', async () => {
     const sent = stubWith((method, path) => {
       if (path === '/referrals/me') {
@@ -511,9 +566,13 @@ describe('the Ambassador dashboard', () => {
     expect(screen.getByText('“When am I paid?”')).toBeInTheDocument();
     expect(screen.getByText('“Who are the customers?”')).toBeInTheDocument();
     expect(
-      screen.getByText('Never ask for or take money from anybody, for anything. Joining is always free.'),
+      screen.getByText(
+        'Never ask for or take money from anybody, for anything. Joining is always free.',
+      ),
     ).toBeInTheDocument();
-    expect(screen.getByText('Never collect bank or card details from anybody.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Never collect bank or card details from anybody.'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Read the guide to me' })).toBeInTheDocument();
     await noViolations(container);
   });
@@ -1006,6 +1065,91 @@ describe('the staff Ambassadors page', () => {
         reason: 'Not in your area yet.',
       }),
     );
+  });
+});
+
+describe('"Prizes and bonuses" on the staff Ambassadors page (ruling 91)', () => {
+  const EMPTY_GROUPS = { groups: [] };
+
+  it('is the owner’s alone: staff do not see it', async () => {
+    const sent = stubWith((method, path) => {
+      if (path === '/staff/ambassador-applications') return reply(EMPTY_GROUPS);
+      if (path === '/staff/ambassador-protection/held') return reply({ held: [] });
+      return null;
+    });
+    render(<StaffAmbassadors staffKey="k" by="Kemi" onNews={() => {}} />);
+    await screen.findByRole('heading', { name: 'Ambassador applications' });
+    expect(screen.queryByRole('heading', { name: 'Prizes and bonuses' })).not.toBeInTheDocument();
+    expect(sent.some((row) => row.path === '/staff/ambassadors/prizes')).toBe(false);
+  });
+
+  it('lists each month’s decision (month, winner, bar met, net) and the first-business bonuses credited', async () => {
+    stubWith((method, path) => {
+      if (path === '/staff/ambassador-applications') return reply(EMPTY_GROUPS);
+      if (path === '/staff/ambassador-protection/held') return reply({ held: [] });
+      if (path === '/staff/ambassadors/prizes') {
+        return reply({
+          prizePence: 2500,
+          barPence: 12500,
+          prizes: [
+            {
+              month: '2026-12',
+              monthWords: 'December 2026',
+              winnerName: 'Ada Obi',
+              qualifyingBusinesses: 2,
+              barMet: false,
+              netPence: 9870,
+              netWords: '£98.70',
+              prizePence: 0,
+              decidedAt: '2027-01-01T01:00:00.000Z',
+            },
+            {
+              month: '2026-11',
+              monthWords: 'November 2026',
+              winnerName: 'Ada Obi',
+              qualifyingBusinesses: 3,
+              barMet: true,
+              netPence: 13208,
+              netWords: '£132.08',
+              prizePence: 2500,
+              decidedAt: '2026-12-01T01:00:00.000Z',
+            },
+          ],
+          firstBusinessBonuses: [
+            {
+              ambassadorName: 'Ada Obi',
+              business: 'Corner Shop 1',
+              amountPence: 1000,
+              amountWords: '£10.00',
+              at: '2026-11-07T12:00:00.000Z',
+            },
+          ],
+        });
+      }
+      return null;
+    });
+    const { container } = render(
+      <StaffAmbassadors staffKey="k" by="Anthony" onNews={() => {}} owner />,
+    );
+    const section = (await screen.findByRole('heading', { name: 'Prizes and bonuses' })).closest(
+      'section',
+    )!;
+    expect(
+      within(section).getByText(
+        /Top Ambassador of the month: £25\.00, paid only in a month whose net income from Ambassador-brought businesses is at least £125\.00\./,
+      ),
+    ).toBeInTheDocument();
+    const table = await within(section).findByRole('table');
+    const rows = within(table).getAllByRole('row');
+    expect(rows.map((row) => row.textContent)).toEqual([
+      'MonthWinnerBusinessesBarNetPaid',
+      'December 2026Ada Obi2Not met£98.70No prize',
+      'November 2026Ada Obi3Met£132.08£25.00',
+    ]);
+    expect(
+      within(section).getByText(/Ada Obi: £10\.00 for Corner Shop 1, 7 Nov/),
+    ).toBeInTheDocument();
+    await noViolations(container);
   });
 });
 

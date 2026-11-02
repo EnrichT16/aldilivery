@@ -274,6 +274,24 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    ambassadorPrizes: {
+      async decide(input) {
+        // One decision a month, however often the sweep runs.
+        const made = await prisma.ambassadorPrize.createMany({
+          data: [input],
+          skipDuplicates: true,
+        });
+        if (made.count === 0) return null;
+        return (await prisma.ambassadorPrize.findUnique({ where: { month: input.month } })) as any;
+      },
+      async findByMonth(month) {
+        return (await prisma.ambassadorPrize.findUnique({ where: { month } })) as any;
+      },
+      async list() {
+        return (await prisma.ambassadorPrize.findMany({ orderBy: { month: 'desc' } })) as any;
+      },
+    },
+
     ambassadorDocuments: {
       async create(input) {
         const { image, ...rest } = input;

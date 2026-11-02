@@ -536,7 +536,12 @@ export function Staff(): JSX.Element {
             {shown === 'areas' && <Areas staffKey={key} by={by} onNews={setNews} />}
             {shown === 'referrals' && <Referrals staffKey={key} by={by} onNews={setNews} />}
             {shown === 'ambassadors' && (
-              <StaffAmbassadors staffKey={key} by={by} onNews={setNews} />
+              <StaffAmbassadors
+                staffKey={key}
+                by={by}
+                onNews={setNews}
+                owner={me.isOwner === true}
+              />
             )}
             {shown === 'reports' && <Reports staffKey={key} />}
             {shown === 'accounts' && <ShopperAccounts staffKey={key} />}

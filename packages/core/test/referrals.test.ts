@@ -71,7 +71,19 @@ describe('the referral figures in config/store.json', () => {
       reapplyAfterMonths: 6,
       declinedDocumentsDeleteAfterDays: 30,
       declinedNoteKeptMonths: 12,
+      // Top Ambassador of the month and the first-business bonus (Anthony, 2 November 2026,
+      // ruling 91): £25 for at least 2 confirmed, ordering businesses, paid only in a month whose
+      // net income from Ambassador-brought businesses is at least £125 (five times the prize),
+      // from November 2026 to November 2027; £10 once, after the first business's 4th paid order.
+      monthlyPrizePence: 2500,
+      monthlyPrizeMinimumBusinesses: 2,
+      monthlyPrizeBarPence: 12500,
+      monthlyPrizeFromMonth: '2026-11',
+      monthlyPrizeUntilMonth: '2027-11',
+      firstBusinessBonusPence: 1000,
+      firstBusinessBonusAfterOrders: 4,
     });
+    expect(ambassadors.monthlyPrizeBarPence).toBe(5 * ambassadors.monthlyPrizePence);
     expect(shareWords(ambassadors.restaurantMarkupShare)).toBe('2%');
     expect(shareWords(ambassadors.groceryItemChargeShare)).toBe('1%');
     expect(shareWords(0.025)).toBe('2.5%');

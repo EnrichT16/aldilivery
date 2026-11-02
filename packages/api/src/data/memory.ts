@@ -67,6 +67,7 @@ import type {
   AmbassadorEntry,
   AmbassadorAgreement,
   AmbassadorClaim,
+  AmbassadorPrize,
   DeviceSighting,
   AmbassadorNote,
   AmbassadorDocument,
@@ -212,6 +213,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   };
   const ambassadorWithdrawals: AmbassadorWithdrawal[] = [];
   const ambassadorClaims: AmbassadorClaim[] = [];
+  const ambassadorPrizes: AmbassadorPrize[] = [];
   const deviceSightings: DeviceSighting[] = [];
   const auditEntries: AuditEntry[] = [];
   const cardAuthorizations = new Map<string, CardAuthorization>();
@@ -971,6 +973,22 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         const updated = { ...ambassadorClaims[index]!, ...patch };
         ambassadorClaims[index] = updated;
         return clone(updated);
+      },
+    },
+
+    ambassadorPrizes: {
+      async decide(input) {
+        if (ambassadorPrizes.some((row) => row.month === input.month)) return null;
+        const row: AmbassadorPrize = { ...input, id: id() };
+        ambassadorPrizes.push(row);
+        return clone(row);
+      },
+      async findByMonth(month) {
+        const found = ambassadorPrizes.find((row) => row.month === month);
+        return found ? clone(found) : null;
+      },
+      async list() {
+        return [...ambassadorPrizes].sort((a, b) => b.month.localeCompare(a.month)).map(clone);
       },
     },
 

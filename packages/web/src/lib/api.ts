@@ -3529,7 +3529,52 @@ export interface MyReferrals {
     /** Their bank details are set up with Stripe. */
     bankReady: boolean;
     withdrawals: Array<{ id: string; requestedAt: string; words: string }>;
+    /**
+     * Top Ambassador of the month and the first-business bonus (ruling 91): their own standing
+     * this month, whether the bar is met so far, last month's winner by first name, and their
+     * first-business bonus. Missing from an older server; null before they have applied.
+     */
+    prize?: AmbassadorPrizePanel | null;
   };
+}
+
+export interface AmbassadorPrizePanel {
+  runs: boolean;
+  standingWords: string;
+  barWords: string;
+  lastMonthWords: string;
+  firstBusinessWords: string;
+}
+
+/** One month's Top Ambassador decision, for the owner (ruling 91). */
+export interface StaffAmbassadorPrize {
+  month: string;
+  monthWords: string;
+  winnerName: string | null;
+  qualifyingBusinesses: number;
+  barMet: boolean;
+  netPence: number;
+  netWords: string;
+  prizePence: number;
+  decidedAt: string;
+}
+
+export interface StaffFirstBusinessBonus {
+  ambassadorName: string;
+  business: string;
+  amountPence: number;
+  amountWords: string;
+  at: string;
+}
+
+/** "Prizes and bonuses" on the staff Ambassadors page: the owner alone. */
+export function fetchStaffAmbassadorPrizes(key: string): Promise<{
+  prizePence: number;
+  barPence: number;
+  prizes: StaffAmbassadorPrize[];
+  firstBusinessBonuses: StaffFirstBusinessBonus[];
+}> {
+  return staffRequest(key, '/staff/ambassadors/prizes');
 }
 
 function referralRequest<T>(as: ReferralAs, path: string, init?: RequestInit): Promise<T> {

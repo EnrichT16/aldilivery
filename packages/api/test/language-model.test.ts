@@ -602,6 +602,7 @@ describe('a real conversation (31 October 2026)', () => {
         return { ok: true, readBack: `I will ${choice} ${id}. Say yes, or no.` };
       },
       listStaff: async () => ({}),
+      ambassadorPrizes: async () => ({}),
       listEmails: async () => ({}),
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
@@ -639,6 +640,8 @@ describe('a real conversation (31 October 2026)', () => {
       'decide_matter',
       // His staff, his emails and how Ozi reaches him (ruling 85).
       'list_staff',
+      // Who won the Ambassador prize (ruling 91).
+      'ambassador_prizes',
       'switch_staff',
       'switch_all_staff_off',
       'list_emails',
@@ -703,6 +706,7 @@ describe('a real conversation (31 October 2026)', () => {
       readApplication: async () => ({}),
       propose: async () => ({ ok: false, why: 'no' }),
       listStaff: async () => ({}),
+      ambassadorPrizes: async () => ({}),
       listEmails: async () => ({}),
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
@@ -758,6 +762,7 @@ describe('a real conversation (31 October 2026)', () => {
       readApplication: async () => ({}),
       propose: async () => ({ ok: false, why: 'no' }),
       listStaff: async () => ({}),
+      ambassadorPrizes: async () => ({}),
       listEmails: async () => ({}),
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
@@ -857,6 +862,7 @@ describe('what is on the screen (ruling 89, 2 November 2026)', () => {
       readApplication: async () => ({}),
       propose: async () => ({ ok: false, why: 'no' }),
       listStaff: async () => ({}),
+      ambassadorPrizes: async () => ({}),
       listEmails: async () => ({}),
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
