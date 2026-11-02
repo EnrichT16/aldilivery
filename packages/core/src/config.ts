@@ -253,6 +253,21 @@ export interface StoreConfig {
     readonly pencePerMinute: number;
     /** Above this unpaid call balance, nobody more can be added to a call until it is paid. */
     readonly maxOutstandingPence: number;
+    /**
+     * How long after delivery a call about the order may still be started or joined (ruling 90,
+     * 2 November 2026). After that, calls about the order are closed.
+     */
+    readonly afterDeliveryMinutes: number;
+    /** A call the Runner starts costs the Shopper nothing, and asks for no yes (ruling 90). */
+    readonly runnerStartedFree: boolean;
+  };
+  /**
+   * "I can't find this" (ruling 90, 2 November 2026): the one tap also rings the Shopper, up to
+   * `callAttempts` times, `callRetrySeconds` apart, within the question's five minutes.
+   */
+  readonly questions: {
+    readonly callAttempts: number;
+    readonly callRetrySeconds: number;
   };
   /** Problems and refunds (rulings of 2 October 2026). */
   readonly problems: {
@@ -1427,6 +1442,7 @@ export function parseStoreConfig(input: unknown): StoreConfig {
   const versionOneRestrictions = object(root['versionOneRestrictions'], 'versionOneRestrictions');
   const voice = object(root['voice'], 'voice');
   const calls = object(root['calls'], 'calls');
+  const questions = root['questions'] === undefined ? {} : object(root['questions'], 'questions');
   const extras = root['extras'] === undefined ? {} : object(root['extras'], 'extras');
   const problems = object(root['problems'], 'problems');
   const feedback = root['feedback'] === undefined ? {} : object(root['feedback'], 'feedback');
@@ -1810,6 +1826,20 @@ export function parseStoreConfig(input: unknown): StoreConfig {
         calls['maxOutstandingPence'],
         'calls.maxOutstandingPence',
         0,
+      ),
+      afterDeliveryMinutes: wholeNumber(
+        calls['afterDeliveryMinutes'] ?? 15,
+        'calls.afterDeliveryMinutes',
+        0,
+      ),
+      runnerStartedFree: calls['runnerStartedFree'] !== false,
+    },
+    questions: {
+      callAttempts: wholeNumber(questions['callAttempts'] ?? 3, 'questions.callAttempts', 1),
+      callRetrySeconds: wholeNumber(
+        questions['callRetrySeconds'] ?? 40,
+        'questions.callRetrySeconds',
+        1,
       ),
     },
     voice: {

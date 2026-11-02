@@ -27,7 +27,14 @@ interface State {
   offered: boolean;
   status: null | 'accepted' | 'shopping' | 'receipt_submitted' | 'delivering' | 'delivered';
   pay: 'not_started' | 'incomplete' | 'ready';
-  question: null | { answer: null | 'similar' | 'leave_out'; answeredBy: null | 'shopper' };
+  question: null | {
+    answer: null | 'similar' | 'leave_out';
+    answeredBy: null | 'shopper' | 'no_answer';
+    answeredVia?: 'screen' | 'text' | 'call';
+    call?: { state: string; attempt: number; of: number; words: string };
+  };
+  /** The server says calls are off (ruling 90). */
+  callsOff: boolean;
   sent: Array<{ method: string; path: string; body: unknown }>;
   travelling: 'on_foot' | 'bicycle' | 'car';
   canDrive: boolean;
@@ -214,7 +221,9 @@ function stubRunnerApi(): void {
         });
       }
       if (path === '/orders/order-1/questions') {
-        if (method === 'POST') state.question = { answer: null, answeredBy: null };
+        if (method === 'POST') {
+          state.question = state.question ?? { answer: null, answeredBy: null };
+        }
         const question = state.question && {
           id: 'q1',
           orderItemId: 'i2',
@@ -224,8 +233,13 @@ function stubRunnerApi(): void {
           ifNoAnswer: 'leave_out',
         };
         return method === 'POST'
-          ? reply({ question }, 201)
+          ? reply({ question, callsOff: state.callsOff }, 201)
           : reply({ questions: question ? [question] : [] });
+      }
+      if (path === '/orders/order-1/questions/q1/heard' && method === 'POST') {
+        const { answer } = body as { answer: 'similar' | 'leave_out' };
+        state.question = { answer, answeredBy: 'shopper', answeredVia: 'call' };
+        return reply({ answered: true, message: 'Written down.' });
       }
       if (path === '/orders/order-1/status') {
         state.status = (body as { status: State['status'] }).status;
@@ -360,6 +374,7 @@ beforeEach(() => {
     status: null,
     pay: 'ready',
     question: null,
+    callsOff: false,
     sent: [],
     travelling: 'on_foot',
     canDrive: false,
@@ -698,6 +713,86 @@ describe('a Runner page', () => {
       await screen.findByText('Margaret says: leave it out, for the White sliced bread, 800g.'),
     ).toHaveAttribute('role', 'status');
     expect(screen.getByText('Margaret says: leave it out.')).toBeInTheDocument();
+  });
+
+  it('shows and says the ringing state of the one tap (ruling 90)', async () => {
+    const user = userEvent.setup({ delay: null });
+    state.status = 'shopping';
+    stubRunnerApi();
+    renderHome();
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Cannot find it: White sliced bread, 800g' }),
+    );
+    // The server rings; the next look shows the live state, and it is said aloud once.
+    state.question = {
+      answer: null,
+      answeredBy: null,
+      call: {
+        state: 'ringing',
+        attempt: 2,
+        of: 3,
+        words: 'Ringing (attempt 2 of 3). Question sent by text too.',
+      },
+    };
+    await user.type(screen.getByLabelText('What did the till say?'), '2.50');
+    await user.click(screen.getByRole('button', { name: 'Put in the till total' }));
+    expect(
+      await screen.findByText(
+        /^Ringing \(attempt 2 of 3\)\. Question sent by text too\. Asked Margaret/,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Ringing (attempt 2 of 3). Question sent by text too. About the White sliced bread, 800g.',
+      ),
+    ).toHaveAttribute('role', 'status');
+  });
+
+  it('writes down what the Shopper said on the call, once they have answered it (ruling 90)', async () => {
+    const user = userEvent.setup({ delay: null });
+    state.status = 'shopping';
+    state.question = {
+      answer: null,
+      answeredBy: null,
+      call: { state: 'live', attempt: 2, of: 3, words: 'They have answered the call. Ask them.' },
+    };
+    stubRunnerApi();
+    renderHome();
+
+    expect(
+      await screen.findByText(/^They have answered the call\. Ask them\. Asked Margaret/),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole('button', {
+        name: 'Margaret said: bring something similar, for the White sliced bread, 800g',
+      }),
+    );
+    expect(
+      state.sent.find((r) => r.method === 'POST' && r.path.endsWith('/questions/q1/heard'))?.body,
+    ).toEqual({ answer: 'similar' });
+    expect(
+      await screen.findByText('Margaret says (on the call): bring something similar.'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Margaret said: leave it out/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('says plainly when calls are off: the question still goes to the screen and by text', async () => {
+    const user = userEvent.setup({ delay: null });
+    state.status = 'shopping';
+    state.callsOff = true;
+    stubRunnerApi();
+    renderHome();
+    await user.click(
+      await screen.findByRole('button', { name: 'Cannot find it: White sliced bread, 800g' }),
+    );
+    expect(
+      await screen.findByText(
+        'We have asked Margaret about the White sliced bread, 800g on their screen and by text. Calls are off, so nothing rings.',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('asks for the Runner agreement before the first job, and records the tick', async () => {

@@ -181,7 +181,13 @@
   },
   "calls": {
     "pencePerMinute": 5,
-    "maxOutstandingPence": 1000
+    "maxOutstandingPence": 1000,
+    "afterDeliveryMinutes": 15,
+    "runnerStartedFree": true
+  },
+  "questions": {
+    "callAttempts": 3,
+    "callRetrySeconds": 40
   },
   "problems": {
     "instantRefundUpToPence": 500,

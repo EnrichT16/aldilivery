@@ -28,7 +28,7 @@ vi.mock('../src/lib/call-connection', () => ({ connectToCall: livekit.connectToC
 
 interface State {
   callsEnabled: boolean;
-  current: null | { id: string; status: string; startedBy: 'shopper' | 'runner' };
+  current: null | { id: string; status: string; startedBy: 'shopper' | 'runner'; free?: boolean };
   sent: Array<{ method: string; path: string; body: unknown }>;
 }
 
@@ -196,12 +196,28 @@ describe('the Shopper calling their Runner', () => {
     await expectAccessible();
   });
 
-  it('answers the Runner ringing in, agreeing to pay', async () => {
-    state.current = { id: 'call-1', status: 'ringing', startedBy: 'runner' };
+  it('answers the Runner ringing in for free, with no price and no yes (ruling 90)', async () => {
+    state.current = { id: 'call-1', status: 'ringing', startedBy: 'runner', free: true };
+    const user = userEvent.setup();
+    renderAt('/my-order');
+    expect(
+      await screen.findByText('Your Runner is calling about your order.', { selector: 'p' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Calls cost/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Answer, and pay for the call' }),
+    ).not.toBeInTheDocument();
+    await expectAccessible();
+    await user.click(screen.getByRole('button', { name: 'Answer' }));
+    await screen.findByRole('button', { name: 'End call' });
+    expect(state.sent.find((s) => s.path === '/calls/call-1/join')?.body).toEqual({});
+  });
+
+  it('still agrees to pay when answering a call that carries a price', async () => {
+    state.current = { id: 'call-1', status: 'ringing', startedBy: 'runner', free: false };
     const user = userEvent.setup();
     renderAt('/my-order');
     expect(await screen.findByText('Tomasz is calling.', { selector: 'p' })).toBeInTheDocument();
-    await expectAccessible();
     await user.click(screen.getByRole('button', { name: 'Answer, and pay for the call' }));
     await screen.findByRole('button', { name: 'End call' });
     expect(state.sent.find((s) => s.path === '/calls/call-1/join')?.body).toEqual({

@@ -457,7 +457,8 @@ describe('the Runner agreement, before the first job', () => {
   });
 
   it('asks every Runner who agreed to the 9 October version to agree again (ruling 61)', async () => {
-    expect(RUNNER_AGREEMENT_VERSION).toBe('2026-10-30');
+    // 2 November 2026 (ruling 90): bumped again, for self-employment and substitutions.
+    expect(RUNNER_AGREEMENT_VERSION).toBe('2026-11-02');
     await harness.repository.runners.update(runner.runnerId, {
       agreementVersion: '2026-10-09',
       agreementAcceptedAt: new Date('2026-10-09T09:00:00.000Z'),

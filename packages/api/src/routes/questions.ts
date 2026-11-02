@@ -13,6 +13,12 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '.
 import { doorWordSentence, ensureDoorWord } from '../services/door-word.js';
 import { estimateArrival } from '../services/eta.js';
 import { isUkMobile } from '../lib/phone.js';
+import {
+  cantFindDeps,
+  recordHeardAnswer,
+  startCantFindCall,
+  tickCantFind,
+} from '../services/cant-find.js';
 import { notifyShopper } from '../services/notify.js';
 import { questionText, questionsForOrder, settle } from '../services/questions.js';
 
@@ -22,7 +28,7 @@ const ANSWER_WORDS = {
 } as const;
 
 export async function registerQuestionRoutes(app: FastifyInstance): Promise<void> {
-  const { repository, now } = app.ctx;
+  const { repository, now, config } = app.ctx;
 
   async function orderFor(
     request: Parameters<typeof requireSession>[0],
@@ -61,7 +67,11 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
     }
   }
 
-  /** The Runner cannot find one thing on the list. Asks once per item; asking again returns it. */
+  /**
+   * The Runner cannot find one thing on the list. Asks once per item; asking again returns it.
+   * One tap (ruling 90): the question on the Shopper's screen, the text, and a free call that
+   * rings them, and rings again (`services/cant-find.ts`).
+   */
   app.post('/orders/:id/questions', async (request, reply) => {
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const { orderItemId } = z.object({ orderItemId: z.string().min(1) }).parse(request.body);
@@ -101,16 +111,49 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
       // No device of theirs shows notifications: the question goes by text to a mobile, with the
       // two reply words (16 October 2026). Nobody's phone number reaches the other.
       void textQuestion(order.shopperId, runnerFirstName, itemName, request.log);
+      // And the call, free to the Shopper, that rings them now and again if nobody answers.
+      await startCantFindCall(cantFindDeps(app.ctx, request.log), question, order);
     }
-    const views = await questionsForOrder(repository, order.id, now());
-    return { question: views.find((view) => view.orderItemId === orderItemId) };
+    const views = await questionsForOrder(repository, order.id, now(), config);
+    const question = views.find((view) => view.orderItemId === orderItemId);
+    return {
+      question,
+      callsOff: question?.call?.state === 'off',
+    };
   });
 
   app.get('/orders/:id/questions', async (request) => {
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const { order } = await orderFor(request, id);
+    // Each look moves the ringing along, so the Runner's page is always right (ruling 90).
+    await tickCantFind(cantFindDeps(app.ctx, request.log), order.id);
     return {
-      questions: await questionsForOrder(repository, order.id, now()),
+      questions: await questionsForOrder(repository, order.id, now(), config),
+    };
+  });
+
+  /**
+   * The Shopper answered by voice on the call (ruling 90), and the Runner writes down which of
+   * the two answers they gave. Only once the Shopper has been on the call; never over an answer
+   * already given on the screen or by text.
+   */
+  app.post('/orders/:id/questions/:questionId/heard', async (request) => {
+    const { id, questionId } = z
+      .object({ id: z.string().min(1), questionId: z.string().min(1) })
+      .parse(request.params);
+    const { answer } = z.object({ answer: z.enum(['similar', 'leave_out']) }).parse(request.body);
+    const { order, role } = await orderFor(request, id);
+    if (role !== 'runner')
+      throw new ForbiddenError('Only the Runner on the call can write it down.');
+    const found = await repository.itemQuestions.findById(questionId);
+    if (!found || found.orderId !== order.id) throw new NotFoundError('question');
+    const deps = cantFindDeps(app.ctx, request.log);
+    const { refused } = await recordHeardAnswer(deps, found, answer);
+    if (refused) throw new ConflictError(refused);
+    await tickCantFind(deps, order.id);
+    return {
+      answered: true,
+      message: `Written down: they said ${ANSWER_WORDS[answer]}.`,
     };
   });
 
@@ -144,7 +187,10 @@ export async function registerQuestionRoutes(app: FastifyInstance): Promise<void
       answer,
       answeredBy: 'shopper',
       answeredAt: now(),
+      answeredVia: 'screen',
     });
+    // The first answer wins: a call still ringing about it stops (ruling 90).
+    await tickCantFind(cantFindDeps(app.ctx, request.log), question.orderId);
     return { answered: true, message: `Thank you. Your Runner will ${ANSWER_WORDS[answer]}.` };
   });
 

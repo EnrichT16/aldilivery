@@ -5,7 +5,11 @@
  *   Each gets a short-lived pass into that call's room, under an identity of ours. Nobody's
  *   telephone number is in any of it.
  * - The Shopper pays 5p a minute, and agrees to it first (Rule One): the price is put to them
- *   and they say yes before they can start or answer a call.
+ *   and they say yes before they can start or answer a call. A call the Runner starts is free to
+ *   the Shopper and asks for no yes (ruling 90, 2 November 2026): they hear "Your Runner is
+ *   calling about your order" and answer.
+ * - Calls are open while the order is under way and for `calls.afterDeliveryMinutes` after the
+ *   delivery; then they are closed, for starting, joining, adding people and ringing a phone.
  * - MERGE: the Shopper can add people — a carer, a relative — by sending them a link. Before
  *   each one is added the price for them is put to the Shopper and they say yes. The Shopper
  *   pays for their minutes too. A Runner cannot add anybody, and never pays.
@@ -29,27 +33,22 @@ import {
 } from '../errors.js';
 import type { CallProvider } from '../lib/livekit.js';
 import {
+  CALLS_CLOSED_MESSAGE,
+  callsClosed,
   finishCall,
   guestPriceStatement,
+  newCall,
   outstandingPence,
   priceStatement,
+  runnerCall,
+  runnerCallingMessage,
+  shopperPays,
 } from '../services/calls.js';
 import { handleStaffCallEvent } from '../services/company-contact.js';
 import { notifyShopper } from '../services/notify.js';
 
 /** A pass into a room lasts long enough to connect, not for ever. */
 const TOKEN_SECONDS = 10 * 60;
-/** Orders that can still be talked about. */
-const CALLABLE: Order['status'][] = [
-  'paid',
-  'offered',
-  'accepted',
-  'shopping',
-  'receipt_submitted',
-  'delivering',
-  'delivered',
-];
-
 /** Rule One, for calls: the price is agreed before the call, never discovered after it. */
 function priceNotAgreed(pencePerMinute: number): ApiError {
   return new ApiError(
@@ -108,6 +107,15 @@ export async function registerCallRoutes(app: FastifyInstance): Promise<void> {
     return call;
   }
 
+  /** A call whose order has passed the window (ruling 90) cannot be joined or added to. */
+  async function stillOpen(call: Call): Promise<void> {
+    if (call.status === 'ended') throw new ConflictError('That call has ended.');
+    const order = await repository.orders.findById(call.orderId);
+    if (order && callsClosed(order, config, now())) {
+      throw new ConflictError(CALLS_CLOSED_MESSAGE);
+    }
+  }
+
   /** The leg for the Shopper or the Runner, made the first time they are part of the call. */
   async function legFor(call: Call, session: Session): Promise<CallLeg> {
     const identity = `${session.role}-${session.accountId}`;
@@ -153,6 +161,8 @@ export async function registerCallRoutes(app: FastifyInstance): Promise<void> {
       status: call.status,
       startedBy: call.startedBy,
       pencePerMinute: call.pencePerMinute,
+      /** Free to the Shopper: a call their Runner started (ruling 90). */
+      free: !shopperPays(call, config),
       priceAccepted: call.priceAcceptedAt !== null,
       billedMinutes: call.billedMinutes,
       chargePence: call.chargePence,
@@ -176,37 +186,26 @@ export async function registerCallRoutes(app: FastifyInstance): Promise<void> {
     if (!order.runnerId) {
       throw new ConflictError('There is no Runner on this order yet, so there is nobody to call.');
     }
-    if (!CALLABLE.includes(order.status)) {
-      throw new ConflictError('This order is finished, so calls about it are closed.');
-    }
-    if (session.role === 'shopper' && body.priceAccepted !== true) {
-      throw priceNotAgreed(pence);
+    if (callsClosed(order, config, now())) {
+      throw new ConflictError(CALLS_CLOSED_MESSAGE);
     }
 
     let call = await repository.calls.findOpenForOrder(order.id);
+    // A Shopper starting a call, or answering one they pay for, says yes to the price first.
+    const paying = call ? shopperPays(call, config) : shopperPays({ startedBy: 'shopper' }, config);
+    if (session.role === 'shopper' && paying && body.priceAccepted !== true) {
+      throw priceNotAgreed(pence);
+    }
     let started = false;
     if (!call) {
-      call = await repository.calls.create({
-        orderId: order.id,
-        shopperId: order.shopperId,
-        runnerId: order.runnerId,
-        roomName: `call-${randomBytes(16).toString('hex')}`,
-        startedBy: session.role === 'shopper' ? 'shopper' : 'runner',
-        status: 'ringing',
-        createdAt: now(),
-        endedAt: null,
-        priceStatement: null,
-        priceAcceptedAt: null,
-        pencePerMinute: pence,
-        billedMinutes: 0,
-        chargePence: 0,
-        chargeStatus: 'pending',
-        paymentReference: null,
-        chargedAt: null,
-      });
+      call = await repository.calls.create(
+        session.role === 'shopper'
+          ? newCall(order, 'shopper', now(), pence)
+          : runnerCall(order, config, now()),
+      );
       started = true;
     }
-    if (session.role === 'shopper' && !call.priceAcceptedAt) {
+    if (session.role === 'shopper' && paying && !call.priceAcceptedAt) {
       call = await repository.calls.update(call.id, {
         priceStatement: priceStatement(pence),
         priceAcceptedAt: now(),
@@ -218,12 +217,7 @@ export async function registerCallRoutes(app: FastifyInstance): Promise<void> {
       void notifyShopper(
         { repository, sendPush: app.ctx.sendPush, log: request.log },
         order.shopperId,
-        {
-          title: 'Your Runner is calling',
-          body: 'Open your order to answer.',
-          url: '/my-order',
-          tag: `call-${call.id}`,
-        },
+        runnerCallingMessage(call, 1),
       );
     }
 
@@ -247,8 +241,9 @@ export async function registerCallRoutes(app: FastifyInstance): Promise<void> {
     const { callId } = z.object({ callId: z.string().min(1) }).parse(request.params);
     const body = z.object({ priceAccepted: priceAccepted.optional() }).parse(request.body ?? {});
     let call = await callFor(session, callId);
-    if (call.status === 'ended') throw new ConflictError('That call has ended.');
-    if (session.role === 'shopper' && !call.priceAcceptedAt) {
+    await stillOpen(call);
+    // A call the Runner started is free, so the Shopper simply answers (ruling 90).
+    if (session.role === 'shopper' && shopperPays(call, config) && !call.priceAcceptedAt) {
       if (body.priceAccepted !== true) throw priceNotAgreed(pence);
       call = await repository.calls.update(call.id, {
         priceStatement: priceStatement(pence),
@@ -277,7 +272,7 @@ export async function registerCallRoutes(app: FastifyInstance): Promise<void> {
       })
       .parse(request.body);
     const call = await callFor(session, callId);
-    if (call.status === 'ended') throw new ConflictError('That call has ended.');
+    await stillOpen(call);
     const owed = await outstandingPence(app.ctx, session.accountId);
     if (owed > config.calls.maxOutstandingPence) {
       throw new ConflictError(
@@ -317,14 +312,14 @@ export async function registerCallRoutes(app: FastifyInstance): Promise<void> {
   app.post('/calls/:callId/phone', async (request) => {
     const session = requireSession(request, 'runner');
     const calls = provider();
+    const { callId } = z.object({ callId: z.string().min(1) }).parse(request.params);
+    const call = await callFor(session, callId);
+    await stillOpen(call);
     if (!calls.dialPhone) {
       throw new UnavailableError(
         "Ringing the Shopper's phone is not switched on yet. Ask your question on the order page instead.",
       );
     }
-    const { callId } = z.object({ callId: z.string().min(1) }).parse(request.params);
-    const call = await callFor(session, callId);
-    if (call.status === 'ended') throw new ConflictError('That call has ended.');
     const shopper = await repository.shoppers.findById(call.shopperId);
     if (!shopper) throw new NotFoundError('Shopper');
     const identity = `phone-${shopper.id}`;

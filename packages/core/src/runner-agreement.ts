@@ -16,4 +16,11 @@
 // back works, the instant payout fee, and that nothing is taken from pay except the cool bag
 // deposit and money owed after a written decision; the enhanced DBS and public transport lines
 // removed.
-export const RUNNER_AGREEMENT_VERSION = '2026-10-30';
+// 2026-11-02 (ruling 90, Anthony): every Runner agrees again, because the agreement now says in
+// plain words how a Runner is self-employed (they choose when to work, may take or decline any
+// job, use their own transport, pay their own tax and National Insurance, are paid per job with
+// no wages and no obligation either way), and sets out the substitution rule: a product the
+// Shopper named by brand or type is never swapped without their yes; an open-ended item is the
+// Runner's choice of any reasonable one; when in doubt, ask. A Runner already on a job finishes
+// it first.
+export const RUNNER_AGREEMENT_VERSION = '2026-11-02';

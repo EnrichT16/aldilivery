@@ -736,6 +736,12 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           orderBy: { askedAt: 'asc' },
         })) as any;
       },
+      async listRinging() {
+        return (await prisma.itemQuestion.findMany({
+          where: { callState: 'calling' },
+          orderBy: { askedAt: 'asc' },
+        })) as any;
+      },
       async update(id, patch) {
         return (await prisma.itemQuestion.update({ where: { id }, data: patch as any })) as any;
       },

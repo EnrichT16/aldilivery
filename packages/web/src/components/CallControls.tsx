@@ -20,6 +20,8 @@ import { connectToCall, type CallConnection } from '../lib/call-connection';
  *
  * Rule One: the Shopper is told the price and says yes before calling or answering, and before
  * adding each person. A Runner never pays. No telephone number is shown or used anywhere.
+ * A call the Runner started is free to the Shopper (ruling 90, 2 November 2026): they are asked
+ * for no price, hear "Your Runner is calling about your order", and simply answer.
  *
  * On this website the sound plays through the loudspeaker; choosing the earpiece, and the phone
  * ringing on a locked screen, come with the phone apps (CallKit and ConnectionService).
@@ -80,7 +82,7 @@ export function CallControls({
           if (cancelled) return;
           const fromOther = call && call.status !== 'ended' && call.startedBy !== as ? call : null;
           setRinging((was) => {
-            if (fromOther && !was) setNews(`${capital(otherName)} is calling.`);
+            if (fromOther && !was) setNews(ringingWords(fromOther, as, otherName));
             return fromOther;
           });
         })
@@ -222,17 +224,17 @@ export function CallControls({
       )}
       {ringing ? (
         <div role="alert" className="space-y-3 border-2 border-highlight rounded-2xl p-4">
-          <p className="m-0 text-lead font-bold">{capital(otherName)} is calling.</p>
-          {as === 'shopper' && <p className="m-0">{price}</p>}
+          <p className="m-0 text-lead font-bold">{ringingWords(ringing, as, otherName)}</p>
+          {as === 'shopper' && !ringing.free && <p className="m-0">{price}</p>}
           <button
             type="button"
             disabled={stage.kind === 'connecting'}
             onClick={() => {
-              void join(() => answerCall(ringing.id, as));
+              void join(() => answerCall(ringing.id, as, ringing.free === true));
             }}
             className="control w-full bg-listening text-on-accent text-lead font-bold border-4 border-on-accent"
           >
-            {as === 'shopper' ? 'Answer, and pay for the call' : 'Answer'}
+            {as === 'shopper' && !ringing.free ? 'Answer, and pay for the call' : 'Answer'}
           </button>
         </div>
       ) : stage.kind === 'confirm' ? (
@@ -353,6 +355,12 @@ function Merge({
 
 function capital(words: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** What the Shopper hears and sees when a free, Runner-started call rings (ruling 90). */
+function ringingWords(call: CallInfo, as: 'shopper' | 'runner', otherName: string): string {
+  if (as === 'shopper' && call.free) return 'Your Runner is calling about your order.';
+  return `${capital(otherName)} is calling.`;
 }
 
 /** Decorative: the button says what it does, in words. */

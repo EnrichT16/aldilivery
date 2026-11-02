@@ -920,14 +920,26 @@ export function sendReceiptPhoto(
 /** "I cannot find this": a question from the Runner, and the Shopper's answer. */
 export type ItemAnswer = 'similar' | 'leave_out';
 
+/** Where the one tap's free call to the Shopper has got to (ruling 90). */
+export interface QuestionCall {
+  state: 'off' | 'ringing' | 'live' | 'stopped' | 'unanswered';
+  attempt: number;
+  of: number;
+  /** The words for the Runner's screen, said aloud once when they change. */
+  words: string;
+}
+
 export interface ItemQuestion {
   id: string;
   orderItemId: string;
   itemName: string;
   answer: ItemAnswer | null;
   answeredBy: 'shopper' | 'no_answer' | null;
+  /** How they answered (ruling 90): on their screen, by text, or by voice on the call. */
+  answeredVia?: 'screen' | 'text' | 'call' | null;
   secondsLeft: number;
   ifNoAnswer: ItemAnswer;
+  call?: QuestionCall | null;
 }
 
 export function fetchJobQuestions(orderId: string): Promise<{ questions: ItemQuestion[] }> {
@@ -941,10 +953,27 @@ export function fetchJobQuestions(orderId: string): Promise<{ questions: ItemQue
 export function askAboutItem(
   orderId: string,
   orderItemId: string,
-): Promise<{ question: ItemQuestion }> {
-  return request<{ question: ItemQuestion }>(
+): Promise<{ question: ItemQuestion; callsOff?: boolean }> {
+  return request<{ question: ItemQuestion; callsOff?: boolean }>(
     `/orders/${encodeURIComponent(orderId)}/questions`,
     { method: 'POST', body: JSON.stringify({ orderItemId }) },
+    'runner',
+  );
+}
+
+/**
+ * The Shopper answered by voice on the call (ruling 90): the Runner writes down which of the two
+ * answers they gave. Refused until the Shopper has been on the call, and never over an answer
+ * already given on the screen or by text.
+ */
+export function writeDownHeardAnswer(
+  orderId: string,
+  questionId: string,
+  answer: ItemAnswer,
+): Promise<{ answered: true; message: string }> {
+  return request<{ answered: true; message: string }>(
+    `/orders/${encodeURIComponent(orderId)}/questions/${encodeURIComponent(questionId)}/heard`,
+    { method: 'POST', body: JSON.stringify({ answer }) },
     'runner',
   );
 }
@@ -1407,6 +1436,8 @@ export interface CallInfo {
   status: 'ringing' | 'live' | 'ended';
   startedBy: 'shopper' | 'runner';
   pencePerMinute: number;
+  /** Free to the Shopper: a call their Runner started (ruling 90). No yes is asked for. */
+  free?: boolean;
   priceAccepted: boolean;
 }
 
@@ -1441,10 +1472,15 @@ export function startCall(
 export function answerCall(
   callId: string,
   as: 'shopper' | 'runner',
+  /** A free call (ruling 90) is answered with no yes to any price. */
+  free = false,
 ): Promise<{ call: CallInfo; join: CallJoin }> {
   return request<{ call: CallInfo; join: CallJoin }>(
     `/calls/${encodeURIComponent(callId)}/join`,
-    { method: 'POST', body: JSON.stringify(as === 'shopper' ? { priceAccepted: true } : {}) },
+    {
+      method: 'POST',
+      body: JSON.stringify(as === 'shopper' && !free ? { priceAccepted: true } : {}),
+    },
     as,
   );
 }
