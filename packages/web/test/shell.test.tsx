@@ -178,9 +178,13 @@ describe('the landing page', () => {
     expect(screen.getByText(/a fair part of the delivery fee/)).toBeInTheDocument();
     expect(screen.getByText(/law of England and Wales/)).toBeInTheDocument();
     expect(
-      screen.getByText(new RegExp(`We remind you ${storeConfig.extras.freeMonthReminderDaysBefore} days`)),
+      screen.getByText(
+        new RegExp(`We remind you ${storeConfig.extras.freeMonthReminderDaysBefore} days`),
+      ),
     ).toBeInTheDocument();
-    expect(screen.getByText(/These terms were last reviewed on 30 October 2026/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/These terms were last reviewed on 30 October 2026/),
+    ).toBeInTheDocument();
   });
 
   it('lists what is kept on the device, with no tracking cookies', () => {
@@ -198,7 +202,9 @@ describe('the landing page', () => {
       '/runner/agreement',
     );
     renderAt('/runner/agreement');
-    expect(screen.getByRole('heading', { level: 1, name: 'Runner Services Agreement' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Runner Services Agreement' }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/You can say no to any job, without a reason/)).toBeInTheDocument();
     expect(
       screen.getByText(new RegExp(`${storeConfig.problems.recoveryPercentOfPay}% of each later`)),
@@ -211,12 +217,15 @@ describe('the landing page', () => {
     expect(
       screen.getAllByText(/Paid back straight away when you send a photo of the receipt/)[0],
     ).toBeInTheDocument();
-    expect(screen.getByText(/You must be 18 or over\. We check your right to work/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/You must be 18 or over\. We check your right to work/),
+    ).toBeInTheDocument();
     expect(screen.getByText(/For a car, motorbike or van/)).toBeInTheDocument();
     // The enhanced DBS check is optional, for closer-help jobs not offered yet.
     expect(
-      screen.getAllByText(/^Optional: an enhanced DBS check\. .*These closer-help jobs are not offered yet\.$/)
-        .length,
+      screen.getAllByText(
+        /^Optional: an enhanced DBS check\. .*These closer-help jobs are not offered yet\.$/,
+      ).length,
     ).toBeGreaterThan(0);
     expect(screen.queryByText(/public liability/)).toBeNull();
     expect(screen.queryByText(/public transport/)).toBeNull();
@@ -226,7 +235,19 @@ describe('the landing page', () => {
     expect(screen.queryByText(/This is a draft/)).toBeNull();
     expect(screen.queryByText(/solicitor/i)).toBeNull();
     // Ruling 61: a new version, so every Runner agrees again, with the new terms on the page.
-    expect(screen.getByText(/Effective from 30 October 2026/)).toBeInTheDocument();
+    // Ruling 90: a new version again, with self-employment and substitutions in plain words.
+    expect(screen.getByText(/Effective from 2 November 2026/)).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /You are self-employed\. You choose when to work, you may accept or decline any job/,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/There are no wages and no salary/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/named by brand or type is never swapped for another without their yes/),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/such as a crate of eggs with no brand/)).toBeInTheDocument();
+    expect(screen.queryByText(/draft/i)).toBeNull();
     expect(screen.getByText(/by motorbike up to £70\.00/)).toBeInTheDocument();
     expect(
       screen.getByText(/parts of up to £75\.00 for motorbike riders first/),
@@ -489,7 +510,9 @@ describe('the confirmation screen', () => {
 
     expect(screen.getByText(/We never take money you haven.t agreed to/i)).toBeInTheDocument();
     // What saying yes covers, from config (Anthony, 30 October 2026).
-    expect(screen.getByText(/we take up to £5\.00 more, or a fifth of the estimate/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/we take up to £5\.00 more, or a fifth of the estimate/),
+    ).toBeInTheDocument();
     expect(screen.getByText(/an extra Runner.s delivery fee of £13\.50/)).toBeInTheDocument();
     expect(screen.getByText(/renews each month/)).toBeInTheDocument();
     expect(screen.getByText(/charged on its date/)).toBeInTheDocument();

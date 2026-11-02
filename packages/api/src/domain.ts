@@ -606,6 +606,14 @@ export interface PushSubscription {
 export type ItemAnswer = 'similar' | 'leave_out';
 
 /** A Runner telling the Shopper they cannot find one thing, and what the Shopper wants instead. */
+/**
+ * Where the one tap's call has got to (ruling 90): `off` when in-app calls are not switched on
+ * (screen and text only); `calling` while the call is open (ringing or answered: read the Call
+ * row); `stopped` when the question was answered another way while it rang; `unanswered` when
+ * the five minutes ran out with nobody answering.
+ */
+export type QuestionCallState = 'off' | 'calling' | 'stopped' | 'unanswered';
+
 export interface ItemQuestion {
   id: string;
   orderId: string;
@@ -614,6 +622,14 @@ export interface ItemQuestion {
   answer: ItemAnswer | null;
   answeredBy: 'shopper' | 'no_answer' | null;
   answeredAt: Date | null;
+  /** How the Shopper answered: on their screen, by text, or by voice on the call (ruling 90). */
+  answeredVia: 'screen' | 'text' | 'call' | null;
+  /** The Runner-started call rung by the one tap (ruling 90), if there was one. */
+  callId: string | null;
+  /** How many times the Shopper has been rung on it. */
+  callAttempts: number;
+  lastRangAt: Date | null;
+  callState: QuestionCallState | null;
 }
 
 export type RunnerCheckKind = 'right_to_work' | 'criminal_record';

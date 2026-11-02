@@ -20,6 +20,7 @@ import {
   declineJob,
   fetchCurrentJob,
   fetchJobQuestions,
+  writeDownHeardAnswer,
   fetchOfferedJobs,
   fetchMyPay,
   fetchQueuePosition,
@@ -106,7 +107,7 @@ const TRAVEL_WORDS: Record<VehicleType, string> = {
  * Shopper decides. Never a silent substitution, and never a Runner guessing.
  */
 const NOT_ON_THE_SHELF =
-  'If something is not on the shelf, ask the Shopper with the Cannot find it button, which also calls them. If they do not answer, leave it out. Never swap anything they have not agreed to.';
+  'If something is not on the shelf, ask the Shopper with the Cannot find it button: it puts the question on their screen, sends them a text and rings them, free, up to three times. They can answer on the call, on their screen or by text; the first answer counts. If they do not answer in time, leave it out. Never swap anything they have not agreed to: a product they named by brand or type is never swapped without their yes. Something open-ended, such as a crate of eggs with no brand, is yours to choose, any reasonable one. When in doubt, ask.';
 
 const ANSWER_WORDS: Record<ItemAnswer, string> = {
   similar: 'bring something similar',
@@ -134,6 +135,8 @@ export function RunnerHome(): JSX.Element {
   const [job, setJob] = useState<CurrentJob | null>(null);
   const [questions, setQuestions] = useState<ItemQuestion[]>([]);
   const heardAnswers = useRef<Set<string> | null>(null);
+  // The call's state for each question, as last said aloud (ruling 90): each change said once.
+  const heardCallStates = useRef(new Map<string, string>());
   const [loading, setLoading] = useState(signedIn);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
@@ -183,14 +186,25 @@ export function RunnerHome(): JSX.Element {
         const opening = heardAnswers.current === null;
         heardAnswers.current ??= new Set();
         for (const question of asked) {
+          // The call ringing, ringing again, answered or given up: said once per change.
+          const callKey = question.call ? `${question.call.state}:${question.call.attempt}` : '';
+          if (question.call && heardCallStates.current.get(question.id) !== callKey) {
+            heardCallStates.current.set(question.id, callKey);
+            if (!opening && question.answer === null) {
+              const words = `${question.call.words} About the ${question.itemName}.`;
+              setNews(words);
+              void oziRef.current.say(words);
+            }
+          }
           if (question.answer === null || heardAnswers.current.has(question.id)) continue;
           heardAnswers.current.add(question.id);
           if (opening) continue;
-          setNews(
+          const words =
             question.answeredBy === 'shopper'
               ? `${shopperName} says: ${ANSWER_WORDS[question.answer]}, for the ${question.itemName}.`
-              : `No answer in time about the ${question.itemName}, so leave it out. ${shopperName} is not charged for it.`,
-          );
+              : `No answer in time about the ${question.itemName}, so leave it out. ${shopperName} is not charged for it.`;
+          setNews(words);
+          void oziRef.current.say(words);
         }
       } else {
         setQuestions([]);
@@ -767,16 +781,48 @@ function JobInHand({
                   {item.quantity} × {item.name}
                 </span>
                 {question && <p className="m-0">{questionWords(question, job.shopperName)}</p>}
+                {question && question.answer === null && question.call?.state === 'live' && (
+                  // They answered the call and said it: the Runner writes down which (ruling 90).
+                  <div className="flex flex-wrap gap-2">
+                    {(['similar', 'leave_out'] as const).map((heard) => (
+                      <button
+                        key={heard}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          void act(
+                            () => writeDownHeardAnswer(job.orderId, question.id, heard),
+                            `Written down: ${job.shopperName} said ${ANSWER_WORDS[heard]}, for the ${item.name}.`,
+                          );
+                        }}
+                        aria-label={`${job.shopperName} said: ${ANSWER_WORDS[heard]}, for the ${item.name}`}
+                        className="control bg-paper text-ink disabled:opacity-70"
+                      >
+                        They said: {ANSWER_WORDS[heard]}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 {job.status === 'shopping' && !question && (
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => {
-                      // One tap: the question on their screen, and the call (Section H).
+                      // One tap (ruling 90): the question on their screen, the text, and the free
+                      // call the server rings; this page joins it (Section H).
                       void act(async () => {
-                        await askAboutItem(job.orderId, item.id);
-                        onAsked();
-                      }, `We have asked ${job.shopperName} about the ${item.name}. Their answer will appear here.`);
+                        const asked = await askAboutItem(job.orderId, item.id);
+                        if (asked.callsOff) {
+                          onNews(
+                            `We have asked ${job.shopperName} about the ${item.name} on their screen and by text. Calls are off, so nothing rings.`,
+                          );
+                        } else {
+                          onNews(
+                            `We have asked ${job.shopperName} about the ${item.name}. Their answer will appear here.`,
+                          );
+                          onAsked();
+                        }
+                      }, '');
                     }}
                     aria-label={`Cannot find it: ${item.name}`}
                     className="control bg-paper/10 text-paper underline disabled:opacity-70"
@@ -963,13 +1009,22 @@ function JobInHand({
   );
 }
 
+/** The live state of a question (ruling 90): the call, then the answer, in the Runner's words. */
 function questionWords(question: ItemQuestion, shopperName: string): string {
   if (question.answer === null) {
-    return `Asked ${shopperName}. Waiting for an answer, ${minutesLeft(question.secondsLeft)} left. If there is no answer: ${ANSWER_WORDS[question.ifNoAnswer]}.`;
+    const waiting = `Asked ${shopperName}. Waiting for an answer, ${minutesLeft(question.secondsLeft)} left. If there is no answer: ${ANSWER_WORDS[question.ifNoAnswer]}.`;
+    return question.call ? `${question.call.words} ${waiting}` : waiting;
   }
-  return question.answeredBy === 'shopper'
-    ? `${shopperName} says: ${ANSWER_WORDS[question.answer]}.`
-    : 'No answer in time, so leave it out. They are not charged for it.';
+  if (question.answeredBy !== 'shopper') {
+    return 'No answer: leave it out. They are not charged for it.';
+  }
+  const how =
+    question.answeredVia === 'call'
+      ? ' (on the call)'
+      : question.answeredVia === 'text'
+        ? ' (by text)'
+        : '';
+  return `${shopperName} says${how}: ${ANSWER_WORDS[question.answer]}.`;
 }
 
 /**

@@ -680,10 +680,15 @@ export interface Repository {
 
   /** A Runner's questions to a Shopper about things they cannot find. */
   itemQuestions: {
-    create(input: Pick<ItemQuestion, 'orderId' | 'orderItemId' | 'askedAt'>): Promise<ItemQuestion>;
+    create(
+      input: Pick<ItemQuestion, 'orderId' | 'orderItemId' | 'askedAt'> &
+        Partial<Pick<ItemQuestion, 'callId' | 'callAttempts' | 'lastRangAt' | 'callState'>>,
+    ): Promise<ItemQuestion>;
     findById(id: string): Promise<ItemQuestion | null>;
     /** Oldest first. */
     listForOrder(orderId: string): Promise<ItemQuestion[]>;
+    /** Questions whose call is still going (`callState` "calling"), for the ringing sweep. */
+    listRinging(): Promise<ItemQuestion[]>;
     update(id: string, patch: Partial<ItemQuestion>): Promise<ItemQuestion>;
   };
 

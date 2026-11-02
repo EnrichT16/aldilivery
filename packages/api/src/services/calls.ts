@@ -10,15 +10,71 @@
  * - The charge is taken from the Shopper's card when the call ends. If the card cannot be
  *   charged, it waits as outstanding and is taken the next time a charge succeeds. Above
  *   `calls.maxOutstandingPence` waiting, nobody more can be added to a call until it is paid.
+ * - Ruling 90 (2 November 2026): a call the Runner starts is free to the Shopper, who is asked
+ *   for no yes and simply answers (`calls.runnerStartedFree`); it costs the Runner nothing either,
+ *   and never appears on anything the Shopper pays. Calls about an order are open while it is
+ *   under way and for `calls.afterDeliveryMinutes` after delivery; then they are closed.
  */
 
+import { randomBytes } from 'node:crypto';
+
+import type { StoreConfig } from '@aldilivery/core';
 import type { FastifyBaseLogger } from 'fastify';
 
 import type { AppContext } from '../app.js';
-import type { Call, CallLeg } from '../domain.js';
+import type { Call, CallLeg, Order } from '../domain.js';
 
 export function priceStatement(pencePerMinute: number): string {
   return `In-app calls cost ${pencePerMinute}p a minute, paid from your card when the call ends.`;
+}
+
+/** What is written on a free, Runner-started call in place of a price the Shopper agreed. */
+export const RUNNER_CALL_STATEMENT = 'Your Runner is calling about your order. This call is free.';
+
+/** Said to anybody trying to call about an order whose calls have closed (ruling 90). */
+export const CALLS_CLOSED_MESSAGE =
+  "This order is finished, so calls about it have closed. For help, say 'person' and customer service will call you.";
+
+/** Orders that can still be talked about without looking at the clock. */
+const UNDER_WAY: Order['status'][] = [
+  'paid',
+  'offered',
+  'accepted',
+  'shopping',
+  'receipt_submitted',
+  'delivering',
+];
+
+/**
+ * When calls about this order close: never while it is under way; `calls.afterDeliveryMinutes`
+ * after the delivery once delivered; already, for an order cancelled, refunded or not yet paid.
+ */
+export function callsCloseAt(
+  order: Pick<Order, 'status' | 'deliveredAt'>,
+  config: Pick<StoreConfig, 'calls'>,
+): Date | null {
+  if (UNDER_WAY.includes(order.status)) return null;
+  if ((order.status === 'delivered' || order.status === 'completed') && order.deliveredAt) {
+    return new Date(order.deliveredAt.getTime() + config.calls.afterDeliveryMinutes * 60_000);
+  }
+  return new Date(0);
+}
+
+export function callsClosed(
+  order: Pick<Order, 'status' | 'deliveredAt'>,
+  config: Pick<StoreConfig, 'calls'>,
+  now: Date,
+): boolean {
+  const closeAt = callsCloseAt(order, config);
+  return closeAt !== null && now.getTime() >= closeAt.getTime();
+}
+
+/** Whether the Shopper pays for this call, and so must have said yes to its price first. */
+export function shopperPays(
+  call: Pick<Call, 'startedBy'>,
+  config: Pick<StoreConfig, 'calls'>,
+): boolean {
+  return call.startedBy === 'shopper' || !config.calls.runnerStartedFree;
 }
 
 export function guestPriceStatement(name: string, pencePerMinute: number): string {
@@ -33,6 +89,63 @@ export function billableMinutes(legs: CallLeg[]): number {
   return legs
     .filter((leg) => leg.role === 'shopper' || leg.role === 'guest')
     .reduce((total, leg) => total + Math.ceil(leg.secondsConnected / 60), 0);
+}
+
+/** A fresh call about an order, ringing, nothing agreed or billed yet. */
+export function newCall(
+  order: Pick<Order, 'id' | 'shopperId' | 'runnerId'>,
+  startedBy: Call['startedBy'],
+  at: Date,
+  pencePerMinute: number,
+): Omit<Call, 'id'> {
+  return {
+    orderId: order.id,
+    shopperId: order.shopperId,
+    runnerId: order.runnerId ?? '',
+    roomName: `call-${randomBytes(16).toString('hex')}`,
+    startedBy,
+    status: 'ringing',
+    createdAt: at,
+    endedAt: null,
+    priceStatement: null,
+    priceAcceptedAt: null,
+    pencePerMinute,
+    billedMinutes: 0,
+    chargePence: 0,
+    chargeStatus: 'pending',
+    paymentReference: null,
+    chargedAt: null,
+  };
+}
+
+/**
+ * A call the Runner starts (ruling 90): free to the Shopper when `calls.runnerStartedFree`, so
+ * it carries no price and asks for no yes; the statement says so in the Shopper's words.
+ */
+export function runnerCall(
+  order: Pick<Order, 'id' | 'shopperId' | 'runnerId'>,
+  config: Pick<StoreConfig, 'calls'>,
+  at: Date,
+): Omit<Call, 'id'> {
+  const free = config.calls.runnerStartedFree;
+  return {
+    ...newCall(order, 'runner', at, free ? 0 : config.calls.pencePerMinute),
+    priceStatement: free ? RUNNER_CALL_STATEMENT : null,
+  };
+}
+
+/** What the Shopper's devices show when their Runner rings, and rings again (ruling 90). */
+export function runnerCallingMessage(call: Pick<Call, 'id'>, attempt: number) {
+  return {
+    title: 'Your Runner is calling about your order',
+    body:
+      attempt > 1
+        ? 'They are still trying to reach you. Open your order to answer.'
+        : 'Open your order to answer. This call is free.',
+    url: '/my-order',
+    // A new tag each time, so the phone buzzes again rather than quietly replacing the first.
+    tag: `call-${call.id}-${attempt}`,
+  };
 }
 
 export async function outstandingPence(ctx: AppContext, shopperId: string): Promise<number> {
@@ -66,7 +179,8 @@ export async function finishCall(
 ): Promise<Call> {
   if (call.status === 'ended') return call;
   const legs = await closeLegs(ctx, call.id, at);
-  const minutes = billableMinutes(legs);
+  // A Runner-started call is free (ruling 90): no minutes billed, nothing due, nothing shown.
+  const minutes = shopperPays(call, ctx.config) ? billableMinutes(legs) : 0;
   const chargePence = minutes * call.pencePerMinute;
   const ended = await ctx.repository.calls.update(call.id, {
     status: 'ended',

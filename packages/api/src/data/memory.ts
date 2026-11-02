@@ -1235,11 +1235,16 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
     itemQuestions: {
       async create(input) {
         const question: ItemQuestion = {
-          ...input,
-          id: id(),
           answer: null,
           answeredBy: null,
           answeredAt: null,
+          answeredVia: null,
+          callId: null,
+          callAttempts: 0,
+          lastRangAt: null,
+          callState: null,
+          ...input,
+          id: id(),
         };
         itemQuestions.set(question.id, question);
         return clone(question);
@@ -1251,6 +1256,12 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       async listForOrder(orderId) {
         return [...itemQuestions.values()]
           .filter((q) => q.orderId === orderId)
+          .sort((a, b) => a.askedAt.getTime() - b.askedAt.getTime())
+          .map(clone);
+      },
+      async listRinging() {
+        return [...itemQuestions.values()]
+          .filter((q) => q.callState === 'calling')
           .sort((a, b) => a.askedAt.getTime() - b.askedAt.getTime())
           .map(clone);
       },

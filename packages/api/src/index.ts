@@ -48,6 +48,7 @@ import { sweepPlans } from './services/plans.js';
 import { refreshPrices } from './services/prices.js';
 import { checkWaiting } from './services/auto-check.js';
 import { fallBackToPhone, sweepOwnerDesk } from './services/owner-desk.js';
+import { sweepCantFind } from './services/cant-find.js';
 import { sweepEmail } from './services/email-desk.js';
 import { reviewOziWeek } from './services/ozi-review.js';
 import { allMailboxSettings, imapMailbox, smtpMailer, type MailboxLink } from './lib/mailbox.js';
@@ -393,6 +394,23 @@ async function main(): Promise<void> {
     });
   }, 600_000);
   promiseSweep.unref();
+
+  // Every ten seconds: "I can't find this" calls still ringing (ruling 90). Rings the Shopper
+  // again when it is time, stops the ringing once they answer another way, and gives up at the
+  // question's five minutes. Running it again changes nothing.
+  let cantFindRunning = false;
+  const cantFindSweep = setInterval(() => {
+    if (cantFindRunning) return;
+    cantFindRunning = true;
+    sweepCantFind(app.ctx, app.log)
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, 'The cannot-find call sweep failed');
+      })
+      .finally(() => {
+        cantFindRunning = false;
+      });
+  }, 10_000);
+  cantFindSweep.unref();
 
   const voucherSweep = setInterval(() => {
     sweepVoucherReminders(app.ctx, app.log).catch((failure: unknown) => {

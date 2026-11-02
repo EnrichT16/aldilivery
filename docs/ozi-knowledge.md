@@ -218,6 +218,19 @@ comes out of the first jobs a little at a time and is returned after
 {{value:fees.coolBag.releaseAfterCompletedDeliveries}} completed deliveries. On foot or by bicycle
 a Runner carries less than by car, and a shop too big for any available Runner is split.
 
+When a Runner cannot find something, one tap asks the Shopper on their screen, sends them a text
+(reply SIMILAR or LEAVE) and rings them in the app, free, up to {{value:questions.callAttempts}}
+times about {{value:questions.callRetrySeconds}} seconds apart. The Shopper may answer on the
+call, on the screen or by text; the first answer counts. With no answer in time the item is left
+out and not charged. The substitution rule: a product the Shopper named by brand or type is never
+swapped without their yes; an open-ended item, such as a crate of eggs with no brand, is the
+Runner's choice of any reasonable one; when in doubt, the Runner asks. In-app calls between a
+Shopper and their Runner are open while the order is under way and for
+{{value:calls.afterDeliveryMinutes}} minutes after delivery, then closed; a call the Runner starts
+is free to the Shopper, a call the Shopper starts costs them {{value:calls.pencePerMinute}}p a
+minute, agreed first, and a Runner never pays. There is no chat between them, and nobody's phone
+number is shared.
+
 If a problem is found to be the Runner's fault, up to {{value:problems.recoveryPercentOfPay}}
 percent of that job is taken back, and only that. Runners press SOS in the app if they are ever in
 danger: the owner is told straight away with where they are, and a link to follow them lasts

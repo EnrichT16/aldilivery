@@ -15,8 +15,11 @@
  * to fall behind: the answer is right whenever it is read.
  */
 
+import type { StoreConfig } from '@aldilivery/core';
+
 import type { ItemAnswer, ItemQuestion } from '../domain.js';
 import type { Repository } from '../data/repository.js';
+import { questionCallView, type QuestionCallView } from './cant-find.js';
 
 /** How long a question waits for the Shopper before the item is left out. */
 export const QUESTION_WAIT_SECONDS = 5 * 60;
@@ -31,10 +34,14 @@ export interface QuestionView {
   askedAt: Date;
   answer: ItemAnswer | null;
   answeredBy: 'shopper' | 'no_answer' | null;
+  /** How they answered (ruling 90): on their screen, by text, or by voice on the call. */
+  answeredVia: 'screen' | 'text' | 'call' | null;
   /** Until the item is left out. Zero once answered. */
   secondsLeft: number;
   /** What happens if nobody answers in time: always left out. */
   ifNoAnswer: ItemAnswer;
+  /** Where the one tap's call has got to (ruling 90); null when the config is not to hand. */
+  call: QuestionCallView | null;
 }
 
 /** Settle any question whose time has run out, then describe them all. */
@@ -42,6 +49,7 @@ export async function questionsForOrder(
   repository: Repository,
   orderId: string,
   now: Date,
+  config?: Pick<StoreConfig, 'questions'>,
 ): Promise<QuestionView[]> {
   const order = await repository.orders.findById(orderId);
   const names = new Map(order?.items.map((item) => [item.id, item.name]) ?? []);
@@ -57,9 +65,11 @@ export async function questionsForOrder(
       askedAt: question.askedAt,
       answer: question.answer,
       answeredBy: question.answeredBy,
+      answeredVia: question.answeredVia,
       secondsLeft:
         question.answer === null ? Math.max(0, Math.round((deadline - now.getTime()) / 1000)) : 0,
       ifNoAnswer: NO_ANSWER,
+      call: config ? await questionCallView({ repository, config }, question) : null,
     });
   }
   return views;
@@ -139,6 +149,8 @@ export async function answerByText(
     answer: match.answer,
     answeredBy: 'shopper',
     answeredAt: now(),
+    answeredVia: 'text',
   });
+  // The ringing, if any, stops on the next tick (`services/cant-find.ts`): the first answer wins.
   return `Thank you. Your Runner will ${ANSWER_WORDS[match.answer]} for the ${question.itemName}.`;
 }

@@ -157,7 +157,7 @@ describe('starting a call', () => {
     expect(answered.body).not.toMatch(/\+44|07700/);
   });
 
-  it('lets a Runner call, and the Shopper answers only once they have said yes to the price', async () => {
+  it('lets a Runner call for free: the Shopper is asked for no price and simply answers (ruling 90)', async () => {
     const rung = await call(runner, 'POST', `/orders/${orderId}/calls`);
     expect(rung.statusCode).toBe(201);
     const callId = (rung.json() as { call: { id: string } }).call.id;
@@ -165,13 +165,30 @@ describe('starting a call', () => {
     expect(current.json().call).toMatchObject({
       id: callId,
       status: 'ringing',
+      startedBy: 'runner',
+      free: true,
+      pencePerMinute: 0,
       priceAccepted: false,
     });
+    expect((await harness.repository.calls.findById(callId))?.priceStatement).toBe(
+      'Your Runner is calling about your order. This call is free.',
+    );
 
-    expect((await call(shopper, 'POST', `/calls/${callId}/join`, {})).statusCode).toBe(409);
-    const answered = await call(shopper, 'POST', `/calls/${callId}/join`, { priceAccepted: true });
-    expect(answered.statusCode).toBe(200);
-    expect(answered.json().call.priceAccepted).toBe(true);
+    // No yes needed: the Shopper answers straight away.
+    const answered = await call(shopper, 'POST', `/calls/${callId}/join`, {});
+    expect(answered.statusCode, answered.body).toBe(200);
+    expect(answered.json().call).toMatchObject({ free: true, priceAccepted: false });
+  });
+
+  it('still prices a call the Shopper starts, and asks for the yes first', async () => {
+    const refused = await call(shopper, 'POST', `/orders/${orderId}/calls`, {});
+    expect(refused.statusCode).toBe(409);
+    const { call: started } = await shopperCalls();
+    const row = await harness.repository.calls.findById(started.id);
+    expect(row).toMatchObject({ startedBy: 'shopper', pencePerMinute: 5 });
+    expect(row?.priceAcceptedAt).not.toBeNull();
+    const current = await call(runner, 'GET', `/orders/${orderId}/calls/current`);
+    expect(current.json().call).toMatchObject({ free: false, priceAccepted: true });
   });
 
   it('is only for the Shopper and the Runner of the order', async () => {
@@ -223,6 +240,29 @@ describe('what a call costs, and who pays', () => {
     expect(charges[0]?.input).toMatchObject({ amountPence: 20 });
   });
 
+  it('charges nothing for a call the Runner started, however long the Shopper was on it (ruling 90)', async () => {
+    const rung = await call(runner, 'POST', `/orders/${orderId}/calls`);
+    const { call: started } = rung.json() as { call: { id: string } };
+    const roomName = (await harness.repository.calls.findById(started.id))!.roomName;
+    await call(shopper, 'POST', `/calls/${started.id}/join`, {});
+    await webhook('participant_joined', roomName, `runner-${runner.runnerId}`, 0);
+    await webhook('participant_joined', roomName, `shopper-${shopper.shopperId}`, 5);
+    expect((await harness.repository.calls.findById(started.id))?.status).toBe('live');
+    await webhook('room_finished', roomName, null, 600);
+
+    expect(await harness.repository.calls.findById(started.id)).toMatchObject({
+      status: 'ended',
+      billedMinutes: 0,
+      chargePence: 0,
+      chargeStatus: 'not_due',
+    });
+    expect(harness.payments.calls.some((c) => c.kind === 'saved_card_charge')).toBe(false);
+    // Nothing to show on anything the Shopper pays: it is not due, and nothing is outstanding.
+    expect(await harness.repository.calls.listChargesDue(shopper.shopperId)).toEqual([]);
+    const balance = await call(shopper, 'GET', '/me/call-balance');
+    expect(balance.json()).toEqual({ outstandingPence: 0 });
+  });
+
   it('charges nothing when the Shopper never answered', async () => {
     const rung = await call(runner, 'POST', `/orders/${orderId}/calls`);
     const { call: started } = rung.json() as { call: { id: string } };
@@ -251,6 +291,63 @@ describe('what a call costs, and who pays', () => {
       }),
     });
     expect(forged.statusCode).toBe(400);
+  });
+});
+
+describe('after delivery (ruling 90): 15 minutes, then closed', () => {
+  const CLOSED =
+    "This order is finished, so calls about it have closed. For help, say 'person' and customer service will call you.";
+
+  async function deliveredAt(at: Date) {
+    await harness.repository.orders.update(orderId, { status: 'delivered', deliveredAt: at });
+  }
+
+  it('lets either side call within 15 minutes of the delivery', async () => {
+    await deliveredAt(START);
+    harness.setNow(new Date(START.getTime() + 14 * 60_000));
+    const rung = await call(runner, 'POST', `/orders/${orderId}/calls`);
+    expect(rung.statusCode, rung.body).toBe(201);
+    const callId = (rung.json() as { call: { id: string } }).call.id;
+    await call(shopper, 'POST', `/calls/${callId}/end`);
+    const back = await call(shopper, 'POST', `/orders/${orderId}/calls`, { priceAccepted: true });
+    expect(back.statusCode, back.body).toBe(201);
+  });
+
+  it('refuses a call 15 minutes after the delivery, in plain words', async () => {
+    await deliveredAt(START);
+    harness.setNow(new Date(START.getTime() + 15 * 60_000));
+    const rung = await call(runner, 'POST', `/orders/${orderId}/calls`);
+    expect(rung.statusCode).toBe(409);
+    expect(rung.json().error.message).toBe(CLOSED);
+    const back = await call(shopper, 'POST', `/orders/${orderId}/calls`, { priceAccepted: true });
+    expect(back.statusCode).toBe(409);
+    expect(back.json().error.message).toBe(CLOSED);
+    expect(livekit.tokens).toEqual([]);
+  });
+
+  it('closes joining, adding people and ringing the phone once the window has passed', async () => {
+    const { call: started } = await shopperCalls();
+    await deliveredAt(START);
+    harness.setNow(new Date(START.getTime() + 16 * 60_000));
+    const join = await call(runner, 'POST', `/calls/${started.id}/join`);
+    expect(join.statusCode).toBe(409);
+    expect(join.json().error.message).toBe(CLOSED);
+    const guest = await call(shopper, 'POST', `/calls/${started.id}/guests`, {
+      name: 'Helen',
+      priceAccepted: true,
+    });
+    expect(guest.statusCode).toBe(409);
+    expect(guest.json().error.message).toBe(CLOSED);
+    const phone = await call(runner, 'POST', `/calls/${started.id}/phone`);
+    expect(phone.statusCode).toBe(409);
+    expect(phone.json().error.message).toBe(CLOSED);
+  });
+
+  it('keeps a cancelled order closed', async () => {
+    await harness.repository.orders.update(orderId, { status: 'cancelled' });
+    const rung = await call(runner, 'POST', `/orders/${orderId}/calls`);
+    expect(rung.statusCode).toBe(409);
+    expect(rung.json().error.message).toBe(CLOSED);
   });
 });
 

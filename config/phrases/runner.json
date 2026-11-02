@@ -2083,8 +2083,8 @@
       "topic": "calls",
       "when": ["who pays for the call", "how much do calls cost"],
       "replies": [
-        "The Shopper pays {callPrice} a minute. A Runner never pays.",
-        "Calls cost the Shopper {callPrice} a minute. You pay nothing."
+        "When you call the Shopper, nobody pays: it is free for them and for you. When the Shopper calls you, they pay {callPrice} a minute. A Runner never pays.",
+        "Calls you start are free for everyone. Calls the Shopper starts cost them {callPrice} a minute. You pay nothing."
       ]
     },
     {

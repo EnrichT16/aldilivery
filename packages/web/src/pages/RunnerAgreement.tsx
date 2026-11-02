@@ -36,6 +36,14 @@ import {
  * really happens, so the page must keep matching the app. If the app changes how Runners work,
  * this page must change with it, and so must
  * RUNNER_AGREEMENT_VERSION in packages/core, so every Runner is asked to agree again.
+ *
+ * 2 November 2026 (ruling 90, Anthony): self-employment set out in plain words along the lines
+ * the UK's own tests look at (who controls the work, whether the person must do it themselves,
+ * and whether either side has to offer or accept work), with no case names on the screen; and
+ * the substitution rule from the one-tap "Cannot find it": a product named by brand or type is
+ * never swapped without the Shopper's yes, an open-ended item is the Runner's reasonable choice,
+ * and when in doubt, ask. A new version, so every Runner agrees again before their next job; a
+ * Runner already on a job finishes it first.
  */
 export function RunnerAgreement(): JSX.Element {
   const name = storeConfig.productName;
@@ -82,6 +90,20 @@ export function RunnerAgreement(): JSX.Element {
         <h2 id="status" className="text-lead font-bold">
           2. Your status as a self-employed contractor
         </h2>
+        <p className="m-0">
+          You are self-employed. You choose when to work, you may accept or decline any job, you use
+          your own transport, and you are responsible for your own tax and National Insurance.
+          {name} pays you per job completed. There are no wages and no salary, and neither of us has
+          to offer or accept work: we never have to offer you a job, and you never have to take one.
+          Nothing in this agreement creates employment or a worker relationship between you and us.
+        </p>
+        <p className="m-0">
+          In plain words, that means: we do not control how you work, beyond what a Shopper has
+          asked for and the law; you decide whether to work at all on any day; and because every
+          Runner is checked and Shoppers see your photo at the door, you carry out each job you
+          accept yourself. If how the work really happens ever changes, this agreement changes with
+          it, and you are asked to agree again.
+        </p>
         <ul className="m-0 ps-6 space-y-2">
           <li>
             You work for yourself. You are not our employee, and you are free to run your own
@@ -165,8 +187,15 @@ export function RunnerAgreement(): JSX.Element {
             items on your list; another Runner brings the rest.
           </li>
           <li>
-            Buy what the Shopper asked for. If something is not on the shelf, ask the Shopper in the
-            app. Never swap anything they have not agreed to. If they do not answer, leave it out.
+            Buy what the Shopper asked for. If something is not on the shelf, press Cannot find it
+            in the app: it asks the Shopper on their screen, by text and by a free call, and they
+            can answer any of those ways. If they do not answer in time, leave it out; they are not
+            charged for it.
+          </li>
+          <li>
+            Substitutions: a product the Shopper named by brand or type is never swapped for another
+            without their yes. An open-ended item, such as a crate of eggs with no brand, is yours
+            to choose: any reasonable one. When in doubt, ask.
           </li>
           <li>
             You pay at the till for the Shopper&rsquo;s shopping with your own card, and we pay it
