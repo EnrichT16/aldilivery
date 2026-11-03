@@ -60,6 +60,14 @@
     listening() {
       return !!(active && active._running);
     },
+    // What Chrome does after a few seconds of silence: a `no-speech` error, then the end.
+    silence() {
+      if (!(active && active._running)) return false;
+      const current = active;
+      current.onerror?.({ error: 'no-speech' });
+      current._finish();
+      return true;
+    },
   };
 
   const voice = { voiceURI: 'fake-en-GB', name: 'Fake British', lang: 'en-GB', default: true, localService: true };

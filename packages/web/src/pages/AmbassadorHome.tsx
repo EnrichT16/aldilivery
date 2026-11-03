@@ -273,6 +273,15 @@ function Overview({
           <li>Pending (waiting for the refund window to pass): {money(ambassador.pendingPence)}</li>
           <li>Available: {money(ambassador.availablePence)}</li>
           <li>Paid: {money(ambassador.paidPence)}</li>
+          {/* Their rate (ruling 94): the standard one, or an individual one the owner granted. */}
+          {ambassador.rate && (
+            <li>
+              {ambassador.rateWords ?? `Your rate: ${ambassador.rate.percent}%`}
+              {ambassador.rate.individual
+                ? ` (an individual rate; the standard rate is ${ambassador.rate.standardPercent}%, and yours applies to every share from the day it was set)`
+                : ' (the standard rate)'}
+            </li>
+          )}
         </ul>
         {ambassador.deductions.map((line, index) => (
           <p key={`${line.at}-${index}`} className="m-0">

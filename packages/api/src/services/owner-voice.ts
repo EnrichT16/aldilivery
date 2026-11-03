@@ -13,21 +13,32 @@
  * owner's own requests, each read back to him and done only on his yes.
  */
 
+import { ambassadorApproved, individualRateProblem, standardRatePercent } from '@aldilivery/core';
+
 import type { AppContext } from '../app.js';
 import type { EmailSummary } from '../domain.js';
 import { ApiError } from '../errors.js';
 import type { EmailFilter, OwnerAction, OwnerActionRequest } from '../lib/language-model.js';
+import { isUkMobile, ukPhone } from '../lib/phone.js';
 import { blankPrivate } from '../lib/redact.js';
+import { codeInTwos } from '../lib/sms.js';
 import {
   alertPreferences,
   checkAlertChange,
   preferencesWords,
   saveAlertPreferences,
 } from './alert-preferences.js';
+import {
+  ambassadorLinks,
+  findAmbassadorByWords,
+  setAmbassadorRate,
+  textAmbassadorLink,
+} from './ambassador-rate.js';
 import { ukDate } from './owner-desk.js';
 import { findStaffByName, staffList, switchAllStaffOff, switchStaff } from './staff-control.js';
 
-export type OwnerVoiceContext = Pick<AppContext, 'repository' | 'config' | 'now' | 'mailboxes'>;
+export type OwnerVoiceContext = Pick<AppContext, 'repository' | 'config' | 'now' | 'mailboxes'> &
+  Partial<Pick<AppContext, 'env' | 'sendText'>>;
 
 /** The owner, as the yes found him: his account, and where he spoke from. */
 export interface OwnerSpeaking {
@@ -177,6 +188,37 @@ export async function alertPreferencesForVoice(ctx: OwnerVoiceContext) {
   };
 }
 
+/**
+ * One Ambassador's link, code and rate for the model (ruling 94), by the name or code he said:
+ * read-only, never a document, with the offer to text it. The link is also given said slowly.
+ */
+export async function ambassadorLinkForVoice(ctx: OwnerVoiceContext, who: string) {
+  const found = await findAmbassadorByWords(ctx, who);
+  if ('why' in found) return { found: false, why: found.why };
+  const links = await ambassadorLinks(ctx, found.agreement.id);
+  const first = links.firstName || links.name;
+  return {
+    found: true,
+    name: links.name,
+    firstName: first,
+    status: links.statusWords,
+    link: links.link,
+    linkSaidSlowly: links.linkAloud,
+    checkCode: links.checkCode,
+    checkLink: links.checkLink,
+    rate: links.rate.words,
+    words: links.words,
+    ...(links.link
+      ? { offer: `Shall I text ${first}'s link to a number you give me?` }
+      : { offer: null }),
+  };
+}
+
+/** "+447700900123" said as "zero seven, seven zero, zero nine, zero zero, one two, three". */
+function phoneInTwos(phone: string): string {
+  return codeInTwos(phone.replace(/^\+44/, '0'));
+}
+
 type Checked = { ok: true; readBack: string; action: OwnerAction } | { ok: false; why: string };
 
 /**
@@ -284,6 +326,49 @@ export async function proposeOwnerAction(
     case 'cancel_reminder':
       // His reminders (ruling 93) are checked against his own account in lib/ozi-conversation.ts.
       return { ok: false, why: 'Reminders need your own signed-in account.' };
+    case 'text_ambassador_link': {
+      const found = await findAmbassadorByWords(ctx, request.who);
+      if ('why' in found) return { ok: false, why: found.why };
+      const links = await ambassadorLinks(ctx, found.agreement.id);
+      if (!links.link) return { ok: false, why: links.words };
+      const phone = ukPhone(request.phone);
+      if (!phone || !isUkMobile(phone)) {
+        return {
+          ok: false,
+          why: 'That does not sound like a UK mobile number. Please say it again, starting zero seven.',
+        };
+      }
+      return {
+        ok: true,
+        action: { kind: 'text_ambassador_link', agreementId: found.agreement.id, phone },
+        readBack: ask(
+          `text ${links.name}'s business sign-up link to ${phoneInTwos(phone)}. Again, that is ${phoneInTwos(phone)}.`,
+        ),
+      };
+    }
+    case 'set_ambassador_rate': {
+      const found = await findAmbassadorByWords(ctx, request.who);
+      if ('why' in found) return { ok: false, why: found.why };
+      const problem = individualRateProblem(request.percent, ctx.config.ambassador);
+      if (problem) return { ok: false, why: problem };
+      if (!ambassadorApproved(found.agreement.status)) {
+        return { ok: false, why: `${found.name} is not an approved Ambassador.` };
+      }
+      const standard = standardRatePercent(ctx.config.ambassador);
+      return {
+        ok: true,
+        action: {
+          kind: 'set_ambassador_rate',
+          agreementId: found.agreement.id,
+          percent: request.percent,
+        },
+        readBack: ask(
+          request.percent === standard
+            ? `put ${found.name} back on the standard Ambassador rate of ${standard}%, for new earnings from now.`
+            : `set ${found.name}'s individual Ambassador rate to ${request.percent}%, where the standard rate is ${standard}%, for new earnings from now. Nothing already earned changes.`,
+        ),
+      };
+    }
   }
 }
 
@@ -345,6 +430,30 @@ export async function carryOutOwnerAction(
       case 'cancel_reminder':
         // Kept on his own account in lib/ozi-conversation.ts, never here.
         return { words: 'Reminders need your own signed-in account.' };
+      case 'text_ambassador_link':
+        return {
+          words: (
+            await textAmbassadorLink(ctx, action.agreementId, action.phone, {
+              actorId: owner.actorId,
+              name: owner.name,
+              role: 'owner',
+              via: 'voice',
+              ...(owner.ip !== undefined ? { ip: owner.ip } : {}),
+            })
+          ).message,
+        };
+      case 'set_ambassador_rate':
+        return {
+          words: (
+            await setAmbassadorRate(ctx, action.agreementId, action.percent, {
+              actorId: owner.actorId,
+              name: owner.name,
+              role: 'owner',
+              via: 'voice',
+              ...(owner.ip !== undefined ? { ip: owner.ip } : {}),
+            })
+          ).message,
+        };
     }
   } catch (failure) {
     if (failure instanceof ApiError) return { words: `That could not be done: ${failure.message}` };

@@ -605,6 +605,7 @@ describe('a real conversation (31 October 2026)', () => {
       },
       listStaff: async () => ({}),
       ambassadorPrizes: async () => ({}),
+      ambassadorLink: async () => ({}),
       listEmails: async () => ({}),
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
@@ -656,6 +657,10 @@ describe('a real conversation (31 October 2026)', () => {
       'set_reminder',
       'list_reminders',
       'cancel_reminder',
+      // An Ambassador's link, texting it, and an individual rate (ruling 94).
+      'ambassador_link',
+      'text_ambassador_link',
+      'set_ambassador_rate',
     ]);
     expect(tools0.every((tool) => tool.strict)).toBe(true);
     // The tool's answer went back to the model as a result, after its own call.
@@ -713,6 +718,7 @@ describe('a real conversation (31 October 2026)', () => {
       propose: async () => ({ ok: false, why: 'no' }),
       listStaff: async () => ({}),
       ambassadorPrizes: async () => ({}),
+      ambassadorLink: async () => ({}),
       listEmails: async () => ({}),
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
@@ -770,6 +776,7 @@ describe('a real conversation (31 October 2026)', () => {
       propose: async () => ({ ok: false, why: 'no' }),
       listStaff: async () => ({}),
       ambassadorPrizes: async () => ({}),
+      ambassadorLink: async () => ({}),
       listEmails: async () => ({}),
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
@@ -871,6 +878,7 @@ describe('what is on the screen (ruling 89, 2 November 2026)', () => {
       propose: async () => ({ ok: false, why: 'no' }),
       listStaff: async () => ({}),
       ambassadorPrizes: async () => ({}),
+      ambassadorLink: async () => ({}),
       listEmails: async () => ({}),
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),

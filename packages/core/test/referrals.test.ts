@@ -21,6 +21,12 @@ import {
   ambassadorShareEnds,
   ambassadorOrderSharePence,
   earnedWords,
+  individualRateMultiplier,
+  individualRatePercent,
+  individualRateProblem,
+  individualRateWords,
+  linkAloud,
+  standardRatePercent,
   highestLevel,
   levelsReached,
   meetsActiveShare,
@@ -82,6 +88,10 @@ describe('the referral figures in config/store.json', () => {
       monthlyPrizeUntilMonth: '2027-11',
       firstBusinessBonusPence: 1000,
       firstBusinessBonusAfterOrders: 4,
+      // An individual rate the owner may grant (Anthony, 3 November 2026, ruling 94): at most
+      // 5%; and at most 20 link texts a day for each member of staff.
+      maxIndividualRatePercent: 5,
+      linkTextsPerDay: 20,
     });
     expect(ambassadors.monthlyPrizeBarPence).toBe(5 * ambassadors.monthlyPrizePence);
     expect(shareWords(ambassadors.restaurantMarkupShare)).toBe('2%');
@@ -197,6 +207,69 @@ describe('the Ambassador share', () => {
     expect(ambassadorOrderSharePence(restaurant(1000, 0), ambassadors, 'other_branch')).toBe(5);
     expect(ambassadorOrderSharePence(restaurant(1000, 0), ambassadors, 'introduced')).toBe(20);
     expect(ambassadorOrderSharePence(grocery(2000), ambassadors, 'other_branch')).toBe(5);
+  });
+
+  it('is multiplied by an individual rate (ruling 94): 3% where others earn 2% is 1.5 on every share', () => {
+    // The founder's example at 3%: 3% of £5 and 3% of £2, 21p.
+    expect(ambassadorOrderSharePence(restaurant(500, 200), ambassadors, 'introduced', 1.5)).toBe(
+      21,
+    );
+    // A grocery shop's 1% becomes 1.5%: £15 of item charges, £10 of mark-up and £5 of discount.
+    expect(
+      ambassadorOrderSharePence(grocery(1500, 1000, 500), ambassadors, 'introduced', 1.5),
+    ).toBe(45);
+    // Another branch's quarter is a quarter of the individual rate.
+    expect(ambassadorOrderSharePence(restaurant(1000, 0), ambassadors, 'other_branch', 1.5)).toBe(
+      8,
+    );
+    // The plain multiplier changes nothing.
+    expect(ambassadorOrderSharePence(restaurant(500, 200), ambassadors, 'introduced', 1)).toBe(14);
+  });
+
+  it('turns a rate the owner says into the multiplier and back, within the cap (ruling 94)', () => {
+    expect(standardRatePercent(ambassadors)).toBe(2);
+    expect(individualRateMultiplier(3, ambassadors)).toBe(1.5);
+    expect(individualRateMultiplier(2, ambassadors)).toBe(1);
+    expect(individualRateMultiplier(5, ambassadors)).toBe(2.5);
+    expect(individualRatePercent(1.5, ambassadors)).toBe(3);
+    expect(individualRatePercent(1, ambassadors)).toBe(2);
+    expect(individualRateWords(1, ambassadors)).toBe('the standard rate of 2%');
+    expect(individualRateWords(1.5, ambassadors)).toBe('3%, where the standard rate is 2%');
+    expect(ambassadors.maxIndividualRatePercent).toBe(5);
+    expect(individualRateProblem(3, ambassadors)).toBeNull();
+    expect(individualRateProblem(5, ambassadors)).toBeNull();
+    expect(individualRateProblem(2, ambassadors)).toBeNull();
+    expect(individualRateProblem(5.5, ambassadors)).toBe('An individual rate can be at most 5%.');
+    expect(individualRateProblem(1, ambassadors)).toBe(
+      'An individual rate is never below the standard rate of 2%.',
+    );
+    expect(individualRateProblem(0, ambassadors)).toMatch(/as a percentage/);
+    expect(individualRateProblem(Number.NaN, ambassadors)).toMatch(/as a percentage/);
+    expect(individualRateProblem(2.123, ambassadors)).toMatch(/two decimal places/);
+  });
+
+  it('refuses a cap below the standard rate in the settings', () => {
+    const file = JSON.parse(readFileSync(storeConfigPath(), 'utf8')) as Record<string, unknown>;
+    expect(() =>
+      parseStoreConfig({
+        ...file,
+        ambassador: { ...(file['ambassador'] as object), maxIndividualRatePercent: 1 },
+      }),
+    ).toThrow(/at least the standard rate/);
+  });
+
+  it('says a link slowly, for writing down (ruling 94)', () => {
+    expect(linkAloud('https://ozi.example/business/join?ambassador=runner-AB12')).toBe(
+      'ozi, dot, example, slash, business, slash, join, question mark, ambassador, equals, runner, dash, capital A capital B 1 2',
+    );
+    // A long code is spelt in groups of four, with a pause between.
+    expect(linkAloud('https://ozi.example/ambassador/check/RMQ3H9F2')).toBe(
+      'ozi, dot, example, slash, ambassador, slash, check, slash, capital R capital M capital Q 3, capital H 9 capital F 2',
+    );
+    // Anything with digits or capitals in it is spelt out, four characters at a time.
+    expect(linkAloud('https://ozi.example/x?next=%2Fshops')).toBe(
+      'ozi, dot, example, slash, x, question mark, next, equals, percent, 2 capital F s h, o p s',
+    );
   });
 
   it('refuses the old single profit share in the settings', () => {

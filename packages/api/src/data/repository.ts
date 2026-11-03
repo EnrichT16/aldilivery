@@ -471,8 +471,14 @@ export interface Repository {
         | 'cancelReason'
         | 'heldAt'
         | 'heldReason'
+        | 'shareMultiplier'
       > &
-        Partial<Pick<AmbassadorEntry, 'availableAt' | 'disputedAt' | 'heldAt' | 'heldReason'>>,
+        Partial<
+          Pick<
+            AmbassadorEntry,
+            'availableAt' | 'disputedAt' | 'heldAt' | 'heldReason' | 'shareMultiplier'
+          >
+        >,
     ): Promise<AmbassadorEntry | null>;
     findByReference(reference: string): Promise<AmbassadorEntry | null>;
     /**

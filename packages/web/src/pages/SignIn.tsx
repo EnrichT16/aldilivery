@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { AppVersion } from '../components/AppVersion';
+import { ResetApp } from '../components/ResetApp';
 import { storeConfig } from '../config';
 import {
   ApiError,
@@ -327,7 +329,25 @@ export function SignIn({ as: role = 'shopper' }: { as?: 'shopper' | 'runner' }):
           )}
         </>
       )}
+      <AppHealth />
     </div>
+  );
+}
+
+/**
+ * On every sign-in page (ruling 95): which build this is, and "Reset the app" for a copy that
+ * looks wrong or does not load fully. A Runner signed out by a broken copy (ruling 88) finds
+ * the way back here.
+ */
+export function AppHealth(): JSX.Element {
+  return (
+    <section aria-labelledby="app-health-heading" className="space-y-3 max-w-xl pt-4">
+      <h2 id="app-health-heading" className="text-lead font-bold m-0">
+        About this app
+      </h2>
+      <AppVersion className="!text-base" />
+      <ResetApp />
+    </section>
   );
 }
 

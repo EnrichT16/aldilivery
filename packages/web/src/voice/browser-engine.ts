@@ -9,6 +9,20 @@
  * ours.
  *
  * Nothing in Ozi is tuned to this engine's mistakes. When it mishears, it mishears.
+ *
+ * Chrome, checked on 3 November 2026 (ruling 95: the app must work well in Chrome, Safari and
+ * most browsers):
+ *
+ * - On a desktop, `speechSynthesis.getVoices()` is empty until `voiceschanged` fires, often
+ *   after the first call. `loadVoices` waits for that event, briefly; a sentence is never lost,
+ *   only said in the browser's own voice if the list is still empty.
+ * - Recognition stops by itself after a few seconds of silence (`no-speech`), and after about a
+ *   minute whatever happens. Both come through `onError` as `no-speech` and `onEnd`, never as a
+ *   fault: Ozi (`state/ozi.tsx`) starts listening again a quarter of a second later, without a
+ *   word. Stopping on purpose (`aborted`) is not reported at all.
+ * - Nothing is said aloud before the person has touched the page once: the utterance fails with
+ *   `not-allowed`, which is kept out of `speechFailed` so the next sentence, after a tap, works.
+ *   The microphone, likewise, is first asked for inside a tap (ruling 62).
  */
 
 import {
@@ -91,12 +105,17 @@ function loadVoices(speech: SpeechSynthesis): Promise<SpeechSynthesisVoice[]> {
   const now = speech.getVoices();
   if (now.length > 0) return Promise.resolve(now);
   return new Promise((resolve) => {
-    const done = (): void => {
-      speech.removeEventListener('voiceschanged', done);
+    const settle = (): void => {
+      speech.removeEventListener('voiceschanged', changed);
+      window.clearTimeout(timer);
       resolve(speech.getVoices());
     };
-    speech.addEventListener('voiceschanged', done);
-    window.setTimeout(done, 1500);
+    // Chrome can fire this once with the list still empty, then again with the voices.
+    const changed = (): void => {
+      if (speech.getVoices().length > 0) settle();
+    };
+    speech.addEventListener('voiceschanged', changed);
+    const timer = window.setTimeout(settle, 1500);
   });
 }
 

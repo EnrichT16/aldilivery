@@ -6,11 +6,17 @@ import {
   decideAmbassadorApplication,
   fetchStaffAmbassadorApplication,
   fetchStaffAmbassadorApplications,
+  fetchStaffAmbassadorLinks,
   fetchStaffAmbassadorPrizes,
   fetchStaffFile,
   reviewAmbassadorDocument,
+  setAmbassadorRate,
+  textAmbassadorLink,
+  type StaffAmbassadorApplicationRow,
   type StaffAmbassadorApplication,
+  type StaffAmbassadorLinks,
 } from '../lib/api';
+import { QrCode } from '../components/QrCode';
 import { HeldShares } from '../components/StaffAmbassadorChecks';
 
 /**
@@ -28,6 +34,13 @@ import { HeldShares } from '../components/StaffAmbassadorChecks';
  *
  * 2 November 2026 (ruling 91), for the owner alone: "Prizes and bonuses", every month's Top
  * Ambassador decision (month, winner, bar met, net) and every first-business bonus credited.
+ *
+ * 3 November 2026 (ruling 94): "Links and QR codes", for the owner and staff given this area:
+ * any approved Ambassador's business sign-up link, check code, check link and a large QR code,
+ * with "Copy link", "Read it out" (Ozi says it slowly) and "Text this link to a business" (one
+ * text from Ozi, as this person's own action); a pending or declined Ambassador shows their
+ * status and no link. For the owner alone, "Individual rate": a rate above the standard one for
+ * that Ambassador, applied to new shares from the moment it is set.
  */
 
 function when(at: string | null): string {
@@ -58,11 +71,14 @@ export function StaffAmbassadors({
   staffKey,
   by,
   onNews,
+  onSay,
   owner = false,
 }: {
   staffKey: string;
   by: string;
   onNews: (words: string) => void;
+  /** Ozi says these words aloud ("Read it out", ruling 94). Shown as news when not given. */
+  onSay?: (words: string) => void;
   /** The owner alone sees "Prizes and bonuses" (ruling 91): the net is a company figure. */
   owner?: boolean;
 }): JSX.Element {
@@ -90,6 +106,15 @@ export function StaffAmbassadors({
       <Failure text={problem} />
       <HeldShares staffKey={staffKey} by={by} onNews={onNews} />
       {owner && <PrizesAndBonuses staffKey={staffKey} />}
+      {groups && (
+        <LinksAndCodes
+          staffKey={staffKey}
+          rows={groups.flatMap((group) => group.applications)}
+          onNews={onNews}
+          onSay={onSay ?? onNews}
+          owner={owner}
+        />
+      )}
       {groups?.map((group) => (
         <section key={group.status} aria-labelledby={`amb-${group.status}`} className="space-y-2">
           <h3 id={`amb-${group.status}`} className="font-bold m-0">
@@ -132,6 +157,291 @@ export function StaffAmbassadors({
           )}
         </section>
       ))}
+    </section>
+  );
+}
+
+/**
+ * "Links and QR codes" (ruling 94): every Ambassador by name, searched by name, each opening to
+ * their business sign-up link, codes and QR code, or to their status when the link does not work.
+ */
+function LinksAndCodes({
+  staffKey,
+  rows,
+  onNews,
+  onSay,
+  owner,
+}: {
+  staffKey: string;
+  rows: StaffAmbassadorApplicationRow[];
+  onNews: (words: string) => void;
+  onSay: (words: string) => void;
+  owner: boolean;
+}): JSX.Element {
+  const [search, setSearch] = useState('');
+  const [open, setOpen] = useState<string | null>(null);
+  const wanted = search.trim().toLowerCase();
+  const shown = rows
+    .filter((row) => wanted === '' || row.name.toLowerCase().includes(wanted))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return (
+    <section aria-labelledby="links-heading" className="space-y-3">
+      <h3 id="links-heading" className="font-bold m-0">
+        Links and QR codes
+      </h3>
+      <p className="m-0">
+        An approved Ambassador&rsquo;s business sign-up link, check code and QR code, to give to a
+        business yourself so it joins through them and the reward goes to them.
+      </p>
+      <label htmlFor="links-search" className="block font-bold">
+        Search by name
+      </label>
+      <input
+        id="links-search"
+        type="search"
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
+      />
+      {shown.length === 0 ? (
+        <p className="m-0">
+          {rows.length === 0 ? 'Nobody has applied yet.' : 'Nobody by that name.'}
+        </p>
+      ) : (
+        <ul className="list-none m-0 p-0 space-y-3">
+          {shown.map((row) => (
+            <li key={row.id} className="space-y-2">
+              <p className="m-0">
+                {row.name}, {row.kindWords}: {row.statusWords}.
+              </p>
+              <button
+                type="button"
+                aria-expanded={open === row.id}
+                onClick={() => setOpen(open === row.id ? null : row.id)}
+                className="control border-paper bg-paper/10 text-paper"
+              >
+                {open === row.id ? `Hide ${row.name}'s links` : `Show ${row.name}'s links`}
+              </button>
+              {open === row.id && (
+                <AmbassadorLinks
+                  staffKey={staffKey}
+                  id={row.id}
+                  onNews={onNews}
+                  onSay={onSay}
+                  owner={owner}
+                />
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** One Ambassador's links, QR code and buttons, or their status and no link. */
+function AmbassadorLinks({
+  staffKey,
+  id,
+  onNews,
+  onSay,
+  owner,
+}: {
+  staffKey: string;
+  id: string;
+  onNews: (words: string) => void;
+  onSay: (words: string) => void;
+  owner: boolean;
+}): JSX.Element {
+  const [links, setLinks] = useState<StaffAmbassadorLinks | null>(null);
+  const [problem, setProblem] = useState('');
+  const [phone, setPhone] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(() => {
+    fetchStaffAmbassadorLinks(staffKey, id).then(setLinks).catch(fail(setProblem));
+  }, [staffKey, id]);
+  useEffect(load, [load]);
+
+  if (!links) return <Failure text={problem} />;
+
+  const copy = (): void => {
+    if (!links.link) return;
+    const clipboard = typeof navigator === 'undefined' ? undefined : navigator.clipboard;
+    if (!clipboard?.writeText) {
+      setProblem('Copying is not available here. The link is written above: please select it.');
+      return;
+    }
+    clipboard
+      .writeText(links.link)
+      .then(() => onNews(`${links.firstName}'s link is copied.`))
+      .catch(() => setProblem('The link could not be copied. It is written above.'));
+  };
+
+  const text = (): void => {
+    setProblem('');
+    if (phone.trim() === '') {
+      setProblem('Please give the phone number of the business.');
+      return;
+    }
+    setBusy(true);
+    textAmbassadorLink(staffKey, id, phone.trim())
+      .then((result) => {
+        onNews(result.message);
+        setPhone('');
+      })
+      .catch(fail(setProblem))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <article
+      aria-labelledby={`links-${id}`}
+      className="space-y-3 border-2 border-paper rounded-2xl p-4"
+    >
+      <h4 id={`links-${id}`} className="font-bold m-0">
+        {links.firstName}
+        {links.surname ? ` ${links.surname}` : ''}: links and codes
+      </h4>
+      <p className="m-0">Status: {links.statusWords}.</p>
+      <Failure text={problem} />
+      {!links.link ? (
+        <p className="m-0">{links.words}</p>
+      ) : (
+        <>
+          <ul className="m-0 ps-6 space-y-1">
+            <li>Ambassador check code: {links.checkCode}</li>
+            <li className="break-all">Business sign-up link: {links.link}</li>
+            <li className="break-all">Check link: {links.checkLink}</li>
+          </ul>
+          <QrCode
+            value={links.link}
+            label={`QR code for ${links.firstName}'s business sign-up link`}
+            className="w-64 h-64 max-w-full bg-white"
+          />
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={copy} className="control bg-highlight text-on-accent">
+              Copy link
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                onSay(
+                  `${links.firstName}'s business sign-up link, slowly: ${links.linkAloud ?? links.link}.`,
+                )
+              }
+              className="control border-paper bg-paper/10 text-paper"
+            >
+              Read it out
+            </button>
+          </div>
+          <label htmlFor={`text-phone-${id}`} className="block font-bold">
+            The business&rsquo;s mobile number, for one text with the link
+          </label>
+          <input
+            id={`text-phone-${id}`}
+            type="tel"
+            inputMode="tel"
+            autoComplete="off"
+            value={phone}
+            onChange={(event) => setPhone(event.target.value)}
+            className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
+          />
+          <button
+            type="button"
+            disabled={busy}
+            onClick={text}
+            className="control bg-highlight text-on-accent disabled:opacity-60"
+          >
+            Text this link to a business
+          </button>
+          <p className="m-0">
+            The text says who invited them and that joining is always free. The number is written in
+            the audit log as your action, and kept nowhere else.
+          </p>
+        </>
+      )}
+      {owner && links.approved && (
+        <IndividualRate
+          staffKey={staffKey}
+          id={id}
+          name={links.firstName || links.name}
+          rate={links.rate}
+          onDone={(words) => {
+            onNews(words);
+            load();
+          }}
+        />
+      )}
+    </article>
+  );
+}
+
+/**
+ * "Individual rate" (ruling 94), the owner alone: a rate above the standard one for this
+ * Ambassador, as a percentage, applied to new shares from the moment it is set.
+ */
+function IndividualRate({
+  staffKey,
+  id,
+  name,
+  rate,
+  onDone,
+}: {
+  staffKey: string;
+  id: string;
+  name: string;
+  rate: StaffAmbassadorLinks['rate'];
+  onDone: (words: string) => void;
+}): JSX.Element {
+  const [percent, setPercent] = useState(String(rate.percent));
+  const [problem, setProblem] = useState('');
+  const [busy, setBusy] = useState(false);
+  const save = (): void => {
+    setProblem('');
+    const value = Number(percent);
+    if (percent.trim() === '' || !Number.isFinite(value)) {
+      setProblem('Please give the rate as a percentage, such as 3.');
+      return;
+    }
+    setBusy(true);
+    setAmbassadorRate(staffKey, id, value)
+      .then((result) => onDone(result.message))
+      .catch(fail(setProblem))
+      .finally(() => setBusy(false));
+  };
+  return (
+    <section aria-labelledby={`rate-${id}`} className="space-y-2">
+      <h5 id={`rate-${id}`} className="font-bold m-0">
+        Individual rate
+      </h5>
+      <p className="m-0">
+        {name} earns {rate.words}. You can grant {name} a higher rate than the standard one, as a
+        thank you: for example 3% where others earn 2%. It applies to every share on orders from the
+        moment you set it, and never changes anything already earned.
+      </p>
+      <label htmlFor={`rate-percent-${id}`} className="block font-bold">
+        {name}&rsquo;s rate, as a percentage
+      </label>
+      <input
+        id={`rate-percent-${id}`}
+        type="number"
+        inputMode="decimal"
+        min={rate.standardPercent}
+        step="0.5"
+        value={percent}
+        onChange={(event) => setPercent(event.target.value)}
+        className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
+      />
+      <Failure text={problem} />
+      <button
+        type="button"
+        disabled={busy}
+        onClick={save}
+        className="control bg-highlight text-on-accent disabled:opacity-60"
+      >
+        Set {name}&rsquo;s rate
+      </button>
     </section>
   );
 }

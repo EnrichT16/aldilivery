@@ -266,7 +266,9 @@
     "monthlyPrizeFromMonth": "2026-11",
     "monthlyPrizeUntilMonth": "2027-11",
     "firstBusinessBonusPence": 1000,
-    "firstBusinessBonusAfterOrders": 4
+    "firstBusinessBonusAfterOrders": 4,
+    "maxIndividualRatePercent": 5,
+    "linkTextsPerDay": 20
   },
   "ambassadorProtection": {
     "about": "Protections against Ambassadors misusing the name (Anthony, 31 October 2026). 'freeJoiningWords' is the payment warning, shown word for word at the top of every business sign-up, on the partner dashboard, in the Shop Partner terms, on every printed Ambassador item and in the Ambassador Guide ({name} is the assistant's name, {extras} the 'paidExtras' joined with 'and'). A business an Ambassador signs up confirms with a code sent to its own phone, lasting 'confirmCodeMinutes', with 'confirmCodeTries' tries. 'promisedQuestion' is asked once, 'promisedAskAfterDays' after a business joins through an Ambassador. The public check page allows 'checksPerTenMinutes' lookups and 'reportsPerTenMinutes' reports from one internet address in ten minutes, and says 'notActiveWords' or 'unknownCodeWords'. 'companiesHouseSearch' and 'hygieneRatingSearch' are links for staff only ({name} and {postcode} filled in); the service never calls them.",

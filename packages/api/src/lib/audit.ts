@@ -148,6 +148,9 @@ export const AUDIT_WORDS: Record<string, string> = {
   'owner.alerts-changed': 'Changed how Ozi reaches the owner',
   'email.marked-heard': 'Marked emails as heard',
   'email.replied': 'Replied to an email by voice',
+  // An Ambassador's link in the owner's and staff's hands, and an individual rate (ruling 94).
+  'ambassadors.link-texted': "Texted an Ambassador's business sign-up link to a business",
+  'ambassadors.rate-set': "Set an Ambassador's individual rate",
   // Unlocking anybody, and resetting a PIN or a password (ruling 81).
   'unlock.staff-password-reset': 'Gave a staff member a temporary password',
   'unlock.shopper-pin': "Unlocked a Shopper's PIN",

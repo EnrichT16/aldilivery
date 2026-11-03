@@ -3347,7 +3347,8 @@ export interface OziStreamedReply extends OziReply {
 
 /** The headers every request carries, with whoever is asking (the same as `request` sends). */
 function oziHeaders(as: OziAsker): Record<string, string> {
-  const token = as.kind === 'runner' ? readRunnerToken() : as.kind === 'shopper' ? readToken() : null;
+  const token =
+    as.kind === 'runner' ? readRunnerToken() : as.kind === 'shopper' ? readToken() : null;
   const device = deviceId();
   return {
     'content-type': 'application/json',
@@ -3359,7 +3360,10 @@ function oziHeaders(as: OziAsker): Record<string, string> {
 }
 
 /** The events out of a run of server-sent events text; the rest, a part event, is given back. */
-export function readEvents(buffer: string): { events: Array<Record<string, unknown>>; rest: string } {
+export function readEvents(buffer: string): {
+  events: Array<Record<string, unknown>>;
+  rest: string;
+} {
   const parts = buffer.split(/\r?\n\r?\n/);
   const rest = parts.pop() ?? '';
   const events: Array<Record<string, unknown>> = [];
@@ -3414,7 +3418,8 @@ export async function askOziStream(
   } catch {
     throw new StreamUnavailableError('no answer');
   }
-  if (!response.ok) throw new ApiError('Ozi could not answer just now.', response.status, undefined);
+  if (!response.ok)
+    throw new ApiError('Ozi could not answer just now.', response.status, undefined);
   const type = response.headers.get('content-type') ?? '';
   if (!/text\/event-stream/i.test(type)) {
     const plain = (await response.json()) as OziReply;
@@ -3430,7 +3435,11 @@ export async function askOziStream(
     } else if (event['type'] === 'status' && typeof event['text'] === 'string') {
       handlers.onStatus(event['text']);
     } else if (event['type'] === 'done') {
-      const { type: _type, unsaid, ...rest } = event as unknown as OziStreamedReply & {
+      const {
+        type: _type,
+        unsaid,
+        ...rest
+      } = event as unknown as OziStreamedReply & {
         type: string;
       };
       return { ...rest, unsaid: typeof unsaid === 'string' ? unsaid : (rest.reply ?? '') };
@@ -3709,7 +3718,25 @@ export interface MyReferrals {
      * first-business bonus. Missing from an older server; null before they have applied.
      */
     prize?: AmbassadorPrizePanel | null;
+    /**
+     * Their rate (ruling 94): the standard one, or the individual one the owner granted, as a
+     * percentage. Missing from an older server; null before they have applied.
+     */
+    rate?: AmbassadorRate | null;
+    /** "Your rate: 3%". */
+    rateWords?: string | null;
   };
+}
+
+/** An Ambassador's rate (ruling 94), as the dashboard and the staff page show it. */
+export interface AmbassadorRate {
+  percent: number;
+  standardPercent: number;
+  individual: boolean;
+  multiplier: number;
+  words: string;
+  setAt: string | null;
+  setBy: string | null;
 }
 
 export interface AmbassadorPrizePanel {
@@ -4192,6 +4219,58 @@ export function fetchStaffAmbassadorApplication(
   id: string,
 ): Promise<{ application: StaffAmbassadorApplication }> {
   return staffRequest(key, `/staff/ambassador-applications/${encodeURIComponent(id)}`);
+}
+
+/**
+ * One Ambassador's link, codes and QR code for the owner and staff (ruling 94): the business
+ * sign-up link, the check code and link, the link said slowly, and their rate. A pending or
+ * declined Ambassador has their status and no link, with the words saying so.
+ */
+export interface StaffAmbassadorLinks {
+  id: string;
+  name: string;
+  firstName: string;
+  surname: string;
+  kindWords: string;
+  status: AmbassadorStatus;
+  statusWords: string;
+  approved: boolean;
+  linkWorks: boolean;
+  rate: AmbassadorRate;
+  link: string | null;
+  linkAloud: string | null;
+  checkCode: string | null;
+  checkLink: string | null;
+  printLink: string | null;
+  words: string;
+}
+
+export function fetchStaffAmbassadorLinks(key: string, id: string): Promise<StaffAmbassadorLinks> {
+  return staffRequest(key, `/staff/ambassadors/${encodeURIComponent(id)}/links`);
+}
+
+/** "Text this link to a business": one text from the service, as the staff member's action. */
+export function textAmbassadorLink(
+  key: string,
+  id: string,
+  phone: string,
+): Promise<{ message: string }> {
+  return staffRequest(key, `/staff/ambassadors/${encodeURIComponent(id)}/links/text`, {
+    method: 'POST',
+    body: JSON.stringify({ phone }),
+  });
+}
+
+/** The owner alone: one Ambassador's individual rate, as a percentage (ruling 94). */
+export function setAmbassadorRate(
+  key: string,
+  id: string,
+  percent: number,
+): Promise<{ message: string; rate: AmbassadorRate }> {
+  return staffRequest(key, `/staff/ambassadors/${encodeURIComponent(id)}/rate`, {
+    method: 'POST',
+    body: JSON.stringify({ percent }),
+  });
 }
 
 export function reviewAmbassadorDocument(

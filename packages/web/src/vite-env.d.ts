@@ -50,3 +50,5 @@ interface ImportMetaEnv {
 
 /** Which build this is, baked in by vite.config.ts and compared with /version.json. */
 declare const __BUILD_ID__: string;
+/** When this build was made, as an ISO moment, for the version shown on every page (ruling 95). */
+declare const __BUILD_AT__: string;

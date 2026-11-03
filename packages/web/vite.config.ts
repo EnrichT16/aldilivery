@@ -32,6 +32,8 @@ function storeIdentityInHtml(): Plugin {
     '%STORE_PRODUCT_NAME%': storeConfig.productName,
     '%STORE_TAGLINE%': storeConfig.tagline,
     '%STORE_NAVY%': storeConfig.brand.colours.navy,
+    // The self-healing script in index.html heals once for each build (ruling 95).
+    '%BUILD_ID%': BUILD_ID,
   };
   return {
     name: 'store-identity-in-html',
@@ -40,7 +42,7 @@ function storeIdentityInHtml(): Plugin {
       for (const [token, value] of Object.entries(tokens)) {
         filled = filled.split(token).join(escape(value));
       }
-      const leftOver = filled.match(/%STORE_[A-Z_]+%/);
+      const leftOver = filled.match(/%(STORE|BUILD)_[A-Z_]+%/);
       if (leftOver)
         throw new Error(`index.html uses ${leftOver[0]}, which vite.config.ts does not fill in.`);
       return filled;
@@ -53,7 +55,9 @@ function storeIdentityInHtml(): Plugin {
  * to it as `/version.json`, which is never kept by the service worker, so a home-screen copy
  * can always ask the server whether it is still the newest (src/lib/updates.ts).
  */
-const BUILD_ID = process.env['BUILD_ID'] ?? new Date().toISOString();
+const BUILT_AT = new Date().toISOString();
+// Only plain characters, because it is also written into a script in index.html.
+const BUILD_ID = (process.env['BUILD_ID'] ?? BUILT_AT).replace(/[^A-Za-z0-9._:+-]/g, '-');
 
 function buildVersionFile(): Plugin {
   return {
@@ -70,7 +74,8 @@ function buildVersionFile(): Plugin {
 }
 
 export default defineConfig({
-  define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
+  // The version shown on every page (ruling 95) is made from these two in src/lib/version.ts.
+  define: { __BUILD_ID__: JSON.stringify(BUILD_ID), __BUILD_AT__: JSON.stringify(BUILT_AT) },
   plugins: [
     storeIdentityInHtml(),
     buildVersionFile(),

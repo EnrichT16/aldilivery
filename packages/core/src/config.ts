@@ -1073,7 +1073,26 @@ function parseAmbassador(raw: Unknown): AmbassadorSettings {
     // Top Ambassador of the month, and the first-business bonus (Anthony, 2 November 2026,
     // ruling 91). The bar must be at least the prize: a prize is never paid before Ozi has been.
     ...parseAmbassadorPrizes(raw),
+    // An individual rate the owner may grant (Anthony, 3 November 2026, ruling 94): at most 5%.
+    maxIndividualRatePercent: parseMaxIndividualRate(raw),
+    linkTextsPerDay: wholeNumber(raw['linkTextsPerDay'] ?? 20, 'ambassador.linkTextsPerDay', 1),
   };
+}
+
+/** At most this many percent for an individual rate, and never below the standard rate. */
+function parseMaxIndividualRate(raw: Unknown): number {
+  const most = wholeNumber(
+    raw['maxIndividualRatePercent'] ?? 5,
+    'ambassador.maxIndividualRatePercent',
+    1,
+  );
+  const standard = share(raw['restaurantMarkupShare'] ?? 0.02, 'ambassador.restaurantMarkupShare');
+  if (most < standard * 100) {
+    throw new StoreConfigError(
+      'ambassador.maxIndividualRatePercent must be at least the standard rate, ambassador.restaurantMarkupShare as a percentage.',
+    );
+  }
+  return most;
 }
 
 /** "2026-11": a calendar month as the prize settings write it. */

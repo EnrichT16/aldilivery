@@ -809,6 +809,9 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           suspendedFrom: null,
           documentsRemovedAt: null,
           checkCode: null,
+          shareMultiplier: 1,
+          rateSetAt: null,
+          rateSetBy: null,
         };
         ambassadorAgreements.push(row);
         return clone(row);
@@ -844,6 +847,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           disputedAt: null,
           heldAt: null,
           heldReason: null,
+          shareMultiplier: 1,
           ...input,
           cancelledAt: null,
           cancelledPence: 0,

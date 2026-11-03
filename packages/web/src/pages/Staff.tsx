@@ -10,6 +10,7 @@ import {
 
 import { ReceiptPhoto, TillCases } from '../components/TillCases';
 import { StaffAmbassadors } from './StaffAmbassadors';
+import { AppHealth } from './SignIn';
 
 import {
   addBusinessUser,
@@ -266,6 +267,14 @@ export function Staff(): JSX.Element {
   const [me, setMe] = useState<StaffMe | null>(null);
   const [tab, setTab] = useState<TabKey | null>(null);
   const [news, setNews] = useState('');
+  // "Read it out" on the Ambassadors page (ruling 94): Ozi says a link slowly.
+  const ozi = useOzi();
+  const oziRef = useRef(ozi);
+  oziRef.current = ozi;
+  const say = useCallback((words: string) => {
+    setNews(words);
+    void oziRef.current.say(words);
+  }, []);
   // Bumped after a decision made by voice, so the lists on the screen load again too.
   const [refresh, setRefresh] = useState(0);
   // Bumped by "Try again" when the server could not say who this is (ruling 88).
@@ -549,6 +558,7 @@ export function Staff(): JSX.Element {
                 staffKey={key}
                 by={by}
                 onNews={setNews}
+                onSay={say}
                 owner={me.isOwner === true}
               />
             )}
@@ -809,6 +819,8 @@ function SignIn({
       >
         {withKey ? 'Sign in with a username instead' : 'Founder: sign in with the staff key'}
       </button>
+      {/* Which build this is, and "Reset the app" (ruling 95), on this sign-in page too. */}
+      <AppHealth />
     </form>
   );
 }

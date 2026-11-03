@@ -76,6 +76,13 @@ import {
   suspendAmbassador,
 } from '../services/ambassador-applications.js';
 import { firstBusinessBonusLog, prizeLog, prizePanel } from '../services/ambassador-prizes.js';
+import {
+  ambassadorLinks,
+  rateView,
+  setAmbassadorRate,
+  textAmbassadorLink,
+  yourRateWords,
+} from '../services/ambassador-rate.js';
 import { checkAmbassadorDocument, checkInBackground } from '../services/auto-check.js';
 import { ensureCheckCode } from '../services/ambassador-protection.js';
 import { sendVoucher, staffVoucherView } from '../services/vouchers.js';
@@ -193,6 +200,9 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
         // Top Ambassador of the month and the first-business bonus (ruling 91): their own
         // standing, met or not met, last month's winner by first name; never anybody else's count.
         prize: agreement ? await prizePanel(app.ctx, kind, id) : null,
+        // Their rate (ruling 94): the standard one, or the individual one the owner granted.
+        rate: agreement ? rateView(app.ctx, agreement) : null,
+        rateWords: agreement ? yourRateWords(rateView(app.ctx, agreement)) : null,
       },
     };
   });
@@ -544,6 +554,69 @@ export async function registerReferralRoutes(app: FastifyInstance): Promise<void
       prizes: await prizeLog(app.ctx),
       firstBusinessBonuses: await firstBusinessBonusLog(app.ctx),
     };
+  });
+
+  /**
+   * One Ambassador's link, codes and QR code (ruling 94), for the owner and staff whose area
+   * covers Ambassadors: the business sign-up link, the check code and check link, their rate; a
+   * pending or declined Ambassador's status and no link. Never a document.
+   */
+  app.get('/staff/ambassadors/:id/links', async (request) => {
+    await staffActor(request, 'ambassadors');
+    const { id } = z.object({ id: z.string().min(1).max(60) }).parse(request.params);
+    return ambassadorLinks(app.ctx, id);
+  });
+
+  /**
+   * "Text this link to a business" (ruling 94): one text from Ozi with the Ambassador's sign-up
+   * link, as the staff member's own action, limited for each person each day. The number is
+   * written in the audit entry made by the service, and kept nowhere else; the hook does not
+   * write the body again.
+   */
+  app.post('/staff/ambassadors/:id/links/text', async (request) => {
+    const actor = await staffActor(request, 'ambassadors');
+    const { id } = z.object({ id: z.string().min(1).max(60) }).parse(request.params);
+    const body = z
+      .object({ phone: z.string().trim().min(1, 'Please give the phone number.').max(30) })
+      .parse(request.body ?? {});
+    const sent = await textAmbassadorLink(app.ctx, id, body.phone, {
+      actorId: actor.id,
+      name: actor.id === null ? `${actor.name} (staff key)` : actor.name,
+      role: actor.isOwner ? 'owner' : actor.role,
+      via: 'panel',
+      ip: request.ip ?? '',
+    });
+    (request as FastifyRequest & { audited?: boolean }).audited = true;
+    return { message: sent.message };
+  });
+
+  /**
+   * An individual rate (ruling 94): the owner alone, signed in with his passcode; the staff key
+   * and every other account are refused. Audited with before, after and who.
+   */
+  app.post('/staff/ambassadors/:id/rate', async (request) => {
+    const actor = await staffActor(request, 'ambassadors');
+    if (!actor.isOwner || !actor.id) {
+      throw new ForbiddenError('Only the owner can set an individual rate.');
+    }
+    const { id } = z.object({ id: z.string().min(1).max(60) }).parse(request.params);
+    const body = z
+      .object({
+        percent: z.number({
+          required_error: 'Please give the rate as a percentage, such as 3.',
+          invalid_type_error: 'Please give the rate as a percentage, such as 3.',
+        }),
+      })
+      .parse(request.body ?? {});
+    const result = await setAmbassadorRate(app.ctx, id, body.percent, {
+      actorId: actor.id,
+      name: actor.name,
+      role: 'owner',
+      via: 'panel',
+      ip: request.ip ?? '',
+    });
+    (request as FastifyRequest & { audited?: boolean }).audited = true;
+    return result;
   });
 
   app.post('/staff/ambassadors/:kind/:id/paid', async (request) => {
