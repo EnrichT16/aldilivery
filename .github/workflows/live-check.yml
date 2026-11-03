@@ -33,6 +33,16 @@ jobs:
             echo "== dig $host"; dig +short "$host" CNAME; dig +short "$host" A
           done
 
+      - name: The bare address, as somebody typing ozidelivery.co.uk would reach it
+        run: |
+          for url in http://ozidelivery.co.uk/ https://ozidelivery.co.uk/ http://www.ozidelivery.co.uk/ https://www.ozidelivery.co.uk/staff; do
+            echo "== GET $url (no redirects followed)"
+            curl -sS -m 40 -o body.txt -D headers.txt -w 'status=%{http_code} time=%{time_total}s\n' "$url" || echo "curl failed: $?"
+            grep -i '^location\|^content-type\|^server\|^x-frame\|^content-security' headers.txt || true
+            if grep -qi '<frame\|<iframe' body.txt; then echo "BODY CONTAINS A FRAME (masked forwarding)"; fi
+            head -c 400 body.txt; echo
+          done
+
       - name: GET health and config, both hosts
         run: |
           for host in www.ozidelivery.co.uk lobster-app-3ilv6.ondigitalocean.app; do
