@@ -43,6 +43,7 @@ import { addNamedItems, currentOffers, listInWords } from '../lib/extras';
 import { READ_MESSAGES, readMessagesAloud } from '../lib/inbox-api';
 import { readRunnerToken } from '../lib/session';
 import { currentAsker, KNOWN_NAMES, knownHere } from '../lib/ozi-asker';
+import { ASKS_VERSION, versionSpoken } from '../lib/version';
 import { STAFF_SESSION_EVENT } from '../lib/staff-session';
 import { CLOSE_QUESTION, leaveRunning } from '../lib/runner-api';
 import {
@@ -671,6 +672,13 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     if (REPEAT.test(words) && lastSaid.current !== '') {
       setHeard(text);
       sayAgain();
+      return;
+    }
+    // "What version is this?" (ruling 95): the build this phone is running, from the app itself,
+    // for every kind of account. A question that was waiting is still waiting afterwards.
+    if (ASKS_VERSION.test(words)) {
+      setHeard(text);
+      void sayRef.current(versionSpoken());
       return;
     }
     // "Hey Ozi" on its own: Ozi answers, and if it had asked something, asks it again, with

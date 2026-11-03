@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 
 import { storeConfig } from '../config';
+import { AppVersion } from '../components/AppVersion';
 import { CloseAccount } from '../components/CloseAccount';
+import { ResetApp } from '../components/ResetApp';
 import { WrongAppWarning } from '../components/GetTheApp';
 import { OrganisationConsent } from '../components/OrganisationConsent';
 import { ReferralCard } from '../components/ReferralCard';
@@ -261,6 +263,19 @@ export function Settings(): JSX.Element {
           </button>
         </section>
       )}
+
+      {/* Which build this is, and a fresh copy of it when the app looks wrong (ruling 95). */}
+      <section aria-labelledby="about-app-heading" className="space-y-3 max-w-xl">
+        <h2 id="about-app-heading" className="text-lead font-bold">
+          About this app
+        </h2>
+        <AppVersion className="!text-base" />
+        <p className="m-0 extra">
+          Ask {assistant} &quot;what version is this&quot; to hear it. If the app looks wrong or does
+          not load fully, reset it: a fresh copy comes from our server and you stay signed in.
+        </p>
+        <ResetApp />
+      </section>
 
       {shopper && <CloseAccount />}
     </div>

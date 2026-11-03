@@ -7,6 +7,7 @@ import { useBasket } from '../state/basket';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
 import { AdSquare } from './AdSquare';
+import { AppVersion } from './AppVersion';
 import { companyFacts } from './CompanyDetails';
 import { DemoBanner } from './DemoBanner';
 import { InboxLink } from './Inbox';
@@ -186,6 +187,8 @@ export function Layout({ children }: { children: ReactNode }): JSX.Element {
           </ul>
           <SocialLinks />
           <CompanyLine />
+          {/* Which build this phone is running (ruling 95), on every page. */}
+          <AppVersion />
         </div>
       </footer>
       <div

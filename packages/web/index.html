@@ -14,6 +14,117 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <title>%STORE_PRODUCT_NAME%</title>
+    <script>
+      // The very first file of the app not loading: a saved copy of this page that points at
+      // files a newer release replaced (ruling 95, 3 November 2026: "it doesn't load fully").
+      // Nothing in src/ can catch that, because nothing in src/ has loaded, so this plain script
+      // throws the saved copy away (every service worker and every saved file) and reloads from
+      // the server, once for each build, never in a loop. Sign-ins kept on the device stay. The
+      // app's own code does the same for files asked for later: src/lib/updates.ts.
+      (function () {
+        var build = '%BUILD_ID%';
+        var key = 'ozidelivery.heal.build';
+        var healing = false;
+        function healedAlready() {
+          try {
+            return localStorage.getItem(key) === build;
+          } catch (e) {
+            return true;
+          }
+        }
+        function forget() {
+          var jobs = [];
+          if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+            jobs.push(
+              navigator.serviceWorker
+                .getRegistrations()
+                .then(function (list) {
+                  return Promise.all(
+                    list.map(function (one) {
+                      return one.unregister();
+                    })
+                  );
+                })
+                .catch(function () {})
+            );
+          }
+          if (window.caches) {
+            jobs.push(
+              caches
+                .keys()
+                .then(function (names) {
+                  return Promise.all(
+                    names.map(function (name) {
+                      return caches.delete(name);
+                    })
+                  );
+                })
+                .catch(function () {})
+            );
+          }
+          return Promise.all(jobs);
+        }
+        function reload() {
+          location.reload();
+        }
+        function stuck() {
+          var root = document.getElementById('root');
+          if (!root || root.childNodes.length > 0) return;
+          root.innerHTML =
+            '<main style="padding:1.5rem;font-size:20px;line-height:1.6;font-family:system-ui,sans-serif">' +
+            '<h1 style="font-size:1.6em;margin:0 0 1rem">Something went wrong loading %STORE_PRODUCT_NAME%.</h1>' +
+            '<p role="alert" style="margin:0 0 1rem">Please close the app and open it again.</p>' +
+            '<p style="margin:0 0 1rem">If it still does not load, press Reset the app. You stay signed in.</p>' +
+            '<button type="button" id="ozi-reset-app" style="font:inherit;min-height:48px;padding:0.5rem 1.25rem;border:2px solid currentColor;border-radius:1.5rem;background:transparent;color:inherit">Reset the app</button>' +
+            '<p style="margin:1rem 0 0;font-size:0.9em" role="note" aria-label="App version">Build ' + build + '</p>' +
+            '</main>';
+          document.getElementById('ozi-reset-app').addEventListener('click', function () {
+            try {
+              localStorage.removeItem(key);
+              localStorage.removeItem('ozidelivery.update.forced');
+            } catch (e) {}
+            forget().then(reload, reload);
+          });
+        }
+        function heal() {
+          if (healing) return;
+          healing = true;
+          if (healedAlready()) {
+            stuck();
+            return;
+          }
+          try {
+            localStorage.setItem(key, build);
+          } catch (e) {}
+          forget().then(reload, reload);
+        }
+        // A script or stylesheet of this site that could not be fetched. Only our own: a
+        // payment or font file from elsewhere failing is not a broken copy of the app.
+        function ours(target) {
+          var address = target && (target.src || target.href);
+          if (typeof address !== 'string' || address === '') return false;
+          try {
+            return new URL(address, location.href).origin === location.origin;
+          } catch (e) {
+            return false;
+          }
+        }
+        window.addEventListener(
+          'error',
+          function (event) {
+            var target = event.target;
+            var tag = target && target.tagName;
+            if ((tag === 'SCRIPT' || tag === 'LINK') && ours(target)) heal();
+          },
+          true
+        );
+        // Nothing drawn after a good while, with a connection: a broken copy, not a slow one.
+        setTimeout(function () {
+          var root = document.getElementById('root');
+          if (root && root.childNodes.length === 0 && navigator.onLine !== false) heal();
+        }, 15000);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

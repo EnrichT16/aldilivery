@@ -10,6 +10,7 @@ import {
 
 import { ReceiptPhoto, TillCases } from '../components/TillCases';
 import { StaffAmbassadors } from './StaffAmbassadors';
+import { AppHealth } from './SignIn';
 
 import {
   addBusinessUser,
@@ -809,6 +810,8 @@ function SignIn({
       >
         {withKey ? 'Sign in with a username instead' : 'Founder: sign in with the staff key'}
       </button>
+      {/* Which build this is, and "Reset the app" (ruling 95), on this sign-in page too. */}
+      <AppHealth />
     </form>
   );
 }

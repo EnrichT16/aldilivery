@@ -10,6 +10,7 @@ import {
 } from '../lib/api';
 import { useOzi } from '../state/ozi';
 import { nameHeardIn } from '../voice/name';
+import { AppHealth } from './SignIn';
 
 const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
 
@@ -193,6 +194,8 @@ export function BusinessSignIn(): JSX.Element {
           </Link>
         </p>
       </section>
+      {/* Which build this is, and "Reset the app" (ruling 95), on this sign-in page too. */}
+      <AppHealth />
     </div>
   );
 }
