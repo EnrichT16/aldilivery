@@ -10,6 +10,7 @@ import { AdSquare } from './AdSquare';
 import { companyFacts } from './CompanyDetails';
 import { DemoBanner } from './DemoBanner';
 import { InboxLink } from './Inbox';
+import { LiveClock } from './LiveClock';
 import { MicrophoneHelp } from './MicrophoneHelp';
 import { BUBBLE_ROOM, OziBubble, presenceWord } from './OziBubble';
 import { OziSwitch } from './OziSwitch';
@@ -230,6 +231,8 @@ function ShopperTopBar({
         <Link to="/settings" className="control !px-3 bg-paper/10 text-paper">
           Settings
         </Link>
+        {/* The clock, in UK time (ruling 93): read on focus, never announced on its own. */}
+        {!restoring && <LiveClock className="w-full !justify-start text-[0.95rem]" />}
         {/* Only once the account is known, as before: these links mean signed in. */}
         {!restoring && (
           <nav aria-label="Your orders" className="w-full">

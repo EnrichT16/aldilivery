@@ -471,9 +471,11 @@ describe('what Ozi knows (docs/ozi-knowledge.md, 31 October 2026)', () => {
       expect(text).toMatch(/Never talk about insurance/);
       expect(text).not.toMatch(/AI model|anthropic|claude/i);
     }
-    expect(ownerInstructions(config, knowledge)).toContain(
-      `Always address him as ${config.owner.spokenName}`,
-    );
+    // His name naturally and sparingly (ruling 92), never forced at the start of every reply.
+    const owner = ownerInstructions(config, knowledge);
+    expect(owner).toContain(`call him ${config.owner.spokenName} when you address him`);
+    expect(owner).toMatch(/Never open every reply with his name/);
+    expect(owner).not.toMatch(/Always address him as/);
   });
 });
 
@@ -606,6 +608,7 @@ describe('a real conversation (31 October 2026)', () => {
       listEmails: async () => ({}),
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
+      listReminders: async () => ({ waiting: [] }),
       proposeAction: async () => ({ ok: false, why: 'no' }),
     };
     const talk = await brain.talkWithOwner!({
@@ -650,6 +653,9 @@ describe('a real conversation (31 October 2026)', () => {
       'reply_email',
       'get_alert_preferences',
       'set_alert_preferences',
+      'set_reminder',
+      'list_reminders',
+      'cancel_reminder',
     ]);
     expect(tools0.every((tool) => tool.strict)).toBe(true);
     // The tool's answer went back to the model as a result, after its own call.
@@ -710,6 +716,7 @@ describe('a real conversation (31 October 2026)', () => {
       listEmails: async () => ({}),
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
+      listReminders: async () => ({ waiting: [] }),
       proposeAction: async () => ({ ok: false, why: 'no' }),
     };
     const talk = await brain.talkWithOwner!({
@@ -766,6 +773,7 @@ describe('a real conversation (31 October 2026)', () => {
       listEmails: async () => ({}),
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
+      listReminders: async () => ({ waiting: [] }),
       proposeAction: async () => ({ ok: false, why: 'no' }),
     };
     const declined = languageModel(
@@ -866,6 +874,7 @@ describe('what is on the screen (ruling 89, 2 November 2026)', () => {
       listEmails: async () => ({}),
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
+      listReminders: async () => ({ waiting: [] }),
       proposeAction: async () => ({ ok: false, why: 'no' }),
     };
     const talk = await brain.talkWithOwner!({

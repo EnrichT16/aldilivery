@@ -105,6 +105,8 @@ import { StaffVoice } from '../components/StaffVoice';
 import { OziCall } from '../components/OziCall';
 import { OziCallSettings } from '../components/OziCallSettings';
 import { OwnerAlertSettings } from '../components/OwnerAlertSettings';
+import { LiveClock } from '../components/LiveClock';
+import { Reminders } from '../components/Reminders';
 import { OwnerStaffControls } from '../components/OwnerStaffControls';
 import { ActiveSos, RemoveRunner, WaitingDeposits } from '../components/StaffRunnerSafety';
 import {
@@ -147,7 +149,7 @@ import { CheckThisBusiness } from '../components/StaffAmbassadorChecks';
  * name of whoever made it.
  */
 
-type TabKey = StaffArea | 'mine' | 'twostep';
+type TabKey = StaffArea | 'mine' | 'twostep' | 'reminders';
 type StaffMe = Awaited<ReturnType<typeof fetchStaffMe>>;
 
 /**
@@ -186,6 +188,7 @@ export const TABS: Array<{ key: TabKey; label: string; group: TabGroup }> = [
   { key: 'ambassadors', label: 'Ambassadors', group: 'people' },
   { key: 'accounts', label: 'Shopper accounts', group: 'people' },
   { key: 'audit', label: 'Audit log', group: 'settings' },
+  { key: 'reminders', label: 'Reminders', group: 'settings' },
   { key: 'twostep', label: 'Two-step codes', group: 'settings' },
   { key: 'mine', label: 'My settings', group: 'settings' },
 ];
@@ -380,8 +383,11 @@ export function Staff(): JSX.Element {
       ? me.isOwner === true
       : key === 'twostep'
         ? me.account && me.isOwner !== true
-        : // Needs you now carries the "Locked out" list, for whoever may unlock (ruling 81).
-          me.areas.includes(key) || (key === 'overview' && me.canUnlock === true);
+        : // Reminders (ruling 93) belong to a person: every own account, never the staff key.
+          key === 'reminders'
+          ? Boolean(me.account)
+          : // Needs you now carries the "Locked out" list, for whoever may unlock (ruling 81).
+            me.areas.includes(key) || (key === 'overview' && me.canUnlock === true);
   const freshSession = (token: string): void => {
     // Kept where the sign-in was kept: on this phone if it was remembered (ruling 84).
     keepStaffSession({ key: token, name: by, remember: onPhone, owner: me.isOwner === true });
@@ -399,7 +405,10 @@ export function Staff(): JSX.Element {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-display font-bold m-0">Admin</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-display font-bold m-0">Admin</h1>
+        <LiveClock />
+      </div>
       <p className="m-0">
         Signed in as {by}, {me.isOwner ? 'Founder and owner' : me.title}.
         {me.viewOnly ? ' You can look, but not change anything.' : ''}{' '}
@@ -556,6 +565,7 @@ export function Staff(): JSX.Element {
                 onSession={freshSession}
               />
             )}
+            {shown === 'reminders' && <Reminders as={{ kind: 'staff', key }} />}
             {shown === 'mine' && (
               <MySettings
                 owner={me.isOwner === true}
@@ -1947,7 +1957,26 @@ function Memory({
   }, [verdict, channel, reload]);
   const rows: ExchangeRow[] | undefined = list.data?.exchanges;
   const counts = list.data?.counts;
+  const latency = list.data?.latency;
   const [better, setBetter] = useState<Record<string, string>>({});
+  /** "1.8 s": milliseconds as seconds, one decimal, for people. */
+  const seconds = (ms: number): string => `${(ms / 1000).toFixed(1)} s`;
+  /** How long one exchange took (ruling 92), in plain words, or nothing when not measured. */
+  const timings = (row: ExchangeRow): string | null => {
+    const parts: string[] = [];
+    if (typeof row.feltMs === 'number') parts.push(`felt ${seconds(row.feltMs)} to the first word`);
+    if (typeof row.firstWordMs === 'number') parts.push(`server ${seconds(row.firstWordMs)} to the first sentence`);
+    if (typeof row.modelMs === 'number') parts.push(`${seconds(row.modelMs)} thinking`);
+    if (typeof row.totalMs === 'number') parts.push(`${seconds(row.totalMs)} in all`);
+    return parts.length === 0 ? null : `Took: ${parts.join(', ')}.`;
+  };
+  const summaryWords = (
+    who: string,
+    summary: { medianFeltMs: number; p90FeltMs: number; exchanges: number } | null,
+  ): string =>
+    summary
+      ? `${who}: half heard the first word within ${seconds(summary.medianFeltMs)}, nine in ten within ${seconds(summary.p90FeltMs)} (${summary.exchanges} ${summary.exchanges === 1 ? 'exchange' : 'exchanges'}).`
+      : `${who}: nothing measured yet.`;
   const judge = (row: ExchangeRow, right: boolean): void => {
     const words = (better[row.id] ?? '').trim();
     void judgeExchange(
@@ -1999,6 +2028,19 @@ function Memory({
           {counts.total} kept: {counts.unrated} not yet judged, {counts.right} right, {counts.wrong}{' '}
           wrong.
         </p>
+      )}
+      {latency && (
+        <section aria-labelledby="memory-speed-heading" className="space-y-1">
+          <h3 id="memory-speed-heading" className="m-0 font-bold">
+            How quickly Ozi answered in the last day
+          </h3>
+          <p className="m-0 extra">
+            The wait a person felt on their phone, from finishing speaking to Ozi&rsquo;s first
+            word.
+          </p>
+          <p className="m-0">{summaryWords('Everyone', latency.everyone)}</p>
+          <p className="m-0">{summaryWords('The owner', latency.owner)}</p>
+        </section>
       )}
       <div role="group" aria-label="Which exchanges" className="flex flex-wrap gap-2">
         {(['unrated', 'wrong', 'right', 'all'] as const).map((one) => (
@@ -2053,6 +2095,7 @@ function Memory({
               Heard: &ldquo;{row.heard === '' ? 'nothing, Ozi spoke first' : row.heard}&rdquo;
             </h3>
             <p className="m-0">Ozi said: &ldquo;{row.said === '' ? 'nothing' : row.said}&rdquo;</p>
+            {timings(row) && <p className="m-0 extra">{timings(row)}</p>}
             {row.verdict !== 'unrated' && (
               <p className="m-0">
                 Marked {row.verdict} by {row.ratedBy ?? 'staff'}

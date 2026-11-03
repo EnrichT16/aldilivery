@@ -6,6 +6,7 @@ import { CloseAccount } from '../components/CloseAccount';
 import { WrongAppWarning } from '../components/GetTheApp';
 import { OrganisationConsent } from '../components/OrganisationConsent';
 import { ReferralCard } from '../components/ReferralCard';
+import { Reminders } from '../components/Reminders';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import {
   cancelPlan,
@@ -234,6 +235,9 @@ export function Settings(): JSX.Element {
           </p>
         </section>
       )}
+
+      {/* Reminders for everyone (ruling 93): the Shopper's, here on their account page. */}
+      {shopper && <Reminders as="shopper" />}
 
       {shopper && (
         // A shared phone (Anthony, 4 October 2026). By voice: "sign me out", "change account".

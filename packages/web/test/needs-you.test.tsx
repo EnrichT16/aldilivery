@@ -464,6 +464,7 @@ describe('the tabs, in four groups', () => {
       'Feedback',
       'Shopper accounts',
       'Audit log',
+      'Reminders',
       'My settings',
     ]);
     // One tab stop per list; arrows move along it and choose as they go; the ends join up.

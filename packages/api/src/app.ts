@@ -34,6 +34,7 @@ import type { CallRecorder } from './lib/call-recording.js';
 import type { CallProvider } from './lib/livekit.js';
 import type { VoiceEngineLink } from './lib/oluoma-voice.js';
 import type { OziBrain } from './lib/language-model.js';
+import { feltDelaysOf } from './lib/ozi-latency.js';
 import type { MailboxLink } from './lib/mailbox.js';
 import type { OpenPricesLookup } from './lib/open-prices.js';
 import type { PaymentsGateway } from './lib/payments.js';
@@ -71,6 +72,7 @@ import { registerShareRoutes } from './routes/share.js';
 import { registerTelephoneRoutes } from './routes/telephone.js';
 import { registerOwnerDeskRoutes } from './routes/owner-desk.js';
 import { registerCompanyInboxRoutes } from './routes/company-inbox.js';
+import { registerReminderRoutes } from './routes/reminders.js';
 import { registerVoiceRoutes } from './routes/voice.js';
 import { registerPaymentRoutes } from './routes/payments.js';
 import { registerReimbursementRoutes } from './routes/reimbursements.js';
@@ -543,7 +545,15 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
     // (ruling 88, for the live check). The ids are for operators, not secrets; the provider's
     // name is still shown nowhere a Shopper, Runner or partner reads.
     brainEnabled: ctx.brain !== null,
-    brain: ctx.brain ? { model: ctx.brain.model, ownerModel: ctx.brain.ownerModel ?? null } : null,
+    // With how long people waited for Ozi in the last day (ruling 92): the median and 90th
+    // percentile of the felt delay, kept in memory, so this check still makes no database call.
+    brain: ctx.brain
+      ? {
+          model: ctx.brain.model,
+          ownerModel: ctx.brain.ownerModel ?? null,
+          latency24h: feltDelaysOf(ctx).last24h(ctx.now()),
+        }
+      : null,
     // How long sign-ins last (ruling 88), so the live settings can be read off this check.
     sessions: {
       shopperRunnerHours: sessionTtlHours(ctx.env),
@@ -644,6 +654,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerTelephoneRoutes(app);
   await registerOwnerDeskRoutes(app);
   await registerCompanyInboxRoutes(app);
+  await registerReminderRoutes(app);
   await registerVoiceRoutes(app);
   await registerPaymentRoutes(app);
   await registerReimbursementRoutes(app);

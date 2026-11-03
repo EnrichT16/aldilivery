@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { App } from '../src/App';
 import { setVoiceEngine } from '../src/voice';
+import { FILLERS, forgetLastFiller } from '../src/voice/filler';
 import {
   aboutPartnerShops,
   overviewWords,
@@ -317,25 +318,29 @@ describe('the owner on /staff (ruling 86)', () => {
     } finally {
       vi.useRealTimers();
     }
-    // He was never left in silence meanwhile.
-    expect(engine.spoken.filter((s) => /^One moment, Mr\. Anthony\.$/.test(s.text))).toHaveLength(
-      3,
-    );
+    // He was never left in silence meanwhile: one short filler a turn, after six seconds, never
+    // the same one twice running, and never his name (ruling 92).
+    const fillers = engine.spoken.filter((s) => FILLERS.includes(s.text as never));
+    expect(fillers).toHaveLength(3);
+    expect(fillers[0]!.text).not.toBe(fillers[1]!.text);
+    expect(fillers[1]!.text).not.toBe(fillers[2]!.text);
+    expect(spoken(engine)).not.toMatch(/One moment, Mr\. Anthony/);
     expect(spoken(engine)).not.toMatch(/shop products/i);
   });
 });
 
-describe('the owner, when the conversation is slow (ruling 86)', () => {
+describe('the owner, when the conversation is slow or streamed (ruling 92)', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it('says "One moment, Mr. Anthony." once after about 3 seconds, then the answer', async () => {
+  /** His sign-in, with /ozi/reply answered as the test says. */
+  function stubOwner(reply: (init?: RequestInit) => Promise<Response>): void {
     window.sessionStorage.clear();
     window.localStorage.setItem('ozidelivery.voice.settings', JSON.stringify({ introHeard: true }));
     vi.stubGlobal(
       'fetch',
-      vi.fn(async (url: string) => {
+      vi.fn(async (url: string, init?: RequestInit) => {
         const path = pathOf(url);
         if (path === '/staff/sign-in') {
           return json({
@@ -360,27 +365,107 @@ describe('the owner, when the conversation is slow (ruling 86)', () => {
           });
         }
         if (path === '/staff/team') return json({ members: [] });
-        if (path === '/ozi/reply') {
-          await new Promise((resolve) => setTimeout(resolve, 3600));
-          return json({ reply: 'No new shop partners are waiting, Mr. Anthony.' });
-        }
+        if (path === '/ozi/reply') return reply(init);
         return json({});
       }),
     );
+  }
+
+  it('says nothing at 3 seconds, one short filler after 6, then the answer', async () => {
+    forgetLastFiller();
+    stubOwner(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 7000));
+      return json({ reply: 'No new shop partners are waiting.' });
+    });
     const engine = fakeEngine();
     setVoiceEngine(engine);
     await signIn('anthony');
     await waitFor(() => expect(spoken(engine)).toMatch(/Mr Anthony/));
-    await heard(engine, 'How is the business doing today?');
-    await waitFor(
-      () => {
-        expect(engine.spoken.at(-1)?.text).toBe('No new shop partners are waiting, Mr. Anthony.');
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      await heard(engine, 'How is the business doing today?');
+      const before = engine.spoken.length;
+      await vi.advanceTimersByTimeAsync(3600);
+      // Silence at three and a half seconds: no "One moment, Mr. Anthony."
+      expect(engine.spoken.slice(before)).toEqual([]);
+      await vi.advanceTimersByTimeAsync(3000);
+      const fillers = engine.spoken.slice(before).filter((s) => FILLERS.includes(s.text as never));
+      expect(fillers).toHaveLength(1);
+      expect(spoken(engine)).not.toMatch(/One moment, Mr\. Anthony/);
+      await vi.advanceTimersByTimeAsync(1500);
+      await waitFor(() => {
+        expect(engine.spoken.at(-1)?.text).toBe('No new shop partners are waiting.');
+      });
+      // The answer is queued behind the filler, not cut over it.
+      expect(engine.spoken.at(-1)?.options.queue).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('speaks each streamed sentence as it arrives, queued without a cut, then what was left', async () => {
+    const felt: unknown[] = [];
+    const events = [
+      { type: 'sentence', text: 'Two new shop partners are waiting.' },
+      { type: 'sentence', text: 'Corner Shop and Bakery.' },
+      {
+        type: 'done',
+        reply: 'Two new shop partners are waiting. Corner Shop and Bakery. Shall I go through them?',
+        unsaid: 'Shall I go through them?',
       },
-      { timeout: 6000 },
-    );
-    const moments = engine.spoken.filter((s) => /^One moment, Mr\. Anthony\.$/.test(s.text));
-    expect(moments).toHaveLength(1);
-  }, 10_000);
+    ];
+    stubOwner(async (init) => {
+      const headers = new Headers(init?.headers);
+      expect(headers.get('accept')).toBe('text/event-stream');
+      const encoder = new TextEncoder();
+      const body = new ReadableStream<Uint8Array>({
+        async start(controller) {
+          for (const event of events) {
+            await new Promise((resolve) => setTimeout(resolve, 20));
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+          }
+          controller.close();
+        },
+      });
+      return {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'text/event-stream' }),
+        body,
+      } as unknown as Response;
+    });
+    const answering = vi.mocked(fetch).getMockImplementation()!;
+    vi.mocked(fetch).mockImplementation(async (url, init) => {
+      if (pathOf(String(url)) === '/ozi/felt') {
+        felt.push(JSON.parse(String(init?.body)));
+        return json({ ok: true });
+      }
+      return answering(url as string, init);
+    });
+    const engine = fakeEngine();
+    setVoiceEngine(engine);
+    await signIn('anthony');
+    await waitFor(() => expect(spoken(engine)).toMatch(/Mr Anthony/));
+    const before = engine.spoken.length;
+    await heard(engine, 'Do I have any shop partners to approve?');
+    await waitFor(() => {
+      expect(engine.spoken.at(-1)?.text).toBe('Shall I go through them?');
+    });
+    const said = engine.spoken.slice(before);
+    expect(said.map((s) => s.text)).toEqual([
+      'Two new shop partners are waiting.',
+      'Corner Shop and Bakery.',
+      'Shall I go through them?',
+    ]);
+    // Each sentence queued behind the one before: no cancel, no click.
+    expect(said.every((s) => s.options.queue === true)).toBe(true);
+    // No filler: the first sentence came well within six seconds.
+    expect(said.some((s) => FILLERS.includes(s.text as never))).toBe(false);
+    // The delay he felt, to the first word, was sent back to be measured.
+    await waitFor(() => expect(felt).toHaveLength(1));
+    expect(felt[0]).toMatchObject({ turn: expect.any(Number) });
+    expect((felt[0] as { feltMs: number }).feltMs).toBeGreaterThanOrEqual(0);
+  });
 });
 
 describe('other staff (ruling 86)', () => {

@@ -46,6 +46,8 @@ import { CallControls } from '../components/CallControls';
 import { DocumentsChecklist } from '../components/DocumentsChecklist';
 import { JobNavigation } from '../components/JobNavigation';
 import { ReferralCard } from '../components/ReferralCard';
+import { Reminders } from '../components/Reminders';
+import { LiveClock } from '../components/LiveClock';
 import { WrongAppWarning } from '../components/GetTheApp';
 import {
   DOCUMENT_CHECK_WORDS,
@@ -342,7 +344,10 @@ export function RunnerHome(): JSX.Element {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-display font-bold m-0">Hello, {runner.name}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-display font-bold m-0">Hello, {runner.name}</h1>
+        <LiveClock />
+      </div>
       {runner.isDemo && <DemoBanner />}
       <nav aria-label="Your messages">
         <InboxLink as="runner" to="/runner/messages" />
@@ -560,6 +565,7 @@ export function RunnerHome(): JSX.Element {
       {tab === 'more' && (
         <>
           <More dashboard={dashboard} onNews={setNews} />
+          <Reminders as="runner" />
           {!dashboard?.leftAt && (
             <div className="max-w-xl">
               <LeaveRunning

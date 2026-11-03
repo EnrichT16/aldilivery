@@ -68,6 +68,7 @@ import type {
   AmbassadorAgreement,
   AmbassadorClaim,
   AmbassadorPrize,
+  Reminder,
   DeviceSighting,
   AmbassadorNote,
   AmbassadorDocument,
@@ -214,6 +215,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const ambassadorWithdrawals: AmbassadorWithdrawal[] = [];
   const ambassadorClaims: AmbassadorClaim[] = [];
   const ambassadorPrizes: AmbassadorPrize[] = [];
+  const reminders = new Map<string, Reminder>();
   const deviceSightings: DeviceSighting[] = [];
   const auditEntries: AuditEntry[] = [];
   const cardAuthorizations = new Map<string, CardAuthorization>();
@@ -989,6 +991,42 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
       async list() {
         return [...ambassadorPrizes].sort((a, b) => b.month.localeCompare(a.month)).map(clone);
+      },
+    },
+
+    reminders: {
+      async create(input) {
+        const row: Reminder = {
+          status: 'scheduled',
+          sentAt: null,
+          heardAt: null,
+          ...input,
+          id: id(),
+        };
+        reminders.set(row.id, row);
+        return clone(row);
+      },
+      async findById(reminderId) {
+        const found = reminders.get(reminderId);
+        return found ? clone(found) : null;
+      },
+      async listFor(accountKind, accountId) {
+        return [...reminders.values()]
+          .filter((row) => row.accountKind === accountKind && row.accountId === accountId)
+          .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime())
+          .map(clone);
+      },
+      async listDue(at) {
+        return [...reminders.values()]
+          .filter((row) => row.status === 'scheduled' && row.dueAt.getTime() <= at.getTime())
+          .sort((a, b) => a.dueAt.getTime() - b.dueAt.getTime())
+          .map(clone);
+      },
+      async update(reminderId, patch) {
+        const found = reminders.get(reminderId);
+        if (!found) throw new NotFoundError('Reminder', reminderId);
+        Object.assign(found, patch);
+        return clone(found);
       },
     },
 
@@ -2394,6 +2432,17 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           if (row.reviewedAt && (!latest || row.reviewedAt > latest)) latest = row.reviewedAt;
         }
         return latest;
+      },
+      async recordFelt(conversationKey, turn, feltMs) {
+        const row = [...exchanges]
+          .reverse()
+          .find((one) => one.conversationKey === conversationKey && one.turn === turn);
+        if (row) row.feltMs = feltMs;
+      },
+      async feltSince(since) {
+        return exchanges
+          .filter((row) => row.at >= since && typeof row.feltMs === 'number')
+          .map((row) => ({ feltMs: row.feltMs as number, accountKind: row.accountKind ?? null }));
       },
     },
 

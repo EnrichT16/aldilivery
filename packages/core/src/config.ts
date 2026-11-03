@@ -411,12 +411,16 @@ export interface StoreConfig {
    * Ozi's conversations (Anthony, 31 October 2026): how often Ozi reviews its own week of
    * conversations for better replies (`reviewEveryDays`, at most `reviewMostExchanges` a time,
    * each a suggestion for a person to approve), and the most turns the language model takes for
-   * one account in a UK day (`maxModelTurnsPerDay`; the owner has no limit).
+   * one account in a UK day (`maxModelTurnsPerDay`; the owner has no limit). `fillerAfterMs`
+   * (ruling 92): how long the app waits in silence for an answer before Ozi says a short filler
+   * such as "Just checking"; nothing is said before it, and a reply that has started arriving
+   * stops it.
    */
   readonly ozi: {
     readonly reviewEveryDays: number;
     readonly reviewMostExchanges: number;
     readonly maxModelTurnsPerDay: number;
+    readonly fillerAfterMs: number;
   };
   /**
    * Ozi's desk (ruling 74, 22 October 2026): Ozi rings the owner about anything that needs him.
@@ -493,6 +497,13 @@ export interface StoreConfig {
     readonly summaryKeepDays: number;
     readonly readAloudCharacters: number;
   };
+  /**
+   * Reminders for everyone (Anthony, 3 November 2026, ruling 93): how many each account may have
+   * waiting, how long the words may be, how far ahead one may be set, how long "remind me again"
+   * on a call waits, and the hours a reminder by text or call is held unless the person set it
+   * for those hours themselves. The quiet hours' defaults are `ownerDesk`'s.
+   */
+  readonly reminders: ReminderSettings;
 }
 
 /** How Ozi lets the owner know about one kind of matter (ruling 85). */
@@ -526,6 +537,23 @@ export interface OwnerDeskSettings {
    * attempt falls back to the telephone.
    */
   readonly appRingSeconds: number;
+}
+
+/** Reminders for everyone (ruling 93). Times are "HH:MM", UK time. */
+export interface ReminderSettings {
+  /** The most reminders one account may have waiting at once. */
+  readonly maxPerAccount: number;
+  /** The most characters a reminder's words may run to. */
+  readonly maxTextLength: number;
+  /** A reminder may be set this many minutes into the past, for a clock a little behind. */
+  readonly pastGraceMinutes: number;
+  /** The furthest ahead a reminder may be set, in days. */
+  readonly maxDaysAhead: number;
+  /** "Press 2 to remind you again": the reminder comes back after this many minutes. */
+  readonly againMinutes: number;
+  /** A reminder by text or call due between these is held until they end, unless set for then. */
+  readonly quietFrom: string;
+  readonly quietUntil: string;
 }
 
 /** The company inbox and staff calls (ruling 77). */
@@ -1430,6 +1458,18 @@ function parseCompanyContact(raw: Unknown): CompanyContactSettings {
   };
 }
 
+function parseReminders(raw: Unknown, desk: OwnerDeskSettings): ReminderSettings {
+  return {
+    maxPerAccount: wholeNumber(raw['maxPerAccount'] ?? 50, 'reminders.maxPerAccount', 1),
+    maxTextLength: wholeNumber(raw['maxTextLength'] ?? 200, 'reminders.maxTextLength', 20),
+    pastGraceMinutes: wholeNumber(raw['pastGraceMinutes'] ?? 1, 'reminders.pastGraceMinutes', 0),
+    maxDaysAhead: wholeNumber(raw['maxDaysAhead'] ?? 365, 'reminders.maxDaysAhead', 1),
+    againMinutes: wholeNumber(raw['againMinutes'] ?? 10, 'reminders.againMinutes', 1),
+    quietFrom: clockTime(raw['quietFrom'] ?? desk.quietFrom, 'reminders.quietFrom'),
+    quietUntil: clockTime(raw['quietUntil'] ?? desk.quietUntil, 'reminders.quietUntil'),
+  };
+}
+
 function parseScheduled(raw: Unknown): ScheduledSettings {
   const defaults = SCHEDULED_DEFAULTS;
   const windowsRaw =
@@ -2087,8 +2127,13 @@ export function parseStoreConfig(input: unknown): StoreConfig {
         'ozi.maxModelTurnsPerDay',
         1,
       ),
+      fillerAfterMs: wholeNumber(oziRaw['fillerAfterMs'] ?? 6000, 'ozi.fillerAfterMs', 1000),
     },
     ownerDesk: parseOwnerDesk(ownerDeskRaw),
+    reminders: parseReminders(
+      root['reminders'] === undefined ? {} : object(root['reminders'], 'reminders'),
+      parseOwnerDesk(ownerDeskRaw),
+    ),
     companyContact: parseCompanyContact(
       root['companyContact'] === undefined ? {} : object(root['companyContact'], 'companyContact'),
     ),

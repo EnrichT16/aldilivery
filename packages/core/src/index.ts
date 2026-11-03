@@ -73,6 +73,7 @@ export {
   type CheckoutInsightSettings,
   type CatalogueSourceMode,
   type OwnerDeskSettings,
+  type ReminderSettings,
   type CompanyContactSettings,
   ALERT_KINDS,
   ALERT_WAYS,
@@ -346,3 +347,19 @@ export {
   type ScheduledSettings,
   type WindowTimes,
 } from './scheduled.js';
+
+export {
+  ASKS_THE_TIME,
+  UK_TIME_ZONE,
+  clockSpoken,
+  ukClockWords,
+  ukDateKey,
+  ukDayWords,
+  ukParts,
+  ukStartOfDay,
+  ukTimeAnswer,
+  ukTimeSpoken,
+  ukWallTimeToDate,
+  ukWhenWords,
+  type UkParts,
+} from './uk-time.js';

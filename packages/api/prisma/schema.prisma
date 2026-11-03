@@ -1496,6 +1496,13 @@ model OziExchange {
   accountKind     String?
   /// When Ozi's weekly self-review looked at this exchange, so it is never looked at twice.
   reviewedAt      DateTime?
+  /// How long it took (ruling 92, 3 November 2026): waiting on the model, to the first spoken
+  /// sentence leaving the server, the whole server time, and the delay the person felt on their
+  /// phone from finishing speaking to the first word heard, sent back by the app.
+  modelMs         Int?
+  firstWordMs     Int?
+  totalMs         Int?
+  feltMs          Int?
 
   @@index([at])
   @@index([verdict, at])
@@ -2215,4 +2222,33 @@ model OwnerPreference {
   quietUntil     String
   updatedAt      DateTime @default(now())
   updatedBy      String   @default("")
+}
+
+/// A reminder somebody asked for (Anthony, 3 November 2026, ruling 93): for any kind of account,
+/// by voice or on the screen, delivered when due by a notification, a text or a phone call. The
+/// words are blanked of anything like a number or an address when kept. A repeating reminder is
+/// the same row with its dueAt moved on each time it is sent.
+model Reminder {
+  id          String    @id @default(cuid())
+  /// shopper, runner, partner, organisation, staff or owner.
+  accountKind String
+  accountId   String
+  text        String
+  dueAt       DateTime
+  /// none, daily, weekly or monthly.
+  repeat      String    @default("none")
+  /// notification, text or call.
+  channel     String    @default("notification")
+  /// scheduled, sent, heard or cancelled.
+  status      String    @default("scheduled")
+  /// voice or screen.
+  createdVia  String    @default("screen")
+  /// Set for a time inside the quiet hours by the person, so it is not held until they end.
+  setInQuiet  Boolean   @default(false)
+  sentAt      DateTime?
+  heardAt     DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([accountKind, accountId, dueAt])
+  @@index([status, dueAt])
 }

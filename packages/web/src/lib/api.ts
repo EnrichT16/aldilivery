@@ -3281,9 +3281,44 @@ export interface OziUnderstanding {
     | 'remove'
     | 'repeat'
     | 'chatter'
-    | 'unclear';
+    | 'unclear'
+    | 'reminder';
   items: Array<{ name: string; quantity: number; brand: string | null; detail: string | null }>;
   reply: string | null;
+}
+
+export interface OziReply {
+  reply: string | null;
+  understood?: OziUnderstanding;
+  awaitingYes?: boolean;
+}
+
+/** The body of one question to Ozi: the words, the turn, the basket and the screen. */
+function oziBody(
+  text: string,
+  mode: 'exact' | 'within',
+  turn: number,
+  basket?: string[],
+  extra: Record<string, unknown> = {},
+): string {
+  // What is on the screen right now (ruling 89): words already shown, never a field's value.
+  const screen = screenSnapshot();
+  return JSON.stringify({
+    text,
+    mode,
+    turn,
+    conversation: conversationId(),
+    ...(basket && basket.length > 0 ? { basket } : {}),
+    ...(screen ? { screen } : {}),
+    ...extra,
+  });
+}
+
+/** The request, with the credentials of whoever is asking. */
+function oziRequest<T>(as: OziAsker, path: string, init: RequestInit): Promise<T> {
+  if (as.kind === 'staff') return staffRequest(as.key, path, init);
+  if (as.kind === 'business') return businessRequest(path, init);
+  return request(path, init, as.kind);
 }
 
 export function askOzi(
@@ -3292,23 +3327,146 @@ export function askOzi(
   turn: number,
   as: OziAsker,
   basket?: string[],
-): Promise<{ reply: string | null; understood?: OziUnderstanding; awaitingYes?: boolean }> {
-  // What is on the screen right now (ruling 89): words already shown, never a field's value.
-  const screen = screenSnapshot();
-  const init: RequestInit = {
-    method: 'POST',
-    body: JSON.stringify({
-      text,
-      mode,
-      turn,
-      conversation: conversationId(),
-      ...(basket && basket.length > 0 ? { basket } : {}),
-      ...(screen ? { screen } : {}),
-    }),
+): Promise<OziReply> {
+  return oziRequest(as, '/ozi/reply', { method: 'POST', body: oziBody(text, mode, turn, basket) });
+}
+
+/** The reply as it arrives (ruling 92): sentences, at most one status line, then the end. */
+export interface OziStreamHandlers {
+  /** One complete sentence of the reply, to be spoken at once. */
+  onSentence: (text: string) => void;
+  /** Ozi is looking something up: said in place of a filler. */
+  onStatus: (text: string) => void;
+}
+
+/** The end of a streamed reply: the same as the plain reply, plus what was not yet spoken. */
+export interface OziStreamedReply extends OziReply {
+  /** The part of the reply not sent as sentences: '' when all of it was. */
+  unsaid: string;
+}
+
+/** The headers every request carries, with whoever is asking (the same as `request` sends). */
+function oziHeaders(as: OziAsker): Record<string, string> {
+  const token = as.kind === 'runner' ? readRunnerToken() : as.kind === 'shopper' ? readToken() : null;
+  const device = deviceId();
+  return {
+    'content-type': 'application/json',
+    ...(device ? { 'x-device-id': device } : {}),
+    ...(token ? { authorization: `Bearer ${token}` } : {}),
+    ...(as.kind === 'staff' ? staffHeaders(as.key) : {}),
+    ...(as.kind === 'business' ? { 'x-business-token': businessToken() } : {}),
   };
-  if (as.kind === 'staff') return staffRequest(as.key, '/ozi/reply', init);
-  if (as.kind === 'business') return businessRequest('/ozi/reply', init);
-  return request('/ozi/reply', init, as.kind);
+}
+
+/** The events out of a run of server-sent events text; the rest, a part event, is given back. */
+export function readEvents(buffer: string): { events: Array<Record<string, unknown>>; rest: string } {
+  const parts = buffer.split(/\r?\n\r?\n/);
+  const rest = parts.pop() ?? '';
+  const events: Array<Record<string, unknown>> = [];
+  for (const part of parts) {
+    const data = part
+      .split(/\r?\n/)
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice('data:'.length).trim())
+      .join('\n');
+    if (data === '') continue;
+    try {
+      events.push(JSON.parse(data) as Record<string, unknown>);
+    } catch {
+      // A broken event is skipped; the end of the reply still arrives.
+    }
+  }
+  return { events, rest };
+}
+
+/** The stream could not be started at all: the caller may ask the plain way instead. */
+export class StreamUnavailableError extends ApiUnavailableError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'StreamUnavailableError';
+  }
+}
+
+/**
+ * Asks Ozi and hears the reply a sentence at a time (ruling 92), so the first sentence can be
+ * spoken while the rest is still coming. Throws `StreamUnavailableError` when no stream could be
+ * started (no connection, or a browser that cannot read one), so the caller can ask the plain
+ * way; a server's refusal is a plain `ApiError`, asked once. An older server answering with
+ * plain JSON is taken as the whole reply. Resolves with the `done` event.
+ */
+export async function askOziStream(
+  text: string,
+  turn: number,
+  as: OziAsker,
+  handlers: OziStreamHandlers,
+  basket?: string[],
+): Promise<OziStreamedReply> {
+  if (typeof ReadableStream === 'undefined' || typeof TextDecoder === 'undefined') {
+    throw new StreamUnavailableError('this browser cannot read a stream');
+  }
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}/ozi/reply`, {
+      method: 'POST',
+      headers: { ...oziHeaders(as), accept: 'text/event-stream' },
+      body: oziBody(text, 'within', turn, basket, { stream: true }),
+    });
+  } catch {
+    throw new StreamUnavailableError('no answer');
+  }
+  if (!response.ok) throw new ApiError('Ozi could not answer just now.', response.status, undefined);
+  const type = response.headers.get('content-type') ?? '';
+  if (!/text\/event-stream/i.test(type)) {
+    const plain = (await response.json()) as OziReply;
+    return { ...plain, unsaid: plain.reply ?? '' };
+  }
+  if (!response.body) throw new StreamUnavailableError('the reply could not be read');
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  const take = (event: Record<string, unknown>): OziStreamedReply | null => {
+    if (event['type'] === 'sentence' && typeof event['text'] === 'string') {
+      handlers.onSentence(event['text']);
+    } else if (event['type'] === 'status' && typeof event['text'] === 'string') {
+      handlers.onStatus(event['text']);
+    } else if (event['type'] === 'done') {
+      const { type: _type, unsaid, ...rest } = event as unknown as OziStreamedReply & {
+        type: string;
+      };
+      return { ...rest, unsaid: typeof unsaid === 'string' ? unsaid : (rest.reply ?? '') };
+    } else if (event['type'] === 'error') {
+      throw new ApiUnavailableError('the reply was cut off');
+    }
+    return null;
+  };
+  for (;;) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+    const read = readEvents(done ? `${buffer}\n\n` : buffer);
+    buffer = read.rest;
+    for (const event of read.events) {
+      const finished = take(event);
+      if (finished) return finished;
+    }
+    if (done) throw new ApiUnavailableError('the reply ended early');
+  }
+}
+
+/**
+ * The delay the person felt (ruling 92): from finishing speaking to the first word Ozi said,
+ * measured on this phone, sent after the turn. Fire and forget: never in the way of talking.
+ */
+export function recordFelt(turn: number, feltMs: number, as: OziAsker): void {
+  try {
+    const init: RequestInit = {
+      method: 'POST',
+      body: JSON.stringify({ conversation: conversationId(), turn, feltMs: Math.round(feltMs) }),
+      keepalive: true,
+    };
+    void oziRequest<{ ok: boolean }>(as, '/ozi/felt', init).catch(() => undefined);
+  } catch {
+    // Nothing: a measurement never gets in the way of talking.
+  }
 }
 
 /* ------------------------------------------------------------------------------------- *
@@ -3388,6 +3546,11 @@ export interface ExchangeRow {
   verdict: 'unrated' | 'right' | 'wrong';
   betterReply: string | null;
   ratedBy: string | null;
+  /** How long it took, in milliseconds (ruling 92); null when not measured. */
+  modelMs?: number | null;
+  firstWordMs?: number | null;
+  totalMs?: number | null;
+  feltMs?: number | null;
 }
 
 export interface MemoryCounts {
@@ -3397,10 +3560,21 @@ export interface MemoryCounts {
   wrong: number;
 }
 
+/** The felt delay over the last day (ruling 92): median and 90th percentile, or null. */
+export interface LatencySummary {
+  medianFeltMs: number;
+  p90FeltMs: number;
+  exchanges: number;
+}
+export interface MemoryLatency {
+  everyone: LatencySummary | null;
+  owner: LatencySummary | null;
+}
+
 export function fetchMemory(
   key: string,
   where: { verdict?: 'unrated' | 'right' | 'wrong'; channel?: 'app' | 'phone' | 'text' } = {},
-): Promise<{ counts: MemoryCounts; exchanges: ExchangeRow[] }> {
+): Promise<{ counts: MemoryCounts; latency?: MemoryLatency; exchanges: ExchangeRow[] }> {
   const query = new URLSearchParams();
   if (where.verdict) query.set('verdict', where.verdict);
   if (where.channel) query.set('channel', where.channel);

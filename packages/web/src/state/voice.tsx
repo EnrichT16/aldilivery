@@ -111,7 +111,8 @@ interface VoiceValue {
    */
   speaking: boolean;
   /** Say something, unless muted. `not-spoken` when muted or it could not be said. */
-  say: (text: string) => Promise<SpeakOutcome>;
+  /** `queue` (ruling 92): after what is being said, for the next sentence of the same reply. */
+  say: (text: string, options?: { queue?: boolean }) => Promise<SpeakOutcome>;
   /** Stop speaking now. */
   interrupt: () => void;
   /** Listen once and resolve with what was said. */
@@ -172,12 +173,13 @@ export function VoiceProvider({ children }: { children: ReactNode }): JSX.Elemen
   }, []);
 
   const say = useCallback(
-    async (text: string): Promise<SpeakOutcome> => {
+    async (text: string, options: { queue?: boolean } = {}): Promise<SpeakOutcome> => {
       if (settings.muted) return 'not-spoken';
       const voiceId = settings.voiceIds[settings.language];
       const outcome = await engine.speak(text, {
         language: settings.language,
         ...(voiceId ? { voiceId } : {}),
+        ...(options.queue ? { queue: true } : {}),
       });
       // Whether speech can be trusted is the engine's to say, after every sentence: a device
       // with no voice stops claiming it can, and the screen announces from then on.

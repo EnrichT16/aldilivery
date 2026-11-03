@@ -165,6 +165,7 @@ describe('a staff member signing in', () => {
       'Orders',
       'Learning',
       'Feedback',
+      'Reminders',
       'Two-step codes',
     ]);
     expect(screen.getByText(/Signed in as Chidi, Customer care officer/)).toBeInTheDocument();

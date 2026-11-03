@@ -1,12 +1,15 @@
 /**
  * "One moment" (31 October 2026): while the server works an answer out, Ozi's button says so,
  * and the waits are about 8 seconds, 20 for the owner (ruling 86), before Ozi goes on as before.
+ * Nothing is said aloud until `ozi.fillerAfterMs` (ruling 92), and then a short varied filler,
+ * never the same one twice running.
  */
 
 import { describe, expect, it } from 'vitest';
 
 import { presenceWord } from '../src/components/OziBubble';
-import { ONE_MOMENT_AFTER_MS } from '../src/components/StaffVoice';
+import { storeConfig } from '../src/config';
+import { FILLERS, forgetLastFiller, nextFiller } from '../src/voice/filler';
 import { CONVERSE_WAIT_MS, OWNER_CONVERSE_WAIT_MS } from '../src/voice/phrases';
 
 describe('One moment', () => {
@@ -18,9 +21,21 @@ describe('One moment', () => {
     expect(presenceWord({ talking: false, presence: 'listening' })).toBe('Listening');
   });
 
-  it('waits about 8 seconds, and 20 for the owner (ruling 86), who hears "One moment" after 3', () => {
+  it('waits about 8 seconds, and 20 for the owner (ruling 86); a filler only after 6 (ruling 92)', () => {
     expect(CONVERSE_WAIT_MS).toBe(8000);
     expect(OWNER_CONVERSE_WAIT_MS).toBe(20_000);
-    expect(ONE_MOMENT_AFTER_MS).toBe(3000);
+    expect(storeConfig.ozi.fillerAfterMs).toBe(6000);
+  });
+
+  it('never says the same filler twice in a row, and none of them uses a name', () => {
+    forgetLastFiller();
+    let previous = nextFiller();
+    for (let i = 0; i < 50; i += 1) {
+      const next = nextFiller();
+      expect(FILLERS).toContain(next);
+      expect(next).not.toBe(previous);
+      previous = next;
+    }
+    for (const filler of FILLERS) expect(filler).not.toMatch(/Anthony|sir/i);
   });
 });

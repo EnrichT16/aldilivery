@@ -70,6 +70,7 @@ import type {
   AmbassadorAgreement,
   AmbassadorClaim,
   AmbassadorPrize,
+  Reminder,
   DeviceSighting,
   AmbassadorDocument,
   AmbassadorNote,
@@ -573,6 +574,20 @@ export interface Repository {
     list(): Promise<AmbassadorPrize[]>;
   };
 
+  /** Reminders for everyone (Anthony, 3 November 2026, ruling 93). */
+  reminders: {
+    create(
+      input: Omit<Reminder, 'id' | 'status' | 'sentAt' | 'heardAt'> &
+        Partial<Pick<Reminder, 'status' | 'sentAt' | 'heardAt'>>,
+    ): Promise<Reminder>;
+    findById(id: string): Promise<Reminder | null>;
+    /** One account's reminders, soonest first. */
+    listFor(accountKind: Reminder['accountKind'], accountId: string): Promise<Reminder[]>;
+    /** Every scheduled reminder due at or before `at`, soonest first. */
+    listDue(at: Date): Promise<Reminder[]>;
+    update(id: string, patch: Partial<Omit<Reminder, 'id'>>): Promise<Reminder>;
+  };
+
   /**
    * The documents sent with an Ambassador application (Anthony, 30 October 2026), newest first.
    * Kept while the person is an Ambassador and for 12 months after they stop (retention.ts).
@@ -1063,6 +1078,13 @@ export interface Repository {
     markReviewed(ids: string[], at: Date): Promise<void>;
     /** When the self-review last looked at anything, or null. */
     lastReviewedAt(): Promise<Date | null>;
+    /**
+     * The delay the person felt (ruling 92), reported by the app after the turn: written on the
+     * latest exchange of that conversation and turn. Nothing when there is no such exchange.
+     */
+    recordFelt(conversationKey: string, turn: number, feltMs: number): Promise<void>;
+    /** Every felt delay reported since a moment, with who was speaking, for the summary. */
+    feltSince(since: Date): Promise<Array<{ feltMs: number; accountKind: string | null }>>;
   };
 
   income: {
