@@ -411,6 +411,14 @@ export interface AmbassadorAgreement {
    * October 2026): six letters and numbers, made once they are approved. Null until then.
    */
   checkCode: string | null;
+  /**
+   * An individual rate (Anthony, 3 November 2026, ruling 94): the multiplier on every percentage
+   * share, 1 unless the owner set one (1.5 is "3% where others earn 2%"), with when and by whom.
+   * Applied to new shares from the moment it is set; a share already made keeps its own.
+   */
+  shareMultiplier: number;
+  rateSetAt: Date | null;
+  rateSetBy: string | null;
 }
 
 /**
@@ -513,6 +521,11 @@ export interface AmbassadorEntry {
    */
   heldAt: Date | null;
   heldReason: string | null;
+  /**
+   * The individual rate multiplier this share was worked at (ruling 94), kept with it so a later
+   * change of rate never recomputes it; 1 for the standard rate and for anything but a share.
+   */
+  shareMultiplier: number;
 }
 
 /**

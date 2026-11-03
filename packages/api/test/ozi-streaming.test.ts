@@ -94,6 +94,7 @@ const tools: OwnerTools = {
   propose: async () => ({ ok: false, why: 'no' }),
   listStaff: async () => ({}),
   ambassadorPrizes: async () => ({}),
+  ambassadorLink: async () => ({}),
   listEmails: async () => ({}),
   readEmail: async () => ({}),
   getAlertPreferences: async () => ({}),

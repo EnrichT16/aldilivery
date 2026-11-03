@@ -411,11 +411,32 @@ async function shareWorth(
   shop: PartnerShop,
   base: AmbassadorBase,
   disputed: boolean,
+  /** The individual rate multiplier (ruling 94): the agreement's for a new share, the share's own after. */
+  multiplier = 1,
 ): Promise<number> {
   if (disputed) return 0;
-  const share = ambassadorOrderSharePence(base, ctx.config.ambassador, await branchRate(ctx, shop));
+  const share = ambassadorOrderSharePence(
+    base,
+    ctx.config.ambassador,
+    await branchRate(ctx, shop),
+    multiplier,
+  );
   const { paidPence, refundedPence } = await paidAndRefunded(ctx, order);
   return ambassadorEarningAfterRefunds(share, paidPence, refundedPence);
+}
+
+/**
+ * The individual rate multiplier an Ambassador has now (ruling 94): 1 unless the owner set one.
+ * Read at the moment a share is made, and kept on it, so the rate applies to new shares only.
+ */
+async function multiplierOf(
+  ctx: Pick<AppContext, 'repository'>,
+  kind: ReferralKind,
+  id: string,
+): Promise<number> {
+  const agreement = await ctx.repository.ambassadors.findAgreement(kind, id);
+  const multiplier = agreement?.shareMultiplier ?? 1;
+  return Number.isFinite(multiplier) && multiplier > 0 ? multiplier : 1;
 }
 
 /** "2026-10": the calendar month an entry counts in. */
@@ -521,7 +542,9 @@ export async function creditAmbassadorShares(
       // Removed for fraud (31 October 2026): nothing more is earned.
       if (await removedAmbassador(ctx, shop.ambassadorKind, shop.ambassadorId)) continue;
       if (!withinAmbassadorMonths(shop.approvedAt, at, ctx.config.ambassador)) continue;
-      const amountPence = await shareWorth(ctx, order, shop, base, false);
+      // At their rate now (ruling 94), kept on the share: a later change never touches it.
+      const shareMultiplier = await multiplierOf(ctx, shop.ambassadorKind, shop.ambassadorId);
+      const amountPence = await shareWorth(ctx, order, shop, base, false, shareMultiplier);
       if (amountPence <= 0) continue;
       // Only orders from real, distinct Shoppers count (31 October 2026): one that looks like the
       // Ambassador's or the owner's own is held for a person, and staff are told.
@@ -538,6 +561,7 @@ export async function creditAmbassadorShares(
         reference: `share:${order.id}:${shop.id}`,
         recordedBy: null,
         at,
+        shareMultiplier,
         ...(heldReason ? { heldAt: ctx.now(), heldReason } : {}),
       });
       if (!entry) continue;
@@ -568,9 +592,17 @@ export async function reconcileOrder(ctx: MoneyContext, orderId: string): Promis
   const profits = order ? await profitByShop(ctx, order) : new Map();
   for (const share of shares) {
     const found = share.partnerShopId ? profits.get(share.partnerShopId) : undefined;
+    // At the rate the share was made at (ruling 94), never the Ambassador's rate now.
     const worth =
       order && found
-        ? await shareWorth(ctx, order, found.shop, found.base, share.disputedAt !== null)
+        ? await shareWorth(
+            ctx,
+            order,
+            found.shop,
+            found.base,
+            share.disputedAt !== null,
+            share.shareMultiplier ?? 1,
+          )
         : 0;
     const pending = share.availableAt !== null && share.availableAt.getTime() > now;
     // A share held for a check follows its order as a pending one does: never a deduction.

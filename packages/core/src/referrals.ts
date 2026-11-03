@@ -170,6 +170,18 @@ export interface AmbassadorSettings extends AmbassadorShares {
    */
   readonly firstBusinessBonusPence: number;
   readonly firstBusinessBonusAfterOrders: number;
+  /**
+   * An individual rate (Anthony, 3 November 2026, ruling 94): the owner alone may grant one
+   * Ambassador a higher rate than the standard one, said as a percentage in place of the
+   * restaurant mark-up share ("3% where others earn 2%") and applied as the same multiplier to
+   * every percentage share. Never above this many percent (5).
+   */
+  readonly maxIndividualRatePercent: number;
+  /**
+   * Texting an Ambassador's link to a business from the admin panel or by the owner's voice
+   * (ruling 94): at most this many texts a UK day for each member of staff (20).
+   */
+  readonly linkTextsPerDay: number;
 }
 
 /** "2%", "2.5%" or "0.25%": a share as people read it, to two places at most. */
@@ -290,8 +302,10 @@ export function ambassadorOrderSharePence(
   base: AmbassadorBase,
   settings: AmbassadorShares & Pick<AmbassadorSettings, 'branchShareFactor'>,
   branch: 'introduced' | 'other_branch' = 'introduced',
+  /** An individual rate (ruling 94): 1.5 makes every 2% a 3% and every 1% a 1.5%. */
+  multiplier = 1,
 ): number {
-  const factor = branch === 'other_branch' ? settings.branchShareFactor : 1;
+  const factor = (branch === 'other_branch' ? settings.branchShareFactor : 1) * multiplier;
   // Worked in millionths, so 2% of £10 is exactly 20p however the share is written.
   const part = (pence: number, share: number): number =>
     Math.max(0, pence) * Math.round(share * factor * 1_000_000);
@@ -376,4 +390,122 @@ export function ambassadorAvailableAt(
   settings: Pick<AmbassadorSettings, 'holdDays'>,
 ): Date {
   return new Date(deliveredAt.getTime() + settings.holdDays * 24 * 60 * 60 * 1000);
+}
+
+/* ------------------------------------------------------------------ an individual rate (ruling 94) */
+
+/** The standard rate as people say it: the restaurant mark-up share, 2, as a percentage. */
+export function standardRatePercent(settings: Pick<AmbassadorShares, 'restaurantMarkupShare'>) {
+  return Math.round(settings.restaurantMarkupShare * 10000) / 100;
+}
+
+/**
+ * The multiplier behind a chosen rate: 3% where the standard is 2% is 1.5, applied to every
+ * percentage share. A rate equal to the standard one is the plain multiplier of 1.
+ */
+export function individualRateMultiplier(
+  percent: number,
+  settings: Pick<AmbassadorShares, 'restaurantMarkupShare'>,
+): number {
+  const standard = standardRatePercent(settings);
+  if (standard <= 0) return 1;
+  return Math.round((percent / standard) * 10000) / 10000;
+}
+
+/** The rate a multiplier gives, as a percentage: 1.5 on a standard 2% is 3. */
+export function individualRatePercent(
+  multiplier: number,
+  settings: Pick<AmbassadorShares, 'restaurantMarkupShare'>,
+): number {
+  return Math.round(standardRatePercent(settings) * multiplier * 100) / 100;
+}
+
+/**
+ * Why a rate the owner asked for cannot be set, in plain words, or null when it can: more than
+ * nothing, never below the standard rate (the rate is a favour, never a cut), and never above
+ * `maxIndividualRatePercent`.
+ */
+export function individualRateProblem(
+  percent: number,
+  settings: Pick<AmbassadorShares, 'restaurantMarkupShare'> &
+    Pick<AmbassadorSettings, 'maxIndividualRatePercent'>,
+): string | null {
+  const standard = standardRatePercent(settings);
+  if (!Number.isFinite(percent) || percent <= 0) {
+    return 'Please give the rate as a percentage, such as 3.';
+  }
+  if (Math.round(percent * 100) / 100 !== percent) {
+    return 'Please give the rate to two decimal places at most.';
+  }
+  if (percent < standard) {
+    return `An individual rate is never below the standard rate of ${standard}%.`;
+  }
+  if (percent > settings.maxIndividualRatePercent) {
+    return `An individual rate can be at most ${settings.maxIndividualRatePercent}%.`;
+  }
+  return null;
+}
+
+/** "3%, where the standard rate is 2%", or "the standard rate of 2%". */
+export function individualRateWords(
+  multiplier: number,
+  settings: Pick<AmbassadorShares, 'restaurantMarkupShare'>,
+): string {
+  const standard = standardRatePercent(settings);
+  const percent = individualRatePercent(multiplier, settings);
+  if (multiplier === 1) return `the standard rate of ${standard}%`;
+  return `${percent}%, where the standard rate is ${standard}%`;
+}
+
+/* ------------------------------------------------------------------ a link read aloud (ruling 94) */
+
+const SPOKEN_CHARACTERS: Record<string, string> = {
+  '/': 'slash',
+  '.': 'dot',
+  '?': 'question mark',
+  '=': 'equals',
+  '&': 'and sign',
+  '-': 'dash',
+  _: 'underscore',
+  ':': 'colon',
+  '%': 'percent',
+  '+': 'plus',
+  '#': 'hash',
+  '~': 'tilde',
+  '@': 'at',
+};
+
+/**
+ * A web link said slowly, for somebody writing it down from Ozi (ruling 94): "https colon slash
+ * slash" is left off, every slash, dot, question mark and equals sign is said, a plain word is
+ * said as a word, and a code is spelt out, upper-case letters as "capital", in groups of at most
+ * four with a pause between. "ozi.example/business/join?ambassador=runner-AB12" becomes "ozi,
+ * dot, example, slash, business, slash, join, question mark, ambassador, equals, runner, dash,
+ * capital A, capital B, 1, 2".
+ */
+export function linkAloud(link: string): string {
+  const bare = link.replace(/^https?:\/\//i, '');
+  const pieces: string[] = [];
+  for (const part of bare.match(/[A-Za-z0-9]+|[^A-Za-z0-9]/g) ?? []) {
+    if (/^[A-Za-z0-9]+$/.test(part)) {
+      pieces.push(wordAloud(part));
+    } else {
+      pieces.push(SPOKEN_CHARACTERS[part] ?? `the character ${part}`);
+    }
+  }
+  return pieces.join(', ');
+}
+
+/** A plain lower-case word is said as it is; anything with digits or capitals is spelt out. */
+function wordAloud(word: string): string {
+  if (/^[a-z]+$/.test(word) && word.length <= 12) return word;
+  const letters = word.split('').map((character) => {
+    if (/[0-9]/.test(character)) return character;
+    return /[A-Z]/.test(character) ? `capital ${character}` : character;
+  });
+  const groups: string[] = [];
+  for (let at = 0; at < letters.length; at += 4) {
+    groups.push(letters.slice(at, at + 4).join(' '));
+  }
+  return groups.join(', ');
 }

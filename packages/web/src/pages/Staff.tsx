@@ -267,6 +267,14 @@ export function Staff(): JSX.Element {
   const [me, setMe] = useState<StaffMe | null>(null);
   const [tab, setTab] = useState<TabKey | null>(null);
   const [news, setNews] = useState('');
+  // "Read it out" on the Ambassadors page (ruling 94): Ozi says a link slowly.
+  const ozi = useOzi();
+  const oziRef = useRef(ozi);
+  oziRef.current = ozi;
+  const say = useCallback((words: string) => {
+    setNews(words);
+    void oziRef.current.say(words);
+  }, []);
   // Bumped after a decision made by voice, so the lists on the screen load again too.
   const [refresh, setRefresh] = useState(0);
   // Bumped by "Try again" when the server could not say who this is (ruling 88).
@@ -550,6 +558,7 @@ export function Staff(): JSX.Element {
                 staffKey={key}
                 by={by}
                 onNews={setNews}
+                onSay={say}
                 owner={me.isOwner === true}
               />
             )}

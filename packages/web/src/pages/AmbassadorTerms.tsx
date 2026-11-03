@@ -131,6 +131,12 @@ export function AmbassadorTerms(): JSX.Element {
             payment.
           </li>
           <li>
+            <strong>An individual rate.</strong> The owner may grant you a rate above the standard
+            one, up to {rates.maxIndividualRatePercent}%, applied to every share on orders from the
+            day it is set. It is only ever in your favour, it never changes what you have already
+            earned, and your dashboard shows it as &ldquo;Your rate&rdquo;.
+          </li>
+          <li>
             <strong>Top Ambassador of the month.</strong> {prizes.prize}
           </li>
           <li>

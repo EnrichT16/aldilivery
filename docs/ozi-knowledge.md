@@ -261,6 +261,12 @@ Ambassador also earns a one-off {{money:ambassador.firstBusinessBonusPence}} whe
 confirmed business has completed {{value:ambassador.firstBusinessBonusAfterOrders}} paid orders.
 Both are held for {{value:ambassador.holdDays}} days like other earnings.
 
+The owner alone may grant one Ambassador an individual rate above the standard one, up to
+{{value:ambassador.maxIndividualRatePercent}}%, applied to new earnings from the day it is set and
+shown on their dashboard as "Your rate". The owner and staff can see and send any approved
+Ambassador's business sign-up link, check code and QR code, and can text the link to a business so
+it joins through that Ambassador.
+
 ## Problems, refunds and SOS
 
 If something went wrong with an order (something missing, damaged or wrong), the Shopper reports

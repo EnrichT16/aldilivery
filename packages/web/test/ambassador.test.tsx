@@ -1276,3 +1276,291 @@ describe('"Did someone introduce you?" on every sign-up', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('"Links and QR codes" on the staff Ambassadors page (ruling 94)', () => {
+  const row = (id: string, name: string, status: string, statusWords: string) => ({
+    id,
+    kind: 'runner',
+    kindWords: 'Runner',
+    accountId: `r-${id}`,
+    name,
+    area: 'Medway',
+    status,
+    statusWords,
+    agreedAt: '2026-11-01T10:00:00.000Z',
+    documentsSentAt: null,
+    documentsCheckedAt: null,
+    chatDoneAt: null,
+    waitingDocuments: 0,
+    faceCheck: 'Check by a person: face not compared automatically',
+  });
+  const GROUPS = {
+    groups: [
+      {
+        status: 'documents_checked',
+        words: 'Documents checked',
+        applications: [row('agr-pending', 'Paul Okafor', 'documents_checked', 'Documents checked')],
+      },
+      {
+        status: 'approved',
+        words: 'Approved',
+        applications: [row('agr-elise', 'Elise Marchant', 'approved', 'Approved')],
+      },
+    ],
+  };
+  const LINK = 'https://example.test/business/join?ambassador=runner-AB12';
+  const ELISE_LINKS = {
+    id: 'agr-elise',
+    name: 'Elise Marchant',
+    firstName: 'Elise',
+    surname: 'Marchant',
+    kindWords: 'Runner',
+    status: 'approved',
+    statusWords: 'Approved',
+    approved: true,
+    linkWorks: true,
+    rate: {
+      percent: 2,
+      standardPercent: 2,
+      individual: false,
+      multiplier: 1,
+      words: 'the standard rate of 2%',
+      setAt: null,
+      setBy: null,
+    },
+    link: LINK,
+    linkAloud:
+      'example, dot, test, slash, business, slash, join, question mark, ambassador, equals, runner, dash, capital A capital B 1 2',
+    checkCode: 'AB12CD',
+    checkLink: 'https://example.test/ambassador/check/AB12CD',
+    printLink: 'https://example.test/ambassador/check/AB12CD?next=%2Fbusiness%2Fjoin',
+    words: "Elise's business sign-up link.",
+  };
+  const PAUL_LINKS = {
+    ...ELISE_LINKS,
+    id: 'agr-pending',
+    name: 'Paul Okafor',
+    firstName: 'Paul',
+    surname: 'Okafor',
+    status: 'documents_checked',
+    statusWords: 'Documents checked',
+    approved: false,
+    linkWorks: false,
+    link: null,
+    linkAloud: null,
+    checkCode: null,
+    checkLink: null,
+    printLink: null,
+    words:
+      "Paul's application is still waiting (Documents checked), so their link does not work yet. It works once they are approved.",
+  };
+
+  function stubLinks(extra: (method: string, path: string) => Response | null = () => null) {
+    return stubWith((method, path) => {
+      const custom = extra(method, path);
+      if (custom) return custom;
+      if (path === '/staff/ambassador-applications') return reply(GROUPS);
+      if (path === '/staff/ambassador-protection/held') return reply({ held: [] });
+      if (path === '/staff/ambassadors/agr-elise/links' && method === 'GET') {
+        return reply(ELISE_LINKS);
+      }
+      if (path === '/staff/ambassadors/agr-pending/links' && method === 'GET') {
+        return reply(PAUL_LINKS);
+      }
+      return null;
+    });
+  }
+
+  it('shows an approved Ambassador’s name, check code, links and a large QR code, copies it, reads it out slowly, and texts it to a business', async () => {
+    const said: string[] = [];
+    const news: string[] = [];
+    const sent = stubLinks((method, path) => {
+      if (path === '/staff/ambassadors/agr-elise/links/text' && method === 'POST') {
+        return reply({
+          message:
+            "Elise's link is texted to +447700900123. The business joins through it, and the reward goes to Elise.",
+        });
+      }
+      return null;
+    });
+    const user = userEvent.setup({ delay: null });
+    const { container } = render(
+      <StaffAmbassadors
+        staffKey="k"
+        by="Kemi"
+        onNews={(words) => news.push(words)}
+        onSay={(words) => said.push(words)}
+      />,
+    );
+    const section = (await screen.findByRole('heading', { name: 'Links and QR codes' }))
+      .parentElement as HTMLElement;
+    expect(within(section).getByText('Elise Marchant, Runner: Approved.')).toBeInTheDocument();
+    expect(
+      within(section).getByText('Paul Okafor, Runner: Documents checked.'),
+    ).toBeInTheDocument();
+
+    // Search by name.
+    await user.type(screen.getByLabelText('Search by name'), 'eli');
+    expect(within(section).queryByText(/Paul Okafor/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: "Show Elise Marchant's links" }));
+    expect(
+      await screen.findByRole('heading', { name: 'Elise Marchant: links and codes' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Ambassador check code: AB12CD')).toBeInTheDocument();
+    expect(screen.getByText(`Business sign-up link: ${LINK}`)).toBeInTheDocument();
+    expect(
+      screen.getByText('Check link: https://example.test/ambassador/check/AB12CD'),
+    ).toBeInTheDocument();
+    const qr = screen.getByRole('img', { name: "QR code for Elise's business sign-up link" });
+    expect(qr).toHaveAttribute('data-qr-value', LINK);
+    expect(qr.getAttribute('class')).toContain('w-64');
+    // Staff never see the owner's rate control.
+    expect(screen.queryByRole('heading', { name: 'Individual rate' })).not.toBeInTheDocument();
+    await noViolations(container);
+
+    // "Copy link" puts it on the clipboard (the one userEvent stands in).
+    await user.click(screen.getByRole('button', { name: 'Copy link' }));
+    await waitFor(() => expect(news).toContain("Elise's link is copied."));
+    expect(await navigator.clipboard.readText()).toBe(LINK);
+
+    await user.click(screen.getByRole('button', { name: 'Read it out' }));
+    expect(said).toEqual([`Elise's business sign-up link, slowly: ${ELISE_LINKS.linkAloud}.`]);
+
+    await user.click(screen.getByRole('button', { name: 'Text this link to a business' }));
+    expect(
+      await screen.findByText('Please give the phone number of the business.'),
+    ).toBeInTheDocument();
+    await user.type(
+      screen.getByLabelText('The business’s mobile number, for one text with the link'),
+      '07700 900 123',
+    );
+    await user.click(screen.getByRole('button', { name: 'Text this link to a business' }));
+    await waitFor(() =>
+      expect(
+        sent.find((entry) => entry.path === '/staff/ambassadors/agr-elise/links/text')?.body,
+      ).toEqual({ phone: '07700 900 123' }),
+    );
+    await waitFor(() => expect(news.at(-1)).toMatch(/^Elise's link is texted to/));
+  });
+
+  it('shows a pending Ambassador’s status and no link, saying why', async () => {
+    stubLinks();
+    const user = userEvent.setup({ delay: null });
+    render(<StaffAmbassadors staffKey="k" by="Kemi" onNews={() => {}} />);
+    await screen.findByRole('heading', { name: 'Links and QR codes' });
+    await user.click(screen.getByRole('button', { name: "Show Paul Okafor's links" }));
+    expect(await screen.findByText(PAUL_LINKS.words)).toBeInTheDocument();
+    expect(screen.queryByText(/Business sign-up link:/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Copy link' })).not.toBeInTheDocument();
+  });
+
+  it('gives the owner alone the "Individual rate" control, with the kindly explanation, and sets the rate as a percentage', async () => {
+    const news: string[] = [];
+    const sent = stubLinks((method, path) => {
+      if (path === '/staff/ambassadors/agr-elise/rate' && method === 'POST') {
+        return reply({
+          message:
+            'Elise Marchant now earns 3% where others earn 2%, on every share from now. Nothing already earned changes.',
+          rate: { ...ELISE_LINKS.rate, percent: 3, individual: true, multiplier: 1.5 },
+        });
+      }
+      return null;
+    });
+    const user = userEvent.setup({ delay: null });
+    render(
+      <StaffAmbassadors staffKey="k" by="Anthony" onNews={(words) => news.push(words)} owner />,
+    );
+    await screen.findByRole('heading', { name: 'Links and QR codes' });
+    await user.click(screen.getByRole('button', { name: "Show Elise Marchant's links" }));
+    expect(await screen.findByRole('heading', { name: 'Individual rate' })).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Elise earns the standard rate of 2%\. You can grant Elise a higher rate than the standard one, as a thank you: for example 3% where others earn 2%\. It applies to every share on orders from the moment you set it, and never changes anything already earned\./,
+      ),
+    ).toBeInTheDocument();
+    const field = screen.getByLabelText('Elise’s rate, as a percentage');
+    expect(field).toHaveValue(2);
+    await user.clear(field);
+    await user.type(field, '3');
+    await user.click(screen.getByRole('button', { name: 'Set Elise’s rate' }));
+    await waitFor(() =>
+      expect(
+        sent.find((entry) => entry.path === '/staff/ambassadors/agr-elise/rate')?.body,
+      ).toEqual({ percent: 3 }),
+    );
+    await waitFor(() =>
+      expect(news).toContain(
+        'Elise Marchant now earns 3% where others earn 2%, on every share from now. Nothing already earned changes.',
+      ),
+    );
+  });
+});
+
+describe('the Ambassador’s own rate on the dashboard (ruling 94)', () => {
+  it('shows "Your rate: 3%" with the standard rate beside it, and the standard rate otherwise', async () => {
+    stubWith((_method, path) =>
+      path === '/referrals/me'
+        ? reply(
+            fakeReferrals('https://example.test/join?via=shopper-ada', {
+              ambassador: {
+                ...APPROVED,
+                rate: {
+                  percent: 3,
+                  standardPercent: 2,
+                  individual: true,
+                  multiplier: 1.5,
+                  words: '3%, where the standard rate is 2%',
+                  setAt: '2026-11-03T10:00:00.000Z',
+                  setBy: 'Anthony',
+                },
+                rateWords: 'Your rate: 3%',
+              },
+            }),
+          )
+        : null,
+    );
+    const first = renderAt('/ambassador/home');
+    expect(
+      await screen.findByText(
+        'Your rate: 3% (an individual rate; the standard rate is 2%, and yours applies to every share from the day it was set)',
+      ),
+    ).toBeInTheDocument();
+    first.unmount();
+
+    stubWith((_method, path) =>
+      path === '/referrals/me'
+        ? reply(
+            fakeReferrals('https://example.test/join?via=shopper-ada', {
+              ambassador: {
+                ...APPROVED,
+                rate: {
+                  percent: 2,
+                  standardPercent: 2,
+                  individual: false,
+                  multiplier: 1,
+                  words: 'the standard rate of 2%',
+                  setAt: null,
+                  setBy: null,
+                },
+                rateWords: 'Your rate: 2%',
+              },
+            }),
+          )
+        : null,
+    );
+    renderAt('/ambassador/home');
+    expect(await screen.findByText('Your rate: 2% (the standard rate)')).toBeInTheDocument();
+  });
+
+  it('says in the terms that the owner may grant an individual rate, without a new version', async () => {
+    stubApi();
+    renderAt('/ambassador/terms');
+    expect(
+      await screen.findByText(
+        /The owner may grant you a rate above the standard one, up to 5%, applied to every share on orders from the day it is set\./,
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Version 2026-11-02.')).toBeInTheDocument();
+  });
+});

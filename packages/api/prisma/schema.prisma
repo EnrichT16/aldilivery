@@ -1677,6 +1677,11 @@ model AmbassadorAgreement {
   /// Their code on the public "Check an Ambassador" page and on every printed QR code (31 October
   /// 2026): six letters and numbers, made when they are approved. Never their name or number.
   checkCode                String?   @unique
+  /// An individual rate (Anthony, 3 November 2026, ruling 94): the multiplier on every percentage
+  /// share, 1 unless the owner set one (1.5 is "3% where others earn 2%"), when and by whom.
+  shareMultiplier          Float     @default(1)
+  rateSetAt                DateTime?
+  rateSetBy                String?
 
   documents AmbassadorDocument[]
 
@@ -1783,6 +1788,8 @@ model AmbassadorEntry {
   /// counts for nothing until staff release it.
   heldAt         DateTime?
   heldReason     String?
+  /// The individual rate multiplier the share was worked at (ruling 94); 1 for the standard rate.
+  shareMultiplier Float    @default(1)
 
   @@index([ambassadorKind, ambassadorId])
   @@index([partnerShopId])

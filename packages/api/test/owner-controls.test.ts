@@ -816,6 +816,7 @@ describe('an email with instructions in it', () => {
         propose: async () => ({ ok: false, why: 'no' }),
         listStaff: async () => ({}),
         ambassadorPrizes: async () => ({}),
+        ambassadorLink: async () => ({}),
         listEmails: async () => ({}),
         readEmail: async () => ({}),
         getAlertPreferences: async () => ({}),

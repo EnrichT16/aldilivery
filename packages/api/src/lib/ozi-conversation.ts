@@ -41,6 +41,7 @@ import {
 } from '../services/reminders.js';
 import {
   alertPreferencesForVoice,
+  ambassadorLinkForVoice,
   carryOutOwnerAction,
   listEmailsForVoice,
   listStaffForVoice,
@@ -409,6 +410,8 @@ export function ownerTools(
     listStaff: () => listStaffForVoice(ctx),
     // Who won the Ambassador prize (ruling 91): read-only.
     ambassadorPrizes: () => ambassadorPrizesForVoice(ctx),
+    // One Ambassador's link, code and rate (ruling 94): read-only, with the offer to text it.
+    ambassadorLink: (who) => ambassadorLinkForVoice(ctx, who),
     listEmails: (filter) => listEmailsForVoice(ctx, filter),
     readEmail: (id) => readEmailForVoice(ctx, id),
     getAlertPreferences: () => alertPreferencesForVoice(ctx),
