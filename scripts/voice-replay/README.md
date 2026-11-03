@@ -9,7 +9,9 @@ What runs:
 
 - `fake-model.mjs`: a stand-in for the model's API on port 9797. It logs every request body to
   `requests.jsonl`, so the model asked, the instructions, the tools and the words sent can all be
-  read afterwards, and answers with one plain sentence that names the tier asked.
+  read afterwards, and answers with one plain sentence that names the tier asked. A request with
+  `stream: true` (as the API now sends, ruling 92) is answered as server-sent events in several
+  deltas, so the sentence-by-sentence path is exercised: expect three spoken lines per answer.
 - `start.sh`: starts the stand-in, the API on the in-memory store (no database, no real keys;
   `ANTHROPIC_BASE_URL` points the model client at the stand-in) and the web app's dev server.
 - `stubs.js`: injected into the browser before the app loads. A phone that can hear and speak

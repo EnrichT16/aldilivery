@@ -91,6 +91,10 @@ export interface Heard {
   model?: string | null;
   /** Who was speaking: shopper, runner, partner, organisation, staff, owner or visitor. */
   accountKind?: string | null;
+  /** How long it took (ruling 92): on the model, to the first sentence, and in all. */
+  modelMs?: number | null;
+  firstWordMs?: number | null;
+  totalMs?: number | null;
 }
 
 /** Writes one exchange, scrubbed, unless it holds a banned word. Never throws. */
@@ -123,6 +127,10 @@ export async function remember(
       model: input.brain === 'model' ? (input.model ?? null) : null,
       accountKind: input.accountKind ?? null,
       reviewedAt: null,
+      modelMs: input.modelMs ?? null,
+      firstWordMs: input.firstWordMs ?? null,
+      totalMs: input.totalMs ?? null,
+      feltMs: null,
     });
   } catch (failure) {
     log?.warn({ err: failure }, "An exchange could not be kept in Ozi's memory.");

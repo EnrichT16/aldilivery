@@ -31,6 +31,7 @@ import {
   fetchSignInOptions,
   fetchWeeklyShops,
   isUkMobileNumber,
+  recordFelt,
   skipWeeklyShop,
   listPaymentMethods,
   requestSignInCode,
@@ -54,6 +55,7 @@ import {
   type BrowserFacts,
 } from '../voice/microphone-help';
 import { nameHeardIn, onlyName } from '../voice/name';
+import { fillerWhileWaiting } from '../voice/filler';
 import {
   converse,
   CONVERSE_WAIT_MS,
@@ -253,8 +255,12 @@ interface OziValue {
   waiting: boolean;
   /** Shows "One moment" while `work` runs, and gives back what it gives. */
   think: <T>(work: Promise<T>) => Promise<T>;
-  /** Say something as Ozi: shown, spoken unless talking is off, announced when not spoken. */
-  say: (text: string) => Promise<SpeakOutcome>;
+  /**
+   * Say something as Ozi: shown, spoken unless talking is off, announced when not spoken.
+   * `queue` (ruling 92): the next sentence of the same reply, said after the one being said,
+   * with no break, Ozi listening again only once the last of them is done.
+   */
+  say: (text: string, options?: { queue?: boolean }) => Promise<SpeakOutcome>;
   /** Press of the button: pause when listening, listen when paused, stop when talking. */
   press: () => void;
   mute: () => void;
@@ -493,11 +499,17 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   // Words Ozi could not say aloud were put in the live region, so a screen reader read them.
   const announcedRef = useRef(false);
 
-  const sayRef = useRef<(text: string, inline?: boolean) => Promise<SpeakOutcome>>(
-    async () => 'finished',
-  );
-  sayRef.current = async (text: string, inline = false) => {
-    lastSaid.current = text;
+  // How many sentences are being said or waiting their turn (ruling 92): Ozi listens again only
+  // when the last of them is done, so it never hears the rest of its own reply.
+  const sayings = useRef(0);
+  const sayRef = useRef<
+    (text: string, inline?: boolean, queue?: boolean) => Promise<SpeakOutcome>
+  >(async () => 'finished');
+  sayRef.current = async (text: string, inline = false, queue = false) => {
+    // The sentences of one reply read as one on the screen, and "say that again" repeats them all.
+    const shown = queue && sayings.current > 0 ? `${lastSaid.current} ${text}` : text;
+    lastSaid.current = shown;
+    sayings.current += 1;
     // Words shown in their own place on the page are not shown again beside Ozi's button.
     setCaptionOff(inline);
     // Ozi does not listen while it talks, or it would hear itself.
@@ -505,8 +517,8 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     setTalking(true);
     stopListening();
     setAnnounce(false);
-    setSaid(text);
-    const outcome = await voiceRef.current.say(text);
+    setSaid(shown);
+    const outcome = await voiceRef.current.say(text, queue ? { queue: true } : undefined);
     if (outcome === 'finished') soundWorks.current = true;
     if (outcome === 'not-spoken') {
       // A browser will not let a page make a sound until it has been touched once. Keep what
@@ -520,11 +532,14 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       setAnnounce(true);
       setSaid('');
       await new Promise((resolve) => window.setTimeout(resolve, 50));
-      setSaid(text);
+      setSaid(shown);
     }
-    talkingRef.current = false;
-    setTalking(false);
-    listenRef.current();
+    sayings.current = Math.max(0, sayings.current - 1);
+    if (sayings.current === 0) {
+      talkingRef.current = false;
+      setTalking(false);
+      listenRef.current();
+    }
     return outcome;
   };
 
@@ -597,7 +612,11 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
 
   const offerAccountRef = useRef<(lead?: string, doors?: boolean) => void>(() => {});
   const ordering = useVoiceOrdering(
-    useCallback((text: string) => sayRef.current(text), []),
+    useCallback(
+      (text: string, options?: { queue?: boolean }) =>
+        sayRef.current(text, false, options?.queue === true),
+      [],
+    ),
     useCallback(() => offerAccountRef.current('To order, you need an account first. '), []),
     think,
   );
@@ -1001,11 +1020,35 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       // Words not about an order are not answered unless they were said to Ozi: Ozi does not
       // talk back to the television.
       if (nameHeardIn(text)) {
-        const everyday = await think(phraseReply(text, phraseTurn.current, 'within', as));
+        // Spoken a sentence at a time as it arrives (ruling 92), queued, with a short filler
+        // only after a long silence, and the delay felt sent back to be measured.
+        const turn = phraseTurn.current;
+        const heardAt = Date.now();
+        let firstWordAt: number | null = null;
+        const filler = fillerWhileWaiting((words) => void sayRef.current(words));
+        const answer = await think(
+          converse(text, turn, as, CONVERSE_WAIT_MS, {
+            onSentence: (sentence) => {
+              filler.arrived();
+              if (firstWordAt === null) firstWordAt = Date.now();
+              void sayRef.current(sentence, false, true);
+            },
+            onStatus: (status) => {
+              filler.arrived();
+              void sayRef.current(status);
+            },
+          }),
+        );
+        filler.stop();
         phraseTurn.current += 1;
+        if (answer?.reply) {
+          if (firstWordAt === null) firstWordAt = Date.now();
+          recordFelt(turn, firstWordAt - heardAt, as);
+          if (answer.unsaid) await sayRef.current(answer.unsaid, false, true);
+          return;
+        }
         await sayRef.current(
-          everyday ??
-            "I can take a shopping order for you. Say, for example, I'd like bananas and milk.",
+          "I can take a shopping order for you. Say, for example, I'd like bananas and milk.",
         );
       }
     })();
@@ -1095,23 +1138,47 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   const knownTalk = (text: string): void => {
     const who = knownHere();
     const as = currentAsker();
+    const turn = phraseTurn.current;
     void (async () => {
+      // The reply is spoken a sentence at a time as it arrives (ruling 92), queued so the
+      // sentences run on without a click; a short filler only after a long silence; and the
+      // delay felt, to the first word, is sent back to be measured.
+      const heardAt = Date.now();
+      let firstWordAt: number | null = null;
+      const firstWord = (): void => {
+        if (firstWordAt === null) firstWordAt = Date.now();
+      };
+      const filler = fillerWhileWaiting((words) => void sayRef.current(words));
       const answer = await think(
-        converse(
-          text,
-          phraseTurn.current,
-          as,
-          who?.kind === 'owner' ? OWNER_CONVERSE_WAIT_MS : CONVERSE_WAIT_MS,
-        ),
+        converse(text, turn, as, who?.kind === 'owner' ? OWNER_CONVERSE_WAIT_MS : CONVERSE_WAIT_MS, {
+          onSentence: (sentence) => {
+            filler.arrived();
+            firstWord();
+            void sayRef.current(sentence, false, true);
+          },
+          onStatus: (status) => {
+            filler.arrived();
+            void sayRef.current(status);
+          },
+        }),
       );
+      filler.stop();
       phraseTurn.current += 1;
       knownConversingUntil.current = Date.now() + KNOWN_CONVERSING_MS;
       if (answer?.reply) {
         if (answer.awaitingYes) {
-          listenFor(answer.reply, (reply) => knownTalk(reply));
+          firstWord();
+          recordFelt(turn, firstWordAt! - heardAt, as);
+          listenFor(answer.unsaid || answer.reply, (reply) => knownTalk(reply));
           return;
         }
-        await sayRef.current(answer.reply);
+        if (answer.unsaid) {
+          firstWord();
+          recordFelt(turn, firstWordAt! - heardAt, as);
+          await sayRef.current(answer.unsaid, false, true);
+        } else if (firstWordAt !== null) {
+          recordFelt(turn, firstWordAt - heardAt, as);
+        }
         return;
       }
       const local = who ? knownSpeakerReply(text, who, KNOWN_NAMES, new Date()) : null;
@@ -1641,7 +1708,8 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       heard,
       waiting,
       think,
-      say: (text: string) => sayRef.current(text),
+      say: (text: string, options?: { queue?: boolean }) =>
+        sayRef.current(text, false, options?.queue === true),
       press,
       mute,
       wake,

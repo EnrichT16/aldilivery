@@ -80,6 +80,12 @@ export interface SpeakOptions {
   language: LanguageTag;
   /** One of `voices(language)`. The engine's own default when absent or not found. */
   voiceId?: string;
+  /**
+   * Say this after whatever is being said, not instead of it (ruling 92): the sentences of one
+   * reply, spoken as they arrive, follow each other without a break or a click. Absent, the new
+   * sentence replaces what was being said, as before. `interrupt` still stops everything at once.
+   */
+  queue?: boolean;
 }
 
 /**

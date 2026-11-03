@@ -33,6 +33,7 @@ import {
   fetchSignups,
   fetchStaffOrders,
   fetchStaffPartners,
+  recordFelt,
 } from '../lib/api';
 import { allocateJobs, fetchAllocateBoard, runnerNamed } from '../lib/allocate-api';
 import {
@@ -44,6 +45,7 @@ import {
 } from '../lib/unlock-api';
 import { money } from '../lib/money';
 import { useOzi } from '../state/ozi';
+import { fillerWhileWaiting } from '../voice/filler';
 import { nameHeardIn } from '../voice/name';
 import { knownSpeakerReply } from '@aldilivery/core';
 
@@ -82,8 +84,6 @@ import {
 const YES = /\b(yes|yeah|yep|correct|that'?s right|go ahead|confirm|do it|ok|okay)\b/i;
 /** After Ozi answers, what is said next is taken as said to Ozi for this long, without its name. */
 const CONVERSING_MS = 45_000;
-/** The owner is never left in silence (ruling 86): "One moment" if no answer after this long. */
-export const ONE_MOMENT_AFTER_MS = 3000;
 
 const DECISION_WORDS = {
   no_fault: 'nobody was at fault',
@@ -367,20 +367,33 @@ export function StaffVoice({
     function talk(text: string, fallback?: () => void): void {
       const { staffKey: key, areas: mine, address: owner } = latest.current;
       const as = { kind: 'staff', key } as const;
-      // The owner's model may think for a while (ruling 86): after about 3 seconds he hears
-      // "One moment, Mr. Anthony." once, so he is never left in silence.
-      let answered = false;
-      const moment = owner
-        ? window.setTimeout(() => {
-            if (!answered) void latest.current.ozi.say(`One moment, ${KNOWN_NAMES.spokenName}.`);
-          }, ONE_MOMENT_AFTER_MS)
-        : null;
+      const thisTurn = turn.current;
+      // The reply is spoken a sentence at a time as it arrives (ruling 92), queued so the
+      // sentences run on without a click. The owner's model may think for a while (ruling 86):
+      // only after `ozi.fillerAfterMs` of silence does he hear a short filler, never the same one
+      // twice running, and "Looking that up." instead when his model is reading his desk. The
+      // delay he felt, to the first word, is sent back to be measured.
+      const heardAt = Date.now();
+      let firstWordAt: number | null = null;
+      const firstWord = (): void => {
+        if (firstWordAt === null) firstWordAt = Date.now();
+      };
+      const filler = fillerWhileWaiting((words) => void latest.current.ozi.say(words));
       void (async () => {
         const answer = await latest.current.ozi.think(
-          converse(text, turn.current, as, owner ? OWNER_CONVERSE_WAIT_MS : CONVERSE_WAIT_MS),
+          converse(text, thisTurn, as, owner ? OWNER_CONVERSE_WAIT_MS : CONVERSE_WAIT_MS, {
+            onSentence: (sentence) => {
+              filler.arrived();
+              firstWord();
+              void latest.current.ozi.say(sentence, { queue: true });
+            },
+            onStatus: (status) => {
+              filler.arrived();
+              void latest.current.ozi.say(status);
+            },
+          }),
         );
-        answered = true;
-        if (moment !== null) window.clearTimeout(moment);
+        filler.stop();
         turn.current += 1;
         if (!answer?.reply && fallback) {
           // Away, slow or silent: the panel's own answer, which names the right thing.
@@ -399,13 +412,19 @@ export function StaffVoice({
         }
         conversingUntil.current = Date.now() + CONVERSING_MS;
         if (answer.awaitingYes) {
-          latest.current.ozi.listenFor(answer.reply, (reply) => {
+          firstWord();
+          recordFelt(thisTurn, firstWordAt! - heardAt, as);
+          latest.current.ozi.listenFor(answer.unsaid || answer.reply, (reply) => {
             talk(reply);
             if (YES.test(reply)) void load();
           });
           return;
         }
-        void latest.current.ozi.say(answer.reply);
+        if (answer.unsaid) {
+          firstWord();
+          void latest.current.ozi.say(answer.unsaid, { queue: true });
+        }
+        if (firstWordAt !== null) recordFelt(thisTurn, firstWordAt - heardAt, as);
       })();
     }
 

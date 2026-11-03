@@ -1694,6 +1694,14 @@ export interface OziExchange {
   ratedAt: Date | null;
   /** The exact model that answered, when brain is "model" (31 October 2026). */
   model?: string | null;
+  /** Milliseconds waiting on the model (ruling 92); null when the model was not asked. */
+  modelMs?: number | null;
+  /** Milliseconds from the request to the first spoken sentence leaving the server. */
+  firstWordMs?: number | null;
+  /** Milliseconds the server took in all. */
+  totalMs?: number | null;
+  /** Milliseconds the person felt, from finishing speaking to the first word heard, from the app. */
+  feltMs?: number | null;
   /** Who was speaking: shopper, runner, partner, organisation, staff, owner or visitor. */
   accountKind?: string | null;
   /** When Ozi's weekly self-review looked at it, so it is never looked at twice. */

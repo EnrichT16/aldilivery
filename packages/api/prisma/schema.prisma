@@ -1496,6 +1496,13 @@ model OziExchange {
   accountKind     String?
   /// When Ozi's weekly self-review looked at this exchange, so it is never looked at twice.
   reviewedAt      DateTime?
+  /// How long it took (ruling 92, 3 November 2026): waiting on the model, to the first spoken
+  /// sentence leaving the server, the whole server time, and the delay the person felt on their
+  /// phone from finishing speaking to the first word heard, sent back by the app.
+  modelMs         Int?
+  firstWordMs     Int?
+  totalMs         Int?
+  feltMs          Int?
 
   @@index([at])
   @@index([verdict, at])

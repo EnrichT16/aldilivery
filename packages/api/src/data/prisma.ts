@@ -1417,6 +1417,22 @@ export function prismaRepository(prisma: PrismaClient): Repository {
         });
         return row?.reviewedAt ?? null;
       },
+      async recordFelt(conversationKey, turn, feltMs) {
+        const row = await prisma.oziExchange.findFirst({
+          where: { conversationKey, turn },
+          orderBy: { at: 'desc' },
+          select: { id: true },
+        });
+        if (!row) return;
+        await prisma.oziExchange.update({ where: { id: row.id }, data: { feltMs } });
+      },
+      async feltSince(since) {
+        const rows = await prisma.oziExchange.findMany({
+          where: { at: { gte: since }, feltMs: { not: null } },
+          select: { feltMs: true, accountKind: true },
+        });
+        return rows.map((row) => ({ feltMs: row.feltMs as number, accountKind: row.accountKind }));
+      },
     },
 
     learned: {

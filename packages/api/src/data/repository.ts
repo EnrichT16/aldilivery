@@ -1063,6 +1063,13 @@ export interface Repository {
     markReviewed(ids: string[], at: Date): Promise<void>;
     /** When the self-review last looked at anything, or null. */
     lastReviewedAt(): Promise<Date | null>;
+    /**
+     * The delay the person felt (ruling 92), reported by the app after the turn: written on the
+     * latest exchange of that conversation and turn. Nothing when there is no such exchange.
+     */
+    recordFelt(conversationKey: string, turn: number, feltMs: number): Promise<void>;
+    /** Every felt delay reported since a moment, with who was speaking, for the summary. */
+    feltSince(since: Date): Promise<Array<{ feltMs: number; accountKind: string | null }>>;
   };
 
   income: {

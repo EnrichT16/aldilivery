@@ -106,16 +106,31 @@ function sameLanguage(voiceLang: string, wanted: LanguageTag): boolean {
   return a === b || a.split('-')[0] === b.split('-')[0];
 }
 
+/** One sentence handed to the synthesiser and not yet finished. */
+interface Saying {
+  text: string;
+  resolve: (outcome: SpeakOutcome) => void;
+  safety: number;
+}
+
 export function browserVoiceEngine(): VoiceEngine {
   let recognition: Recognition | null = null;
   // Set once speaking has failed on this device, so readiness stops claiming it can.
   let speechFailed = false;
-  let speakingResolve: ((outcome: SpeakOutcome) => void) | null = null;
+  // The sentences being said or waiting their turn, oldest first (ruling 92): one reply's
+  // sentences queue up behind each other; a new reply, or an interruption, clears them all.
+  const sayings: Saying[] = [];
 
-  function finishSpeaking(outcome: SpeakOutcome): void {
-    const resolve = speakingResolve;
-    speakingResolve = null;
-    resolve?.(outcome);
+  function finish(saying: Saying, outcome: SpeakOutcome): void {
+    const at = sayings.indexOf(saying);
+    if (at === -1) return;
+    sayings.splice(at, 1);
+    window.clearTimeout(saying.safety);
+    saying.resolve(outcome);
+  }
+
+  function finishAll(outcome: SpeakOutcome): void {
+    for (const saying of [...sayings]) finish(saying, outcome);
   }
 
   return {
@@ -197,9 +212,14 @@ export function browserVoiceEngine(): VoiceEngine {
       const speech = synthesis();
       if (text.trim() === '') return 'finished';
       if (!speech || speechFailed) return 'not-spoken';
-      // A new sentence replaces whatever was being said.
-      finishSpeaking('interrupted');
-      speech.cancel();
+      // A new sentence replaces whatever was being said, unless it is the next sentence of the
+      // same reply (ruling 92), which waits its turn on the synthesiser: no cancel, no click.
+      if (!options.queue) {
+        finishAll('interrupted');
+        speech.cancel();
+      }
+      // How long the sentences ahead of this one may take, so its safety timer waits for them.
+      const ahead = sayings.reduce((sum, saying) => sum + saying.text.length, 0);
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = options.language;
@@ -213,46 +233,47 @@ export function browserVoiceEngine(): VoiceEngine {
       if (chosen) utterance.voice = chosen;
 
       return new Promise((resolve) => {
-        speakingResolve = resolve;
         // Some devices never report the end of speech: one with no voice installed, or a
         // browser that drops the sentence. A conversation must never hang on that, so a timer
-        // sized to the sentence ends the wait regardless. Found in a real browser, 1 Oct 2026.
-        const safety = window.setTimeout(
-          () => {
-            if (speakingResolve === resolve) {
-              finishSpeaking('not-spoken');
+        // sized to the sentence (and any ahead of it) ends the wait regardless. Found in a real
+        // browser, 1 Oct 2026.
+        const saying: Saying = {
+          text,
+          resolve,
+          safety: window.setTimeout(
+            () => {
+              if (!sayings.includes(saying)) return;
+              finish(saying, 'not-spoken');
               speech.cancel();
-            }
-          },
-          3000 + text.length * 90,
-        );
-        utterance.onend = () => {
-          window.clearTimeout(safety);
-          if (speakingResolve === resolve) finishSpeaking('finished');
+            },
+            3000 + (text.length + ahead) * 90,
+          ),
         };
+        sayings.push(saying);
+        utterance.onend = () => finish(saying, 'finished');
         utterance.onerror = (event) => {
-          window.clearTimeout(safety);
-          if (speakingResolve !== resolve) return;
+          if (!sayings.includes(saying)) return;
           // Cut short on purpose, or a real failure. A device with no voice installed fails
           // every sentence at once with `synthesis-failed`. Found in a real browser, 1 Oct 2026.
           const error = (event as { error?: string }).error;
           if (error === 'interrupted' || error === 'canceled') {
-            finishSpeaking('interrupted');
+            finish(saying, 'interrupted');
           } else if (error === 'not-allowed') {
             // The browser will not speak until the person has touched the page once. Not a
             // broken device: the next sentence, after a touch, will work.
-            finishSpeaking('not-spoken');
+            finish(saying, 'not-spoken');
           } else {
             speechFailed = true;
-            finishSpeaking('not-spoken');
+            finish(saying, 'not-spoken');
           }
         };
         speech.speak(utterance);
       });
     },
 
+    // Somebody speaking over Ozi (barge-in), or a tap: everything stops at once, queued or not.
     interrupt(): void {
-      finishSpeaking('interrupted');
+      finishAll('interrupted');
       synthesis()?.cancel();
     },
 

@@ -471,9 +471,11 @@ describe('what Ozi knows (docs/ozi-knowledge.md, 31 October 2026)', () => {
       expect(text).toMatch(/Never talk about insurance/);
       expect(text).not.toMatch(/AI model|anthropic|claude/i);
     }
-    expect(ownerInstructions(config, knowledge)).toContain(
-      `Always address him as ${config.owner.spokenName}`,
-    );
+    // His name naturally and sparingly (ruling 92), never forced at the start of every reply.
+    const owner = ownerInstructions(config, knowledge);
+    expect(owner).toContain(`call him ${config.owner.spokenName} when you address him`);
+    expect(owner).toMatch(/Never open every reply with his name/);
+    expect(owner).not.toMatch(/Always address him as/);
   });
 });
 

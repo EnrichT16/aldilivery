@@ -1947,7 +1947,26 @@ function Memory({
   }, [verdict, channel, reload]);
   const rows: ExchangeRow[] | undefined = list.data?.exchanges;
   const counts = list.data?.counts;
+  const latency = list.data?.latency;
   const [better, setBetter] = useState<Record<string, string>>({});
+  /** "1.8 s": milliseconds as seconds, one decimal, for people. */
+  const seconds = (ms: number): string => `${(ms / 1000).toFixed(1)} s`;
+  /** How long one exchange took (ruling 92), in plain words, or nothing when not measured. */
+  const timings = (row: ExchangeRow): string | null => {
+    const parts: string[] = [];
+    if (typeof row.feltMs === 'number') parts.push(`felt ${seconds(row.feltMs)} to the first word`);
+    if (typeof row.firstWordMs === 'number') parts.push(`server ${seconds(row.firstWordMs)} to the first sentence`);
+    if (typeof row.modelMs === 'number') parts.push(`${seconds(row.modelMs)} thinking`);
+    if (typeof row.totalMs === 'number') parts.push(`${seconds(row.totalMs)} in all`);
+    return parts.length === 0 ? null : `Took: ${parts.join(', ')}.`;
+  };
+  const summaryWords = (
+    who: string,
+    summary: { medianFeltMs: number; p90FeltMs: number; exchanges: number } | null,
+  ): string =>
+    summary
+      ? `${who}: half heard the first word within ${seconds(summary.medianFeltMs)}, nine in ten within ${seconds(summary.p90FeltMs)} (${summary.exchanges} ${summary.exchanges === 1 ? 'exchange' : 'exchanges'}).`
+      : `${who}: nothing measured yet.`;
   const judge = (row: ExchangeRow, right: boolean): void => {
     const words = (better[row.id] ?? '').trim();
     void judgeExchange(
@@ -1999,6 +2018,19 @@ function Memory({
           {counts.total} kept: {counts.unrated} not yet judged, {counts.right} right, {counts.wrong}{' '}
           wrong.
         </p>
+      )}
+      {latency && (
+        <section aria-labelledby="memory-speed-heading" className="space-y-1">
+          <h3 id="memory-speed-heading" className="m-0 font-bold">
+            How quickly Ozi answered in the last day
+          </h3>
+          <p className="m-0 extra">
+            The wait a person felt on their phone, from finishing speaking to Ozi&rsquo;s first
+            word.
+          </p>
+          <p className="m-0">{summaryWords('Everyone', latency.everyone)}</p>
+          <p className="m-0">{summaryWords('The owner', latency.owner)}</p>
+        </section>
       )}
       <div role="group" aria-label="Which exchanges" className="flex flex-wrap gap-2">
         {(['unrated', 'wrong', 'right', 'all'] as const).map((one) => (
@@ -2053,6 +2085,7 @@ function Memory({
               Heard: &ldquo;{row.heard === '' ? 'nothing, Ozi spoke first' : row.heard}&rdquo;
             </h3>
             <p className="m-0">Ozi said: &ldquo;{row.said === '' ? 'nothing' : row.said}&rdquo;</p>
+            {timings(row) && <p className="m-0 extra">{timings(row)}</p>}
             {row.verdict !== 'unrated' && (
               <p className="m-0">
                 Marked {row.verdict} by {row.ratedBy ?? 'staff'}

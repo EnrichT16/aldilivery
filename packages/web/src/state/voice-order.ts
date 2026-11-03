@@ -23,6 +23,7 @@ import {
 import { storeConfig } from '../config';
 import {
   askOzi,
+  askOziStream,
   createOrder,
   fetchMyArea,
   fetchShops,
@@ -31,7 +32,9 @@ import {
   priceBasketRemotely,
   recordCheckoutViewed,
   recordExchange,
+  recordFelt,
   searchCatalogue,
+  StreamUnavailableError,
   suggestItem,
   type CatalogueItem,
   type ItemSuggestion,
@@ -44,6 +47,7 @@ import { money, sellable, shownPrice, tooDearWords } from '../lib/money';
 import { completeBankCheck } from '../lib/stripe';
 import { parseChoice, parseQuantity, parseYesNo, splitItems, wantsToStop } from '../voice/ordering';
 import type { SpeakOutcome } from '../voice';
+import { fillerWhileWaiting } from '../voice/filler';
 import { useBasket } from './basket';
 import { useSession } from './session';
 import { NAME_PATTERN, nameHeardIn } from '../voice/name';
@@ -217,7 +221,8 @@ export interface VoiceOrdering {
 }
 
 export function useVoiceOrdering(
-  speak: (text: string) => Promise<SpeakOutcome>,
+  /** `queue` (ruling 92): the next sentence of the same reply, after the one being said. */
+  speak: (text: string, options?: { queue?: boolean }) => Promise<SpeakOutcome>,
   /** No account yet: Ozi asks whether to open one now, by talking. */
   offerAccount?: () => void,
   /** Shows "One moment" while the server works out an answer (31 October 2026). */
@@ -233,8 +238,9 @@ export function useVoiceOrdering(
     outcome: 'asked',
   });
   const say = useCallback(
-    async (text: string): Promise<SpeakOutcome> => {
-      const outcome = await speak(text);
+    async (text: string, options: { alreadySpoken?: boolean } = {}): Promise<SpeakOutcome> => {
+      // A reply heard sentence by sentence as it arrived (ruling 92) is only remembered here.
+      const outcome: SpeakOutcome = options.alreadySpoken ? 'finished' : await speak(text);
       recordExchange(
         {
           heard: lastHeard.current,
@@ -295,24 +301,84 @@ export function useVoiceOrdering(
   // What the language model heard in the last sentence, when the parser saw nothing (ruling 69).
   const heardItems = useRef<OziUnderstanding | null>(null);
 
-  /** The server's phrase book, then the language model, for a sentence looked within (rulings 49, 69). */
+  /** One answer looked within: the reply, what the model heard, and what is left to say. */
+  interface Asked {
+    reply: string | null;
+    understood?: OziUnderstanding;
+    /** The part of the reply not yet spoken (ruling 92): all of it when it came in one piece. */
+    unsaid: string;
+  }
+
+  /**
+   * The server's phrase book, then the language model, for a sentence looked within (rulings 49,
+   * 69). The reply is streamed and each sentence spoken as it arrives, queued (ruling 92); a
+   * short filler only after a long silence; the delay felt, to the first word, sent back. When
+   * no stream can be started the plain request is made, once. Shopping the model heard is never
+   * spoken early: it comes whole, in `understood`, when the answer is complete.
+   */
   const askWithin = useCallback(
-    async (
-      text: string,
-    ): Promise<{ reply: string | null; understood?: OziUnderstanding } | null> => {
+    async (text: string): Promise<Asked | null> => {
       const basket = live.current.basket.lines.map((line) => line.item.name);
+      const thisTurn = chatterTurn.current;
+      const as = currentAsker();
+      const heardAt = Date.now();
+      let firstWordAt: number | null = null;
+      const firstWord = (): void => {
+        if (firstWordAt === null) firstWordAt = Date.now();
+      };
+      const filler = fillerWhileWaiting((words) => void speak(words));
+      const streamed = askOziStream(
+        text,
+        thisTurn,
+        as,
+        {
+          onSentence: (sentence) => {
+            filler.arrived();
+            firstWord();
+            void speak(sentence, { queue: true });
+          },
+          onStatus: (status) => {
+            filler.arrived();
+            void speak(status);
+          },
+        },
+        basket,
+      ).catch((failure: unknown) =>
+        firstWordAt === null && failure instanceof StreamUnavailableError
+          ? askOzi(text, 'within', thisTurn, as, basket).then(
+              (plain): Asked => ({ ...plain, unsaid: plain.reply ?? '' }),
+            )
+          : Promise.reject(failure),
+      );
       try {
-        return await think(
+        const answer = await think(
           Promise.race([
-            askOzi(text, 'within', chatterTurn.current, currentAsker(), basket),
+            streamed,
             new Promise<null>((resolve) => setTimeout(() => resolve(null), ASK_WAIT_MS)),
           ]),
         );
+        if (answer && (answer.unsaid !== '' || firstWordAt !== null)) {
+          firstWord();
+          recordFelt(thisTurn, (firstWordAt ?? heardAt) - heardAt, as);
+        }
+        return answer;
       } catch {
         return null;
+      } finally {
+        filler.stop();
       }
     },
-    [think],
+    [think, speak],
+  );
+
+  /** What is left of an answer to say, or the whole of it remembered when all was heard. */
+  const sayRest = useCallback(
+    (answer: Asked, fallback?: string): Promise<SpeakOutcome> => {
+      if (answer.unsaid !== '') return say(answer.unsaid);
+      if (answer.reply) return say(answer.reply, { alreadySpoken: true });
+      return fallback ? say(fallback) : Promise.resolve('finished');
+    },
+    [say],
   );
 
   /**
@@ -339,12 +405,12 @@ export function useVoiceOrdering(
         offered.current = answer.understood.items.map((item) => `${item.quantity} ${item.name}`);
         note.current = { brain: 'model', outcome: 'answered' };
         expectNow();
-        await say(answer.understood.reply ?? answer.reply ?? 'Shall I add them?');
+        await sayRest(answer, 'Shall I add them?');
         return true;
       }
       if (answer?.reply) {
         // The server keeps this one itself, with the words it answered.
-        return (await say(answer.reply), true);
+        return (await sayRest(answer), true);
       }
       // The language model heard shopping in it (ruling 69): "I've run out of flour" is an order.
       if (answer?.understood && answer.understood.items.length > 0) {
@@ -358,7 +424,7 @@ export function useVoiceOrdering(
       await say(smallTalk.nudge);
       return true;
     },
-    [say, anyInCatalogue],
+    [say, sayRest, askWithin, anyInCatalogue],
   );
 
   const reset = useCallback(() => {
@@ -792,14 +858,14 @@ export function useVoiceOrdering(
               );
               note.current = { brain: 'model', outcome: 'answered' };
               expectNow();
-              await say(answer.understood.reply ?? answer.reply ?? 'Shall I add them?');
+              await sayRest(answer, 'Shall I add them?');
               return true;
             }
             if (answer?.understood && answer.understood.items.length > 0) {
               heardItems.current = answer.understood;
             } else if (answer?.reply) {
               note.current = { brain: 'model', outcome: 'answered' };
-              await say(answer.reply);
+              await sayRest(answer);
               return true;
             }
           }
@@ -1031,6 +1097,8 @@ export function useVoiceOrdering(
       ceiling,
       shop,
       chatter,
+      askWithin,
+      sayRest,
       refresh,
       rebook,
       noRunnerWarning,

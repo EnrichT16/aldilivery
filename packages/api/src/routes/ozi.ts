@@ -8,6 +8,8 @@
  * Runner, and otherwise a Shopper, signed in or not.
  */
 
+import { PassThrough } from 'node:stream';
+
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import {
   knownSpeakerReply,
@@ -21,7 +23,8 @@ import type { LearnedPhrase, PartnerShop } from '../domain.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../errors.js';
 import { businessActor } from '../lib/business.js';
 import { bannedList, containsBanned, fitToKeep } from '../lib/banned.js';
-import { itemWords, type Speaker } from '../lib/language-model.js';
+import { itemWords, type Speaker, type Understanding } from '../lib/language-model.js';
+import { feltDelaysOf, summarise } from '../lib/ozi-latency.js';
 import {
   carryOutDecision,
   isClearYes,
@@ -35,6 +38,7 @@ import {
 import {
   BRAINS,
   CHANNELS,
+  conversationKey,
   OUTCOMES,
   remember,
   trainingLine,
@@ -55,6 +59,7 @@ import {
   type PhraseBook,
 } from '../lib/phrases.js';
 import { rankedForListing } from '../lib/partner-standing.js';
+import { unsaidPart } from '../lib/sentences.js';
 import { staffActor } from '../lib/staff.js';
 
 /** One short line of what is on the screen: cut, never refused, so a long page still arrives. */
@@ -101,7 +106,47 @@ const body = z.object({
   basket: z.array(z.string().trim().max(80)).max(40).optional(),
   /** What is on their screen now (ruling 89). A malformed one is simply left out. */
   screen: screenShape.optional().catch(undefined),
+  /** Sentences as they come (ruling 92), as `Accept: text/event-stream` also asks. */
+  stream: z.boolean().optional(),
 });
+type ReplyBody = z.infer<typeof body>;
+
+/** The delay the person felt (ruling 92), from finishing speaking to the first word heard. */
+const feltBody = z.object({
+  conversation: z.string().trim().min(1).max(80),
+  turn: z.number().int().min(0).max(1_000_000).default(0),
+  feltMs: z.number().int().min(0).max(600_000),
+});
+
+/** What one turn gives back: the same JSON whether it was streamed or not. */
+interface Answer {
+  reply: string | null;
+  understood?: Understanding;
+  awaitingYes?: boolean;
+}
+
+/** How long the turn is taking (ruling 92), for Ozi's memory. */
+interface Timing {
+  started: number;
+  modelMs: number | null;
+  firstWordAt: number | null;
+}
+
+/** Where a streamed turn sends its sentences and its one status line; silent otherwise. */
+interface Sink {
+  sentence(text: string): void;
+  status(text: string): void;
+}
+const SILENT: Sink = { sentence: () => undefined, status: () => undefined };
+
+/** Whether the app asked for the reply a sentence at a time (ruling 92). */
+function wantsStream(request: FastifyRequest, input: ReplyBody): boolean {
+  const accept = request.headers.accept;
+  const header = Array.isArray(accept) ? accept.join(',') : (accept ?? '');
+  return input.stream === true || /text\/event-stream/i.test(header);
+}
+
+const DAY_MS = 24 * 60 * 60_000;
 
 /** What the app said back on its own, for Ozi's memory (ruling 68). */
 const heardBody = z.object({
@@ -186,9 +231,11 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
     said: string | null,
     brain: Brain,
     outcome: Outcome,
-    /** Who was speaking, and the exact model when it answered (31 October 2026). */
-    extra: { speaker?: Speaker; model?: string | null } = {},
+    /** Who was speaking, the exact model when it answered, and how long it took (ruling 92). */
+    extra: { speaker?: Speaker; model?: string | null; timing?: Timing } = {},
   ): void {
+    const timing = extra.timing;
+    const at = Date.now();
     void remember(
       app.ctx,
       {
@@ -202,6 +249,10 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         outcome,
         accountKind: extra.speaker?.kind ?? null,
         model: extra.model ?? null,
+        modelMs: timing?.modelMs ?? null,
+        // The first spoken sentence left the server when it was streamed, else with the reply.
+        firstWordMs: timing && said ? (timing.firstWordAt ?? at) - timing.started : null,
+        totalMs: timing ? at - timing.started : null,
       },
       request.log,
       banned,
@@ -294,14 +345,31 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
     return fillIn(phrase.replies[turn % phrase.replies.length]!, config, book.ownerAddress, live);
   }
 
-  app.post('/ozi/reply', async (request) => {
-    const input = body.parse(request.body ?? {});
+  /**
+   * One turn (ruling 92): the same answer whether streamed or not. With a streaming sink, each
+   * sentence of a model's reply is sent as soon as it is complete, and the owner is told once
+   * when his model looks something up; the final JSON is the same as the plain route's.
+   */
+  async function answerOnce(
+    request: FastifyRequest,
+    input: ReplyBody,
+    identity: Awaited<ReturnType<typeof whoIsSpeaking>>,
+    timing: Timing,
+    sink: Sink,
+  ): Promise<Answer> {
     const { text, mode, turn, conversation } = input;
-    // Who is speaking comes from the sign-in alone, never from the request's words (31 October
-    // 2026): the owner, staff, a partner, an organisation, a Runner, a Shopper or a visitor.
-    const { account, speaker, allowanceKey } = await whoIsSpeaking(request);
+    const { account, speaker, allowanceKey } = identity;
     const kept = (said: string | null, brain: Brain, outcome: Outcome, model?: string | null) =>
-      keep(request, account, conversation, turn, text, said, brain, outcome, { speaker, model });
+      keep(request, account, conversation, turn, text, said, brain, outcome, {
+        speaker,
+        model,
+        timing,
+      });
+    /** A streamed sentence, unless it has a word Ozi will not say. */
+    const sentence = (words: string): void => {
+      if (words.trim() === '' || containsBanned(words, banned)) return;
+      sink.sentence(words);
+    };
 
     // Rule One for the owner's desk by voice (31 October 2026): a decision read back last turn is
     // carried out only on a clear yes now, and forgotten on anything else.
@@ -436,13 +504,17 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
     // The owner on the newest Opus (ruling 86), with his desk tools (31 October 2026). It may
     // read; a decision is only read back here, and waits for his yes in his next turn.
     if (owner && brain?.talkWithOwner) {
+      const asked = Date.now();
       const talk = await brain.talkWithOwner({
         text,
         channel: 'app',
         history,
         tools: ownerTools(app.ctx),
         ...(input.screen ? { screen: input.screen } : {}),
+        onSentence: sentence,
+        onStatus: (words) => sink.status(words),
       });
+      timing.modelMs = Date.now() - asked;
       if (talk && !containsBanned(talk.reply, banned)) {
         if (talk.proposal && conversation) {
           pendingDecisions.set(conversation, { ...talk.proposal, at: Date.now() });
@@ -457,6 +529,7 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
       // which the app shops for as it would any list, or answers, knowing who is speaking and
       // what was said before. Its answers still go to the Learning list. Too slow, and it is as
       // if absent.
+      const asked = Date.now();
       const understood = await brain.understand({
         text,
         account,
@@ -465,7 +538,9 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         history,
         ...(input.basket ? { basket: input.basket } : {}),
         ...(input.screen ? { screen: input.screen } : {}),
+        onSentence: sentence,
       });
+      timing.modelMs = Date.now() - asked;
       if (understood && (understood.kind === 'items' || understood.kind === 'remove')) {
         // Staff are not Shoppers (ruling 84): orders stay safe behind a Shopper account, said
         // kindly, never with an offer to open one.
@@ -496,6 +571,69 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
     kept(null, 'none', 'unanswered');
     keepForLearning();
     return { reply: null };
+  }
+
+  app.post('/ozi/reply', async (request, reply) => {
+    const input = body.parse(request.body ?? {});
+    const timing: Timing = { started: Date.now(), modelMs: null, firstWordAt: null };
+    // Who is speaking comes from the sign-in alone, never from the request's words (31 October
+    // 2026): the owner, staff, a partner, an organisation, a Runner, a Shopper or a visitor.
+    const identity = await whoIsSpeaking(request);
+    if (!wantsStream(request, input)) return answerOnce(request, input, identity, timing, SILENT);
+
+    // Streamed (ruling 92): server-sent events, {type:"sentence"} as each completes, at most
+    // one {type:"status"}, then {type:"done"} with the same JSON the plain route gives, plus
+    // "unsaid": the part of the reply not yet sent as sentences, for the app to say.
+    const out = new PassThrough();
+    const send = (event: Record<string, unknown>): void => {
+      out.write(`data: ${JSON.stringify(event)}\n\n`);
+    };
+    const sent: string[] = [];
+    const sink: Sink = {
+      sentence(text) {
+        if (timing.firstWordAt === null) timing.firstWordAt = Date.now();
+        sent.push(text);
+        send({ type: 'sentence', text });
+      },
+      status(text) {
+        send({ type: 'status', text });
+      },
+    };
+    void (async () => {
+      try {
+        const answer = await answerOnce(request, input, identity, timing, sink);
+        const unsaid = answer.reply ? unsaidPart(answer.reply, sent) : '';
+        send({ type: 'done', ...answer, unsaid });
+      } catch (failure) {
+        request.log.error({ err: failure }, "A streamed turn of Ozi's conversation failed.");
+        send({ type: 'error' });
+      } finally {
+        out.end();
+      }
+    })();
+    return reply
+      .header('content-type', 'text/event-stream; charset=utf-8')
+      .header('cache-control', 'no-cache, no-transform')
+      .header('x-accel-buffering', 'no')
+      .send(out);
+  });
+
+  /**
+   * The delay the person felt (ruling 92), measured on their phone from finishing speaking to the
+   * first word heard, sent after the turn and written on that exchange. Fire and forget for the
+   * app; it never changes what Ozi says.
+   */
+  app.post('/ozi/felt', async (request) => {
+    const input = feltBody.parse(request.body ?? {});
+    await whoIsSpeaking(request);
+    const key = conversationKey(env.authTokenSecret, input.conversation);
+    try {
+      await repository.memory.recordFelt(key, input.turn, input.feltMs);
+    } catch (failure) {
+      request.log.warn({ err: failure }, 'A felt delay could not be kept.');
+    }
+    feltDelaysOf(app.ctx).record(input.feltMs, now());
+    return { ok: true };
   });
 
   /**
@@ -597,12 +735,21 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
   app.get('/staff/memory', async (request) => {
     await staffActor(request, 'learning');
     const where = memoryQuery.parse(request.query ?? {});
-    const [rows, counts] = await Promise.all([
+    const [rows, counts, felt] = await Promise.all([
       repository.memory.list({ ...where, limit: 200 }),
       repository.memory.counts(),
+      repository.memory.feltSince(new Date(now().getTime() - DAY_MS)),
     ]);
     return {
       counts,
+      // How long people waited in the last day (ruling 92): the felt delay, for everyone and
+      // for the owner, each the median and the 90th percentile, or null when none was reported.
+      latency: {
+        everyone: summarise(felt.map((row) => row.feltMs)),
+        owner: summarise(
+          felt.filter((row) => row.accountKind === 'owner').map((row) => row.feltMs),
+        ),
+      },
       exchanges: rows.map((row) => ({
         id: row.id,
         at: row.at,
@@ -619,6 +766,10 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         ratedBy: row.ratedBy,
         model: row.model ?? null,
         accountKind: row.accountKind ?? null,
+        modelMs: row.modelMs ?? null,
+        firstWordMs: row.firstWordMs ?? null,
+        totalMs: row.totalMs ?? null,
+        feltMs: row.feltMs ?? null,
       })),
     };
   });

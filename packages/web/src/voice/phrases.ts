@@ -1,7 +1,15 @@
 import { phraseFingerprint, phraseWithoutName } from '@aldilivery/core';
 
 import { storeConfig } from '../config';
-import { askOzi, businessToken, fetchKnownPhrases, type OziAsker } from '../lib/api';
+import {
+  askOzi,
+  askOziStream,
+  businessToken,
+  fetchKnownPhrases,
+  StreamUnavailableError,
+  type OziAsker,
+  type OziStreamHandlers,
+} from '../lib/api';
 import { currentAsker } from '../lib/ozi-asker';
 import { nameHeardIn } from './name';
 
@@ -21,8 +29,9 @@ const WAIT_MS = 2500;
 /**
  * How long Ozi waits for a sentence said to it by name, which the server may answer with the
  * language model (31 October 2026): about 8 seconds, and 20 for the owner (ruling 86), whose
- * model thinks first and may look things up; after about 3 seconds he hears "One moment, Mr.
- * Anthony." "One moment" shows meanwhile; too long, and Ozi goes on as before.
+ * model thinks first and may look things up. "One moment" shows meanwhile, and after
+ * `ozi.fillerAfterMs` of silence a short filler is said (ruling 92); too long, and Ozi goes on
+ * as before. The reply itself arrives a sentence at a time and is spoken as it comes.
  */
 export const CONVERSE_WAIT_MS = 8000;
 export const OWNER_CONVERSE_WAIT_MS = 20_000;
@@ -124,23 +133,64 @@ export async function isKnownPhrase(text: string, as: OziAsker): Promise<boolean
   return said !== '' && fingerprints.has(phraseFingerprint(said));
 }
 
+/** One turn's answer: the reply, whether a yes is awaited, and what is still to be said. */
+export interface Conversed {
+  reply: string | null;
+  awaitingYes?: boolean;
+  /**
+   * The part of the reply not yet spoken (ruling 92): the whole reply when it came in one piece,
+   * what followed the last streamed sentence otherwise, or '' when every sentence was heard.
+   */
+  unsaid: string;
+}
+
 /**
  * The whole answer to a sentence said to Ozi (31 October 2026): the reply, and whether a decision
  * was read back and waits for a yes (the owner's desk, Rule One). Null when the server was slow.
+ *
+ * With `handlers` (ruling 92) the reply is streamed and each sentence handed over as it arrives,
+ * so it can be spoken at once; if the stream cannot be had, or the browser cannot read one, the
+ * plain request is made instead and the whole reply comes back as `unsaid`.
  */
 export function converse(
   text: string,
   turn: number,
   as: OziAsker,
   waitMs: number = CONVERSE_WAIT_MS,
-): Promise<{ reply: string | null; awaitingYes?: boolean } | null> {
-  return withTimeout(
-    askOzi(text, 'within', turn, as).then(({ reply, awaitingYes }) =>
-      awaitingYes ? { reply, awaitingYes } : { reply },
-    ),
-    waitMs,
-    null,
-  );
+  handlers?: OziStreamHandlers,
+): Promise<Conversed | null> {
+  const plain = (): Promise<Conversed> =>
+    askOzi(text, 'within', turn, as).then(({ reply, awaitingYes }) => ({
+      reply,
+      ...(awaitingYes ? { awaitingYes: true } : {}),
+      unsaid: reply ?? '',
+    }));
+  const streamed = (): Promise<Conversed> => {
+    if (!handlers) return plain();
+    let began = false;
+    const watched: OziStreamHandlers = {
+      onSentence: (sentence) => {
+        began = true;
+        handlers.onSentence(sentence);
+      },
+      onStatus: (status) => {
+        began = true;
+        handlers.onStatus(status);
+      },
+    };
+    return askOziStream(text, turn, as, watched).then(
+      ({ reply, awaitingYes, unsaid }) => ({
+        reply,
+        ...(awaitingYes ? { awaitingYes: true } : {}),
+        unsaid,
+      }),
+      // No stream could be started: ask the plain way, once. A refusal, or a stream cut off
+      // part way, is the answer there is.
+      (failure: unknown) =>
+        !began && failure instanceof StreamUnavailableError ? plain() : Promise.reject(failure),
+    );
+  };
+  return withTimeout(streamed(), waitMs, null);
 }
 
 /**

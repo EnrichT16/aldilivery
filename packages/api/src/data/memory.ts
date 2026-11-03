@@ -2395,6 +2395,17 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
         }
         return latest;
       },
+      async recordFelt(conversationKey, turn, feltMs) {
+        const row = [...exchanges]
+          .reverse()
+          .find((one) => one.conversationKey === conversationKey && one.turn === turn);
+        if (row) row.feltMs = feltMs;
+      },
+      async feltSince(since) {
+        return exchanges
+          .filter((row) => row.at >= since && typeof row.feltMs === 'number')
+          .map((row) => ({ feltMs: row.feltMs as number, accountKind: row.accountKind ?? null }));
+      },
     },
 
     learned: {

@@ -32,6 +32,7 @@ import {
 import { findWorkspaceRoot, storeConfigPath } from '@aldilivery/core/node';
 
 import { blankPrivate } from './redact.js';
+import { replySoFar, SentenceSplitter } from './sentences.js';
 
 /**
  * The model used unless LANGUAGE_MODEL names another: the mid-sized current one (Anthony,
@@ -184,6 +185,12 @@ export interface UnderstandInput {
   history?: PastTurn[];
   /** What is on their screen now (ruling 89), so "this one" and "that number" make sense. */
   screen?: ScreenContext;
+  /**
+   * Each sentence of the spoken reply as soon as it is complete (ruling 92), through
+   * `safeSpoken`, so the app can start speaking before the whole answer is in. Only for a reply
+   * that will be spoken: never for shopping, which waits for the whole shape.
+   */
+  onSentence?: (sentence: string) => void;
 }
 
 export type DeskVoiceChoice = 'approve' | 'decline' | 'later';
@@ -275,6 +282,10 @@ export interface OwnerTalkInput {
   tools: OwnerTools;
   /** What is on his screen now (ruling 89). */
   screen?: ScreenContext;
+  /** Each sentence of his answer as soon as it is complete (ruling 92), through `safeSpoken`. */
+  onSentence?: (sentence: string) => void;
+  /** Once, when the model starts looking something up, so he is told rather than left waiting. */
+  onStatus?: (text: string) => void;
 }
 
 /** One decision read back and waiting for his yes: on a desk matter, or a change (ruling 85). */
@@ -740,8 +751,57 @@ export function estimateInstructions(config: StoreConfig): string {
   ].join('\n');
 }
 
-/** The part of the provider's client this module uses, so tests can hand in a stand-in. */
+/**
+ * The part of the provider's client this module uses, so tests can hand in a stand-in. A
+ * stand-in may give only `create`; the real client streams (ruling 92).
+ */
 export type BrainClient = Pick<Anthropic, 'messages'>;
+
+/** What a streamed answer tells as it arrives: text deltas, and the start of a tool call. */
+interface StreamListeners {
+  onText?: (delta: string) => void;
+  onToolUse?: () => void;
+}
+
+/** What Ozi says while the owner's model looks something up (ruling 92). */
+export const LOOKING_UP = 'Looking that up.';
+
+/**
+ * One request to the model, streamed so the first words can be spoken as they arrive (ruling
+ * 92): the SDK's `messages.stream`, with the complete message from `finalMessage()`. A stand-in
+ * client with only `create` is answered whole, as before. `deadlineMs` ends the wait, stream
+ * and all, so a slow turn is given up in time.
+ */
+async function askModel(
+  client: BrainClient,
+  params: Anthropic.MessageCreateParamsNonStreaming,
+  deadlineMs: number,
+  listeners: StreamListeners = {},
+): Promise<Anthropic.Message> {
+  const messages = client.messages as {
+    create: (p: Anthropic.MessageCreateParamsNonStreaming, o?: object) => Promise<Anthropic.Message>;
+    stream?: (p: Anthropic.MessageCreateParamsNonStreaming, o?: object) => unknown;
+  };
+  const options = { timeout: deadlineMs, signal: AbortSignal.timeout(deadlineMs) };
+  if (typeof messages.stream !== 'function') return messages.create(params, options);
+  const stream = messages.stream(params, options) as {
+    on(event: 'text', listener: (delta: string, snapshot: string) => void): unknown;
+    on(
+      event: 'streamEvent',
+      listener: (event: Anthropic.MessageStreamEvent, snapshot: Anthropic.Message) => void,
+    ): unknown;
+    finalMessage(): Promise<Anthropic.Message>;
+  };
+  if (listeners.onText) stream.on('text', (delta) => listeners.onText?.(delta));
+  if (listeners.onToolUse) {
+    stream.on('streamEvent', (event) => {
+      if (event.type === 'content_block_start' && event.content_block.type === 'tool_use') {
+        listeners.onToolUse?.();
+      }
+    });
+  }
+  return stream.finalMessage();
+}
 
 /**
  * The standing instructions, built from configuration so no name lives in code (Rule Nine), with
@@ -757,7 +817,7 @@ export function instructions(config: StoreConfig, knowledge = ''): string {
     `Shopping words: "order", "get me", "pick up", "grab", "buy", "purchase", "fetch", "bring", "add", "I need", "I've run out of", "put in", "can I have" and anything like them all mean the person wants things bought. Kind "items": list each thing: "name" is the plain product word or two a shop search needs ("flour", "eggs", "semi skimmed milk"), "quantity" how many (default 1; "a couple" is 2, "a dozen" is 12), "brand" only if they said one, and "detail" any size or variety they said ("2 kg", "large", "free range"), or null.`,
     `Kind "remove": they want something taken off; put the thing in items. Kind "done": they have finished ("that's everything", "that's all"). Kind "stop": cancel or never mind. Kind "repeat": say it again. Kind "question": a question about the service, delivery, prices in general, plans, Runners, safety, how to do something, what is on the screen, a worry, a complaint, or anything else they want help with; answer the question actually asked, kindly and honestly, in one to three short sentences. Kind "recommend": they ask for an idea or recommendation (breakfast, lunch, dinner, a snack, something for a party, a cheap meal, something healthy); put 3 to 5 everyday supermarket items for it in items, and reply in under 30 words naming the dish and the items, ending with "Shall I add them?". Kind "chatter": small talk, a greeting, a thank you, a joke or a remark about their day; reply warmly and naturally, as a friendly person would, in a sentence or two, and treat it as small talk: do not turn it into shopping or steer back to ordering unless they do. If they ask the time, the day or the date, answer from the time given, as kind "question". Kind "unclear": you cannot tell; reply with one short question.`,
     `Follow the thread: the conversation so far is given to you, so "and the milk?", "the first one" or "what was that again" refer to it. When what is on their screen is given to you, use it: "this one", "the first one", "that number", "what does this say" mean what is on the screen, and you may refer to it plainly ("the three documents waiting on the Needs you now page"). Never read out from the screen anything that looks like a number, a code or an address.`,
-    `Rules for any reply: British English; plain words; no figures you are not sure of (never invent a price, a time or a fee); never ask for a card number, a code or a password; no alcohol, tobacco, medicines or cash through the service; if they want a person, say they can say "person". Speak as ${ozi}.`,
+    `Rules for any reply: British English; plain words; no figures you are not sure of (never invent a price, a time or a fee); never ask for a card number, a code or a password; no alcohol, tobacco, medicines or cash through the service; if they want a person, say they can say "person". Speak as ${ozi}. Their name, when you know it, is for a greeting or a moment that matters, naturally and sparingly: never the opening word of every reply, and never in every sentence.`,
     honestyRules(config),
     careRules(config),
     ...(knowledge ? [`What you know about the service:\n${knowledge}`] : []),
@@ -830,7 +890,7 @@ export function knowledgeText(config: StoreConfig, raw: string = readKnowledge()
 export function careRules(config: StoreConfig): string {
   const ozi = config.assistantName;
   return [
-    `How you speak: you are ${ozi}. Warm, patient and kind, in plain British English. Short sentences, because people hear you rather than read you: usually one to three sentences, under 60 words, with no lists, headings, symbols or emoji. Use the person's first name now and then if you know it, never in every sentence.`,
+    `How you speak: you are ${ozi}. Warm, patient and kind, in plain British English. Short sentences, because people hear you rather than read you: usually one to three sentences, under 60 words, with no lists, headings, symbols or emoji. Use the person's name now and then if you know it, naturally, as a friend would: in a greeting, or when it matters; never as the first word of every reply, and never in every sentence. Most replies simply answer.`,
     `Have a real conversation: follow the thread of what was said before, answer what was actually asked, and ask one short question when you need to know more. Do not repeat yourself.`,
     `Notice how the person is: if they sound confused, slow down and explain one step at a time; if upset or worried, say you are sorry and help; if in a hurry, be brief; if lonely, be kind and take a moment to chat, then gently offer help. Never rush anyone and never talk down to anyone.`,
     `Never pretend. When you do not know, say "I don't know, I'll ask a person," and offer one. Never invent a price, a time, a fee, a refund or a fact.`,
@@ -845,7 +905,7 @@ export function speakerWords(config: StoreConfig, who: Speaker | undefined): str
   const name = who.firstName ? ` called ${who.firstName}` : '';
   switch (who.kind) {
     case 'owner':
-      return `Speaking: the owner and founder. Always address him as ${config.owner.spokenName}. He is signed in.`;
+      return `Speaking: the owner and founder, ${config.owner.spokenName}. He is signed in. His name is for a greeting or when it matters, not the start of every reply.`;
     case 'visitor':
       return 'Speaking: a visitor who is not signed in. You may offer to open an account if they want to order.';
     case 'shopper':
@@ -938,9 +998,10 @@ export function safeSpoken(
 export function ownerInstructions(config: StoreConfig, knowledge: string): string {
   const owner = config.owner.spokenName;
   return [
-    `You are ${config.assistantName}, the assistant of ${config.productName}, talking to its owner and founder. Always address him as ${owner}. He is registered blind and runs the business by voice, so everything you say is heard, not read.`,
+    `You are ${config.assistantName}, the assistant of ${config.productName}, talking to its owner and founder, ${owner}. He is registered blind and runs the business by voice, so everything you say is heard, not read.`,
     `Be genuinely useful to him: a warm, clear, capable assistant who knows the business. Answer the question he actually asked, and only that, from your tools for anything about today, the desk or applications; never guess at figures.`,
-    `Speak in short, natural sentences, as a person would on the phone: the answer first, in a sentence or two, then offer more if there is more. No lists read like a form, no headings, no repeating his question back.`,
+    `Speak in short, natural sentences, as a person would on the phone: the answer first, in a sentence or two, then offer more if there is more. No lists read like a form, no headings, no repeating his question back. Start with the answer itself, as a person on the phone would.`,
+    `His name: call him ${owner} when you address him, naturally and sparingly, as a good assistant would: in a greeting, when you need his attention, or when something matters. Never open every reply with his name, and never put it in every sentence; most replies need not use it at all. Never "sir".`,
     `Your tools: needs_you (open desk matters and the Needs-you items), today_summary (orders, money taken, refunds, new Runners and new partner shops waiting, areas with no Runner), partner_approvals (new partner shops waiting for approval, by name, and separately how many shop products wait to be checked), read_application (one Runner's or partner shop's application) and decide_matter (approve, decline or put to later one desk matter). Look before you speak; summarise in a few short spoken sentences, most important first, and offer to go through them one at a time. Never read out ids.`,
     `Partner shops and shop products are different things. A partner shop, also called a Shop Partner, a shop partner, a partner or a new shop, is a business that has applied to join and waits for him to approve it. A shop product is one item a partner shop already with us has added, waiting to be checked. When he asks about partners, partner shops, shop partners or new shops, answer about partner shops waiting for approval, by name, from partner_approvals; only when he asks about products answer about shop products. Never answer one when he asked about the other.`,
     `When he corrects you ("I don't mean X, I mean Y"), say briefly that you understand, then answer Y properly, looking it up if you need to. Never give the same answer again after he has said it was wrong; if you truly cannot tell what he means, ask him one short question.`,
@@ -952,7 +1013,7 @@ export function ownerInstructions(config: StoreConfig, knowledge: string): strin
     `How you reach him: get_alert_preferences says, for urgent safety, important emails, other emails, Runner and partner approvals, and money, whether you call, text, send a notification or do nothing, and his quiet hours. set_alert_preferences changes them; it is read back and waits for his yes. Urgent safety always calls, even in quiet hours, and cannot be changed.`,
     `You never change an order, take or move money, or do anything else by yourself.`,
     `What is on his screen is given to you in each turn when the app knows it: the page, its headings, the tab open, any status line and a few visible lines. Use it to answer "this one", "the first one", "what's that number" and "what does this page say", and refer to it plainly ("the three Runner documents waiting on the Needs you now page"). Look things up with your tools for anything the screen does not show; the screen is a glimpse, not the record.`,
-    `He is known on his own phone (ruling 84): greet him personally, for the time of day in the UK, by name. If he asks whether you know his name or who he is, say yes: he is ${owner}, the owner and founder of ${config.productName}. Never ask him to open an account or sign in. Shopping orders go through a Shopper account: if he asks you to order shopping, say kindly that orders are placed from a Shopper account in the shop, and never offer to open one.`,
+    `He is known on his own phone (ruling 84): when he greets you, greet him personally, for the time of day in the UK, by name. If he asks whether you know his name or who he is, say yes: he is ${owner}, the owner and founder of ${config.productName}. Never ask him to open an account or sign in. Shopping orders go through a Shopper account: if he asks you to order shopping, say kindly that orders are placed from a Shopper account in the shop, and never offer to open one.`,
     careRules(config),
     honestyRules(config),
     ...(knowledge ? [`What you know about the service:\n${knowledge}`] : []),
@@ -1269,7 +1330,28 @@ export function languageModel(
         // within the app's few seconds, the replies are short, and the shopping shape is simple;
         // the knowledge and the conversation so far do the rest. Adaptive thinking still thinks
         // harder when a turn needs it.
-        const response = await client.messages.create(
+        //
+        // Streamed (ruling 92): the "reply" is read out of the JSON as it arrives and each
+        // complete sentence is passed on at once, but only once "kind" has arrived and is not
+        // shopping, which is never acted on, or spoken, before the whole shape is parsed.
+        let json = '';
+        let spokenSoFar = '';
+        const splitter = new SentenceSplitter();
+        const onText = input.onSentence
+          ? (delta: string): void => {
+              json += delta;
+              const partial = replySoFar(json);
+              if (!partial.kind || partial.kind === 'items' || partial.kind === 'remove') return;
+              if (partial.reply === null) return;
+              const fresh = partial.reply.slice(spokenSoFar.length);
+              spokenSoFar = partial.reply;
+              const sentences = splitter.push(fresh);
+              if (partial.replyClosed) sentences.push(...splitter.flush());
+              for (const sentence of sentences) input.onSentence?.(safeSpoken(sentence, config));
+            }
+          : undefined;
+        const response = await askModel(
+          client,
           {
             model,
             max_tokens: CONVERSE_MAX_TOKENS,
@@ -1285,7 +1367,8 @@ export function languageModel(
               },
             ],
           },
-          { timeout: CONVERSE_WAIT_MS },
+          CONVERSE_WAIT_MS,
+          onText ? { onText } : {},
         );
         if (response.stop_reason === 'refusal') return null;
         const text = response.content
@@ -1323,11 +1406,25 @@ export function languageModel(
           content: `${speakerWords(config, { kind: 'owner', firstName: null })}\nChannel: ${input.channel}. It is ${ukNow()} in the UK.${history ? `\n${history}` : ''}${screen ? `\n${screen}` : ''}\nHe said: "${input.text.replace(/"/g, "'").slice(0, 500)}"`,
         },
       ];
+      // Streamed (ruling 92): each sentence of his answer goes on as soon as it is complete, and
+      // he is told once when the model starts looking something up. Words said before a tool
+      // round, rare on this model, are kept at the front of the reply, so what he heard is what
+      // is remembered.
+      let toldLookingUp = false;
+      const spokenEarly: string[] = [];
       try {
         for (let step = 0; step < 5; step += 1) {
           const remaining = deadline - Date.now();
           if (remaining < 500) return null;
-          const response = await client.messages.create(
+          const splitter = new SentenceSplitter();
+          const sentThisRound: string[] = [];
+          const say = (sentence: string): void => {
+            const safe = safeSpoken(sentence, config, { owner: true });
+            sentThisRound.push(safe);
+            input.onSentence?.(safe);
+          };
+          const response = await askModel(
+            client,
             {
               model: ownerModel,
               max_tokens: OWNER_MAX_TOKENS,
@@ -1337,7 +1434,21 @@ export function languageModel(
               system: [{ type: 'text', text: ownerSystem, cache_control: { type: 'ephemeral' } }],
               messages,
             },
-            { timeout: remaining },
+            remaining,
+            {
+              ...(input.onSentence
+                ? {
+                    onText: (delta: string) => {
+                      for (const sentence of splitter.push(delta)) say(sentence);
+                    },
+                  }
+                : {}),
+              onToolUse: () => {
+                if (toldLookingUp || sentThisRound.length > 0) return;
+                toldLookingUp = true;
+                input.onStatus?.(LOOKING_UP);
+              },
+            },
           );
           if (response.stop_reason === 'refusal') return { reply: OWNER_DECLINED, proposal: null };
           const uses = response.content.filter(
@@ -1345,9 +1456,16 @@ export function languageModel(
           );
           if (response.stop_reason !== 'tool_use' || uses.length === 0) {
             const said = textOf(response).trim();
-            return said
-              ? { reply: safeSpoken(said, config, { owner: true }), proposal: null }
-              : null;
+            if (!said) return null;
+            // The last sentence, which no space followed, goes on now.
+            if (input.onSentence) for (const sentence of splitter.flush()) say(sentence);
+            const whole = [...spokenEarly, said].join(' ');
+            return { reply: safeSpoken(whole, config, { owner: true }), proposal: null };
+          }
+          const before = textOf(response).trim();
+          if (before) {
+            if (input.onSentence) for (const sentence of splitter.flush()) say(sentence);
+            spokenEarly.push(before);
           }
           // Thinking and tool calls go back exactly as they came.
           messages.push({ role: 'assistant', content: response.content });

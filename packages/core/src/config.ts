@@ -411,12 +411,16 @@ export interface StoreConfig {
    * Ozi's conversations (Anthony, 31 October 2026): how often Ozi reviews its own week of
    * conversations for better replies (`reviewEveryDays`, at most `reviewMostExchanges` a time,
    * each a suggestion for a person to approve), and the most turns the language model takes for
-   * one account in a UK day (`maxModelTurnsPerDay`; the owner has no limit).
+   * one account in a UK day (`maxModelTurnsPerDay`; the owner has no limit). `fillerAfterMs`
+   * (ruling 92): how long the app waits in silence for an answer before Ozi says a short filler
+   * such as "Just checking"; nothing is said before it, and a reply that has started arriving
+   * stops it.
    */
   readonly ozi: {
     readonly reviewEveryDays: number;
     readonly reviewMostExchanges: number;
     readonly maxModelTurnsPerDay: number;
+    readonly fillerAfterMs: number;
   };
   /**
    * Ozi's desk (ruling 74, 22 October 2026): Ozi rings the owner about anything that needs him.
@@ -2087,6 +2091,7 @@ export function parseStoreConfig(input: unknown): StoreConfig {
         'ozi.maxModelTurnsPerDay',
         1,
       ),
+      fillerAfterMs: wholeNumber(oziRaw['fillerAfterMs'] ?? 6000, 'ozi.fillerAfterMs', 1000),
     },
     ownerDesk: parseOwnerDesk(ownerDeskRaw),
     companyContact: parseCompanyContact(

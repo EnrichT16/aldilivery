@@ -297,7 +297,8 @@
   "ozi": {
     "reviewEveryDays": 7,
     "reviewMostExchanges": 50,
-    "maxModelTurnsPerDay": 200
+    "maxModelTurnsPerDay": 200,
+    "fillerAfterMs": 6000
   },
   "ownerDesk": {
     "callsInARow": 3,
