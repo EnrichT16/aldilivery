@@ -90,6 +90,7 @@ const tools: OwnerTools = {
   todaySummary: async () => ({ ordersToday: 3 }),
   partnerApprovals: async () => ({}),
   readApplication: async () => ({}),
+  listReminders: async () => ({ waiting: [] }),
   propose: async () => ({ ok: false, why: 'no' }),
   listStaff: async () => ({}),
   ambassadorPrizes: async () => ({}),

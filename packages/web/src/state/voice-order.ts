@@ -310,6 +310,8 @@ export function useVoiceOrdering(
     understood?: OziUnderstanding;
     /** The part of the reply not yet spoken (ruling 92): all of it when it came in one piece. */
     unsaid: string;
+    /** A read-back waiting for the yes (Rule One), a reminder's say (ruling 93). */
+    awaitingYes?: boolean;
   }
 
   /**
