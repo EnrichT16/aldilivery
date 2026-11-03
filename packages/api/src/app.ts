@@ -72,6 +72,7 @@ import { registerShareRoutes } from './routes/share.js';
 import { registerTelephoneRoutes } from './routes/telephone.js';
 import { registerOwnerDeskRoutes } from './routes/owner-desk.js';
 import { registerCompanyInboxRoutes } from './routes/company-inbox.js';
+import { registerReminderRoutes } from './routes/reminders.js';
 import { registerVoiceRoutes } from './routes/voice.js';
 import { registerPaymentRoutes } from './routes/payments.js';
 import { registerReimbursementRoutes } from './routes/reimbursements.js';
@@ -653,6 +654,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerTelephoneRoutes(app);
   await registerOwnerDeskRoutes(app);
   await registerCompanyInboxRoutes(app);
+  await registerReminderRoutes(app);
   await registerVoiceRoutes(app);
   await registerPaymentRoutes(app);
   await registerReimbursementRoutes(app);

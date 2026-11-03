@@ -50,6 +50,7 @@ import { refreshPrices } from './services/prices.js';
 import { checkWaiting } from './services/auto-check.js';
 import { fallBackToPhone, sweepOwnerDesk } from './services/owner-desk.js';
 import { sweepCantFind } from './services/cant-find.js';
+import { sweepReminders } from './services/reminders.js';
 import { sweepEmail } from './services/email-desk.js';
 import { reviewOziWeek } from './services/ozi-review.js';
 import { allMailboxSettings, imapMailbox, smtpMailer, type MailboxLink } from './lib/mailbox.js';
@@ -439,6 +440,26 @@ async function main(): Promise<void> {
   }, 60_000);
   bookedSweep.unref();
 
+  // Every minute: everybody's reminders (ruling 93). Each due reminder goes once, by its channel
+  // (a notification, a text or a call from Ozi), texts and calls held in quiet hours unless set
+  // for them, and a repeating reminder moves itself on. Running it again sends nothing twice.
+  let remindersRunning = false;
+  const reminderSweep = setInterval(() => {
+    if (remindersRunning) return;
+    remindersRunning = true;
+    sweepReminders(app.ctx, app.log)
+      .then((report) => {
+        if (report.sent + report.held > 0) app.log.info(report, 'Reminder sweep');
+      })
+      .catch((failure: unknown) => {
+        app.log.error({ err: failure }, 'The reminder sweep failed');
+      })
+      .finally(() => {
+        remindersRunning = false;
+      });
+  }, 60_000);
+  reminderSweep.unref();
+
   // Every minute: pay any delivered order whose Runner can now be paid — somebody who finished
   // setting up their account after delivering, or a transfer Stripe refused the first time.
   const paySweep = setInterval(() => {
@@ -710,6 +731,7 @@ async function main(): Promise<void> {
     clearInterval(deskFallback);
     for (const emailSweep of emailSweeps) clearInterval(emailSweep);
     clearInterval(paySweep);
+    clearInterval(reminderSweep);
     clearInterval(setSweep);
     clearInterval(retentionSweep);
     clearInterval(insuranceSweep);

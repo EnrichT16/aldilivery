@@ -1,4 +1,4 @@
-import { phraseFingerprint, phraseWithoutName } from '@aldilivery/core';
+import { ASKS_THE_TIME, phraseFingerprint, phraseWithoutName } from '@aldilivery/core';
 
 import { storeConfig } from '../config';
 import {
@@ -198,6 +198,10 @@ export function converse(
  * phrase for this account if it is one, otherwise `notUnderstood`, but only if Ozi was called
  * by name, so Ozi does not talk back to the television.
  */
+/** "Remind me…", "my reminders", "cancel my reminder": words for the server's reminders (ruling 93). */
+export const ASKS_REMINDER =
+  /\b(?:remind me|set (?:me )?(?:a|an|up a) reminder|reminder (?:for|to|that|about)|my reminders|(?:list|read|show) (?:my |the )?reminders|(?:cancel|delete|remove|forget) (?:my |the |that |all (?:my |the )?)?reminders?)\b/i;
+
 export function everydayOr(
   text: string,
   turn: { current: number },
@@ -206,8 +210,36 @@ export function everydayOr(
   notUnderstood: string,
   /** Shows "One moment" while a sentence said to Ozi is answered (31 October 2026). */
   think: (work: Promise<string | null>) => Promise<string | null> = (work) => work,
+  /**
+   * Asks a question and takes the next words as its answer (ruling 93): a reminder read back
+   * waits for the yes this way. Without it, the read-back is said and the yes is the next turn.
+   */
+  listenFor?: (question: string, then: (answer: string) => void) => void,
 ): void {
   const named = nameHeardIn(text);
+  // A reminder, the time or the date (ruling 93): the server reads a reminder back and sets it
+  // only on the yes, which goes straight back to it.
+  if (ASKS_REMINDER.test(text) || ASKS_THE_TIME.test(phraseWithoutName(text, NAMES))) {
+    void (async () => {
+      const answer = await converse(text, turn.current, as);
+      turn.current += 1;
+      if (!answer?.reply) {
+        say("Sorry, I couldn't do that just now. Please say it again in a moment.");
+        return;
+      }
+      if (answer.awaitingYes && listenFor) {
+        listenFor(answer.reply, (yes) => {
+          void converse(yes, turn.current, as).then((outcome) => {
+            turn.current += 1;
+            if (outcome?.reply) say(outcome.reply);
+          });
+        });
+        return;
+      }
+      say(answer.reply);
+    })();
+    return;
+  }
   void (async () => {
     const reply =
       (await phraseReply(text, turn.current, 'exact', as)) ??

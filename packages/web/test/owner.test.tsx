@@ -257,7 +257,13 @@ describe('the owner', () => {
     );
     await screen.findByRole('navigation', { name: 'Admin pages' });
     expect(await groupTabs()).toEqual(['Today', 'Money', 'People', 'Settings']);
-    expect(await pageTabs(user)).toEqual(['Needs you now', 'Money', 'Team', 'My settings']);
+    expect(await pageTabs(user)).toEqual([
+      'Needs you now',
+      'Money',
+      'Team',
+      'Reminders',
+      'My settings',
+    ]);
     await openPage(user, 'Money');
     expect(
       await screen.findByText('Only you see this. Not staff, not family, not investors.'),
@@ -330,7 +336,7 @@ describe('family', () => {
     await screen.findByRole('navigation', { name: 'Admin pages' });
     // Their own two-step codes are theirs to set up, like every admin sign-in (Section Q).
     expect(await groupTabs()).toEqual(['Today', 'Settings']);
-    expect(await pageTabs(user)).toEqual(['Needs you now', 'Two-step codes']);
+    expect(await pageTabs(user)).toEqual(['Needs you now', 'Reminders', 'Two-step codes']);
     await openPage(user, 'Needs you now');
     expect(screen.getByText(/You can look, but not change anything\./)).toBeInTheDocument();
     expect((await screen.findByText('Shoppers')).nextSibling).toHaveTextContent('120');

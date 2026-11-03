@@ -2223,3 +2223,32 @@ model OwnerPreference {
   updatedAt      DateTime @default(now())
   updatedBy      String   @default("")
 }
+
+/// A reminder somebody asked for (Anthony, 3 November 2026, ruling 93): for any kind of account,
+/// by voice or on the screen, delivered when due by a notification, a text or a phone call. The
+/// words are blanked of anything like a number or an address when kept. A repeating reminder is
+/// the same row with its dueAt moved on each time it is sent.
+model Reminder {
+  id          String    @id @default(cuid())
+  /// shopper, runner, partner, organisation, staff or owner.
+  accountKind String
+  accountId   String
+  text        String
+  dueAt       DateTime
+  /// none, daily, weekly or monthly.
+  repeat      String    @default("none")
+  /// notification, text or call.
+  channel     String    @default("notification")
+  /// scheduled, sent, heard or cancelled.
+  status      String    @default("scheduled")
+  /// voice or screen.
+  createdVia  String    @default("screen")
+  /// Set for a time inside the quiet hours by the person, so it is not held until they end.
+  setInQuiet  Boolean   @default(false)
+  sentAt      DateTime?
+  heardAt     DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([accountKind, accountId, dueAt])
+  @@index([status, dueAt])
+}

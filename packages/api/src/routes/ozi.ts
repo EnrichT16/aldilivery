@@ -12,9 +12,11 @@ import { PassThrough } from 'node:stream';
 
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import {
+  ASKS_THE_TIME,
   knownSpeakerReply,
   PARTNER_KIND_WORDS,
   SHOPPER_ACCOUNT_FOR_ORDERS,
+  ukTimeAnswer,
   type KnownSpeaker,
 } from '@aldilivery/core';
 import { z } from 'zod';
@@ -60,7 +62,22 @@ import {
 } from '../lib/phrases.js';
 import { rankedForListing } from '../lib/partner-standing.js';
 import { unsaidPart } from '../lib/sentences.js';
+import {
+  ASKS_FOR_REMINDER,
+  ASKS_REMINDER_CANCEL,
+  ASKS_REMINDER_LIST,
+  understandReminderPhrase,
+} from '../lib/reminder-time.js';
 import { staffActor } from '../lib/staff.js';
+import {
+  proposeCancel,
+  proposeReminder,
+  remindersSpoken,
+  requestFromPhrase,
+  type ReminderAccount,
+  type ReminderRequest,
+} from '../services/reminders.js';
+import { reminderAccount } from './reminders.js';
 
 /** One short line of what is on the screen: cut, never refused, so a long page still arrives. */
 const screenLine = (most: number) =>
@@ -371,9 +388,10 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
       sink.sentence(words);
     };
 
-    // Rule One for the owner's desk by voice (31 October 2026): a decision read back last turn is
-    // carried out only on a clear yes now, and forgotten on anything else.
-    if (account === 'owner' && mode === 'within' && conversation) {
+    // Rule One for the owner's desk by voice (31 October 2026), and for everybody's reminders
+    // (ruling 93): a decision read back last turn is carried out only on a clear yes now, and
+    // forgotten on anything else.
+    if (mode === 'within' && conversation) {
       const pending = pendingDecisions.take(conversation, Date.now());
       if (pending) {
         if (isClearYes(text)) {
@@ -390,7 +408,105 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
           kept(words, 'flow', 'stopped');
           return { reply: words };
         }
-        // Anything else: nothing is done, and what he said is answered as itself.
+        // Anything else: nothing is done, and what was said is answered as itself.
+      }
+    }
+
+    // The clock (ruling 93): "what time is it", "what's the date", for everybody, from the
+    // server's own clock in UK time.
+    const spokenPlain = normalise(withoutName(text, names));
+    if (ASKS_THE_TIME.test(spokenPlain)) {
+      const words = ukTimeAnswer(now());
+      kept(words, 'flow', 'answered');
+      return { reply: words };
+    }
+
+    /** Whose reminders: from the sign-in alone; null for a visitor. */
+    const remindersAccount = async (): Promise<ReminderAccount | null> => {
+      try {
+        return await reminderAccount(request);
+      } catch {
+        return null;
+      }
+    };
+
+    /** A reminder read back, waiting for the yes (Rule One), or why it cannot be. */
+    const readBackReminder = async (
+      who: ReminderAccount,
+      asked: ReminderRequest,
+    ): Promise<{ reply: string; awaitingYes?: boolean }> => {
+      const proposal = await proposeReminder(app.ctx, who, asked);
+      if (!proposal.ok) {
+        kept(proposal.why, 'flow', 'asked');
+        return { reply: proposal.why };
+      }
+      if (conversation) {
+        pendingDecisions.set(conversation, {
+          reminder: proposal.draft,
+          account: who,
+          readBack: proposal.readBack,
+          at: Date.now(),
+        });
+      }
+      kept(proposal.readBack, 'flow', 'asked');
+      return conversation
+        ? { reply: proposal.readBack, awaitingYes: true }
+        : { reply: proposal.readBack };
+    };
+
+    // Reminders without the model (ruling 93): "remind me tomorrow at ten to call the bank",
+    // "what are my reminders", "cancel my reminder". The owner's go through his tools below when
+    // the model is on, so he can also say which one.
+    const asksReminder =
+      ASKS_FOR_REMINDER.test(spokenPlain) ||
+      ASKS_REMINDER_LIST.test(spokenPlain) ||
+      ASKS_REMINDER_CANCEL.test(spokenPlain);
+    const ownerTalks = account === 'owner' && Boolean(app.ctx.brain?.talkWithOwner);
+    if (asksReminder && mode === 'within' && !ownerTalks) {
+      const who = await remindersAccount();
+      if (!who) {
+        const words = 'I can set reminders once you are signed in. Would you like to sign in?';
+        kept(words, 'flow', 'answered');
+        return { reply: words };
+      }
+      if (ASKS_REMINDER_LIST.test(spokenPlain) && !ASKS_FOR_REMINDER.test(spokenPlain)) {
+        const words = await remindersSpoken(app.ctx, who);
+        kept(words, 'flow', 'answered');
+        return { reply: words };
+      }
+      if (ASKS_REMINDER_CANCEL.test(spokenPlain) && !ASKS_FOR_REMINDER.test(spokenPlain)) {
+        const cancel = await proposeCancel(app.ctx, who, /\ball\b/.test(spokenPlain));
+        if (!cancel) {
+          const words = 'You have no reminders waiting.';
+          kept(words, 'flow', 'answered');
+          return { reply: words };
+        }
+        if (conversation) {
+          pendingDecisions.set(conversation, {
+            cancelReminders: cancel.ids,
+            account: who,
+            readBack: cancel.readBack,
+            at: Date.now(),
+          });
+        }
+        kept(cancel.readBack, 'flow', 'asked');
+        return conversation
+          ? { reply: cancel.readBack, awaitingYes: true }
+          : { reply: cancel.readBack };
+      }
+      const phrase = understandReminderPhrase(withoutName(text, names), now());
+      if (phrase && !('needsTime' in phrase)) {
+        return readBackReminder(who, requestFromPhrase(phrase));
+      }
+      if (phrase && account !== 'owner') {
+        // No time heard, and the model may still make sense of it below; without one, ask.
+        if (!app.ctx.brain) {
+          const words = phrase.text
+            ? `When would you like me to remind you about ${phrase.text}? For example, tomorrow at ten, or in twenty minutes.`
+            : 'What would you like me to remind you about, and when? For example: remind me tomorrow at ten to call the bank.';
+          kept(words, 'flow', 'asked');
+          return { reply: words };
+        }
       }
     }
 
@@ -509,7 +625,7 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         text,
         channel: 'app',
         history,
-        tools: ownerTools(app.ctx),
+        tools: ownerTools(app.ctx, { id: request.staffActor?.id ?? null }),
         ...(input.screen ? { screen: input.screen } : {}),
         onSentence: sentence,
         onStatus: (words) => sink.status(words),
@@ -541,6 +657,23 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         onSentence: sentence,
       });
       timing.modelMs = Date.now() - asked;
+      if (understood?.kind === 'reminder' && understood.reminder) {
+        // A reminder heard by the model (ruling 93): the server resolves the time and reads it
+        // back; it is set only on the yes in the next turn.
+        const who = await remindersAccount();
+        if (!who) {
+          const words = 'I can set reminders once you are signed in. Would you like to sign in?';
+          kept(words, 'model', 'answered', brain.model);
+          return { reply: words };
+        }
+        return readBackReminder(who, {
+          text: understood.reminder.text,
+          relative: understood.reminder.relative,
+          dueAtIso: understood.reminder.dueAtIso,
+          repeat: understood.reminder.repeat,
+          channel: understood.reminder.channel,
+        });
+      }
       if (understood && (understood.kind === 'items' || understood.kind === 'remove')) {
         // Staff are not Shoppers (ruling 84): orders stay safe behind a Shopper account, said
         // kindly, never with an offer to open one.

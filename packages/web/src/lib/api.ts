@@ -3281,7 +3281,8 @@ export interface OziUnderstanding {
     | 'remove'
     | 'repeat'
     | 'chatter'
-    | 'unclear';
+    | 'unclear'
+    | 'reminder';
   items: Array<{ name: string; quantity: number; brand: string | null; detail: string | null }>;
   reply: string | null;
 }

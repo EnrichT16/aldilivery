@@ -608,6 +608,7 @@ describe('a real conversation (31 October 2026)', () => {
       listEmails: async () => ({}),
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
+      listReminders: async () => ({ waiting: [] }),
       proposeAction: async () => ({ ok: false, why: 'no' }),
     };
     const talk = await brain.talkWithOwner!({
@@ -652,6 +653,9 @@ describe('a real conversation (31 October 2026)', () => {
       'reply_email',
       'get_alert_preferences',
       'set_alert_preferences',
+      'set_reminder',
+      'list_reminders',
+      'cancel_reminder',
     ]);
     expect(tools0.every((tool) => tool.strict)).toBe(true);
     // The tool's answer went back to the model as a result, after its own call.
@@ -712,6 +716,7 @@ describe('a real conversation (31 October 2026)', () => {
       listEmails: async () => ({}),
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
+      listReminders: async () => ({ waiting: [] }),
       proposeAction: async () => ({ ok: false, why: 'no' }),
     };
     const talk = await brain.talkWithOwner!({
@@ -768,6 +773,7 @@ describe('a real conversation (31 October 2026)', () => {
       listEmails: async () => ({}),
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
+      listReminders: async () => ({ waiting: [] }),
       proposeAction: async () => ({ ok: false, why: 'no' }),
     };
     const declined = languageModel(
@@ -868,6 +874,7 @@ describe('what is on the screen (ruling 89, 2 November 2026)', () => {
       listEmails: async () => ({}),
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
+      listReminders: async () => ({ waiting: [] }),
       proposeAction: async () => ({ ok: false, why: 'no' }),
     };
     const talk = await brain.talkWithOwner!({

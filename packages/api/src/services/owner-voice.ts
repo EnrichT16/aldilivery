@@ -280,6 +280,10 @@ export async function proposeOwnerAction(
         };
       }
     }
+    case 'set_reminder':
+    case 'cancel_reminder':
+      // His reminders (ruling 93) are checked against his own account in lib/ozi-conversation.ts.
+      return { ok: false, why: 'Reminders need your own signed-in account.' };
   }
 }
 
@@ -337,6 +341,10 @@ export async function carryOutOwnerAction(
             })
           ).words,
         };
+      case 'set_reminder':
+      case 'cancel_reminder':
+        // Kept on his own account in lib/ozi-conversation.ts, never here.
+        return { words: 'Reminders need your own signed-in account.' };
     }
   } catch (failure) {
     if (failure instanceof ApiError) return { words: `That could not be done: ${failure.message}` };

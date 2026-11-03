@@ -21,6 +21,7 @@ import {
 } from '@aldilivery/core';
 
 import { storeConfig } from '../config';
+import { ASKS_REMINDER } from '../voice/phrases';
 import {
   askOzi,
   askOziStream,
@@ -300,6 +301,8 @@ export function useVoiceOrdering(
   const offered = useRef<string[] | null>(null);
   // What the language model heard in the last sentence, when the parser saw nothing (ruling 69).
   const heardItems = useRef<OziUnderstanding | null>(null);
+  /** A reminder was read back (ruling 93): the next words are the yes or the no, sent straight back. */
+  const reminderYes = useRef(false);
 
   /** One answer looked within: the reply, what the model heard, and what is left to say. */
   interface Asked {
@@ -789,6 +792,32 @@ export function useVoiceOrdering(
       switch (current.kind) {
         case 'idle': {
           const addressed = nameHeardIn(text);
+          // Reminders (ruling 93): "remind me tomorrow at ten to call the bank" goes to the
+          // server, which reads it back; the yes or the no in the next words goes straight back,
+          // and only the yes sets it. "What are my reminders" and "cancel my reminder" the same.
+          if (reminderYes.current) {
+            reminderYes.current = false;
+            const outcome = await askWithin(text);
+            if (outcome?.reply) {
+              note.current = { brain: 'flow', outcome: 'answered' };
+              await say(outcome.reply);
+              return true;
+            }
+          }
+          if (ASKS_REMINDER.test(text) && (addressed || isExpecting() || live.current.shopper)) {
+            const answer = await askWithin(text);
+            if (answer?.reply) {
+              note.current = { brain: 'flow', outcome: answer.awaitingYes ? 'asked' : 'answered' };
+              if (answer.awaitingYes) {
+                reminderYes.current = true;
+                expectNow();
+              }
+              await say(answer.reply);
+              return true;
+            }
+            await say("Sorry, I couldn't do that just now. Please say it again in a moment.");
+            return true;
+          }
           // "Open Wok Kitchen", "show me the corner shop": a listed shop's own page (19 October
           // 2026), after Ozi has named the cafés that make a dish.
           const opening = OPEN_SHOP.exec(

@@ -32,6 +32,14 @@ import {
 import { ambassadorPrizesForVoice } from '../services/ambassador-prizes.js';
 import { KIND_SPOKEN } from '../services/runner-documents.js';
 import {
+  cancelMany,
+  keepDraft,
+  proposeReminder,
+  remindersForVoice,
+  type ReminderAccount,
+  type ReminderDraft,
+} from '../services/reminders.js';
+import {
   alertPreferencesForVoice,
   carryOutOwnerAction,
   listEmailsForVoice,
@@ -188,10 +196,15 @@ export const SIMPLER_TODAY =
 
 /* ------------------------------------------------------------------ the owner's yes */
 
-/** A decision on a desk matter, or a change he asked for (ruling 85), waiting for his yes. */
+/**
+ * A decision on a desk matter, or a change he asked for (ruling 85), waiting for his yes; or,
+ * for anybody at all (ruling 93), a reminder read back, or one to cancel, waiting for theirs.
+ */
 export type PendingDecision =
   | { matterId: string; choice: DeskVoiceChoice; readBack: string; at: number }
-  | { action: OwnerAction; readBack: string; at: number };
+  | { action: OwnerAction; readBack: string; at: number }
+  | { reminder: ReminderDraft; account: ReminderAccount; readBack: string; at: number }
+  | { cancelReminders: string[]; account: ReminderAccount; readBack: string; at: number };
 
 /** How long a read-back waits for his yes before it is forgotten. */
 const PENDING_MS = 3 * 60_000;
@@ -245,9 +258,17 @@ function choiceWords(choice: DeskVoiceChoice, acknowledgeOnly: boolean, laterMin
   return choice === 'approve' ? 'approve this' : 'decline this';
 }
 
-/** The owner's desk tools for the model: reading, and proposing one decision for his yes. */
-export function ownerTools(ctx: DeskContext & Pick<AppContext, 'mailboxes'>): OwnerTools {
+/**
+ * The owner's desk tools for the model: reading, and proposing one decision for his yes. `owner`
+ * is his own staff account, from his sign-in, whose reminders the reminder tools are about.
+ */
+export function ownerTools(
+  ctx: DeskContext & Pick<AppContext, 'mailboxes'>,
+  owner: { id: string | null } = { id: null },
+): OwnerTools {
   const { repository, config } = ctx;
+  const ownerAccount = (): ReminderAccount | null =>
+    owner.id ? { kind: 'owner', id: owner.id } : null;
   return {
     async needsYou() {
       const matters = inReadingOrder(await repository.ownerDesk.listUnsettled());
@@ -391,7 +412,46 @@ export function ownerTools(ctx: DeskContext & Pick<AppContext, 'mailboxes'>): Ow
     listEmails: (filter) => listEmailsForVoice(ctx, filter),
     readEmail: (id) => readEmailForVoice(ctx, id),
     getAlertPreferences: () => alertPreferencesForVoice(ctx),
-    proposeAction: (request) => proposeOwnerAction(ctx, request),
+    // His reminders (ruling 93): read, and set or cancel only on his yes.
+    listReminders: async () => {
+      const account = ownerAccount();
+      return account
+        ? remindersForVoice(ctx, account)
+        : { waiting: [], note: 'Reminders need his own signed-in account.' };
+    },
+    proposeAction: async (request) => {
+      if (request.kind === 'set_reminder' || request.kind === 'cancel_reminder') {
+        const account = ownerAccount();
+        if (!account) return { ok: false, why: 'Reminders need your own signed-in account.' };
+        if (request.kind === 'set_reminder') {
+          const proposal = await proposeReminder(ctx, account, {
+            text: request.text,
+            relative: request.relative,
+            dueAtIso: request.dueAtIso,
+            repeat: request.repeat,
+            channel: request.channel,
+          });
+          if (!proposal.ok) return proposal;
+          return {
+            ok: true,
+            readBack: proposal.readBack,
+            action: { kind: 'set_reminder', draft: proposal.draft },
+          };
+        }
+        const found = await repository.reminders.findById(request.reminderId);
+        if (!found || found.accountKind !== 'owner' || found.accountId !== account.id) {
+          return { ok: false, why: 'I cannot find that reminder.' };
+        }
+        if (found.status !== 'scheduled')
+          return { ok: false, why: 'That reminder has already gone.' };
+        return {
+          ok: true,
+          readBack: `To be sure, ${config.owner.spokenName}: I will cancel your reminder, ${found.text}. Shall I go ahead? Say yes, or no.`,
+          action: { kind: 'cancel_reminder', reminderIds: [found.id] },
+        };
+      }
+      return proposeOwnerAction(ctx, request);
+    },
   };
 }
 
@@ -405,7 +465,22 @@ export async function carryOutDecision(
   log?: FastifyBaseLogger,
   seen: { actorId?: string | null; ip?: string } = {},
 ): Promise<{ words: string }> {
+  if ('reminder' in pending) {
+    // Anybody's reminder (ruling 93): kept now, on their yes.
+    return { words: (await keepDraft(ctx, pending.account, pending.reminder)).words };
+  }
+  if ('cancelReminders' in pending) {
+    return cancelMany(ctx, pending.account, pending.cancelReminders);
+  }
   if ('action' in pending) {
+    if (pending.action.kind === 'set_reminder' || pending.action.kind === 'cancel_reminder') {
+      // The owner's own reminders (ruling 93), on his own account.
+      if (!seen.actorId) return { words: 'Reminders need your own signed-in account.' };
+      const account: ReminderAccount = { kind: 'owner', id: seen.actorId };
+      return pending.action.kind === 'set_reminder'
+        ? { words: (await keepDraft(ctx, account, pending.action.draft)).words }
+        : cancelMany(ctx, account, pending.action.reminderIds);
+    }
     // A change he asked for (ruling 85): the same service functions as the admin panel.
     const owner = seen.actorId ? await ctx.repository.staffMembers.findById(seen.actorId) : null;
     return carryOutOwnerAction(ctx, pending.action, {

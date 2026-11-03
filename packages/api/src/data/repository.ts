@@ -70,6 +70,7 @@ import type {
   AmbassadorAgreement,
   AmbassadorClaim,
   AmbassadorPrize,
+  Reminder,
   DeviceSighting,
   AmbassadorDocument,
   AmbassadorNote,
@@ -571,6 +572,20 @@ export interface Repository {
     findByMonth(month: string): Promise<AmbassadorPrize | null>;
     /** Every decision, newest month first. */
     list(): Promise<AmbassadorPrize[]>;
+  };
+
+  /** Reminders for everyone (Anthony, 3 November 2026, ruling 93). */
+  reminders: {
+    create(
+      input: Omit<Reminder, 'id' | 'status' | 'sentAt' | 'heardAt'> &
+        Partial<Pick<Reminder, 'status' | 'sentAt' | 'heardAt'>>,
+    ): Promise<Reminder>;
+    findById(id: string): Promise<Reminder | null>;
+    /** One account's reminders, soonest first. */
+    listFor(accountKind: Reminder['accountKind'], accountId: string): Promise<Reminder[]>;
+    /** Every scheduled reminder due at or before `at`, soonest first. */
+    listDue(at: Date): Promise<Reminder[]>;
+    update(id: string, patch: Partial<Omit<Reminder, 'id'>>): Promise<Reminder>;
   };
 
   /**

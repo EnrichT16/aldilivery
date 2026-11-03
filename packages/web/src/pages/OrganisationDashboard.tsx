@@ -20,6 +20,8 @@ import { useOzi } from '../state/ozi';
 import { InboxLink } from '../components/Inbox';
 import { readMessagesAloud } from '../lib/inbox-api';
 import { organisationHelp, understandOrganisation } from '../voice/business-voice';
+import { LiveClock } from '../components/LiveClock';
+import { Reminders } from '../components/Reminders';
 import { everydayOr } from '../voice/phrases';
 import { listWords } from '../voice/staff-voice';
 import { DAYS } from './WeeklyShop';
@@ -284,7 +286,10 @@ export function OrganisationDashboard(): JSX.Element {
 
   return (
     <div className="space-y-8 max-w-3xl">
-      <h1 className="text-display font-bold m-0">{data.organisation.name}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-display font-bold m-0">{data.organisation.name}</h1>
+        <LiveClock />
+      </div>
       <nav aria-label="Your messages">
         <InboxLink as="business" to="/organisation/messages" />
       </nav>
@@ -296,6 +301,8 @@ export function OrganisationDashboard(): JSX.Element {
           Pay us by bank: our details and your reference
         </Link>
       </p>
+      {/* Reminders for everyone (ruling 93), on this dashboard too. */}
+      <Reminders as="business" />
       <details className="max-w-xl">
         <summary className="control px-0 text-paper underline">The screen</summary>
         <ShowWordsSwitch />

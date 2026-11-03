@@ -312,6 +312,15 @@
     "checkConfidence": 0.9,
     "appRingSeconds": 30
   },
+  "reminders": {
+    "maxPerAccount": 50,
+    "maxTextLength": 200,
+    "pastGraceMinutes": 1,
+    "maxDaysAhead": 365,
+    "againMinutes": 10,
+    "quietFrom": "22:50",
+    "quietUntil": "06:00"
+  },
   "ownerAlerts": {
     "urgentSafety": "call",
     "importantEmail": "call",

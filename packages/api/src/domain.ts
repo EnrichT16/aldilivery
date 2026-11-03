@@ -548,6 +548,45 @@ export interface AmbassadorClaim {
   confirmedAt: Date | null;
 }
 
+export type ReminderAccountKind =
+  | 'shopper'
+  | 'runner'
+  | 'partner'
+  | 'organisation'
+  | 'staff'
+  | 'owner';
+export type ReminderRepeat = 'none' | 'daily' | 'weekly' | 'monthly';
+export type ReminderChannel = 'notification' | 'text' | 'call';
+export type ReminderStatus = 'scheduled' | 'sent' | 'heard' | 'cancelled';
+export type ReminderCreatedVia = 'voice' | 'screen';
+
+/**
+ * A reminder somebody asked for (Anthony, 3 November 2026, ruling 93): "remind me tomorrow at
+ * ten to call the bank". Set by voice or on the screen, for any kind of account, and delivered
+ * when due by a notification, a text or a phone call. The words are blanked of anything like a
+ * number or an address when kept, so they can be read aloud. A repeating reminder keeps the same
+ * row, its `dueAt` moved on each time it is sent.
+ */
+export interface Reminder {
+  id: string;
+  accountKind: ReminderAccountKind;
+  accountId: string;
+  text: string;
+  dueAt: Date;
+  repeat: ReminderRepeat;
+  channel: ReminderChannel;
+  status: ReminderStatus;
+  createdVia: ReminderCreatedVia;
+  /**
+   * The person set it for a time inside the quiet hours themselves, so it is not held until
+   * they end.
+   */
+  setInQuiet: boolean;
+  sentAt: Date | null;
+  heardAt: Date | null;
+  createdAt: Date;
+}
+
 /**
  * One month's Top Ambassador decision (Anthony, 2 November 2026, ruling 91), made once by the
  * hourly sweep on or after the 1st of the next month: who won (null when nobody had enough

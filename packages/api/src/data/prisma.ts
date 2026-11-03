@@ -292,6 +292,30 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    reminders: {
+      async create(input) {
+        return (await prisma.reminder.create({ data: input })) as any;
+      },
+      async findById(id) {
+        return (await prisma.reminder.findUnique({ where: { id } })) as any;
+      },
+      async listFor(accountKind, accountId) {
+        return (await prisma.reminder.findMany({
+          where: { accountKind, accountId },
+          orderBy: { dueAt: 'asc' },
+        })) as any;
+      },
+      async listDue(at) {
+        return (await prisma.reminder.findMany({
+          where: { status: 'scheduled', dueAt: { lte: at } },
+          orderBy: { dueAt: 'asc' },
+        })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.reminder.update({ where: { id }, data: patch })) as any;
+      },
+    },
+
     ambassadorDocuments: {
       async create(input) {
         const { image, ...rest } = input;
