@@ -206,6 +206,19 @@ export interface Env {
   recordingS3Secret: string | undefined;
   recordingS3Region: string | undefined;
   /**
+   * Where partners' product photos are kept (ruling 96): DigitalOcean Spaces, or any
+   * S3-compatible storage. The access key, its secret, the bucket (the Space's name), the region
+   * (`lon1`), the endpoint (`lon1.digitaloceanspaces.com`) and, optionally, the CDN address photos
+   * are served from. The secret is environment only and never logged. Without the first five,
+   * photos are kept in the database, and nothing breaks.
+   */
+  spacesKey: string | undefined;
+  spacesSecret: string | undefined;
+  spacesBucket: string | undefined;
+  spacesRegion: string | undefined;
+  spacesEndpoint: string | undefined;
+  spacesCdnUrl: string | undefined;
+  /**
    * Fill an empty catalogue at startup. On by default, because a deployed service with
    * no catalogue looks broken. Set `SEED_ON_START=false` once the catalogue comes from
    * somewhere else.
@@ -405,6 +418,12 @@ export function readEnv(source: NodeJS.ProcessEnv = process.env): Env {
     recordingS3Key: realValue(source['RECORDING_S3_KEY']?.trim() || undefined),
     recordingS3Secret: realValue(source['RECORDING_S3_SECRET'] || undefined),
     recordingS3Region: realValue(source['RECORDING_S3_REGION']?.trim() || undefined),
+    spacesKey: realValue(source['SPACES_KEY']?.trim() || undefined),
+    spacesSecret: realValue(source['SPACES_SECRET'] || undefined),
+    spacesBucket: realValue(source['SPACES_BUCKET']?.trim() || undefined),
+    spacesRegion: realValue(source['SPACES_REGION']?.trim() || undefined),
+    spacesEndpoint: realValue(source['SPACES_ENDPOINT']?.trim() || undefined),
+    spacesCdnUrl: realValue(source['SPACES_CDN_URL']?.trim() || undefined),
     seedOnStart: source['SEED_ON_START'] !== 'false',
   };
 }

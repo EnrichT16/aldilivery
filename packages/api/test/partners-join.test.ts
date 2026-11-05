@@ -308,11 +308,11 @@ describe('Partner Plus, paid from the dashboard', () => {
         tier: 'plus',
         paid: true,
         firstMonthFree: false,
-        productLimit: null,
+        productLimit: 300,
       }),
     );
     expect(dashboard.payments[0]).toEqual(
-      expect.objectContaining({ what: 'Partner Plus', amountPence: 0 }),
+      expect.objectContaining({ what: 'Shop Partner Plus', amountPence: 0 }),
     );
 
     // The next month is paid: a Checkout page, with the shop and the amount, and no address asked for.
@@ -355,7 +355,7 @@ describe('Partner Plus, paid from the dashboard', () => {
     expect(dashboard.payments).toHaveLength(2);
     expect(dashboard.payments).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ what: 'Partner Plus', amountPence: 2998, months: 2 }),
+        expect.objectContaining({ what: 'Shop Partner Plus', amountPence: 2998, months: 2 }),
       ]),
     );
     // Free month plus two paid: paid until three months on.

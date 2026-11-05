@@ -22,6 +22,7 @@ import { loadShopsSeed } from './lib/shops-seed.js';
 import { oluomaVoice } from './lib/oluoma-voice.js';
 import { languageModel } from './lib/language-model.js';
 import { openPrices } from './lib/open-prices.js';
+import { databasePhotoStore, spacesPhotoStore, spacesSettingsFrom } from './lib/photo-store.js';
 import { postcodesIo } from './lib/postcodes.js';
 import { webPushSender } from './lib/push.js';
 import { MINIMUM_SESSION_HOURS, sessionTtlRaised } from './lib/sessions.js';
@@ -161,6 +162,11 @@ async function main(): Promise<void> {
         )
       : null;
 
+  // Partners' product photos (ruling 96): DigitalOcean Spaces when the SPACES_* settings are real,
+  // the database until then. The secret is never logged.
+  const spaces = spacesSettingsFrom(env);
+  const photoStore = spaces ? spacesPhotoStore(spaces) : databasePhotoStore(repository);
+
   // Oluoma Voice (ruling 53), when both settings are real. The key never leaves this server.
   const voice =
     env.oluomaVoiceUrl && env.oluomaVoiceKey
@@ -206,6 +212,7 @@ async function main(): Promise<void> {
     recorder,
     voice,
     brain,
+    photoStore,
     // The open price database (ruling 72), which asks every app to say who it is.
     openPrices: openPrices({
       userAgent: `${config.productName}/1.0 (${config.contact.email})`,
@@ -281,6 +288,12 @@ async function main(): Promise<void> {
       "Oluoma Voice is off: OLUOMA_VOICE_URL and OLUOMA_VOICE_KEY are not both set. The app uses the phone's own speech.",
     );
   }
+
+  app.log.info(
+    spaces
+      ? `Product photos are kept in object storage (${spaces.bucket}, ${spaces.region})${spaces.cdnUrl ? ', served from the CDN' : ', served through the API'}.`
+      : 'Product photos are kept in the database: SPACES_KEY, SPACES_SECRET, SPACES_BUCKET, SPACES_REGION and SPACES_ENDPOINT are not all set. Nothing breaks; set them and run scripts/move-photos-to-spaces.mjs to move them.',
+  );
 
   if (!pushReady) {
     app.log.info(

@@ -399,6 +399,38 @@ services:
         scope: RUN_TIME
         value: replace_with_the_region_such_as_lon1
 
+      # Shop Partners' product photos (ruling 96): DigitalOcean Spaces, served from the Space's
+      # CDN. Optional: without the first five, photos are kept in the database and nothing breaks.
+      # Yvette: Spaces Object Storage, Create a Space in London (lon1) with the CDN enabled; then
+      # API, Spaces Keys, Generate New Key. The CDN address is on the Space's Settings page. Once
+      # set, run `node packages/api/scripts/move-photos-to-spaces.mjs --yes` once with DATABASE_URL
+      # to move the photos already taken. The same key as RECORDING_S3_KEY may be used.
+      - key: SPACES_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: replace_with_the_spaces_access_key
+
+      - key: SPACES_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: replace_with_the_spaces_secret_key
+
+      - key: SPACES_BUCKET
+        scope: RUN_TIME
+        value: replace_with_the_space_name
+
+      - key: SPACES_REGION
+        scope: RUN_TIME
+        value: replace_with_the_region_such_as_lon1
+
+      - key: SPACES_ENDPOINT
+        scope: RUN_TIME
+        value: replace_with_the_spaces_endpoint_such_as_lon1.digitaloceanspaces.com
+
+      - key: SPACES_CDN_URL
+        scope: RUN_TIME
+        value: replace_with_the_cdn_address_such_as_https://space.lon1.cdn.digitaloceanspaces.com
+
 # ---------------------------------------------------------------------------
 # The web app
 # ---------------------------------------------------------------------------

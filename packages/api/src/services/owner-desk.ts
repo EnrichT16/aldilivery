@@ -59,7 +59,15 @@ import { decideRunnerDocument, KIND_SPOKEN } from './runner-documents.js';
 
 export type DeskContext = Pick<
   AppContext,
-  'repository' | 'config' | 'env' | 'now' | 'sendText' | 'placeCall' | 'brain' | 'backgroundChecks'
+  | 'repository'
+  | 'config'
+  | 'env'
+  | 'now'
+  | 'sendText'
+  | 'placeCall'
+  | 'brain'
+  | 'backgroundChecks'
+  | 'photoStore'
 > &
   Partial<Pick<AppContext, 'sendPush'>>;
 
@@ -70,6 +78,8 @@ export interface AskOwnerInput {
   summary: string;
   options: OwnerMatterOptions;
   urgent?: boolean;
+  /** Read and listed before others of the same urgency (ruling 96): 1 for a Pro shop's product. */
+  priority?: number;
   /**
    * Ask again even if a matter about this was settled before: a product changed after it was
    * approved, a Runner's application checked again.
@@ -119,6 +129,7 @@ export async function askOwner(
       summary,
       options: input.options,
       urgent: input.urgent ?? false,
+      priority: input.priority ?? 0,
       ...(input.alertKind ? { alertKind: input.alertKind } : {}),
       ...(input.email
         ? {
@@ -764,13 +775,18 @@ export function deskWebhookBase(ctx: Pick<AppContext, 'env'>): string {
   return `${ctx.env.primaryOrigin ?? ''}/api/webhooks/twilio/owner-desk`;
 }
 
-/** What is open now, urgent first, then oldest first: the order Ozi reads them in. */
+/**
+ * What is open now, urgent first, then a Pro shop's products before the rest (ruling 96), then
+ * oldest first: the order Ozi reads them in.
+ */
 export function inReadingOrder(matters: readonly OwnerMatter[]): OwnerMatter[] {
   return matters
     .filter((matter) => matter.status === 'open')
     .sort(
       (a, b) =>
-        Number(b.urgent) - Number(a.urgent) || a.createdAt.getTime() - b.createdAt.getTime(),
+        Number(b.urgent) - Number(a.urgent) ||
+        (b.priority ?? 0) - (a.priority ?? 0) ||
+        a.createdAt.getTime() - b.createdAt.getTime(),
     );
 }
 

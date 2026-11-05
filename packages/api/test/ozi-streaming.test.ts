@@ -91,6 +91,7 @@ const tools: OwnerTools = {
   partnerApprovals: async () => ({}),
   readApplication: async () => ({}),
   listReminders: async () => ({ waiting: [] }),
+      partnerCatalogueSummary: async () => ({ waiting: 0 }),
   propose: async () => ({ ok: false, why: 'no' }),
   listStaff: async () => ({}),
   ambassadorPrizes: async () => ({}),

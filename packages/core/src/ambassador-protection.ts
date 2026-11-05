@@ -100,7 +100,12 @@ export interface PartnerCostFigures {
   readonly restaurants: { readonly preferredDiscountPercent: number };
   readonly extras: {
     readonly spotlightPence: number;
-    readonly partners: { readonly plusMonthlyPence: number };
+    readonly partners: {
+      readonly plusMonthlyPence: number;
+      /** Shop Partner Pro (ruling 96); older callers may give Plus alone. */
+      readonly proMonthlyPence?: number;
+      readonly plans?: { readonly pro: { readonly name: string } };
+    };
   };
 }
 
@@ -137,18 +142,21 @@ export function welcomeTextWords(
       'freeJoiningWords' | 'paidExtras'
     >;
   },
-  business: { name: string; kind: 'shop' | 'food' | 'service'; plan: 'free' | 'plus' },
+  business: { name: string; kind: 'shop' | 'food' | 'service'; plan: 'free' | 'plus' | 'pro' },
   money: (pence: number) => string,
 ): string {
   const [, plus = 'Partner Plus'] = config.ambassadorProtection.paidExtras;
+  const { partners } = config.extras;
   const terms =
     business.kind === 'food'
       ? `Your terms in brief: no commission and no monthly fee. Our Runner pays you at the counter. A discount of ${config.restaurants.preferredDiscountPercent}% or more makes you a Preferred Partner, free.`
       : business.kind === 'service'
         ? 'Your terms in brief: your listing is free. Shoppers ask you for a quote or a call back.'
-        : business.plan === 'plus'
-          ? `Your terms in brief: you chose ${plus}, ${money(config.extras.partners.plusMonthlyPence)} a month. Nothing is ever taken without you.`
-          : 'Your terms in brief: your basic listing is free, with no monthly fee.';
+        : business.plan === 'pro'
+          ? `Your terms in brief: you chose ${partners.plans?.pro.name ?? 'Shop Partner Pro'}, ${money(partners.proMonthlyPence ?? partners.plusMonthlyPence)} a month. Nothing is ever taken without you.`
+          : business.plan === 'plus'
+            ? `Your terms in brief: you chose ${plus}, ${money(partners.plusMonthlyPence)} a month. Nothing is ever taken without you.`
+            : 'Your terms in brief: your basic listing is free, with no monthly fee.';
   return [
     `${config.productName}: Welcome, ${business.name}.`,
     freeJoiningWords(config),

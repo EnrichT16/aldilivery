@@ -61,11 +61,12 @@ import {
   type DeskContext,
 } from './owner-desk.js';
 import { decideAmbassadorDocument, documentSpoken } from './ambassador-applications.js';
+import { coverForCheck, limitsFor } from './partner-photos.js';
 import { decidePartnerProduct, withdrawPartnerProduct } from './partner-products.js';
 import { findAccount } from './referrals.js';
 import { decideRunnerDocument, KIND_SPOKEN } from './runner-documents.js';
 
-type CheckContext = DeskContext & Pick<AppContext, 'backgroundChecks'>;
+type CheckContext = DeskContext & Pick<AppContext, 'backgroundChecks' | 'photoStore'>;
 
 /**
  * Runs a check in the background on the real server, so nobody waits for the model; in the
@@ -749,6 +750,8 @@ export async function checkPartnerProduct(
     return;
   }
 
+  // A Pro shop's products are read and listed first (ruling 96: approvalPriority).
+  const priority = limitsFor(ctx, shop).approvalPriority === 'high' ? 1 : 0;
   const toOwner = async (reason: string): Promise<void> => {
     await repository.partnerProducts.update(product.id, { checkedAt: at, checkNote: reason });
     await askOwner(
@@ -756,9 +759,10 @@ export async function checkPartnerProduct(
       {
         kind: 'partner_product',
         subjectId: product.id,
-        summary: `${shop.name} ${options.edited ? 'changed the price of' : 'added'} ${product.name}, ${isService ? 'from ' : ''}${money}. ${reason}`,
+        summary: `${shop.name} ${options.edited ? 'changed' : 'added'} ${product.name}, ${isService ? 'from ' : ''}${money}. ${reason}`,
         options: 'decide',
         again: options.edited === true,
+        priority,
       },
       log,
     );
@@ -778,13 +782,11 @@ export async function checkPartnerProduct(
     await toOwner('The automatic check is not switched on, so a person needs to look at it.');
     return;
   }
-  const photo =
-    product.photo && readable(product.photoType)
-      ? { data: Buffer.from(product.photo).toString('base64'), mediaType: product.photoType }
-      : undefined;
+  // The cover photo (ruling 96), from storage, or the photo on the row for an older product.
+  const photo = (await coverForCheck(ctx, product)) ?? undefined;
   const reading = await ctx.brain.checkProduct({
-    name: product.name,
-    tags: product.tags,
+    name: `${product.name}${product.variantLabel ? `, ${product.variantLabel}` : ''}`,
+    tags: [product.tags, product.description].filter(Boolean).join('. '),
     pricePence: product.pricePence,
     isService,
     ...(photo ? { photo } : {}),

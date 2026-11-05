@@ -15,7 +15,7 @@
 
 import { randomInt } from 'node:crypto';
 
-import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
+import type { FastifyBaseLogger, FastifyInstance, FastifyReply } from 'fastify';
 import {
   BROWSE_SECTIONS,
   chosenFrom,
@@ -37,13 +37,27 @@ import {
   ORGANISATION_CONSENT_VERSION,
   PARTNER_KIND_WORDS,
   PARTNER_KINDS,
+  PARTNER_PLANS,
+  PHOTO_RULES_WORDS,
+  BULK_COLUMNS,
+  UNIT_KINDS,
+  allergenWords,
+  categoriesFor,
+  categoryById,
+  paidPlan,
+  planMonthlyPence,
   postcodeArea,
   productLimit,
   SHOP_PARTNER_TERMS_VERSION,
   TERMS_CHANGED_WORDS,
   termsChanged,
   tidyPostcode,
+  unitPrice,
+  unitPriceWords,
+  unitQuantityWords,
   type PartnerKind,
+  type PartnerPlan,
+  type UnitKind,
 } from '@aldilivery/core';
 import { z } from 'zod';
 
@@ -58,7 +72,9 @@ import type {
   BusinessUser,
   Order,
   PartnerPayment,
+  PartnerPaymentKind,
   PartnerProduct,
+  PartnerProductPhoto,
   PartnerShop,
   ReferralKind,
   ServiceEnquiry,
@@ -82,7 +98,6 @@ import {
 import { textPdf } from '../lib/pdf.js';
 import { pastHalfLife } from '../lib/sessions.js';
 import { isUkMobile, ukPhone } from '../lib/phone.js';
-import { NEVER_FOUND } from '../lib/restricted.js';
 import { loadShopsSeed, seedShops } from '../lib/shops-seed.js';
 import {
   chooseAdvert,
@@ -100,6 +115,23 @@ import {
   refreshPartnerPrices,
   shopperPricePence,
 } from '../services/partner-products.js';
+import {
+  bulkAddProducts,
+  bulkTemplateCsv,
+  createPartnerProduct,
+  editPartnerProduct,
+  sameNameKey,
+} from '../services/partner-catalogue.js';
+import {
+  addProductPhoto,
+  keyFor,
+  limitsFor,
+  makeCoverPhoto,
+  photoUrls,
+  removeProductPhoto,
+  shownPhotos,
+  type PhotoSize,
+} from '../services/partner-photos.js';
 import { tieAmbassador } from '../services/ambassadors.js';
 import {
   ensureCheckCode,
@@ -120,8 +152,6 @@ import { whoAsks } from './referrals.js';
 import { hashPassword, passwordMatches, staffActor, temporaryPassword } from '../lib/staff.js';
 import { verifyPhoneProof } from '../lib/tokens.js';
 
-const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_PHOTO_BYTES = 4 * 1024 * 1024;
 const ATTEMPTS = 5;
 const LOCK_MINUTES = 15;
 
@@ -144,12 +174,6 @@ const PAID_STATUSES = new Set([
   'refunded',
 ]);
 
-const PAYMENT_WORDS: Record<PartnerPayment['kind'], string> = {
-  plan: 'Partner Plus',
-  spotlight: 'Spotlight',
-  plus: 'Spotlight Plus',
-};
-
 const ENQUIRY_WORDS: Record<ServiceEnquiry['kind'], string> = {
   quote: 'a quote',
   call_back: 'a call back',
@@ -164,13 +188,8 @@ const CHECKOUT_HOURS = 23;
  */
 export const LABEL_READS_PER_DAY = 400;
 
-/** A product's name as two listings are compared: "Apples, 6 pack" and "apples 6-pack" match. */
-export function sameNameKey(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
+/** A product's name as two listings are compared (now in services/partner-catalogue.ts). */
+export { sameNameKey };
 
 /** A file name with nothing a browser or a computer would object to. */
 function safeName(name: string): string {
@@ -304,6 +323,20 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
 
   const partners = config.extras.partners;
 
+  /** What each kind of payment is called, the packages' names from config (ruling 96). */
+  const PAYMENT_WORDS: Record<PartnerPaymentKind, string> = {
+    plan: partners.plans.plus.name,
+    pro: partners.plans.pro.name,
+    spotlight: 'Spotlight',
+    plus: 'Spotlight Plus',
+  };
+
+  /** The package a payment kind buys. */
+  const PLAN_OF_PAYMENT: Partial<Record<PartnerPaymentKind, 'plus' | 'pro'>> = {
+    plan: 'plus',
+    pro: 'pro',
+  };
+
   /**
    * A partner's agreed discount, checked: a restaurant, café or takeaway, or since Anthony's final
    * ruling (30 October 2026) a grocery shop, never a service, and no more than
@@ -350,21 +383,40 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
   }
 
   /**
-   * Whether the shop's own products show: a free listing, a café, a takeaway or a service
-   * always; a shop on Partner Plus only while it is paid.
+   * Whether the shop's own products show at all: a listing approved and not paused. A shop whose
+   * paid package has lapsed (ruling 96) still shows a free listing's worth: see `shownProducts`.
    */
   function catalogueShown(shop: PartnerShop): boolean {
-    if (!listed(shop)) return false;
-    if (shop.kind !== 'shop' || shop.plan === 'free') return true;
-    return planPaid(shop);
+    return listed(shop);
   }
 
   /**
-   * A shop on Partner Plus whose month is paid: listed first among shops at the same distance
-   * (ruling 75; worded so since 30 October 2026).
+   * The products Shoppers see of a shop (ruling 96): its approved ones, featured first, then in
+   * the shop's own order, then as added. A shop whose paid package has lapsed shows only the
+   * first `plans.free.products` of them (the oldest), the rest hidden, never deleted.
+   */
+  async function shownProducts(shop: PartnerShop): Promise<PartnerProduct[]> {
+    if (!catalogueShown(shop)) return [];
+    const approved = (await repository.partnerProducts.listForShop(shop.id))
+      .filter((product) => product.status === 'approved')
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    const limit = limitFor(shop);
+    const kept = limit !== null && approved.length > limit ? approved.slice(0, limit) : approved;
+    const limits = limitsFor(app.ctx, shop);
+    return kept.sort(
+      (a, b) =>
+        (limits.featured ? Number(b.featured) - Number(a.featured) : 0) ||
+        a.sortOrder - b.sortOrder ||
+        a.createdAt.getTime() - b.createdAt.getTime(),
+    );
+  }
+
+  /**
+   * A shop on Shop Partner Plus or Pro whose month is paid: listed first among shops at the same
+   * distance (ruling 75; worded so since 30 October 2026).
    */
   function onPaidPlus(shop: PartnerShop): boolean {
-    return shop.kind === 'shop' && shop.plan === 'plus' && planPaid(shop);
+    return shop.kind === 'shop' && paidPlan(shop.plan) && planPaid(shop);
   }
 
   /**
@@ -557,7 +609,10 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       freeListingsLeft: freeLeft,
       freeProductLimit: partners.freeProductLimit,
       plusMonthlyPence: partners.plusMonthlyPence,
+      proMonthlyPence: partners.proMonthlyPence,
       plusFirstMonthFree: partners.plusFirstMonthFree,
+      // The three packages (ruling 96), what each gives, from config.
+      packages: packagesFor(null),
       // Restaurants (Anthony, 30 October 2026): no commission, an optional discount for Ozi.
       restaurantWords: restaurantFeeWords(config.restaurants, money),
       preferredDiscountPercent: config.restaurants.preferredDiscountPercent,
@@ -568,38 +623,182 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     };
   }
 
+  /** What a package gives, in plain words, for the plan page and for Ozi (ruling 96). */
+  function packageGives(plan: PartnerPlan): string[] {
+    const limits = partners.plans[plan];
+    const lines = [
+      `Up to ${limits.products.toLocaleString('en-GB')} products`,
+      `${limits.photosPerProduct} photo${limits.photosPerProduct === 1 ? '' : 's'} a product`,
+    ];
+    if (limits.variants) lines.push('Sizes and packs of one product, each with its own price');
+    if (limits.featured) lines.push('Featured products first, and your own order of your page');
+    if (limits.bulkAdd) lines.push('Add products from a spreadsheet (CSV), hundreds at a time');
+    if (limits.runnerCalls) lines.push('A Runner can ring you about a product');
+    if (limits.approvalPriority === 'high') lines.push('Your new products are checked first');
+    if (plan !== 'free') {
+      lines.push(
+        'First place among shops at the same distance, Shop of the Month, Spotlight to buy, reminders by call',
+      );
+    }
+    return lines;
+  }
+
+  /**
+   * The three packages for the plan page (ruling 96): what each costs and gives, which one the
+   * shop is on, and what pressing its button does ("start", "upgrade", "renew" or nothing).
+   */
+  function packagesFor(shop: PartnerShop | null) {
+    return PARTNER_PLANS.map((plan) => {
+      const monthlyPence = planMonthlyPence(plan, partners);
+      const current = shop !== null && shop.plan === plan;
+      const paid = shop !== null && current && (plan === 'free' || planPaid(shop));
+      let action: 'none' | 'start' | 'upgrade' | 'renew' = 'none';
+      if (shop && shop.kind === 'shop' && plan !== 'free') {
+        if (current) action = 'renew';
+        else if (shop.plan === 'free' || !planPaid(shop) || plan === 'pro') action = 'upgrade';
+        if (action === 'upgrade' && shop.plan === 'free') action = 'start';
+      }
+      // A Preferred Partner has Plus free and may buy Pro for the difference (ruling 96).
+      if (shop && shop.kind === 'food' && preferred(shop) && plan === 'pro') {
+        action = shop.plan === 'pro' && planPaid(shop) ? 'renew' : 'upgrade';
+      }
+      return {
+        tier: plan,
+        name: partners.plans[plan].name,
+        monthlyPence,
+        payPence: shop ? priceFor(shop, plan) : monthlyPence,
+        limits: partners.plans[plan],
+        gives: packageGives(plan),
+        current,
+        paid,
+        action,
+        firstMonthFree:
+          plan !== 'free' && shop !== null && partners.plusFirstMonthFree && !shop.plusTrialUsed,
+      };
+    });
+  }
+
+  /** What a shop pays a month for a package: a Preferred Partner pays the difference for Pro. */
+  function priceFor(shop: PartnerShop, plan: PartnerPlan): number {
+    const monthly = planMonthlyPence(plan, partners);
+    if (plan === 'pro' && shop.kind === 'food' && preferred(shop)) {
+      return Math.max(0, partners.proMonthlyPence - partners.plusMonthlyPence);
+    }
+    return monthly;
+  }
+
   /** The plan in one plain sentence, for the screen and for Ozi. */
   function planWords(shop: PartnerShop, limit: number | null): string {
+    const plusName = partners.plans.plus.name;
+    const proName = partners.plans.pro.name;
     if (shop.kind === 'food') {
-      return `No monthly fee and no commission. ${restaurantStandingWords(shop)}`;
+      const pro =
+        shop.plan === 'pro' && planPaid(shop) && shop.paidUntil
+          ? ` ${proName}, paid until ${longDay(shop.paidUntil)}.`
+          : '';
+      return `No monthly fee and no commission. ${restaurantStandingWords(shop)}${pro}`;
     }
     if (shop.kind === 'service') {
       return `Free listing. Shoppers ask you for a quote or a call back here; no payment goes through ${config.productName} for services yet.`;
     }
-    if (shop.plan === 'plus') {
+    if (paidPlan(shop.plan)) {
+      const name = partners.plans[shop.plan].name;
+      const price = money(planMonthlyPence(shop.plan, partners));
+      const gives = packageGives(shop.plan);
       return planPaid(shop) && shop.paidUntil
-        ? `Partner Plus, ${money(partners.plusMonthlyPence)} a month, paid until ${longDay(shop.paidUntil)}: the full catalogue with photos, Shop of the Month, and first place among shops at the same distance.`
-        : `Partner Plus, ${money(partners.plusMonthlyPence)} a month, is not paid at the moment, so your products are hidden. Pay here, or ring us.`;
+        ? `${name}, ${price} a month, paid until ${longDay(shop.paidUntil)}: ${gives.slice(0, 3).join('; ').toLowerCase()}, and more.`
+        : `${name}, ${price} a month, is not paid at the moment, so only your first ${partners.plans.free.products} products show, each with one photo. Nothing is deleted. Pay here, or ring us.`;
     }
-    return `Free listing: your name, address, hours and up to ${limit ?? partners.freeProductLimit} products. Partner Plus, ${money(partners.plusMonthlyPence)} a month, adds the full catalogue with photos, Shop of the Month, and first place among shops at the same distance${partners.plusFirstMonthFree && !shop.plusTrialUsed ? ', with the first month free' : ''}.`;
+    return `Free listing: your name, address, hours and up to ${limit ?? partners.freeProductLimit} products, one photo each. ${plusName}, ${money(partners.plusMonthlyPence)} a month, carries ${partners.plans.plus.products} products with ${partners.plans.plus.photosPerProduct} photos each and first place among shops at the same distance; ${proName}, ${money(partners.proMonthlyPence)} a month, ${partners.plans.pro.products.toLocaleString('en-GB')} products, ${partners.plans.pro.photosPerProduct} photos, featured products and a spreadsheet upload${partners.plusFirstMonthFree && !shop.plusTrialUsed ? ', with the first month free' : ''}.`;
   }
 
-  function publicProduct(product: PartnerProduct) {
+  /** The route a browser fetches a product photo from, when storage gives no public address. */
+  function partnerPhotoPath(productId: string) {
+    return (photoId: string, size: PhotoSize, format: 'webp' | 'jpg'): string =>
+      `/partner/products/${encodeURIComponent(productId)}/photos/${encodeURIComponent(photoId)}/${size}/${format}`;
+  }
+
+  function shopPhotoPath(shopId: string, productId: string) {
+    return (photoId: string, size: PhotoSize, format: 'webp' | 'jpg'): string =>
+      `/shops/${encodeURIComponent(shopId)}/products/${encodeURIComponent(productId)}/photos/${encodeURIComponent(photoId)}/${size}/${format}`;
+  }
+
+  function staffPhotoPath(productId: string) {
+    return (photoId: string, size: PhotoSize, format: 'webp' | 'jpg'): string =>
+      `/staff/partner-products/${encodeURIComponent(productId)}/photos/${encodeURIComponent(photoId)}/${size}/${format}`;
+  }
+
+  /** The product's size and unit price, as the Price Marking Order asks, or null. */
+  function unitPriceOf(product: PartnerProduct, pricePence: number) {
+    if (!product.unitQuantity || !product.unitKind) return null;
+    const unit = product.unitKind as UnitKind;
+    const price = unitPrice(pricePence, product.unitQuantity, unit);
+    return {
+      quantity: product.unitQuantity,
+      unit,
+      quantityWords: unitQuantityWords(product.unitQuantity, unit),
+      perPence: price?.pence ?? null,
+      per: price?.per ?? null,
+      words: price ? unitPriceWords(price, money) : null,
+    };
+  }
+
+  /** The details every row of a product carries, however it is seen (ruling 96). */
+  function productDetails(product: PartnerProduct, pricePence: number) {
+    const category = categoryById(product.categoryId, config.catalogue);
+    return {
+      description: product.description,
+      category: category ? { id: category.id, name: category.name } : null,
+      unit: unitPriceOf(product, pricePence),
+      allergens: product.allergensGiven ? product.allergens : null,
+      allergenWords: allergenWords(product.allergensGiven ? product.allergens : null),
+      featured: product.featured,
+      sortOrder: product.sortOrder,
+      variantGroupId: product.variantGroupId,
+      variantLabel: product.variantLabel,
+    };
+  }
+
+  /** The name of the package whose limits apply to a shop now (ruling 96). */
+  function packageNameFor(shop: PartnerShop): string {
+    const paid = planPaid(shop);
+    if (shop.kind === 'shop') return partners.plans[paid && paidPlan(shop.plan) ? shop.plan : 'free'].name;
+    // A café, takeaway or service: Pro when bought, otherwise Plus's limits with no count.
+    return partners.plans[shop.plan === 'pro' && paid ? 'pro' : 'plus'].name;
+  }
+
+  /** A product as its own shop sees it: every detail, the counter price, every photo. */
+  async function publicProduct(
+    product: PartnerProduct,
+    path: ReturnType<typeof partnerPhotoPath> = partnerPhotoPath(product.id),
+  ) {
+    const photos = await repository.partnerProductPhotos.listForProduct(product.id);
     return {
       id: product.id,
       name: product.name,
       pricePence: product.pricePence,
       tags: product.tags,
       expiresOn: product.expiresOn,
-      hasPhoto: product.photo !== null,
+      hasPhoto: product.photo !== null || photos.length > 0,
       status: product.status,
       note: product.note,
       catalogueItemId: product.catalogueItemId,
       createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
       durationMinutes: product.durationMinutes,
       barcode: product.barcode,
       priceEstimated: product.priceEstimated,
+      ...productDetails(product, product.pricePence),
+      photos: photos.map((photo, index) =>
+        photoUrls(app.ctx, photo, `${product.name}${index === 0 ? '' : `, photo ${index + 1}`}`, path),
+      ),
     };
+  }
+
+  async function publicProducts(products: PartnerProduct[]) {
+    const rows = [];
+    for (const product of products) rows.push(await publicProduct(product));
+    return rows;
   }
 
   async function newUser(
@@ -825,6 +1024,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         tier: shop.plan,
         monthlyPence: shop.monthlyPence,
         plusMonthlyPence: partners.plusMonthlyPence,
+        proMonthlyPence: partners.proMonthlyPence,
         paidUntil: shop.paidUntil,
         paid: planPaid(shop),
         freeForever: shop.freeForever,
@@ -833,6 +1033,18 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         productsListed: listedCount,
         canAddProduct: limit === null || listedCount < limit,
         words: planWords(shop, limit),
+        // What the shop may do now (ruling 96), and the three packages to choose from.
+        limits: limitsFor(app.ctx, shop),
+        packages: packagesFor(shop),
+      },
+      // The taxonomy the add form offers (ruling 96), from config.
+      catalogue: {
+        categories: categoriesFor(shop.kind, config.catalogue),
+        allergens: config.catalogue.allergens,
+        units: UNIT_KINDS,
+        descriptionMaxLength: config.catalogue.descriptionMaxLength,
+        photoRules: PHOTO_RULES_WORDS,
+        bulkColumns: BULK_COLUMNS,
       },
       restaurant: await restaurantFor(shop),
       // Agreed to older Shop Partner terms (30 October 2026): asked to agree again, and every
@@ -860,7 +1072,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         waiting: products.filter((product) => product.status === 'pending').length,
         notAccepted: products.filter((product) => product.status === 'rejected').length,
       },
-      products: products.map(publicProduct),
+      products: await publicProducts(products),
       sharePath: `/shops/${shop.id}`,
       spotlight: {
         level: spotlightActive(shop, now(), config) ? shop.spotlight : 'none',
@@ -955,39 +1167,46 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     return reply.send(textPdf(`${config.productName} statement`, lines));
   });
 
-  app.post('/partner/products', { bodyLimit: 7 * 1024 * 1024 }, async (request, reply) => {
+  /** A photo as the add form sends it: base64 and its type. */
+  const photoSchema = z.object({
+    photo: z
+      .string()
+      .min(1)
+      .max(6 * 1024 * 1024),
+    photoType: z.string().max(40),
+  });
+
+  /** The details of a product the catalogue keeps (ruling 96), as the forms send them. */
+  const detailsSchema = {
+    description: z.string().trim().max(2000).optional(),
+    categoryId: z.string().trim().max(60).optional(),
+    unitQuantity: z.number().positive().max(100_000).optional(),
+    unitKind: z.string().trim().max(10).optional(),
+    /** Left out when the shop has not said; [] for none. */
+    allergens: z.array(z.string().trim().max(60)).max(14).optional(),
+  };
+
+  /**
+   * A new product or service (ruling 96): every detail the catalogue keeps, up to the package's
+   * photos (each looked at as it arrives), a size or pack of a product already listed as a
+   * variant, and the automatic check at the end (ruling 74). The counter price is what the shop
+   * types; Shoppers see the marked-up price.
+   */
+  app.post('/partner/products', { bodyLimit: 40 * 1024 * 1024 }, async (request, reply) => {
     const shop = await myShopToChange(request);
-    if (shop.status === 'removed' || !shop.active) {
-      throw new ConflictError('This listing is paused, so nothing can be added. Please ring us.');
-    }
-    // A shop on Partner Plus that has lapsed keeps a free listing's allowance (ruling 65).
-    if (shop.kind === 'shop' && shop.plan === 'plus' && !planPaid(shop) && !shop.freeForever) {
-      throw new ConflictError(
-        `Partner Plus is not paid at the moment, so new products cannot be added. Pay from your dashboard, ${money(partners.plusMonthlyPence)} a month, or ring us.`,
-      );
-    }
-    const limit = limitFor(shop);
-    if (limit !== null) {
-      const listedCount = (await repository.partnerProducts.listForShop(shop.id)).filter(
-        (product) => product.status === 'approved' || product.status === 'pending',
-      ).length;
-      if (listedCount >= limit) {
-        throw new ConflictError(
-          `A free listing carries up to ${limit} products. For the full catalogue with photos, join Partner Plus from your dashboard, ${money(partners.plusMonthlyPence)} a month${partners.plusFirstMonthFree && !shop.plusTrialUsed ? ', the first month free' : ''}.`,
-        );
-      }
-    }
     const body = z
       .object({
         name: z.string().trim().min(2, 'Please say what the product is.').max(120),
         pricePence: z.number().int().min(1, 'Please give the price.').max(100_000),
         tags: z.string().trim().max(200).default(''),
         expiresOn: z.string().date('Please give the date as day, month and year.').optional(),
+        /** One photo the old way, or several the new way; the first is the cover. */
         photo: z
           .string()
           .max(6 * 1024 * 1024)
           .optional(),
         photoType: z.string().max(40).optional(),
+        photos: z.array(photoSchema).max(12).optional(),
         /** A service: how long it takes. */
         durationMinutes: z
           .number()
@@ -1003,81 +1222,38 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
           .optional(),
         /** The label showed no price, so this one is an estimate to be checked. */
         priceEstimated: z.boolean().default(false),
+        /** A size or pack of this product already listed (ruling 96). */
+        variantOf: z.string().min(1).max(60).optional(),
+        variantLabel: z.string().trim().max(60).optional(),
+        ...detailsSchema,
       })
       .parse(request.body ?? {});
-    // One product is one listing with one price, never one per pack (ruling 75).
-    const already = (await repository.partnerProducts.listForShop(shop.id)).find(
-      (product) =>
-        (product.status === 'approved' || product.status === 'pending') &&
-        ((body.barcode !== undefined && product.barcode === body.barcode) ||
-          (sameNameKey(product.name) === sameNameKey(body.name) &&
-            product.pricePence === body.pricePence)),
+    const photos = [
+      ...(body.photo && body.photoType ? [{ base64: body.photo, contentType: body.photoType }] : []),
+      ...(body.photos ?? []).map((photo) => ({ base64: photo.photo, contentType: photo.photoType })),
+    ];
+    const { product: latest, photoNotes } = await createPartnerProduct(
+      app.ctx,
+      shop,
+      { ...body, photos },
+      request.log,
     );
-    if (already) {
-      throw new ConflictError(`${already.name} is already added.`);
-    }
-    if (NEVER_FOUND.test(`${body.name} ${body.tags}`)) {
-      throw new BadRequestError(
-        `${config.productName} never brings alcohol, tobacco, medicines, cash or anything age restricted, so that cannot be listed.`,
-      );
-    }
-    if (shop.kind === 'service') {
-      const refused = excludedServiceKind(
-        `${body.name} ${body.tags}`,
-        partners.excludedServiceKinds,
-      );
-      if (refused) throw new BadRequestError(excludedServiceWords(refused, config.productName));
-      if (!body.durationMinutes) {
-        throw new BadRequestError('Please say how long the service takes, in minutes.');
-      }
-    }
-    if (body.photo && limit !== null) {
-      throw new BadRequestError(
-        `Photos come with Partner Plus, ${money(partners.plusMonthlyPence)} a month. On a free listing, add the product without a photo.`,
-      );
-    }
-    let photo: Buffer | null = null;
-    if (body.photo) {
-      if (!body.photoType || !IMAGE_TYPES.includes(body.photoType)) {
-        throw new BadRequestError('Please send a photo.');
-      }
-      photo = Buffer.from(body.photo, 'base64');
-      if (photo.length === 0 || photo.length > MAX_PHOTO_BYTES) {
-        throw new BadRequestError('That photo is empty or too large. Please take it again.');
-      }
-    }
-    const product = await repository.partnerProducts.create({
-      partnerShopId: shop.id,
-      name: body.name,
-      pricePence: body.pricePence,
-      tags: body.tags,
-      expiresOn: body.expiresOn ? new Date(`${body.expiresOn}T00:00:00Z`) : null,
-      photo: photo ? new Uint8Array(photo) : null,
-      photoType: photo ? (body.photoType ?? null) : null,
-      durationMinutes: shop.kind === 'service' ? (body.durationMinutes ?? null) : null,
-      barcode: shop.kind === 'service' ? null : (body.barcode ?? null),
-      priceEstimated: body.priceEstimated,
-    });
-    // The automatic check (ruling 74): clear ones are approved at once, clearly restricted ones
-    // refused by the rule lists, and anything doubtful goes to the owner.
-    await checkInBackground(app.ctx, request.log, () =>
-      checkPartnerProduct(app.ctx, product.id, request.log),
-    );
-    const latest = (await repository.partnerProducts.findById(product.id)) ?? product;
     const price =
       shop.kind === 'service' ? `from ${money(body.pricePence)}` : money(body.pricePence);
     const estimated = body.priceEstimated ? ' Its price is an estimate: please check it.' : '';
     const later =
       shop.status === 'pending' ? ' Your page goes public once we have checked your listing.' : '';
+    const aboutPhotos = photoNotes.length > 0 ? ` ${photoNotes.join(' ')}` : '';
     void reply.status(201);
     return {
-      product: publicProduct(latest),
+      product: await publicProduct(latest),
+      photoNotes,
       message:
         latest.status === 'approved'
-          ? `Thank you. ${body.name}, ${price}, is checked and listed.${estimated}${later}`
+          ? `Thank you. ${body.name}, ${price}, is checked and listed.${estimated}${later}${aboutPhotos}`
           : latest.status === 'rejected'
             ? `${body.name} cannot be listed: ${latest.note ?? 'it is something we never bring.'}`
-            : `Thank you. ${body.name}, ${price}, is waiting to be checked. It usually goes live within one working day.${estimated}${later}`,
+            : `Thank you. ${body.name}, ${price}, is waiting to be checked. It usually goes live within one working day.${estimated}${later}${aboutPhotos}`,
     };
   });
 
@@ -1091,8 +1267,44 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     if (!product || product.partnerShopId !== shop.id || product.status === 'removed') {
       throw new NotFoundError('product');
     }
-    return product;
+    return { shop, product };
   }
+
+  /**
+   * Full editing (ruling 96): name, description, category, labels, size, allergens, price, best
+   * before, a variant's label, a service's time. A change of anything but the price is checked
+   * again; a new price applies at once.
+   */
+  app.post('/partner/products/:id', async (request) => {
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const body = z
+      .object({
+        name: z.string().trim().min(2).max(120).optional(),
+        tags: z.string().trim().max(200).optional(),
+        pricePence: z.number().int().min(1).max(100_000).optional(),
+        expiresOn: z.string().date().nullable().optional(),
+        durationMinutes: z
+          .number()
+          .int()
+          .min(5)
+          .max(24 * 60)
+          .nullable()
+          .optional(),
+        variantLabel: z.string().trim().max(60).nullable().optional(),
+        description: z.string().trim().max(2000).optional(),
+        categoryId: z.string().trim().max(60).nullable().optional(),
+        unitQuantity: z.number().positive().max(100_000).nullable().optional(),
+        unitKind: z.string().trim().max(10).nullable().optional(),
+        allergens: z.array(z.string().trim().max(60)).max(14).nullable().optional(),
+      })
+      .parse(request.body ?? {});
+    const { shop, product } = await myProduct(request, id);
+    const updated = await editPartnerProduct(app.ctx, shop, product, body, request.log);
+    return {
+      product: await publicProduct(updated),
+      message: `${updated.name} is saved.${updated.status === 'approved' && updated.checkNote ? ' A change is being checked.' : ''}`,
+    };
+  });
 
   /** A new price applies at once: prices are estimates, and the Shopper pays the till. */
   app.post('/partner/products/:id/price', async (request) => {
@@ -1100,32 +1312,17 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     const { pricePence } = z
       .object({ pricePence: z.number().int().min(1).max(100_000) })
       .parse(request.body ?? {});
-    const product = await myProduct(request, id);
-    const updated = await repository.partnerProducts.update(product.id, {
-      pricePence,
-      priceEstimated: false,
-    });
-    if (product.catalogueItemId) {
-      const shop = await repository.partnerShops.findById(product.partnerShopId);
-      await repository.catalogue.update(product.catalogueItemId, {
-        // What Shoppers pay: with any agreed mark-up (Anthony, 30 October 2026).
-        estimatedPricePence: shop ? shopperPricePence(shop, pricePence) : pricePence,
-        lastSeenAt: now(),
-      });
-    }
-    // A change is checked like a new one (ruling 74): a doubtful price goes to the owner.
-    await checkInBackground(app.ctx, request.log, () =>
-      checkPartnerProduct(app.ctx, product.id, request.log, { edited: true }),
-    );
+    const { shop, product } = await myProduct(request, id);
+    const updated = await editPartnerProduct(app.ctx, shop, product, { pricePence }, request.log);
     return {
-      product: publicProduct(updated),
+      product: await publicProduct(updated),
       message: `${product.name} is now ${money(pricePence)}.`,
     };
   });
 
   app.post('/partner/products/:id/remove', async (request) => {
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
-    const product = await myProduct(request, id);
+    const { product } = await myProduct(request, id);
     await repository.partnerProducts.update(product.id, { status: 'removed' });
     if (product.catalogueItemId) {
       await repository.catalogue.update(product.catalogueItemId, { retired: true });
@@ -1133,13 +1330,180 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     return { message: `${product.name} is taken off. Shoppers no longer see it.` };
   });
 
-  app.get('/partner/products/:id/photo', async (request, reply) => {
+  /**
+   * A Pro shop's featured products come first on its page (ruling 96); any other package is
+   * told plainly.
+   */
+  app.post('/partner/products/:id/featured', async (request) => {
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
-    const product = await myProduct(request, id, false);
+    const { featured } = z.object({ featured: z.boolean() }).parse(request.body ?? {});
+    const { shop, product } = await myProduct(request, id);
+    if (!limitsFor(app.ctx, shop).featured) {
+      throw new BadRequestError(
+        `Featured products come with ${partners.plans.pro.name}, ${money(partners.proMonthlyPence)} a month. Upgrade from your dashboard.`,
+      );
+    }
+    const updated = await repository.partnerProducts.update(product.id, { featured });
+    return {
+      product: await publicProduct(updated),
+      message: featured
+        ? `${product.name} is featured: Shoppers see it first.`
+        : `${product.name} is no longer featured.`,
+    };
+  });
+
+  /** A Pro shop's own order of its page (ruling 96): the ids in the order wanted. */
+  app.post('/partner/products/order', async (request) => {
+    const shop = await myShopToChange(request);
+    const { ids } = z
+      .object({ ids: z.array(z.string().min(1)).min(1).max(5000) })
+      .parse(request.body ?? {});
+    if (!limitsFor(app.ctx, shop).featured) {
+      throw new BadRequestError(
+        `Ordering your page comes with ${partners.plans.pro.name}, ${money(partners.proMonthlyPence)} a month. Upgrade from your dashboard.`,
+      );
+    }
+    const mine = new Map(
+      (await repository.partnerProducts.listForShop(shop.id)).map((row) => [row.id, row]),
+    );
+    let position = 0;
+    for (const productId of ids) {
+      const product = mine.get(productId);
+      if (!product || product.status === 'removed') continue;
+      await repository.partnerProducts.update(product.id, { sortOrder: position });
+      position += 1;
+    }
+    return { message: 'Your order is saved. Shoppers see your page in that order.' };
+  });
+
+  /* ------------------------------------------------------------------ photos (ruling 96) */
+
+  /** Another photo of a product, up to the package's count, looked at as it arrives. */
+  app.post('/partner/products/:id/photos', { bodyLimit: 7 * 1024 * 1024 }, async (request, reply) => {
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const body = photoSchema.parse(request.body ?? {});
+    const { shop, product } = await myProduct(request, id);
+    const added = await addProductPhoto(app.ctx, shop, product, {
+      base64: body.photo,
+      contentType: body.photoType,
+    });
+    // A new photo is checked like a new product (ruling 74, 96): the photo must match the name.
+    await checkInBackground(app.ctx, request.log, () =>
+      checkPartnerProduct(app.ctx, product.id, request.log, { edited: true }),
+    );
+    void reply.status(201);
+    return {
+      photo: photoUrls(app.ctx, added.photo, product.name, partnerPhotoPath(product.id)),
+      note: added.note,
+      message: added.note ? `Photo added. ${added.note}` : 'Photo added.',
+    };
+  });
+
+  async function myPhoto(
+    request: Parameters<typeof businessActor>[0],
+    id: string,
+    photoId: string,
+    changing = true,
+  ) {
+    const { shop, product } = await myProduct(request, id, changing);
+    const photo = await repository.partnerProductPhotos.findById(photoId);
+    if (!photo || photo.productId !== product.id) throw new NotFoundError('photo');
+    return { shop, product, photo };
+  }
+
+  app.post('/partner/products/:id/photos/:photoId/remove', async (request) => {
+    const { id, photoId } = z
+      .object({ id: z.string().min(1), photoId: z.string().min(1) })
+      .parse(request.params);
+    const { product, photo } = await myPhoto(request, id, photoId);
+    await removeProductPhoto(app.ctx, product, photo);
+    return { message: 'That photo is taken off.' };
+  });
+
+  app.post('/partner/products/:id/photos/:photoId/cover', async (request) => {
+    const { id, photoId } = z
+      .object({ id: z.string().min(1), photoId: z.string().min(1) })
+      .parse(request.params);
+    const { product, photo } = await myPhoto(request, id, photoId);
+    await makeCoverPhoto(app.ctx, product, photo);
+    return { message: `That photo is now the cover of ${product.name}.` };
+  });
+
+  const photoSizeSchema = z.object({
+    size: z.enum(['thumb', 'medium', 'full']),
+    format: z.enum(['webp', 'jpg']),
+  });
+
+  /** Sends one size of a photo from storage, for when there is no public address for it. */
+  async function sendPhoto(
+    reply: FastifyReply,
+    photo: PartnerProductPhoto,
+    size: PhotoSize,
+    format: 'webp' | 'jpg',
+    cache: string,
+  ) {
+    const stored = await app.ctx.photoStore.get(
+      keyFor(photo, size, format === 'webp' ? 'webp' : 'jpeg'),
+    );
+    if (!stored) throw new NotFoundError('photo');
+    void reply.header('content-type', stored.contentType);
+    void reply.header('cache-control', cache);
+    return reply.send(Buffer.from(stored.bytes));
+  }
+
+  app.get('/partner/products/:id/photos/:photoId/:size/:format', async (request, reply) => {
+    const { id, photoId, size, format } = z
+      .object({ id: z.string().min(1), photoId: z.string().min(1) })
+      .merge(photoSizeSchema)
+      .parse(request.params);
+    const { photo } = await myPhoto(request, id, photoId, false);
+    return sendPhoto(reply, photo, size, format, 'private, max-age=3600');
+  });
+
+  /** The cover photo at a medium size, for anything still asking the old way. */
+  async function sendCover(
+    reply: FastifyReply,
+    product: PartnerProduct,
+    cache: string,
+  ) {
+    const [cover] = await repository.partnerProductPhotos.listForProduct(product.id);
+    if (cover) return sendPhoto(reply, cover, 'medium', 'jpg', cache);
     if (!product.photo || !product.photoType) throw new NotFoundError('photo');
     void reply.header('content-type', product.photoType);
-    void reply.header('cache-control', 'no-store');
+    void reply.header('cache-control', cache);
     return reply.send(Buffer.from(product.photo));
+  }
+
+  app.get('/partner/products/:id/photo', async (request, reply) => {
+    const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
+    const { product } = await myProduct(request, id, false);
+    return sendCover(reply, product, 'no-store');
+  });
+
+  /* ------------------------------------------------------------------ bulk add (Pro, ruling 96) */
+
+  /** The CSV template: the columns, then one example row. */
+  app.get('/partner/products/template.csv', async (request, reply) => {
+    await myShop(request);
+    void reply.header('content-type', 'text/csv; charset=utf-8');
+    void reply.header('content-disposition', 'attachment; filename="products.csv"');
+    return reply.send(bulkTemplateCsv());
+  });
+
+  /** A CSV of products, each row checked and added like a product typed in, Pro only. */
+  app.post('/partner/products/bulk', { bodyLimit: 4 * 1024 * 1024 }, async (request) => {
+    const shop = await myShopToChange(request);
+    const { csv } = z
+      .object({ csv: z.string().min(1, 'The file is empty.').max(3 * 1024 * 1024) })
+      .parse(request.body ?? {});
+    const outcome = await bulkAddProducts(app.ctx, shop, csv, request.log);
+    return {
+      ...outcome,
+      message:
+        outcome.failed === 0
+          ? `${outcome.added} product${outcome.added === 1 ? '' : 's'} added. Each is checked as usual before Shoppers see it.`
+          : `${outcome.added} added, ${outcome.failed} not: see each row below, put it right, and send those rows again.`,
+    };
   });
 
   /* ------------------------------------------------------------------ scanning products (ruling 75) */
@@ -1317,11 +1681,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     const awards = await awardTitlesByShop(app.ctx);
     const rows = [];
     for (const shop of shops) {
-      const live = catalogueShown(shop)
-        ? (await repository.partnerProducts.listForShop(shop.id)).filter(
-            (product) => product.status === 'approved',
-          )
-        : [];
+      const live = await shownProducts(shop);
       rows.push({
         ...publicShopRow(shop),
         products: live.length,
@@ -1345,30 +1705,75 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const shop = await repository.partnerShops.findById(id);
     if (!shop || !listed(shop)) throw new NotFoundError('shop');
-    const live = catalogueShown(shop)
-      ? (await repository.partnerProducts.listForShop(shop.id)).filter(
-          (product) => product.status === 'approved',
-        )
-      : [];
+    const live = await shownProducts(shop);
+    const limits = limitsFor(app.ctx, shop);
+    const products = [];
+    for (const product of live) {
+      // What Shoppers pay: the shop price with any agreed mark-up (30 October 2026). The
+      // counter price itself is never sent here.
+      const pricePence = shopperPricePence(shop, product.pricePence);
+      const photos = await shownPhotos(app.ctx, shop, product);
+      products.push({
+        id: product.id,
+        name: product.name,
+        pricePence,
+        tags: product.tags,
+        expiresOn: product.expiresOn,
+        hasPhoto: product.photo !== null || photos.length > 0,
+        catalogueItemId: product.catalogueItemId,
+        durationMinutes: product.durationMinutes,
+        ...productDetails(product, pricePence),
+        photos: photos.map((photo, index) =>
+          photoUrls(
+            app.ctx,
+            photo,
+            `${product.name}${product.variantLabel ? `, ${product.variantLabel}` : ''}${index === 0 ? '' : `, photo ${index + 1}`}`,
+            shopPhotoPath(shop.id, product.id),
+          ),
+        ),
+      });
+    }
     return {
       shop: {
         ...publicShopRow(shop),
         address: shop.address,
         claimable: await claimable(shop),
         awards: (await awardTitlesByShop(app.ctx)).get(shop.id) ?? [],
+        // The package's name, so the page can say what a shop on Pro has (ruling 96).
+        packageName: shop.kind === 'shop' ? partners.plans[onPaidPlus(shop) ? shop.plan : 'free'].name : null,
+        featuredOrdering: limits.featured,
       },
-      products: live.map((product) => ({
-        id: product.id,
-        name: product.name,
-        // What Shoppers pay: the shop price with any agreed mark-up (30 October 2026).
-        pricePence: shopperPricePence(shop, product.pricePence),
-        tags: product.tags,
-        expiresOn: product.expiresOn,
-        hasPhoto: product.photo !== null,
-        catalogueItemId: product.catalogueItemId,
-        durationMinutes: product.durationMinutes,
+      // The categories, in the taxonomy's order, so the page groups by them (ruling 96).
+      categories: categoriesFor(shop.kind, config.catalogue).map((category) => ({
+        id: category.id,
+        name: category.name,
       })),
+      products,
     };
+  });
+
+  /** One size of a product's photo, for a Shopper, when storage gives no public address. */
+  app.get('/shops/:id/products/:productId/photos/:photoId/:size/:format', async (request, reply) => {
+    const { id, productId, photoId, size, format } = z
+      .object({
+        id: z.string().min(1),
+        productId: z.string().min(1),
+        photoId: z.string().min(1),
+        size: z.enum(['thumb', 'medium', 'full']),
+        format: z.enum(['webp', 'jpg']),
+      })
+      .parse(request.params);
+    const product = await repository.partnerProducts.findById(productId);
+    const shop = await repository.partnerShops.findById(id);
+    if (!product || !shop || product.partnerShopId !== id || product.status !== 'approved') {
+      throw new NotFoundError('photo');
+    }
+    if (!(await shownProducts(shop)).some((row) => row.id === product.id)) {
+      throw new NotFoundError('photo');
+    }
+    const photo = (await shownPhotos(app.ctx, shop, product)).find((row) => row.id === photoId);
+    if (!photo) throw new NotFoundError('photo');
+    return sendPhoto(reply, photo, size, format, 'public, max-age=86400');
   });
 
   /**
@@ -1437,20 +1842,13 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       .parse(request.params);
     const product = await repository.partnerProducts.findById(productId);
     const shop = await repository.partnerShops.findById(id);
-    if (
-      !product ||
-      !shop ||
-      !catalogueShown(shop) ||
-      product.partnerShopId !== id ||
-      product.status !== 'approved' ||
-      !product.photo ||
-      !product.photoType
-    ) {
+    if (!product || !shop || product.partnerShopId !== id || product.status !== 'approved') {
       throw new NotFoundError('photo');
     }
-    void reply.header('content-type', product.photoType);
-    void reply.header('cache-control', 'public, max-age=3600');
-    return reply.send(Buffer.from(product.photo));
+    if (!(await shownProducts(shop)).some((row) => row.id === product.id)) {
+      throw new NotFoundError('photo');
+    }
+    return sendCover(reply, product, 'public, max-age=3600');
   });
 
   /**
@@ -1506,7 +1904,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       password: z.string().min(10, 'Please choose a password of at least 10 characters.').max(200),
       /** A shop Ozi listed, being claimed by its owner. */
       claimShopId: z.string().min(1).optional(),
-      plan: z.enum(['free', 'plus']).default('free'),
+      plan: z.enum(PARTNER_PLANS).default('free'),
       /**
        * Partner Plus only (ruling 75): true when the shop starts and pays today, skipping the free
        * month, and goes straight to Stripe Checkout; false takes the free month at once.
@@ -1611,7 +2009,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         }
         freeForever = true;
       } else {
-        plan = 'plus';
+        plan = body.plan;
       }
     }
     const details = {
@@ -1619,7 +2017,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       address: body.address,
       telephone: '',
       about: body.about,
-      monthlyPence: plan === 'plus' ? partners.plusMonthlyPence : 0,
+      monthlyPence: planMonthlyPence(plan, partners),
       kind: body.kind,
       status: 'pending' as const,
       plan,
@@ -1706,18 +2104,19 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     // shop pays from the start, the free month is set aside and Stripe's page is made now.
     let planMessage = '';
     let checkout: { url: string; receipt: string } | null = null;
-    if (body.kind === 'shop' && plan === 'plus') {
+    if (body.kind === 'shop' && paidPlan(plan)) {
+      const kind: PartnerPaymentKind = plan === 'pro' ? 'pro' : 'plan';
       if (body.payNow || !partners.plusFirstMonthFree) {
         const paying = await repository.partnerShops.update(shop.id, { plusTrialUsed: true });
         try {
-          const page = await checkoutPage(paying, 'plan', 1, '/partner');
+          const page = await checkoutPage(paying, kind, 1, '/partner');
           checkout = { url: page.url, receipt: page.receipt };
           planMessage = ` ${page.message}`;
         } catch {
-          planMessage = ` We could not open the payment page just now. Pay for Partner Plus from your dashboard, ${money(partners.plusMonthlyPence)} a month, or ring us.`;
+          planMessage = ` We could not open the payment page just now. Pay for ${PAYMENT_WORDS[kind]} from your dashboard, ${money(planMonthlyPence(plan, partners))} a month, or ring us.`;
         }
       } else {
-        const started = await startFreeMonth(shop);
+        const started = await startFreeMonth(shop, plan);
         planMessage = ` ${started}`;
       }
     }
@@ -1923,26 +2322,30 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     };
   });
 
-  /** The free first month of Partner Plus, taken once: no Stripe at all. Returns what to say. */
-  async function startFreeMonth(shop: PartnerShop): Promise<string> {
+  /**
+   * The free first month of Shop Partner Plus or Pro, taken once: no Stripe at all (ruling 96:
+   * Pro's first month follows `plusFirstMonthFree` too). Returns what to say.
+   */
+  async function startFreeMonth(shop: PartnerShop, plan: 'plus' | 'pro' = 'plus'): Promise<string> {
     const at = now();
     const from = shop.paidUntil && shop.paidUntil > at ? shop.paidUntil : at;
+    const kind: PartnerPaymentKind = plan === 'pro' ? 'pro' : 'plan';
     const updated = await repository.partnerShops.update(shop.id, {
-      plan: 'plus',
-      monthlyPence: partners.plusMonthlyPence,
+      plan,
+      monthlyPence: planMonthlyPence(plan, partners),
       plusTrialUsed: true,
       paidUntil: addMonths(from, 1),
     });
     await repository.partnerPayments.create({
       partnerShopId: shop.id,
-      kind: 'plan',
+      kind,
       amountPence: 0,
       months: 1,
       coversUntil: updated.paidUntil ?? at,
       recordedBy: 'first month free',
       paidAt: at,
     });
-    return `Partner Plus is on, and your first month is free, until ${longDay(updated.paidUntil ?? at)}. After that it is ${money(partners.plusMonthlyPence)} a month, paid here whenever you choose; nothing is ever taken without you.`;
+    return `${PAYMENT_WORDS[kind]} is on, and your first month is free, until ${longDay(updated.paidUntil ?? at)}. After that it is ${money(priceFor(shop, plan))} a month, paid here whenever you choose; nothing is ever taken without you.`;
   }
 
   /**
@@ -1958,10 +2361,12 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     const at = now();
     const price =
       kind === 'plan'
-        ? partners.plusMonthlyPence
-        : kind === 'plus'
-          ? config.extras.spotlightPlusPence
-          : config.extras.spotlightPence;
+        ? priceFor(shop, 'plus')
+        : kind === 'pro'
+          ? priceFor(shop, 'pro')
+          : kind === 'plus'
+            ? config.extras.spotlightPlusPence
+            : config.extras.spotlightPence;
     const amountPence = price * months;
     const origin = env.primaryOrigin ?? '';
     const path = returnTo.startsWith('/') ? returnTo : '/partner';
@@ -1999,24 +2404,31 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     const shop = await myShopToChange(request);
     const body = z
       .object({
-        kind: z.enum(['plan', 'spotlight', 'plus']).default('plan'),
+        kind: z.enum(['plan', 'pro', 'spotlight', 'plus']).default('plan'),
         months: z.number().int().min(1).max(12).default(1),
         returnTo: z.string().trim().max(300).default('/partner'),
       })
       .parse(request.body ?? {});
-    if (shop.kind !== 'shop' && body.kind === 'plan') {
-      throw new BadRequestError(
-        shop.kind === 'food'
-          ? `A restaurant, café or takeaway pays no monthly fee and no commission. There is nothing to pay.${preferred(shop) ? ` As a ${config.assistantName} Preferred Partner you have Partner Plus free.` : ''}`
-          : 'A service is listed free. There is nothing to pay.',
+    const buyingPlan = PLAN_OF_PAYMENT[body.kind];
+    if (shop.kind !== 'shop' && buyingPlan) {
+      // A Preferred Partner has Plus free and may buy Pro for the difference (ruling 96).
+      const proForPreferred = shop.kind === 'food' && preferred(shop) && buyingPlan === 'pro';
+      if (!proForPreferred) {
+        throw new BadRequestError(
+          shop.kind === 'food'
+            ? `A restaurant, café or takeaway pays no monthly fee and no commission. There is nothing to pay.${preferred(shop) ? ` As a ${config.assistantName} Preferred Partner you have ${partners.plans.plus.name} free, and may add ${partners.plans.pro.name} for ${money(priceFor(shop, 'pro'))} a month.` : ''}`
+            : 'A service is listed free. There is nothing to pay.',
+        );
+      }
+    }
+    // A Preferred Partner's Plus is free, so it may buy Spotlight too.
+    if (!buyingPlan && !((paidPlan(shop.plan) || preferred(shop)) && planPaid(shop))) {
+      throw new ConflictError(
+        `Spotlight is only for shops on ${partners.plans.plus.name} or ${partners.plans.pro.name} whose plan is paid.`,
       );
     }
-    // A Preferred Partner's Partner Plus is free, so it may buy Spotlight too.
-    if (body.kind !== 'plan' && !((shop.plan === 'plus' || preferred(shop)) && planPaid(shop))) {
-      throw new ConflictError('Spotlight is only for shops on Partner Plus whose plan is paid.');
-    }
-    if (body.kind === 'plan' && partners.plusFirstMonthFree && !shop.plusTrialUsed) {
-      return { url: null, message: await startFreeMonth(shop) };
+    if (buyingPlan && partners.plusFirstMonthFree && !shop.plusTrialUsed) {
+      return { url: null, message: await startFreeMonth(shop, buyingPlan) };
     }
     return checkoutPage(shop, body.kind, body.months, body.returnTo);
   });
@@ -2042,23 +2454,26 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     }
     const at = now();
     let updated: PartnerShop;
-    if (checkout.kind === 'plan') {
-      const from = shop.paidUntil && shop.paidUntil > at ? shop.paidUntil : at;
+    const boughtPlan = PLAN_OF_PAYMENT[checkout.kind];
+    if (boughtPlan) {
+      // Moving up from Plus to Pro starts Pro's month now (ruling 96); renewing extends the month.
+      const from =
+        shop.plan === boughtPlan && shop.paidUntil && shop.paidUntil > at ? shop.paidUntil : at;
       updated = await repository.partnerShops.update(shop.id, {
-        plan: 'plus',
-        monthlyPence: partners.plusMonthlyPence,
+        plan: boughtPlan,
+        monthlyPence: planMonthlyPence(boughtPlan, partners),
         paidUntil: addMonths(from, checkout.months),
       });
     } else {
-      const sameLevel =
-        shop.spotlight === checkout.kind && shop.spotlightUntil && shop.spotlightUntil > at;
+      const level = checkout.kind === 'plus' ? 'plus' : 'spotlight';
+      const sameLevel = shop.spotlight === level && shop.spotlightUntil && shop.spotlightUntil > at;
       const from = sameLevel && shop.spotlightUntil ? shop.spotlightUntil : at;
       updated = await repository.partnerShops.update(shop.id, {
-        spotlight: checkout.kind,
+        spotlight: level,
         spotlightUntil: addMonths(from, checkout.months),
       });
     }
-    const until = (checkout.kind === 'plan' ? updated.paidUntil : updated.spotlightUntil) ?? at;
+    const until = (boughtPlan ? updated.paidUntil : updated.spotlightUntil) ?? at;
     await repository.partnerPayments.create({
       partnerShopId: shop.id,
       kind: checkout.kind,
@@ -2538,9 +2953,9 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         email: z.string().trim().max(120).default(''),
         telephone: z.string().trim().max(30).default(''),
         about: z.string().trim().max(500).default(''),
-        plan: z.enum(['free', 'plus']).default('free'),
+        plan: z.enum(PARTNER_PLANS).default('free'),
         monthlyPence: z.number().int().min(0).max(1_000_000).optional(),
-        /** Months of Partner Plus already paid on paper. */
+        /** Months of Shop Partner Plus (or Pro, when `plan` is pro) already paid on paper. */
         paidMonths: z.number().int().min(0).max(24).default(0),
         /** A restaurant's agreed discount for Ozi, a whole percentage (30 October 2026). */
         agreedDiscountPercent: discountSchema.default(0),
@@ -2556,7 +2971,12 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     if (refused) throw new BadRequestError(excludedServiceWords(refused, config.productName));
     const browseFields = browseFieldsFor(body.kind, body);
     // Added by staff from a paper form (ruling 65): the agreement is on paper, so it is approved.
-    const plan = body.kind !== 'shop' ? 'free' : body.paidMonths > 0 ? 'plus' : body.plan;
+    const plan: PartnerPlan =
+      body.kind !== 'shop'
+        ? 'free'
+        : body.paidMonths > 0 && body.plan === 'free'
+          ? 'plus'
+          : body.plan;
     const shop = await repository.partnerShops.create({
       name: body.name,
       kind: body.kind,
@@ -2573,7 +2993,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         body.kind === 'shop' &&
         plan === 'free' &&
         freeListingAvailable(await freeListedCount(), partners),
-      monthlyPence: plan === 'plus' ? (body.monthlyPence ?? partners.plusMonthlyPence) : 0,
+      monthlyPence: paidPlan(plan) ? (body.monthlyPence ?? planMonthlyPence(plan, partners)) : 0,
       status: 'approved',
       source: 'staff',
       approvedAt: now(),
@@ -2591,7 +3011,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     if (body.paidMonths > 0) {
       await repository.partnerPayments.create({
         partnerShopId: shop.id,
-        kind: 'plan',
+        kind: plan === 'pro' ? 'pro' : 'plan',
         amountPence: shop.monthlyPence * body.paidMonths,
         months: body.paidMonths,
         coversUntil: paid.paidUntil ?? now(),
@@ -2610,7 +3030,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     const body = z
       .object({
         paidMonths: z.number().int().min(1).max(24).optional(),
-        kind: z.enum(['plan', 'spotlight', 'plus']).default('plan'),
+        kind: z.enum(['plan', 'pro', 'spotlight', 'plus']).default('plan'),
         /** Pause (false) or resume (true). */
         active: z.boolean().optional(),
         /** Approve a pending listing, or remove one. */
@@ -2712,17 +3132,25 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       });
     }
     if (body.paidMonths) {
-      if (body.kind === 'plan') {
-        const from = shop.paidUntil && shop.paidUntil > at ? shop.paidUntil : at;
+      const paidPlanKind = PLAN_OF_PAYMENT[body.kind];
+      if (paidPlanKind) {
+        // Plus or Pro recorded by hand (ruling 96): a move between them starts the new one now.
+        const from =
+          shop.plan === paidPlanKind && shop.paidUntil && shop.paidUntil > at ? shop.paidUntil : at;
+        // A price staff set by hand for this package stays; a new package takes the config's.
+        const monthly =
+          shop.plan === paidPlanKind && shop.monthlyPence
+            ? shop.monthlyPence
+            : planMonthlyPence(paidPlanKind, partners);
         updated = await repository.partnerShops.update(shop.id, {
-          plan: 'plus',
-          monthlyPence: shop.monthlyPence || partners.plusMonthlyPence,
+          plan: paidPlanKind,
+          monthlyPence: monthly,
           paidUntil: addMonths(from, body.paidMonths),
         });
         await repository.partnerPayments.create({
           partnerShopId: shop.id,
-          kind: 'plan',
-          amountPence: (shop.monthlyPence || partners.plusMonthlyPence) * body.paidMonths,
+          kind: body.kind,
+          amountPence: monthly * body.paidMonths,
           months: body.paidMonths,
           coversUntil: updated.paidUntil ?? at,
           recordedBy: actor.name,
@@ -2741,7 +3169,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
         const price =
           body.kind === 'plus' ? config.extras.spotlightPlusPence : config.extras.spotlightPence;
         updated = await repository.partnerShops.update(shop.id, {
-          spotlight: body.kind,
+          spotlight: body.kind === 'plus' ? 'plus' : 'spotlight',
           spotlightUntil: addMonths(from, body.paidMonths),
         });
         await repository.partnerPayments.create({
@@ -2844,13 +3272,32 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     return newUser('partner', { partnerShopId: shop.id }, body);
   });
 
+  /**
+   * The queue of products waiting for a person (ruling 96): a Pro shop's first (approvalPriority
+   * high), then everybody else's, oldest first within each; every detail and every photo with
+   * each, and which package the shop is on.
+   */
   app.get('/staff/partner-products', async (request) => {
     await staffActor(request, 'partners');
     const rows = [];
     for (const product of await repository.partnerProducts.listPending()) {
       const shop = await repository.partnerShops.findById(product.partnerShopId);
-      rows.push({ ...publicProduct(product), shopName: shop?.name ?? '' });
+      const limits = shop ? limitsFor(app.ctx, shop) : null;
+      // Staff fetch photos through their own route when storage gives no public address.
+      const row = await publicProduct(product, staffPhotoPath(product.id));
+      rows.push({
+        ...row,
+        shopName: shop?.name ?? '',
+        shopKind: shop?.kind ?? 'shop',
+        packageName: shop ? packageNameFor(shop) : '',
+        priority: limits?.approvalPriority ?? 'normal',
+      });
     }
+    rows.sort(
+      (a, b) =>
+        Number(b.priority === 'high') - Number(a.priority === 'high') ||
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    );
     return { products: rows };
   });
 
@@ -2858,10 +3305,19 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     await staffActor(request, 'partners');
     const { id } = z.object({ id: z.string().min(1) }).parse(request.params);
     const product = await repository.partnerProducts.findById(id);
-    if (!product?.photo || !product.photoType) throw new NotFoundError('photo');
-    void reply.header('content-type', product.photoType);
-    void reply.header('cache-control', 'no-store');
-    return reply.send(Buffer.from(product.photo));
+    if (!product) throw new NotFoundError('photo');
+    return sendCover(reply, product, 'no-store');
+  });
+
+  app.get('/staff/partner-products/:id/photos/:photoId/:size/:format', async (request, reply) => {
+    await staffActor(request, 'partners');
+    const { id, photoId, size, format } = z
+      .object({ id: z.string().min(1), photoId: z.string().min(1) })
+      .merge(photoSizeSchema)
+      .parse(request.params);
+    const photo = await repository.partnerProductPhotos.findById(photoId);
+    if (!photo || photo.productId !== id) throw new NotFoundError('photo');
+    return sendPhoto(reply, photo, size, format, 'no-store');
   });
 
   app.post('/staff/partner-products/:id/decide', async (request) => {
@@ -2878,7 +3334,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       note: body.note ?? null,
     });
     await settleMattersFor(app.ctx, 'partner_product', product.id, 'panel', actor.name);
-    return { product: publicProduct(updated) };
+    return { product: await publicProduct(updated, staffPhotoPath(updated.id)) };
   });
 
   app.post('/staff/organisations', async (request, reply) => {

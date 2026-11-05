@@ -7,11 +7,18 @@ import { describe, expect, it } from 'vitest';
 
 import {
   basisPointsWords,
+  effectivePlan,
   excludedServiceKind,
   excludedServiceWords,
   freeListingAvailable,
+  paidPlan,
+  planLimits,
+  planMonthlyPence,
   postcodeArea,
   productLimit,
+  unitPrice,
+  unitPriceWords,
+  unitQuantityWords,
 } from '../src/partners.js';
 import { parseStoreConfig } from '../src/config.js';
 import { formatPence } from '../src/money.js';
@@ -36,8 +43,63 @@ describe('the partner pricing in config/store.json', () => {
     expect(pricing.excludedServiceKinds).toEqual(
       expect.arrayContaining(['credit', 'loans', 'mortgages', 'insurance', 'financial advice']),
     );
-    // The old £29.99 plan is gone everywhere.
-    expect(JSON.stringify(config)).not.toContain('2999');
+    // Ruling 96 (5 November 2026): Shop Partner Pro at £29.99 is the one £29.99 figure.
+    expect(pricing.proMonthlyPence).toBe(2999);
+    expect(pricing.plans.plus.name).toBe('Shop Partner Plus');
+    expect(pricing.plans.pro.name).toBe('Shop Partner Pro');
+  });
+
+  it('gives each package what Anthony ruled (ruling 96)', () => {
+    expect(pricing.plans.free).toEqual(
+      expect.objectContaining({
+        products: 10,
+        photosPerProduct: 1,
+        variants: false,
+        featured: false,
+        bulkAdd: false,
+        runnerCalls: false,
+        approvalPriority: 'normal',
+      }),
+    );
+    expect(pricing.plans.plus).toEqual(
+      expect.objectContaining({
+        products: 300,
+        photosPerProduct: 3,
+        variants: true,
+        featured: false,
+        bulkAdd: false,
+        runnerCalls: true,
+        approvalPriority: 'normal',
+      }),
+    );
+    expect(pricing.plans.pro).toEqual(
+      expect.objectContaining({
+        products: 3000,
+        photosPerProduct: 6,
+        variants: true,
+        featured: true,
+        bulkAdd: true,
+        runnerCalls: true,
+        approvalPriority: 'high',
+      }),
+    );
+    expect(planMonthlyPence('free', pricing)).toBe(0);
+    expect(planMonthlyPence('plus', pricing)).toBe(1499);
+    expect(planMonthlyPence('pro', pricing)).toBe(2999);
+  });
+
+  it('refuses packages whose figures contradict each other', () => {
+    const raw = JSON.parse(JSON.stringify(config)) as {
+      extras: { partners: { plans: Record<string, Record<string, unknown>> } };
+    };
+    raw.extras.partners.plans.free!.products = 11;
+    expect(() => parseStoreConfig(raw)).toThrow(/must equal extras.partners.freeProductLimit/);
+    const again = JSON.parse(JSON.stringify(config)) as typeof raw;
+    again.extras.partners.plans.plus!.products = 5000;
+    expect(() => parseStoreConfig(again)).toThrow(/at least as many products/);
+    const priority = JSON.parse(JSON.stringify(config)) as typeof raw;
+    priority.extras.partners.plans.pro!.approvalPriority = 'urgent';
+    expect(() => parseStoreConfig(priority)).toThrow(/approvalPriority must be normal or high/);
   });
 
   it('refuses a list of excluded kinds that is not a list of words', () => {
@@ -61,12 +123,68 @@ describe('the rules', () => {
     expect(freeListingAvailable(100, pricing)).toBe(false);
   });
 
-  it('caps a free shop at the configured products, and nobody else', () => {
+  it('caps a shop at its package’s products: Free 10, Plus 300, Pro 3000, and lapsed is Free (ruling 96)', () => {
     expect(productLimit({ kind: 'shop', plan: 'free', plusPaid: false }, pricing)).toBe(10);
     expect(productLimit({ kind: 'shop', plan: 'plus', plusPaid: false }, pricing)).toBe(10);
-    expect(productLimit({ kind: 'shop', plan: 'plus', plusPaid: true }, pricing)).toBeNull();
+    expect(productLimit({ kind: 'shop', plan: 'plus', plusPaid: true }, pricing)).toBe(300);
+    expect(productLimit({ kind: 'shop', plan: 'pro', plusPaid: true }, pricing)).toBe(3000);
+    expect(productLimit({ kind: 'shop', plan: 'pro', plusPaid: false }, pricing)).toBe(10);
+    // A café, takeaway or service lists its menu or services without a count, as before.
     expect(productLimit({ kind: 'food', plan: 'free', plusPaid: false }, pricing)).toBeNull();
     expect(productLimit({ kind: 'service', plan: 'free', plusPaid: false }, pricing)).toBeNull();
+    expect(productLimit({ kind: 'food', plan: 'pro', plusPaid: true }, pricing)).toBeNull();
+  });
+
+  it('gives the package’s limits, and Free’s when a paid one has lapsed', () => {
+    expect(effectivePlan({ plan: 'pro', plusPaid: true })).toBe('pro');
+    expect(effectivePlan({ plan: 'pro', plusPaid: false })).toBe('free');
+    expect(effectivePlan({ plan: 'free', plusPaid: true })).toBe('free');
+    expect(planLimits({ kind: 'shop', plan: 'free', plusPaid: false }, pricing)).toEqual(
+      expect.objectContaining({ products: 10, photosPerProduct: 1, variants: false }),
+    );
+    expect(planLimits({ kind: 'shop', plan: 'plus', plusPaid: true }, pricing)).toEqual(
+      expect.objectContaining({ products: 300, photosPerProduct: 3, variants: true, bulkAdd: false }),
+    );
+    expect(planLimits({ kind: 'shop', plan: 'pro', plusPaid: true }, pricing)).toEqual(
+      expect.objectContaining({
+        products: 3000,
+        photosPerProduct: 6,
+        featured: true,
+        bulkAdd: true,
+        approvalPriority: 'high',
+      }),
+    );
+    // Lapsed Pro: one photo and ten products, like Free. Nothing is deleted; the rest is hidden.
+    expect(planLimits({ kind: 'shop', plan: 'pro', plusPaid: false }, pricing)).toEqual(
+      expect.objectContaining({ products: 10, photosPerProduct: 1, featured: false }),
+    );
+    // A café keeps photos on its menu with no count; a Preferred Partner has Plus paid for it.
+    expect(planLimits({ kind: 'food', plan: 'free', plusPaid: false }, pricing)).toEqual(
+      expect.objectContaining({ products: null, photosPerProduct: 3 }),
+    );
+    expect(planLimits({ kind: 'food', plan: 'pro', plusPaid: true }, pricing)).toEqual(
+      expect.objectContaining({ products: null, photosPerProduct: 6, bulkAdd: true }),
+    );
+    expect(paidPlan('free')).toBe(false);
+    expect(paidPlan('pro')).toBe(true);
+  });
+
+  it('works the unit price the Price Marking Order asks for', () => {
+    const pounds = (pence: number) => formatPence(pence, '£');
+    expect(unitPrice(240, 500, 'g')).toEqual({ pence: 480, per: 'kg' });
+    expect(unitPrice(300, 1.5, 'kg')).toEqual({ pence: 200, per: 'kg' });
+    expect(unitPrice(99, 330, 'ml')).toEqual({ pence: 300, per: 'litre' });
+    expect(unitPrice(180, 2, 'l')).toEqual({ pence: 90, per: 'litre' });
+    expect(unitPrice(240, 6, 'each')).toEqual({ pence: 40, per: 'each' });
+    expect(unitPrice(400, 4, 'pack')).toEqual({ pence: 100, per: 'item' });
+    expect(unitPrice(400, 0, 'g')).toBeNull();
+    expect(unitPrice(0, 100, 'g')).toBeNull();
+    expect(unitPriceWords({ pence: 480, per: 'kg' }, pounds)).toBe('£4.80 per kg');
+    expect(unitPriceWords({ pence: 40, per: 'each' }, pounds)).toBe('£0.40 each');
+    expect(unitQuantityWords(500, 'g')).toBe('500 g');
+    expect(unitQuantityWords(1.5, 'kg')).toBe('1.5 kg');
+    expect(unitQuantityWords(4, 'pack')).toBe('4 in a pack');
+    expect(unitQuantityWords(6, 'each')).toBe('6 each');
   });
 
   it('finds an excluded kind of service as whole words, the most specific first', () => {

@@ -1380,9 +1380,62 @@ model PartnerProduct {
   /// The automatic check (ruling 74): when it last looked, and what it found when unsure.
   checkedAt       DateTime?
   checkNote       String?
+  /// The catalogue built the way the professionals build it (ruling 96, 5 November 2026).
+  /// A few plain sentences about it, at most catalogue.descriptionMaxLength.
+  description     String    @default("")
+  /// Where it is filed, from catalogue.categories in config/store.json.
+  categoryId      String?
+  /// Its size, so a price per kilo or per litre can be shown: how much, and in what (g, kg, ml, l, each, pack).
+  unitQuantity    Float?
+  unitKind        String?
+  /// Which of the fourteen UK allergens it contains; null when the shop has not said, [] for none.
+  allergens       String[]  @default([])
+  allergensGiven  Boolean   @default(false)
+  /// A Pro shop's featured products come first on its page, then its own order.
+  featured        Boolean   @default(false)
+  sortOrder       Int       @default(0)
+  /// Sizes and packs of one product grouped as variants: the group is the first product's id.
+  variantGroupId  String?
+  variantLabel    String?
+  updatedAt       DateTime  @default(now()) @updatedAt
 
   @@index([partnerShopId])
   @@index([status])
+  @@index([variantGroupId])
+}
+
+/// One photo of a partner's product (ruling 96): up to the package's photosPerProduct, the first
+/// the cover. The bytes live in object storage (DigitalOcean Spaces) under the keys here, or in
+/// StoredFile under the same keys when no storage is set up; each size is kept as WebP and JPEG.
+model PartnerProductPhoto {
+  id        String   @id @default(cuid())
+  productId String
+  position  Int      @default(0)
+  /// "spaces" or "db".
+  storage   String
+  /// The keys of the WebP derivatives; the JPEG of each is the same key ending .jpg.
+  thumbKey  String
+  mediumKey String
+  fullKey   String
+  width     Int
+  height    Int
+  /// The size of the photo as it arrived.
+  bytes     Int
+  /// What the shop was told about it as it was taken, if anything ("too dark").
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([productId, position])
+}
+
+/// A file kept in the database when no object storage is set up (ruling 96): the fallback for
+/// product photos, moved to Spaces by scripts/move-photos-to-spaces.mjs once it is.
+model StoredFile {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  contentType String
+  data        Bytes
+  createdAt   DateTime @default(now())
 }
 
 /// Somebody signing in for a partner shop or an organisation, each with their own password.
@@ -2008,6 +2061,8 @@ model OwnerMatter {
   /// decide (approve, decline or later) or acknowledge (heard, or later).
   options      String
   urgent       Boolean   @default(false)
+  /// Read and listed before others of the same urgency (ruling 96): 1 for a Pro shop's product.
+  priority     Int       @default(0)
   /// open, later, decided or handled.
   status       String    @default("open")
   /// approve, decline, acknowledge or settled.

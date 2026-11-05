@@ -126,8 +126,8 @@ describe('what a Shop Partner has paid', () => {
       ]),
     ).toEqual(
       expect.arrayContaining([
-        ['Partner Plus', 1499],
-        ['Partner Plus', 1499],
+        ['Shop Partner Plus', 1499],
+        ['Shop Partner Plus', 1499],
         ['Spotlight', 1999],
       ]),
     );

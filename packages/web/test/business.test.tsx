@@ -306,8 +306,9 @@ describe('a Shop Partner', () => {
       await screen.findByRole('heading', { level: 1, name: 'Corner Bakery' }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Partner Plus, £14\.99 a month, paid until/)).toBeInTheDocument();
+    // A dashboard from before ruling 96, with no packages: the one plain button stays.
     expect(
-      screen.getByRole('button', { name: 'Renew Partner Plus, £14.99 for a month' }),
+      screen.getByRole('button', { name: 'Renew, £14.99 for a month' }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Spotlight, 1 month, £19\.99/)).toBeInTheDocument();
     expect(screen.getByText(/Mentioned 4 times this month/)).toBeInTheDocument();

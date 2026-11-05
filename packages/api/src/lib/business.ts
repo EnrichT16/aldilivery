@@ -97,7 +97,8 @@ export function inspectBusinessToken(
 export interface PartnerCheckout {
   sessionId: string;
   partnerShopId: string;
-  kind: 'plan' | 'spotlight' | 'plus';
+  /** Shop Partner Plus (`plan`), Shop Partner Pro (`pro`, ruling 96), Spotlight or Spotlight Plus. */
+  kind: 'plan' | 'pro' | 'spotlight' | 'plus';
   months: number;
   amountPence: number;
 }
@@ -124,7 +125,7 @@ export function verifyPartnerCheckout(token: string, secret: string): PartnerChe
     if (
       typeof parsed.sessionId !== 'string' ||
       typeof parsed.partnerShopId !== 'string' ||
-      !['plan', 'spotlight', 'plus'].includes(parsed.kind) ||
+      !['plan', 'pro', 'spotlight', 'plus'].includes(parsed.kind) ||
       !Number.isInteger(parsed.months) ||
       !Number.isInteger(parsed.amountPence)
     ) {

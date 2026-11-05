@@ -305,6 +305,32 @@ note on a turned-down product says why. Runners buy from a partner as an ordinar
 no commission on what they buy. A Shop Partner can also scan shelf labels with the camera to add
 products, and may set opening hours, cuisines, specialities and labels.
 
+A shop is on one of three packages, named and priced in the configuration: the
+{{value:extras.partners.plans.free.name}} ({{value:extras.partners.plans.free.products}} products,
+{{value:extras.partners.plans.free.photosPerProduct}} photo each), {{value:extras.partners.plans.plus.name}}
+({{money:extras.partners.plusMonthlyPence}} a month: {{value:extras.partners.plans.plus.products}}
+products, {{value:extras.partners.plans.plus.photosPerProduct}} photos each, sizes and packs of one
+product, a Runner can ring the shop) and {{value:extras.partners.plans.pro.name}}
+({{money:extras.partners.proMonthlyPence}} a month: {{value:extras.partners.plans.pro.products}}
+products, {{value:extras.partners.plans.pro.photosPerProduct}} photos each, featured products and
+the shop's own order of its page, a spreadsheet upload of hundreds of products, and its new
+products checked first). A café, takeaway or service has no product limit. The first month of a
+paid package is free, once; the dearer package is paid like the other, from the dashboard, through
+Stripe; a Preferred Partner has the middle package free and may add the top one for the
+difference. When a paid package lapses, only the first {{value:extras.partners.plans.free.products}}
+products show, each with one photo; nothing is deleted, and it all comes back when the package is
+paid. Each product has a name, the shop's counter price (Shoppers see the price with the item
+charge and any agreed mark-up; never tell a Shopper the counter price), a few words about it, a
+category from the list (which may ask for the size, the allergens or a best-before date), a size so
+the price per kilo, per litre or each is shown, which of the fourteen allergens it contains, and
+up to the package's photos. Photos are looked at as they arrive: one too small to show is refused;
+a dark, bright, blurry or small one is taken with a plain word of advice ("That photo is too dark.
+Try it near a window."). Everything about a product can be changed afterwards; a change of price
+applies at once, any other change is checked again. The shop's page shows the photos as a gallery,
+the description, the unit price, the allergens, the sizes and packs to choose from, and a minus and
+plus to say how many. In a spoken order, "five bunches of bananas", "two packs of crisps", "a kilo
+of apples" and "half a dozen eggs" are understood as the count and the thing.
+
 A Shop Partner also sees its own orders: the orders under way that carry its things, and the
 last {{value:partnerOrders.historyDays}} days of them, each with the order's reference, where it
 has got to, its own lines, and the Runner's first name and Runner ID, never the Shopper's name.

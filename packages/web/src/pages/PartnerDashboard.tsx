@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { BrowseFields, readBrowseFields } from '../components/BrowseFields';
 import { PartnerOrders } from '../components/PartnerOrders';
 import { PartnerProtection } from '../components/PartnerProtection';
 import { ProductScanner } from '../components/ProductScanner';
+import { BulkAdd } from '../components/partner/BulkAdd';
+import { PlanPackages } from '../components/partner/PlanPackages';
+import { ProductCard } from '../components/partner/ProductCard';
+import { ProductForm } from '../components/partner/ProductForm';
 import { ReferralCard } from '../components/ReferralCard';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
 import { TermsChanged } from '../components/TermsChanged';
@@ -17,6 +21,7 @@ import {
   downloadBusinessStatement,
   fetchBusinessMe,
   fetchPartnerDashboard,
+  orderPartnerProducts,
   savePartnerProfile,
   PARTNER_RECEIPT_KEY,
   rememberBusinessToken,
@@ -30,7 +35,6 @@ import {
 import { click } from '../lib/alert';
 import { confirmedSignedOut, useGentleRefresh } from '../lib/session-guard';
 import { money } from '../lib/money';
-import { preparePhoto } from '../lib/photo';
 import { useOzi } from '../state/ozi';
 import { InboxLink } from '../components/Inbox';
 import { readMessagesAloud } from '../lib/inbox-api';
@@ -77,6 +81,8 @@ export function PartnerDashboard(): JSX.Element {
   const [problem, setProblem] = useState('');
   const [news, setNews] = useState((location.state as { welcome?: string } | null)?.welcome ?? '');
   const [busy, setBusy] = useState(false);
+  // Adding a size or pack of this product (ruling 96), on the form below the list.
+  const [variantOf, setVariantOf] = useState<PartnerProductRow | null>(null);
   const latest = useRef({ ozi, data, navigate });
   const phraseTurn = useRef(0);
   latest.current = { ozi, data, navigate };
@@ -127,7 +133,7 @@ export function PartnerDashboard(): JSX.Element {
 
   /** Paying for Partner Plus or Spotlight: the free first month at once, or off to Stripe's page. */
   const pay = useCallback(
-    async (kind: 'plan' | 'spotlight' | 'plus'): Promise<void> => {
+    async (kind: 'plan' | 'pro' | 'spotlight' | 'plus'): Promise<void> => {
       setBusy(true);
       setProblem('');
       try {
@@ -428,44 +434,34 @@ export function PartnerDashboard(): JSX.Element {
     return () => latest.current.ozi.setPageCommands(null);
   }, [load, share]);
 
-  const submit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const values = new FormData(form);
-    const value = (name: string): string => String(values.get(name) ?? '').trim();
-    const pounds = Number(value('product-price').replace(/[£\s]/g, ''));
-    if (value('product-name') === '' || !Number.isFinite(pounds) || pounds <= 0) {
-      setProblem('Please give the product’s name and its price in pounds, like 3.50.');
-      return;
-    }
-    const minutes = Number(value('product-minutes'));
-    if (data?.shop.kind === 'service' && (!Number.isFinite(minutes) || minutes < 5)) {
-      setProblem('Please say how long the service takes, in minutes.');
-      return;
-    }
-    setBusy(true);
+  /** A product added or changed on a form (ruling 96): said, shown, and the list refreshed. */
+  const added = (message: string): void => {
+    click();
     setProblem('');
-    try {
-      const file = values.get('product-photo');
-      const photo = file instanceof File && file.size > 0 ? await preparePhoto(file) : null;
-      const result = await addPartnerProduct({
-        name: value('product-name'),
-        pricePence: Math.round(pounds * 100),
-        tags: value('product-tags'),
-        ...(value('product-expires') ? { expiresOn: value('product-expires') } : {}),
-        ...(photo ? { photo: photo.base64, photoType: photo.contentType } : {}),
-        ...(data?.shop.kind === 'service' ? { durationMinutes: minutes } : {}),
-      });
-      click();
-      setNews(result.message);
-      void ozi.say(result.message);
-      form.reset();
-      void load();
-    } catch (failure) {
-      setProblem(failure instanceof Error ? failure.message : 'That could not be added.');
-    } finally {
-      setBusy(false);
-    }
+    setNews(message);
+    void ozi.say(message);
+    setVariantOf(null);
+    void load();
+  };
+
+  /** A Pro shop moves a product up or down its page: the whole order is sent (ruling 96). */
+  const move = (productId: string, direction: -1 | 1): void => {
+    const ids = (data?.products ?? [])
+      .filter((product) => product.status !== 'rejected')
+      .map((product) => product.id);
+    const at = ids.indexOf(productId);
+    const to = at + direction;
+    if (at === -1 || to < 0 || to >= ids.length) return;
+    ids.splice(at, 1);
+    ids.splice(to, 0, productId);
+    void orderPartnerProducts(ids)
+      .then((result) => {
+        setNews(result.message);
+        void load();
+      })
+      .catch((failure: unknown) =>
+        setProblem(failure instanceof Error ? failure.message : 'That did not work.'),
+      );
   };
 
   if (!data) {
@@ -560,7 +556,17 @@ export function PartnerDashboard(): JSX.Element {
             : ''}
           .
         </p>
-        {data.shop.kind === 'shop' && (
+        {/* The three packages (ruling 96): what each gives, and one button each. */}
+        {data.plan.packages && (data.shop.kind === 'shop' || data.restaurant?.preferred) && (
+          <>
+            <PlanPackages packages={data.plan.packages} busy={busy} onPay={(kind) => void pay(kind)} />
+            <p className="m-0">
+              Or ring us on {storeConfig.contact.telephonePlaceholder} and a person will take it.
+              Nothing is ever taken without you.
+            </p>
+          </>
+        )}
+        {!data.plan.packages && data.shop.kind === 'shop' && (
           <div className="flex flex-wrap gap-2 items-center">
             <button
               type="button"
@@ -568,11 +574,11 @@ export function PartnerDashboard(): JSX.Element {
               onClick={() => void pay('plan')}
               className="control bg-highlight text-on-accent disabled:opacity-70"
             >
-              {data.plan.tier === 'plus' && data.plan.paid
-                ? `Renew Partner Plus, ${money(data.plan.plusMonthlyPence)} for a month`
+              {data.plan.tier !== 'free' && data.plan.paid
+                ? `Renew, ${money(data.plan.plusMonthlyPence)} for a month`
                 : data.plan.firstMonthFree
-                  ? 'Start Partner Plus, first month free'
-                  : `Pay for Partner Plus, ${money(data.plan.plusMonthlyPence)} a month`}
+                  ? 'Start, first month free'
+                  : `Pay, ${money(data.plan.plusMonthlyPence)} a month`}
             </button>
             <span>
               Or ring us on {storeConfig.contact.telephonePlaceholder} and a person will take it.
@@ -875,7 +881,7 @@ export function PartnerDashboard(): JSX.Element {
 
       {!service && (
         <ProductScanner
-          plus={data.plan.productLimit === null}
+          plus={(data.plan.limits?.photosPerProduct ?? (data.plan.productLimit === null ? 1 : 0)) > 0}
           placesLeft={
             data.plan.productLimit === null
               ? null
@@ -889,134 +895,100 @@ export function PartnerDashboard(): JSX.Element {
         />
       )}
 
-      <form
-        onSubmit={(event) => void submit(event)}
-        className="space-y-3"
-        aria-labelledby="add-heading"
-      >
-        <h2 id="add-heading" className="text-lead font-bold m-0">
-          {service ? 'Add a service' : 'Add a product'}
-        </h2>
-        <p className="m-0">
-          We check each new {service ? 'service' : 'product'}, usually within one working day, then
-          Shoppers see it.
-        </p>
-        <label htmlFor="product-name" className="block font-bold">
-          What it is
-        </label>
-        <input id="product-name" name="product-name" className={field} />
-        <label htmlFor="product-price" className="block font-bold">
-          {service ? 'Price from, in pounds' : 'Price in pounds'}
-        </label>
-        <input id="product-price" name="product-price" inputMode="decimal" className={field} />
-        {service && (
-          <>
-            <label htmlFor="product-minutes" className="block font-bold">
-              How long it takes, in minutes
-            </label>
-            <input
-              id="product-minutes"
-              name="product-minutes"
-              inputMode="numeric"
-              className={field}
-            />
-          </>
-        )}
-        <label htmlFor="product-tags" className="block font-bold">
-          Labels, to help people find it (optional)
-        </label>
-        <input id="product-tags" name="product-tags" className={field} />
-        <label htmlFor="product-expires" className="block font-bold">
-          Best before or use by (optional)
-        </label>
-        <input id="product-expires" name="product-expires" type="date" className={field} />
-        {data.plan.productLimit === null ? (
-          <>
-            <label htmlFor="product-photo" className="block font-bold">
-              A photo (optional)
-            </label>
-            <input
-              id="product-photo"
-              name="product-photo"
-              type="file"
-              accept="image/*"
-              className={field}
-            />
-          </>
-        ) : (
-          <p className="m-0 text-paper/80">Photos come with Partner Plus.</p>
-        )}
-        <button
-          type="submit"
-          disabled={busy}
-          className="control w-full bg-highlight text-on-accent disabled:opacity-70"
-        >
-          Send it to be checked
-        </button>
-      </form>
+      {/* The add form (ruling 96): every detail the catalogue keeps, photos taken or chosen. */}
+      {data.catalogue && data.plan.limits && (
+        <div id="add-product">
+          <ProductForm
+            key={variantOf?.id ?? 'new'}
+            kind={data.shop.kind}
+            catalogue={data.catalogue}
+            limits={data.plan.limits}
+            {...(variantOf ? { variantOf } : {})}
+            busy={busy}
+            onDone={added}
+            onProblem={setProblem}
+            {...(variantOf ? { onCancel: () => setVariantOf(null) } : {})}
+          />
+        </div>
+      )}
+
+      {/* Hundreds at a time from a spreadsheet, on Shop Partner Pro (ruling 96). */}
+      {data.catalogue && data.plan.limits?.bulkAdd && !service && (
+        <BulkAdd
+          catalogue={data.catalogue}
+          onNews={(words) => {
+            setProblem('');
+            setNews(words);
+            void ozi.say(words);
+          }}
+          onProblem={setProblem}
+          onAdded={() => void load()}
+        />
+      )}
 
       <section aria-labelledby="products-heading" className="space-y-3">
         <h2 id="products-heading" className="text-lead font-bold m-0">
-          Your products
+          {service ? 'Your services' : 'Your products'}
         </h2>
         {data.products.length === 0 && <p className="m-0">None yet.</p>}
+        {data.plan.limits?.featured && data.products.length > 1 && (
+          <p className="m-0">
+            Shoppers see your featured products first, then the rest in this order. Use Move up and
+            Move down to change it.
+          </p>
+        )}
         <ul className="list-none m-0 p-0 space-y-3">
-          {data.products.map((product) => (
-            <li key={product.id} className="border-2 border-paper/40 rounded-2xl p-4 space-y-2">
-              <h3 className="m-0 font-bold">
-                {product.name}, {money(product.pricePence)}
-              </h3>
-              <p className="m-0">
-                {STATUS_WORDS[product.status][0]?.toUpperCase()}
-                {STATUS_WORDS[product.status].slice(1)}.
-                {product.expiresOn ? ` Best before ${longDate(product.expiresOn)}.` : ''}
-                {product.note ? ` ${product.note}` : ''}
-              </p>
-              {product.priceEstimated && (
-                <p className="m-0 font-bold">
-                  <span aria-hidden="true">⚠️</span> The price is an estimate: please check it, and
-                  change it below if it is not right.
-                </p>
-              )}
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  const pounds = Number(
-                    String(new FormData(event.currentTarget).get('price') ?? '').replace(
-                      /[£\s]/g,
-                      '',
-                    ),
-                  );
-                  if (!Number.isFinite(pounds) || pounds <= 0) return;
-                  void setPartnerPrice(product.id, Math.round(pounds * 100)).then((result) => {
-                    setNews(result.message);
-                    void load();
-                  });
+          {data.products.map((product, index) =>
+            data.catalogue && data.plan.limits ? (
+              <ProductCard
+                key={product.id}
+                product={product}
+                kind={data.shop.kind}
+                catalogue={data.catalogue}
+                limits={data.plan.limits}
+                canMoveUp={index > 0}
+                canMoveDown={index < data.products.length - 1}
+                onNews={(words) => {
+                  setProblem('');
+                  setNews(words);
                 }}
-                className="flex flex-wrap gap-2 items-end"
-              >
-                <label className="block">
-                  New price
-                  <input name="price" inputMode="decimal" className={field} />
-                </label>
-                <button type="submit" className="control border-paper bg-paper/10 text-paper">
-                  Change the price<span className="visually-hidden"> of {product.name}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    void removePartnerProduct(product.id).then((result) => {
-                      setNews(result.message);
-                      void load();
-                    })
-                  }
-                  className="control bg-paper/10 text-paper underline"
-                >
-                  Take it off<span className="visually-hidden">: {product.name}</span>
-                </button>
-              </form>
-            </li>
-          ))}
+                onProblem={setProblem}
+                onChanged={() => void load()}
+                onMove={(direction) => move(product.id, direction)}
+                onAddVariant={() => {
+                  setVariantOf(product);
+                  // Not every browser (nor the tests) can scroll; the form is there either way.
+                  document.getElementById('add-product')?.scrollIntoView?.({ behavior: 'smooth' });
+                }}
+              />
+            ) : (
+              <li key={product.id} className="border-2 border-paper/40 rounded-2xl p-4 space-y-2">
+                <h3 className="m-0 font-bold">
+                  {product.name}, {money(product.pricePence)}
+                </h3>
+                <p className="m-0">
+                  {STATUS_WORDS[product.status][0]?.toUpperCase()}
+                  {STATUS_WORDS[product.status].slice(1)}.
+                  {product.expiresOn ? ` Best before ${longDate(product.expiresOn)}.` : ''}
+                  {product.note ? ` ${product.note}` : ''}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void removePartnerProduct(product.id).then((result) => {
+                        setNews(result.message);
+                        void load();
+                      })
+                    }
+                    className="control bg-paper/10 text-paper underline"
+                  >
+                    Take it off<span className="visually-hidden">: {product.name}</span>
+                  </button>
+                </div>
+              </li>
+            ),
+          )}
         </ul>
       </section>
       <button

@@ -2198,7 +2198,49 @@ export function changeBusinessPassword(
   });
 }
 
-export interface PartnerProductRow {
+/**
+ * One photo of a product (ruling 96), in three sizes, WebP with a JPEG beside each. An address
+ * that starts with https is the storage's own (or the CDN's); otherwise it is an API path.
+ */
+export interface ProductPhoto {
+  id: string;
+  alt: string;
+  width: number;
+  height: number;
+  thumb: string;
+  medium: string;
+  full: string;
+  thumbJpeg: string;
+  mediumJpeg: string;
+  fullJpeg: string;
+}
+
+/** The size and unit price shown beside a grocery's price (ruling 96). */
+export interface ProductUnit {
+  quantity: number;
+  unit: string;
+  quantityWords: string;
+  perPence: number | null;
+  per: string | null;
+  words: string | null;
+}
+
+/** The details every product carries since ruling 96 (5 November 2026). */
+export interface ProductDetails {
+  description?: string;
+  category?: { id: string; name: string } | null;
+  unit?: ProductUnit | null;
+  /** Null when the shop has not said; [] for none. */
+  allergens?: string[] | null;
+  allergenWords?: string | null;
+  featured?: boolean;
+  sortOrder?: number;
+  variantGroupId?: string | null;
+  variantLabel?: string | null;
+  photos?: ProductPhoto[];
+}
+
+export interface PartnerProductRow extends ProductDetails {
   id: string;
   name: string;
   pricePence: number;
@@ -2209,12 +2251,67 @@ export interface PartnerProductRow {
   note: string | null;
   catalogueItemId: string | null;
   createdAt: string;
+  updatedAt?: string;
   /** A service: how long it takes, in minutes. Its price is "from". */
   durationMinutes: number | null;
   /** The barcode it was scanned with, if any (ruling 75). */
   barcode?: string | null;
   /** The label showed no price, so the price is an estimate to check (ruling 75). */
   priceEstimated?: boolean;
+}
+
+/** Where a browser fetches a photo: the storage's own address, or the API's. */
+export function photoSrc(url: string): string {
+  return /^https?:\/\//.test(url) ? url : `${BASE_URL}${url}`;
+}
+
+/** A photo as the forms send it (ruling 96). */
+export interface PhotoInput {
+  photo: string;
+  photoType: string;
+}
+
+/** The three Shop Partner packages (ruling 96), as the dashboard shows them. */
+export type PartnerPlanTier = 'free' | 'plus' | 'pro';
+
+export interface PartnerPlanLimits {
+  name: string;
+  products: number | null;
+  photosPerProduct: number;
+  variants: boolean;
+  featured: boolean;
+  bulkAdd: boolean;
+  runnerCalls: boolean;
+  approvalPriority: 'normal' | 'high';
+}
+
+export interface PartnerPackage {
+  tier: PartnerPlanTier;
+  name: string;
+  monthlyPence: number;
+  /** What this shop would pay: a Preferred Partner pays the difference for Pro. */
+  payPence: number;
+  limits: PartnerPlanLimits & { products: number };
+  gives: string[];
+  current: boolean;
+  paid: boolean;
+  action: 'none' | 'start' | 'upgrade' | 'renew';
+  firstMonthFree: boolean;
+}
+
+/** The taxonomy the add form offers (ruling 96), from config. */
+export interface PartnerCatalogueOptions {
+  categories: Array<{
+    id: string;
+    name: string;
+    kind: string;
+    requires: Array<'unit' | 'allergens' | 'bestBefore'>;
+  }>;
+  allergens: string[];
+  units: string[];
+  descriptionMaxLength: number;
+  photoRules: string[];
+  bulkColumns: string[];
 }
 
 /** What kind of business a partner is (ruling 65). */
@@ -2266,9 +2363,10 @@ export interface PartnerDashboard extends PartnerExtras {
     listed: boolean;
   } & Partial<BrowseFields>;
   plan: {
-    tier: 'free' | 'plus';
+    tier: PartnerPlanTier;
     monthlyPence: number;
     plusMonthlyPence: number;
+    proMonthlyPence?: number;
     paidUntil: string | null;
     paid: boolean;
     freeForever: boolean;
@@ -2277,7 +2375,12 @@ export interface PartnerDashboard extends PartnerExtras {
     productsListed: number;
     canAddProduct: boolean;
     words: string;
+    /** What the shop may do now, and the three packages to choose from (ruling 96). */
+    limits?: PartnerPlanLimits;
+    packages?: PartnerPackage[];
   };
+  /** The taxonomy the add form offers (ruling 96). */
+  catalogue?: PartnerCatalogueOptions;
   restaurant: PartnerRestaurant | null;
   enquiries: ServiceEnquiryRow[];
   counts: { live: number; waiting: number; notAccepted: number };
@@ -2333,7 +2436,7 @@ export interface PartnerJoinInput {
   username: string;
   password: string;
   claimShopId?: string;
-  plan?: 'free' | 'plus';
+  plan?: PartnerPlanTier;
   /** Partner Plus paid from today, skipping the free month (ruling 75). */
   payNow?: boolean;
   /** The Shop Partner terms at /partner/terms, ticked (30 October 2026). */
@@ -2436,7 +2539,7 @@ export function scanBarcode(barcode: string): Promise<{ draft: ScanDraft }> {
  * the free first month, no page at all and the plan simply on.
  */
 export function startPartnerCheckout(input: {
-  kind?: 'plan' | 'spotlight' | 'plus';
+  kind?: 'plan' | 'pro' | 'spotlight' | 'plus';
   months?: number;
   returnTo?: string;
 }): Promise<{ url: string | null; receipt?: string; message: string }> {
@@ -2479,18 +2582,137 @@ export function fetchPartnerDashboard(): Promise<PartnerDashboard> {
   return businessRequest('/partner/dashboard');
 }
 
-export function addPartnerProduct(input: {
+export interface NewPartnerProduct {
   name: string;
   pricePence: number;
   tags: string;
   expiresOn?: string;
   photo?: string;
   photoType?: string;
+  /** Several photos (ruling 96), the first the cover, up to the package's count. */
+  photos?: PhotoInput[];
   durationMinutes?: number;
   barcode?: string;
   priceEstimated?: boolean;
-}): Promise<{ product: PartnerProductRow; message: string }> {
+  description?: string;
+  categoryId?: string;
+  unitQuantity?: number;
+  unitKind?: string;
+  /** Left out when the shop has not said; [] for none. */
+  allergens?: string[];
+  /** A size or pack of this product already listed (ruling 96). */
+  variantOf?: string;
+  variantLabel?: string;
+}
+
+export function addPartnerProduct(
+  input: NewPartnerProduct,
+): Promise<{ product: PartnerProductRow; photoNotes?: string[]; message: string }> {
   return businessRequest('/partner/products', { method: 'POST', body: JSON.stringify(input) });
+}
+
+/** Full editing of a product (ruling 96). Anything left out stays as it is. */
+export interface PartnerProductChanges {
+  name?: string;
+  tags?: string;
+  pricePence?: number;
+  expiresOn?: string | null;
+  durationMinutes?: number | null;
+  variantLabel?: string | null;
+  description?: string;
+  categoryId?: string | null;
+  unitQuantity?: number | null;
+  unitKind?: string | null;
+  allergens?: string[] | null;
+}
+
+export function editPartnerProduct(
+  id: string,
+  changes: PartnerProductChanges,
+): Promise<{ product: PartnerProductRow; message: string }> {
+  return businessRequest(`/partner/products/${encodeURIComponent(id)}`, {
+    method: 'POST',
+    body: JSON.stringify(changes),
+  });
+}
+
+export function addPartnerProductPhoto(
+  id: string,
+  photo: PhotoInput,
+): Promise<{ photo: ProductPhoto; note: string | null; message: string }> {
+  return businessRequest(`/partner/products/${encodeURIComponent(id)}/photos`, {
+    method: 'POST',
+    body: JSON.stringify(photo),
+  });
+}
+
+export function removePartnerProductPhoto(
+  id: string,
+  photoId: string,
+): Promise<{ message: string }> {
+  return businessRequest(
+    `/partner/products/${encodeURIComponent(id)}/photos/${encodeURIComponent(photoId)}/remove`,
+    { method: 'POST', body: JSON.stringify({}) },
+  );
+}
+
+export function makePartnerProductCover(
+  id: string,
+  photoId: string,
+): Promise<{ message: string }> {
+  return businessRequest(
+    `/partner/products/${encodeURIComponent(id)}/photos/${encodeURIComponent(photoId)}/cover`,
+    { method: 'POST', body: JSON.stringify({}) },
+  );
+}
+
+/** A Pro shop features a product (ruling 96): Shoppers see it first. */
+export function setPartnerProductFeatured(
+  id: string,
+  featured: boolean,
+): Promise<{ product: PartnerProductRow; message: string }> {
+  return businessRequest(`/partner/products/${encodeURIComponent(id)}/featured`, {
+    method: 'POST',
+    body: JSON.stringify({ featured }),
+  });
+}
+
+/** A Pro shop's own order of its page (ruling 96). */
+export function orderPartnerProducts(ids: string[]): Promise<{ message: string }> {
+  return businessRequest('/partner/products/order', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  });
+}
+
+export type BulkRowResult =
+  | { row: number; ok: true; name: string; status: PartnerProductRow['status'] }
+  | { row: number; ok: false; name: string; error: string };
+
+/** A CSV of products, Pro only (ruling 96): each row added or told what is wrong. */
+export function bulkAddPartnerProducts(
+  csv: string,
+): Promise<{ results: BulkRowResult[]; added: number; failed: number; message: string }> {
+  return businessRequest('/partner/products/bulk', {
+    method: 'POST',
+    body: JSON.stringify({ csv }),
+  });
+}
+
+/** The CSV template to fill in, downloaded. */
+export async function downloadPartnerTemplate(): Promise<void> {
+  const response = await fetch(`${BASE_URL}/partner/products/template.csv`, {
+    headers: { 'x-business-token': businessToken() },
+  });
+  if (!response.ok) throw new ApiError('The template could not be opened.', response.status, undefined);
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'products.csv';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 export function setPartnerPrice(id: string, pricePence: number): Promise<{ message: string }> {
@@ -2561,7 +2783,7 @@ export function fetchShops(
   return request(search ? `/shops?${search}` : '/shops');
 }
 
-export interface PublicShopProduct {
+export interface PublicShopProduct extends ProductDetails {
   id: string;
   name: string;
   pricePence: number;
@@ -2573,7 +2795,16 @@ export interface PublicShopProduct {
 }
 
 export interface PublicShopPage {
-  shop: Omit<PublicShop, 'products'> & { address: string; claimable: boolean; awards?: string[] };
+  shop: Omit<PublicShop, 'products'> & {
+    address: string;
+    claimable: boolean;
+    awards?: string[];
+    /** The package whose limits apply (ruling 96), for a shop. */
+    packageName?: string | null;
+    featuredOrdering?: boolean;
+  };
+  /** The taxonomy's categories for this kind of place, in order (ruling 96). */
+  categories?: Array<{ id: string; name: string }>;
   products: PublicShopProduct[];
 }
 
@@ -2688,7 +2919,7 @@ export interface StaffPartners {
       kind: PartnerKind;
       kindWords: string;
       status: 'pending' | 'approved' | 'removed';
-      plan: 'free' | 'plus';
+      plan: PartnerPlanTier;
       freeForever: boolean;
       source: 'self' | 'staff' | 'ozi' | 'claimed';
       area: string;
@@ -2763,7 +2994,7 @@ export function addStaffPartner(
     email?: string;
     telephone: string;
     about: string;
-    plan?: 'free' | 'plus';
+    plan?: PartnerPlanTier;
     paidMonths: number;
   } & Partial<BrowseFields>,
 ): Promise<unknown> {
@@ -2824,6 +3055,10 @@ export function addStaffOrganisation(
 
 export interface StaffPartnerProduct extends PartnerProductRow {
   shopName: string;
+  shopKind?: PartnerKind;
+  /** The package the shop is on, and where its products wait in the queue (ruling 96). */
+  packageName?: string;
+  priority?: 'normal' | 'high';
 }
 
 export function fetchStaffPartnerProducts(
@@ -2850,7 +3085,7 @@ export function decideStaffPartnerProduct(
 
 export interface PartnerPaymentRow {
   id: string;
-  kind: 'plan' | 'spotlight' | 'plus';
+  kind: 'plan' | 'pro' | 'spotlight' | 'plus';
   what: string;
   amountPence: number;
   months: number;

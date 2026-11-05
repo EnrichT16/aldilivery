@@ -45,6 +45,7 @@ import {
   carryOutOwnerAction,
   listEmailsForVoice,
   listStaffForVoice,
+  partnerCatalogueForVoice,
   proposeOwnerAction,
   readEmailForVoice,
 } from '../services/owner-voice.js';
@@ -415,6 +416,8 @@ export function ownerTools(
     listEmails: (filter) => listEmailsForVoice(ctx, filter),
     readEmail: (id) => readEmailForVoice(ctx, id),
     getAlertPreferences: () => alertPreferencesForVoice(ctx),
+    // The shops' catalogue (ruling 96): how many products wait, by package. Read-only.
+    partnerCatalogueSummary: () => partnerCatalogueForVoice(ctx),
     // His reminders (ruling 93): read, and set or cancel only on his yes.
     listReminders: async () => {
       const account = ownerAccount();

@@ -46,7 +46,14 @@ import {
 import { currentAsker } from '../lib/ozi-asker';
 import { money, sellable, shownPrice, tooDearWords } from '../lib/money';
 import { completeBankCheck } from '../lib/stripe';
-import { parseChoice, parseQuantity, parseYesNo, splitItems, wantsToStop } from '../voice/ordering';
+import {
+  parseChoice,
+  parseQuantity,
+  parseSpokenItem,
+  parseYesNo,
+  splitItems,
+  wantsToStop,
+} from '../voice/ordering';
 import type { SpeakOutcome } from '../voice';
 import { fillerWhileWaiting } from '../voice/filler';
 import { useBasket } from './basket';
@@ -264,18 +271,16 @@ function needsEars(text: string): boolean {
   );
 }
 
-/** "two bananas" asks for two; "bananas" asks for some. */
+/**
+ * "two bananas" asks for two; "bananas" asks for some; "five bunches of bananas" asks for five,
+ * and the unit word helps find the right listing (ruling 96). The words are understood in core
+ * (`parseSpokenItem`), the same way on the telephone.
+ */
 function leadingQuantity(term: string): { quantity: number | null; name: string } {
-  const match = term.match(
-    /^(\d+|a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|a dozen|dozen)\s+(.+)$/i,
-  );
-  if (!match) return { quantity: null, name: term };
-  const quantity = parseQuantity(match[1] as string);
-  // "a" alone is "some", not a firm one: ask.
-  return {
-    quantity: /^an?$/i.test(match[1] as string) ? null : quantity,
-    name: (match[2] as string).trim(),
-  };
+  const spoken = parseSpokenItem(term);
+  // "a" alone is "some", not a firm one: ask. The thing itself is searched for, without the
+  // unit word, so "bunches of bananas" finds the bananas.
+  return { quantity: spoken.quantity, name: spoken.item };
 }
 
 export interface VoiceOrdering {

@@ -433,8 +433,8 @@ describe('paying from the dashboard', () => {
       await screen.findByRole('heading', { level: 1, name: 'Corner Bakery' }),
     ).toBeInTheDocument();
     expect(screen.getByText(/Free listing: your name/)).toBeInTheDocument();
-    expect(screen.getByText('Photos come with Partner Plus.')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Start Partner Plus, first month free' }));
+    // A dashboard from before ruling 96, with no packages: the one plain button stays.
+    await user.click(screen.getByRole('button', { name: 'Start, first month free' }));
     await waitFor(() => {
       expect(sent.find((r) => r.path === '/partner/plan/checkout')?.body).toEqual({
         kind: 'plan',

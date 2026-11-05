@@ -1320,6 +1320,44 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    partnerProductPhotos: {
+      async create(input) {
+        return (await prisma.partnerProductPhoto.create({ data: input })) as any;
+      },
+      async findById(id) {
+        return (await prisma.partnerProductPhoto.findUnique({ where: { id } })) as any;
+      },
+      async update(id, patch) {
+        return (await prisma.partnerProductPhoto.update({ where: { id }, data: patch })) as any;
+      },
+      async remove(id) {
+        await prisma.partnerProductPhoto.deleteMany({ where: { id } });
+      },
+      async listForProduct(productId) {
+        return (await prisma.partnerProductPhoto.findMany({
+          where: { productId },
+          orderBy: [{ position: 'asc' }, { createdAt: 'asc' }],
+        })) as any;
+      },
+    },
+
+    storedFiles: {
+      async put(input) {
+        const data = Buffer.from(input.data);
+        await prisma.storedFile.upsert({
+          where: { key: input.key },
+          create: { key: input.key, contentType: input.contentType, data },
+          update: { contentType: input.contentType, data },
+        });
+      },
+      async get(key) {
+        return (await prisma.storedFile.findUnique({ where: { key } })) as any;
+      },
+      async remove(key) {
+        await prisma.storedFile.deleteMany({ where: { key } });
+      },
+    },
+
     businessUsers: {
       async create(input) {
         return (await prisma.businessUser.create({ data: input })) as any;

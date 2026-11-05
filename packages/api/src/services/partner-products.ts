@@ -62,7 +62,8 @@ export async function decidePartnerProduct(
     shop.kind === 'service'
       ? null
       : await repository.catalogue.create({
-          name: `${product.name} (${shop.name})`,
+          // "Bananas, bunch of 5 (Corner Shop)" for a size or pack of a product (ruling 96).
+          name: `${product.name}${product.variantLabel ? `, ${product.variantLabel}` : ''} (${shop.name})`,
           category: `From ${shop.name}`,
           estimatedPricePence: shopperPricePence(shop, product.pricePence),
           source: 'partner_feed',

@@ -1544,6 +1544,53 @@ export interface PartnerProduct {
   /** The automatic check (ruling 74): when it last looked, and what it found when unsure. */
   checkedAt: Date | null;
   checkNote: string | null;
+  /** A few plain sentences about it (ruling 96), at most `catalogue.descriptionMaxLength`. */
+  description: string;
+  /** Where it is filed, from `catalogue.categories` in config/store.json. */
+  categoryId: string | null;
+  /** Its size, so a unit price can be shown: how much, and in what (g, kg, ml, l, each, pack). */
+  unitQuantity: number | null;
+  unitKind: string | null;
+  /** Which of the fourteen UK allergens it contains; `allergensGiven` false means the shop has not said. */
+  allergens: string[];
+  allergensGiven: boolean;
+  /** A Pro shop's featured products come first on its page, then its own order (ruling 96). */
+  featured: boolean;
+  sortOrder: number;
+  /** Sizes and packs of one product grouped as variants: the group is the first product's id. */
+  variantGroupId: string | null;
+  variantLabel: string | null;
+  updatedAt: Date;
+}
+
+/**
+ * One photo of a partner's product (ruling 96): the first is the cover. The bytes live in object
+ * storage or, until that is set up, in `StoredFile`, under these keys, each size as WebP with a
+ * JPEG beside it (the same key ending .jpg).
+ */
+export interface PartnerProductPhoto {
+  id: string;
+  productId: string;
+  position: number;
+  storage: 'spaces' | 'db';
+  thumbKey: string;
+  mediumKey: string;
+  fullKey: string;
+  width: number;
+  height: number;
+  /** The size of the photo as it arrived. */
+  bytes: number;
+  /** What the shop was told about it as it was taken, if anything ("too dark"). */
+  note: string | null;
+  createdAt: Date;
+}
+
+/** A file kept in the database when no object storage is set up (ruling 96). */
+export interface StoredFile {
+  key: string;
+  contentType: string;
+  data: Uint8Array;
+  createdAt: Date;
 }
 
 export type BusinessKind = 'partner' | 'organisation';
@@ -1570,10 +1617,13 @@ export interface BusinessUser {
 export type AgeBand = 'under_25' | '25_44' | '45_64' | '65_plus';
 
 /** What a Shop Partner has paid us, a month or more at a time. */
+/** What was paid for: Shop Partner Plus (`plan`), Shop Partner Pro (`pro`, ruling 96), Spotlight or Spotlight Plus. */
+export type PartnerPaymentKind = 'plan' | 'pro' | 'spotlight' | 'plus';
+
 export interface PartnerPayment {
   id: string;
   partnerShopId: string;
-  kind: 'plan' | 'spotlight' | 'plus';
+  kind: PartnerPaymentKind;
   amountPence: number;
   months: number;
   coversUntil: Date;
@@ -1875,6 +1925,8 @@ export interface OwnerMatter {
   options: OwnerMatterOptions;
   /** An SOS or another safety matter: rung about even in quiet hours. */
   urgent: boolean;
+  /** Read and listed before others of the same urgency (ruling 96): 1 for a Pro shop's product. */
+  priority: number;
   status: OwnerMatterStatus;
   decision: OwnerMatterDecision | null;
   decidedVia: OwnerMatterVia | null;

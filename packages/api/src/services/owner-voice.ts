@@ -13,7 +13,12 @@
  * owner's own requests, each read back to him and done only on his yes.
  */
 
-import { ambassadorApproved, individualRateProblem, standardRatePercent } from '@aldilivery/core';
+import {
+  ambassadorApproved,
+  individualRateProblem,
+  paidPlan,
+  standardRatePercent,
+} from '@aldilivery/core';
 
 import type { AppContext } from '../app.js';
 import type { EmailSummary } from '../domain.js';
@@ -35,6 +40,8 @@ import {
   textAmbassadorLink,
 } from './ambassador-rate.js';
 import { ukDate } from './owner-desk.js';
+import { limitsFor } from './partner-photos.js';
+import { plusPaid } from '../lib/partner-standing.js';
 import { findStaffByName, staffList, switchAllStaffOff, switchStaff } from './staff-control.js';
 
 export type OwnerVoiceContext = Pick<AppContext, 'repository' | 'config' | 'now' | 'mailboxes'> &
@@ -211,6 +218,56 @@ export async function ambassadorLinkForVoice(ctx: OwnerVoiceContext, who: string
     ...(links.link
       ? { offer: `Shall I text ${first}'s link to a number you give me?` }
       : { offer: null }),
+  };
+}
+
+/**
+ * The Shop Partner catalogue for the model (ruling 96): how many products wait to be checked, by
+ * package, the oldest wait, and how many are live. Read-only; nothing is decided here.
+ */
+export async function partnerCatalogueForVoice(ctx: OwnerVoiceContext) {
+  const { repository, config } = ctx;
+  const { plans } = config.extras.partners;
+  const at = ctx.now();
+  const pending = await repository.partnerProducts.listPending();
+  const byPackage: Record<string, number> = {
+    [plans.free.name]: 0,
+    [plans.plus.name]: 0,
+    [plans.pro.name]: 0,
+  };
+  let oldest: Date | null = null;
+  const shops = new Map<string, Awaited<ReturnType<typeof repository.partnerShops.findById>>>();
+  for (const product of pending) {
+    let shop = shops.get(product.partnerShopId);
+    if (shop === undefined) {
+      shop = await repository.partnerShops.findById(product.partnerShopId);
+      shops.set(product.partnerShopId, shop);
+    }
+    const limits = shop ? limitsFor({ config, now: ctx.now }, shop) : null;
+    const name = limits?.approvalPriority === 'high' ? plans.pro.name : shop && paidPlan(shop.plan) && plusPaid(shop, at, config) ? plans.plus.name : plans.free.name;
+    byPackage[name] = (byPackage[name] ?? 0) + 1;
+    if (!oldest || product.createdAt < oldest) oldest = product.createdAt;
+  }
+  let live = 0;
+  for (const shop of await repository.partnerShops.list()) {
+    if (shop.status !== 'approved') continue;
+    live += (await repository.partnerProducts.listForShop(shop.id)).filter(
+      (product) => product.status === 'approved',
+    ).length;
+  }
+  const waitingHours = oldest ? Math.round((at.getTime() - oldest.getTime()) / 3_600_000) : null;
+  const parts = Object.entries(byPackage)
+    .filter(([, count]) => count > 0)
+    .map(([name, count]) => `${count} from ${name} shops`);
+  return {
+    waiting: pending.length,
+    byPackage,
+    live,
+    oldestWaitingHours: waitingHours,
+    words:
+      pending.length === 0
+        ? `No products from shops are waiting to be checked. ${live} ${live === 1 ? 'is' : 'are'} live.`
+        : `${pending.length} product${pending.length === 1 ? '' : 's'} from shops ${pending.length === 1 ? 'is' : 'are'} waiting to be checked: ${parts.join(', ')}. ${plans.pro.name} shops' products are checked first. The oldest has waited ${waitingHours === null ? 'a moment' : waitingHours < 1 ? 'under an hour' : `about ${waitingHours} hour${waitingHours === 1 ? '' : 's'}`}. ${live} ${live === 1 ? 'is' : 'are'} live.`,
   };
 }
 
