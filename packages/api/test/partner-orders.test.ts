@@ -495,6 +495,7 @@ describe('a partner calls its Runner', () => {
     expect((await harness.repository.calls.findById(callId))!.status).toBe('live');
 
     // Ended by the shop: nothing is billed to anybody.
+    const gatewayCallsBefore = harness.payments.calls.length;
     const ended = await harness.app.inject({
       method: 'POST',
       url: `/partner/calls/${callId}/end`,
@@ -503,7 +504,7 @@ describe('a partner calls its Runner', () => {
     expect(ended.statusCode, ended.body).toBe(200);
     const call = (await harness.repository.calls.findById(callId))!;
     expect(call).toMatchObject({ status: 'ended', chargePence: 0, chargeStatus: 'not_due' });
-    expect(harness.payments.charges ?? []).toEqual([]);
+    expect(harness.payments.calls.length).toBe(gatewayCallsBefore);
     expect(
       (await harness.repository.audit.list({})).some(
         (entry) => entry.action === 'partner.call-started' && entry.actorRole === 'partner',
