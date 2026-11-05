@@ -24,9 +24,11 @@ import type {
   SpotlightMention,
   BusinessUser,
   PartnerProduct,
+  PartnerProductPhoto,
   PartnerShop,
   ServiceEnquiry,
   StaffMember,
+  StoredFile,
   FindRequest,
   GiftCard,
   OrganisationEnquiry,
@@ -47,6 +49,7 @@ import type {
   SavedAddress,
   Call,
   CallLeg,
+  PartnerOrderMessage,
   RunnerDocument,
   RunnerFeedback,
   ProblemReport,
@@ -213,6 +216,7 @@ export type CreateOrder = Pick<
       | 'chargeStatus'
       | 'restaurantShopId'
       | 'restaurantDiscountPercent'
+      | 'note'
     >
   > & { items: CreateOrderItem[] };
 
@@ -680,6 +684,21 @@ export interface Repository {
     listChargesDue(shopperId: string): Promise<Call[]>;
     update(id: string, patch: Partial<Omit<Call, 'id'>>): Promise<Call>;
   };
+  /**
+   * The short set messages a Shop Partner sent the Runner of an order (ruling 97). Only ever
+   * added to.
+   */
+  partnerMessages: {
+    create(input: Omit<PartnerOrderMessage, 'id'>): Promise<PartnerOrderMessage>;
+    /** Oldest first. */
+    listForOrder(orderId: string): Promise<PartnerOrderMessage[]>;
+  };
+
+  /** Speakable public IDs (ruling 97): whether one is already somebody's, of any kind. */
+  publicIds: {
+    inUse(id: string): Promise<boolean>;
+  };
+
   callLegs: {
     create(input: Omit<CallLeg, 'id'>): Promise<CallLeg>;
     findById(id: string): Promise<CallLeg | null>;
@@ -803,6 +822,16 @@ export interface Repository {
      * day, and confirmed (waiting for payment), paid, offered or accepted. Soonest first.
      */
     listScheduled(): Promise<Order[]>;
+    /**
+     * A Shop Partner's orders (ruling 97): every order placed since `since` that is a restaurant
+     * order from the shop, or carries a line whose catalogue entry is one of the shop's own
+     * (`catalogueItemIds`). Newest first.
+     */
+    listForPartnerShop(where: {
+      shopId: string;
+      catalogueItemIds: readonly string[];
+      since: Date;
+    }): Promise<Order[]>;
   };
 
   offers: {
@@ -982,7 +1011,24 @@ export interface Repository {
         PartnerProduct,
         'partnerShopId' | 'name' | 'pricePence' | 'tags' | 'expiresOn' | 'photo' | 'photoType'
       > &
-        Partial<Pick<PartnerProduct, 'durationMinutes' | 'barcode' | 'priceEstimated'>>,
+        Partial<
+          Pick<
+            PartnerProduct,
+            | 'durationMinutes'
+            | 'barcode'
+            | 'priceEstimated'
+            | 'description'
+            | 'categoryId'
+            | 'unitQuantity'
+            | 'unitKind'
+            | 'allergens'
+            | 'allergensGiven'
+            | 'featured'
+            | 'sortOrder'
+            | 'variantGroupId'
+            | 'variantLabel'
+          >
+        >,
     ): Promise<PartnerProduct>;
     findById(id: string): Promise<PartnerProduct | null>;
     update(id: string, patch: Partial<Omit<PartnerProduct, 'id'>>): Promise<PartnerProduct>;
@@ -990,6 +1036,26 @@ export interface Repository {
     listForShop(partnerShopId: string): Promise<PartnerProduct[]>;
     /** Waiting for a person, oldest first. */
     listPending(): Promise<PartnerProduct[]>;
+  };
+
+  /** The photos of partners' products (ruling 96), by position, the first the cover. */
+  partnerProductPhotos: {
+    create(input: Omit<PartnerProductPhoto, 'id' | 'createdAt'>): Promise<PartnerProductPhoto>;
+    findById(id: string): Promise<PartnerProductPhoto | null>;
+    update(
+      id: string,
+      patch: Partial<Pick<PartnerProductPhoto, 'position' | 'note'>>,
+    ): Promise<PartnerProductPhoto>;
+    remove(id: string): Promise<void>;
+    /** In position order. */
+    listForProduct(productId: string): Promise<PartnerProductPhoto[]>;
+  };
+
+  /** Files kept in the database when no object storage is set up (ruling 96). */
+  storedFiles: {
+    put(input: Omit<StoredFile, 'createdAt'>): Promise<void>;
+    get(key: string): Promise<StoredFile | null>;
+    remove(key: string): Promise<void>;
   };
 
   businessUsers: {
@@ -1209,7 +1275,7 @@ export interface Repository {
   ownerDesk: {
     createMatter(
       input: Pick<OwnerMatter, 'kind' | 'subjectId' | 'summary' | 'options' | 'urgent'> &
-        Partial<Pick<OwnerMatter, 'emailFrom' | 'emailSubject' | 'alertKind'>>,
+        Partial<Pick<OwnerMatter, 'emailFrom' | 'emailSubject' | 'alertKind' | 'priority'>>,
     ): Promise<OwnerMatter>;
     findMatter(id: string): Promise<OwnerMatter | null>;
     /** Every matter about this thing, newest first. */

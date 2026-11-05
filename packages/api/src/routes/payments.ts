@@ -22,6 +22,8 @@ import { basketGroup, carryWithFirstRunner, listTinyExtras } from '../services/b
 import { offerOrder } from '../services/dispatch.js';
 import { orderReference } from './runner-account.js';
 import { tellShopper } from '../services/order-updates.js';
+import { partnerOfItems } from '../services/partner-orders.js';
+import { ensurePublicId, runnerInPublic } from '../services/public-ids.js';
 
 const PAID: Order['status'][] = [
   'paid',
@@ -87,7 +89,10 @@ export async function registerPaymentRoutes(app: FastifyInstance): Promise<void>
     let paid = order;
     let amountPence = 0;
     for (const linked of group) {
-      const updated = await repository.orders.update(linked.id, { status: 'paid', bankReceivedAt: at });
+      const updated = await repository.orders.update(linked.id, {
+        status: 'paid',
+        bankReceivedAt: at,
+      });
       if (linked.id === order.id) paid = updated;
       amountPence += updated.totalEstimatePence;
       if (app.ctx.autoOffer) await offerOrder(app.ctx, updated.id).catch(() => undefined);
@@ -139,7 +144,9 @@ export async function registerPaymentRoutes(app: FastifyInstance): Promise<void>
     return {
       tinyExtras: await Promise.all(
         rows.map(async ({ order, first }) => {
-          const firstRunner = first?.runnerId ? await repository.runners.findById(first.runnerId) : null;
+          const firstRunner = first?.runnerId
+            ? await repository.runners.findById(first.runnerId)
+            : null;
           return {
             orderId: order.id,
             reference: orderReference(order.id),
@@ -163,7 +170,10 @@ export async function registerPaymentRoutes(app: FastifyInstance): Promise<void>
     const actor = await staffActor(request, 'payments');
     const { orderId } = z.object({ orderId: z.string().min(1) }).parse(request.params);
     const { first, extra } = await carryWithFirstRunner(app.ctx, orderId, request.log);
-    request.log.info({ orderId, by: actor.name }, 'A tiny extra was carried with the first Runner.');
+    request.log.info(
+      { orderId, by: actor.name },
+      'A tiny extra was carried with the first Runner.',
+    );
     return {
       first,
       extra,
@@ -181,9 +191,19 @@ export async function registerPaymentRoutes(app: FastifyInstance): Promise<void>
       throw new ConflictError('There is no receipt until it is paid.');
     const shopper = await repository.shoppers.findById(order.shopperId);
     const total = order.finalTotalPence ?? order.totalEstimatePence;
+    // Speakable IDs on the receipt (ruling 97): the order's reference, the Shopper's ID, the
+    // Runner's first name and Runner ID, and each Shop Partner's name and Partner ID beside its
+    // lines. Never a phone number, and no address beyond the delivery address shown already.
+    const shopperId = shopper ? await ensurePublicId(app.ctx, 'shopper', shopper) : null;
+    const runner = runnerInPublic(
+      order.runnerId ? await repository.runners.findById(order.runnerId) : null,
+    );
+    const shopOf = await partnerOfItems(app.ctx, order);
+    for (const shop of new Set(shopOf.values())) await ensurePublicId(app.ctx, 'partner', shop);
     const lines = [
-      `Receipt for ${shopper?.displayName ?? 'you'}`,
-      `Order ${order.id}`,
+      `Receipt for ${shopper?.displayName ?? 'you'}${shopperId ? ` (Shopper ID ${shopperId})` : ''}`,
+      `Order ${orderReference(order.id)}`,
+      ...(runner ? [`Your Runner: ${runner.firstName} (Runner ID ${runner.runnerId})`] : []),
       `Paid ${order.paidBy === 'bank' ? `by bank transfer, reference ${order.bankReference}` : 'by card'}`,
       `Delivered to ${order.deliveryAddress}`,
       '',
@@ -191,7 +211,9 @@ export async function registerPaymentRoutes(app: FastifyInstance): Promise<void>
       ...order.items.map((item) => {
         const shop = (item.actualPricePence ?? item.estimatedPricePence) * item.quantity;
         const charge = itemChargePence(item.estimatedPricePence, config.fees) * item.quantity;
-        return `${item.quantity} x ${item.name}  ${money(shop + charge)} (${money(shop)} in the shop, ${money(charge)} item charge${item.quantity === 1 ? '' : 's'})`;
+        const partner = shopOf.get(item.id);
+        const from = partner ? `  from ${partner.name} (Partner ID ${partner.publicId ?? ''})` : '';
+        return `${item.quantity} x ${item.name}  ${money(shop + charge)} (${money(shop)} in the shop, ${money(charge)} item charge${item.quantity === 1 ? '' : 's'})${from}`;
       }),
       '',
       `Shop total: ${money(order.receiptTotalPence ?? order.goodsEstimatePence)}`,
@@ -210,7 +232,10 @@ export async function registerPaymentRoutes(app: FastifyInstance): Promise<void>
     ];
     void reply
       .header('content-type', 'application/pdf')
-      .header('content-disposition', `attachment; filename="receipt-${order.id}.pdf"`);
+      .header(
+        'content-disposition',
+        `attachment; filename="receipt-${orderReference(order.id)}.pdf"`,
+      );
     return reply.send(textPdf(`${config.productName} receipt`, lines));
   });
 }

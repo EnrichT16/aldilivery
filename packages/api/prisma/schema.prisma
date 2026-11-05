@@ -200,6 +200,10 @@ model Shopper {
   /// Which consent wording they agreed to (ORGANISATION_CONSENT_VERSION in packages/core).
   organisationConsentVersion String?
 
+  /// The Shopper's speakable public ID, "S-" and six characters (ruling 97). Made once, on
+  /// first read, and never changed.
+  publicId String? @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -343,6 +347,8 @@ model Organisation {
   staffTripCostPence Int?
   /// Where it is, which gives its area (Anthony, 30 October 2026). Empty until given.
   postcode           String  @default("")
+  /// The organisation's speakable public ID, "G-" and six characters (ruling 97).
+  publicId           String? @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -609,6 +615,11 @@ model Order {
   scheduledHeldAt     DateTime?
   reminderDayBeforeAt DateTime?
   reminderMorningAt   DateTime?
+
+  /// Ruling 97. When a Shop Partner said the order was ready for pickup, once; and the Shopper's
+  /// note for the whole order ("leave it with the neighbour"), at most notes.orderMaxChars.
+  readyAt DateTime?
+  note    String?
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -976,8 +987,10 @@ model Call {
   runnerId         String
   /// The LiveKit room: unguessable, one per call.
   roomName         String    @unique
-  /// "shopper" or "runner".
+  /// "shopper", "runner" or, for a Shop Partner on a paid plan calling the Runner (ruling 97),
+  /// "partner", with which shop.
   startedBy        String
+  partnerShopId    String?
   /// "ringing", "live" or "ended".
   status           String    @default("ringing")
   createdAt        DateTime  @default(now())
@@ -1003,7 +1016,7 @@ model CallLeg {
   id               String    @id @default(cuid())
   callId           String
   call             Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
-  /// "shopper", "runner" or "guest".
+  /// "shopper", "runner", "guest", "phone" or "partner".
   role             String
   identity         String
   name             String
@@ -1014,6 +1027,22 @@ model CallLeg {
   createdAt        DateTime  @default(now())
 
   @@unique([callId, identity])
+}
+
+/// A short set message from a Shop Partner to the Runner of an order (ruling 97): "Ready for
+/// pickup", "Running 10 minutes late" and the others in partnerOrders.messages, never free text.
+/// Shown on the Runner's job and said by Ozi once.
+model PartnerOrderMessage {
+  id            String   @id @default(cuid())
+  orderId       String
+  partnerShopId String
+  /// The key in partnerOrders.messages, such as "ready".
+  kind          String
+  /// The words as they were sent, kept so a later change of wording never rewrites history.
+  words         String
+  at            DateTime @default(now())
+
+  @@index([orderId])
 }
 
 /// A document a Runner sent in. The photograph is removed once a person has decided, except the
@@ -1211,6 +1240,8 @@ model StaffMember {
   /// May unlock anybody locked out, and reset a Shopper's PIN or a staff member's password
   /// (ruling 81). The owner's to give, in Team; the owner always may.
   canUnlock          Boolean   @default(false)
+  /// The staff member's speakable public ID, "T-" and six characters (ruling 97).
+  publicId           String?   @unique
   createdAt          DateTime  @default(now())
 }
 
@@ -1299,6 +1330,9 @@ model PartnerShop {
   promiseAnsweredAt       DateTime?
   /// The welcome text with the payment warning, sent once to the business's own number.
   welcomeTextSentAt       DateTime?
+  /// The shop's speakable public ID, "P-" and six characters (ruling 97), shown to the shop and on
+  /// the receipt beside its lines.
+  publicId                String?   @unique
 
   @@index([ambassadorKind, ambassadorId])
 }
@@ -1346,9 +1380,62 @@ model PartnerProduct {
   /// The automatic check (ruling 74): when it last looked, and what it found when unsure.
   checkedAt       DateTime?
   checkNote       String?
+  /// The catalogue built the way the professionals build it (ruling 96, 5 November 2026).
+  /// A few plain sentences about it, at most catalogue.descriptionMaxLength.
+  description     String    @default("")
+  /// Where it is filed, from catalogue.categories in config/store.json.
+  categoryId      String?
+  /// Its size, so a price per kilo or per litre can be shown: how much, and in what (g, kg, ml, l, each, pack).
+  unitQuantity    Float?
+  unitKind        String?
+  /// Which of the fourteen UK allergens it contains; null when the shop has not said, [] for none.
+  allergens       String[]  @default([])
+  allergensGiven  Boolean   @default(false)
+  /// A Pro shop's featured products come first on its page, then its own order.
+  featured        Boolean   @default(false)
+  sortOrder       Int       @default(0)
+  /// Sizes and packs of one product grouped as variants: the group is the first product's id.
+  variantGroupId  String?
+  variantLabel    String?
+  updatedAt       DateTime  @default(now()) @updatedAt
 
   @@index([partnerShopId])
   @@index([status])
+  @@index([variantGroupId])
+}
+
+/// One photo of a partner's product (ruling 96): up to the package's photosPerProduct, the first
+/// the cover. The bytes live in object storage (DigitalOcean Spaces) under the keys here, or in
+/// StoredFile under the same keys when no storage is set up; each size is kept as WebP and JPEG.
+model PartnerProductPhoto {
+  id        String   @id @default(cuid())
+  productId String
+  position  Int      @default(0)
+  /// "spaces" or "db".
+  storage   String
+  /// The keys of the WebP derivatives; the JPEG of each is the same key ending .jpg.
+  thumbKey  String
+  mediumKey String
+  fullKey   String
+  width     Int
+  height    Int
+  /// The size of the photo as it arrived.
+  bytes     Int
+  /// What the shop was told about it as it was taken, if anything ("too dark").
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([productId, position])
+}
+
+/// A file kept in the database when no object storage is set up (ruling 96): the fallback for
+/// product photos, moved to Spaces by scripts/move-photos-to-spaces.mjs once it is.
+model StoredFile {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  contentType String
+  data        Bytes
+  createdAt   DateTime @default(now())
 }
 
 /// Somebody signing in for a partner shop or an organisation, each with their own password.
@@ -1974,6 +2061,8 @@ model OwnerMatter {
   /// decide (approve, decline or later) or acknowledge (heard, or later).
   options      String
   urgent       Boolean   @default(false)
+  /// Read and listed before others of the same urgency (ruling 96): 1 for a Pro shop's product.
+  priority     Int       @default(0)
   /// open, later, decided or handled.
   status       String    @default("open")
   /// approve, decline, acknowledge or settled.

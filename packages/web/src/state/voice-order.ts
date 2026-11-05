@@ -46,7 +46,14 @@ import {
 import { currentAsker } from '../lib/ozi-asker';
 import { money, sellable, shownPrice, tooDearWords } from '../lib/money';
 import { completeBankCheck } from '../lib/stripe';
-import { parseChoice, parseQuantity, parseYesNo, splitItems, wantsToStop } from '../voice/ordering';
+import {
+  parseChoice,
+  parseQuantity,
+  parseSpokenItem,
+  parseYesNo,
+  splitItems,
+  wantsToStop,
+} from '../voice/ordering';
 import type { SpeakOutcome } from '../voice';
 import { fillerWhileWaiting } from '../voice/filler';
 import { useBasket } from './basket';
@@ -170,6 +177,77 @@ const ORDER_INTENT =
   /\b(order|want|like|need|get|buy|have|bring|send|shopping|basket|grab|pick up|purchase|fetch|add|run out|ran out)\b/i;
 /** "open X", "show me X", "go to X". */
 const OPEN_SHOP = /^(?:please\s+)?(?:open|show me|go to|take me to)\s+(.{2,60})$/i;
+
+/**
+ * Notes for the Runner by voice (ruling 97). "Add a note: leave it with the neighbour" is a note
+ * for the whole order; "a note on the bananas: ripe, not green" and the shorter "ripe bananas,
+ * not green" put a note on an item in the basket. Nothing here sends anything: the notes go
+ * with the order when it is confirmed, by screen or by voice.
+ */
+const ITEM_NOTE =
+  /^(?:please\s+)?(?:(?:add|put|make|leave)\s+)?(?:a\s+)?note\s+(?:on|for|about|to)\s+(?:the\s+|my\s+)?(.+?)\s*[:,]\s*(.+)$/i;
+const ORDER_NOTE =
+  /^(?:please\s+)?(?:(?:add|put|make|leave)\s+)?(?:a\s+)?note(?:\s+for\s+(?:the\s+|my\s+)?(?:runner|order|delivery))?\s*[:,]?\s+(.+)$/i;
+/** "ripe bananas, not green": the thing, a comma, then what to mind. */
+const ASIDE_NOTE = /^(.{3,60}?),\s*((?:not|no|without|if|only|unless)\b.+)$/i;
+
+/** Which basket line "the bananas" or "ripe bananas" means, by a word of four letters or more. */
+export function basketLineFor(
+  words: string,
+  lines: ReadonlyArray<{ item: { id: string; name: string } }>,
+): { item: { id: string; name: string } } | null {
+  const wanted = words
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((word) => word.length >= 4)
+    .map((word) => word.replace(/(e?s)$/, ''));
+  if (wanted.length === 0) return null;
+  return (
+    lines.find((line) => {
+      const name = line.item.name.toLowerCase();
+      return wanted.some((word) => name.includes(word));
+    }) ?? null
+  );
+}
+
+/** What a sentence asks to note, or null. The note itself is cut to the configured length later. */
+export function noteCommand(
+  text: string,
+  lines: ReadonlyArray<{ item: { id: string; name: string } }>,
+):
+  | { kind: 'item'; itemId: string; name: string; note: string }
+  | { kind: 'order'; note: string }
+  | null {
+  const said = text.trim().replace(/[.!?]+$/, '');
+  const onItem = ITEM_NOTE.exec(said);
+  if (onItem?.[1] && onItem[2]) {
+    const line = basketLineFor(onItem[1], lines);
+    if (line)
+      return { kind: 'item', itemId: line.item.id, name: line.item.name, note: onItem[2].trim() };
+  }
+  const forOrder = ORDER_NOTE.exec(said);
+  if (forOrder?.[1]) return { kind: 'order', note: forOrder[1].trim() };
+  const aside = ASIDE_NOTE.exec(said);
+  if (aside?.[1] && aside[2]) {
+    const line = basketLineFor(aside[1], lines);
+    if (line) {
+      // "ripe bananas, not green" keeps the quality said with the name: "ripe, not green".
+      const quality = aside[1]
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((word) => !line.item.name.toLowerCase().includes(word.replace(/(e?s)$/, '')))
+        .join(' ')
+        .trim();
+      return {
+        kind: 'item',
+        itemId: line.item.id,
+        name: line.item.name,
+        note: quality ? `${quality}, ${aside[2].trim()}` : aside[2].trim(),
+      };
+    }
+  }
+  return null;
+}
 /** How long the app waits for something not in the list to be looked up. */
 const SUGGEST_WAIT_MS = 6000;
 /** How long the app waits for the server's phrase book and the language model before going on alone. */
@@ -193,18 +271,16 @@ function needsEars(text: string): boolean {
   );
 }
 
-/** "two bananas" asks for two; "bananas" asks for some. */
+/**
+ * "two bananas" asks for two; "bananas" asks for some; "five bunches of bananas" asks for five,
+ * and the unit word helps find the right listing (ruling 96). The words are understood in core
+ * (`parseSpokenItem`), the same way on the telephone.
+ */
 function leadingQuantity(term: string): { quantity: number | null; name: string } {
-  const match = term.match(
-    /^(\d+|a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|a dozen|dozen)\s+(.+)$/i,
-  );
-  if (!match) return { quantity: null, name: term };
-  const quantity = parseQuantity(match[1] as string);
-  // "a" alone is "some", not a firm one: ask.
-  return {
-    quantity: /^an?$/i.test(match[1] as string) ? null : quantity,
-    name: (match[2] as string).trim(),
-  };
+  const spoken = parseSpokenItem(term);
+  // "a" alone is "some", not a firm one: ask. The thing itself is searched for, without the
+  // unit word, so "bunches of bananas" finds the bananas.
+  return { quantity: spoken.quantity, name: spoken.item };
 }
 
 export interface VoiceOrdering {
@@ -350,9 +426,10 @@ export function useVoiceOrdering(
         basket,
       ).catch((failure: unknown) =>
         firstWordAt === null && failure instanceof StreamUnavailableError
-          ? askOzi(text, 'within', thisTurn, as, basket).then(
-              (plain): Asked => ({ ...plain, unsaid: plain.reply ?? '' }),
-            )
+          ? askOzi(text, 'within', thisTurn, as, basket).then((plain): Asked => ({
+              ...plain,
+              unsaid: plain.reply ?? '',
+            }))
           : Promise.reject(failure),
       );
       try {
@@ -819,6 +896,27 @@ export function useVoiceOrdering(
             }
             await say("Sorry, I couldn't do that just now. Please say it again in a moment.");
             return true;
+          }
+          // A note for the Runner (ruling 97): kept with the basket, sent with the order.
+          if (live.current.shopper && live.current.basket.lines.length > 0) {
+            const noted = noteCommand(
+              text.replace(
+                new RegExp(`^\\s*((hey|hi|hello|ok|okay)[\\s,]+)?${NAME_PATTERN}[\\s,.]*`, 'i'),
+                '',
+              ),
+              live.current.basket.lines,
+            );
+            if (noted) {
+              note.current = { brain: 'flow', outcome: 'answered' };
+              if (noted.kind === 'item') {
+                live.current.basket.setNote(noted.itemId, noted.note);
+                await say(`Noted for the ${noted.name}: ${noted.note}. Your Runner will see it.`);
+              } else {
+                live.current.basket.setOrderNote(noted.note);
+                await say(`Noted for your order: ${noted.note}. Your Runner will see it.`);
+              }
+              return true;
+            }
           }
           // "Open Wok Kitchen", "show me the corner shop": a listed shop's own page (19 October
           // 2026), after Ozi has named the cafés that make a dish.

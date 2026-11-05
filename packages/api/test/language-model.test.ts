@@ -610,6 +610,7 @@ describe('a real conversation (31 October 2026)', () => {
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
       listReminders: async () => ({ waiting: [] }),
+      partnerCatalogueSummary: async () => ({ waiting: 0 }),
       proposeAction: async () => ({ ok: false, why: 'no' }),
     };
     const talk = await brain.talkWithOwner!({
@@ -656,6 +657,8 @@ describe('a real conversation (31 October 2026)', () => {
       'set_alert_preferences',
       'set_reminder',
       'list_reminders',
+      // The shops' catalogue, by package (ruling 96).
+      'partner_catalogue_summary',
       'cancel_reminder',
       // An Ambassador's link, texting it, and an individual rate (ruling 94).
       'ambassador_link',
@@ -723,6 +726,7 @@ describe('a real conversation (31 October 2026)', () => {
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
       listReminders: async () => ({ waiting: [] }),
+      partnerCatalogueSummary: async () => ({ waiting: 0 }),
       proposeAction: async () => ({ ok: false, why: 'no' }),
     };
     const talk = await brain.talkWithOwner!({
@@ -781,6 +785,7 @@ describe('a real conversation (31 October 2026)', () => {
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
       listReminders: async () => ({ waiting: [] }),
+      partnerCatalogueSummary: async () => ({ waiting: 0 }),
       proposeAction: async () => ({ ok: false, why: 'no' }),
     };
     const declined = languageModel(
@@ -883,6 +888,7 @@ describe('what is on the screen (ruling 89, 2 November 2026)', () => {
       readEmail: async () => ({}),
       getAlertPreferences: async () => ({}),
       listReminders: async () => ({ waiting: [] }),
+      partnerCatalogueSummary: async () => ({ waiting: 0 }),
       proposeAction: async () => ({ ok: false, why: 'no' }),
     };
     const talk = await brain.talkWithOwner!({

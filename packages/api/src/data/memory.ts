@@ -27,9 +27,11 @@ import type {
   SpotlightMention,
   BusinessUser,
   PartnerProduct,
+  PartnerProductPhoto,
   PartnerShop,
   ServiceEnquiry,
   StaffMember,
+  StoredFile,
   FindRequest,
   GiftCard,
   OrganisationEnquiry,
@@ -49,6 +51,7 @@ import type {
   SavedAddress,
   Call,
   CallLeg,
+  PartnerOrderMessage,
   RunnerDocument,
   RunnerFeedback,
   ProblemReport,
@@ -151,12 +154,15 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const problemEvidence = new Map<string, ProblemEvidence>();
   const recoveries = new Map<string, RunnerRecovery>();
   const callLegs = new Map<string, CallLeg>();
+  const partnerMessages: PartnerOrderMessage[] = [];
   const findRequests = new Map<string, FindRequest>();
   const giftCards = new Map<string, GiftCard>();
   const enquiries = new Map<string, OrganisationEnquiry>();
   const staffMembers = new Map<string, StaffMember>();
   const partnerShops = new Map<string, PartnerShop>();
   const partnerProducts = new Map<string, PartnerProduct>();
+  const partnerProductPhotos = new Map<string, PartnerProductPhoto>();
+  const storedFiles = new Map<string, StoredFile>();
   const businessUsers = new Map<string, BusinessUser>();
   const partnerPayments: PartnerPayment[] = [];
   const serviceEnquiries = new Map<string, ServiceEnquiry>();
@@ -301,6 +307,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           organisationConsentVersion: null,
           ageBand: null,
           joinedVia: null,
+          publicId: null,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -1229,6 +1236,34 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
     },
 
+    partnerMessages: {
+      async create(input) {
+        const row: PartnerOrderMessage = Object.freeze({ ...input, id: id() });
+        partnerMessages.push(row);
+        return clone(row);
+      },
+      async listForOrder(orderId) {
+        return partnerMessages
+          .filter((row) => row.orderId === orderId)
+          .sort((a, b) => a.at.getTime() - b.at.getTime())
+          .map(clone);
+      },
+    },
+
+    publicIds: {
+      async inUse(code) {
+        const taken = (rows: Iterable<{ publicId: string | null }>): boolean =>
+          [...rows].some((row) => row.publicId === code);
+        return (
+          taken(shoppers.values()) ||
+          taken(partnerShops.values()) ||
+          taken(organisations.values()) ||
+          taken(staffMembers.values()) ||
+          [...runners.values()].some((runner) => runner.referralCode === code)
+        );
+      },
+    },
+
     callLegs: {
       async create(input) {
         const row: CallLeg = { ...input, id: id() };
@@ -1359,6 +1394,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           monthlyBudgetPence: null,
           staffTripCostPence: null,
           postcode: input.postcode ?? '',
+          publicId: null,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -1592,6 +1628,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           scheduledHeldAt: null,
           reminderDayBeforeAt: null,
           reminderMorningAt: null,
+          readyAt: null,
+          note: input.note ?? null,
           createdAt: now(),
           updatedAt: now(),
           acceptedAt: null,
@@ -1699,6 +1737,20 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           }
         }
         return null;
+      },
+      async listForPartnerShop(where) {
+        const ids = new Set(where.catalogueItemIds);
+        return [...orders.values()]
+          .filter(
+            (o) =>
+              o.createdAt.getTime() >= where.since.getTime() &&
+              (o.restaurantShopId === where.shopId ||
+                o.items.some(
+                  (item) => item.catalogueItemId !== null && ids.has(item.catalogueItemId),
+                )),
+          )
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map(clone);
       },
       async listScheduled() {
         return [...orders.values()]
@@ -2077,6 +2129,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           canAuthorise: false,
           canAllocate: false,
           canUnlock: false,
+          publicId: null,
         };
         staffMembers.set(row.id, row);
         return clone(row);
@@ -2144,6 +2197,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           promiseNote: null,
           promiseAnsweredAt: null,
           welcomeTextSentAt: null,
+          publicId: null,
           ...input,
           id: id(),
           paidUntil: null,
@@ -2191,12 +2245,23 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           priceEstimated: false,
           checkedAt: null,
           checkNote: null,
+          description: '',
+          categoryId: null,
+          unitQuantity: null,
+          unitKind: null,
+          allergens: [],
+          allergensGiven: false,
+          featured: false,
+          sortOrder: 0,
+          variantGroupId: null,
+          variantLabel: null,
           ...input,
           id: id(),
           status: 'pending',
           note: null,
           catalogueItemId: null,
           createdAt: now(),
+          updatedAt: now(),
           decidedAt: null,
         };
         partnerProducts.set(row.id, row);
@@ -2209,7 +2274,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       async update(key, patch) {
         const existing = partnerProducts.get(key);
         if (!existing) throw new NotFoundError('Partner product', key);
-        const updated = { ...existing, ...patch, id: existing.id };
+        const updated = { ...existing, ...patch, id: existing.id, updatedAt: now() };
         partnerProducts.set(key, updated);
         return clone(updated);
       },
@@ -2224,6 +2289,47 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           .filter((row) => row.status === 'pending')
           .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
           .map(clone);
+      },
+    },
+
+    partnerProductPhotos: {
+      async create(input) {
+        const row: PartnerProductPhoto = { ...input, id: id(), createdAt: now() };
+        partnerProductPhotos.set(row.id, row);
+        return clone(row);
+      },
+      async findById(key) {
+        const found = partnerProductPhotos.get(key);
+        return found ? clone(found) : null;
+      },
+      async update(key, patch) {
+        const existing = partnerProductPhotos.get(key);
+        if (!existing) throw new NotFoundError('Product photo', key);
+        const updated = { ...existing, ...patch, id: existing.id };
+        partnerProductPhotos.set(key, updated);
+        return clone(updated);
+      },
+      async remove(key) {
+        partnerProductPhotos.delete(key);
+      },
+      async listForProduct(productId) {
+        return [...partnerProductPhotos.values()]
+          .filter((row) => row.productId === productId)
+          .sort((a, b) => a.position - b.position || a.createdAt.getTime() - b.createdAt.getTime())
+          .map(clone);
+      },
+    },
+
+    storedFiles: {
+      async put(input) {
+        storedFiles.set(input.key, { ...input, data: new Uint8Array(input.data), createdAt: now() });
+      },
+      async get(key) {
+        const found = storedFiles.get(key);
+        return found ? { ...found, data: new Uint8Array(found.data) } : null;
+      },
+      async remove(key) {
+        storedFiles.delete(key);
       },
     },
 
@@ -2673,6 +2779,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       async createMatter(input) {
         const row: OwnerMatter = {
           ...input,
+          priority: input.priority ?? 0,
           emailFrom: input.emailFrom ?? null,
           emailSubject: input.emailSubject ?? null,
           alertKind: input.alertKind ?? null,

@@ -1,0 +1,150 @@
+# Weekly proof that the off-site backups restore (docs/RESTORE.md, ruling 98, 5 November 2026).
+#
+# Every Sunday at 03:17 UTC, and whenever somebody presses "Run workflow", this downloads the
+# newest database copy from the backup bucket, decrypts it with the passphrase, restores it into
+# a throwaway PostgreSQL that lives only inside this job, checks that the key tables are there,
+# prints the row count of every table in the job summary, and asks Prisma whether the restored
+# database matches the migrations in this repository.
+#
+# It never touches the live database or the live app. It reads the bucket and writes nothing to
+# it. If it fails, the copies cannot be trusted and somebody must look the same day.
+#
+# Secrets (the same ones .github/workflows/backup.yml uses, made in docs/RESTORE.md):
+#   BACKUP_PASSPHRASE, BACKUP_S3_ENDPOINT, BACKUP_S3_BUCKET, BACKUP_S3_KEY, BACKUP_S3_SECRET,
+#   and optionally BACKUP_S3_REGION and BACKUP_ALERT_WEBHOOK.
+
+name: Restore test
+
+on:
+  schedule:
+    - cron: '17 3 * * 0'
+  workflow_dispatch:
+    inputs:
+      copy:
+        description: Which copy to restore, such as ozi-db-2026-11-05.sql.zst.gpg (blank means the newest)
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  version:
+    name: Which PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      pg: ${{ steps.read.outputs.pg }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .do/app.yaml
+          sparse-checkout-cone-mode: false
+      - id: read
+        name: Read the live database's major version from .do/app.yaml
+        run: |
+          PG_MAJOR="$(grep -E '^\s*version:\s*"?[0-9]+"?\s*$' .do/app.yaml | grep -oE '[0-9]+' | head -n1)"
+          PG_MAJOR="${PG_MAJOR:-16}"
+          echo "pg=$PG_MAJOR" >> "$GITHUB_OUTPUT"
+          echo "The restore test will use PostgreSQL $PG_MAJOR, as .do/app.yaml says the live database does."
+
+  restore:
+    name: Restore the newest copy into a throwaway database
+    needs: version
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:${{ needs.version.outputs.pg }}
+        env:
+          POSTGRES_USER: ozi
+          POSTGRES_PASSWORD: throwaway
+          POSTGRES_DB: restore_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ozi -d restore_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # The throwaway database. It exists only for the minutes this job runs.
+      RESTORE_DATABASE_URL: postgresql://ozi:throwaway@localhost:5432/restore_test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the secrets exist
+        env:
+          HAVE_PASS: ${{ secrets.BACKUP_PASSPHRASE != '' }}
+          HAVE_S3: ${{ secrets.BACKUP_S3_ENDPOINT != '' && secrets.BACKUP_S3_BUCKET != '' && secrets.BACKUP_S3_KEY != '' && secrets.BACKUP_S3_SECRET != '' }}
+        run: |
+          ok=true
+          [ "$HAVE_PASS" = true ] || { echo "::error::The BACKUP_PASSPHRASE secret is missing. docs/RESTORE.md, 'Setting it up', step 3."; ok=false; }
+          [ "$HAVE_S3" = true ]   || { echo "::error::One of BACKUP_S3_ENDPOINT, BACKUP_S3_BUCKET, BACKUP_S3_KEY, BACKUP_S3_SECRET is missing. docs/RESTORE.md, 'Setting it up', step 1."; ok=false; }
+          $ok
+
+      - name: Install the matching PostgreSQL client
+        env:
+          PG_MAJOR: ${{ needs.version.outputs.pg }}
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq "postgresql-client-$PG_MAJOR" zstd gnupg >/dev/null
+          echo "/usr/lib/postgresql/$PG_MAJOR/bin" >> "$GITHUB_PATH"
+          "/usr/lib/postgresql/$PG_MAJOR/bin/psql" --version
+
+      - name: Download, check, decrypt and restore
+        env:
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          BACKUP_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+          BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          BACKUP_S3_KEY: ${{ secrets.BACKUP_S3_KEY }}
+          BACKUP_S3_SECRET: ${{ secrets.BACKUP_S3_SECRET }}
+          BACKUP_S3_REGION: ${{ secrets.BACKUP_S3_REGION }}
+          COPY: ${{ inputs.copy }}
+        run: bash scripts/backup/db-restore.sh "${COPY:-latest}"
+
+      - name: The key tables must be there
+        run: |
+          # The tables the business cannot do without. A copy missing any of them is no copy.
+          missing=""
+          for t in Shopper Runner Order OrderItem CatalogueItem PaymentMethod RunnerPayout StaffMember _prisma_migrations; do
+            n="$(psql "$RESTORE_DATABASE_URL" -X -A -t -c "select count(*) from information_schema.tables where table_schema='public' and table_name='$t'")"
+            [ "$n" = 1 ] || missing="$missing $t"
+          done
+          if [ -n "$missing" ]; then echo "::error::Restored database is missing table(s):$missing"; exit 1; fi
+          echo "All key tables present."
+          # Rule Ten, checked on the copy too: nothing that could hold a card number.
+          cols="$(psql "$RESTORE_DATABASE_URL" -X -A -t -c "select count(*) from information_schema.columns where table_schema='public' and table_name='PaymentMethod' and column_name ilike '%number%'")"
+          [ "$cols" = 0 ] || { echo "::error::PaymentMethod has a column that could hold a card number"; exit 1; }
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Does the restored database match this repository's migrations?
+        # Informational: a migration merged to main but not yet deployed shows here as pending,
+        # which is not a bad backup. The restore itself (above) is what passes or fails the job.
+        continue-on-error: true
+        env:
+          DATABASE_URL: postgresql://ozi:throwaway@localhost:5432/restore_test
+        run: |
+          pnpm install --frozen-lockfile --filter @aldilivery/api --filter @aldilivery/core >/dev/null
+          {
+            echo ""
+            echo "### prisma migrate status"
+            echo '```'
+            pnpm --filter @aldilivery/api exec prisma migrate status 2>&1 | tail -n 20 || true
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Tell somebody it failed
+        if: failure()
+        env:
+          BACKUP_ALERT_WEBHOOK: ${{ secrets.BACKUP_ALERT_WEBHOOK }}
+        run: bash scripts/backup/notify.sh "Weekly restore test" "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

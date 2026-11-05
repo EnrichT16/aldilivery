@@ -14,7 +14,7 @@
  * ranking given for something in return is disclosed): `preferredRankingWords` in core.
  */
 
-import { isPreferredPartner } from '@aldilivery/core';
+import { isPreferredPartner, paidPlan } from '@aldilivery/core';
 
 import type { AppContext } from '../app.js';
 import type { PartnerShop } from '../domain.js';
@@ -45,11 +45,11 @@ export function plusPaid(shop: Standing, at: Date, config: AppContext['config'])
   return shop.active && shop.paidUntil !== null && shop.paidUntil.getTime() > at.getTime();
 }
 
-/** A shop on Partner Plus whose month is paid (ruling 75). */
+/** A shop on Shop Partner Plus or Pro whose month is paid (ruling 75; Pro since ruling 96). */
 function shopOnPaidPlus(shop: Standing, at: Date): boolean {
   return (
     shop.kind === 'shop' &&
-    shop.plan === 'plus' &&
+    paidPlan(shop.plan) &&
     shop.active &&
     shop.paidUntil !== null &&
     shop.paidUntil.getTime() > at.getTime()

@@ -1193,6 +1193,7 @@ export function ShopperAccounts({ staffKey }: { staffKey: string }): JSX.Element
     id: string;
     displayName: string;
     handle: string;
+    publicId?: string | null;
   }> | null>(null);
   const [open, setOpen] = useState<ShopperAccountView | null>(null);
   const [file, setFile] = useState<{ url: string; name: string } | null>(null);
@@ -1244,6 +1245,7 @@ export function ShopperAccounts({ staffKey }: { staffKey: string }): JSX.Element
               className="control border-paper bg-paper/10 text-paper"
             >
               Open {row.displayName}
+              {row.publicId ? ` (Shopper ID ${row.publicId})` : ''}
               <span className="visually-hidden">, {row.handle}</span>
             </button>
           </li>

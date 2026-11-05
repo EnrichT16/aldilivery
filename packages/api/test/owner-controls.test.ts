@@ -821,6 +821,7 @@ describe('an email with instructions in it', () => {
         readEmail: async () => ({}),
         getAlertPreferences: async () => ({}),
         listReminders: async () => ({ waiting: [] }),
+      partnerCatalogueSummary: async () => ({ waiting: 0 }),
         proposeAction: async (request) => {
           asked.push(request);
           return {

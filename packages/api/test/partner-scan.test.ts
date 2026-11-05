@@ -88,7 +88,7 @@ describe('choosing the plan at sign-up', () => {
     const checkout = joined.json().checkout;
     expect(checkout.url).toMatch(/^https:\/\/checkout/);
     expect(checkout.receipt).toBeTruthy();
-    expect(joined.json().message).toMatch(/Taking you to pay £14\.99 for Partner Plus/);
+    expect(joined.json().message).toMatch(/Taking you to pay £14\.99 for Shop Partner Plus/);
     const link = harness.payments.calls.find((call) => call.kind === 'payment_link');
     expect(link?.input).toEqual(
       expect.objectContaining({
@@ -115,7 +115,7 @@ describe('choosing the plan at sign-up', () => {
     expect(confirmed.statusCode, confirmed.body).toBe(200);
     expect(confirmed.json().recorded).toBe(true);
     plan = (await dashboard(headers)).json().plan;
-    expect(plan).toEqual(expect.objectContaining({ tier: 'plus', paid: true, productLimit: null }));
+    expect(plan).toEqual(expect.objectContaining({ tier: 'plus', paid: true, productLimit: 300 }));
     expect(plan.paidUntil).toBe('2026-11-22T10:00:00.000Z');
   });
 

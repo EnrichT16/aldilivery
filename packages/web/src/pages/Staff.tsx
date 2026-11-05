@@ -60,6 +60,8 @@ import {
   fetchStaffDocuments,
   fetchStaffFeedback,
   fetchStaffFile,
+  photoSrc,
+  type ProductPhoto,
   fetchStaffProblems,
   fetchStaffRecoveries,
   reviewDocument,
@@ -103,6 +105,7 @@ import { CheckoutInsightsPage, RestaurantPartners } from '../components/StaffRes
 import { BrowseFields, readBrowseFields } from '../components/BrowseFields';
 import { ShareCard } from '../components/ShareCard';
 import { StaffVoice } from '../components/StaffVoice';
+import { YourId } from '../components/YourId';
 import { OziCall } from '../components/OziCall';
 import { OziCallSettings } from '../components/OziCallSettings';
 import { OwnerAlertSettings } from '../components/OwnerAlertSettings';
@@ -418,6 +421,8 @@ export function Staff(): JSX.Element {
         <h1 className="text-display font-bold m-0">Admin</h1>
         <LiveClock />
       </div>
+      {/* Their speakable Staff ID (ruling 97). */}
+      <YourId words="Staff ID" id={me.publicId} heading={false} />
       <p className="m-0">
         Signed in as {by}, {me.isOwner ? 'Founder and owner' : me.title}.
         {me.viewOnly ? ' You can look, but not change anything.' : ''}{' '}
@@ -1977,7 +1982,8 @@ function Memory({
   const timings = (row: ExchangeRow): string | null => {
     const parts: string[] = [];
     if (typeof row.feltMs === 'number') parts.push(`felt ${seconds(row.feltMs)} to the first word`);
-    if (typeof row.firstWordMs === 'number') parts.push(`server ${seconds(row.firstWordMs)} to the first sentence`);
+    if (typeof row.firstWordMs === 'number')
+      parts.push(`server ${seconds(row.firstWordMs)} to the first sentence`);
     if (typeof row.modelMs === 'number') parts.push(`${seconds(row.modelMs)} thinking`);
     if (typeof row.totalMs === 'number') parts.push(`${seconds(row.totalMs)} in all`);
     return parts.length === 0 ? null : `Took: ${parts.join(', ')}.`;
@@ -2575,6 +2581,62 @@ function ShopOfTheMonth({ staffKey }: { staffKey: string }): JSX.Element {
 }
 
 /**
+ * One of a waiting product's photos for staff (ruling 96): the small picture, fetched with the
+ * staff key when it comes through the API, with the large one a press away.
+ */
+function StaffPhoto({
+  staffKey,
+  photo,
+  index,
+  onProblem,
+}: {
+  staffKey: string;
+  photo: ProductPhoto;
+  index: number;
+  onProblem: (failure: unknown) => void;
+}): JSX.Element {
+  const direct = /^https?:\/\//.test(photo.thumb);
+  const [src, setSrc] = useState<string | null>(direct ? photoSrc(photo.thumbJpeg) : null);
+  const [large, setLarge] = useState<string | null>(null);
+  useEffect(() => {
+    if (direct) return;
+    fetchStaffFile(staffKey, photo.thumbJpeg).then(setSrc).catch(onProblem);
+  }, [direct, staffKey, photo.thumbJpeg, onProblem]);
+  const showLarge = (): void => {
+    if (direct) {
+      setLarge(photoSrc(photo.fullJpeg));
+      return;
+    }
+    fetchStaffFile(staffKey, photo.fullJpeg).then(setLarge).catch(onProblem);
+  };
+  return (
+    <>
+      {src ? (
+        <img
+          src={large ?? src}
+          alt={`${photo.alt}${index === 0 ? ' (the cover)' : ''}`}
+          className={large ? 'max-h-96 rounded-xl' : 'w-24 h-24 object-cover rounded-xl'}
+        />
+      ) : (
+        <p className="m-0 w-24 h-24 rounded-xl bg-paper/10" aria-label="Photo loading" />
+      )}
+      <p className="m-0 text-paper/80">
+        {photo.width} by {photo.height}
+      </p>
+      {large ? (
+        <button type="button" onClick={() => setLarge(null)} className="control bg-paper/10 text-paper underline !py-1">
+          Smaller<span className="visually-hidden">: photo {index + 1}</span>
+        </button>
+      ) : (
+        <button type="button" onClick={showLarge} className="control bg-paper/10 text-paper underline !py-1">
+          Show it large<span className="visually-hidden">: photo {index + 1}</span>
+        </button>
+      )}
+    </>
+  );
+}
+
+/**
  * Shop Partners and organisations (7 October 2026): products waiting to be checked, each shop's
  * plan and sign-ins, and each organisation's code and sign-ins.
  */
@@ -2622,9 +2684,22 @@ function Partners({
           {pending.data?.products.map((product) => (
             <li key={product.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
               <h4 className="m-0 font-bold">
-                {product.name}, {money(product.pricePence)}, from {product.shopName}
+                {product.name}
+                {product.variantLabel ? `, ${product.variantLabel}` : ''}, {money(product.pricePence)},
+                from {product.shopName}
+                {product.priority === 'high' && (
+                  <span className="ms-2 rounded-full px-2 bg-highlight text-on-accent text-base">
+                    Checked first
+                  </span>
+                )}
               </h4>
+              {/* The package and the details the catalogue keeps (ruling 96). */}
               <p className="m-0">
+                {product.packageName ? `${product.packageName}. ` : ''}
+                {product.category ? `${product.category.name}. ` : ''}
+                {product.unit?.quantityWords ? `Size ${product.unit.quantityWords}` : ''}
+                {product.unit?.words ? `, ${product.unit.words}. ` : product.unit ? '. ' : ''}
+                {product.allergenWords ? `${product.allergenWords}. ` : ''}
                 {product.tags ? `Labels: ${product.tags}. ` : ''}
                 {product.expiresOn
                   ? `Best before ${new Date(product.expiresOn).toLocaleDateString('en-GB')}.`
@@ -2634,7 +2709,18 @@ function Partners({
                   : ''}
                 {product.barcode ? ` Barcode ${product.barcode}.` : ''}
               </p>
+              {product.description && <p className="m-0">{product.description}</p>}
+              {(product.photos ?? []).length > 0 && (
+                <ul className="list-none m-0 p-0 flex flex-wrap gap-2" aria-label={`Photos of ${product.name}`}>
+                  {(product.photos ?? []).map((photo, index) => (
+                    <li key={photo.id} className="space-y-1">
+                      <StaffPhoto staffKey={staffKey} photo={photo} index={index} onProblem={fail} />
+                    </li>
+                  ))}
+                </ul>
+              )}
               {product.hasPhoto &&
+                (product.photos ?? []).length === 0 &&
                 (photos[product.id] ? (
                   <img
                     src={photos[product.id]}
@@ -2730,6 +2816,7 @@ function Partners({
             <li key={shop.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
               <h4 className="m-0 font-bold">
                 {shop.name}
+                {shop.publicId ? ` (Partner ID ${shop.publicId})` : ''}
                 {shop.status === 'pending' ? ' (waiting to be approved)' : ''}
                 {shop.status === 'removed' ? ' (removed)' : !shop.active ? ' (paused)' : ''}
               </h4>

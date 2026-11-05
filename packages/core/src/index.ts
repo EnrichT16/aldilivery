@@ -125,7 +125,15 @@ export {
 
 export { formatPence, poundsToPence } from './money.js';
 
-export { parseChoice, parseQuantity, parseYesNo, splitItems, wantsToStop } from './spoken-order.js';
+export {
+  parseChoice,
+  parseQuantity,
+  parseSpokenItem,
+  parseYesNo,
+  splitItems,
+  wantsToStop,
+  type SpokenItem,
+} from './spoken-order.js';
 
 export {
   normalisePhrase,
@@ -172,16 +180,50 @@ export { areaName, areaOf, postcodeIn, tidyPostcode, type AreaSettings } from '.
 export {
   PARTNER_KINDS,
   PARTNER_KIND_WORDS,
+  PARTNER_PLANS,
+  UNIT_KINDS,
+  UNIT_WORDS,
   basisPointsWords,
+  effectivePlan,
   excludedServiceKind,
   excludedServiceWords,
   freeListingAvailable,
+  paidPlan,
+  planLimits,
+  planMonthlyPence,
   postcodeArea,
   productLimit,
+  unitPrice,
+  unitPriceWords,
+  unitQuantityWords,
+  type ApprovalPriority,
   type PartnerKind,
   type PartnerPlan,
+  type PartnerPlanLimits,
   type PartnerPricing,
+  type UnitKind,
 } from './partners.js';
+
+export {
+  BULK_COLUMNS,
+  CATEGORY_DETAILS,
+  CATEGORY_KINDS,
+  PHOTO_RULES_WORDS,
+  allergenWords,
+  categoriesFor,
+  categoryById,
+  categoryKindFor,
+  missingDetails,
+  photoFeedback,
+  unknownAllergens,
+  type CatalogueCategory,
+  type CatalogueSettings,
+  type CategoryDetail,
+  type CategoryKind,
+  type PhotoMeasure,
+  type PhotoRules,
+  type ProductDetails,
+} from './catalogue.js';
 
 export {
   RESTAURANT_MIXED_WORDS,
@@ -369,3 +411,14 @@ export {
   ukWhenWords,
   type UkParts,
 } from './uk-time.js';
+
+export {
+  PUBLIC_ID_WORDS,
+  SPEAKABLE_ALPHABET,
+  idReadOut,
+  isSpeakableId,
+  newPublicId,
+  spellId,
+  type PublicIdKind,
+  type PublicIdSettings,
+} from './public-ids.js';

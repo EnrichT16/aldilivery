@@ -32,6 +32,9 @@ export function Basket(): JSX.Element {
     parts,
     setQuantity,
     remove,
+    setNote,
+    orderNote,
+    setOrderNote,
     allowanceWords,
     restaurant,
     restaurantProblem,
@@ -133,6 +136,24 @@ export function Basket(): JSX.Element {
                 <span className="visually-hidden">: {line.item.name}</span>
               </button>
             </div>
+
+            {/* A note for the Runner about this item (ruling 97): "ripe, not green". */}
+            <div className="w-full">
+              <label htmlFor={`note-${line.item.id}`} className="block card-muted">
+                Note for your Runner about {line.item.name} (optional)
+              </label>
+              <input
+                id={`note-${line.item.id}`}
+                type="text"
+                maxLength={storeConfig.notes.itemMaxChars}
+                value={line.note ?? ''}
+                onChange={(event) => {
+                  setNote(line.item.id, event.target.value);
+                }}
+                placeholder="Such as: ripe, not green"
+                className="w-full min-h-control rounded-2xl border-2 border-[#0B1F3A]/30 bg-transparent text-[#0B1F3A] p-3"
+              />
+            </div>
           </li>
         ))}
       </ul>
@@ -143,6 +164,28 @@ export function Basket(): JSX.Element {
       >
         <span aria-hidden="true">+</span> Add items
       </Link>
+
+      {/* A note for the whole order (ruling 97): "leave it with the neighbour". */}
+      <div className="space-y-1">
+        <label htmlFor="order-note" className="block font-bold">
+          A note for your Runner about the whole order (optional)
+        </label>
+        <textarea
+          id="order-note"
+          rows={2}
+          maxLength={storeConfig.notes.orderMaxChars}
+          value={orderNote}
+          onChange={(event) => {
+            setOrderNote(event.target.value);
+          }}
+          placeholder="Such as: leave it with the neighbour"
+          className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
+        />
+        <p className="m-0 extra">
+          Up to {storeConfig.notes.orderMaxChars} characters. Please keep numbers and addresses out
+          of notes; your address is already on the order.
+        </p>
+      </div>
 
       {/*
         The fee, before anybody commits to anything. A table because it is a table: rows of

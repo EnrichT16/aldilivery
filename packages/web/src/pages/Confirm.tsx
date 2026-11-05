@@ -64,7 +64,16 @@ import { useSession } from '../state/session';
  */
 export function Confirm(): JSX.Element {
   const basket = useBasket();
-  const { lines, overMaximum, overOneRunner, parts, clear, restaurant, restaurantProblem } = basket;
+  const {
+    lines,
+    overMaximum,
+    overOneRunner,
+    parts,
+    clear,
+    restaurant,
+    restaurantProblem,
+    orderNote,
+  } = basket;
   /**
    * When it comes, and when the money is taken (ruling 78). Today unless the Shopper chooses a
    * later day. A day in another month counts towards that month's allowance (ruling 73), so the
@@ -400,7 +409,9 @@ export function Confirm(): JSX.Element {
         lines: lines.map((line) => ({
           catalogueItemId: line.item.id,
           quantity: line.quantity,
+          ...(line.note ? { note: line.note } : {}),
         })),
+        ...(orderNote.trim() ? { note: orderNote.trim() } : {}),
         deliveryAddress: address.trim(),
         ...(byFamily
           ? { payBy: 'family' as const }
@@ -600,9 +611,11 @@ export function Confirm(): JSX.Element {
           {lines.map((line) => (
             <li key={line.item.id} className="m-0">
               {line.quantity} × {line.item.name}
+              {line.note ? ` (note: ${line.note})` : ''}
             </li>
           ))}
         </ul>
+        {orderNote.trim() !== '' && <p className="m-0">Note for your Runner: {orderNote.trim()}</p>}
       </section>
 
       <section aria-labelledby="cost-heading" className="space-y-3">

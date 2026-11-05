@@ -1,8 +1,14 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { preferredRankingWords } from '@aldilivery/core';
+import {
+  preferredRankingWords,
+  unitPrice,
+  unitPriceWords,
+  type UnitKind,
+} from '@aldilivery/core';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { storeConfig } from '../config';
+import { ProductGallery } from '../components/ProductGallery';
 import { BrowsePage } from './Browse';
 import {
   fetchCatalogueItem,
@@ -87,6 +93,8 @@ export function ShopPage(): JSX.Element {
     product: PublicShopProduct | null;
   } | null>(null);
   const [sent, setSent] = useState('');
+  // Which size or pack of a product is chosen, by variant group (ruling 96).
+  const [chosenVariant, setChosenVariant] = useState<Record<string, string>>({});
   const latest = useRef({ ozi, page, navigate });
   latest.current = { ozi, page, navigate };
 
@@ -179,9 +187,30 @@ export function ShopPage(): JSX.Element {
   const food = page.shop.kind === 'food';
   const field = 'w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3';
   const look = shopLook(page.shop.kind);
-  const groups = productGroups(page.products, service ? 'Services' : 'Products');
+  // Sizes and packs of one product are one card with a chooser (ruling 96).
+  const cards = variantCards(page.products);
+  const groups = productGroups(cards, page.categories ?? [], service ? 'Services' : 'Products');
   const inBasket = (product: PublicShopProduct): number =>
     basket.lines.find((line) => line.item.id === product.catalogueItemId)?.quantity ?? 0;
+  const fewer = (product: PublicShopProduct): void => {
+    if (!product.catalogueItemId) return;
+    const count = inBasket(product);
+    basket.setQuantity(product.catalogueItemId, count - 1);
+    setNews(
+      count - 1 <= 0
+        ? `${product.name} is out of your basket.`
+        : `${count - 1} ${product.name} in your basket.`,
+    );
+  };
+  const more = (product: PublicShopProduct): void => {
+    const count = inBasket(product);
+    if (count > 0 && product.catalogueItemId) {
+      basket.setQuantity(product.catalogueItemId, count + 1);
+      setNews(`${count + 1} ${product.name} in your basket.`);
+      return;
+    }
+    void add(product);
+  };
   const showBasketPill = !service && basket.itemCount > 0;
   return (
     <div className="space-y-6 max-w-xl">
@@ -418,10 +447,34 @@ export function ShopPage(): JSX.Element {
                 {group.name}
               </h2>
               <ul className="list-none m-0 p-0">
-                {group.products.map((product) => {
+                {group.cards.map((card) => {
+                  // The size or pack chosen, or the first (the group's own product).
+                  const product =
+                    card.variants.find((entry) => entry.id === chosenVariant[card.key]) ??
+                    card.variants[0]!;
                   const count = inBasket(product);
+                  const photos =
+                    product.photos && product.photos.length > 0
+                      ? product.photos
+                      : product.hasPhoto
+                        ? [
+                            {
+                              id: 'cover',
+                              alt: product.name,
+                              width: 800,
+                              height: 800,
+                              thumb: shopPhotoUrl(page.shop.id, product.id),
+                              medium: shopPhotoUrl(page.shop.id, product.id),
+                              full: shopPhotoUrl(page.shop.id, product.id),
+                              thumbJpeg: shopPhotoUrl(page.shop.id, product.id),
+                              mediumJpeg: shopPhotoUrl(page.shop.id, product.id),
+                              fullJpeg: shopPhotoUrl(page.shop.id, product.id),
+                            },
+                          ]
+                        : [];
+                  const fullName = `${product.name}${product.variantLabel ? `, ${product.variantLabel}` : ''}`;
                   return (
-                    <li key={product.id} className="border-b-2 border-paper/25 last:border-b-0">
+                    <li key={card.key} className="border-b-2 border-paper/25 last:border-b-0">
                       <article
                         aria-labelledby={`product-${product.id}`}
                         className="flex items-start gap-3 py-4"
@@ -429,6 +482,11 @@ export function ShopPage(): JSX.Element {
                         <div className="flex-1 min-w-0 space-y-1">
                           <h3 id={`product-${product.id}`} className="text-lead font-bold m-0">
                             {product.name}
+                            {product.featured && (
+                              <span className="ms-2 rounded-full px-2 text-base font-bold" style={{ background: '#FFE9A8', color: '#0B1F3A' }}>
+                                Featured
+                              </span>
+                            )}
                           </h3>
                           {service ? (
                             <p className="m-0">
@@ -440,13 +498,45 @@ export function ShopPage(): JSX.Element {
                             </p>
                           ) : (
                             <p className="m-0">
-                              About {money(shownPrice(product.pricePence))}.
+                              About {money(shownPrice(product.pricePence))}
+                              {product.unit?.quantityWords && product.unit.quantityWords !== '1'
+                                ? ` for ${product.unit.quantityWords}`
+                                : ''}
+                              .{/* The unit price the Price Marking Order asks for (ruling 96). */}
+                              {product.unit?.perPence
+                                ? ` ${unitPriceShown(product.unit, product.pricePence)}.`
+                                : ''}
                               {product.expiresOn
                                 ? ` Best before ${new Date(product.expiresOn).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}.`
                                 : ''}
                             </p>
                           )}
-                          {count > 0 && <p className="m-0 font-bold">{count} in your basket</p>}
+                          {product.description && <p className="m-0">{product.description}</p>}
+                          {product.allergenWords && (
+                            <p className="m-0 text-paper/80">{product.allergenWords}.</p>
+                          )}
+                          {card.variants.length > 1 && (
+                            <label className="block">
+                              <span className="font-bold">Size or pack</span>
+                              <select
+                                value={product.id}
+                                onChange={(event) =>
+                                  setChosenVariant((before) => ({
+                                    ...before,
+                                    [card.key]: event.target.value,
+                                  }))
+                                }
+                                className="block w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
+                              >
+                                {card.variants.map((entry) => (
+                                  <option key={entry.id} value={entry.id}>
+                                    {entry.variantLabel ?? 'Standard'}, about{' '}
+                                    {money(shownPrice(entry.pricePence))}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                          )}
                           {otherTags(product.tags, group.name) && (
                             <p className="m-0 text-paper/80">
                               {otherTags(product.tags, group.name)}
@@ -462,41 +552,44 @@ export function ShopPage(): JSX.Element {
                               <span className="visually-hidden">: {product.name}</span>
                             </button>
                           )}
-                        </div>
-                        <div
-                          className="relative shrink-0 w-28 h-28 rounded-2xl overflow-hidden flex items-center justify-center"
-                          style={{ background: look.gradient }}
-                        >
-                          {product.hasPhoto ? (
-                            <img
-                              src={shopPhotoUrl(page.shop.id, product.id)}
-                              alt={product.name}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <span aria-hidden="true" className="text-[3.2rem] leading-none">
-                              {productEmoji(`${product.name} ${product.tags}`, page.shop.kind)}
-                            </span>
-                          )}
-                          {count > 0 && (
-                            <span
-                              aria-hidden="true"
-                              className="absolute top-1 left-1 flex items-center justify-center min-w-[2rem] h-8 px-1 rounded-full bg-[#0B1F3A] text-white font-bold"
-                            >
-                              {count}
-                            </span>
-                          )}
                           {!service && (
-                            <button
-                              type="button"
-                              onClick={() => void add(product)}
-                              className="control absolute bottom-1 right-1 !rounded-full !px-3 !py-1 bg-white text-[#0B1F3A] border-2 border-[#0B1F3A] font-bold shadow"
+                            <div
+                              className="flex items-center gap-2"
+                              role="group"
+                              aria-label={`How many ${fullName}`}
                             >
-                              <span aria-hidden="true">+</span> Add
-                              <span className="visually-hidden"> to my basket: {product.name}</span>
-                            </button>
+                              <button
+                                type="button"
+                                disabled={count === 0}
+                                onClick={() => fewer(product)}
+                                className="control !rounded-full !px-4 bg-white text-[#0B1F3A] border-2 border-[#0B1F3A] font-bold disabled:opacity-40"
+                              >
+                                <span aria-hidden="true">−</span>
+                                <span className="visually-hidden">One fewer {fullName}</span>
+                              </button>
+                              <span className="min-w-[2rem] text-center font-bold" aria-live="polite">
+                                {count}
+                                <span className="visually-hidden"> in your basket</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => more(product)}
+                                className="control !rounded-full !px-4 bg-white text-[#0B1F3A] border-2 border-[#0B1F3A] font-bold"
+                              >
+                                <span aria-hidden="true">+</span>
+                                <span className="visually-hidden">
+                                  {count === 0 ? `Add to my basket: ${fullName}` : `One more ${fullName}`}
+                                </span>
+                              </button>
+                            </div>
                           )}
                         </div>
+                        <ProductGallery
+                          photos={photos}
+                          fallback={productEmoji(`${product.name} ${product.tags}`, page.shop.kind)}
+                          background={look.gradient}
+                          name={fullName}
+                        />
                       </article>
                     </li>
                   );
@@ -535,24 +628,77 @@ export function ShopPage(): JSX.Element {
   );
 }
 
+/** One card on the page: a product, or a product with its sizes and packs (ruling 96). */
+export interface ProductCard {
+  key: string;
+  variants: PublicShopProduct[];
+}
+
 /**
- * A shop's products in the kinds it gave them: the first word of each product's tags, in the
- * order they first appear. With no tags, one kind, "Products".
+ * Sizes and packs of one product as one card (ruling 96): the group's own product first, then
+ * its variants in the order the page gives them. A product with no variants is a card of one.
  */
-function productGroups(
-  products: PublicShopProduct[],
-  fallback: string,
-): Array<{ id: string; name: string; products: PublicShopProduct[] }> {
-  const groups = new Map<string, PublicShopProduct[]>();
+export function variantCards(products: PublicShopProduct[]): ProductCard[] {
+  const cards: ProductCard[] = [];
+  const byGroup = new Map<string, ProductCard>();
   for (const product of products) {
-    const name = firstTag(product.tags) || fallback;
-    groups.set(name, [...(groups.get(name) ?? []), product]);
+    const group = product.variantGroupId;
+    if (!group) {
+      cards.push({ key: product.id, variants: [product] });
+      continue;
+    }
+    const card = byGroup.get(group);
+    if (card) {
+      // The group's own product (its id is the group's) leads, whatever order it came in.
+      if (product.id === group) card.variants.unshift(product);
+      else card.variants.push(product);
+    } else {
+      const made = { key: group, variants: [product] };
+      byGroup.set(group, made);
+      cards.push(made);
+    }
   }
-  return [...groups.entries()].map(([name, list], at) => ({
-    id: `kind-${at}`,
-    name,
-    products: list,
-  }));
+  return cards;
+}
+
+/**
+ * The cards in their categories (ruling 96), in the taxonomy's order, each card under its first
+ * product's category; a product with no category goes under the first word of its tags, as
+ * before, and with neither under "Products".
+ */
+export function productGroups(
+  cards: ProductCard[],
+  categories: Array<{ id: string; name: string }>,
+  fallback: string,
+): Array<{ id: string; name: string; cards: ProductCard[] }> {
+  const groups = new Map<string, ProductCard[]>();
+  for (const card of cards) {
+    const lead = card.variants[0]!;
+    const name = lead.category?.name || firstTag(lead.tags) || fallback;
+    groups.set(name, [...(groups.get(name) ?? []), card]);
+  }
+  const order = categories.map((category) => category.name);
+  return [...groups.entries()]
+    .sort(([a], [b]) => {
+      const atA = order.indexOf(a);
+      const atB = order.indexOf(b);
+      return (atA === -1 ? order.length : atA) - (atB === -1 ? order.length : atB);
+    })
+    .map(([name, list], at) => ({ id: `kind-${at}`, name, cards: list }));
+}
+
+/**
+ * The unit price beside the price a Shopper sees (ruling 96): worked from the shown price, item
+ * charge included, so the two agree ("£4.80 per kg", "£0.40 each").
+ */
+export function unitPriceShown(unit: NonNullable<PublicShopProduct['unit']>, shopPricePence?: number): string {
+  if (shopPricePence !== undefined) {
+    const price = unitPrice(shownPrice(shopPricePence), unit.quantity, unit.unit as UnitKind);
+    return price ? unitPriceWords(price, money) : '';
+  }
+  return unit.perPence && unit.per
+    ? unitPriceWords({ pence: unit.perPence, per: unit.per }, money)
+    : '';
 }
 
 function tagList(tags: string): string[] {

@@ -74,6 +74,8 @@ export function shopperPays(
   call: Pick<Call, 'startedBy'>,
   config: Pick<StoreConfig, 'calls'>,
 ): boolean {
+  // A call a Shop Partner started (ruling 97) is free to both sides, whatever the setting.
+  if (call.startedBy === 'partner') return false;
   return call.startedBy === 'shopper' || !config.calls.runnerStartedFree;
 }
 
@@ -104,6 +106,7 @@ export function newCall(
     runnerId: order.runnerId ?? '',
     roomName: `call-${randomBytes(16).toString('hex')}`,
     startedBy,
+    partnerShopId: null,
     status: 'ringing',
     createdAt: at,
     endedAt: null,
@@ -132,6 +135,30 @@ export function runnerCall(
     ...newCall(order, 'runner', at, free ? 0 : config.calls.pencePerMinute),
     priceStatement: free ? RUNNER_CALL_STATEMENT : null,
   };
+}
+
+/** What is written on a free call a Shop Partner started to the Runner (ruling 97). */
+export const PARTNER_CALL_STATEMENT = 'Your shop is calling about your order. This call is free.';
+
+/**
+ * A call a Shop Partner on a paid plan starts to the Runner of an order (ruling 97): free to both
+ * sides, carrying no price and asking for no yes, and naming the shop so the Runner knows who.
+ */
+export function partnerCall(
+  order: Pick<Order, 'id' | 'shopperId' | 'runnerId'>,
+  shop: { id: string },
+  at: Date,
+): Omit<Call, 'id'> {
+  return {
+    ...newCall(order, 'partner', at, 0),
+    partnerShopId: shop.id,
+    priceStatement: PARTNER_CALL_STATEMENT,
+  };
+}
+
+/** What the Runner sees and hears when a shop rings about an order (ruling 97). */
+export function partnerCallingWords(shopName: string, orderReference: string): string {
+  return `Your shop ${shopName} is calling about order ${orderReference}.`;
 }
 
 /** What the Shopper's devices show when their Runner rings, and rings again (ruling 90). */

@@ -36,12 +36,12 @@ const NUMBER_WORDS: Record<string, number> = {
   twenty: 20,
 };
 
-/** How many, from "two", "2", "a dozen", "just the one". Null when no number was said. */
+/** How many, from "two", "2", "a dozen", "half a dozen", "just the one". Null when no number was said. */
 export function parseQuantity(text: string): number | null {
-  const words = text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, ' ')
-    .split(/\s+/);
+  const lower = text.toLowerCase();
+  // "half a dozen" is six, before "a" or "dozen" is read on its own.
+  if (/\bhalf\s+a\s+dozen\b/.test(lower)) return 6;
+  const words = lower.replace(/[^a-z0-9\s-]/g, ' ').split(/\s+/);
   for (const word of words) {
     if (/^\d+$/.test(word)) {
       const n = Number(word);
@@ -53,6 +53,106 @@ export function parseQuantity(text: string): number | null {
   const firm = found.find((word) => word !== 'a' && word !== 'an');
   const chosen = firm ?? found[0];
   return chosen === undefined ? null : (NUMBER_WORDS[chosen] as number);
+}
+
+/**
+ * The unit words people say when they shop (ruling 96), each as the singular the catalogue uses.
+ * "bunches" and "bunch" are one; "kilo", "kilos", "kg" and "kilogram" are one.
+ */
+const UNIT_SAID: Array<{ pattern: RegExp; unit: string }> = [
+  { pattern: /^bunch(es)?$/, unit: 'bunch' },
+  { pattern: /^packs?$|^packets?$|^pkts?$/, unit: 'pack' },
+  { pattern: /^bags?$/, unit: 'bag' },
+  { pattern: /^boxe?s?$/, unit: 'box' },
+  { pattern: /^tins?$|^cans?$/, unit: 'tin' },
+  { pattern: /^bottles?$/, unit: 'bottle' },
+  { pattern: /^cartons?$/, unit: 'carton' },
+  { pattern: /^jars?$/, unit: 'jar' },
+  { pattern: /^loa(f|ves)$/, unit: 'loaf' },
+  { pattern: /^punnets?$/, unit: 'punnet' },
+  { pattern: /^tubs?$/, unit: 'tub' },
+  { pattern: /^kilos?$|^kilograms?$|^kgs?$/, unit: 'kg' },
+  { pattern: /^grams?$|^g$/, unit: 'g' },
+  { pattern: /^litres?$|^liters?$|^l$/, unit: 'l' },
+  { pattern: /^pints?$/, unit: 'pint' },
+];
+
+const NUMBER_SAID = `\\d+|${Object.keys(NUMBER_WORDS).join('|')}`;
+
+export interface SpokenItem {
+  /** How many were asked for; null when no number was said ("bananas", "some bananas"). */
+  quantity: number | null;
+  /** The unit said, as the catalogue spells it ("bunch", "pack", "kg"), or null. */
+  unit: string | null;
+  /** The thing itself: "bananas" from "five bunches of bananas". */
+  item: string;
+}
+
+/**
+ * One item as a Shopper says it (ruling 96): "five bunches of bananas" is five, bunch, bananas;
+ * "two packs of crisps" is two, pack, crisps; "a kilo of apples" is one, kg, apples; "half a
+ * dozen eggs" is six eggs; "half a kilo of rice" is one, 500 g, rice; "bananas" is some bananas.
+ * The quantity is what to put in the basket; the unit helps choose the right listing.
+ */
+export function parseSpokenItem(text: string): SpokenItem {
+  const said = text
+    .trim()
+    .toLowerCase()
+    .replace(/[.!?,]+$/, '')
+    .replace(/^(some|a few|please)\s+/, '');
+  // "half a dozen eggs", "half a kilo of rice".
+  const half = new RegExp(`^half\\s+(?:a|an|one)\\s+(\\w+)\\s+(?:of\\s+)?(.+)$`).exec(said);
+  if (half) {
+    const [, unitWord, item] = half as unknown as [string, string, string];
+    if (unitWord === 'dozen') return { quantity: 6, unit: null, item: item.trim() };
+    const unit = unitSaid(unitWord);
+    if (unit === 'kg') return { quantity: 1, unit: '500 g', item: item.trim() };
+    if (unit === 'l') return { quantity: 1, unit: '500 ml', item: item.trim() };
+    if (unit) return { quantity: 1, unit: `half a ${unit}`, item: item.trim() };
+  }
+  // "<number> <unit> of <item>", "<number> <unit> <item>", "<number> <item>".
+  const withNumber = new RegExp(`^(${NUMBER_SAID})\\s+(?:(\\w+)\\s+of\\s+)?(.+)$`).exec(said);
+  if (withNumber) {
+    const [, numberWord, unitWord, rest] = withNumber as unknown as [
+      string,
+      string,
+      string | undefined,
+      string,
+    ];
+    const quantity = parseQuantity(numberWord);
+    const firm = !/^an?$/.test(numberWord);
+    if (unitWord) {
+      const unit = unitSaid(unitWord);
+      // "a couple of bananas", "two dozen of eggs": a count, not a unit.
+      const count = NUMBER_WORDS[unitWord];
+      if (count !== undefined && !/^an?$/.test(unitWord)) {
+        return {
+          quantity: firm && quantity !== null ? quantity * count : count,
+          unit: null,
+          item: rest.trim(),
+        };
+      }
+      if (unit) return { quantity: firm ? quantity : 1, unit, item: rest.trim() };
+      // "two of the apples", or a unit we do not know: keep its words with the item.
+      return { quantity: firm ? quantity : null, unit: null, item: `${unitWord} ${rest}`.trim() };
+    }
+    // "two dozen eggs", "two bunch bananas": a unit without "of".
+    const twoWords = /^(\w+)\s+(.+)$/.exec(rest);
+    if (twoWords) {
+      const [, maybeUnit, item] = twoWords as unknown as [string, string, string];
+      if (maybeUnit === 'dozen') {
+        return { quantity: quantity === null ? 12 : quantity * 12, unit: null, item: item.trim() };
+      }
+      const unit = unitSaid(maybeUnit);
+      if (unit) return { quantity: firm ? quantity : 1, unit, item: item.trim() };
+    }
+    return { quantity: firm ? quantity : null, unit: null, item: rest.trim() };
+  }
+  return { quantity: null, unit: null, item: said };
+}
+
+function unitSaid(word: string): string | null {
+  return UNIT_SAID.find((entry) => entry.pattern.test(word))?.unit ?? null;
 }
 
 /** Which of a short list was chosen: "the second", "number two", "two", "2". */

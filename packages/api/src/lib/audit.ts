@@ -9,12 +9,21 @@
  * that succeeded. Looks that matter in law, such as opening a Shopper's account or exporting
  * their data, are written down by the route itself with `recordAudit`.
  *
+ * Since ruling 97 (5 November 2026) the same hook writes down what a Runner does with their
+ * sign-in and what a Shop Partner does with its business sign-in: the actor is the Runner by first
+ * name and Runner ID, or the shop by name and Partner ID, in the same table. Shoppers' actions
+ * stay unaudited, apart from the sensitive ones a route records itself; what anybody says to Ozi
+ * is a conversation, kept by Ozi's memory (ruling 68), never here.
+ *
  * The log is only ever added to. The repository has no way to change or remove an entry, and
  * the database refuses to as well (migration 20261017090000_admin_audit_and_two_step).
  * Writing an entry never undoes what was done; if it cannot be written, the server log says so.
  */
 
 import type { FastifyReply, FastifyRequest } from 'fastify';
+
+import { verifyBusinessToken } from './business.js';
+import { ensurePublicId, firstNameOf } from '../services/public-ids.js';
 
 /** Anything with one of these in its name is never written down, only that it was given. */
 const SECRET = /password|passcode|code|secret|token|key|current/i;
@@ -103,19 +112,61 @@ const NOT_CHANGES = new Set([
   // Ozi reading a matter on its call in the app, and the call ending (ruling 79).
   'POST /staff/desk/:id/read',
   'POST /staff/desk/ring/:id/end',
+  // A Runner's phone saying where it is, every few seconds: a heartbeat, not an action.
+  'POST /runners/me/location',
 ]);
+
+/**
+ * Who a change is from when it is not staff (ruling 97): a Runner by their sign-in, named by
+ * first name and Runner ID; a Shop Partner by its business sign-in, named by shop and Partner ID.
+ * A Shopper, an organisation or nobody signed in gives null: not written down here.
+ */
+async function otherActor(
+  request: FastifyRequest,
+): Promise<{ id: string; name: string; role: string } | null> {
+  const ctx = request.server.ctx;
+  if (request.session?.role === 'runner') {
+    const runner = await ctx.repository.runners.findById(request.session.accountId);
+    if (!runner) return null;
+    return {
+      id: runner.id,
+      name: `${firstNameOf(runner.name)} (${runner.referralCode})`,
+      role: 'runner',
+    };
+  }
+  if (request.session) return null;
+  const given = request.headers['x-business-token'];
+  const token = Array.isArray(given) ? given[0] : given;
+  const userId = token ? verifyBusinessToken(token, ctx.env.authTokenSecret, ctx.now()) : null;
+  const user = userId ? await ctx.repository.businessUsers.findById(userId) : null;
+  if (!user?.partnerShopId) return null;
+  const shop = await ctx.repository.partnerShops.findById(user.partnerShopId);
+  if (!shop) return null;
+  const publicId = await ensurePublicId(ctx, 'partner', shop).catch(() => shop.publicId ?? '');
+  return { id: shop.id, name: `${shop.name} (${publicId})`, role: 'partner' };
+}
 
 /**
  * The hook: every successful change by someone the admin panel checked. Runs as the reply is
  * sent, when its status is known.
  */
 export async function auditChange(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-  if (!request.staffActor || LOOKING.has(request.method)) return;
+  if (LOOKING.has(request.method)) return;
   if (reply.statusCode >= 400) return;
   if ((request as FastifyRequest & { audited?: boolean }).audited) return;
   const action = routeName(request);
   if (NOT_CHANGES.has(action)) return;
+  let actor: { id: string | null; name: string; role: string } | null = request.staffActor ?? null;
+  if (!actor) {
+    try {
+      actor = await otherActor(request);
+    } catch (failure) {
+      request.log.warn({ err: failure }, 'The audit log could not tell who made a change.');
+    }
+    if (!actor) return;
+  }
   await recordAudit(request, {
+    actor,
     action,
     target: targetOf(request),
     detail: redactedDetail(request.body),
@@ -217,6 +268,27 @@ export const AUDIT_WORDS: Record<string, string> = {
   'POST /staff/orders/allocate': 'Tried to send orders straight to Runners',
   'POST /staff/team/:id/allocate': 'Let someone send jobs straight to Runners, or stopped it',
 };
+
+/** Runners' and Shop Partners' own actions (ruling 97), in plain words. */
+Object.assign(AUDIT_WORDS, {
+  'partner.order-ready': 'A shop said an order was ready for pickup',
+  'partner.message': 'A shop sent its Runner a set message',
+  'partner.call-started': 'A shop called its Runner in the app',
+  'POST /jobs/:offerId/accept': 'Took a job',
+  'POST /jobs/:offerId/decline': 'Said no to a job',
+  'POST /orders/:id/status': 'Moved an order on',
+  'POST /orders/:id/receipt': 'Put in the till total',
+  'POST /orders/:orderId/calls': 'Started a call about an order',
+  'POST /calls/:callId/join': 'Answered a call',
+  'POST /calls/:callId/end': 'Ended a call',
+  'POST /runners/me/availability': 'Went on or off shift',
+  'POST /runners/me/travel-mode': 'Changed how they are travelling',
+  'POST /partner/terms/agree': 'Agreed to the Shop Partner terms',
+  'POST /partner/profile': 'Changed how Shoppers find the shop',
+  'POST /partner/products': 'Added a product',
+  'POST /partner/products/:id/price': 'Changed a price',
+  'POST /partner/products/:id/remove': 'Took a product off',
+});
 
 export function auditWords(action: string): string {
   return AUDIT_WORDS[action] ?? action;

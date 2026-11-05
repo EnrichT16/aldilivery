@@ -20,6 +20,7 @@ import {
   type RehearsalGateway,
 } from '../src/lib/payments.js';
 import type { CallRecorder } from '../src/lib/call-recording.js';
+import type { PhotoStore } from '../src/lib/photo-store.js';
 import type { CallProvider } from '../src/lib/livekit.js';
 import type { OziBrain } from '../src/lib/language-model.js';
 import type { OpenPricesLookup } from '../src/lib/open-prices.js';
@@ -87,6 +88,12 @@ export const testEnv: Env = {
   recordingS3Key: undefined,
   recordingS3Secret: undefined,
   recordingS3Region: undefined,
+  spacesKey: undefined,
+  spacesSecret: undefined,
+  spacesBucket: undefined,
+  spacesRegion: undefined,
+  spacesEndpoint: undefined,
+  spacesCdnUrl: undefined,
   seedOnStart: true,
 };
 
@@ -145,6 +152,8 @@ export interface TestAppOptions {
   placeCall?: PlaceCall;
   /** Recording staff calls (ruling 77). Off unless a test hands in a stand-in. */
   recorder?: CallRecorder;
+  /** Where product photos go (ruling 96). The database unless a test hands in a stand-in. */
+  photoStore?: PhotoStore;
   /** Postcodes into places (30 October 2026). Off unless a test hands in a stand-in: no network. */
   findPostcode?: PostcodeLookup;
   /** The mailboxes, for the owner's reply by voice (ruling 85). None unless a test hands them in. */
@@ -193,6 +202,7 @@ export async function buildTestApp(
     ...(options.openPrices ? { openPrices: options.openPrices } : {}),
     ...(options.placeCall ? { placeCall: options.placeCall } : {}),
     ...(options.recorder ? { recorder: options.recorder } : {}),
+    ...(options.photoStore ? { photoStore: options.photoStore } : {}),
     ...(options.findPostcode ? { findPostcode: options.findPostcode } : {}),
     ...(options.mailboxes ? { mailboxes: options.mailboxes } : {}),
     deliverCode:

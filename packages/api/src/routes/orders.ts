@@ -86,9 +86,13 @@ const createOrderSchema = z.object({
       z.object({
         catalogueItemId: z.string().min(1),
         quantity: z.number().int().min(1).max(99),
+        /** The Shopper's note on this item (ruling 97), such as "ripe, not green". */
+        note: z.string().trim().max(1000).optional(),
       }),
     )
     .min(1),
+  /** The Shopper's note for the whole order (ruling 97), such as "leave it with the neighbour". */
+  note: z.string().trim().max(1000).optional(),
   deliveryAddress: z.string().trim().min(1).max(300),
   latitude: z.number().min(-90).max(90).optional(),
   longitude: z.number().min(-180).max(180).optional(),
@@ -157,6 +161,12 @@ const createOrderSchema = z.object({
 
 type CreateOrderInput = z.infer<typeof createOrderSchema>;
 
+/** The Shopper's notes (ruling 97): one for the order, and one per catalogue item. */
+interface OrderNotes {
+  order: string | null;
+  items: Map<string, string>;
+}
+
 const statusSchema = z.object({
   status: z.enum([
     'draft',
@@ -212,6 +222,32 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
    * chosen to keep everything; if not, they are told plainly, with both choices, and nothing is
    * charged.
    */
+  /**
+   * The Shopper's notes (ruling 97), each within its configured length (`notes` in
+   * config/store.json), or a plain refusal. An empty note is no note.
+   */
+  function notesOf(input: CreateOrderInput): OrderNotes {
+    const { itemMaxChars, orderMaxChars } = config.notes;
+    const order = input.note?.trim() || null;
+    if (order && order.length > orderMaxChars) {
+      throw new BadRequestError(
+        `A note for the order can be up to ${orderMaxChars} characters. Yours is ${order.length}. Nothing has been charged.`,
+      );
+    }
+    const items = new Map<string, string>();
+    for (const line of input.lines) {
+      const note = line.note?.trim();
+      if (!note) continue;
+      if (note.length > itemMaxChars) {
+        throw new BadRequestError(
+          `A note on one item can be up to ${itemMaxChars} characters. Nothing has been charged.`,
+        );
+      }
+      items.set(line.catalogueItemId, note);
+    }
+    return { order, items };
+  }
+
   function pricedForOrder(
     input: z.infer<typeof createOrderSchema>,
     catalogueItems: Parameters<typeof priceLinesInParts>[1],
@@ -268,6 +304,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       | 'runnerPaymentPence'
     >,
     extraStatus: 'pending' | 'transfer',
+    notes?: OrderNotes,
   ): Promise<Order[]> {
     const linked = priced.parts.length > 1;
     const created: Order[] = [];
@@ -275,6 +312,8 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
       created.push(
         await repository.orders.create({
           ...fields,
+          // The Shopper's notes (ruling 97): the order's on every part, each item's on its line.
+          ...(notes?.order ? { note: notes.order } : {}),
           goodsEstimatePence: part.goodsPence,
           // Rule Two as amended by ruling 60: £5, or £7 for £120 or more of shopping.
           // What the Runner buys at the till decides the large-order pay (30 October 2026).
@@ -300,7 +339,11 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
                 ...(part.extra ? { extraDeliveryStatus: extraStatus } : {}),
               }
             : {}),
-          items: part.lines.map(orderItemFor),
+          items: part.lines.map((line) => {
+            const item = orderItemFor(line);
+            const note = notes?.items.get(line.catalogueItemId);
+            return note ? { ...item, note } : item;
+          }),
         }),
       );
     }
@@ -435,6 +478,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         ...(booking ? booking.fields : {}),
       },
       'transfer',
+      notesOf(input),
     );
     const order = group[0]!;
     if (booking) {
@@ -471,6 +515,8 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
   app.post('/orders', async (request, reply) => {
     const session = requireSession(request, 'shopper');
     const parsed = createOrderSchema.parse(request.body);
+    // A note too long is refused before anything is priced or written (ruling 97).
+    notesOf(parsed);
 
     const shopper = await repository.shoppers.findById(session.accountId);
     if (!shopper) throw new NotFoundError('account');
@@ -628,6 +674,7 @@ export async function registerOrderRoutes(app: FastifyInstance): Promise<void> {
         ...(booking ? booking.fields : {}),
       },
       'pending',
+      notesOf(input),
     );
 
     // Step two: record the single explicit confirmation, on every linked order alike.

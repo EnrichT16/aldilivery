@@ -42,13 +42,28 @@ import type {
 } from './fees.js';
 import type { AreaSettings } from './areas.js';
 import type { BrowseSettings } from './browse.js';
-import { excludedServiceKind, type PartnerPricing } from './partners.js';
+import {
+  excludedServiceKind,
+  PARTNER_PLANS,
+  type PartnerPlan,
+  type PartnerPlanLimits,
+  type PartnerPricing,
+} from './partners.js';
+import {
+  CATEGORY_DETAILS,
+  CATEGORY_KINDS,
+  type CatalogueCategory,
+  type CatalogueSettings,
+  type CategoryDetail,
+  type CategoryKind,
+} from './catalogue.js';
 import type { AmbassadorSettings, ReferralSettings } from './referrals.js';
 import {
   AMBASSADOR_PROTECTION_DEFAULTS,
   type AmbassadorProtectionSettings,
 } from './ambassador-protection.js';
 import type { RestaurantSettings } from './restaurants.js';
+import { SPEAKABLE_ALPHABET, type PublicIdSettings } from './public-ids.js';
 
 export type CatalogueSourceMode = 'partner_feed' | 'community';
 
@@ -262,6 +277,28 @@ export interface StoreConfig {
     readonly runnerStartedFree: boolean;
   };
   /**
+   * Speakable IDs for everyone (ruling 97, 5 November 2026): the letter each kind of account's
+   * public ID starts with, and how many characters follow it. Runners keep their Runner ID.
+   */
+  readonly publicIds: PublicIdSettings;
+  /**
+   * Shop Partners seeing their orders and reaching their Runner (ruling 97): how far back the
+   * order history goes, how long after delivery a message to the Runner may still be sent, and
+   * the set messages a partner may send, each in Ozi's words. No free text ever reaches a Runner.
+   */
+  readonly partnerOrders: {
+    readonly historyDays: number;
+    /** How many past orders a page of the partner's history shows. */
+    readonly pageSize: number;
+    readonly messageMinutesAfterDelivery: number;
+    readonly messages: Readonly<Record<string, string>>;
+  };
+  /** Shopper notes (ruling 97): how long a note on one item, and on the whole order, may be. */
+  readonly notes: {
+    readonly itemMaxChars: number;
+    readonly orderMaxChars: number;
+  };
+  /**
    * "I can't find this" (ruling 90, 2 November 2026): the one tap also rings the Shopper, up to
    * `callAttempts` times, `callRetrySeconds` apart, within the question's five minutes.
    */
@@ -451,6 +488,11 @@ export interface StoreConfig {
    */
   readonly browse: BrowseSettings;
   /**
+   * The Shop Partner catalogue (ruling 96): the category taxonomy with the details each requires,
+   * the fourteen allergens, the units, and the photo rules.
+   */
+  readonly catalogue: CatalogueSettings;
+  /**
    * Areas (Anthony, 30 October 2026): what each UK postcode area is called, the areas run as one
    * (London), the gentle warning given as a Shopper orders where there is no Runner yet, the text
    * they get when a Runner joins and the hours it is never sent, the staff status words, and how
@@ -608,6 +650,17 @@ function giftCardAmounts(value: unknown): number[] {
     throw new StoreConfigError('extras.giftCardPence must be a list of amounts in pence.');
   }
   return value.map((entry, index) => wholeNumber(entry, `extras.giftCardPence[${index}]`, 100));
+}
+
+/** One capital letter from the speakable alphabet: what a public ID starts with (ruling 97). */
+function idPrefix(value: unknown, path: string): string {
+  const letter = str(value, path).toUpperCase();
+  if (letter.length !== 1 || !/[A-Z]/.test(letter) || !SPEAKABLE_ALPHABET.includes(letter)) {
+    throw new StoreConfigError(
+      `${path} must be one capital letter that is easy to hear; got "${letter}".`,
+    );
+  }
+  return letter;
 }
 
 function wholeNumber(value: unknown, path: string, minimum = 0): number {
@@ -875,7 +928,212 @@ function partnerPricing(raw: Unknown): PartnerPricing {
       raw['plusFirstMonthFree'] ?? true,
       'extras.partners.plusFirstMonthFree',
     ),
+    proMonthlyPence: wholeNumber(
+      raw['proMonthlyPence'] ?? 2999,
+      'extras.partners.proMonthlyPence',
+      1,
+    ),
+    plans: partnerPlans(
+      raw['plans'] === undefined ? {} : object(raw['plans'], 'extras.partners.plans'),
+      wholeNumber(raw['freeProductLimit'] ?? 10, 'extras.partners.freeProductLimit', 1),
+    ),
     excludedServiceKinds: (excluded as string[]).map((kind) => kind.trim()).filter(Boolean),
+  };
+}
+
+/** What each of the three packages gives (ruling 96), by default the figures Anthony ruled. */
+const DEFAULT_PLAN_LIMITS: Record<PartnerPlan, PartnerPlanLimits> = {
+  free: {
+    name: 'Free listing',
+    products: 10,
+    photosPerProduct: 1,
+    variants: false,
+    featured: false,
+    bulkAdd: false,
+    runnerCalls: false,
+    approvalPriority: 'normal',
+  },
+  plus: {
+    name: 'Shop Partner Plus',
+    products: 300,
+    photosPerProduct: 3,
+    variants: true,
+    featured: false,
+    bulkAdd: false,
+    runnerCalls: true,
+    approvalPriority: 'normal',
+  },
+  pro: {
+    name: 'Shop Partner Pro',
+    products: 3000,
+    photosPerProduct: 6,
+    variants: true,
+    featured: true,
+    bulkAdd: true,
+    runnerCalls: true,
+    approvalPriority: 'high',
+  },
+};
+
+function partnerPlans(raw: Unknown, freeProductLimit: number): Record<PartnerPlan, PartnerPlanLimits> {
+  const plans = {} as Record<PartnerPlan, PartnerPlanLimits>;
+  for (const plan of PARTNER_PLANS) {
+    const path = `extras.partners.plans.${plan}`;
+    const given = raw[plan] === undefined ? {} : object(raw[plan], path);
+    const defaults = DEFAULT_PLAN_LIMITS[plan];
+    const priority = given['approvalPriority'] ?? defaults.approvalPriority;
+    if (priority !== 'normal' && priority !== 'high') {
+      throw new StoreConfigError(`${path}.approvalPriority must be normal or high.`);
+    }
+    plans[plan] = {
+      name: str(given['name'] ?? defaults.name, `${path}.name`),
+      products: wholeNumber(
+        given['products'] ?? (plan === 'free' ? freeProductLimit : defaults.products),
+        `${path}.products`,
+        1,
+      ),
+      photosPerProduct: wholeNumber(
+        given['photosPerProduct'] ?? defaults.photosPerProduct,
+        `${path}.photosPerProduct`,
+        0,
+      ),
+      variants: bool(given['variants'] ?? defaults.variants, `${path}.variants`),
+      featured: bool(given['featured'] ?? defaults.featured, `${path}.featured`),
+      bulkAdd: bool(given['bulkAdd'] ?? defaults.bulkAdd, `${path}.bulkAdd`),
+      runnerCalls: bool(given['runnerCalls'] ?? defaults.runnerCalls, `${path}.runnerCalls`),
+      approvalPriority: priority,
+    };
+  }
+  if (plans.free.products !== freeProductLimit) {
+    throw new StoreConfigError(
+      'extras.partners.plans.free.products must equal extras.partners.freeProductLimit: they are the same figure.',
+    );
+  }
+  if (plans.free.products > plans.plus.products || plans.plus.products > plans.pro.products) {
+    throw new StoreConfigError(
+      'extras.partners.plans: each package must carry at least as many products as the one below it.',
+    );
+  }
+  return plans;
+}
+
+/** The fourteen allergens UK food law names, unless the configuration lists them itself. */
+const DEFAULT_ALLERGENS = [
+  'Celery',
+  'Cereals containing gluten',
+  'Crustaceans',
+  'Eggs',
+  'Fish',
+  'Lupin',
+  'Milk',
+  'Molluscs',
+  'Mustard',
+  'Peanuts',
+  'Sesame',
+  'Soya',
+  'Sulphur dioxide and sulphites',
+  'Tree nuts',
+];
+
+/** One category of each kind, for a configuration that names none. */
+const DEFAULT_CATEGORIES = [
+  { id: 'groceries', name: 'Groceries', kind: 'grocery', requires: ['unit'] },
+  { id: 'menu', name: 'Menu', kind: 'restaurant', requires: ['allergens'] },
+  { id: 'services', name: 'Services', kind: 'service', requires: [] },
+];
+
+/** The Shop Partner catalogue's taxonomy and photo rules (ruling 96). */
+function parseCatalogue(raw: Unknown): CatalogueSettings {
+  const categories: CatalogueCategory[] = [];
+  const seen = new Set<string>();
+  for (const [index, entry] of array(
+    raw['categories'] ?? DEFAULT_CATEGORIES,
+    'catalogue.categories',
+  ).entries()) {
+    const path = `catalogue.categories[${index}]`;
+    const given = object(entry, path);
+    const id = str(given['id'], `${path}.id`).trim();
+    if (!/^[a-z0-9-]+$/.test(id)) {
+      throw new StoreConfigError(`${path}.id must be lower-case letters, digits and dashes.`);
+    }
+    if (seen.has(id)) throw new StoreConfigError(`${path}.id "${id}" is used twice.`);
+    seen.add(id);
+    const kind = given['kind'];
+    if (!(CATEGORY_KINDS as readonly unknown[]).includes(kind)) {
+      throw new StoreConfigError(`${path}.kind must be one of ${CATEGORY_KINDS.join(', ')}.`);
+    }
+    const requiresRaw = given['requires'] ?? [];
+    if (!Array.isArray(requiresRaw)) {
+      throw new StoreConfigError(`${path}.requires must be a list.`);
+    }
+    const requires = requiresRaw.map((detail, at) => {
+      if (!(CATEGORY_DETAILS as readonly unknown[]).includes(detail)) {
+        throw new StoreConfigError(
+          `${path}.requires[${at}] must be one of ${CATEGORY_DETAILS.join(', ')}.`,
+        );
+      }
+      return detail as CategoryDetail;
+    });
+    categories.push({
+      id,
+      name: str(given['name'], `${path}.name`).trim(),
+      kind: kind as CategoryKind,
+      requires,
+    });
+  }
+  for (const kind of CATEGORY_KINDS) {
+    if (!categories.some((category) => category.kind === kind)) {
+      throw new StoreConfigError(`catalogue.categories must have at least one ${kind} category.`);
+    }
+  }
+  const allergens = wordList(raw['allergens'] ?? DEFAULT_ALLERGENS, 'catalogue.allergens');
+  if (allergens.length !== 14) {
+    throw new StoreConfigError('catalogue.allergens must list the fourteen UK allergens.');
+  }
+  const units = wordList(raw['units'] ?? ['g', 'kg', 'ml', 'l', 'each', 'pack'], 'catalogue.units');
+  const photos = raw['photos'] === undefined ? {} : object(raw['photos'], 'catalogue.photos');
+  const sizes = photos['sizes'] === undefined ? {} : object(photos['sizes'], 'catalogue.photos.sizes');
+  const thumb = wholeNumber(sizes['thumb'] ?? 320, 'catalogue.photos.sizes.thumb', 64);
+  const medium = wholeNumber(sizes['medium'] ?? 800, 'catalogue.photos.sizes.medium', thumb);
+  const full = wholeNumber(sizes['full'] ?? 1600, 'catalogue.photos.sizes.full', medium);
+  const hardFloor = wholeNumber(
+    photos['hardFloorLongSide'] ?? 500,
+    'catalogue.photos.hardFloorLongSide',
+    1,
+  );
+  const darkBelow = wholeNumber(photos['darkBelow'] ?? 50, 'catalogue.photos.darkBelow', 0);
+  const brightAbove = wholeNumber(
+    photos['brightAbove'] ?? 215,
+    'catalogue.photos.brightAbove',
+    darkBelow + 1,
+  );
+  if (brightAbove > 255) {
+    throw new StoreConfigError('catalogue.photos.brightAbove must be at most 255.');
+  }
+  return {
+    categories,
+    allergens,
+    units,
+    descriptionMaxLength: wholeNumber(
+      raw['descriptionMaxLength'] ?? 600,
+      'catalogue.descriptionMaxLength',
+      40,
+    ),
+    photos: {
+      sizes: { thumb, medium, full },
+      webpQuality: wholeNumber(photos['webpQuality'] ?? 82, 'catalogue.photos.webpQuality', 1),
+      jpegQuality: wholeNumber(photos['jpegQuality'] ?? 85, 'catalogue.photos.jpegQuality', 1),
+      hardFloorLongSide: hardFloor,
+      minimumLongSide: wholeNumber(
+        photos['minimumLongSide'] ?? 800,
+        'catalogue.photos.minimumLongSide',
+        hardFloor,
+      ),
+      darkBelow,
+      brightAbove,
+      blurBelow: wholeNumber(photos['blurBelow'] ?? 40, 'catalogue.photos.blurBelow', 0),
+      maxBytes: wholeNumber(photos['maxBytes'] ?? 4 * 1024 * 1024, 'catalogue.photos.maxBytes', 1024),
+    },
   };
 }
 
@@ -1576,6 +1834,12 @@ export function parseStoreConfig(input: unknown): StoreConfig {
   const versionOneRestrictions = object(root['versionOneRestrictions'], 'versionOneRestrictions');
   const voice = object(root['voice'], 'voice');
   const calls = object(root['calls'], 'calls');
+  const publicIds = root['publicIds'] === undefined ? {} : object(root['publicIds'], 'publicIds');
+  const idPrefixes =
+    publicIds['prefixes'] === undefined ? {} : object(publicIds['prefixes'], 'publicIds.prefixes');
+  const partnerOrders =
+    root['partnerOrders'] === undefined ? {} : object(root['partnerOrders'], 'partnerOrders');
+  const notes = root['notes'] === undefined ? {} : object(root['notes'], 'notes');
   const questions = root['questions'] === undefined ? {} : object(root['questions'], 'questions');
   const extras = root['extras'] === undefined ? {} : object(root['extras'], 'extras');
   const problems = object(root['problems'], 'problems');
@@ -1968,6 +2232,38 @@ export function parseStoreConfig(input: unknown): StoreConfig {
       ),
       runnerStartedFree: calls['runnerStartedFree'] !== false,
     },
+    publicIds: {
+      length: wholeNumber(publicIds['length'] ?? 6, 'publicIds.length', 4),
+      prefixes: {
+        shopper: idPrefix(idPrefixes['shopper'] ?? 'S', 'publicIds.prefixes.shopper'),
+        partner: idPrefix(idPrefixes['partner'] ?? 'P', 'publicIds.prefixes.partner'),
+        organisation: idPrefix(
+          idPrefixes['organisation'] ?? 'G',
+          'publicIds.prefixes.organisation',
+        ),
+        staff: idPrefix(idPrefixes['staff'] ?? 'T', 'publicIds.prefixes.staff'),
+      },
+    },
+    partnerOrders: {
+      historyDays: wholeNumber(partnerOrders['historyDays'] ?? 90, 'partnerOrders.historyDays', 1),
+      pageSize: wholeNumber(partnerOrders['pageSize'] ?? 20, 'partnerOrders.pageSize', 1),
+      messageMinutesAfterDelivery: wholeNumber(
+        partnerOrders['messageMinutesAfterDelivery'] ?? 15,
+        'partnerOrders.messageMinutesAfterDelivery',
+        0,
+      ),
+      messages: Object.fromEntries(
+        Object.entries(
+          partnerOrders['messages'] === undefined
+            ? {}
+            : object(partnerOrders['messages'], 'partnerOrders.messages'),
+        ).map(([kind, words]) => [kind, str(words, `partnerOrders.messages.${kind}`)]),
+      ),
+    },
+    notes: {
+      itemMaxChars: wholeNumber(notes['itemMaxChars'] ?? 120, 'notes.itemMaxChars', 1),
+      orderMaxChars: wholeNumber(notes['orderMaxChars'] ?? 300, 'notes.orderMaxChars', 1),
+    },
     questions: {
       callAttempts: wholeNumber(questions['callAttempts'] ?? 3, 'questions.callAttempts', 1),
       callRetrySeconds: wholeNumber(
@@ -2162,6 +2458,9 @@ export function parseStoreConfig(input: unknown): StoreConfig {
     browse: parseBrowse(
       root['browse'] === undefined ? {} : object(root['browse'], 'browse'),
       partnersParsed.excludedServiceKinds,
+    ),
+    catalogue: parseCatalogue(
+      root['catalogue'] === undefined ? {} : object(root['catalogue'], 'catalogue'),
     ),
     areas: parseAreas(root['areas'] === undefined ? {} : object(root['areas'], 'areas')),
     admin: {

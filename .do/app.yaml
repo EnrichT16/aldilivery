@@ -399,6 +399,38 @@ services:
         scope: RUN_TIME
         value: replace_with_the_region_such_as_lon1
 
+      # Shop Partners' product photos (ruling 96): DigitalOcean Spaces, served from the Space's
+      # CDN. Optional: without the first five, photos are kept in the database and nothing breaks.
+      # Yvette: Spaces Object Storage, Create a Space in London (lon1) with the CDN enabled; then
+      # API, Spaces Keys, Generate New Key. The CDN address is on the Space's Settings page. Once
+      # set, run `node packages/api/scripts/move-photos-to-spaces.mjs --yes` once with DATABASE_URL
+      # to move the photos already taken. The same key as RECORDING_S3_KEY may be used.
+      - key: SPACES_KEY
+        scope: RUN_TIME
+        type: SECRET
+        value: replace_with_the_spaces_access_key
+
+      - key: SPACES_SECRET
+        scope: RUN_TIME
+        type: SECRET
+        value: replace_with_the_spaces_secret_key
+
+      - key: SPACES_BUCKET
+        scope: RUN_TIME
+        value: replace_with_the_space_name
+
+      - key: SPACES_REGION
+        scope: RUN_TIME
+        value: replace_with_the_region_such_as_lon1
+
+      - key: SPACES_ENDPOINT
+        scope: RUN_TIME
+        value: replace_with_the_spaces_endpoint_such_as_lon1.digitaloceanspaces.com
+
+      - key: SPACES_CDN_URL
+        scope: RUN_TIME
+        value: replace_with_the_cdn_address_such_as_https://space.lon1.cdn.digitaloceanspaces.com
+
 # ---------------------------------------------------------------------------
 # The web app
 # ---------------------------------------------------------------------------
@@ -445,7 +477,19 @@ static_sites:
 # ---------------------------------------------------------------------------
 # Rule Eight: this database belongs to this product and to nothing else. It is a development
 # database, which is the smallest managed PostgreSQL App Platform offers, and it is not
-# backed up. Move it to a production cluster before there are real orders in it.
+# backed up by DigitalOcean. Move it to a production cluster before there are real orders in it.
+#
+# Off-site copies (ruling 98, docs/RESTORE.md): every night at 02:17 UTC the GitHub Actions
+# workflow .github/workflows/backup.yml takes a pg_dump of this database, encrypts it and sends it
+# to a bucket outside DigitalOcean, kept 30 days; every Sunday .github/workflows/restore-test.yml
+# restores the newest copy into a scratch database to prove it works. The workflows read these
+# repository secrets (GitHub: Settings, Secrets and variables, Actions), none of which belongs in
+# this file: BACKUP_DATABASE_URL (a read-only user on this database; on a development database,
+# which allows no extra users, the app's own DATABASE_URL until it moves to a cluster),
+# BACKUP_PASSPHRASE, BACKUP_S3_ENDPOINT, BACKUP_S3_BUCKET, BACKUP_S3_KEY, BACKUP_S3_SECRET, and
+# optionally BACKUP_S3_REGION, BACKUP_ALERT_WEBHOOK and the SPACES_* values for the photos.
+# The `version` below is the PostgreSQL major the workflows install a matching client for;
+# change it here when the database is upgraded and they follow.
 databases:
   - name: aldilivery-db
     engine: PG

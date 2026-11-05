@@ -23,6 +23,8 @@ import { useOptionalSession } from './session';
 export interface BasketLine {
   item: CatalogueItem;
   quantity: number;
+  /** The Shopper's note on this item (ruling 97), such as "ripe, not green". */
+  note?: string;
 }
 
 interface BasketValue {
@@ -34,6 +36,11 @@ interface BasketValue {
   add: (item: CatalogueItem) => boolean;
   remove: (itemId: string) => void;
   setQuantity: (itemId: string, quantity: number) => void;
+  /** A note on one item for the Runner (ruling 97), cut to `notes.itemMaxChars`; '' takes it off. */
+  setNote: (itemId: string, note: string) => void;
+  /** A note for the whole order (ruling 97), cut to `notes.orderMaxChars`. */
+  orderNote: string;
+  setOrderNote: (note: string) => void;
   clear: () => void;
   pricing: BasketPricing;
   /**
@@ -127,8 +134,25 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
     );
   }, []);
 
+  const setNote = useCallback((itemId: string, note: string) => {
+    const cut = note.slice(0, storeConfig.notes.itemMaxChars);
+    setLines((current) =>
+      current.map((line) =>
+        line.item.id === itemId
+          ? { ...line, ...(cut.trim() ? { note: cut } : { note: undefined }) }
+          : line,
+      ),
+    );
+  }, []);
+
+  const [orderNote, setOrderNoteState] = useState('');
+  const setOrderNote = useCallback((note: string) => {
+    setOrderNoteState(note.slice(0, storeConfig.notes.orderMaxChars));
+  }, []);
+
   const clear = useCallback(() => {
     setLines([]);
+    setOrderNoteState('');
   }, []);
 
   // A restaurant order (Anthony, 30 October 2026): every dish from one restaurant, café or
@@ -256,6 +280,9 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
       add,
       remove,
       setQuantity,
+      setNote,
+      orderNote,
+      setOrderNote,
       clear,
       pricing,
       overMaximum,
@@ -271,6 +298,9 @@ export function BasketProvider({ children }: { children: ReactNode }): JSX.Eleme
       add,
       remove,
       setQuantity,
+      setNote,
+      orderNote,
+      setOrderNote,
       clear,
       pricing,
       overMaximum,

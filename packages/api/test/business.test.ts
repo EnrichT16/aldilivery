@@ -7,6 +7,7 @@
 import { ORGANISATION_CONSENT_VERSION } from '@aldilivery/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { testPicture } from '../src/lib/photo-quality.js';
 import {
   buildTestApp,
   seedCatalogue,
@@ -80,7 +81,10 @@ describe('partner shops', () => {
         pricePence: 350,
         tags: 'bread, bakery',
         expiresOn: '2026-10-10',
-        photo: Buffer.from('a photo').toString('base64'),
+        // A real picture (ruling 96): anything else is refused as unreadable.
+        photo: (await testPicture({ width: 1200, height: 900, checkered: true })).toString(
+          'base64',
+        ),
         photoType: 'image/jpeg',
       },
     });

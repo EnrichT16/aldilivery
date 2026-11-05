@@ -28,6 +28,7 @@ import { ForbiddenError } from '../errors.js';
 import { formatPence } from '@aldilivery/core';
 import { canCarry } from '../services/dispatch.js';
 import { needsYou } from '../services/needs-you.js';
+import { ensurePublicId } from '../services/public-ids.js';
 import { mapsLink } from '../services/sos.js';
 import {
   alreadyRefundedPence,
@@ -839,11 +840,15 @@ export async function registerAdminRoutes(app: FastifyInstance): Promise<void> {
       .object({ search: z.string().trim().min(2, 'Please type at least two letters.').max(80) })
       .parse(request.query ?? {});
     await recordAudit(request, { action: 'shopper.searched', detail: search });
+    const found = await repository.admin.searchShoppers(search, 20);
+    // Each one's Shopper ID (ruling 97), for staff to check over the phone.
+    for (const shopper of found) await ensurePublicId(app.ctx, 'shopper', shopper);
     return {
-      shoppers: (await repository.admin.searchShoppers(search, 20)).map((shopper) => ({
+      shoppers: found.map((shopper) => ({
         id: shopper.id,
         displayName: shopper.displayName,
         handle: shopper.handle,
+        publicId: shopper.publicId,
         createdAt: shopper.createdAt,
       })),
     };

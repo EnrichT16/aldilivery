@@ -38,6 +38,7 @@ import { feltDelaysOf } from './lib/ozi-latency.js';
 import type { MailboxLink } from './lib/mailbox.js';
 import type { OpenPricesLookup } from './lib/open-prices.js';
 import type { PaymentsGateway } from './lib/payments.js';
+import { databasePhotoStore, type PhotoStore } from './lib/photo-store.js';
 import type { PostcodeLookup } from './lib/postcodes.js';
 import type { SendPush } from './lib/push.js';
 import type { SendText } from './lib/sms.js';
@@ -75,6 +76,7 @@ import { registerCompanyInboxRoutes } from './routes/company-inbox.js';
 import { registerReminderRoutes } from './routes/reminders.js';
 import { registerVoiceRoutes } from './routes/voice.js';
 import { registerPaymentRoutes } from './routes/payments.js';
+import { registerPartnerOrderRoutes } from './routes/partner-orders.js';
 import { registerReimbursementRoutes } from './routes/reimbursements.js';
 import { registerOrderExtraRoutes } from './routes/order-extras.js';
 import { registerReviewRoutes } from './routes/reviews.js';
@@ -181,6 +183,11 @@ export interface AppContext {
    * own address and outgoing server. Empty in the tests unless stand-ins are given.
    */
   mailboxes: MailboxLink[];
+  /**
+   * Where partners' product photos are kept (ruling 96): DigitalOcean Spaces when the SPACES_*
+   * settings are given, otherwise the database, so nothing breaks until it is set up.
+   */
+  photoStore: PhotoStore;
 }
 
 export interface Session {
@@ -230,6 +237,7 @@ export interface BuildAppOptions extends Partial<
     | 'backgroundChecks'
     | 'findPostcode'
     | 'mailboxes'
+    | 'photoStore'
   >
 > {
   config: StoreConfig;
@@ -326,6 +334,7 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     backgroundChecks: options.backgroundChecks ?? false,
     findPostcode: options.findPostcode ?? null,
     mailboxes: options.mailboxes ?? [],
+    photoStore: options.photoStore ?? databasePhotoStore(options.repository),
   };
 
   app.decorate('ctx', ctx);
@@ -647,6 +656,7 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
   await registerStaffRoutes(app);
   await registerOwnerControlRoutes(app);
   await registerBusinessRoutes(app);
+  await registerPartnerOrderRoutes(app);
   await registerAnalyticsRoutes(app);
   await registerOwnerRoutes(app);
   await registerOziRoutes(app);

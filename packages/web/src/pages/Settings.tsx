@@ -10,6 +10,7 @@ import { OrganisationConsent } from '../components/OrganisationConsent';
 import { ReferralCard } from '../components/ReferralCard';
 import { Reminders } from '../components/Reminders';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
+import { YourId } from '../components/YourId';
 import {
   cancelPlan,
   fetchMyOrganisation,
@@ -241,6 +242,9 @@ export function Settings(): JSX.Element {
       {/* Reminders for everyone (ruling 93): the Shopper's, here on their account page. */}
       {shopper && <Reminders as="shopper" />}
 
+      {/* Their speakable Shopper ID (ruling 97), with Ozi to read it out. */}
+      {shopper && <YourId words="Shopper ID" id={shopper.publicId} />}
+
       {shopper && (
         // A shared phone (Anthony, 4 October 2026). By voice: "sign me out", "change account".
         <section aria-labelledby="account-heading" className="space-y-3 max-w-xl">
@@ -271,8 +275,8 @@ export function Settings(): JSX.Element {
         </h2>
         <AppVersion className="!text-base" />
         <p className="m-0 extra">
-          Ask {assistant} &quot;what version is this&quot; to hear it. If the app looks wrong or does
-          not load fully, reset it: a fresh copy comes from our server and you stay signed in.
+          Ask {assistant} &quot;what version is this&quot; to hear it. If the app looks wrong or
+          does not load fully, reset it: a fresh copy comes from our server and you stay signed in.
         </p>
         <ResetApp />
       </section>

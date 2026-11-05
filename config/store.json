@@ -151,6 +151,40 @@
       "freeProductLimit": 10,
       "plusMonthlyPence": 1499,
       "plusFirstMonthFree": true,
+      "proMonthlyPence": 2999,
+      "plansAbout": "The three Shop Partner packages (Anthony, 5 November 2026, ruling 96). A shop on Free has the limits of 'free'; a shop that has paid Plus or Pro has that package's limits while it is paid, and Free's when it lapses (nothing is deleted, only hidden). 'products' is the most listed, live or waiting; 'photosPerProduct' how many photos each product may carry; 'variants' whether sizes and packs of one product may be grouped; 'featured' whether the shop may pick featured products and order its page; 'bulkAdd' whether a CSV of products may be uploaded; 'runnerCalls' whether the shop is rung about a product by a Runner; 'approvalPriority' where its products wait in the owner's and staff's queue. A café, takeaway or service has no product limit; a Preferred Partner has Plus free and may buy Pro for the difference.",
+      "plans": {
+        "free": {
+          "name": "Free listing",
+          "products": 10,
+          "photosPerProduct": 1,
+          "variants": false,
+          "featured": false,
+          "bulkAdd": false,
+          "runnerCalls": false,
+          "approvalPriority": "normal"
+        },
+        "plus": {
+          "name": "Shop Partner Plus",
+          "products": 300,
+          "photosPerProduct": 3,
+          "variants": true,
+          "featured": false,
+          "bulkAdd": false,
+          "runnerCalls": true,
+          "approvalPriority": "normal"
+        },
+        "pro": {
+          "name": "Shop Partner Pro",
+          "products": 3000,
+          "photosPerProduct": 6,
+          "variants": true,
+          "featured": true,
+          "bulkAdd": true,
+          "runnerCalls": true,
+          "approvalPriority": "high"
+        }
+      },
       "excludedServiceKinds": [
         "credit",
         "loans",
@@ -184,6 +218,30 @@
     "maxOutstandingPence": 1000,
     "afterDeliveryMinutes": 15,
     "runnerStartedFree": true
+  },
+  "publicIds": {
+    "length": 6,
+    "prefixes": {
+      "shopper": "S",
+      "partner": "P",
+      "organisation": "G",
+      "staff": "T"
+    }
+  },
+  "partnerOrders": {
+    "historyDays": 90,
+    "pageSize": 20,
+    "messageMinutesAfterDelivery": 15,
+    "messages": {
+      "ready": "Ready for pickup",
+      "late": "Running 10 minutes late",
+      "side_door": "Please come to the side door",
+      "substituted": "We've substituted one item, please check with the Shopper"
+    }
+  },
+  "notes": {
+    "itemMaxChars": 120,
+    "orderMaxChars": 300
   },
   "questions": {
     "callAttempts": 3,
@@ -443,6 +501,65 @@
       "Computer and phone repair"
     ],
     "ofstedCategories": ["Nanny and childminder"]
+  },
+  "catalogue": {
+    "about": "The Shop Partner catalogue, built the way the professionals build it (Anthony, 5 November 2026, ruling 96). 'categories' is the small taxonomy a partner files each product under, by kind of partner ('grocery' for shops, 'restaurant' for cafés and takeaways, 'service' for services); 'requires' names the details a product in that category must give: 'unit' (a quantity and its unit, so a price per kilo or per litre can be shown, as the Price Marking Order 2004 asks of groceries), 'allergens' (which of the 14 UK allergens it contains, or none), 'bestBefore'. 'allergens' are the fourteen the Food Information Regulations 2014 name. 'units' are the units a product may be sold in. 'photos' are the photo rules: the derivative sizes made (long side, pixels), the WebP quality, the smallest long side accepted at all ('hardFloorLongSide'), the long side below which a photo is accepted with a warning ('minimumLongSide'), the mean brightness (0 to 255) below which it is called too dark and above which too bright, and the sharpness (the variance of a Laplacian) below which it is called blurry. 'descriptionMaxLength' is the most a product's description may be.",
+    "categories": [
+      { "id": "fruit-veg", "name": "Fruit and vegetables", "kind": "grocery", "requires": ["unit"] },
+      { "id": "bakery", "name": "Bakery", "kind": "grocery", "requires": ["allergens"] },
+      { "id": "dairy-eggs", "name": "Dairy and eggs", "kind": "grocery", "requires": ["unit", "allergens"] },
+      { "id": "meat-fish", "name": "Meat and fish", "kind": "grocery", "requires": ["unit", "bestBefore"] },
+      { "id": "chilled-frozen", "name": "Chilled and frozen", "kind": "grocery", "requires": ["unit", "allergens"] },
+      { "id": "cupboard", "name": "Cupboard", "kind": "grocery", "requires": ["unit", "allergens"] },
+      { "id": "drinks", "name": "Drinks", "kind": "grocery", "requires": ["unit"] },
+      { "id": "snacks-sweets", "name": "Snacks and sweets", "kind": "grocery", "requires": ["unit", "allergens"] },
+      { "id": "world-foods", "name": "World foods", "kind": "grocery", "requires": ["unit", "allergens"] },
+      { "id": "household", "name": "Household", "kind": "grocery", "requires": [] },
+      { "id": "health-beauty", "name": "Health and beauty", "kind": "grocery", "requires": [] },
+      { "id": "baby", "name": "Baby", "kind": "grocery", "requires": [] },
+      { "id": "pets", "name": "Pets", "kind": "grocery", "requires": [] },
+      { "id": "other-grocery", "name": "Other", "kind": "grocery", "requires": [] },
+      { "id": "starters", "name": "Starters", "kind": "restaurant", "requires": ["allergens"] },
+      { "id": "mains", "name": "Mains", "kind": "restaurant", "requires": ["allergens"] },
+      { "id": "sides", "name": "Sides", "kind": "restaurant", "requires": ["allergens"] },
+      { "id": "desserts", "name": "Desserts", "kind": "restaurant", "requires": ["allergens"] },
+      { "id": "menu-drinks", "name": "Drinks", "kind": "restaurant", "requires": [] },
+      { "id": "meal-deals", "name": "Meal deals", "kind": "restaurant", "requires": ["allergens"] },
+      { "id": "home-services", "name": "Home and garden", "kind": "service", "requires": [] },
+      { "id": "personal-services", "name": "Hair, beauty and wellbeing", "kind": "service", "requires": [] },
+      { "id": "care-services", "name": "Care and tuition", "kind": "service", "requires": [] },
+      { "id": "repairs-services", "name": "Repairs and alterations", "kind": "service", "requires": [] },
+      { "id": "other-services", "name": "Other services", "kind": "service", "requires": [] }
+    ],
+    "allergens": [
+      "Celery",
+      "Cereals containing gluten",
+      "Crustaceans",
+      "Eggs",
+      "Fish",
+      "Lupin",
+      "Milk",
+      "Molluscs",
+      "Mustard",
+      "Peanuts",
+      "Sesame",
+      "Soya",
+      "Sulphur dioxide and sulphites",
+      "Tree nuts"
+    ],
+    "units": ["g", "kg", "ml", "l", "each", "pack"],
+    "descriptionMaxLength": 600,
+    "photos": {
+      "sizes": { "thumb": 320, "medium": 800, "full": 1600 },
+      "webpQuality": 82,
+      "jpegQuality": 85,
+      "hardFloorLongSide": 500,
+      "minimumLongSide": 800,
+      "darkBelow": 50,
+      "brightAbove": 215,
+      "blurBelow": 40,
+      "maxBytes": 4194304
+    }
   },
   "areas": {
     "about": "Areas (Anthony, 30 October 2026). Ozi Delivery runs across the whole UK, and every area is open: nobody is ever refused because of where they are. An area is a UK postcode area, the letters a postcode starts with; an area missing from 'names' is called by its letters. 'groups' are areas run as one: the London postcode areas are one area, London. Areas are kept for staff to see and for sending jobs to local Runners, same area, nearest first; staff can pause one. 'openWords' is what a Shopper asking about an area is told ({area} is its name). 'noRunnerWords' is the gentle warning given only as a Shopper places an order, on the confirmation screen, by voice and on the telephone, when their delivery area has no approved Runner able to work yet or is paused; it never stops the order. 'goAheadQuestion' is asked after it by voice and on the telephone, and 'noRunnerOkButton' and 'noRunnerShareButton' are its two buttons on the screen. 'inviteDriverWords' goes with the Shopper's referral link to a driver ({link} is the link). 'runnerJoinedWords' is the one text a warned Shopper gets when a Runner is approved in their area, never sent between 'textQuietFrom' and 'textQuietUntil' (UK time). 'statusHasRunner', 'statusNoRunner' and 'statusPaused' are the status words on the staff Areas page. A Runner's live position older than 'livePositionMinutes' is not trusted, and their home postcode is used. The Runner app shares where they are every 'shareOnShiftSeconds' while on shift, and every 'shareOnJobSeconds' at most while they have a job in hand.",

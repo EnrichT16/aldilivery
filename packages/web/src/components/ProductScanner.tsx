@@ -298,9 +298,9 @@ export function ProductScanner({
   onAdded,
   registerVoice,
 }: {
-  /** Partner Plus: the camera's frame becomes the product's photo. */
+  /** The package carries photos (every package does since ruling 96): the camera's frame becomes the product's photo. */
   plus: boolean;
-  /** How many more a free listing may carry, or null for no limit. */
+  /** How many more the package may carry, or null for no limit. */
   placesLeft: number | null;
   products: PartnerProductRow[];
   say: (words: string) => void;
@@ -646,7 +646,7 @@ export function ProductScanner({
         itself and says each product. One scan covers every identical pack. Check the list, then
         press Add all; nothing is added before that.
         {placesLeft !== null
-          ? ` On a free listing you can add ${placesLeft} more product${placesLeft === 1 ? '' : 's'}.`
+          ? ` On your package you can add ${placesLeft} more product${placesLeft === 1 ? '' : 's'}.`
           : ''}
         {plus ? ' The picture becomes the product’s photo.' : ''}
       </p>
