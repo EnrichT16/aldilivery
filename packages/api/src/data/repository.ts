@@ -47,6 +47,7 @@ import type {
   SavedAddress,
   Call,
   CallLeg,
+  PartnerOrderMessage,
   RunnerDocument,
   RunnerFeedback,
   ProblemReport,
@@ -213,6 +214,7 @@ export type CreateOrder = Pick<
       | 'chargeStatus'
       | 'restaurantShopId'
       | 'restaurantDiscountPercent'
+      | 'note'
     >
   > & { items: CreateOrderItem[] };
 
@@ -680,6 +682,21 @@ export interface Repository {
     listChargesDue(shopperId: string): Promise<Call[]>;
     update(id: string, patch: Partial<Omit<Call, 'id'>>): Promise<Call>;
   };
+  /**
+   * The short set messages a Shop Partner sent the Runner of an order (ruling 97). Only ever
+   * added to.
+   */
+  partnerMessages: {
+    create(input: Omit<PartnerOrderMessage, 'id'>): Promise<PartnerOrderMessage>;
+    /** Oldest first. */
+    listForOrder(orderId: string): Promise<PartnerOrderMessage[]>;
+  };
+
+  /** Speakable public IDs (ruling 97): whether one is already somebody's, of any kind. */
+  publicIds: {
+    inUse(id: string): Promise<boolean>;
+  };
+
   callLegs: {
     create(input: Omit<CallLeg, 'id'>): Promise<CallLeg>;
     findById(id: string): Promise<CallLeg | null>;
@@ -803,6 +820,16 @@ export interface Repository {
      * day, and confirmed (waiting for payment), paid, offered or accepted. Soonest first.
      */
     listScheduled(): Promise<Order[]>;
+    /**
+     * A Shop Partner's orders (ruling 97): every order placed since `since` that is a restaurant
+     * order from the shop, or carries a line whose catalogue entry is one of the shop's own
+     * (`catalogueItemIds`). Newest first.
+     */
+    listForPartnerShop(where: {
+      shopId: string;
+      catalogueItemIds: readonly string[];
+      since: Date;
+    }): Promise<Order[]>;
   };
 
   offers: {

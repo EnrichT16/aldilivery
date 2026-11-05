@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { BrowseFields, readBrowseFields } from '../components/BrowseFields';
+import { PartnerOrders } from '../components/PartnerOrders';
 import { PartnerProtection } from '../components/PartnerProtection';
 import { ProductScanner } from '../components/ProductScanner';
 import { ReferralCard } from '../components/ReferralCard';
@@ -83,6 +84,11 @@ export function PartnerDashboard(): JSX.Element {
   const scanVoice = useRef<((text: string) => boolean) | null>(null);
   const registerScanVoice = useCallback((handler: ((text: string) => boolean) | null) => {
     scanVoice.current = handler;
+  }, []);
+  // Likewise the orders section's own commands (ruling 97): "read my orders", "order ready".
+  const ordersVoice = useRef<((text: string) => boolean) | null>(null);
+  const registerOrdersVoice = useCallback((handler: ((text: string) => boolean) | null) => {
+    ordersVoice.current = handler;
   }, []);
   const sayIt = useCallback((words: string) => void latest.current.ozi.say(words), []);
   const confirmIt = useCallback((question: string, then: (yes: boolean) => void) => {
@@ -204,6 +210,7 @@ export function PartnerDashboard(): JSX.Element {
 
     const handle = (text: string): boolean => {
       if (scanVoice.current?.(text)) return true;
+      if (ordersVoice.current?.(text)) return true;
       const command = understandPartner(text);
       const current = latest.current.data;
       if (!command) {
@@ -533,6 +540,9 @@ export function PartnerDashboard(): JSX.Element {
 
       {/* The payment warning, kept on the dashboard, and the business's Ambassador (31 October 2026). */}
       <PartnerProtection />
+
+      {/* The shop's orders and its Runner (ruling 97). */}
+      <PartnerOrders registerVoice={registerOrdersVoice} />
 
       <section
         aria-labelledby="plan-heading"

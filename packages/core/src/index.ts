@@ -369,3 +369,14 @@ export {
   ukWhenWords,
   type UkParts,
 } from './uk-time.js';
+
+export {
+  PUBLIC_ID_WORDS,
+  SPEAKABLE_ALPHABET,
+  idReadOut,
+  isSpeakableId,
+  newPublicId,
+  spellId,
+  type PublicIdKind,
+  type PublicIdSettings,
+} from './public-ids.js';

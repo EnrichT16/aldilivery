@@ -103,6 +103,7 @@ import { CheckoutInsightsPage, RestaurantPartners } from '../components/StaffRes
 import { BrowseFields, readBrowseFields } from '../components/BrowseFields';
 import { ShareCard } from '../components/ShareCard';
 import { StaffVoice } from '../components/StaffVoice';
+import { YourId } from '../components/YourId';
 import { OziCall } from '../components/OziCall';
 import { OziCallSettings } from '../components/OziCallSettings';
 import { OwnerAlertSettings } from '../components/OwnerAlertSettings';
@@ -418,6 +419,8 @@ export function Staff(): JSX.Element {
         <h1 className="text-display font-bold m-0">Admin</h1>
         <LiveClock />
       </div>
+      {/* Their speakable Staff ID (ruling 97). */}
+      <YourId words="Staff ID" id={me.publicId} heading={false} />
       <p className="m-0">
         Signed in as {by}, {me.isOwner ? 'Founder and owner' : me.title}.
         {me.viewOnly ? ' You can look, but not change anything.' : ''}{' '}
@@ -1977,7 +1980,8 @@ function Memory({
   const timings = (row: ExchangeRow): string | null => {
     const parts: string[] = [];
     if (typeof row.feltMs === 'number') parts.push(`felt ${seconds(row.feltMs)} to the first word`);
-    if (typeof row.firstWordMs === 'number') parts.push(`server ${seconds(row.firstWordMs)} to the first sentence`);
+    if (typeof row.firstWordMs === 'number')
+      parts.push(`server ${seconds(row.firstWordMs)} to the first sentence`);
     if (typeof row.modelMs === 'number') parts.push(`${seconds(row.modelMs)} thinking`);
     if (typeof row.totalMs === 'number') parts.push(`${seconds(row.totalMs)} in all`);
     return parts.length === 0 ? null : `Took: ${parts.join(', ')}.`;
@@ -2730,6 +2734,7 @@ function Partners({
             <li key={shop.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
               <h4 className="m-0 font-bold">
                 {shop.name}
+                {shop.publicId ? ` (Partner ID ${shop.publicId})` : ''}
                 {shop.status === 'pending' ? ' (waiting to be approved)' : ''}
                 {shop.status === 'removed' ? ' (removed)' : !shop.active ? ' (paused)' : ''}
               </h4>

@@ -49,6 +49,7 @@ import {
   type AmbassadorProtectionSettings,
 } from './ambassador-protection.js';
 import type { RestaurantSettings } from './restaurants.js';
+import { SPEAKABLE_ALPHABET, type PublicIdSettings } from './public-ids.js';
 
 export type CatalogueSourceMode = 'partner_feed' | 'community';
 
@@ -260,6 +261,28 @@ export interface StoreConfig {
     readonly afterDeliveryMinutes: number;
     /** A call the Runner starts costs the Shopper nothing, and asks for no yes (ruling 90). */
     readonly runnerStartedFree: boolean;
+  };
+  /**
+   * Speakable IDs for everyone (ruling 97, 5 November 2026): the letter each kind of account's
+   * public ID starts with, and how many characters follow it. Runners keep their Runner ID.
+   */
+  readonly publicIds: PublicIdSettings;
+  /**
+   * Shop Partners seeing their orders and reaching their Runner (ruling 97): how far back the
+   * order history goes, how long after delivery a message to the Runner may still be sent, and
+   * the set messages a partner may send, each in Ozi's words. No free text ever reaches a Runner.
+   */
+  readonly partnerOrders: {
+    readonly historyDays: number;
+    /** How many past orders a page of the partner's history shows. */
+    readonly pageSize: number;
+    readonly messageMinutesAfterDelivery: number;
+    readonly messages: Readonly<Record<string, string>>;
+  };
+  /** Shopper notes (ruling 97): how long a note on one item, and on the whole order, may be. */
+  readonly notes: {
+    readonly itemMaxChars: number;
+    readonly orderMaxChars: number;
   };
   /**
    * "I can't find this" (ruling 90, 2 November 2026): the one tap also rings the Shopper, up to
@@ -608,6 +631,17 @@ function giftCardAmounts(value: unknown): number[] {
     throw new StoreConfigError('extras.giftCardPence must be a list of amounts in pence.');
   }
   return value.map((entry, index) => wholeNumber(entry, `extras.giftCardPence[${index}]`, 100));
+}
+
+/** One capital letter from the speakable alphabet: what a public ID starts with (ruling 97). */
+function idPrefix(value: unknown, path: string): string {
+  const letter = str(value, path).toUpperCase();
+  if (letter.length !== 1 || !/[A-Z]/.test(letter) || !SPEAKABLE_ALPHABET.includes(letter)) {
+    throw new StoreConfigError(
+      `${path} must be one capital letter that is easy to hear; got "${letter}".`,
+    );
+  }
+  return letter;
 }
 
 function wholeNumber(value: unknown, path: string, minimum = 0): number {
@@ -1576,6 +1610,12 @@ export function parseStoreConfig(input: unknown): StoreConfig {
   const versionOneRestrictions = object(root['versionOneRestrictions'], 'versionOneRestrictions');
   const voice = object(root['voice'], 'voice');
   const calls = object(root['calls'], 'calls');
+  const publicIds = root['publicIds'] === undefined ? {} : object(root['publicIds'], 'publicIds');
+  const idPrefixes =
+    publicIds['prefixes'] === undefined ? {} : object(publicIds['prefixes'], 'publicIds.prefixes');
+  const partnerOrders =
+    root['partnerOrders'] === undefined ? {} : object(root['partnerOrders'], 'partnerOrders');
+  const notes = root['notes'] === undefined ? {} : object(root['notes'], 'notes');
   const questions = root['questions'] === undefined ? {} : object(root['questions'], 'questions');
   const extras = root['extras'] === undefined ? {} : object(root['extras'], 'extras');
   const problems = object(root['problems'], 'problems');
@@ -1967,6 +2007,38 @@ export function parseStoreConfig(input: unknown): StoreConfig {
         0,
       ),
       runnerStartedFree: calls['runnerStartedFree'] !== false,
+    },
+    publicIds: {
+      length: wholeNumber(publicIds['length'] ?? 6, 'publicIds.length', 4),
+      prefixes: {
+        shopper: idPrefix(idPrefixes['shopper'] ?? 'S', 'publicIds.prefixes.shopper'),
+        partner: idPrefix(idPrefixes['partner'] ?? 'P', 'publicIds.prefixes.partner'),
+        organisation: idPrefix(
+          idPrefixes['organisation'] ?? 'G',
+          'publicIds.prefixes.organisation',
+        ),
+        staff: idPrefix(idPrefixes['staff'] ?? 'T', 'publicIds.prefixes.staff'),
+      },
+    },
+    partnerOrders: {
+      historyDays: wholeNumber(partnerOrders['historyDays'] ?? 90, 'partnerOrders.historyDays', 1),
+      pageSize: wholeNumber(partnerOrders['pageSize'] ?? 20, 'partnerOrders.pageSize', 1),
+      messageMinutesAfterDelivery: wholeNumber(
+        partnerOrders['messageMinutesAfterDelivery'] ?? 15,
+        'partnerOrders.messageMinutesAfterDelivery',
+        0,
+      ),
+      messages: Object.fromEntries(
+        Object.entries(
+          partnerOrders['messages'] === undefined
+            ? {}
+            : object(partnerOrders['messages'], 'partnerOrders.messages'),
+        ).map(([kind, words]) => [kind, str(words, `partnerOrders.messages.${kind}`)]),
+      ),
+    },
+    notes: {
+      itemMaxChars: wholeNumber(notes['itemMaxChars'] ?? 120, 'notes.itemMaxChars', 1),
+      orderMaxChars: wholeNumber(notes['orderMaxChars'] ?? 300, 'notes.orderMaxChars', 1),
     },
     questions: {
       callAttempts: wholeNumber(questions['callAttempts'] ?? 3, 'questions.callAttempts', 1),

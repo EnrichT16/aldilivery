@@ -28,6 +28,7 @@ import { AGREE_FIRST, hasAgreed } from '../services/runner-agreement.js';
 import { loadCardForOrder } from '../services/runner-card.js';
 import { checksPassed } from '../services/runner-pool.js';
 import { splitView, syncSplitParent } from '../services/split.js';
+import { blankPrivate } from '../lib/redact.js';
 
 export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
   const { repository, config, now } = app.ctx;
@@ -43,6 +44,29 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
     return order.restaurantDiscountPercent > 0
       ? `Pay ${shop?.name ?? 'the restaurant'} ${amount} at the counter: the price agreed with ${config.productName}. Pay it in full, and keep the receipt.`
       : `Pay ${shop?.name ?? 'the restaurant'} ${amount} at the counter, and keep the receipt.`;
+  }
+
+  /** The shop's messages about this order (ruling 97), each with the shop's name, oldest first. */
+  async function shopMessagesFor(order: Order) {
+    const messages = await repository.partnerMessages.listForOrder(order.id);
+    const names = new Map<string, string>();
+    const rows = [];
+    for (const message of messages) {
+      if (!names.has(message.partnerShopId)) {
+        const shop = await repository.partnerShops.findById(message.partnerShopId);
+        names.set(message.partnerShopId, shop?.name ?? 'The shop');
+      }
+      const shopName = names.get(message.partnerShopId)!;
+      rows.push({
+        id: message.id,
+        kind: message.kind,
+        shopName,
+        words: message.words,
+        said: `${shopName} says: ${message.words}.`,
+        at: message.at,
+      });
+    }
+    return rows;
   }
 
   /**
@@ -158,10 +182,18 @@ export async function registerJobRoutes(app: FastifyInstance): Promise<void> {
             cardSpentPence: order.cardSpentPence,
             // The two words to say at the door, so the Shopper knows it is their Runner (T6).
             doorWord: await ensureDoorWord(repository, order),
+            // The Shopper's note for the whole order (ruling 97), with any number, code or
+            // address blanked: a note is for the shopping, never a way round the door words.
+            note: order.note ? blankPrivate(order.note) : null,
+            // The shop said it is ready for pickup, and its short set messages (ruling 97).
+            readyAt: order.readyAt,
+            shopMessages: await shopMessagesFor(order),
             items: order.items.map((item) => ({
               id: item.id,
               name: item.name,
               quantity: item.quantity,
+              // The Shopper's note on this item (ruling 97), blanked the same way.
+              note: item.note ? blankPrivate(item.note) : null,
               // What the Runner pays for it: a partner's counter price where it was kept
               // (Anthony, 30 October 2026), never the marked-up price the Shopper pays.
               estimatedPricePence:

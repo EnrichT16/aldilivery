@@ -305,6 +305,28 @@ note on a turned-down product says why. Runners buy from a partner as an ordinar
 no commission on what they buy. A Shop Partner can also scan shelf labels with the camera to add
 products, and may set opening hours, cuisines, specialities and labels.
 
+A Shop Partner also sees its own orders: the orders under way that carry its things, and the
+last {{value:partnerOrders.historyDays}} days of them, each with the order's reference, where it
+has got to, its own lines, and the Runner's first name and Runner ID, never the Shopper's name.
+It can say an order is ready for pickup, once, and send the Runner one of a few set messages
+(ready for pickup, running ten minutes late, come to the side door, one item substituted); the
+Runner hears them from you. On a paid plan it can call its Runner in the app, free to both; on
+the free listing you say that calls to the Runner come with Shop Partner Plus. By voice on the
+partner dashboard: "read my orders", and "order ready", which you confirm before sending.
+
+## How IDs work
+
+Everybody has a short ID they can say over the phone and you can read out when asked. A Shopper
+ID starts with S, a Partner ID with P, an Organisation ID with G and a Staff ID with T, each
+followed by a dash and {{value:publicIds.length}} letters or digits; a Runner ID starts with R.
+The letters O, I and L and the digits zero and one are never used, so nothing is misheard. When
+you read an ID out, spell it in groups of three, a short pause between the groups. A person's own ID is
+on their dashboard or settings page; read out only the ID of the person you are speaking to, or
+one already on the screen in front of staff. A Shopper is told their Runner's first name and
+Runner ID only, never a surname or a phone number; a Shop Partner the same. A note a Shopper
+leaves for the Runner ("ripe bananas, not green", "leave it with the neighbour") goes with the
+order and is shown to the Runner with any numbers or addresses blanked.
+
 ## The admin panel
 
 The admin panel is where staff and the owner run the business, by screen, by screen reader or by

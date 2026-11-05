@@ -692,6 +692,31 @@ export function prismaRepository(prisma: PrismaClient): Repository {
       },
     },
 
+    partnerMessages: {
+      async create(input) {
+        return (await prisma.partnerOrderMessage.create({ data: input })) as any;
+      },
+      async listForOrder(orderId) {
+        return (await prisma.partnerOrderMessage.findMany({
+          where: { orderId },
+          orderBy: { at: 'asc' },
+        })) as any;
+      },
+    },
+
+    publicIds: {
+      async inUse(code) {
+        const [shoppers, shops, organisations, staff, runners] = await Promise.all([
+          prisma.shopper.count({ where: { publicId: code } }),
+          prisma.partnerShop.count({ where: { publicId: code } }),
+          prisma.organisation.count({ where: { publicId: code } }),
+          prisma.staffMember.count({ where: { publicId: code } }),
+          prisma.runner.count({ where: { referralCode: code } }),
+        ]);
+        return shoppers + shops + organisations + staff + runners > 0;
+      },
+    },
+
     callLegs: {
       async create(input) {
         return (await prisma.callLeg.create({ data: input })) as any;
@@ -986,6 +1011,22 @@ export function prismaRepository(prisma: PrismaClient): Repository {
           include: { items: true },
         });
         return row ? toOrder(row) : null;
+      },
+      async listForPartnerShop(where) {
+        const rows = await prisma.order.findMany({
+          where: {
+            createdAt: { gte: where.since },
+            OR: [
+              { restaurantShopId: where.shopId },
+              ...(where.catalogueItemIds.length > 0
+                ? [{ items: { some: { catalogueItemId: { in: [...where.catalogueItemIds] } } } }]
+                : []),
+            ],
+          },
+          include: { items: true },
+          orderBy: { createdAt: 'desc' },
+        });
+        return rows.map(toOrder);
       },
       async listScheduled() {
         const rows = await prisma.order.findMany({

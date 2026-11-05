@@ -91,6 +91,7 @@ import {
   takeFreeSpotlightWeek,
 } from '../lib/spotlight.js';
 import { plusPaid, preferredPartner, rankedForListing } from '../lib/partner-standing.js';
+import { ensurePublicId } from '../services/public-ids.js';
 import { awardTitlesByShop } from '../services/shop-of-the-month.js';
 import { checkInBackground, checkPartnerProduct } from '../services/auto-check.js';
 import { askOwner, settleMattersFor } from '../services/owner-desk.js';
@@ -673,18 +674,25 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       user.kind === 'partner' && user.partnerShopId
         ? await repository.partnerShops.findById(user.partnerShopId)
         : null;
-    const business = shop
-      ? shop.name
-      : user.organisationId
-        ? (await repository.organisations.findById(user.organisationId))?.name
+    const organisation =
+      !shop && user.organisationId
+        ? await repository.organisations.findById(user.organisationId)
         : null;
+    const business = shop ? shop.name : organisation?.name;
     // The Shop Partner terms changed since this partner agreed (30 October 2026): said at sign-in.
     const changed = shop !== null && partnerTermsChanged(shop);
+    // The business's speakable public ID (ruling 97), made the first time it is read.
+    const publicId = shop
+      ? await ensurePublicId(app.ctx, 'partner', shop)
+      : organisation
+        ? await ensurePublicId(app.ctx, 'organisation', organisation)
+        : null;
     return {
       kind: user.kind,
       name: user.name,
       office: user.office,
       business: business ?? '',
+      publicId,
       mustChangePassword: user.mustChangePassword,
       termsChanged: changed,
       termsChangedWords: changed ? TERMS_CHANGED_WORDS : null,
@@ -2218,6 +2226,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       organisation: {
         id: organisation.id,
         name: organisation.name,
+        publicId: await ensurePublicId(app.ctx, 'organisation', organisation),
         joinCode: organisation.joinCode,
         monthlyBudgetPence: organisation.monthlyBudgetPence,
         staffTripCostPence: organisation.staffTripCostPence,
@@ -2451,6 +2460,8 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
     for (const shop of await repository.partnerShops.list()) {
       const products = await repository.partnerProducts.listForShop(shop.id);
       const users = await repository.businessUsers.listFor({ partnerShopId: shop.id });
+      // Its Partner ID (ruling 97), for staff to read to the shop over the phone.
+      await ensurePublicId(app.ctx, 'partner', shop);
       const { mobile, ...rest } = shop;
       shops.push({
         ...rest,
@@ -2472,6 +2483,7 @@ export async function registerBusinessRoutes(app: FastifyInstance): Promise<void
       organisations.push({
         id: organisation.id,
         name: organisation.name,
+        publicId: await ensurePublicId(app.ctx, 'organisation', organisation),
         joinCode: organisation.joinCode,
         people: (await repository.organisations.listServiceUsers(organisation.id)).length,
         users: users.map((user) => ({

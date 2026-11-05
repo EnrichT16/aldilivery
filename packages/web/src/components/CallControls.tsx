@@ -359,6 +359,8 @@ function capital(words: string): string {
 
 /** What the Shopper hears and sees when a free, Runner-started call rings (ruling 90). */
 function ringingWords(call: CallInfo, as: 'shopper' | 'runner', otherName: string): string {
+  // A shop ringing the Runner (ruling 97) says which shop and which order, in the server's words.
+  if (call.words) return call.words;
   if (as === 'shopper' && call.free) return 'Your Runner is calling about your order.';
   return `${capital(otherName)} is calling.`;
 }

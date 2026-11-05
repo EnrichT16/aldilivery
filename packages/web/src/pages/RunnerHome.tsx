@@ -139,6 +139,10 @@ export function RunnerHome(): JSX.Element {
   const heardAnswers = useRef<Set<string> | null>(null);
   // The call's state for each question, as last said aloud (ruling 90): each change said once.
   const heardCallStates = useRef(new Map<string, string>());
+  // A shop's messages about the job (ruling 97), each said once; and each item's note, said once
+  // while shopping.
+  const heardShopMessages = useRef<Set<string> | null>(null);
+  const heardNotes = useRef(new Set<string>());
   const [loading, setLoading] = useState(signedIn);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState('');
@@ -179,6 +183,32 @@ export function RunnerHome(): JSX.Element {
         .catch(() => undefined);
       const current = await fetchCurrentJob();
       setJob(current.job);
+      if (current.job) {
+        // What the shop says (ruling 97): shown on the job, and said by Ozi once. Messages already
+        // there when the page opened are said only if they are fresh.
+        const opening = heardShopMessages.current === null;
+        heardShopMessages.current ??= new Set();
+        for (const shopMessage of current.job.shopMessages ?? []) {
+          if (heardShopMessages.current.has(shopMessage.id)) continue;
+          heardShopMessages.current.add(shopMessage.id);
+          const fresh = Date.now() - new Date(shopMessage.at).getTime() < 15 * 60_000;
+          if (opening && !fresh) continue;
+          setNews(shopMessage.said);
+          void oziRef.current.say(shopMessage.said);
+        }
+        // The Shopper's note on each item (ruling 97), said once, at the shelf.
+        if (current.job.status === 'shopping') {
+          for (const item of current.job.items) {
+            if (!item.note || heardNotes.current.has(item.id)) continue;
+            heardNotes.current.add(item.id);
+            void oziRef.current.say(
+              `${current.job.shopperName} says about the ${item.name}: ${item.note}.`,
+            );
+          }
+        }
+      } else {
+        heardShopMessages.current = null;
+      }
       if (current.job && current.job.status !== 'accepted') {
         const asked = (await fetchJobQuestions(current.job.orderId)).questions;
         setQuestions(asked);
@@ -756,6 +786,18 @@ function JobInHand({
         </div>
       )}
 
+      {/* What the shop says (ruling 97): ready for pickup, running late, the side door. */}
+      {(job.shopMessages?.length ?? 0) > 0 && (
+        <div role="status" className="space-y-1 border-2 border-highlight rounded-2xl p-4">
+          <h3 className="text-lead font-bold m-0">Shop says</h3>
+          <ul className="m-0 ps-6">
+            {job.shopMessages!.map((shopMessage) => (
+              <li key={shopMessage.id}>{shopMessage.said}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {byCard && (job.status === 'accepted' || job.status === 'shopping') && (
         <div className="space-y-2 border-2 border-highlight rounded-2xl p-4">
           <h3 className="text-lead font-bold m-0">Paying at the till</h3>
@@ -778,6 +820,11 @@ function JobInHand({
 
       <div className="space-y-2">
         <h3 className="text-lead font-bold m-0">The list</h3>
+        {job.note && (
+          <p className="m-0">
+            {job.shopperName} says: {job.note}
+          </p>
+        )}
         <ul className="m-0 ps-6 space-y-3">
           {job.items.map((item) => {
             const question = questions.find((asked) => asked.orderItemId === item.id);
@@ -786,6 +833,11 @@ function JobInHand({
                 <span>
                   {item.quantity} × {item.name}
                 </span>
+                {item.note && (
+                  <p className="m-0 extra">
+                    {job.shopperName} says: {item.note}
+                  </p>
+                )}
                 {question && <p className="m-0">{questionWords(question, job.shopperName)}</p>}
                 {question && question.answer === null && question.call?.state === 'live' && (
                   // They answered the call and said it: the Runner writes down which (ruling 90).

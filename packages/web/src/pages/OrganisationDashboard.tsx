@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { ReferralCard } from '../components/ReferralCard';
 import { ShowWordsSwitch } from '../components/ShowWordsSwitch';
+import { YourId } from '../components/YourId';
 import { storeConfig } from '../config';
 import {
   downloadBusinessStatement,
@@ -293,6 +294,8 @@ export function OrganisationDashboard(): JSX.Element {
       <nav aria-label="Your messages">
         <InboxLink as="business" to="/organisation/messages" />
       </nav>
+      {/* The organisation's speakable ID (ruling 97). */}
+      <YourId words="Organisation ID" id={data.organisation.publicId} />
       <p className="m-0">
         <Link
           to="/organisation/pay-by-bank"

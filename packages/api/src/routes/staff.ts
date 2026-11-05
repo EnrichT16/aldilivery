@@ -20,6 +20,7 @@ import { noteStaffSighting } from '../lib/staff-sightings.js';
 import { mayAllocate } from '../services/allocate.js';
 import { pastHalfLife } from '../lib/sessions.js';
 import { codeLockouts } from '../services/company-contact.js';
+import { ensurePublicId } from '../services/public-ids.js';
 import { mayUnlock, requireUnlocker } from '../services/unlock.js';
 import {
   ApiError,
@@ -69,6 +70,8 @@ function publicMember(member: StaffMember, at: Date) {
   return {
     id: member.id,
     name: member.name,
+    /** Their speakable Staff ID (ruling 97). */
+    publicId: member.publicId,
     username: member.username,
     role: member.role,
     title: member.isOwner ? 'Founder and owner' : role ? STAFF_ROLES[role].title : member.role,
@@ -315,6 +318,8 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
       ...renewed,
       name: actor.name,
       role: actor.role,
+      // Their speakable Staff ID (ruling 97); the staff key has none.
+      publicId: member ? await ensurePublicId(app.ctx, 'staff', member) : null,
       title: STAFF_ROLES[actor.role].title,
       areas: twoStep?.setupNeeded ? [] : actor.areas,
       account: actor.id !== null,
@@ -361,8 +366,11 @@ export async function registerStaffRoutes(app: FastifyInstance): Promise<void> {
   app.get('/staff/team', async (request) => {
     await staffActor(request, 'team');
     const at = now();
+    const members = await repository.staffMembers.list();
+    // Each one's Staff ID (ruling 97), made the first time the team is read.
+    for (const member of members) await ensurePublicId(app.ctx, 'staff', member);
     return {
-      team: (await repository.staffMembers.list()).map((member) => publicMember(member, at)),
+      team: members.map((member) => publicMember(member, at)),
     };
   });
 

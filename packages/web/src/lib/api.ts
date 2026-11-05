@@ -286,6 +286,8 @@ export interface Shopper {
   /** Ruling 61: how much of the credit is a further Runner's delivery that was not needed. */
   unusedRunnerFeeCreditPence?: number;
   ageBand?: 'under_25' | '25_44' | '45_64' | '65_plus' | null;
+  /** Their speakable Shopper ID (ruling 97), such as S-7K4M2X. */
+  publicId?: string | null;
   displayName: string;
   handle: string;
   phone: string;
@@ -858,7 +860,27 @@ export interface CurrentJob {
   split?: SplitJob | null;
   /** The Shop Partners whose things are in it, by name; empty for the shops on the list. */
   shopNames?: string[];
-  items: Array<{ id: string; name: string; quantity: number; estimatedPricePence: number }>;
+  /** The Shopper's note for the whole order (ruling 97), numbers and codes blanked. */
+  note?: string | null;
+  /** The shop said it is ready for pickup (ruling 97). */
+  readyAt?: string | null;
+  /** The shop's short set messages about this order (ruling 97), oldest first, each with words Ozi says once. */
+  shopMessages?: Array<{
+    id: string;
+    kind: string;
+    shopName: string;
+    words: string;
+    said: string;
+    at: string;
+  }>;
+  items: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+    estimatedPricePence: number;
+    /** The Shopper's note on this item (ruling 97), numbers and codes blanked. */
+    note?: string | null;
+  }>;
 }
 
 export function fetchCurrentJob(): Promise<{ job: CurrentJob | null }> {
@@ -1260,7 +1282,10 @@ export interface OrderSchedule {
  * That refusal arrives as an ordinary error with the new price in the message.
  */
 export function createOrder(input: {
-  lines: Array<{ catalogueItemId: string; quantity: number }>;
+  /** Each line, with the Shopper's note on it if they left one (ruling 97). */
+  lines: Array<{ catalogueItemId: string; quantity: number; note?: string }>;
+  /** The Shopper's note for the whole order (ruling 97). */
+  note?: string;
   deliveryAddress: string;
   /** The saved card; not needed when paying by bank transfer. */
   paymentMethodId?: string;
@@ -1282,7 +1307,12 @@ export function createOrder(input: {
   return request<CreateOrderResult>('/orders', {
     method: 'POST',
     body: JSON.stringify({
-      lines: input.lines,
+      lines: input.lines.map((line) => ({
+        catalogueItemId: line.catalogueItemId,
+        quantity: line.quantity,
+        ...(line.note?.trim() ? { note: line.note.trim() } : {}),
+      })),
+      ...(input.note?.trim() ? { note: input.note.trim() } : {}),
       deliveryAddress: input.deliveryAddress,
       ...(input.paymentMethodId ? { paymentMethodId: input.paymentMethodId } : {}),
       payBy: input.payBy ?? 'card',
@@ -1434,10 +1464,13 @@ export interface CallInfo {
   id: string;
   orderId: string;
   status: 'ringing' | 'live' | 'ended';
-  startedBy: 'shopper' | 'runner';
+  /** A Shop Partner on a paid package may ring the Runner too (ruling 97). */
+  startedBy: 'shopper' | 'runner' | 'partner';
   pencePerMinute: number;
   /** Free to the Shopper: a call their Runner started (ruling 90). No yes is asked for. */
   free?: boolean;
+  /** A shop ringing the Runner (ruling 97): "Your shop Corner Bakery is calling about order OZ-…". */
+  words?: string | null;
   priceAccepted: boolean;
 }
 
@@ -1622,6 +1655,8 @@ export async function fetchStaffMe(key: string): Promise<
     canAllocate?: boolean;
     /** May unlock anybody, and reset a PIN or a password (ruling 81). */
     canUnlock?: boolean;
+    /** Their speakable Staff ID (ruling 97); null for the staff key. */
+    publicId?: string | null;
   }
 > {
   const me = await staffRequest<Awaited<ReturnType<typeof fetchStaffMe>>>(key, '/staff/me');
@@ -1654,6 +1689,8 @@ export function fetchStaffRoles(): Promise<{ roles: StaffRoleInfo[] }> {
 export interface TeamMember {
   id: string;
   name: string;
+  /** Their speakable Staff ID (ruling 97). */
+  publicId?: string | null;
   username: string;
   role: string;
   title: string;
@@ -2129,6 +2166,8 @@ export interface BusinessMe {
   name: string;
   office: string;
   business: string;
+  /** The business's speakable public ID (ruling 97): P- for a shop, G- for an organisation. */
+  publicId?: string | null;
   mustChangePassword: boolean;
 }
 
@@ -2551,6 +2590,8 @@ export interface OrganisationDashboard {
   organisation: {
     id: string;
     name: string;
+    /** Its speakable Organisation ID (ruling 97). */
+    publicId?: string | null;
     joinCode: string | null;
     monthlyBudgetPence: number | null;
     staffTripCostPence: number | null;
@@ -2642,6 +2683,8 @@ export interface StaffPartners {
     {
       id: string;
       name: string;
+      /** Its speakable Partner ID (ruling 97). */
+      publicId?: string | null;
       kind: PartnerKind;
       kindWords: string;
       status: 'pending' | 'approved' | 'removed';
@@ -2681,6 +2724,8 @@ export interface StaffPartners {
   organisations: Array<{
     id: string;
     name: string;
+    /** Its speakable Organisation ID (ruling 97). */
+    publicId?: string | null;
     joinCode: string | null;
     people: number;
     users: Array<{ id: string; name: string; username: string; office: string }>;
@@ -5107,7 +5152,14 @@ export function searchShopperAccounts(
   key: string,
   search: string,
 ): Promise<{
-  shoppers: Array<{ id: string; displayName: string; handle: string; createdAt: string }>;
+  shoppers: Array<{
+    id: string;
+    displayName: string;
+    handle: string;
+    /** Their speakable Shopper ID (ruling 97). */
+    publicId?: string | null;
+    createdAt: string;
+  }>;
 }> {
   return staffRequest(key, `/staff/shoppers${query({ search })}`);
 }

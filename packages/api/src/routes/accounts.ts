@@ -29,6 +29,7 @@ import {
   inFreeMonth,
 } from '../services/plans.js';
 import { agreementRecord, agreementSchema, hasAgreed } from '../services/runner-agreement.js';
+import { ensurePublicId } from '../services/public-ids.js';
 import { recordReferralFor, viaFromCode } from '../services/referrals.js';
 import { MOTOR_MODES, canDrive, documentsNeeded } from './runner-account.js';
 
@@ -308,6 +309,8 @@ export async function registerAccountRoutes(app: FastifyInstance): Promise<void>
     }
     const shopper = await repository.shoppers.findById(session.accountId);
     if (!shopper) throw new NotFoundError('account');
+    // Their speakable Shopper ID (ruling 97), made the first time their account is read.
+    await ensurePublicId(app.ctx, 'shopper', shopper);
     return { role: 'shopper', shopper: await publicShopper(app.ctx, shopper), ...renewed };
   });
 

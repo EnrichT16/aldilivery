@@ -161,8 +161,10 @@ export async function registerCallRoutes(app: FastifyInstance): Promise<void> {
       status: call.status,
       startedBy: call.startedBy,
       pencePerMinute: call.pencePerMinute,
-      /** Free to the Shopper: a call their Runner started (ruling 90). */
+      /** Free to the Shopper: a call their Runner started (ruling 90), or a shop's (ruling 97). */
       free: !shopperPays(call, config),
+      /** A shop calling the Runner (ruling 97): "Your shop Corner Bakery is calling about order OZ-…". */
+      words: call.startedBy === 'partner' ? call.priceStatement : null,
       priceAccepted: call.priceAcceptedAt !== null,
       billedMinutes: call.billedMinutes,
       chargePence: call.chargePence,
@@ -416,7 +418,8 @@ export async function registerCallRoutes(app: FastifyInstance): Promise<void> {
       if (!leg) return { received: true };
       if (event.event === 'participant_joined' && !leg.connectedSince) {
         await repository.callLegs.update(leg.id, { connectedSince: event.at });
-        const answerer = call.startedBy === 'shopper' ? 'runner' : 'shopper';
+        // Whoever did not start it answers: the Runner, for a call the Shopper or a shop started.
+        const answerer = call.startedBy === 'runner' ? 'shopper' : 'runner';
         if (
           call.status === 'ringing' &&
           (leg.role === answerer || (leg.role === 'phone' && answerer === 'shopper'))

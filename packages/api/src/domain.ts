@@ -127,6 +127,8 @@ export interface Shopper {
   ageBand: AgeBand | null;
   /** The share link they came by, such as partner:<id> or organisation:<id>. */
   joinedVia: string | null;
+  /** Their speakable public ID, "S-" and six characters (ruling 97), made once on first read. */
+  publicId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -562,12 +564,7 @@ export interface AmbassadorClaim {
 }
 
 export type ReminderAccountKind =
-  | 'shopper'
-  | 'runner'
-  | 'partner'
-  | 'organisation'
-  | 'staff'
-  | 'owner';
+  'shopper' | 'runner' | 'partner' | 'organisation' | 'staff' | 'owner';
 export type ReminderRepeat = 'none' | 'daily' | 'weekly' | 'monthly';
 export type ReminderChannel = 'notification' | 'text' | 'call';
 export type ReminderStatus = 'scheduled' | 'sent' | 'heard' | 'cancelled';
@@ -735,6 +732,8 @@ export interface Organisation {
   staffTripCostPence: number | null;
   /** Where it is, which gives its area (Anthony, 30 October 2026). Empty until given. */
   postcode: string;
+  /** Its speakable public ID, "G-" and six characters (ruling 97), made once on first read. */
+  publicId: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -965,6 +964,10 @@ export interface Order {
   /** The Shopper's reminders: the day before, and the morning of delivery. */
   reminderDayBeforeAt: Date | null;
   reminderMorningAt: Date | null;
+  /** When the Shop Partner said it was ready for pickup (ruling 97), once; null until then. */
+  readyAt: Date | null;
+  /** The Shopper's note for the whole order (ruling 97), such as "leave it with the neighbour". */
+  note: string | null;
   createdAt: Date;
   updatedAt: Date;
   acceptedAt: Date | null;
@@ -1113,7 +1116,7 @@ export interface BasketLine {
  */
 export type CallStatus = 'ringing' | 'live' | 'ended';
 /** `phone`: the Shopper's own telephone, rung through LiveKit and Twilio (ruling 46). */
-export type CallRole = 'shopper' | 'runner' | 'guest' | 'phone';
+export type CallRole = 'shopper' | 'runner' | 'guest' | 'phone' | 'partner';
 /**
  * `not_due`: nothing to pay. `paid`: taken from the Shopper's card. `outstanding`: the card could
  * not be charged, so it waits and is taken the next time a charge succeeds (ruling, 2 Oct 2026).
@@ -1127,7 +1130,10 @@ export interface Call {
   runnerId: string;
   /** The LiveKit room. Unguessable, and different for every call. */
   roomName: string;
-  startedBy: 'shopper' | 'runner';
+  /** Who started it: a Shop Partner on a paid plan may call the Runner (ruling 97). */
+  startedBy: 'shopper' | 'runner' | 'partner';
+  /** The shop, when a Shop Partner started it. */
+  partnerShopId: string | null;
   status: CallStatus;
   createdAt: Date;
   endedAt: Date | null;
@@ -1140,6 +1146,19 @@ export interface Call {
   chargeStatus: CallChargeStatus;
   paymentReference: string | null;
   chargedAt: Date | null;
+}
+
+/**
+ * A short set message from a Shop Partner to the Runner of an order (ruling 97): one of the
+ * kinds in `partnerOrders.messages`, with its words as sent. Never free text.
+ */
+export interface PartnerOrderMessage {
+  id: string;
+  orderId: string;
+  partnerShopId: string;
+  kind: string;
+  words: string;
+  at: Date;
 }
 
 /** One person's part in a call: when they were connected, and who added them. */
@@ -1367,6 +1386,8 @@ export interface StaffMember {
    * (ruling 81). Only the owner grants it, in Team. The owner himself always may.
    */
   canUnlock: boolean;
+  /** Their speakable public ID, "T-" and six characters (ruling 97), made once on first read. */
+  publicId: string | null;
 }
 
 export type PartnerShopStatus = 'pending' | 'approved' | 'removed';
@@ -1469,6 +1490,8 @@ export interface PartnerShop {
   promiseAnsweredAt: Date | null;
   /** The welcome text with the payment warning, sent once to the business's own number. */
   welcomeTextSentAt: Date | null;
+  /** Its speakable public ID, "P-" and six characters (ruling 97), made once on first read. */
+  publicId: string | null;
 }
 
 export type ServiceEnquiryKind = 'quote' | 'call_back';

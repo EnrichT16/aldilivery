@@ -185,6 +185,30 @@
     "afterDeliveryMinutes": 15,
     "runnerStartedFree": true
   },
+  "publicIds": {
+    "length": 6,
+    "prefixes": {
+      "shopper": "S",
+      "partner": "P",
+      "organisation": "G",
+      "staff": "T"
+    }
+  },
+  "partnerOrders": {
+    "historyDays": 90,
+    "pageSize": 20,
+    "messageMinutesAfterDelivery": 15,
+    "messages": {
+      "ready": "Ready for pickup",
+      "late": "Running 10 minutes late",
+      "side_door": "Please come to the side door",
+      "substituted": "We've substituted one item, please check with the Shopper"
+    }
+  },
+  "notes": {
+    "itemMaxChars": 120,
+    "orderMaxChars": 300
+  },
   "questions": {
     "callAttempts": 3,
     "callRetrySeconds": 40

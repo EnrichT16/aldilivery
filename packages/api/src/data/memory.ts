@@ -49,6 +49,7 @@ import type {
   SavedAddress,
   Call,
   CallLeg,
+  PartnerOrderMessage,
   RunnerDocument,
   RunnerFeedback,
   ProblemReport,
@@ -151,6 +152,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
   const problemEvidence = new Map<string, ProblemEvidence>();
   const recoveries = new Map<string, RunnerRecovery>();
   const callLegs = new Map<string, CallLeg>();
+  const partnerMessages: PartnerOrderMessage[] = [];
   const findRequests = new Map<string, FindRequest>();
   const giftCards = new Map<string, GiftCard>();
   const enquiries = new Map<string, OrganisationEnquiry>();
@@ -301,6 +303,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           organisationConsentVersion: null,
           ageBand: null,
           joinedVia: null,
+          publicId: null,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -1229,6 +1232,34 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
       },
     },
 
+    partnerMessages: {
+      async create(input) {
+        const row: PartnerOrderMessage = Object.freeze({ ...input, id: id() });
+        partnerMessages.push(row);
+        return clone(row);
+      },
+      async listForOrder(orderId) {
+        return partnerMessages
+          .filter((row) => row.orderId === orderId)
+          .sort((a, b) => a.at.getTime() - b.at.getTime())
+          .map(clone);
+      },
+    },
+
+    publicIds: {
+      async inUse(code) {
+        const taken = (rows: Iterable<{ publicId: string | null }>): boolean =>
+          [...rows].some((row) => row.publicId === code);
+        return (
+          taken(shoppers.values()) ||
+          taken(partnerShops.values()) ||
+          taken(organisations.values()) ||
+          taken(staffMembers.values()) ||
+          [...runners.values()].some((runner) => runner.referralCode === code)
+        );
+      },
+    },
+
     callLegs: {
       async create(input) {
         const row: CallLeg = { ...input, id: id() };
@@ -1359,6 +1390,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           monthlyBudgetPence: null,
           staffTripCostPence: null,
           postcode: input.postcode ?? '',
+          publicId: null,
           createdAt: now(),
           updatedAt: now(),
         };
@@ -1592,6 +1624,8 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           scheduledHeldAt: null,
           reminderDayBeforeAt: null,
           reminderMorningAt: null,
+          readyAt: null,
+          note: input.note ?? null,
           createdAt: now(),
           updatedAt: now(),
           acceptedAt: null,
@@ -1699,6 +1733,20 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           }
         }
         return null;
+      },
+      async listForPartnerShop(where) {
+        const ids = new Set(where.catalogueItemIds);
+        return [...orders.values()]
+          .filter(
+            (o) =>
+              o.createdAt.getTime() >= where.since.getTime() &&
+              (o.restaurantShopId === where.shopId ||
+                o.items.some(
+                  (item) => item.catalogueItemId !== null && ids.has(item.catalogueItemId),
+                )),
+          )
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+          .map(clone);
       },
       async listScheduled() {
         return [...orders.values()]
@@ -2077,6 +2125,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           canAuthorise: false,
           canAllocate: false,
           canUnlock: false,
+          publicId: null,
         };
         staffMembers.set(row.id, row);
         return clone(row);
@@ -2144,6 +2193,7 @@ export function memoryRepository(options: { now?: () => Date } = {}): Repository
           promiseNote: null,
           promiseAnsweredAt: null,
           welcomeTextSentAt: null,
+          publicId: null,
           ...input,
           id: id(),
           paidUntil: null,
