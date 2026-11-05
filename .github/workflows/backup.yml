@@ -1,0 +1,158 @@
+# Off-site backups (docs/RESTORE.md, ruling 98, 5 November 2026).
+#
+# Every night at 02:17 UTC, and whenever somebody presses "Run workflow", this copies everything
+# that lives on DigitalOcean to a bucket somewhere else, so that the service survives
+# DigitalOcean failing (the product's name is in config/store.json, not here: Rule Nine):
+#
+#   database   pg_dump of the live database, compressed, encrypted with a passphrase, uploaded,
+#              downloaded back and checked, then copies older than 30 days pruned.
+#   photos     the Spaces bucket of product photos mirrored to the backup bucket with rclone.
+#              Skips, with a plain message, until the SPACES_* secrets exist.
+#
+# The secrets it needs live in GitHub under Settings, Secrets and variables, Actions. No value is
+# ever written in this file or printed by the scripts. docs/RESTORE.md, "Setting it up", says
+# how to make each one:
+#
+#   BACKUP_DATABASE_URL    a READ-ONLY connection string for the live database
+#   BACKUP_PASSPHRASE      the passphrase every copy is encrypted with (lose it, lose the copies)
+#   BACKUP_S3_ENDPOINT     the bucket's S3 endpoint, such as s3.eu-central-003.backblazeb2.com
+#   BACKUP_S3_BUCKET       the bucket's name
+#   BACKUP_S3_KEY          an access key that may read, write and delete in that bucket only
+#   BACKUP_S3_SECRET       its secret
+#   BACKUP_S3_REGION       optional; the region in the endpoint, such as eu-central-003
+#   BACKUP_ALERT_WEBHOOK   optional; a Slack, Discord or Teams webhook to tell when a run fails
+#   SPACES_KEY, SPACES_SECRET, SPACES_BUCKET, SPACES_ENDPOINT, SPACES_REGION
+#                          optional; the DigitalOcean Space the product photos live in
+#
+# The weekly proof that these copies restore is .github/workflows/restore-test.yml.
+
+name: Off-site backup
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+    inputs:
+      keep_days:
+        description: How many days of database copies to keep in the bucket
+        type: number
+        default: 30
+      photos:
+        description: Also mirror the photos (needs the SPACES_* secrets)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+# One backup at a time; a run started by hand waits for the night's run rather than racing it.
+concurrency:
+  group: offsite-backup
+  cancel-in-progress: false
+
+jobs:
+  database:
+    name: Database copy
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            scripts/backup
+            .do/app.yaml
+          sparse-checkout-cone-mode: false
+
+      - name: Check the secrets exist
+        env:
+          HAVE_DB: ${{ secrets.BACKUP_DATABASE_URL != '' }}
+          HAVE_PASS: ${{ secrets.BACKUP_PASSPHRASE != '' }}
+          HAVE_S3: ${{ secrets.BACKUP_S3_ENDPOINT != '' && secrets.BACKUP_S3_BUCKET != '' && secrets.BACKUP_S3_KEY != '' && secrets.BACKUP_S3_SECRET != '' }}
+        run: |
+          ok=true
+          [ "$HAVE_DB" = true ]   || { echo "::error::The BACKUP_DATABASE_URL secret is missing. docs/RESTORE.md, 'Setting it up', step 2."; ok=false; }
+          [ "$HAVE_PASS" = true ] || { echo "::error::The BACKUP_PASSPHRASE secret is missing. docs/RESTORE.md, 'Setting it up', step 3."; ok=false; }
+          [ "$HAVE_S3" = true ]   || { echo "::error::One of BACKUP_S3_ENDPOINT, BACKUP_S3_BUCKET, BACKUP_S3_KEY, BACKUP_S3_SECRET is missing. docs/RESTORE.md, 'Setting it up', step 1."; ok=false; }
+          $ok
+
+      - name: Install the PostgreSQL client that matches the live database
+        run: |
+          # The live database's major version is the one in .do/app.yaml (databases[0].version).
+          PG_MAJOR="$(grep -E '^\s*version:\s*"?[0-9]+"?\s*$' .do/app.yaml | grep -oE '[0-9]+' | head -n1)"
+          PG_MAJOR="${PG_MAJOR:-16}"
+          echo "PostgreSQL major version from .do/app.yaml: $PG_MAJOR"
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq "postgresql-client-$PG_MAJOR" zstd gnupg >/dev/null
+          # The PGDG package puts its binaries first on the path through pg_wrapper; make sure.
+          echo "/usr/lib/postgresql/$PG_MAJOR/bin" >> "$GITHUB_PATH"
+          "/usr/lib/postgresql/$PG_MAJOR/bin/pg_dump" --version
+          aws --version
+          zstd --version
+
+      - name: Dump, encrypt, upload, verify, prune
+        env:
+          BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+          BACKUP_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+          BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          BACKUP_S3_KEY: ${{ secrets.BACKUP_S3_KEY }}
+          BACKUP_S3_SECRET: ${{ secrets.BACKUP_S3_SECRET }}
+          BACKUP_S3_REGION: ${{ secrets.BACKUP_S3_REGION }}
+          BACKUP_KEEP_DAYS: ${{ inputs.keep_days || 30 }}
+        run: bash scripts/backup/db-backup.sh
+
+      - name: Tell somebody it failed
+        if: failure()
+        env:
+          BACKUP_ALERT_WEBHOOK: ${{ secrets.BACKUP_ALERT_WEBHOOK }}
+        run: bash scripts/backup/notify.sh "Database copy" "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+  photos:
+    name: Photos copy
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    if: ${{ github.event_name == 'schedule' || inputs.photos }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/backup
+          sparse-checkout-cone-mode: false
+
+      - name: Is there a Spaces bucket to copy?
+        id: spaces
+        env:
+          HAVE: ${{ secrets.SPACES_KEY != '' && secrets.SPACES_SECRET != '' && secrets.SPACES_BUCKET != '' && secrets.SPACES_ENDPOINT != '' }}
+        run: |
+          echo "have=$HAVE" >> "$GITHUB_OUTPUT"
+          if [ "$HAVE" != true ]; then
+            msg="Photos: skipped. The SPACES_KEY, SPACES_SECRET, SPACES_BUCKET and SPACES_ENDPOINT secrets are not all set, so there is no Spaces bucket to copy yet. (Receipt photos are rows in the database today, so the database copy already holds them.)"
+            echo "::notice::$msg"; echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Install rclone
+        if: steps.spaces.outputs.have == 'true'
+        run: sudo apt-get install -y -qq rclone jq >/dev/null && rclone version | head -n1
+
+      - name: Mirror the Spaces bucket to the backup bucket
+        if: steps.spaces.outputs.have == 'true'
+        env:
+          SPACES_KEY: ${{ secrets.SPACES_KEY }}
+          SPACES_SECRET: ${{ secrets.SPACES_SECRET }}
+          SPACES_BUCKET: ${{ secrets.SPACES_BUCKET }}
+          SPACES_ENDPOINT: ${{ secrets.SPACES_ENDPOINT }}
+          SPACES_REGION: ${{ secrets.SPACES_REGION }}
+          BACKUP_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+          BACKUP_S3_BUCKET: ${{ secrets.BACKUP_S3_BUCKET }}
+          BACKUP_S3_KEY: ${{ secrets.BACKUP_S3_KEY }}
+          BACKUP_S3_SECRET: ${{ secrets.BACKUP_S3_SECRET }}
+          BACKUP_S3_REGION: ${{ secrets.BACKUP_S3_REGION }}
+        run: bash scripts/backup/photos-sync.sh
+
+      - name: Tell somebody it failed
+        if: failure()
+        env:
+          BACKUP_ALERT_WEBHOOK: ${{ secrets.BACKUP_ALERT_WEBHOOK }}
+        run: bash scripts/backup/notify.sh "Photos copy" "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
