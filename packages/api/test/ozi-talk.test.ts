@@ -123,6 +123,11 @@ describe('what is sent to the model', () => {
       expect(sent.length).toBeGreaterThanOrEqual(3);
       for (const body of sent) {
         expect(JSON.stringify(body['output_config'] ?? {})).not.toMatch(refused);
+        // Nor a list of choices on a type given as a pair, which the live service refused with
+        // "Enum value 'none' does not match declared type" (10 November 2026).
+        expect(JSON.stringify(body['output_config'] ?? {})).not.toMatch(
+          /"type":\[[^\]]*\],"enum"|"enum":\[[^\]]*\],"type":\[/,
+        );
         // Never a thinking setting, a sampling setting or a forced tool on these models.
         expect(body).not.toHaveProperty('thinking');
         expect(body).not.toHaveProperty('temperature');

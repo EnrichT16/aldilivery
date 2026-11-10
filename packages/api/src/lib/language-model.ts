@@ -150,8 +150,17 @@ const UNDERSTANDING_SCHEMA = {
         text: { type: 'string' },
         dueAtIso: { type: ['string', 'null'] },
         relative: { type: ['string', 'null'] },
-        repeat: { type: ['string', 'null'], enum: ['none', 'daily', 'weekly', 'monthly', null] },
-        channel: { type: ['string', 'null'], enum: ['notification', 'text', 'call', null] },
+        // A choice that may be null is written as "one of these, or null" (ruling 99): the
+        // provider refuses a list of choices on a type given as a pair.
+        repeat: {
+          anyOf: [
+            { type: 'string', enum: ['none', 'daily', 'weekly', 'monthly'] },
+            { type: 'null' },
+          ],
+        },
+        channel: {
+          anyOf: [{ type: 'string', enum: ['notification', 'text', 'call'] }, { type: 'null' }],
+        },
       },
     },
   },
