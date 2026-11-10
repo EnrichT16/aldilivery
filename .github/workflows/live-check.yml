@@ -82,6 +82,20 @@ jobs:
               https://www.ozidelivery.co.uk/api/ozi/reply || echo "curl failed: $?"
             head -c 1500 body.txt; echo
           done
+          echo "== POST https://www.ozidelivery.co.uk/api/ozi/talk (the conversation, ruling 99; events as they come)"
+          # Twice, and then something to find in the shop: the first turn after a release is the
+          # slowest, so the second shows what a person waits for; the third uses a tool.
+          n=0
+          for words in "$ASK" "Good morning Ozi, how are you today?" "Ozi, have you got any bread?"; do
+            talk=$(jq -n --arg text "$words" --argjson turn "$n" '{text:$text, turn:$turn, conversation:"live-check-talk", basket:{lines:[],goodsPence:0,feePence:0,totalPence:0}}')
+            echo "-- they say: $words"
+            curl -sS -N -m 60 -H 'content-type: application/json' -H 'accept: text/event-stream' \
+              -H 'Origin: https://www.ozidelivery.co.uk' --data "$talk" \
+              -w '\nstatus=%{http_code} first_byte=%{time_starttransfer}s total=%{time_total}s\n' \
+              https://www.ozidelivery.co.uk/api/ozi/talk | head -c 3000 || echo "curl failed: $?"
+            n=$((n+1))
+          done
+          echo
           echo "== health afterwards"
           curl -sS -m 40 https://www.ozidelivery.co.uk/api/health | head -c 900; echo
 

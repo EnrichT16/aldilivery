@@ -136,7 +136,9 @@ const REMINDER_TOOLS: Anthropic.Tool[] = [
         text: { type: 'string' },
         when: { type: 'string' },
         repeat: { type: 'string', enum: ['none', 'daily', 'weekly', 'monthly'] },
-        channel: { type: ['string', 'null'], enum: ['notification', 'text', 'call', null] },
+        channel: {
+          anyOf: [{ type: 'string', enum: ['notification', 'text', 'call'] }, { type: 'null' }],
+        },
       },
     },
   },
