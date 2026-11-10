@@ -50,3 +50,13 @@ that Playwright installs, or any Chrome named in `CHROME_PATH` (a Chrome for Tes
 `npx @puppeteer/browsers install chrome` does, where Playwright's own download is not allowed
 through); `playwright` itself may live outside the repository, named in `NODE_PATH`. It is not
 part of the test suite because it starts three servers.
+
+## A Shopper's conversation (ruling 99)
+
+`node shopper.mjs` (after `bash start.sh`) plays a visitor shopping by talking: milk and bread
+asked for and found in the basket, a real question answered by the model and never by the book of
+ready-made answers, the conversation carrying on without Ozi's name being said again, a question
+left waiting that does not swallow a new request, and an order refused kindly without an account.
+It ends with `All checks passed.` or the checks that failed, and exits non-zero on a failure. The
+stand-in model plays a short exchange with the tools it is given, so the tools really run.
+

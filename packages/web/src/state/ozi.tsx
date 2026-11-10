@@ -55,7 +55,7 @@ import {
   unsupportedMessage,
   type BrowserFacts,
 } from '../voice/microphone-help';
-import { nameHeardIn, onlyName } from '../voice/name';
+import { NAME_PATTERN, nameHeardIn, onlyName } from '../voice/name';
 import { fillerWhileWaiting } from '../voice/filler';
 import {
   converse,
@@ -548,6 +548,8 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     if (sayings.current === 0) {
       talkingRef.current = false;
       setTalking(false);
+      // Ozi has just spoken to them: what they say next is said to Ozi (ruling 99).
+      talkOpenUntil.current = Date.now() + TALK_OPEN_MS;
       listenRef.current();
     }
     return outcome;
@@ -847,8 +849,25 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     const capture = captureRef.current;
     if (capture) {
       captureRef.current = null;
-      capture(text);
-      return;
+      // A question left waiting never swallows a new request (ruling 99, 10 November 2026: "Ozi,
+      // can I have some milk please" was taken as a yes to hearing the phone number again). Words
+      // said to Ozi by name, or plainly asking for something, that are more than a yes or a no,
+      // are answered as themselves, and the old question is dropped.
+      const bare = text
+        .toLowerCase()
+        .replace(new RegExp(`\\b(hey|hi|hello|ok|okay)?[\\s,]*${NAME_PATTERN}\\b`, 'gi'), ' ')
+        .replace(/[^a-z' ]+/g, ' ')
+        .trim();
+      const justAnAnswer =
+        bare.split(/\s+/).filter(Boolean).length < 3 ||
+        /^(yes|yeah|yep|no|nope|ok|okay|sure|please|repeat|not now|go on)( (please|thanks|thank you|that's right|it is))*$/.test(
+          bare,
+        );
+      const newRequest = (nameHeardIn(text) || ORDER_INTENT.test(text)) && !justAnAnswer;
+      if (!newRequest) {
+        capture(text);
+        return;
+      }
     }
     setHeard(text);
     // The page's own commands come before anything about shopping.
@@ -1504,7 +1523,10 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       } else if (/\borganisation\b/.test(said)) {
         navigate('/organisations');
       } else if (/^\s*(no|nope|no thanks?|no thank you|not now)\W*$/.test(said)) {
-        sayPhoneNumber('All right. You can also ring us, and your order is taken on the phone. ');
+        // No lecture and no phone number read out twice (ruling 99): they can simply carry on.
+        void sayRef.current(
+          "That's fine, there's no hurry. Have a look around, or tell me what you need and I'll help.",
+        );
       } else {
         heardRef.current(answer);
       }
