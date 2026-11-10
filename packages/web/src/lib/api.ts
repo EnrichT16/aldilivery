@@ -43,7 +43,7 @@ export interface CatalogueResult {
  */
 const LOCAL_API_URL = 'http://localhost:8080';
 
-const BASE_URL = String(
+export const BASE_URL = String(
   import.meta.env['VITE_API_URL'] ?? (import.meta.env.DEV ? LOCAL_API_URL : '/api'),
 ).replace(/\/+$/, '');
 
@@ -3626,7 +3626,7 @@ export interface OziStreamedReply extends OziReply {
 }
 
 /** The headers every request carries, with whoever is asking (the same as `request` sends). */
-function oziHeaders(as: OziAsker): Record<string, string> {
+export function oziHeaders(as: OziAsker): Record<string, string> {
   const token =
     as.kind === 'runner' ? readRunnerToken() : as.kind === 'shopper' ? readToken() : null;
   const device = deviceId();

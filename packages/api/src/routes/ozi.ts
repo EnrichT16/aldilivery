@@ -13,6 +13,7 @@ import { PassThrough } from 'node:stream';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import {
   ASKS_THE_TIME,
+  formatPence,
   knownSpeakerReply,
   PARTNER_KIND_WORDS,
   SHOPPER_ACCOUNT_FOR_ORDERS,
@@ -62,6 +63,9 @@ import {
 } from '../lib/phrases.js';
 import { rankedForListing } from '../lib/partner-standing.js';
 import { unsaidPart } from '../lib/sentences.js';
+import { pagePath, type TalkToolOutcome } from '../lib/ozi-talk.js';
+import { restaurantsOf } from '../services/basket.js';
+import { rankedItems } from './catalogue.js';
 import {
   ASKS_FOR_REMINDER,
   ASKS_REMINDER_CANCEL,
@@ -127,6 +131,58 @@ const body = z.object({
   stream: z.boolean().optional(),
 });
 type ReplyBody = z.infer<typeof body>;
+
+/**
+ * One turn of the conversation (ruling 99): what was said, and what the app knows of this moment.
+ * The basket is the app's own, so the model can speak of it and change it by id.
+ */
+const talkBody = z.object({
+  text: z.string().trim().min(1).max(600),
+  turn: z.number().int().min(0).max(1_000_000).default(0),
+  conversation: z.string().trim().min(1).max(80).optional(),
+  basket: z
+    .object({
+      lines: z
+        .array(
+          z.object({
+            id: z.string().trim().min(1).max(80),
+            name: z.string().trim().max(120),
+            quantity: z.number().int().min(1).max(99),
+            pricePence: z.number().int().min(0).max(1_000_000),
+          }),
+        )
+        .max(60),
+      goodsPence: z.number().int().min(0).max(10_000_000),
+      feePence: z.number().int().min(0).max(10_000_000),
+      totalPence: z.number().int().min(0).max(10_000_000),
+    })
+    .optional()
+    .catch(undefined),
+  screen: screenShape.optional().catch(undefined),
+});
+
+/** Something for the app to do on the phone, as the conversation's tools ask (ruling 99). */
+export type TalkAction =
+  | {
+      type: 'basket_add';
+      items: Array<{
+        item: {
+          id: string;
+          name: string;
+          category: string;
+          estimatedPricePence: number;
+          restaurant: { shopId: string; name: string; markedUp: boolean } | null;
+        };
+        quantity: number;
+      }>;
+    }
+  | { type: 'basket_set'; productId: string; quantity: number }
+  | { type: 'checkout' }
+  | { type: 'navigate'; path: string }
+  | { type: 'repeat_last_order' }
+  | { type: 'sign_in' }
+  | { type: 'new_account' }
+  | { type: 'mute' };
 
 /** The delay the person felt (ruling 92), from finishing speaking to the first word heard. */
 const feltBody = z.object({
@@ -744,6 +800,436 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         out.end();
       }
     })();
+    return reply
+      .header('content-type', 'text/event-stream; charset=utf-8')
+      .header('cache-control', 'no-cache, no-transform')
+      .header('x-accel-buffering', 'no')
+      .send(out);
+  });
+
+  /* ---------------------------------------------------------------- the conversation */
+
+  const ORDER_STATUS_WORDS: Record<string, string> = {
+    awaiting_payment: 'waiting to be paid for',
+    awaiting_approval: 'waiting for the person who pays to approve it',
+    scheduled: 'booked, and not yet sent to a Runner',
+    paid: 'paid, and a Runner is being found',
+    offered: 'paid, and a Runner is being found',
+    accepted: 'with a Runner, who is going to the shop',
+    shopping: 'being shopped for now',
+    receipt_submitted: 'paid for at the till, and about to set off',
+    delivering: 'on its way to them now',
+    delivered: 'delivered',
+    completed: 'delivered',
+    cancelled: 'cancelled',
+    refunded: 'refunded',
+  };
+
+  /**
+   * POST /ozi/talk (ruling 99, 10 November 2026): Ozi as a real conversation for everybody but
+   * the owner, whose own conversation is /ozi/reply. Always streamed: {type:"sentence"} as each
+   * sentence is ready, {type:"action"} for each thing the app should do on the phone, then
+   * {type:"done", reply, awaitingYes, actions}; or {type:"unavailable"} when the model cannot
+   * answer, on which the app carries on with its older, hand-built parts.
+   */
+  app.post('/ozi/talk', async (request, reply) => {
+    const input = talkBody.parse(request.body ?? {});
+    const timing: Timing = { started: Date.now(), modelMs: null, firstWordAt: null };
+    const identity = await whoIsSpeaking(request);
+    const { account, speaker, allowanceKey } = identity;
+    const { text, turn, conversation } = input;
+    const brain = app.ctx.brain;
+
+    const out = new PassThrough();
+    const send = (event: Record<string, unknown>): void => {
+      out.write(`data: ${JSON.stringify(event)}\n\n`);
+    };
+    const sent: string[] = [];
+    const actions: TalkAction[] = [];
+    const sentence = (words: string): void => {
+      if (words.trim() === '' || containsBanned(words, banned)) return;
+      if (timing.firstWordAt === null) timing.firstWordAt = Date.now();
+      sent.push(words);
+      send({ type: 'sentence', text: words });
+    };
+    const act = (action: TalkAction): void => {
+      actions.push(action);
+      send({ type: 'action', n: actions.length - 1, action });
+    };
+    const kept = (said: string | null, by: Brain, outcome: Outcome, model?: string | null) =>
+      keep(request, account, conversation, turn, text, said, by, outcome, {
+        speaker,
+        model,
+        timing,
+      });
+    /** The whole turn said in the server's own words, with nothing asked of the model. */
+    const sayAll = (words: string, by: Brain, outcome: Outcome, awaitingYes = false): void => {
+      sentence(words);
+      kept(words, by, outcome);
+      send({ type: 'done', reply: words, awaitingYes, actions });
+    };
+
+    const run = async (): Promise<void> => {
+      // The owner's conversation is his own (ruling 86): he is never answered from here.
+      if (account === 'owner' || !brain?.talk) {
+        send({ type: 'unavailable' });
+        return;
+      }
+      // A read-back waiting for a yes (Rule One): only a clear yes carries it out.
+      if (conversation) {
+        const pending = pendingDecisions.take(conversation, Date.now());
+        if (pending) {
+          if (isClearYes(text)) {
+            const outcome = await carryOutDecision(app.ctx, pending, request.log, {
+              actorId: request.staffActor?.id ?? null,
+              ip: request.ip ?? '',
+            });
+            sayAll(outcome.words, 'flow', 'answered');
+            return;
+          }
+          if (
+            /^\s*(no|nope|no thanks?|no thank you|don'?t|leave it|not now|cancel)\b/i.test(text)
+          ) {
+            sayAll("All right, I haven't done it.", 'flow', 'stopped');
+            return;
+          }
+          // Anything else: nothing is done, and what was said is answered as itself.
+        }
+      }
+      if (containsBanned(text, banned)) {
+        sayAll("I'm here to help. Let's keep it kind.", 'flow', 'answered');
+        return;
+      }
+      // The cost guard (31 October 2026): past the day's allowance the older parts answer.
+      if (!modelTurns.take(allowanceKey, config.ozi.maxModelTurnsPerDay, now(), false)) {
+        send({ type: 'unavailable' });
+        return;
+      }
+
+      const shopperId = request.session?.role === 'shopper' ? request.session.accountId : null;
+      // The basket as this turn leaves it, so each tool's answer says how it now stands.
+      const basket = new Map(
+        (input.basket?.lines ?? []).map((line) => [line.id, { ...line }] as const),
+      );
+      const money = (pence: number): string => formatPence(pence, config.store.currencySymbol);
+      const basketNow = (): string =>
+        basket.size === 0
+          ? 'empty'
+          : [...basket.values()]
+              .map(
+                (line) =>
+                  `${line.quantity} x ${line.name} (id ${line.id}, ${money(line.pricePence)} each)`,
+              )
+              .join('; ');
+      const basketWords =
+        speaker.kind === 'shopper' || speaker.kind === 'visitor'
+          ? input.basket && input.basket.lines.length > 0
+            ? `Their basket now: ${basketNow()}. Shopping with its item charges ${money(input.basket.goodsPence)}, delivery ${money(input.basket.feePence)}, total ${money(input.basket.totalPence)}.`
+            : 'Their basket is empty.'
+          : '';
+
+      const tool = async (name: string, raw: unknown): Promise<TalkToolOutcome> => {
+        switch (name) {
+          case 'search_shop': {
+            const { query } = z.object({ query: z.string().trim().min(1).max(80) }).parse(raw);
+            const { items } = await rankedItems(
+              app.ctx,
+              // Never true. Rule Six.
+              await repository.catalogue.search(query, { includeAgeRestricted: false, limit: 8 }),
+            );
+            const restaurants = await restaurantsOf(app.ctx, items);
+            if (items.length === 0) {
+              return {
+                result: {
+                  found: 0,
+                  note: 'Nothing in the shop matches those words. Try plainer or different words once; if there is still nothing, say so, and offer the nearest thing or the service where a person looks for it.',
+                },
+              };
+            }
+            return {
+              result: {
+                found: items.length,
+                products: items.map((item) => ({
+                  id: item.id,
+                  name: item.name,
+                  category: item.category,
+                  shelf_price_pence: item.estimatedPricePence,
+                  restaurant: restaurants.of.get(item.id)?.name ?? null,
+                })),
+                note: 'Prices are estimates of the shelf price; a small item charge and delivery are added by the app.',
+              },
+            };
+          }
+          case 'add_to_basket': {
+            const asked = z
+              .object({
+                items: z
+                  .array(
+                    z.object({
+                      product_id: z.string().min(1).max(80),
+                      quantity: z.number().int(),
+                    }),
+                  )
+                  .min(1)
+                  .max(20),
+              })
+              .parse(raw);
+            const found = await repository.catalogue.findManyByIds(
+              asked.items.map((one) => one.product_id),
+            );
+            const restaurants = await restaurantsOf(app.ctx, found);
+            const added: Extract<TalkAction, { type: 'basket_add' }>['items'] = [];
+            const unknown: string[] = [];
+            for (const one of asked.items) {
+              const item = found.find((row) => row.id === one.product_id);
+              // Rule Six again, whatever id was given.
+              if (!item || item.ageRestricted) {
+                unknown.push(one.product_id);
+                continue;
+              }
+              const quantity = Math.min(99, Math.max(1, one.quantity));
+              const ref = restaurants.of.get(item.id);
+              added.push({
+                item: {
+                  id: item.id,
+                  name: item.name,
+                  category: item.category,
+                  estimatedPricePence: item.estimatedPricePence,
+                  restaurant: ref
+                    ? { shopId: ref.shopId, name: ref.name, markedUp: (ref.markupPercent ?? 0) > 0 }
+                    : null,
+                },
+                quantity,
+              });
+              const line = basket.get(item.id);
+              basket.set(item.id, {
+                id: item.id,
+                name: item.name,
+                quantity: Math.min(99, (line?.quantity ?? 0) + quantity),
+                pricePence: item.estimatedPricePence,
+              });
+            }
+            if (added.length > 0) act({ type: 'basket_add', items: added });
+            return {
+              result: {
+                added: added.map((one) => ({
+                  name: one.item.name,
+                  quantity: one.quantity,
+                  shelf_price_pence_each: one.item.estimatedPricePence,
+                })),
+                ...(unknown.length > 0
+                  ? {
+                      not_added: unknown,
+                      why: 'No such product id. Search again and use an id from the results.',
+                    }
+                  : {}),
+                basket_now: basketNow(),
+                note: 'The app adds the item charges and delivery and shows the new total; you will be given it next turn. Do not work out a total yourself.',
+              },
+            };
+          }
+          case 'change_basket': {
+            const asked = z
+              .object({ product_id: z.string().min(1).max(80), quantity: z.number().int() })
+              .parse(raw);
+            const line = basket.get(asked.product_id);
+            if (!line) {
+              return {
+                result: {
+                  ok: false,
+                  why: 'That id is not in their basket.',
+                  basket_now: basketNow(),
+                },
+              };
+            }
+            const quantity = Math.min(99, Math.max(0, asked.quantity));
+            if (quantity === 0) basket.delete(line.id);
+            else basket.set(line.id, { ...line, quantity });
+            act({ type: 'basket_set', productId: line.id, quantity });
+            return { result: { ok: true, name: line.name, quantity, basket_now: basketNow() } };
+          }
+          case 'start_checkout': {
+            if (!shopperId) {
+              return {
+                result: {
+                  ok: false,
+                  why: 'Nobody is signed in. An order needs an account: offer to sign them in or open one.',
+                },
+              };
+            }
+            if (basket.size === 0) {
+              return { result: { ok: false, why: 'The basket is empty.' } };
+            }
+            act({ type: 'checkout' });
+            return {
+              result: {
+                ok: true,
+                note: 'The app now reads the order back and takes their two yeses itself. Say at most a few words, and nothing about payment.',
+              },
+            };
+          }
+          case 'my_orders': {
+            if (!shopperId) return { result: { ok: false, why: 'Nobody is signed in.' } };
+            const orders = (await repository.orders.listForShopper(shopperId))
+              .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+              .slice(0, 3);
+            const described = [];
+            for (const order of orders) {
+              const runner = order.runnerId
+                ? await repository.runners.findById(order.runnerId).catch(() => null)
+                : null;
+              described.push({
+                placed: order.createdAt.toISOString(),
+                status: ORDER_STATUS_WORDS[order.status] ?? order.status,
+                runner_first_name: runner?.name.trim().split(/\s+/)[0] ?? null,
+                items: order.items.map((item) => `${item.quantity} x ${item.name}`).slice(0, 30),
+                total_pence: order.finalTotalPence ?? order.totalEstimatePence,
+                total_is_final: order.finalTotalPence !== null,
+              });
+            }
+            return {
+              result:
+                described.length > 0
+                  ? {
+                      orders: described,
+                      note: 'Newest first. Never give a delivery time that is not here.',
+                    }
+                  : { orders: [], note: 'They have not ordered yet.' },
+            };
+          }
+          case 'repeat_last_order': {
+            if (!shopperId) return { result: { ok: false, why: 'Nobody is signed in.' } };
+            act({ type: 'repeat_last_order' });
+            return {
+              result: {
+                ok: true,
+                note: 'The app puts it in and says what went in. Say only a few words.',
+              },
+            };
+          }
+          case 'local_shops': {
+            const { kind } = z.object({ kind: z.string().trim().max(60).nullable() }).parse(raw);
+            const shops = kind ? await shopsOfKind(kind) : await listedShops();
+            return {
+              result: {
+                count: shops.length,
+                shops: shops.slice(0, 12).map((shop) => ({
+                  name: shop.name,
+                  kind: PARTNER_KIND_WORDS[shop.kind],
+                  about: shop.about.slice(0, 160),
+                })),
+                note:
+                  shops.length === 0
+                    ? 'None listed yet. Businesses can join from the business page.'
+                    : 'The Local shops page has them all; open_page can show it.',
+              },
+            };
+          }
+          case 'open_page': {
+            const { page } = z.object({ page: z.string().min(1).max(40) }).parse(raw);
+            const path = pagePath(speaker.kind, page);
+            if (!path) return { result: { ok: false, why: 'No such page for them.' } };
+            act({ type: 'navigate', path });
+            return { result: { ok: true, opened: page } };
+          }
+          case 'start_sign_in':
+            if (speaker.kind !== 'visitor')
+              return { result: { ok: false, why: 'They are signed in already.' } };
+            act({ type: 'sign_in' });
+            return {
+              result: { ok: true, note: 'The app asks for what it needs. Say only a few words.' },
+            };
+          case 'start_new_account':
+            if (speaker.kind !== 'visitor')
+              return { result: { ok: false, why: 'They have an account already.' } };
+            act({ type: 'new_account' });
+            return {
+              result: { ok: true, note: 'The app asks for what it needs. Say only a few words.' },
+            };
+          case 'stop_listening':
+            act({ type: 'mute' });
+            return { result: { ok: true } };
+          case 'list_reminders': {
+            const who = await reminderAccount(request).catch(() => null);
+            if (!who) return { result: { ok: false, why: 'Reminders need a sign-in.' } };
+            return { result: { reminders: await remindersSpoken(app.ctx, who) } };
+          }
+          case 'set_reminder': {
+            const asked = z
+              .object({
+                text: z.string().trim().min(1).max(200),
+                when: z.string().trim().min(1).max(120),
+                repeat: z.enum(['none', 'daily', 'weekly', 'monthly']),
+                channel: z.enum(['notification', 'text', 'call']).nullable(),
+              })
+              .parse(raw);
+            const who = await reminderAccount(request).catch(() => null);
+            if (!who)
+              return {
+                result: { ok: false, why: 'Reminders need a sign-in. Offer to sign them in.' },
+              };
+            const proposal = await proposeReminder(app.ctx, who, {
+              text: asked.text,
+              relative: asked.when,
+              repeat: asked.repeat,
+              channel: asked.channel,
+            });
+            if (!proposal.ok) return { result: { ok: false, why: proposal.why } };
+            if (!conversation) return { result: { ok: false, why: 'It cannot be set just now.' } };
+            pendingDecisions.set(conversation, {
+              reminder: proposal.draft,
+              account: who,
+              readBack: proposal.readBack,
+              at: Date.now(),
+            });
+            return { result: { ok: true }, readBack: proposal.readBack };
+          }
+          default:
+            return { result: { error: 'No such tool.' } };
+        }
+      };
+
+      const history = conversation ? await recentTurns(app.ctx, conversation) : [];
+      const asked = Date.now();
+      const outcome = await brain.talk({
+        text,
+        who: speaker,
+        channel: 'app',
+        history,
+        basket: basketWords,
+        ...(input.screen ? { screen: input.screen } : {}),
+        run: tool,
+        onSentence: sentence,
+      });
+      timing.modelMs = Date.now() - asked;
+      if (!outcome || outcome.reply.trim() === '') {
+        // Nothing heard from the model, and nothing done: the older parts answer this turn.
+        if (actions.length === 0 && sent.length === 0) {
+          send({ type: 'unavailable' });
+          return;
+        }
+        kept(sent.join(' '), 'model', 'answered', brain.model);
+        send({ type: 'done', reply: sent.join(' '), awaitingYes: false, actions });
+        return;
+      }
+      kept(outcome.reply, 'model', outcome.awaitingYes ? 'asked' : 'answered', brain.model);
+      send({
+        type: 'done',
+        reply: outcome.reply,
+        awaitingYes: outcome.awaitingYes,
+        actions,
+        unsaid: unsaidPart(outcome.reply, sent),
+      });
+    };
+
+    void run()
+      .catch((failure: unknown) => {
+        request.log.error({ err: failure }, "A turn of Ozi's conversation failed.");
+        send(
+          sent.length === 0 && actions.length === 0 ? { type: 'unavailable' } : { type: 'error' },
+        );
+      })
+      .finally(() => out.end());
     return reply
       .header('content-type', 'text/event-stream; charset=utf-8')
       .header('cache-control', 'no-cache, no-transform')

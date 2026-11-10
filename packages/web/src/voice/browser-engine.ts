@@ -119,6 +119,53 @@ function loadVoices(speech: SpeechSynthesis): Promise<SpeechSynthesisVoice[]> {
   });
 }
 
+/**
+ * How natural a voice is likely to sound, from its name (ruling 99, 10 November 2026: Ozi "sounds
+ * like an eighteenth-century robot"). A phone's default voice is often its oldest and most
+ * mechanical, while a far better one is already installed beside it: the makers mark those
+ * "Natural", "Neural", "Premium" or "Enhanced", and the browser's own online voices are better
+ * than the compact ones. The old novelty voices are never chosen. Higher is better.
+ */
+export function voiceQuality(voice: {
+  name: string;
+  voiceURI: string;
+  localService?: boolean;
+}): number {
+  const name = `${voice.name} ${voice.voiceURI}`.toLowerCase();
+  if (
+    /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|fred|ralph|kathy|junior|eddy|flo|grandma|grandpa|reed|rocko|sandy|shelley)\b/.test(
+      name,
+    )
+  ) {
+    return -5;
+  }
+  let score = 0;
+  if (/natural|neural/.test(name)) score += 6;
+  if (/premium/.test(name)) score += 5;
+  if (/enhanced/.test(name)) score += 4;
+  if (/siri/.test(name)) score += 4;
+  if (/\bgoogle\b/.test(name)) score += 3;
+  if (/online/.test(name)) score += 2;
+  if (/compact|espeak|festival|pico/.test(name)) score -= 3;
+  return score;
+}
+
+/** The best voice for a language: an exact match of the accent first, then the most natural. */
+export function bestVoice<
+  V extends { name: string; voiceURI: string; lang: string; default?: boolean },
+>(voices: readonly V[], wanted: LanguageTag): V | undefined {
+  const exact = (voice: V): boolean =>
+    voice.lang.toLowerCase().replace('_', '-') === wanted.toLowerCase();
+  return voices
+    .filter((voice) => sameLanguage(voice.lang, wanted))
+    .map((voice, index) => ({
+      voice,
+      index,
+      score: voiceQuality(voice) + (exact(voice) ? 10 : 0) + (voice.default ? 1 : 0),
+    }))
+    .sort((a, b) => b.score - a.score || a.index - b.index)[0]?.voice;
+}
+
 function sameLanguage(voiceLang: string, wanted: LanguageTag): boolean {
   const a = voiceLang.toLowerCase().replace('_', '-');
   const b = wanted.toLowerCase();
@@ -247,8 +294,8 @@ export function browserVoiceEngine(): VoiceEngine {
       const voices = await loadVoices(speech);
       const chosen =
         voices.find((voice) => voice.voiceURI === options.voiceId) ??
-        voices.find((voice) => sameLanguage(voice.lang, options.language) && voice.default) ??
-        voices.find((voice) => sameLanguage(voice.lang, options.language));
+        // The most natural voice the phone has for the language, not merely its default.
+        bestVoice(voices, options.language);
       if (chosen) utterance.voice = chosen;
 
       return new Promise((resolve) => {
@@ -300,9 +347,13 @@ export function browserVoiceEngine(): VoiceEngine {
       const speech = synthesis();
       if (!speech) return [];
       const all = await loadVoices(speech);
-      return all
-        .filter((voice) => sameLanguage(voice.lang, language))
-        .map((voice) => ({ id: voice.voiceURI, name: voice.name, language: voice.lang }));
+      return (
+        all
+          .filter((voice) => sameLanguage(voice.lang, language) && voiceQuality(voice) >= 0)
+          // The most natural first, so the first in Settings is the one Ozi uses.
+          .sort((a, b) => voiceQuality(b) - voiceQuality(a))
+          .map((voice) => ({ id: voice.voiceURI, name: voice.name, language: voice.lang }))
+      );
     },
   };
 }

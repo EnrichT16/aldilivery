@@ -34,6 +34,7 @@ import type { CallRecorder } from './lib/call-recording.js';
 import type { CallProvider } from './lib/livekit.js';
 import type { VoiceEngineLink } from './lib/oluoma-voice.js';
 import type { OziBrain } from './lib/language-model.js';
+import { modelHealth } from './lib/language-model.js';
 import { feltDelaysOf } from './lib/ozi-latency.js';
 import type { MailboxLink } from './lib/mailbox.js';
 import type { OpenPricesLookup } from './lib/open-prices.js';
@@ -561,6 +562,9 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
           model: ctx.brain.model,
           ownerModel: ctx.brain.ownerModel ?? null,
           latency24h: feltDelaysOf(ctx).last24h(ctx.now()),
+          // Whether it is really answering (ruling 99): requests answered and failed since this
+          // server started, when it last answered, and the kind of the last failure.
+          health: modelHealth(),
         }
       : null,
     // How long sign-ins last (ruling 88), so the live settings can be read off this check.

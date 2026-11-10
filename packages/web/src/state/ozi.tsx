@@ -64,6 +64,9 @@ import {
   OWNER_CONVERSE_WAIT_MS,
   phraseReply,
 } from '../voice/phrases';
+import { setTalkFirst } from '../voice/phrases';
+import { talkToOzi, type TalkAction } from '../lib/ozi-talk';
+import { ORDER_INTENT } from './voice-order';
 import { answerShoppingQuestion, orderWhere } from '../voice/shopping-questions';
 import { useBasket } from './basket';
 import type { SpeakOutcome } from '../voice';
@@ -212,6 +215,12 @@ const PHONE =
  * without its name (ruling 84), as in the admin panel.
  */
 const KNOWN_CONVERSING_MS = 45_000;
+/**
+ * How long the conversation stays open after Ozi last answered (ruling 99): what is said in that
+ * time is taken as said to Ozi, with no need to say its name each time, as between two people.
+ * After it, Ozi waits for its name or its button again, so it never answers the television.
+ */
+const TALK_OPEN_MS = 90_000;
 
 /** Answers to "Hey Ozi" on its own, taken in turn. */
 const HERE = [
@@ -503,9 +512,9 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
   // How many sentences are being said or waiting their turn (ruling 92): Ozi listens again only
   // when the last of them is done, so it never hears the rest of its own reply.
   const sayings = useRef(0);
-  const sayRef = useRef<
-    (text: string, inline?: boolean, queue?: boolean) => Promise<SpeakOutcome>
-  >(async () => 'finished');
+  const sayRef = useRef<(text: string, inline?: boolean, queue?: boolean) => Promise<SpeakOutcome>>(
+    async () => 'finished',
+  );
   sayRef.current = async (text: string, inline = false, queue = false) => {
     // The sentences of one reply read as one on the screen, and "say that again" repeats them all.
     const shown = queue && sayings.current > 0 ? `${lastSaid.current} ${text}` : text;
@@ -626,8 +635,140 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     clearReminders();
     setPresence('listening');
     ordering.expectOrder();
+    talkOpenUntil.current = Date.now() + TALK_OPEN_MS;
     void sayRef.current("I'm listening. What would you like?");
   }, [clearReminders, setPresence, ordering]);
+
+  /* ------------------------------------------------------------------ the conversation */
+
+  // Until when words are taken as said to Ozi without its name (ruling 99).
+  const talkOpenUntil = useRef(0);
+  const talkTurnRef = useRef<(text: string) => Promise<boolean>>(async () => false);
+  const afterTalkRef = useRef<{
+    orderAgain: () => void;
+    signIn: () => void;
+  }>({ orderAgain: () => undefined, signIn: () => undefined });
+
+  /**
+   * One turn of the real conversation (ruling 99, 10 November 2026): the words go to the model
+   * with the basket and the screen, its answer is spoken a sentence at a time as it arrives, and
+   * what it asks the app to do is done on the phone: things go in the basket while it is still
+   * talking. Sending an order, repeating the last one, signing in and going quiet wait until it
+   * has finished speaking, and then run as they always have, with their own read-backs and
+   * yeses (Rule One). False when the model could not answer, so the older parts answer instead.
+   */
+  talkTurnRef.current = async (text: string): Promise<boolean> => {
+    const as = currentAsker();
+    const turn = phraseTurn.current;
+    const heardAt = Date.now();
+    let firstWordAt: number | null = null;
+    const speaking: Array<Promise<unknown>> = [];
+    const after: Array<() => void> = [];
+    const filler = fillerWhileWaiting((words) => void sayRef.current(words));
+    const b = basketRef.current;
+    const basket =
+      as.kind === 'shopper'
+        ? {
+            lines: b.lines.map((line) => ({
+              id: line.item.id,
+              name: line.item.name,
+              quantity: line.quantity,
+              pricePence: line.item.estimatedPricePence,
+            })),
+            // The shopping as it is said: with its item charges in (ruling 58).
+            goodsPence: b.pricing.goodsPence + b.pricing.itemChargesPence,
+            feePence: b.pricing.feePence,
+            totalPence: b.pricing.totalPence,
+          }
+        : null;
+    // How many of each the conversation has put in this turn, on top of what was there.
+    const counts = new Map(b.lines.map((line) => [line.item.id, line.quantity] as const));
+    const act = (action: TalkAction): void => {
+      const now = basketRef.current;
+      switch (action.type) {
+        case 'basket_add':
+          for (const { item, quantity } of action.items) {
+            const total = Math.min(99, (counts.get(item.id) ?? 0) + Math.max(1, quantity));
+            if (now.add(item)) {
+              now.setQuantity(item.id, total);
+              counts.set(item.id, total);
+            }
+          }
+          break;
+        case 'basket_set':
+          if (action.quantity <= 0) now.remove(action.productId);
+          else now.setQuantity(action.productId, action.quantity);
+          counts.set(action.productId, Math.max(0, action.quantity));
+          break;
+        case 'navigate':
+          if (action.path.startsWith('/')) navigate(action.path);
+          break;
+        case 'checkout':
+          after.push(() => void ordering.sendBasket());
+          break;
+        case 'repeat_last_order':
+          after.push(() => afterTalkRef.current.orderAgain());
+          break;
+        case 'sign_in':
+          after.push(() => afterTalkRef.current.signIn());
+          break;
+        case 'new_account':
+          after.push(() => navigate('/sign-up?talk=1'));
+          break;
+        case 'mute':
+          // Quietly: the conversation has already said its own goodbye.
+          after.push(() => {
+            setPresence('muted');
+            stopListening();
+            clearReminders();
+            scheduleReminder();
+          });
+          break;
+      }
+    };
+    const answer = await think(
+      talkToOzi(text, turn, as, basket, {
+        onSentence: (sentence) => {
+          filler.arrived();
+          if (firstWordAt === null) firstWordAt = Date.now();
+          speaking.push(sayRef.current(sentence, false, true));
+        },
+        onAction: (action) => {
+          filler.arrived();
+          act(action);
+        },
+      }),
+    );
+    filler.stop();
+    if (!answer) return false;
+    phraseTurn.current += 1;
+    if (firstWordAt !== null) recordFelt(turn, firstWordAt - heardAt, as);
+    if (answer.unsaid) speaking.push(sayRef.current(answer.unsaid, false, true));
+    if (answer.awaitingYes) {
+      // A read-back (a reminder): their very next words are its answer, and go straight back.
+      captureRef.current = (reply) => {
+        void talkTurnRef.current(reply).then((ok) => {
+          if (!ok) void sayRef.current("Sorry, I couldn't do that just now. Please ask me again.");
+        });
+      };
+    }
+    await Promise.all(speaking);
+    talkOpenUntil.current = Date.now() + TALK_OPEN_MS;
+    for (const run of after) run();
+    return true;
+  };
+
+  // Called only after a turn, by when both are made: the last order again, and voice sign-in.
+  afterTalkRef.current = { orderAgain: () => orderAgain(), signIn: () => voiceSignIn() };
+
+  // Pages with their own voice commands hand what they do not know to the conversation first.
+  useEffect(() => {
+    setTalkFirst({
+      open: () => Date.now() < talkOpenUntil.current,
+      talk: (text) => talkTurnRef.current(text),
+    });
+    return () => setTalkFirst(null);
+  }, []);
 
   /* ------------------------------------------------------------------ what Ozi hears */
 
@@ -698,6 +839,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
         knownTalk(text);
       } else {
         ordering.expectOrder();
+        talkOpenUntil.current = Date.now() + TALK_OPEN_MS;
         void sayRef.current(HERE[hereCount.current++ % HERE.length]!);
       }
       return;
@@ -735,331 +877,355 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       })();
       return;
     }
-    // "Read my messages": the company inbox (ruling 77), for a Shopper or a Runner signed in.
-    if (!ordering.busy() && READ_MESSAGES.test(words)) {
-      const runnerPage = window.location.pathname.startsWith('/runner');
-      if (runnerPage ? readRunnerToken() : accountRef.current.shopper) {
-        void readMessagesAloud(
-          runnerPage ? 'runner' : 'shopper',
-          { say: (said: string) => sayRef.current(said), listenFor },
-          storeConfig.productName,
-        );
-        return;
-      }
-    }
-    // "Finish my account": what is still missing, and where to put it (ruling 47).
-    if (/\bfinish\s+(setting\s+up\s+)?my\s+account\b/.test(words) && accountRef.current.shopper) {
-      void welcomeRef.current(accountRef.current.shopper, '');
-      return;
-    }
-    // "Sign in": by voice, with the phone number and a code (ruling 47).
-    if (!ordering.busy() && SIGN_IN.test(words) && !accountRef.current.shopper) {
-      voiceSignIn();
-      return;
-    }
-    // "Create my account": set one up by talking, on the sign-up page.
-    if (!ordering.busy() && CREATE_ACCOUNT.test(words)) {
-      navigate('/sign-up?talk=1');
-      return;
-    }
-    // A shared phone: change who is signed in, by voice (Anthony, 4 October 2026).
-    if (!ordering.busy() && CHANGE_ACCOUNT.test(words)) {
-      changeAccount();
-      return;
-    }
-    if (!ordering.busy() && SIGN_OUT.test(words)) {
-      const { shopper: current, signOut: out } = accountRef.current;
-      out();
-      void sayRef.current(
-        current
-          ? `You're signed out, ${current.displayName}. To sign in again, or open a new account, just tell me.`
-          : 'Nobody is signed in on this phone. To open an account, say open an account.',
-      );
-      return;
-    }
-    // "What are the door words?": the Runner's first name and the two words (T6).
-    if (!ordering.busy() && DOOR_WORD.test(words) && accountRef.current.shopper) {
-      void fetchMyOrder()
-        .then(({ order }) =>
-          sayRef.current(
-            order?.doorWordSentence ??
-              (order
-                ? "Your door words come as soon as a Runner has your order. I'll tell you then."
-                : "You haven't got an order on its way just now, so there are no door words yet."),
-          ),
-        )
-        .catch(() => sayRef.current("I couldn't check just now. Please ask me again in a moment."));
-      return;
-    }
-    // "Skip", on its own, after a regular order's notice (Rule Five).
-    if (
-      !ordering.busy() &&
-      accountRef.current.shopper &&
-      words.trim().replace(/[.!,]+$/, '') === SKIP_WORD
-    ) {
-      void fetchWeeklyShops()
-        .then(async ({ sets }) => {
-          const waiting = sets.find(
-            (set) =>
-              set.active && set.noticeSentAt && set.skipRequestedForFireAt !== set.nextFireAt,
-          );
-          if (!waiting) {
-            await sayRef.current(
-              "There's no regular order waiting to go just now, so there's nothing to skip.",
-            );
-            return;
-          }
-          const result = await skipWeeklyShop(waiting.id);
-          await sayRef.current(result.message);
-        })
-        .catch(() =>
-          sayRef.current("I couldn't stop it just now. Please press Skip on the weekly shop page."),
-        );
-      return;
-    }
-    // "Cancel my membership": one yes, as easy as joining; nothing more is taken (ruling 58).
-    if (!ordering.busy() && CANCEL_PLAN.test(words) && accountRef.current.shopper) {
-      listenFor(
-        'Do you want to cancel your plan? Nothing more will be taken, and you keep it until the end of the month you have paid for. Say yes to cancel it, or no to keep it.',
-        (answer) => {
-          if (!/\b(yes|yeah|yep|cancel it|please)\b/i.test(answer) || /\bno\b/i.test(answer)) {
-            void sayRef.current('All right. Your plan stays as it is.');
-            return;
-          }
-          void cancelPlan()
-            .then((result) => sayRef.current(result.message))
-            .catch(() =>
-              sayRef.current(
-                "I couldn't cancel it just now. Please press Cancel my plan in Settings.",
-              ),
-            );
-        },
-      );
-      return;
-    }
-    // "Close my Runner account" on the Runner's pages (ruling 60): asked once more, then closed,
-    // refused while a job is in hand.
-    if (
-      !ordering.busy() &&
-      CLOSE_RUNNER_ACCOUNT.test(words) &&
-      window.location.pathname.startsWith('/runner')
-    ) {
-      listenFor(CLOSE_QUESTION, (answer) => {
-        if (!/\b(yes|yeah|yep|close it|please)\b/i.test(answer) || /\bno\b/i.test(answer)) {
-          void sayRef.current('All right. Your Runner account stays open.');
-          return;
-        }
-        void leaveRunning()
-          .then((result) => sayRef.current(result.message))
-          .catch((failure: unknown) =>
-            sayRef.current(
-              failure instanceof Error
-                ? failure.message
-                : "I couldn't close it just now. Please press Close my Runner account on your Runner page.",
-            ),
-          );
-      });
-      return;
-    }
-    // "Close my account": asked once more, then closed, with the days to change your mind.
-    if (!ordering.busy() && CLOSE_ACCOUNT.test(words) && accountRef.current.shopper) {
-      const days = storeConfig.accountDeletion.recycleBinDays;
-      listenFor(
-        `Do you want to close your account? It closes in ${days} days, and you can change your mind until then. Say yes to close it, or no to keep it.`,
-        (answer) => {
-          if (!/\b(yes|yeah|yep|close it|please)\b/i.test(answer) || /\bno\b/i.test(answer)) {
-            void sayRef.current('All right. Your account stays as it is.');
-            return;
-          }
-          void closeAccount()
-            .then((result) => {
-              navigate('/settings#close-account');
-              return sayRef.current(
-                `${result.message} To keep it, press Keep my account in Settings.`,
-              );
-            })
-            .catch(() =>
-              sayRef.current("I couldn't close it just now. Please try again in Settings."),
-            );
-        },
-      );
-      return;
-    }
-    // "Send my order": the basket read back whole, then the address and the payment, by voice
-    // (16 October 2026). Nothing is sent without both yeses.
-    if (!ordering.busy() && SEND_ORDER.test(words)) {
-      void ordering.sendBasket();
-      return;
-    }
-    // Questions about the shopping: the basket, the total, taking something out, the order.
-    if (!ordering.busy()) {
-      const b = basketRef.current;
-      const answer = answerShoppingQuestion(text, {
-        lines: b.lines,
-        // The shopping as it is said: with its item charges in (ruling 58).
-        goodsPence: b.pricing.goodsPence + b.pricing.itemChargesPence,
-        feePence: b.pricing.feePence,
-        totalPence: b.pricing.totalPence,
-      });
-      if (answer?.kind === 'say') {
-        void sayRef.current(answer.text);
-        return;
-      }
-      if (answer?.kind === 'remove') {
-        b.remove(answer.itemId);
-        void sayRef.current(answer.text);
-        return;
-      }
-      if (answer?.kind === 'order-status') {
-        if (!accountRef.current.shopper) {
-          void sayRef.current(
-            "You're not signed in, so I can't see an order. To sign in, say sign in.",
+    // The conversation first (ruling 99, 10 November 2026): whatever is said to Ozi, by name, in
+    // the minute or so after it last answered, or as a plain request, goes to the model, which
+    // answers in its own words and does what is asked. Only when it cannot answer do the older,
+    // hand-built parts below take the words. In the middle of an order's read-back and yeses the
+    // words stay with the order (Rule One), and Ozi still never answers the television.
+    const older = (): void => {
+      // "Read my messages": the company inbox (ruling 77), for a Shopper or a Runner signed in.
+      if (!ordering.busy() && READ_MESSAGES.test(words)) {
+        const runnerPage = window.location.pathname.startsWith('/runner');
+        if (runnerPage ? readRunnerToken() : accountRef.current.shopper) {
+          void readMessagesAloud(
+            runnerPage ? 'runner' : 'shopper',
+            { say: (said: string) => sayRef.current(said), listenFor },
+            storeConfig.productName,
           );
           return;
         }
+      }
+      // "Finish my account": what is still missing, and where to put it (ruling 47).
+      if (/\bfinish\s+(setting\s+up\s+)?my\s+account\b/.test(words) && accountRef.current.shopper) {
+        void welcomeRef.current(accountRef.current.shopper, '');
+        return;
+      }
+      // "Sign in": by voice, with the phone number and a code (ruling 47).
+      if (!ordering.busy() && SIGN_IN.test(words) && !accountRef.current.shopper) {
+        voiceSignIn();
+        return;
+      }
+      // "Create my account": set one up by talking, on the sign-up page.
+      if (!ordering.busy() && CREATE_ACCOUNT.test(words)) {
+        navigate('/sign-up?talk=1');
+        return;
+      }
+      // A shared phone: change who is signed in, by voice (Anthony, 4 October 2026).
+      if (!ordering.busy() && CHANGE_ACCOUNT.test(words)) {
+        changeAccount();
+        return;
+      }
+      if (!ordering.busy() && SIGN_OUT.test(words)) {
+        const { shopper: current, signOut: out } = accountRef.current;
+        out();
+        void sayRef.current(
+          current
+            ? `You're signed out, ${current.displayName}. To sign in again, or open a new account, just tell me.`
+            : 'Nobody is signed in on this phone. To open an account, say open an account.',
+        );
+        return;
+      }
+      // "What are the door words?": the Runner's first name and the two words (T6).
+      if (!ordering.busy() && DOOR_WORD.test(words) && accountRef.current.shopper) {
         void fetchMyOrder()
-          .then(({ order }) => sayRef.current(orderWhere(order)))
+          .then(({ order }) =>
+            sayRef.current(
+              order?.doorWordSentence ??
+                (order
+                  ? "Your door words come as soon as a Runner has your order. I'll tell you then."
+                  : "You haven't got an order on its way just now, so there are no door words yet."),
+            ),
+          )
+          .catch(() =>
+            sayRef.current("I couldn't check just now. Please ask me again in a moment."),
+          );
+        return;
+      }
+      // "Skip", on its own, after a regular order's notice (Rule Five).
+      if (
+        !ordering.busy() &&
+        accountRef.current.shopper &&
+        words.trim().replace(/[.!,]+$/, '') === SKIP_WORD
+      ) {
+        void fetchWeeklyShops()
+          .then(async ({ sets }) => {
+            const waiting = sets.find(
+              (set) =>
+                set.active && set.noticeSentAt && set.skipRequestedForFireAt !== set.nextFireAt,
+            );
+            if (!waiting) {
+              await sayRef.current(
+                "There's no regular order waiting to go just now, so there's nothing to skip.",
+              );
+              return;
+            }
+            const result = await skipWeeklyShop(waiting.id);
+            await sayRef.current(result.message);
+          })
           .catch(() =>
             sayRef.current(
-              "I couldn't check your order just now. Please ask me again in a moment.",
+              "I couldn't stop it just now. Please press Skip on the weekly shop page.",
             ),
           );
         return;
       }
-    }
-    if (!ordering.busy() && PHONE.test(words)) {
-      sayPhoneNumber();
-      return;
-    }
-    if (/\bmute\b|\bpause\b|\bstop listening\b|\bbe quiet\b/.test(words)) {
-      mute();
-      return;
-    }
-    // "Change my PIN" (ruling 81): the addresses page, with the change form open. The PINs are
-    // typed there, never said here, where anything heard could be shown or kept.
-    if (!ordering.busy() && /\b(change|update) (my |the )?pin\b|\bmy new pin\b/.test(words)) {
-      navigate('/addresses?pin=change');
-      return;
-    }
-    // "Add an address", "save a new address": the addresses page, with the form open.
-    if (!ordering.busy() && /\b(add|save|new)\b.*\baddress\b/.test(words)) {
-      navigate('/addresses?add=1');
-      return;
-    }
-    // Ozi Recipes and Little Gifts (Anthony, 6 October 2026).
-    if (!ordering.busy() && RECIPES.test(words)) {
-      navigate('/recipes');
-      void sayRef.current(
-        'Here are the recipes. Each one tells you what you need, and I can read it out and put everything in your basket.',
-      );
-      return;
-    }
-    if (!ordering.busy() && GIFT_CARD.test(words)) {
-      navigate('/gift-cards');
-      void sayRef.current(
-        'Here are gift cards. You can buy one for someone, or type in a code you were given.',
-      );
-      return;
-    }
-    if (!ordering.busy() && FIND_IT.test(words)) {
-      navigate('/find-it');
-      void sayRef.current(
-        `${storeConfig.assistantName} Finds It: tell me what you're looking for, and a person will look in up to ${storeConfig.extras.findItShops} shops for you. What is it?`,
-      );
-      return;
-    }
-    if (!ordering.busy() && PLUS.test(words)) {
-      navigate('/plus');
-      void sayRef.current(
-        `${storeConfig.assistantName} Plus includes Recipes and Finds It, for you or your whole family. It never renews by itself.`,
-      );
-      return;
-    }
-    if (!ordering.busy() && OFFERS.test(words)) {
-      navigate('/offers');
-      const count = currentOffers().length;
-      void sayRef.current(
-        count === 0
-          ? 'There are no offers just now. When local shops have one, I will tell you.'
-          : `There ${count === 1 ? 'is one offer' : `are ${count} offers`} today. They're on the screen now.`,
-      );
-      return;
-    }
-    if (!ordering.busy() && WEEKLY.test(words)) {
-      navigate('/weekly-shop');
-      void sayRef.current(
-        "Let's set up your weekly shop. Choose a day, and on that day I'll remind you and put your usual in the basket.",
-      );
-      return;
-    }
-    if (!ordering.busy() && GIFTS.test(words)) {
-      navigate('/gifts');
-      void sayRef.current(
-        'Here are the little gifts: a card, flowers, chocolates and more, brought with your shopping. Which would you like?',
-      );
-      return;
-    }
-    // "Find an African restaurant", "Turkish shop near me", "find a plumber" (ruling 82): the
-    // page for that section, filtered, and what is there said out loud, near ones first.
-    const browsing = ordering.busy() ? null : heardBrowse(words, storeConfig.browse);
-    if (browsing) {
-      browseAloud(browsing.section, browsing.filter ?? '');
-      return;
-    }
-    // The weekly shop again: "same as last time" puts the last order back in the basket.
-    if (!ordering.busy() && REORDER.test(words)) {
-      orderAgain();
-      return;
-    }
-    void (async () => {
-      // Whoever is signed in on this device (ruling 84): staff, a shop, a Runner or a Shopper.
-      const as = currentAsker();
-      // An everyday phrase, the whole sentence: "thank you", "who are you", "how much is
-      // delivery". Asked before an order is looked for, so "Ozi, thank you" is never ordered.
+      // "Cancel my membership": one yes, as easy as joining; nothing more is taken (ruling 58).
+      if (!ordering.busy() && CANCEL_PLAN.test(words) && accountRef.current.shopper) {
+        listenFor(
+          'Do you want to cancel your plan? Nothing more will be taken, and you keep it until the end of the month you have paid for. Say yes to cancel it, or no to keep it.',
+          (answer) => {
+            if (!/\b(yes|yeah|yep|cancel it|please)\b/i.test(answer) || /\bno\b/i.test(answer)) {
+              void sayRef.current('All right. Your plan stays as it is.');
+              return;
+            }
+            void cancelPlan()
+              .then((result) => sayRef.current(result.message))
+              .catch(() =>
+                sayRef.current(
+                  "I couldn't cancel it just now. Please press Cancel my plan in Settings.",
+                ),
+              );
+          },
+        );
+        return;
+      }
+      // "Close my Runner account" on the Runner's pages (ruling 60): asked once more, then closed,
+      // refused while a job is in hand.
+      if (
+        !ordering.busy() &&
+        CLOSE_RUNNER_ACCOUNT.test(words) &&
+        window.location.pathname.startsWith('/runner')
+      ) {
+        listenFor(CLOSE_QUESTION, (answer) => {
+          if (!/\b(yes|yeah|yep|close it|please)\b/i.test(answer) || /\bno\b/i.test(answer)) {
+            void sayRef.current('All right. Your Runner account stays open.');
+            return;
+          }
+          void leaveRunning()
+            .then((result) => sayRef.current(result.message))
+            .catch((failure: unknown) =>
+              sayRef.current(
+                failure instanceof Error
+                  ? failure.message
+                  : "I couldn't close it just now. Please press Close my Runner account on your Runner page.",
+              ),
+            );
+        });
+        return;
+      }
+      // "Close my account": asked once more, then closed, with the days to change your mind.
+      if (!ordering.busy() && CLOSE_ACCOUNT.test(words) && accountRef.current.shopper) {
+        const days = storeConfig.accountDeletion.recycleBinDays;
+        listenFor(
+          `Do you want to close your account? It closes in ${days} days, and you can change your mind until then. Say yes to close it, or no to keep it.`,
+          (answer) => {
+            if (!/\b(yes|yeah|yep|close it|please)\b/i.test(answer) || /\bno\b/i.test(answer)) {
+              void sayRef.current('All right. Your account stays as it is.');
+              return;
+            }
+            void closeAccount()
+              .then((result) => {
+                navigate('/settings#close-account');
+                return sayRef.current(
+                  `${result.message} To keep it, press Keep my account in Settings.`,
+                );
+              })
+              .catch(() =>
+                sayRef.current("I couldn't close it just now. Please try again in Settings."),
+              );
+          },
+        );
+        return;
+      }
+      // "Send my order": the basket read back whole, then the address and the payment, by voice
+      // (16 October 2026). Nothing is sent without both yeses.
+      if (!ordering.busy() && SEND_ORDER.test(words)) {
+        void ordering.sendBasket();
+        return;
+      }
+      // Questions about the shopping: the basket, the total, taking something out, the order.
       if (!ordering.busy()) {
-        const everyday = await phraseReply(text, phraseTurn.current, 'exact', as);
-        if (everyday) {
+        const b = basketRef.current;
+        const answer = answerShoppingQuestion(text, {
+          lines: b.lines,
+          // The shopping as it is said: with its item charges in (ruling 58).
+          goodsPence: b.pricing.goodsPence + b.pricing.itemChargesPence,
+          feePence: b.pricing.feePence,
+          totalPence: b.pricing.totalPence,
+        });
+        if (answer?.kind === 'say') {
+          void sayRef.current(answer.text);
+          return;
+        }
+        if (answer?.kind === 'remove') {
+          b.remove(answer.itemId);
+          void sayRef.current(answer.text);
+          return;
+        }
+        if (answer?.kind === 'order-status') {
+          if (!accountRef.current.shopper) {
+            void sayRef.current(
+              "You're not signed in, so I can't see an order. To sign in, say sign in.",
+            );
+            return;
+          }
+          void fetchMyOrder()
+            .then(({ order }) => sayRef.current(orderWhere(order)))
+            .catch(() =>
+              sayRef.current(
+                "I couldn't check your order just now. Please ask me again in a moment.",
+              ),
+            );
+          return;
+        }
+      }
+      if (!ordering.busy() && PHONE.test(words)) {
+        sayPhoneNumber();
+        return;
+      }
+      if (/\bmute\b|\bpause\b|\bstop listening\b|\bbe quiet\b/.test(words)) {
+        mute();
+        return;
+      }
+      // "Change my PIN" (ruling 81): the addresses page, with the change form open. The PINs are
+      // typed there, never said here, where anything heard could be shown or kept.
+      if (!ordering.busy() && /\b(change|update) (my |the )?pin\b|\bmy new pin\b/.test(words)) {
+        navigate('/addresses?pin=change');
+        return;
+      }
+      // "Add an address", "save a new address": the addresses page, with the form open.
+      if (!ordering.busy() && /\b(add|save|new)\b.*\baddress\b/.test(words)) {
+        navigate('/addresses?add=1');
+        return;
+      }
+      // Ozi Recipes and Little Gifts (Anthony, 6 October 2026).
+      if (!ordering.busy() && RECIPES.test(words)) {
+        navigate('/recipes');
+        void sayRef.current(
+          'Here are the recipes. Each one tells you what you need, and I can read it out and put everything in your basket.',
+        );
+        return;
+      }
+      if (!ordering.busy() && GIFT_CARD.test(words)) {
+        navigate('/gift-cards');
+        void sayRef.current(
+          'Here are gift cards. You can buy one for someone, or type in a code you were given.',
+        );
+        return;
+      }
+      if (!ordering.busy() && FIND_IT.test(words)) {
+        navigate('/find-it');
+        void sayRef.current(
+          `${storeConfig.assistantName} Finds It: tell me what you're looking for, and a person will look in up to ${storeConfig.extras.findItShops} shops for you. What is it?`,
+        );
+        return;
+      }
+      if (!ordering.busy() && PLUS.test(words)) {
+        navigate('/plus');
+        void sayRef.current(
+          `${storeConfig.assistantName} Plus includes Recipes and Finds It, for you or your whole family. It never renews by itself.`,
+        );
+        return;
+      }
+      if (!ordering.busy() && OFFERS.test(words)) {
+        navigate('/offers');
+        const count = currentOffers().length;
+        void sayRef.current(
+          count === 0
+            ? 'There are no offers just now. When local shops have one, I will tell you.'
+            : `There ${count === 1 ? 'is one offer' : `are ${count} offers`} today. They're on the screen now.`,
+        );
+        return;
+      }
+      if (!ordering.busy() && WEEKLY.test(words)) {
+        navigate('/weekly-shop');
+        void sayRef.current(
+          "Let's set up your weekly shop. Choose a day, and on that day I'll remind you and put your usual in the basket.",
+        );
+        return;
+      }
+      if (!ordering.busy() && GIFTS.test(words)) {
+        navigate('/gifts');
+        void sayRef.current(
+          'Here are the little gifts: a card, flowers, chocolates and more, brought with your shopping. Which would you like?',
+        );
+        return;
+      }
+      // "Find an African restaurant", "Turkish shop near me", "find a plumber" (ruling 82): the
+      // page for that section, filtered, and what is there said out loud, near ones first.
+      const browsing = ordering.busy() ? null : heardBrowse(words, storeConfig.browse);
+      if (browsing) {
+        browseAloud(browsing.section, browsing.filter ?? '');
+        return;
+      }
+      // The weekly shop again: "same as last time" puts the last order back in the basket.
+      if (!ordering.busy() && REORDER.test(words)) {
+        orderAgain();
+        return;
+      }
+      void (async () => {
+        // Whoever is signed in on this device (ruling 84): staff, a shop, a Runner or a Shopper.
+        const as = currentAsker();
+        // An everyday phrase, the whole sentence: "thank you", "who are you", "how much is
+        // delivery". Asked before an order is looked for, so "Ozi, thank you" is never ordered.
+        if (!ordering.busy()) {
+          const everyday = await phraseReply(text, phraseTurn.current, 'exact', as);
+          if (everyday) {
+            phraseTurn.current += 1;
+            await sayRef.current(everyday);
+            return;
+          }
+        }
+        if (await ordering.handle(text)) return;
+        // Words not about an order are not answered unless they were said to Ozi: Ozi does not
+        // talk back to the television.
+        if (nameHeardIn(text)) {
+          // Spoken a sentence at a time as it arrives (ruling 92), queued, with a short filler
+          // only after a long silence, and the delay felt sent back to be measured.
+          const turn = phraseTurn.current;
+          const heardAt = Date.now();
+          let firstWordAt: number | null = null;
+          const filler = fillerWhileWaiting((words) => void sayRef.current(words));
+          const answer = await think(
+            converse(text, turn, as, CONVERSE_WAIT_MS, {
+              onSentence: (sentence) => {
+                filler.arrived();
+                if (firstWordAt === null) firstWordAt = Date.now();
+                void sayRef.current(sentence, false, true);
+              },
+              onStatus: (status) => {
+                filler.arrived();
+                void sayRef.current(status);
+              },
+            }),
+          );
+          filler.stop();
           phraseTurn.current += 1;
-          await sayRef.current(everyday);
-          return;
+          if (answer?.reply) {
+            if (firstWordAt === null) firstWordAt = Date.now();
+            recordFelt(turn, firstWordAt - heardAt, as);
+            if (answer.unsaid) await sayRef.current(answer.unsaid, false, true);
+            return;
+          }
+          await sayRef.current(
+            "I can take a shopping order for you. Say, for example, I'd like bananas and milk.",
+          );
         }
+      })();
+    };
+    const meant =
+      nameHeardIn(text) || Date.now() < talkOpenUntil.current || ORDER_INTENT.test(text);
+    if (!ordering.busy() && meant) {
+      if (/^\s*(mute|pause|stop listening|be quiet)[.!]?\s*$/.test(words)) {
+        mute();
+        return;
       }
-      if (await ordering.handle(text)) return;
-      // Words not about an order are not answered unless they were said to Ozi: Ozi does not
-      // talk back to the television.
-      if (nameHeardIn(text)) {
-        // Spoken a sentence at a time as it arrives (ruling 92), queued, with a short filler
-        // only after a long silence, and the delay felt sent back to be measured.
-        const turn = phraseTurn.current;
-        const heardAt = Date.now();
-        let firstWordAt: number | null = null;
-        const filler = fillerWhileWaiting((words) => void sayRef.current(words));
-        const answer = await think(
-          converse(text, turn, as, CONVERSE_WAIT_MS, {
-            onSentence: (sentence) => {
-              filler.arrived();
-              if (firstWordAt === null) firstWordAt = Date.now();
-              void sayRef.current(sentence, false, true);
-            },
-            onStatus: (status) => {
-              filler.arrived();
-              void sayRef.current(status);
-            },
-          }),
-        );
-        filler.stop();
-        phraseTurn.current += 1;
-        if (answer?.reply) {
-          if (firstWordAt === null) firstWordAt = Date.now();
-          recordFelt(turn, firstWordAt - heardAt, as);
-          if (answer.unsaid) await sayRef.current(answer.unsaid, false, true);
-          return;
-        }
-        await sayRef.current(
-          "I can take a shopping order for you. Say, for example, I'd like bananas and milk.",
-        );
-      }
-    })();
+      void talkTurnRef.current(text).then((answered) => {
+        if (!answered) older();
+      });
+      return;
+    }
+    older();
   };
 
   /**
@@ -1143,8 +1309,16 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
    * waits for his yes, and his very next words go straight back, so only that answer can be the
    * yes (Rule One). Slow or away, Ozi still greets him by name, from configuration.
    */
-  const knownTalk = (text: string): void => {
+  const knownTalk = (text: string, olderWay = false): void => {
     const who = knownHere();
+    // Staff, family and investors (ruling 99): the conversation first, the older way only when
+    // it cannot answer. The owner's conversation is his own, on his own model.
+    if (!olderWay && who && who.kind !== 'owner') {
+      void talkTurnRef.current(text).then((answered) => {
+        if (!answered) knownTalk(text, true);
+      });
+      return;
+    }
     const as = currentAsker();
     const turn = phraseTurn.current;
     void (async () => {
@@ -1158,17 +1332,23 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
       };
       const filler = fillerWhileWaiting((words) => void sayRef.current(words));
       const answer = await think(
-        converse(text, turn, as, who?.kind === 'owner' ? OWNER_CONVERSE_WAIT_MS : CONVERSE_WAIT_MS, {
-          onSentence: (sentence) => {
-            filler.arrived();
-            firstWord();
-            void sayRef.current(sentence, false, true);
+        converse(
+          text,
+          turn,
+          as,
+          who?.kind === 'owner' ? OWNER_CONVERSE_WAIT_MS : CONVERSE_WAIT_MS,
+          {
+            onSentence: (sentence) => {
+              filler.arrived();
+              firstWord();
+              void sayRef.current(sentence, false, true);
+            },
+            onStatus: (status) => {
+              filler.arrived();
+              void sayRef.current(status);
+            },
           },
-          onStatus: (status) => {
-            filler.arrived();
-            void sayRef.current(status);
-          },
-        }),
+        ),
       );
       filler.stop();
       phraseTurn.current += 1;

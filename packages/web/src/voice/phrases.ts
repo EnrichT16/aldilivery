@@ -198,6 +198,21 @@ export function converse(
  * phrase for this account if it is one, otherwise `notUnderstood`, but only if Ozi was called
  * by name, so Ozi does not talk back to the television.
  */
+/**
+ * The real conversation (ruling 99, 10 November 2026), set by Ozi itself: a page with its own
+ * voice commands hands what it does not know to it first, and falls back to the everyday phrases
+ * only when it cannot answer. `open` is whether the conversation is under way, so Ozi's name
+ * need not be said again.
+ */
+export interface TalkFirst {
+  open: () => boolean;
+  talk: (text: string) => Promise<boolean>;
+}
+let talkFirst: TalkFirst | null = null;
+export function setTalkFirst(hook: TalkFirst | null): void {
+  talkFirst = hook;
+}
+
 /** "Remind me…", "my reminders", "cancel my reminder": words for the server's reminders (ruling 93). */
 export const ASKS_REMINDER =
   /\b(?:remind me|set (?:me )?(?:a|an|up a) reminder|reminder (?:for|to|that|about)|my reminders|(?:list|read|show) (?:my |the )?reminders|(?:cancel|delete|remove|forget) (?:my |the |that |all (?:my |the )?)?reminders?)\b/i;
@@ -217,6 +232,30 @@ export function everydayOr(
   listenFor?: (question: string, then: (answer: string) => void) => void,
 ): void {
   const named = nameHeardIn(text);
+  // The conversation first (ruling 99): said to Ozi, or while the conversation is open.
+  const hook = talkFirst;
+  if (hook && (named || hook.open())) {
+    void think(hook.talk(text).then((answered) => (answered ? 'answered' : null))).then(
+      (answered) => {
+        if (!answered) everydayOlder(text, turn, as, say, notUnderstood, think, listenFor, named);
+      },
+    );
+    return;
+  }
+  everydayOlder(text, turn, as, say, notUnderstood, think, listenFor, named);
+}
+
+/** The everyday phrases, as before the conversation: what answers when the model cannot. */
+function everydayOlder(
+  text: string,
+  turn: { current: number },
+  as: OziAsker,
+  say: (words: string) => void,
+  notUnderstood: string,
+  think: (work: Promise<string | null>) => Promise<string | null>,
+  listenFor: ((question: string, then: (answer: string) => void) => void) | undefined,
+  named: boolean,
+): void {
   // A reminder, the time or the date (ruling 93): the server reads a reminder back and sets it
   // only on the yes, which goes straight back to it.
   if (ASKS_REMINDER.test(text) || ASKS_THE_TIME.test(phraseWithoutName(text, NAMES))) {

@@ -33,6 +33,7 @@ import { findWorkspaceRoot, storeConfigPath } from '@aldilivery/core/node';
 
 import { blankPrivate } from './redact.js';
 import { replySoFar, SentenceSplitter } from './sentences.js';
+import { talk, talkInstructions } from './ozi-talk.js';
 
 /**
  * The model used unless LANGUAGE_MODEL names another: the mid-sized current one (Anthony,
@@ -134,7 +135,7 @@ const UNDERSTANDING_SCHEMA = {
         required: ['name', 'quantity', 'brand', 'detail'],
         properties: {
           name: { type: 'string' },
-          quantity: { type: 'integer', minimum: 1, maximum: 99 },
+          quantity: { type: 'integer' },
           brand: { type: ['string', 'null'] },
           detail: { type: ['string', 'null'] },
         },
@@ -380,6 +381,14 @@ export interface OziBrain {
    * for a person to approve on the Learning list. Never used by itself. Optional, as above.
    */
   suggestReply?(input: SuggestInput): Promise<string | null>;
+  /**
+   * Everybody else talking to Ozi (ruling 99, 10 November 2026): a real conversation with tools
+   * that act, in place of sorting the words into a shape. Null when the model did not answer.
+   * Optional, so stand-ins need not have it; without it the older parts answer.
+   */
+  talk?(
+    input: import('./ozi-talk.js').TalkInput,
+  ): Promise<import('./ozi-talk.js').TalkOutcome | null>;
   /** What the words mean. Null when the model did not answer in time, or declined. */
   understand(input: UnderstandInput): Promise<Understanding | null>;
   /**
@@ -482,7 +491,7 @@ export function serviceFacts(config: StoreConfig): string {
 }
 
 /** The rules about honesty every set of instructions shares (Rule Nine: names from configuration). */
-function honestyRules(config: StoreConfig): string {
+export function honestyRules(config: StoreConfig): string {
   return [
     `${config.productName} is independent and has no partnership with, or endorsement from, any supermarket or shop chain yet; never say otherwise.`,
     `If asked, say you are ${config.assistantName}, a computer voice assistant, not a person. Never name the company or technology behind you.`,
@@ -521,7 +530,7 @@ const LABEL_SCHEMA = {
   properties: {
     name: { type: ['string', 'null'] },
     size: { type: ['string', 'null'] },
-    pricePence: { type: ['integer', 'null'], minimum: 1, maximum: 100000 },
+    pricePence: { type: ['integer', 'null'] },
     barcode: { type: ['string', 'null'] },
   },
 } as const;
@@ -730,8 +739,8 @@ const RECEIPT_SCHEMA = {
         additionalProperties: false,
         required: ['item', 'unitPricePence'],
         properties: {
-          item: { type: 'integer', minimum: 1 },
-          unitPricePence: { type: 'integer', minimum: 1, maximum: 100000 },
+          item: { type: 'integer' },
+          unitPricePence: { type: 'integer' },
         },
       },
     },
@@ -793,7 +802,7 @@ const ESTIMATE_SCHEMA = {
         'Other',
       ],
     },
-    pricePence: { type: 'integer', minimum: 0, maximum: 100000 },
+    pricePence: { type: 'integer' },
     reply: { type: ['string', 'null'] },
   },
 } as const;
@@ -815,8 +824,120 @@ export function estimateInstructions(config: StoreConfig): string {
  */
 export type BrainClient = Pick<Anthropic, 'messages'>;
 
+/* ------------------------------------------------------------------ how the model is doing */
+
+/**
+ * Whether the model is really answering (ruling 99, 10 November 2026). Until now every failure
+ * was swallowed, so a request the provider refused outright looked exactly like a slow day: the
+ * hand-built answers carried on and nobody could see why Ozi sounded scripted. Each request now
+ * leaves a mark here, the health check shows it, and a failure is written to the log. Never the
+ * key, and never what anybody said.
+ */
+export interface ModelHealth {
+  ok: number;
+  failed: number;
+  lastOkAt: string | null;
+  lastError: {
+    at: string;
+    where: string;
+    status: number | null;
+    kind:
+      | 'refused-request'
+      | 'key'
+      | 'credit-or-permission'
+      | 'no-such-model'
+      | 'too-many'
+      | 'provider'
+      | 'too-slow'
+      | 'other';
+    /** The provider's own words, only for a request it found malformed: about its shape alone. */
+    detail: string | null;
+  } | null;
+}
+const HEALTH: ModelHealth = { ok: 0, failed: 0, lastOkAt: null, lastError: null };
+export function modelHealth(): ModelHealth {
+  return { ...HEALTH, lastError: HEALTH.lastError ? { ...HEALTH.lastError } : null };
+}
+export function noteModelOk(): void {
+  HEALTH.ok += 1;
+  HEALTH.lastOkAt = new Date().toISOString();
+}
+export function noteModelFailure(where: string, failure: unknown): void {
+  const status =
+    typeof (failure as { status?: unknown })?.status === 'number'
+      ? (failure as { status: number }).status
+      : null;
+  const name = failure instanceof Error ? failure.name : '';
+  const message = failure instanceof Error ? failure.message : String(failure);
+  const kind: NonNullable<ModelHealth['lastError']>['kind'] =
+    status === 400 || status === 422
+      ? 'refused-request'
+      : status === 401
+        ? 'key'
+        : status === 402 || status === 403
+          ? 'credit-or-permission'
+          : status === 404
+            ? 'no-such-model'
+            : status === 429
+              ? 'too-many'
+              : status !== null && status >= 500
+                ? 'provider'
+                : /timeout|timed out|abort/i.test(`${name} ${message}`)
+                  ? 'too-slow'
+                  : 'other';
+  HEALTH.failed += 1;
+  HEALTH.lastError = {
+    at: new Date().toISOString(),
+    where,
+    status,
+    kind,
+    detail: kind === 'refused-request' || kind === 'no-such-model' ? message.slice(0, 300) : null,
+  };
+  // The log has the provider's words whatever the kind, for whoever reads the runtime logs.
+  console.warn(
+    `[ozi] the model did not answer (${where}): ${status ?? name} ${message.slice(0, 400)}`,
+  );
+}
+
+/**
+ * The same client, with every request's outcome noted (ruling 99): answered, or why not. The
+ * failure is passed on untouched, so each caller still carries on without the model as before.
+ */
+export function watchedClient(client: BrainClient): BrainClient {
+  const inner = client.messages as unknown as {
+    create: (...args: unknown[]) => Promise<unknown>;
+    stream?: (...args: unknown[]) => { finalMessage(): Promise<unknown> };
+  };
+  const whereOf = (args: unknown[]): string =>
+    String((args[0] as { model?: unknown } | undefined)?.model ?? 'model');
+  const noted = <T>(work: Promise<T>, where: string): Promise<T> =>
+    work.then(
+      (value) => {
+        noteModelOk();
+        return value;
+      },
+      (failure: unknown) => {
+        noteModelFailure(where, failure);
+        throw failure;
+      },
+    );
+  const messages: Record<string, unknown> = {
+    create: (...args: unknown[]) => noted(inner.create(...args), whereOf(args)),
+  };
+  if (typeof inner.stream === 'function') {
+    messages['stream'] = (...args: unknown[]) => {
+      const stream = inner.stream!(...args);
+      const final = stream.finalMessage.bind(stream);
+      let watched: Promise<unknown> | null = null;
+      stream.finalMessage = () => (watched ??= noted(final(), whereOf(args)));
+      return stream;
+    };
+  }
+  return { messages } as unknown as BrainClient;
+}
+
 /** What a streamed answer tells as it arrives: text deltas, and the start of a tool call. */
-interface StreamListeners {
+export interface StreamListeners {
   onText?: (delta: string) => void;
   onToolUse?: () => void;
 }
@@ -830,14 +951,17 @@ export const LOOKING_UP = 'Looking that up.';
  * client with only `create` is answered whole, as before. `deadlineMs` ends the wait, stream
  * and all, so a slow turn is given up in time.
  */
-async function askModel(
+export async function askModel(
   client: BrainClient,
   params: Anthropic.MessageCreateParamsNonStreaming,
   deadlineMs: number,
   listeners: StreamListeners = {},
 ): Promise<Anthropic.Message> {
   const messages = client.messages as {
-    create: (p: Anthropic.MessageCreateParamsNonStreaming, o?: object) => Promise<Anthropic.Message>;
+    create: (
+      p: Anthropic.MessageCreateParamsNonStreaming,
+      o?: object,
+    ) => Promise<Anthropic.Message>;
     stream?: (p: Anthropic.MessageCreateParamsNonStreaming, o?: object) => unknown;
   };
   const options = { timeout: deadlineMs, signal: AbortSignal.timeout(deadlineMs) };
@@ -1029,7 +1153,7 @@ export function screenWords(screen: ScreenContext | undefined): string {
  * and insurance. A reply with any of them is replaced as a whole with a safe line.
  */
 const NEVER_SAID =
-  /\b(anthropic|claude|openai|open ai|chat ?gpt|gpt-?\d|gemini|llama|mistral|copilot|sonnet|opus|haiku|language model|large language|ai model|llm)\b/i;
+  /\b(anthropic|claude|openai|open ai|chat ?gpt|gpt-?\d|language model|large language|ai model|llm|(?:sonnet|opus|haiku|gemini|llama|mistral|copilot)\s+(?:model|ai|\d))\b/i;
 const INSURANCE = /\binsur(?:ance|ed|er|ers|ing|e)\b/i;
 /** Anything that could be a telephone or card number: nine digits or more. */
 const LONG_NUMBER = /\+?\d(?:[\s-]?\d){8,}/g;
@@ -1050,7 +1174,8 @@ export function safeSpoken(
   if (!options.owner && INSURANCE.test(clean)) {
     return 'For anything about insurance, please speak to our customer service team. Say "person" and I\'ll put you in touch.';
   }
-  return clean.replace(LONG_NUMBER, "a number I won't read out").slice(0, 600);
+  // How long to speak is the model's judgement (ruling 99); only a runaway reply is cut.
+  return clean.replace(LONG_NUMBER, "a number I won't read out").slice(0, 6000);
 }
 
 /** The owner's standing instructions (31 October 2026), cached, from configuration. */
@@ -1058,8 +1183,8 @@ export function ownerInstructions(config: StoreConfig, knowledge: string): strin
   const owner = config.owner.spokenName;
   return [
     `You are ${config.assistantName}, the assistant of ${config.productName}, talking to its owner and founder, ${owner}. He is registered blind and runs the business by voice, so everything you say is heard, not read.`,
-    `Be genuinely useful to him: a warm, clear, capable assistant who knows the business. Answer the question he actually asked, and only that, from your tools for anything about today, the desk or applications; never guess at figures.`,
-    `Speak in short, natural sentences, as a person would on the phone: the answer first, in a sentence or two, then offer more if there is more. No lists read like a form, no headings, no repeating his question back. Start with the answer itself, as a person on the phone would.`,
+    `Be the assistant a founder deserves: bright, warm, frank and capable, with your whole mind at his service. This is a real conversation, not a script: listen to what he actually said, follow the thread, remember what he told you earlier, and answer in your own words, never in stock phrases and never the same way twice. He may ask you anything: the business and its day, and just as much strategy, pricing, marketing, hiring, the law in general terms, a letter he needs to write, an idea he is turning over, the news of his trade, or simply how his morning is going. Think it through and give him your honest best, including where you disagree and why. For anything about today's figures, the desk, applications, staff or emails, look it up with your tools and never guess.`,
+    `Everything you say is heard, so write for the ear: natural spoken British English, the answer first. Keep everyday answers to a sentence or two; when he asks for your thinking, a plan, a draft or an explanation, take the room it needs and say it as a person would aloud, one point at a time. No lists read like a form, no headings, no symbols, no repeating his question back.`,
     `His name: call him ${owner} when you address him, naturally and sparingly, as a good assistant would: in a greeting, when you need his attention, or when something matters. Never open every reply with his name, and never put it in every sentence; most replies need not use it at all. Never "sir".`,
     `Your tools: needs_you (open desk matters and the Needs-you items), today_summary (orders, money taken, refunds, new Runners and new partner shops waiting, areas with no Runner), partner_approvals (new partner shops waiting for approval, by name, and separately how many shop products wait to be checked), read_application (one Runner's or partner shop's application) and decide_matter (approve, decline or put to later one desk matter). Look before you speak; summarise in a few short spoken sentences, most important first, and offer to go through them one at a time. Never read out ids.`,
     `Partner shops and shop products are different things. A partner shop, also called a Shop Partner, a shop partner, a partner or a new shop, is a business that has applied to join and waits for him to approve it. A shop product is one item a partner shop already with us has added, waiting to be checked. When he asks about partners, partner shops, shop partners or new shops, answer about partner shops waiting for approval, by name, from partner_approvals; only when he asks about products answer about shop products. Never answer one when he asked about the other.`,
@@ -1076,7 +1201,7 @@ export function ownerInstructions(config: StoreConfig, knowledge: string): strin
     `You never change an order, take or move money, or do anything else by yourself.`,
     `What is on his screen is given to you in each turn when the app knows it: the page, its headings, the tab open, any status line and a few visible lines. Use it to answer "this one", "the first one", "what's that number" and "what does this page say", and refer to it plainly ("the three Runner documents waiting on the Needs you now page"). Look things up with your tools for anything the screen does not show; the screen is a glimpse, not the record.`,
     `He is known on his own phone (ruling 84): when he greets you, greet him personally, for the time of day in the UK, by name. If he asks whether you know his name or who he is, say yes: he is ${owner}, the owner and founder of ${config.productName}. Never ask him to open an account or sign in. Shopping orders go through a Shopper account: if he asks you to order shopping, say kindly that orders are placed from a Shopper account in the shop, and never offer to open one.`,
-    careRules(config),
+    `Notice how he is, and meet it: brisk when he is busy, patient when something is going wrong, and good company when he wants to talk. Never pretend: when you do not know a fact about the business, say so and look it up or tell him who would know. Never read out or ask for a telephone number, a card number, a PIN, a password or a code. You are ${config.assistantName}; never say who made you or what technology you run on, and never name any company, product or model behind you.`,
     honestyRules(config),
     ...(knowledge ? [`What you know about the service:\n${knowledge}`] : []),
     `The facts:\n${serviceFacts(config)}`,
@@ -1465,8 +1590,14 @@ export function languageModel(
     /** The raw guide (docs/ozi-knowledge.md); read from disk when not given. */
     knowledge?: string;
   },
-  client: BrainClient = new Anthropic({ apiKey: settings.apiKey, timeout: WAIT_MS, maxRetries: 0 }),
+  rawClient: BrainClient = new Anthropic({
+    apiKey: settings.apiKey,
+    timeout: WAIT_MS,
+    maxRetries: 0,
+  }),
 ): OziBrain {
+  // Every request leaves a mark on the health record (ruling 99), whichever part of Ozi made it.
+  const client = watchedClient(rawClient);
   const { config } = settings;
   const model = settings.model ?? DEFAULT_MODEL;
   const ownerModel = settings.ownerModel ?? DEFAULT_OWNER_MODEL;
@@ -1475,6 +1606,7 @@ export function languageModel(
   // Stable, cached prefixes: who is speaking and the conversation go in the turn after them.
   const system = instructions(config, knowledge);
   const ownerSystem = ownerInstructions(config, knowledge);
+  const talkSystem = talkInstructions(config, knowledge);
   const reviewSystem = reviewInstructions(config, knowledge);
   const estimateSystem = estimateInstructions(config);
   const documentSystem = documentInstructions(config);
@@ -1489,6 +1621,7 @@ export function languageModel(
     name: 'model',
     model,
     ownerModel,
+    talk: (input) => talk(client, { model, system: talkSystem, config }, input),
     async understand(input) {
       try {
         const basket =
@@ -1604,7 +1737,8 @@ export function languageModel(
             {
               model: ownerModel,
               max_tokens: OWNER_MAX_TOKENS,
-              output_config: { effort: step === 0 ? 'low' : 'medium' },
+              // His answers are thought through (ruling 99): never the shallowest setting.
+              output_config: { effort: 'medium' },
               tools: OWNER_TOOLS,
               tool_choice: { type: 'auto' },
               system: [{ type: 'text', text: ownerSystem, cache_control: { type: 'ephemeral' } }],
