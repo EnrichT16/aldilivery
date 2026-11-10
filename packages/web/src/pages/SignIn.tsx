@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import { AppVersion } from '../components/AppVersion';
+import { HomeScreenSignInNote } from '../components/HomeScreenSignInNote';
 import { ResetApp } from '../components/ResetApp';
 import { storeConfig } from '../config';
 import {
@@ -12,7 +13,70 @@ import {
   verifySignInCode,
 } from '../lib/api';
 import { writeRunnerToken } from '../lib/session';
+import { holdReloads } from '../lib/updates';
 import { useSession } from '../state/session';
+
+/**
+ * The "type your code" step, kept for this tab (10 November 2026, ruling 100).
+ *
+ * The step and the phone number used to live only in the page's memory. Going to Messages for
+ * the code, and coming back to a page the phone had reloaded, showed the first step again; asking
+ * for another code soon used up the three allowed in fifteen minutes, and the person was locked
+ * out. Now the number, the time the code was sent and who it was for are kept in this tab's own
+ * storage and brought back while the code is still good (codes last ten minutes). The code itself
+ * is never kept anywhere. It is forgotten on signing in, and on choosing a different number.
+ */
+const CODE_STEP_KEY = 'ozidelivery.sign-in.code-step';
+const CODE_GOOD_FOR_MS = 10 * 60_000;
+
+interface CodeStep {
+  phone: string;
+  step: 'code';
+  sentAt: number;
+  role: 'shopper' | 'runner';
+  channel: 'text' | 'call';
+  /** The server's sentence saying a code was sent. Never the code. */
+  message: string;
+}
+
+function readCodeStep(role: 'shopper' | 'runner'): CodeStep | null {
+  try {
+    const kept = JSON.parse(window.sessionStorage.getItem(CODE_STEP_KEY) ?? 'null') as
+      | Partial<CodeStep>
+      | null;
+    if (
+      !kept ||
+      kept.step !== 'code' ||
+      kept.role !== role ||
+      typeof kept.phone !== 'string' ||
+      kept.phone === '' ||
+      typeof kept.sentAt !== 'number'
+    ) {
+      return null;
+    }
+    const age = Date.now() - kept.sentAt;
+    if (age < 0 || age >= CODE_GOOD_FOR_MS) return null;
+    return {
+      phone: kept.phone,
+      step: 'code',
+      sentAt: kept.sentAt,
+      role,
+      channel: kept.channel === 'call' ? 'call' : 'text',
+      message: typeof kept.message === 'string' ? kept.message : '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+function keepCodeStep(step: CodeStep | null): void {
+  try {
+    if (step === null) window.sessionStorage.removeItem(CODE_STEP_KEY);
+    else window.sessionStorage.setItem(CODE_STEP_KEY, JSON.stringify(step));
+  } catch {
+    // Nothing kept: the step lives as long as the page does, as it always did.
+  }
+}
 
 /**
  * Signing back in, on a phone or computer somebody has not used the app on before.
@@ -50,10 +114,16 @@ export function SignIn({ as: role = 'shopper' }: { as?: 'shopper' | 'runner' }):
 
   const [available, setAvailable] = useState<boolean | null>(null);
   const [byCall, setByCall] = useState(false);
-  const [channel, setChannel] = useState<'text' | 'call'>('text');
-  const [step, setStep] = useState<'phone' | 'code'>('phone');
-  const [phone, setPhone] = useState('');
-  const [sentMessage, setSentMessage] = useState('');
+  // A code already sent from this tab and still good: straight back to typing it (ruling 100).
+  const [waiting] = useState(() => readCodeStep(role));
+  // The number carried over from "Sign in instead" on the Runner sign-up page.
+  const carried = (useLocation().state as { phone?: unknown } | null)?.phone;
+  const [channel, setChannel] = useState<'text' | 'call'>(waiting?.channel ?? 'text');
+  const [step, setStep] = useState<'phone' | 'code'>(waiting ? 'code' : 'phone');
+  const [phone, setPhone] = useState(
+    waiting?.phone ?? (typeof carried === 'string' ? carried : ''),
+  );
+  const [sentMessage, setSentMessage] = useState(waiting?.message ?? '');
   const [error, setError] = useState('');
   // The technical reason behind an error, folded away under "Details" so the screen stays
   // tidy and a screenshot can still say exactly what failed.
@@ -89,6 +159,13 @@ export function SignIn({ as: role = 'shopper' }: { as?: 'shopper' | 'runner' }):
     if (step === 'code') codeField.current?.focus();
   }, [step]);
 
+  useEffect(() => {
+    // While the code is being fetched from Messages and typed, the page is never reloaded for a
+    // new version (ruling 100): see lib/updates.
+    if (step !== 'code') return undefined;
+    return holdReloads();
+  }, [step]);
+
   async function sendCode(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (busy) return;
@@ -107,6 +184,14 @@ export function SignIn({ as: role = 'shopper' }: { as?: 'shopper' | 'runner' }):
       const result = await requestSignInCode(phone.trim(), { channel: how, role });
       setSentMessage(result.message);
       setStep('code');
+      keepCodeStep({
+        phone: phone.trim(),
+        step: 'code',
+        sentAt: Date.now(),
+        role,
+        channel: how,
+        message: result.message,
+      });
     } catch (failure) {
       const problem = describeProblem(failure, 'We could not send a code.');
       setError(problem.words);
@@ -131,6 +216,7 @@ export function SignIn({ as: role = 'shopper' }: { as?: 'shopper' | 'runner' }):
     try {
       const result = await verifySignInCode(phone.trim(), code, role);
       if (result.registrationRequired) {
+        keepCodeStep(null);
         setNoAccount(true);
         setError(
           asRunner
@@ -139,6 +225,7 @@ export function SignIn({ as: role = 'shopper' }: { as?: 'shopper' | 'runner' }):
         );
         return;
       }
+      keepCodeStep(null);
       if (asRunner) {
         // The Runner's own sign-in: any Shopper signed in on this phone stays signed in.
         writeRunnerToken(result.token);
@@ -203,8 +290,12 @@ export function SignIn({ as: role = 'shopper' }: { as?: 'shopper' | 'runner' }):
             >
               <p className="m-0">{error}</p>
               {noAccount && (
-                <Link to="/sign-up" className="control bg-highlight text-ink mt-3">
-                  Set up an account
+                // A Runner goes to the Runner sign-up, not the Shopper's (ruling 100).
+                <Link
+                  to={asRunner ? '/runner/sign-up' : '/sign-up'}
+                  className="control bg-highlight text-ink mt-3"
+                >
+                  {asRunner ? 'Sign up as a Runner' : 'Set up an account'}
                 </Link>
               )}
               {errorDetail !== '' && (
@@ -308,6 +399,7 @@ export function SignIn({ as: role = 'shopper' }: { as?: 'shopper' | 'runner' }):
               <button
                 type="button"
                 onClick={() => {
+                  keepCodeStep(null);
                   setStep('phone');
                   setError('');
                 }}
@@ -317,6 +409,8 @@ export function SignIn({ as: role = 'shopper' }: { as?: 'shopper' | 'runner' }):
               </button>
             </form>
           )}
+
+          {asRunner && <HomeScreenSignInNote />}
 
           {asRunner ? (
             <Link to="/runner/sign-up" className="control bg-paper/10 text-paper underline">

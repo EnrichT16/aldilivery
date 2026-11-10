@@ -162,7 +162,8 @@ export function RunnerHome(): JSX.Element {
   const problemRef = useRef<HTMLParagraphElement>(null);
   // Offers already chimed for, so a new one sounds once and a look every few seconds is silent.
   const heardOffers = useRef(new Set<string>());
-  // Only the server's own word that the sign-in has ended, twice in a row, signs out (ruling 88).
+  // Only the server's own word that the sign-in has ended, said twice at least twenty seconds
+  // apart and then once more to a direct question, signs out (rulings 88 and 100).
   const signOutGuard = useRef(new SignOutGuard());
 
   // Every check, the face photo included (Anthony, 30 October 2026).
@@ -271,10 +272,12 @@ export function RunnerHome(): JSX.Element {
         setQueue(null);
       }
     } catch (failure) {
-      if (signOutGuard.current.shouldSignOut(failure)) {
-        // The server has said twice, ten seconds apart, that this sign-in itself has ended
-        // (ruling 88). Forget it rather than fail on every step. Nothing else ever does this:
-        // a 500, a 429, a passing 401 or no answer keeps the sign-in and says so below.
+      if (await signOutGuard.current.shouldSignOut(failure, fetchRunnerMe)) {
+        // The server has said twice, at least twenty seconds apart, that this sign-in itself
+        // has ended, and said it a third time when asked directly (ruling 88; 10 November 2026,
+        // ruling 100: two answers five seconds apart could both come from one restart). Forget
+        // it rather than fail on every step. Nothing else ever does this: a 500, a 429, a
+        // passing 401 or no answer keeps the sign-in and says so below.
         clearRunnerToken();
         setRunner(null);
         setSignedIn(false);

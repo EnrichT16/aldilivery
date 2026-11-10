@@ -464,7 +464,15 @@ describe('what Ozi knows (docs/ozi-knowledge.md, 31 October 2026)', () => {
 
   it('goes into the standing instructions with how Ozi speaks, for everyone and the owner', () => {
     const knowledge = knowledgeText(config, raw);
-    for (const text of [instructions(config, knowledge), ownerInstructions(config, knowledge)]) {
+    // The owner's own instructions (ruling 99): a real conversation with his whole assistant,
+    // never the short, careful manner written for a stranger.
+    const owners = ownerInstructions(config, knowledge);
+    expect(owners).toContain(knowledge);
+    expect(owners).toMatch(/a real conversation, not a script/);
+    expect(owners).toMatch(/never say who made you/);
+    expect(owners).not.toMatch(/AI model|anthropic|claude/i);
+    expect(owners).not.toMatch(/under 60 words/);
+    for (const text of [instructions(config, knowledge)]) {
       expect(text).toContain(knowledge);
       expect(text).toMatch(/Warm, patient and kind/);
       expect(text).toMatch(/I don't know, I'll ask a person/);
@@ -493,6 +501,14 @@ describe('what Ozi will never say (31 October 2026)', () => {
       expect(safeSpoken(said, config)).toBe(safe);
     }
     expect(safeSpoken('Your shopping is on its way.', config)).toBe('Your shopping is on its way.');
+    // Ordinary words are ordinary (ruling 99): a poem, a star sign and a great work are not makers.
+    for (const said of [
+      'Here is a haiku about rain.',
+      'Gemini is your star sign.',
+      'It was his magnum opus.',
+    ]) {
+      expect(safeSpoken(said, config)).toBe(said);
+    }
   });
 
   it('sends insurance to customer service, and never reads a long number out', () => {
@@ -631,8 +647,8 @@ describe('a real conversation (31 October 2026)', () => {
     });
     const first = sent[0]!;
     expect(first['model']).toBe('claude-opus-5-5');
-    // A plain turn at effort "low"; once a tool's answer is used, "medium" (ruling 86).
-    expect(first['output_config']).toEqual({ effort: 'low' });
+    // His answers are thought through from the first step (ruling 99): never "low".
+    expect(first['output_config']).toEqual({ effort: 'medium' });
     expect(sent[1]!['output_config']).toEqual({ effort: 'medium' });
     expect(first['tool_choice']).toEqual({ type: 'auto' });
     expect(first).not.toHaveProperty('thinking');
@@ -750,7 +766,7 @@ describe('a real conversation (31 October 2026)', () => {
       expect(messages.at(-1)!.role).toBe('user');
     }
     expect(sent.map((body) => body['output_config'])).toEqual([
-      { effort: 'low' },
+      { effort: 'medium' },
       { effort: 'medium' },
     ]);
   });
@@ -767,7 +783,7 @@ describe('a real conversation (31 October 2026)', () => {
     expect(text).toMatch(/partner_approvals/);
     expect(text).toMatch(/I don't mean X, I mean Y/);
     expect(text).toMatch(/Never give the same answer again/);
-    expect(text).toMatch(/short, natural sentences/);
+    expect(text).toMatch(/write for the ear/);
     expect(text).not.toMatch(/\b(claude|anthropic|opus|fable)\b/i);
   });
 

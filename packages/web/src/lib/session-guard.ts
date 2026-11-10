@@ -6,9 +6,19 @@
  * whose words mentioned signing in, and the server's everyday 401 does: so one passing refusal,
  * of any kind, ended his shift. From now on only the server's own word that the sign-in itself
  * has ended (`session_invalid`, on a 401) may make a screen forget a token, and even that is
- * believed only when it is said twice in a row, ten seconds apart, in case of a brief clock or
- * deploy hiccup. A 403, a 404, a 429, a 500 or no answer at all never signs anybody out: the
- * screen shows its plain problem sentence and tries again.
+ * believed only when it is said twice in a row, in case of a brief clock or deploy hiccup. A 403,
+ * a 404, a 429, a 500 or no answer at all never signs anybody out: the screen shows its plain
+ * problem sentence and tries again.
+ *
+ * The one rule, kept here and nowhere else (10 November 2026, ruling 100). The Runner's page asks
+ * every five seconds, so "twice in a row" was only five seconds apart, and a server restarting
+ * for a release could say it twice in that time. Now a token is forgotten only when:
+ *   1. the server says `session_invalid`;
+ *   2. it says so again at least twenty seconds later (`STRIKE_GAP.ms`); and
+ *   3. one direct question, "me", asked there and then, is refused with `session_invalid` too.
+ * A good answer anywhere along the way starts again from nothing. The Shopper's, the staff's and
+ * the business screens use the same wait through `confirmedSignedOut`, whose second look is that
+ * direct question.
  */
 
 import { useEffect, useRef } from 'react';
@@ -25,9 +35,16 @@ export function isSessionInvalid(error: unknown): boolean {
 }
 
 /**
- * How long to wait before asking again. Settable, so a test need not wait ten real seconds.
+ * How far apart two refusals must be before the second is believed: longer than a server takes
+ * to restart for a release. Settable, so a test need not wait twenty real seconds.
  */
-export const secondLook = { ms: 10_000 };
+export const STRIKE_GAP = { ms: 20_000 };
+
+/**
+ * How long to wait before asking again: the same gap, under the name the single-question screens
+ * have always used. Settable, so a test need not wait.
+ */
+export const secondLook = { ms: STRIKE_GAP.ms };
 
 /**
  * Whether a refusal really is the end of the sign-in: only when it is `session_invalid`, and the
@@ -51,24 +68,47 @@ export async function confirmedSignedOut(
 
 /**
  * Counts refusals of the sign-in on a page that asks the server over and over, such as the
- * Runner's. `shouldSignOut` is true only on the second `session_invalid` in a row; any other
- * outcome, success included, starts the count again.
+ * Runner's. `shouldSignOut` is true only when a `session_invalid` comes at least twenty seconds
+ * after the first one, with nothing good in between, and the direct question `confirm` (the
+ * page's own "me") is refused with `session_invalid` as well. Any other outcome, success
+ * included, starts the count again; a `confirm` that gets no answer at all keeps the sign-in and
+ * is asked again on the next refusal.
  */
 export class SignOutGuard {
-  private strikes = 0;
+  /** When the first refusal of this run was heard; null when there is none. */
+  private firstStrikeAt: number | null = null;
+  private confirming = false;
 
-  shouldSignOut(error: unknown): boolean {
+  async shouldSignOut(error: unknown, confirm: () => Promise<unknown>): Promise<boolean> {
     if (!isSessionInvalid(error)) {
-      this.strikes = 0;
+      this.firstStrikeAt = null;
       return false;
     }
-    this.strikes += 1;
-    return this.strikes >= 2;
+    const now = Date.now();
+    if (this.firstStrikeAt === null) {
+      this.firstStrikeAt = now;
+      return false;
+    }
+    // Too soon after the first: a restart can say it twice in a few seconds.
+    if (now - this.firstStrikeAt < STRIKE_GAP.ms) return false;
+    // One direct question at a time.
+    if (this.confirming) return false;
+    this.confirming = true;
+    try {
+      await confirm();
+      // The sign-in is fine after all.
+      this.firstStrikeAt = null;
+      return false;
+    } catch (answer) {
+      return isSessionInvalid(answer);
+    } finally {
+      this.confirming = false;
+    }
   }
 
   /** A good answer: the sign-in is fine. */
   reset(): void {
-    this.strikes = 0;
+    this.firstStrikeAt = null;
   }
 }
 

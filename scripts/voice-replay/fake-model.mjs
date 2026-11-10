@@ -46,6 +46,70 @@ createServer((req, res) => {
     const text = wantsJson ? JSON.stringify({ kind: 'chatter', items: [], reply: spoken }) : spoken;
     const model = parsed.model ?? 'unknown';
 
+    // Ruling 99: the conversation has tools. The stand-in plays a short, real exchange with
+    // them, so the whole path is watched: a look in the shop, something put in the basket, the
+    // checkout handed over. What it "says" still names the tier and whose instructions it had.
+    const toolNames = Array.isArray(parsed.tools) ? parsed.tools.map((t) => t.name) : [];
+    const lastContent = userTurn?.content;
+    const toolResults = Array.isArray(lastContent)
+      ? lastContent.filter((block) => block?.type === 'tool_result')
+      : [];
+    const theySaid = (typeof lastContent === 'string' ? lastContent : '').split('[They said]')[1]?.trim() ?? '';
+    let plan = null; // { say, uses: [{name, input}] }
+    if (toolNames.includes('search_shop')) {
+      const resultText = toolResults.map((r) => (typeof r.content === 'string' ? r.content : JSON.stringify(r.content))).join(' ');
+      if (toolResults.length > 0 && /"products"/.test(resultText)) {
+        const found = JSON.parse(resultText.slice(resultText.indexOf('{')));
+        const first = found.products?.[0];
+        plan = first
+          ? { say: '', uses: [{ name: 'add_to_basket', input: { items: [{ product_id: first.id, quantity: 2 }] } }] }
+          : { say: 'I could not find that in the shop.', uses: [] };
+      } else if (toolResults.length > 0 && /"added"/.test(resultText)) {
+        const done = JSON.parse(resultText.slice(resultText.indexOf('{')));
+        plan = { say: `I have put ${done.added?.[0]?.quantity} of ${done.added?.[0]?.name} in your basket. Would you like anything else?`, uses: [] };
+      } else if (toolResults.length > 0) {
+        plan = { say: /"ok":false/.test(resultText) ? 'You will need an account before I can send that.' : 'Right, let me read that back to you.', uses: [] };
+      } else if (/\b(send|place|checkout|that's all|that is all)\b/i.test(theySaid)) {
+        plan = { say: '', uses: [{ name: 'start_checkout', input: {} }] };
+      } else if (/\b(milk|bread|beans|banana)/i.test(theySaid)) {
+        const thing = /milk|bread|beans|banana/i.exec(theySaid)[0].toLowerCase();
+        plan = { say: 'Let me have a look.', uses: [{ name: 'search_shop', input: { query: thing } }] };
+      } else if (/basket/i.test(theySaid) && /open|show|go to/i.test(theySaid)) {
+        plan = { say: 'Here is your basket.', uses: [{ name: 'open_page', input: { page: 'basket' } }] };
+      }
+    }
+    if (toolNames.includes('open_page') && !plan) {
+      plan = { say: `Stand-in conversation, ${tier}, tools ${toolNames.length}: you said ${theySaid || heardWords}. That is the first sentence. And this is the second.`, uses: [] };
+    }
+    if (plan) {
+      const content = [];
+      if (plan.say) content.push({ type: 'text', text: plan.say });
+      plan.uses.forEach((use, n) => content.push({ type: 'tool_use', id: `toolu_fake_${Date.now()}_${n}`, name: use.name, input: use.input }));
+      const stop = plan.uses.length > 0 ? 'tool_use' : 'end_turn';
+      if (parsed.stream === true) {
+        res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
+        const send = (event) => res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+        send({ type: 'message_start', message: { id: 'msg_fake', type: 'message', role: 'assistant', model, content: [], stop_reason: null, stop_sequence: null, usage: { input_tokens: 10, output_tokens: 0 } } });
+        content.forEach((block, index) => {
+          if (block.type === 'text') {
+            send({ type: 'content_block_start', index, content_block: { type: 'text', text: '' } });
+            for (const piece of deltasOf(block.text)) send({ type: 'content_block_delta', index, delta: { type: 'text_delta', text: piece } });
+          } else {
+            send({ type: 'content_block_start', index, content_block: { type: 'tool_use', id: block.id, name: block.name, input: {} } });
+            send({ type: 'content_block_delta', index, delta: { type: 'input_json_delta', partial_json: JSON.stringify(block.input) } });
+          }
+          send({ type: 'content_block_stop', index });
+        });
+        send({ type: 'message_delta', delta: { stop_reason: stop, stop_sequence: null }, usage: { output_tokens: 10 } });
+        send({ type: 'message_stop' });
+        res.end();
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ id: 'msg_fake', type: 'message', role: 'assistant', model, content, stop_reason: stop, stop_sequence: null, usage: { input_tokens: 10, output_tokens: 10 } }));
+      return;
+    }
+
     if (parsed.stream === true) {
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
       const send = (event) => res.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);

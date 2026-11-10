@@ -34,6 +34,7 @@ import type { CallRecorder } from './lib/call-recording.js';
 import type { CallProvider } from './lib/livekit.js';
 import type { VoiceEngineLink } from './lib/oluoma-voice.js';
 import type { OziBrain } from './lib/language-model.js';
+import { modelHealth } from './lib/language-model.js';
 import { feltDelaysOf } from './lib/ozi-latency.js';
 import type { MailboxLink } from './lib/mailbox.js';
 import type { OpenPricesLookup } from './lib/open-prices.js';
@@ -485,6 +486,21 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       });
       return;
     }
+    // A body larger than its route allows (10 November 2026, ruling 100). It used to fall
+    // through to "Something went wrong at our end", which told a Runner sending a document
+    // nothing he could act on. The large bodies here are photos, so the words say what to do.
+    if (
+      (error as { code?: unknown }).code === 'FST_ERR_CTP_BODY_TOO_LARGE' ||
+      (error as { statusCode?: unknown }).statusCode === 413
+    ) {
+      void reply.status(413).send({
+        error: {
+          code: 'too_large',
+          message: 'That photo is too large. Please take it again, a little further away.',
+        },
+      });
+      return;
+    }
     request.log.error({ err: error }, 'Unhandled error');
     void reply.status(500).send({
       error: {
@@ -561,6 +577,9 @@ async function registerRoutesOn(app: FastifyInstance): Promise<void> {
           model: ctx.brain.model,
           ownerModel: ctx.brain.ownerModel ?? null,
           latency24h: feltDelaysOf(ctx).last24h(ctx.now()),
+          // Whether it is really answering (ruling 99): requests answered and failed since this
+          // server started, when it last answered, and the kind of the last failure.
+          health: modelHealth(),
         }
       : null,
     // How long sign-ins last (ruling 88), so the live settings can be read off this check.

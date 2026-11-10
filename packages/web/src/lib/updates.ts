@@ -4,7 +4,24 @@
  * for a new version when it opens, whenever it comes back to the front, and every half hour.
  * A new version takes over at once (pwa.ts: skipWaiting, clientsClaim) and the page reloads
  * itself, but never in the middle of someone using it: only in the first seconds after the app
- * opens or comes back to the front, otherwise the next time it is put away.
+ * opens or comes back to the front, otherwise the next time it comes back to the front, or the
+ * next time it is opened.
+ *
+ * Never while somebody is in the middle of something (10 November 2026, ruling 100: Runners said
+ * "the app logs me out within 5 minutes on Chrome", and one gave up because he could not send
+ * his documents). Three things were wrong, and each is put right here:
+ *   - On a first ever visit the new service worker claims the page, which looks just like a new
+ *     version taking over. That is not an update, and it no longer queues a reload.
+ *   - A page that was put away used to reload at that moment. But the camera, the file picker,
+ *     going to Messages for the sign-in code and the agreement in a new tab all put the page
+ *     away, so the photo, the code step or the half-filled form was lost. A page is never
+ *     reloaded for being hidden any more.
+ *   - Every automatic reload (a new version, the safety net, a heal) now waits while the page is
+ *     busy: while a screen holds reloads (`holdReloads`: an upload on its way, the code step of
+ *     signing in), for two minutes after a file or camera button was used, and while anything
+ *     typed into a field has not been sent. A reload that waits happens when the page next comes
+ *     back to the front with nothing held and nothing typed, or the next time the app is opened.
+ * The once-for-each-build rules below are unchanged, so nothing can loop.
  *
  * And a safety net (20 October 2026: "on Chrome the changes show, saved on the home screen
  * they don't"): each build knows its own name (`__BUILD_ID__`) and the server says the newest
@@ -31,6 +48,109 @@ const QUIET_MS = 10_000;
 const FORCED_KEY = 'ozidelivery.update.forced';
 /** The build whose broken load was healed on this device, so it is only ever done once a build. */
 export const HEALED_KEY = 'ozidelivery.heal.build';
+
+/* ------------------------------------------------------------------ busy: do not reload now */
+
+/** After a camera or file button is used, the page is left alone for this long. */
+export const FILE_QUIET_MS = 2 * 60 * 1000;
+
+/** How many screens are holding reloads off just now. */
+let holds = 0;
+/** When a camera or file button was last used on this page; 0 for never. */
+let fileUsedAt = 0;
+/** Fields somebody has typed in since the page opened. */
+const typedIn = new Set<HTMLInputElement | HTMLTextAreaElement>();
+let watchingFields = false;
+/** A heal that is waiting for the page to stop being busy. */
+let waitingHeal: (() => void) | null = null;
+
+/** The kinds of input that hold no typed words: ticks, buttons, files and the like. */
+const NOT_TYPED = /^(hidden|checkbox|radio|file|submit|button|reset|image|range|color)$/;
+
+/**
+ * Holds every automatic reload off until the function it returns is called: for an upload on
+ * its way, or the step of signing in where the code is typed. Calling the release twice is
+ * harmless. Nothing reloads at the moment of release: the next return to the front does it.
+ */
+export function holdReloads(): () => void {
+  holds += 1;
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    holds = Math.max(0, holds - 1);
+  };
+}
+
+/** A camera or file button has just been used. The page listens for this itself. */
+export function noteFileUsed(at: number = Date.now()): void {
+  fileUsedAt = at;
+}
+
+function isField(target: unknown): target is HTMLInputElement | HTMLTextAreaElement {
+  return (
+    typeof HTMLElement !== 'undefined' &&
+    (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement)
+  );
+}
+
+/**
+ * Listens, once, for file buttons being used and for typing. A tap on a camera or file button
+ * counts as well as a file being chosen, because the camera hides the page before any file
+ * comes back. Typing is noted here too, because a field React fills in itself always looks
+ * unchanged when compared with what it started with.
+ */
+function watchFields(): void {
+  if (watchingFields || typeof document === 'undefined') return;
+  watchingFields = true;
+  const file = (event: Event): void => {
+    const target = event.target;
+    if (target instanceof HTMLInputElement && target.type === 'file') noteFileUsed();
+  };
+  document.addEventListener('click', file, true);
+  document.addEventListener('change', file, true);
+  document.addEventListener(
+    'input',
+    (event) => {
+      const target = event.target;
+      if (isField(target) && !NOT_TYPED.test(target.type)) typedIn.add(target);
+    },
+    true,
+  );
+}
+
+/** Whether any field on the page holds words that have been typed and not yet sent. */
+function somethingTyped(): boolean {
+  if (typeof document === 'undefined') return false;
+  for (const field of typedIn) {
+    // A field that has left the page was sent, or abandoned with its screen.
+    if (!field.isConnected) typedIn.delete(field);
+    else if (field.value !== '') return true;
+  }
+  for (const field of document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+    'input:not([type=hidden]),textarea',
+  )) {
+    if (NOT_TYPED.test(field.type)) continue;
+    if (field.value !== field.defaultValue) return true;
+  }
+  return false;
+}
+
+/**
+ * Whether an automatic reload must wait: a screen is holding reloads, a camera or file button
+ * was used in the last two minutes, or something typed has not been sent.
+ */
+export function reloadsMustWait(now: number = Date.now()): boolean {
+  return holds > 0 || (fileUsedAt > 0 && now - fileUsedAt < FILE_QUIET_MS) || somethingTyped();
+}
+
+/** For tests: nothing held, nothing used, nothing typed, nothing waiting. */
+export function forgetBusy(): void {
+  holds = 0;
+  fileUsedAt = 0;
+  typedIn.clear();
+  waitingHeal = null;
+}
 
 /** The newest build on the server, when it is not this one; otherwise null. */
 export async function newerBuildOnServer(
@@ -117,12 +237,32 @@ function markHealed(build: string): void {
  * Throws the saved copy away and reloads the page from the server, once for each build on
  * this device. False when that has already been done for this build: the page is not going to
  * get better by itself, and whoever called should say so plainly instead of reloading again.
+ *
+ * While the page is busy (ruling 100, see the top of this file) the heal waits, and is done when
+ * the page next comes back to the front with nothing in hand. It is not marked as done until it
+ * is done, so opening the app afresh heals it too.
  */
 export async function healOnce(
   build: string = __BUILD_ID__,
   reload: () => void = () => window.location.reload(),
 ): Promise<boolean> {
   if (healedAlready(build)) return false;
+  watchFields();
+  if (reloadsMustWait()) {
+    if (!waitingHeal && typeof document !== 'undefined') {
+      const whenBack = (): void => {
+        if (document.visibilityState !== 'visible' || reloadsMustWait()) return;
+        document.removeEventListener('visibilitychange', whenBack);
+        if (waitingHeal !== whenBack) return;
+        waitingHeal = null;
+        void healOnce(build, reload);
+      };
+      waitingHeal = whenBack;
+      document.addEventListener('visibilitychange', whenBack);
+    }
+    // In hand: it will be done, so nobody need say the page cannot be mended.
+    return true;
+  }
   markHealed(build);
   await forgetOldCopy();
   reload();
@@ -185,8 +325,12 @@ export async function resetApp(
   reload();
 }
 
-export function keepUpToDate(): void {
+export function keepUpToDate(reloadPage: () => void = () => window.location.reload()): void {
   if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
+  watchFields();
+  // Whether a service worker already had this page when it opened. Without one, the first
+  // worker claiming the page is a first visit, not a new version (ruling 100).
+  const hadController = !!navigator.serviceWorker.controller;
   let freshAt = Date.now();
   // When the person last touched the page: a page nobody has touched for a while is not in
   // the middle of being used.
@@ -206,30 +350,36 @@ export function keepUpToDate(): void {
   const reload = (): void => {
     if (reloading) return;
     reloading = true;
-    window.location.reload();
+    reloadPage();
   };
   /**
-   * Reloads now if that will not be noticed, otherwise the next time the app is put away.
-   * `urgent` is the safety net, whose page has just lost its saved copy (ruling 95: installing
-   * a new version on a slow connection takes longer than the first seconds, and a page left
-   * like that until it is put away is the half-loaded app people reported), so a page that
-   * has not been touched for a while reloads too.
+   * Reloads now if that will not be noticed, otherwise the next time the app comes back to the
+   * front. `urgent` is the safety net, whose page has just lost its saved copy (ruling 95:
+   * installing a new version on a slow connection takes longer than the first seconds, and a
+   * page left like that is the half-loaded app people reported), so a page that has not been
+   * touched for a while reloads too.
+   *
+   * Never because the page is hidden, and never while it is busy (ruling 100): the camera, the
+   * file picker and Messages all hide the page, and the photo or the code must still be there
+   * when the person comes back.
    */
   const reloadWhenQuiet = (urgent = false): void => {
     const untouched = Date.now() - touchedAt >= QUIET_MS;
-    if (
-      Date.now() - freshAt < FRESH_MS ||
-      document.visibilityState === 'hidden' ||
-      (urgent && untouched)
-    ) {
+    const unnoticed =
+      document.visibilityState !== 'hidden' &&
+      (Date.now() - freshAt < FRESH_MS || (urgent && untouched));
+    if (unnoticed && !reloadsMustWait()) {
       reload();
     } else {
       waitingToReload = true;
     }
   };
 
-  // A new version has taken over the page.
-  navigator.serviceWorker.addEventListener('controllerchange', () => reloadWhenQuiet());
+  // A new version has taken over the page. Not the first worker this page has ever had.
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadController) return;
+    reloadWhenQuiet();
+  });
 
   const safetyNet = async (): Promise<void> => {
     const newer = await newerBuildOnServer();
@@ -246,25 +396,31 @@ export function keepUpToDate(): void {
     }, GRACE_MS);
   };
 
+  let check: (() => void) | null = null;
   void navigator.serviceWorker
     .register('/sw.js', { scope: '/' })
     .then((registration) => {
-      const check = (): void => {
+      check = (): void => {
         void registration.update().catch(() => undefined);
         void safetyNet();
       };
       check();
       window.setInterval(check, CHECK_EVERY_MS);
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') {
-          if (waitingToReload) reload();
-          return;
-        }
-        freshAt = Date.now();
-        check();
-      });
     })
     .catch(() => {
       void safetyNet();
     });
+
+  document.addEventListener('visibilitychange', () => {
+    // Put away: nothing happens. A hidden page is very often a page in the middle of something.
+    if (document.visibilityState === 'hidden') return;
+    freshAt = Date.now();
+    // Back at the front: a reload that was waiting happens now, unless the page is still busy,
+    // in which case it goes on waiting for the next return or the next time the app is opened.
+    if (waitingToReload && !reloadsMustWait()) {
+      reload();
+      return;
+    }
+    check?.();
+  });
 }

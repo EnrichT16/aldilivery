@@ -212,16 +212,45 @@ describe('the Runner page keeps its sign-in through anything but the end of the 
     expect(window.localStorage.getItem(RUNNER_TOKEN_KEY)).toBe('runner-token');
   });
 
-  it('two session_invalid answers in a row end the sign-in, and only then', async () => {
-    stubRunnerApi([SESSION_INVALID, SESSION_INVALID]);
+  it('session_invalid said again and again ends the sign-in only after twenty seconds and a direct question', async () => {
+    const meCalls = stubRunnerApi([SESSION_INVALID, SESSION_INVALID]);
     renderRunnerHome();
 
     expect(await screen.findByRole('alert')).toBeInTheDocument();
     expect(window.localStorage.getItem(RUNNER_TOKEN_KEY)).toBe('runner-token');
 
+    // Ruling 100: the next polls, five, ten and fifteen seconds on, are too soon to be believed.
+    // A server restarting for a release says it for that long.
+    await nextPoll();
+    await nextPoll();
+    await nextPoll();
+    expect(window.localStorage.getItem(RUNNER_TOKEN_KEY)).toBe('runner-token');
+    expect(screen.queryByText(/not signed in as a Runner on this device/)).not.toBeInTheDocument();
+    const before = meCalls.length;
+
+    // Past twenty seconds: one direct question more, and only its refusal ends the sign-in.
+    await nextPoll();
     await nextPoll();
     expect(await screen.findByText(/not signed in as a Runner on this device/)).toBeInTheDocument();
     expect(window.localStorage.getItem(RUNNER_TOKEN_KEY)).toBeNull();
+    expect(meCalls.length).toBeGreaterThan(before + 1);
+  });
+
+  it('a restart that says session_invalid for a while, then answers well, signs nobody out', async () => {
+    // Five refusals five seconds apart, and then the direct question is answered well.
+    stubRunnerApi([
+      SESSION_INVALID,
+      SESSION_INVALID,
+      SESSION_INVALID,
+      SESSION_INVALID,
+      SESSION_INVALID,
+      'good',
+    ]);
+    renderRunnerHome();
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    for (let i = 0; i < 6; i += 1) await nextPoll();
+    expect(window.localStorage.getItem(RUNNER_TOKEN_KEY)).toBe('runner-token');
+    expect(await screen.findByRole('heading', { name: 'Hello, Tomasz' })).toBeInTheDocument();
   });
 
   it('a good answer between two session_invalid answers starts the count again', async () => {
@@ -297,7 +326,7 @@ describe('the Shopper’s session', () => {
   });
 
   afterEach(() => {
-    secondLook.ms = 10_000;
+    secondLook.ms = 20_000;
   });
 
   it('keeps the token through a 500: down is not the same as refused', async () => {

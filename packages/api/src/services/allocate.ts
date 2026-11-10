@@ -267,7 +267,9 @@ async function tellRunnerOfJob(
           const sent = await ctx.sendPush(device, {
             title: ctx.config.productName,
             body: words,
-            url: '/runner',
+            // Their own Runner page, where the job is (10 November 2026, ruling 100). '/runner'
+            // is the page for people who have not signed up yet.
+            url: '/runner/home',
             tag: `office-job-${offer.id}`,
           });
           if (sent === 'gone')

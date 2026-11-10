@@ -12,6 +12,7 @@ import { storeConfig } from '../config';
 import { screenSnapshot } from './screen';
 import { readRunnerToken, readToken, writeRunnerToken, writeToken } from './session';
 import { renewStaffSession } from './staff-session';
+import { holdReloads } from './updates';
 
 export interface CatalogueItem {
   id: string;
@@ -43,7 +44,7 @@ export interface CatalogueResult {
  */
 const LOCAL_API_URL = 'http://localhost:8080';
 
-const BASE_URL = String(
+export const BASE_URL = String(
   import.meta.env['VITE_API_URL'] ?? (import.meta.env.DEV ? LOCAL_API_URL : '/api'),
 ).replace(/\/+$/, '');
 
@@ -165,6 +166,37 @@ export async function request<T>(
   }
 
   return body as T;
+}
+
+/** How long a photo or document gets to reach the server before the screen says so. */
+export const UPLOAD_TIMEOUT = { ms: 90_000 };
+
+/**
+ * `request`, for sending a photo or a document (10 November 2026, ruling 100). Two things more:
+ * the page is not reloaded for a new version while the file is on its way, and a send that has
+ * had no answer after ninety seconds is stopped and said plainly, where it used to show
+ * "Sending…" for ever on a poor signal. Only for uploads: nothing that streams or waits long on
+ * purpose comes through here.
+ */
+export async function upload<T>(
+  path: string,
+  init: RequestInit,
+  as: 'shopper' | 'runner' = 'shopper',
+): Promise<T> {
+  const release = holdReloads();
+  const stop = new AbortController();
+  const tooLong = setTimeout(() => stop.abort(), UPLOAD_TIMEOUT.ms);
+  try {
+    return await request<T>(path, { ...init, signal: stop.signal }, as);
+  } catch (failure) {
+    if (stop.signal.aborted) {
+      throw new Error('That took too long to send. Please check your signal and try again.');
+    }
+    throw failure;
+  } finally {
+    clearTimeout(tooLong);
+    release();
+  }
 }
 
 export function searchCatalogue(query: string): Promise<CatalogueResult> {
@@ -590,7 +622,7 @@ export function sendRunnerDocument(input: {
   shareCode?: string;
   expiresOn?: string;
 }): Promise<RunnerDocuments & { message: string }> {
-  return request<RunnerDocuments & { message: string }>(
+  return upload<RunnerDocuments & { message: string }>(
     '/runners/me/documents',
     { method: 'POST', body: JSON.stringify(input) },
     'runner',
@@ -929,7 +961,7 @@ export function sendReceiptPhoto(
   orderId: string,
   photo: { base64: string; contentType: string },
 ): Promise<{ message: string; reimbursement?: Reimbursement | null }> {
-  return request<{ message: string; reimbursement?: Reimbursement | null }>(
+  return upload<{ message: string; reimbursement?: Reimbursement | null }>(
     `/orders/${encodeURIComponent(orderId)}/receipt-photo`,
     {
       method: 'POST',
@@ -1388,7 +1420,7 @@ export function addProblemEvidence(
   },
   as: 'shopper' | 'runner',
 ): Promise<{ message: string }> {
-  return request<{ message: string }>(
+  return upload<{ message: string }>(
     `/problems/${encodeURIComponent(reportId)}/evidence`,
     { method: 'POST', body: JSON.stringify(input) },
     as,
@@ -3626,7 +3658,7 @@ export interface OziStreamedReply extends OziReply {
 }
 
 /** The headers every request carries, with whoever is asking (the same as `request` sends). */
-function oziHeaders(as: OziAsker): Record<string, string> {
+export function oziHeaders(as: OziAsker): Record<string, string> {
   const token =
     as.kind === 'runner' ? readRunnerToken() : as.kind === 'shopper' ? readToken() : null;
   const device = deviceId();

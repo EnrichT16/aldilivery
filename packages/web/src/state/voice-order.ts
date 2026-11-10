@@ -173,7 +173,7 @@ interface Picked {
 /** How long the words after "What would you like?" count as an order, whatever they are. */
 export const EXPECT_ORDER_MS = 30_000;
 
-const ORDER_INTENT =
+export const ORDER_INTENT =
   /\b(order|want|like|need|get|buy|have|bring|send|shopping|basket|grab|pick up|purchase|fetch|add|run out|ran out)\b/i;
 /** "open X", "show me X", "go to X". */
 const OPEN_SHOP = /^(?:please\s+)?(?:open|show me|go to|take me to)\s+(.{2,60})$/i;

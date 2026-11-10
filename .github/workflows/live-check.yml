@@ -21,6 +21,10 @@ on:
         description: 'An extra path to GET on www and print, such as /api/catalogue/search?q=banana'
         required: false
         default: ''
+      ask_ozi:
+        description: 'Words to say to Ozi as a visitor on www, to see whether the model answers (leave empty to skip)'
+        required: false
+        default: ''
 
 jobs:
   check:
@@ -63,6 +67,23 @@ jobs:
           curl -sS -m 40 -o body.txt -D headers.txt -w 'status=%{http_code} time=%{time_total}s\n' "https://www.ozidelivery.co.uk$GET_PATH" || echo "curl failed: $?"
           grep -i '^content-type' headers.txt || true
           head -c 2500 body.txt; echo
+
+      - name: Ask Ozi, as a visitor's phone would (the answer carries "understood" only when the model made it)
+        env:
+          ASK: ${{ inputs.ask_ozi }}
+        run: |
+          if [ -z "$ASK" ]; then echo "Nothing to ask: skipping."; exit 0; fi
+          body=$(jq -n --arg text "$ASK" '{text:$text, mode:"within", turn:0, conversation:"live-check"}')
+          for n in 1 2; do
+            echo "== POST https://www.ozidelivery.co.uk/api/ozi/reply (go $n)"
+            curl -sS -m 40 -o body.txt -D headers.txt \
+              -H 'content-type: application/json' -H 'Origin: https://www.ozidelivery.co.uk' \
+              --data "$body" -w 'status=%{http_code} time=%{time_total}s\n' \
+              https://www.ozidelivery.co.uk/api/ozi/reply || echo "curl failed: $?"
+            head -c 1500 body.txt; echo
+          done
+          echo "== health afterwards"
+          curl -sS -m 40 https://www.ozidelivery.co.uk/api/health | head -c 900; echo
 
       - name: POST the Stripe webhook address, as Stripe would (unsigned, so a quick 400 is right)
         run: |

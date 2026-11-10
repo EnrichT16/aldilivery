@@ -14,6 +14,7 @@ export function Field({
   type = 'text',
   autoComplete,
   multiline = false,
+  defaultValue,
 }: {
   id: string;
   label: string;
@@ -21,6 +22,8 @@ export function Field({
   type?: string;
   autoComplete?: string;
   multiline?: boolean;
+  /** What the field starts with: a half-filled form brought back after a reload. */
+  defaultValue?: string;
 }): JSX.Element {
   const hintId = `${id}-hint`;
   const shared = {
@@ -39,9 +42,9 @@ export function Field({
         {hint}
       </p>
       {multiline ? (
-        <textarea {...shared} rows={3} autoComplete={autoComplete} />
+        <textarea {...shared} rows={3} autoComplete={autoComplete} defaultValue={defaultValue} />
       ) : (
-        <input {...shared} type={type} autoComplete={autoComplete} />
+        <input {...shared} type={type} autoComplete={autoComplete} defaultValue={defaultValue} />
       )}
     </div>
   );
