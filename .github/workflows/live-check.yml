@@ -82,6 +82,13 @@ jobs:
               https://www.ozidelivery.co.uk/api/ozi/reply || echo "curl failed: $?"
             head -c 1500 body.txt; echo
           done
+          echo "== POST https://www.ozidelivery.co.uk/api/ozi/talk (the conversation, ruling 99; events as they come)"
+          talk=$(jq -n --arg text "$ASK" '{text:$text, turn:0, conversation:"live-check-talk"}')
+          curl -sS -N -m 60 -H 'content-type: application/json' -H 'accept: text/event-stream' \
+            -H 'Origin: https://www.ozidelivery.co.uk' --data "$talk" \
+            -w '\nstatus=%{http_code} first_byte=%{time_starttransfer}s total=%{time_total}s\n' \
+            https://www.ozidelivery.co.uk/api/ozi/talk | head -c 4000 || echo "curl failed: $?"
+          echo
           echo "== health afterwards"
           curl -sS -m 40 https://www.ozidelivery.co.uk/api/health | head -c 900; echo
 
