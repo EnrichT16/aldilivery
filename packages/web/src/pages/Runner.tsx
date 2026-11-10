@@ -1,9 +1,10 @@
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 
 import { storeConfig } from '../config';
 import { money } from '../lib/money';
 import { WrongAppWarning } from '../components/GetTheApp';
 import { ENHANCED_DBS_OPTIONAL, paidBackInFull } from '../lib/runner-words';
+import { readRunnerToken } from '../lib/session';
 
 /**
  * The Runner door.
@@ -11,10 +12,17 @@ import { ENHANCED_DBS_OPTIONAL, paidBackInFull } from '../lib/runner-words';
  * Rule Two is a promise to a person, so it is stated as a number on the first screen a
  * Runner ever sees, with no asterisk. Every figure is from config, and each promise says only
  * what the code does (Anthony, 30 October 2026).
+ *
+ * This page is for somebody who has not signed up yet. A Runner already signed in on this phone
+ * goes straight to their own Runner page (10 November 2026, ruling 100): a notification, a
+ * bookmark or the Runner door on the first screen all used to land here and ask them to sign in
+ * again, when they had never been signed out.
  */
 export function RunnerDoor(): JSX.Element {
   const { runnerPaymentPence, coolBag, largeOrderFromPence, largeOrderRunnerPaymentPence } =
     storeConfig.fees;
+
+  if (readRunnerToken()) return <Navigate to="/runner/home" replace />;
 
   return (
     <div className="space-y-8">

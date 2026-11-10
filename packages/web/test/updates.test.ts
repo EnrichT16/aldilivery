@@ -2,19 +2,27 @@
  * The home-screen app can always tell when it is out of date (20 October 2026): it compares its
  * own build with the server's /version.json. And a copy whose files will not load heals itself,
  * once for each build (ruling 95), while "Reset the app" keeps every sign-in.
+ *
+ * And the page is never reloaded under somebody in the middle of something (10 November 2026,
+ * ruling 100): not on a first visit, not for being hidden, and not while it is busy.
  */
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { STAFF_KEY, STAFF_NAME, STAFF_OWNER } from '../src/lib/staff-session';
 import {
+  FILE_QUIET_MS,
+  forgetBusy,
   HEALED_KEY,
   healOnce,
+  holdReloads,
   isLoadFailure,
+  keepUpToDate,
   newerBuildOnServer,
+  reloadsMustWait,
   resetApp,
   watchForBrokenLoads,
 } from '../src/lib/updates';
@@ -46,6 +54,182 @@ function savedCopy(): { unregistered: () => number; cachesLeft: () => string[] }
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  forgetBusy();
+});
+
+/* ------------------------------------------------------------------ ruling 100 */
+
+/**
+ * A browser with a service worker: `controlled` says whether one already had the page when it
+ * opened. The server always says this build is the newest, so only a new worker taking over can
+ * ask for a reload here.
+ */
+function browserWithWorker(controlled: boolean): { takeOver: () => void } {
+  const listeners: Array<() => void> = [];
+  vi.stubGlobal('navigator', {
+    ...navigator,
+    serviceWorker: {
+      controller: controlled ? {} : null,
+      addEventListener: (name: string, listener: () => void) => {
+        if (name === 'controllerchange') listeners.push(listener);
+      },
+      register: async () => ({ update: async () => undefined }),
+      getRegistrations: async () => [],
+    },
+  });
+  vi.stubGlobal('fetch', server({ build: __BUILD_ID__ }));
+  return { takeOver: () => listeners.forEach((listener) => listener()) };
+}
+
+function show(state: 'visible' | 'hidden'): void {
+  Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => state });
+  document.dispatchEvent(new Event('visibilitychange'));
+}
+
+describe('a new version never reloads the page under somebody (ruling 100)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    show('visible');
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    document.body.innerHTML = '';
+  });
+
+  it('a first ever visit, when the first worker claims the page, does not reload', () => {
+    const page = browserWithWorker(false);
+    const reload = vi.fn();
+    keepUpToDate(reload);
+    page.takeOver();
+    show('hidden');
+    show('visible');
+    expect(reload).not.toHaveBeenCalled();
+  });
+
+  it('a new version taking over just after the app opens reloads at once, unnoticed', () => {
+    const page = browserWithWorker(true);
+    const reload = vi.fn();
+    keepUpToDate(reload);
+    page.takeOver();
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('never reloads because the page was put away: it waits for the page to come back', () => {
+    const page = browserWithWorker(true);
+    const reload = vi.fn();
+    keepUpToDate(reload);
+    // In use for a while, so a reload now would be noticed.
+    vi.advanceTimersByTime(60_000);
+    page.takeOver();
+    expect(reload).not.toHaveBeenCalled();
+
+    // The camera, the file picker, Messages: all hide the page. Nothing happens.
+    show('hidden');
+    expect(reload).not.toHaveBeenCalled();
+
+    show('visible');
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits while reloads are held, and reloads on a later return to the front', () => {
+    const page = browserWithWorker(true);
+    const reload = vi.fn();
+    keepUpToDate(reload);
+    const release = holdReloads();
+    expect(reloadsMustWait()).toBe(true);
+
+    // Just opened, when a reload would otherwise happen at once.
+    page.takeOver();
+    expect(reload).not.toHaveBeenCalled();
+
+    // Away to Messages for the code and back, still held: still waiting.
+    show('hidden');
+    show('visible');
+    expect(reload).not.toHaveBeenCalled();
+
+    // Released: nothing at that moment, so the screen that has just finished is not pulled away.
+    release();
+    release();
+    expect(reloadsMustWait()).toBe(false);
+    expect(reload).not.toHaveBeenCalled();
+
+    show('hidden');
+    show('visible');
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for two minutes after a camera or file button is used', () => {
+    const page = browserWithWorker(true);
+    const reload = vi.fn();
+    keepUpToDate(reload);
+    const camera = document.createElement('input');
+    camera.type = 'file';
+    document.body.append(camera);
+    camera.dispatchEvent(new Event('click', { bubbles: true }));
+
+    page.takeOver();
+    // Back from the camera with the photo: the page must still be there.
+    show('hidden');
+    show('visible');
+    expect(reload).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(FILE_QUIET_MS + 1000);
+    show('hidden');
+    show('visible');
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits while something typed has not been sent', () => {
+    const page = browserWithWorker(true);
+    const reload = vi.fn();
+    keepUpToDate(reload);
+    const field = document.createElement('input');
+    field.type = 'tel';
+    document.body.append(field);
+    field.value = '07700 900123';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+    // A tick is not typing, and neither is a field still holding what it started with.
+    const tick = document.createElement('input');
+    tick.type = 'checkbox';
+    tick.checked = true;
+    document.body.append(tick);
+
+    page.takeOver();
+    show('hidden');
+    show('visible');
+    expect(reload).not.toHaveBeenCalled();
+
+    // Sent, and the form gone from the page.
+    field.remove();
+    show('hidden');
+    show('visible');
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it('a heal waits too, is not marked done until it is done, and happens on a later return', async () => {
+    vi.useRealTimers();
+    const copy = savedCopy();
+    const reload = vi.fn();
+    const release = holdReloads();
+
+    // In hand, so nobody is told the page cannot be mended; but nothing is thrown away yet.
+    expect(await healOnce('build-20', reload)).toBe(true);
+    expect(reload).not.toHaveBeenCalled();
+    expect(copy.unregistered()).toBe(0);
+    expect(window.localStorage.getItem(HEALED_KEY)).toBeNull();
+
+    release();
+    show('hidden');
+    show('visible');
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+    expect(copy.unregistered()).toBe(1);
+    expect(window.localStorage.getItem(HEALED_KEY)).toBe('build-20');
+
+    // Once for each build, as ever: no loop.
+    expect(await healOnce('build-20', reload)).toBe(false);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('is there a newer build?', () => {

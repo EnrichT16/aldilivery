@@ -486,6 +486,21 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
       });
       return;
     }
+    // A body larger than its route allows (10 November 2026, ruling 100). It used to fall
+    // through to "Something went wrong at our end", which told a Runner sending a document
+    // nothing he could act on. The large bodies here are photos, so the words say what to do.
+    if (
+      (error as { code?: unknown }).code === 'FST_ERR_CTP_BODY_TOO_LARGE' ||
+      (error as { statusCode?: unknown }).statusCode === 413
+    ) {
+      void reply.status(413).send({
+        error: {
+          code: 'too_large',
+          message: 'That photo is too large. Please take it again, a little further away.',
+        },
+      });
+      return;
+    }
     request.log.error({ err: error }, 'Unhandled error');
     void reply.status(500).send({
       error: {

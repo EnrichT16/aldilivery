@@ -4,12 +4,14 @@ import { RUNNER_AGREEMENT_VERSION } from '@aldilivery/core';
 
 import { DocumentsChecklist } from '../components/DocumentsChecklist';
 import { WrongAppWarning } from '../components/GetTheApp';
+import { HomeScreenSignInNote } from '../components/HomeScreenSignInNote';
 import { Field } from '../components/FormFields';
 import { storeConfig } from '../config';
-import { registerRunner, type VehicleType } from '../lib/api';
+import { ApiError, registerRunner, type VehicleType } from '../lib/api';
 import { readReferral } from '../lib/referral';
 import { DOCUMENT_CHECK_WORDS, ENHANCED_DBS_OPTIONAL } from '../lib/runner-words';
-import { writeRunnerToken } from '../lib/session';
+import { readRunnerToken, writeRunnerToken } from '../lib/session';
+import { useOzi } from '../state/ozi';
 
 const WAYS: Array<{ value: VehicleType; label: string }> = [
   { value: 'on_foot', label: 'Walking' },
@@ -18,6 +20,64 @@ const WAYS: Array<{ value: VehicleType; label: string }> = [
   { value: 'car', label: 'Car' },
   { value: 'van', label: 'Van' },
 ];
+
+/**
+ * The half-filled form, kept for this tab (10 November 2026, ruling 100), so a reload, or the
+ * phone clearing the page while the agreement is read, does not empty it. Only what is typed
+ * here and the ways ticked: never the tick that agrees, which must be made afresh, and there is
+ * no password, PIN or code on this form to keep. Forgotten once signed up.
+ */
+const DRAFT_KEY = 'ozidelivery.runner-sign-up.draft';
+
+interface Draft {
+  runnerName: string;
+  runnerPhone: string;
+  homePostcode: string;
+  introducedBy: string;
+  travelModes: string[];
+}
+
+function readDraft(): Draft | null {
+  try {
+    const kept = JSON.parse(window.sessionStorage.getItem(DRAFT_KEY) ?? 'null') as
+      | Partial<Draft>
+      | null;
+    if (!kept || typeof kept !== 'object') return null;
+    const words = (value: unknown): string => (typeof value === 'string' ? value : '');
+    return {
+      runnerName: words(kept.runnerName),
+      runnerPhone: words(kept.runnerPhone),
+      homePostcode: words(kept.homePostcode),
+      introducedBy: words(kept.introducedBy),
+      travelModes: Array.isArray(kept.travelModes) ? kept.travelModes.map(String) : ['on_foot'],
+    };
+  } catch {
+    return null;
+  }
+}
+
+function keepDraft(form: HTMLFormElement | null): void {
+  try {
+    if (form === null) {
+      window.sessionStorage.removeItem(DRAFT_KEY);
+      return;
+    }
+    const data = new FormData(form);
+    const draft: Draft = {
+      runnerName: String(data.get('runnerName') ?? ''),
+      runnerPhone: String(data.get('runnerPhone') ?? ''),
+      homePostcode: String(data.get('homePostcode') ?? ''),
+      introducedBy: String(data.get('introducedBy') ?? ''),
+      travelModes: data.getAll('travelModes').map(String),
+    };
+    window.sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // Nothing kept: the form is as it always was.
+  }
+}
+
+/** What the screen and the assistant say to a Runner who is signed up and has documents to send. */
+const SIGNED_UP_WORDS = 'You are signed up. Now your documents.';
 
 /**
  * Signing up to run, all in the app, from anywhere in the UK (rulings of 2 October 2026).
@@ -31,12 +91,35 @@ const WAYS: Array<{ value: VehicleType; label: string }> = [
  *
  * Built the same way as the Shopper sign-up: real labels, hints joined to their fields,
  * problems listed in words at the top, taking focus.
+ *
+ * The documents step no longer lives only in this page's memory (10 November 2026, ruling 100).
+ * The Runner's sign-in is saved the moment they sign up, but after any reload this page showed
+ * the empty form again, and sending it again was refused with "There is already a Runner on that
+ * phone number" and no way on: one Runner gave up there. Now a Runner already signed in on this
+ * phone always sees the documents here; a number that is already a Runner's is told so plainly,
+ * with "Sign in instead" beside it; and the half-filled form is kept for the tab.
  */
 export function RunnerSignUp(): JSX.Element {
   const [errors, setErrors] = useState<Array<{ field: string; message: string }>>([]);
   const [saving, setSaving] = useState(false);
-  const [done, setDone] = useState<{ name: string; phone: string } | null>(null);
+  // Signed in as a Runner on this phone already: straight to the documents, whatever happened
+  // to the page in between. The name is not known here, and is not needed.
+  const [done, setDone] = useState<{ name: string; phone: string } | null>(() =>
+    readRunnerToken() ? { name: '', phone: '' } : null,
+  );
   const [news, setNews] = useState('');
+  // The number that is already a Runner's, so the way to sign in sits beside the words.
+  const [alreadyRunner, setAlreadyRunner] = useState<string | null>(null);
+  const [draft] = useState(readDraft);
+  const ozi = useOzi();
+  const oziRef = useRef(ozi);
+  oziRef.current = ozi;
+  const signedUp = done !== null;
+
+  useEffect(() => {
+    // Said once, plainly, for somebody who cannot see that the screen has changed.
+    if (signedUp) void oziRef.current.say(SIGNED_UP_WORDS);
+  }, [signedUp]);
   const [params] = useSearchParams();
   // A Runner's link (`?ref=R…`), or a Shopper's referral link for a driver (`?via=shopper-…`,
   // 30 October 2026), so whoever invited them is recorded on the new Runner.
@@ -86,6 +169,7 @@ export function RunnerSignUp(): JSX.Element {
     }
 
     setErrors([]);
+    setAlreadyRunner(null);
     setSaving(true);
     try {
       const result = await registerRunner({
@@ -103,8 +187,21 @@ export function RunnerSignUp(): JSX.Element {
       });
       // Kept as the Runner's own sign-in, so any Shopper signed in here stays signed in.
       writeRunnerToken(result.token);
+      keepDraft(null);
       setDone({ name: result.runner.name, phone });
     } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        // This number is a Runner's already (ruling 100): say what to do, and offer it.
+        setAlreadyRunner(phone);
+        setErrors([
+          {
+            field: 'runnerPhone',
+            message:
+              'There is already a Runner on that phone number. If that is you, there is no need to sign up again: sign in instead.',
+          },
+        ]);
+        return;
+      }
       setErrors([
         {
           field: 'runnerPhone',
@@ -119,10 +216,16 @@ export function RunnerSignUp(): JSX.Element {
   if (done) {
     return (
       <div className="space-y-6">
-        <h1 className="text-display font-bold m-0">Thank you, {done.name}</h1>
+        <h1 className="text-display font-bold m-0">
+          {done.name === '' ? 'You are signed up' : `Thank you, ${done.name}`}
+        </h1>
         <p role="status" className="m-0 max-w-xl text-lead">
-          You are signed up to run for {storeConfig.productName}. {news}
+          {done.name === ''
+            ? SIGNED_UP_WORDS
+            : `You are signed up to run for ${storeConfig.productName}.`}{' '}
+          {news}
         </p>
+        <HomeScreenSignInNote />
         <section aria-labelledby="next-heading" className="space-y-3 max-w-xl">
           <h2 id="next-heading" className="text-lead font-bold">
             Now, your documents
@@ -137,6 +240,12 @@ export function RunnerSignUp(): JSX.Element {
         <Link to="/runner/home" className="control bg-highlight text-on-accent">
           Go to your Runner page
         </Link>
+        {done.name === '' && (
+          // A shared phone: somebody else's Runner sign-in is here, and this person is new.
+          <Link to="/runner/sign-in" className="control bg-paper/10 text-paper underline">
+            Not you? Sign in as a different Runner
+          </Link>
+        )}
       </div>
     );
   }
@@ -173,12 +282,25 @@ export function RunnerSignUp(): JSX.Element {
               </li>
             ))}
           </ul>
+          {alreadyRunner !== null && (
+            <Link
+              to="/runner/sign-in"
+              state={{ phone: alreadyRunner }}
+              className="control bg-highlight text-ink mt-3"
+            >
+              Sign in instead
+            </Link>
+          )}
         </div>
       )}
 
       <form
         onSubmit={(event) => {
           void onSubmit(event);
+        }}
+        onChange={(event) => {
+          // Kept as it is typed, for this tab only (ruling 100).
+          keepDraft(event.currentTarget);
         }}
         noValidate
         className="space-y-6 max-w-xl"
@@ -188,6 +310,7 @@ export function RunnerSignUp(): JSX.Element {
           label="Your name"
           hint="The name on your documents, so the checks match."
           autoComplete="name"
+          defaultValue={draft?.runnerName}
         />
         <Field
           id="runnerPhone"
@@ -195,18 +318,21 @@ export function RunnerSignUp(): JSX.Element {
           hint="We will contact you on this number to arrange your checks, like 07700 900123."
           type="tel"
           autoComplete="tel"
+          defaultValue={draft?.runnerPhone}
         />
         <Field
           id="homePostcode"
           label="Your home postcode"
           hint="Jobs are offered in your own area, from where you live, like ME7 1AA."
           autoComplete="postal-code"
+          defaultValue={draft?.homePostcode}
         />
         <Field
           id="introducedBy"
           label="Did someone introduce you? Their code (optional)"
           hint="If a friend, a Runner or an Ozi Ambassador told you about us, type the code from their link. You can leave this empty."
           autoComplete="off"
+          defaultValue={draft?.introducedBy}
         />
 
         <fieldset className="space-y-2 border-0 p-0 m-0" aria-describedby="ways-hint">
@@ -223,7 +349,9 @@ export function RunnerSignUp(): JSX.Element {
                 id={`travelModes-${way.value}`}
                 name="travelModes"
                 value={way.value}
-                defaultChecked={way.value === 'on_foot'}
+                defaultChecked={
+                  draft ? draft.travelModes.includes(way.value) : way.value === 'on_foot'
+                }
                 className="h-6 w-6"
               />
               <label htmlFor={`travelModes-${way.value}`} className="m-0">

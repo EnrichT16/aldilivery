@@ -6,6 +6,7 @@ import { GetTheApp, WrongAppWarning } from '../components/GetTheApp';
 import { storeConfig } from '../config';
 import { inPairs } from '../lib/phone-aloud';
 import { rememberLinkFrom } from '../lib/referral';
+import { readRunnerToken } from '../lib/session';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
 import { useVoice } from '../state/voice';
@@ -77,6 +78,8 @@ export function Landing(): JSX.Element {
   useEffect(() => {
     // Signed in: the app opens straight into the shop (ruling 47); Ozi welcomes them there.
     if (restoring || shopper) return;
+    // A signed-in Runner is on the way to their Runner page (ruling 100): the doors are not read.
+    if (readRunnerToken()) return;
     const { offerAccount, introHeard } = onArrival.current;
     // The first launch has Ozi's own introduction, which asks this itself.
     if (!introHeard) return;
@@ -93,6 +96,12 @@ export function Landing(): JSX.Element {
   }, [restoring, shopper]);
 
   if (shopper) return <Navigate to="/shop" replace />;
+  // A Runner signed in on this phone (10 November 2026, ruling 100). The app on the home screen
+  // opens here, and this page used to show him the doors as if he were a stranger, which is what
+  // "the app logs me out" was. He goes straight to his Runner page. Not while the Shopper's own
+  // sign-in is still being looked up, and never when a Shopper is signed in: on a shared phone
+  // the Shopper has this page, and the Runner has his own.
+  if (!restoring && readRunnerToken()) return <Navigate to="/runner/home" replace />;
 
   return (
     // Ruling 47: tidy. The choices sit at the top like tabs, the middle stays clear, and the

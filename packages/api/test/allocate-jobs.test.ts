@@ -274,7 +274,8 @@ describe('how the Runner gets it', () => {
     const orderId = await placeOrder();
     await allocate([{ orderId, runnerId: tomasz.runnerId }]);
     expect(pushed).toHaveLength(1);
-    expect(pushed[0]).toMatchObject({ url: '/runner' });
+    // Their own Runner page, not the page for people who have not signed up (ruling 100).
+    expect(pushed[0]).toMatchObject({ url: '/runner/home' });
     expect(pushed[0]!.body).toMatch(/^The office has sent you job/);
   });
 });

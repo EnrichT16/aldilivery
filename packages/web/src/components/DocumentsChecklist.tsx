@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
 import { storeConfig } from '../config';
 import {
@@ -19,6 +19,12 @@ import { PhotoChoice } from './PhotoChoice';
  * the phone, or for a document a PDF (27 October 2026); and, for the right to work and the
  * DBS check, a box for a share code instead. Insurance asks for the date it runs out. Below, what
  * has been sent and what was decided, with the reason if one was turned down.
+ *
+ * An insurance photo taken before the date was filled in used to be thrown away, with a message
+ * at the top of the page that was easy to miss; the Runner then had to take it again (10 November
+ * 2026, ruling 100). Now the photo is kept, the screen asks for the date beside it, and one
+ * button sends both. While anything is on its way the page is never reloaded for a new version
+ * (`upload` in lib/api holds it).
  */
 
 const HOW: Record<RunnerDocumentKind, string> = {
@@ -161,6 +167,9 @@ function DocumentRow({
   const [shareCode, setShareCode] = useState('');
   const [expiresOn, setExpiresOn] = useState('');
   const [sending, setSending] = useState(false);
+  // The insurance photo, chosen before its date was given: kept until the date is there.
+  const [kept, setKept] = useState<File | null>(null);
+  const dateField = useRef<HTMLInputElement>(null);
   const allowsCode = kind === 'right_to_work' || kind === 'dbs';
 
   async function send(input: Parameters<typeof sendRunnerDocument>[0]): Promise<void> {
@@ -178,8 +187,14 @@ function DocumentRow({
   }
 
   async function onPhoto(file: File): Promise<void> {
+    // Kept, not thrown away (ruling 100): the date is asked for, then both go together. It
+    // stays kept until it has been sent, so a send that fails can be tried again without
+    // taking the photo again; once sent, this row is gone.
+    if (kind === 'insurance') setKept(file);
     if (kind === 'insurance' && expiresOn === '') {
-      onProblem('Please give the date your insurance runs out first.');
+      // A moment later, because a phone gives the focus back to the photo button as the camera
+      // or the file picker closes.
+      window.setTimeout(() => dateField.current?.focus(), 50);
       return;
     }
     let photo;
@@ -216,12 +231,41 @@ function DocumentRow({
             The date it runs out
           </label>
           <input
+            ref={dateField}
             id={`${id}-expires`}
             type="date"
             value={expiresOn}
             onChange={(event) => setExpiresOn(event.target.value)}
             className="w-full min-h-control rounded-2xl border-2 border-paper bg-paper text-ink p-3"
           />
+        </div>
+      )}
+
+      {kind === 'insurance' && (
+        <div role="status" className="space-y-3">
+          {kept !== null && (
+            <>
+              <p className="m-0 font-bold">
+                We have kept your photo. Give the date your insurance runs out, then press Send my
+                insurance.
+              </p>
+              <button
+                type="button"
+                disabled={sending}
+                onClick={() => {
+                  if (expiresOn === '') {
+                    onProblem('Please give the date your insurance runs out. Your photo is kept.');
+                    dateField.current?.focus();
+                    return;
+                  }
+                  void onPhoto(kept);
+                }}
+                className="control bg-highlight text-on-accent disabled:opacity-70"
+              >
+                {sending ? 'Sending…' : 'Send my insurance'}
+              </button>
+            </>
+          )}
         </div>
       )}
 

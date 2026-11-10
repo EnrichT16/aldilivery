@@ -67,6 +67,24 @@ describe('signing up', () => {
     ]);
   });
 
+  it('a photo larger than the server takes is refused in plain words, not as a fault at our end (ruling 100)', async () => {
+    // 10 November 2026: it used to answer 500 "Something went wrong at our end", which gave a
+    // Runner sending a document nothing to act on.
+    const runner = await signUp(['on_foot']);
+    const response = await send(runner.headers, {
+      kind: 'dbs',
+      image: 'A'.repeat(10 * 1024 * 1024),
+      contentType: 'image/jpeg',
+    });
+    expect(response.statusCode).toBe(413);
+    expect(response.json()).toEqual({
+      error: {
+        code: 'too_large',
+        message: 'That photo is too large. Please take it again, a little further away.',
+      },
+    });
+  });
+
   it('records who invited them, from the link they followed', async () => {
     const first = await signUp(['on_foot']);
     const second = await harness.app.inject({
