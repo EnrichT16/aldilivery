@@ -54,7 +54,9 @@ createServer((req, res) => {
     const toolResults = Array.isArray(lastContent)
       ? lastContent.filter((block) => block?.type === 'tool_result')
       : [];
-    const theySaid = (typeof lastContent === 'string' ? lastContent : '').split('[They said]')[1]?.trim() ?? '';
+    const lastText = typeof lastContent === 'string' ? lastContent : '';
+    // Everybody's turn ends "[They said] …"; the founder's ends: He said: "…".
+    const theySaid = lastText.split('[They said]')[1]?.trim() ?? /He said: "([^"]*)"/.exec(lastText)?.[1] ?? '';
     let plan = null; // { say, uses: [{name, input}] }
     if (toolNames.includes('search_shop')) {
       const resultText = toolResults.map((r) => (typeof r.content === 'string' ? r.content : JSON.stringify(r.content))).join(' ');

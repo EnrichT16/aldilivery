@@ -669,7 +669,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     const filler = fillerWhileWaiting((words) => void sayRef.current(words));
     const b = basketRef.current;
     const basket =
-      as.kind === 'shopper'
+      as.kind === 'shopper' || accountRef.current.shopper
         ? {
             lines: b.lines.map((line) => ({
               id: line.item.id,
@@ -884,6 +884,8 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
         const meant =
           nameHeardIn(text) ||
           Date.now() < knownConversingUntil.current ||
+          // Ozi has just spoken to him: what he says next is said to Ozi (ruling 99).
+          Date.now() < talkOpenUntil.current ||
           knownSpeakerReply(
             text,
             knownHere() ?? { kind: 'staff', firstName: null },
@@ -1319,7 +1321,13 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
    * The owner or staff known on this device, and no Shopper signed in here too (ruling 84):
    * everything they say goes to their own conversation on the server.
    */
-  const talksAsKnown = (): boolean => knownHere() !== null && !accountRef.current.shopper;
+  // The founder is always the founder on his own phone, whoever else is signed in on it (11
+  // November 2026: after signing in to a Shopper account to try it, his words went to the
+  // shopping script, which asked him how many bananas). Staff with a Shopper signed in shop.
+  const talksAsKnown = (): boolean => {
+    const known = knownHere();
+    return known !== null && (known.kind === 'owner' || !accountRef.current.shopper);
+  };
   const knownConversingUntil = useRef(0);
 
   /**
@@ -1332,7 +1340,7 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     const who = knownHere();
     // Staff, family and investors (ruling 99): the conversation first, the older way only when
     // it cannot answer. The owner's conversation is his own, on his own model.
-    if (!olderWay && who && who.kind !== 'owner') {
+    if (!olderWay && who) {
       void talkTurnRef.current(text).then((answered) => {
         if (!answered) knownTalk(text, true);
       });

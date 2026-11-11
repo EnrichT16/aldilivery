@@ -14,11 +14,12 @@ import * as modelModule from '../src/lib/language-model.js';
 import {
   languageModel,
   modelHealth,
+  ownerInstructions,
   OWNER_TOOLS,
   type BrainClient,
 } from '../src/lib/language-model.js';
 import { pagePath, spokenSentence, talkInstructions, talkToolsFor } from '../src/lib/ozi-talk.js';
-import { buildTestApp, seedCatalogue, signUpShopper, type TestHarness } from './helpers.js';
+import { buildTestApp, seedCatalogue, signUpShopper, STAFF, type TestHarness } from './helpers.js';
 
 const config = loadStoreConfig();
 
@@ -534,5 +535,145 @@ describe('POST /ozi/talk', () => {
       kind: 'credit-or-permission',
       detail: null,
     });
+  });
+});
+
+describe('the founder on POST /ozi/talk (11 November 2026)', () => {
+  let harness: TestHarness;
+  afterEach(async () => {
+    await harness?.app.close();
+  });
+
+  async function ownerHeaders(): Promise<Record<string, string>> {
+    const post = (url: string, payload: object) =>
+      harness.app.inject({ method: 'POST', url, payload, headers: STAFF });
+    await post('/staff/owner', {
+      name: 'Anthony',
+      username: 'anthony',
+      password: 'a long password',
+      passcode: '123456#',
+    });
+    const signedIn = await post('/staff/sign-in', {
+      username: 'anthony',
+      password: 'a long password',
+      passcode: '123456#',
+    });
+    return { 'x-staff-token': signedIn.json().token as string };
+  }
+
+  it('his instructions put his work first and shopping second, and never treat him as a customer', () => {
+    const text = ownerInstructions(config, '');
+    expect(text).toMatch(/His work comes first/);
+    expect(text).toMatch(/Never treat him as a customer, never ask what he would like to order/);
+    expect(text).toMatch(/Shopping is your second skill/);
+    expect(text).not.toMatch(/orders are placed from a Shopper account in the shop/);
+  });
+
+  it('is answered by his own model with his desk tools, even with a Shopper signed in on the same phone', async () => {
+    const sent: Array<Record<string, unknown>> = [];
+    const script: Scripted[] = [];
+    harness = await buildTestApp(undefined, { brain: brainWith(script, sent) });
+    const ids = await seedCatalogue(harness.repository);
+    const shopper = await signUpShopper(harness);
+    const headers = { ...(await ownerHeaders()), ...shopper.authHeader };
+
+    // "Hello Ozi": the desk, never bananas.
+    script.push(
+      { deltas: ['Good morning. '], toolUse: [{ id: 't1', name: 'needs_you', input: {} }] },
+      { deltas: ['Nothing is waiting for you just now.'] },
+    );
+    const hello = await harness.app.inject({
+      method: 'POST',
+      url: '/ozi/talk',
+      headers,
+      payload: {
+        text: 'Hello Ozi',
+        conversation: 'o1',
+        basket: { lines: [], goodsPence: 0, feePence: 0, totalPence: 0 },
+      },
+    });
+    const events = eventsOf(hello.body);
+    expect(events.at(-1)).toMatchObject({ type: 'done', awaitingYes: false });
+    expect(events.filter((e) => e['type'] === 'sentence').map((e) => e['text'])).toContain(
+      'Nothing is waiting for you just now.',
+    );
+    const first = sent[0]!;
+    expect(first['model']).toBe('claude-opus-5-5');
+    const names = (first['tools'] as Array<{ name: string }>).map((tool) => tool.name);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'needs_you',
+        'partner_approvals',
+        'today_summary',
+        'search_shop',
+        'add_to_basket',
+        'start_checkout',
+        'open_page',
+      ]),
+    );
+    // No tool twice: the provider refuses a request with two tools of one name.
+    expect(new Set(names).size).toBe(names.length);
+    expect(JSON.stringify(first['system'])).toMatch(/His work comes first/);
+    const turn = String((first['messages'] as Array<{ content: unknown }>).at(-1)!.content);
+    expect(turn).toMatch(/the owner and founder/);
+    expect(turn).toMatch(/His own Shopper account is signed in on this phone/);
+    // The desk was really read for him.
+    expect(JSON.stringify((sent[1]!['messages'] as unknown[]).at(-1))).toMatch(/tool_result/);
+
+    // When he asks for it in so many words, the same assistant shops, from his own account.
+    script.push(
+      {
+        toolUse: [
+          {
+            id: 't2',
+            name: 'add_to_basket',
+            input: { items: [{ product_id: ids.bread, quantity: 1 }] },
+          },
+        ],
+      },
+      { deltas: ['A loaf of white sliced is in your basket.'] },
+    );
+    const bread = await harness.app.inject({
+      method: 'POST',
+      url: '/ozi/talk',
+      headers,
+      payload: { text: 'put a loaf of bread in my basket', conversation: 'o1', turn: 1 },
+    });
+    expect(
+      eventsOf(bread.body)
+        .filter((e) => e['type'] === 'action')
+        .map((e) => (e['action'] as { type: string }).type),
+    ).toEqual(['basket_add']);
+  });
+
+  it('without a Shopper signed in he is told so, and a desk decision still waits for his yes', async () => {
+    const sent: Array<Record<string, unknown>> = [];
+    const script: Scripted[] = [{ deltas: ['Three orders so far today.'] }];
+    harness = await buildTestApp(undefined, { brain: brainWith(script, sent) });
+    const headers = await ownerHeaders();
+    const asked = await harness.app.inject({
+      method: 'POST',
+      url: '/ozi/talk',
+      headers,
+      payload: { text: 'how is today going', conversation: 'o2' },
+    });
+    expect(eventsOf(asked.body).at(-1)).toMatchObject({
+      type: 'done',
+      reply: 'Three orders so far today.',
+    });
+    const turn = String((sent[0]!['messages'] as Array<{ content: unknown }>).at(-1)!.content);
+    expect(turn).toMatch(/No Shopper account is signed in on this phone/);
+    // Checkout without a Shopper account is refused to the model, never handed to the app.
+    script.push(
+      { toolUse: [{ id: 't1', name: 'start_checkout', input: {} }] },
+      { deltas: ['You would need to sign in to your Shopper account first.'] },
+    );
+    const send = await harness.app.inject({
+      method: 'POST',
+      url: '/ozi/talk',
+      headers,
+      payload: { text: 'send my order', conversation: 'o2', turn: 1 },
+    });
+    expect(eventsOf(send.body).some((e) => e['type'] === 'action')).toBe(false);
   });
 });

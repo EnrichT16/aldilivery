@@ -90,7 +90,8 @@ const PAGES: Record<AccountKind, Record<string, string>> = {
   partner: { dashboard: '/partner', messages: '/partner/messages', help: '/help' },
   organisation: { dashboard: '/organisation', messages: '/organisation/messages', help: '/help' },
   staff: { admin: '/staff', help: '/help' },
-  owner: { admin: '/staff', help: '/help' },
+  // The founder runs the business and may shop for himself too: his dashboard, and the shop.
+  owner: { ...SHOPPER_PAGES, founders_dashboard: '/staff' },
 };
 
 /** The path for a page word, for this kind of person; null when it is not one of theirs. */
@@ -255,6 +256,17 @@ const ACCOUNT_TOOLS: Anthropic.Tool[] = [
     strict: true,
     input_schema: NO_INPUT,
   },
+];
+
+/**
+ * What the founder's own conversation has besides his desk tools (11 November 2026): the shop,
+ * the basket, the checkout hand-over, his orders, the local shops, any page, and going quiet.
+ * His work comes first and shopping second, but one assistant does both.
+ */
+export const OWNER_EXTRA_TOOLS: Anthropic.Tool[] = [
+  ...SHOPPING_TOOLS,
+  pageTool('owner'),
+  STOP_LISTENING,
 ];
 
 /** The tools for one kind of person. Shopping stays behind a Shopper's or a visitor's turn. */

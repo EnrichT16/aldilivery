@@ -2688,10 +2688,7 @@ export function removePartnerProductPhoto(
   );
 }
 
-export function makePartnerProductCover(
-  id: string,
-  photoId: string,
-): Promise<{ message: string }> {
+export function makePartnerProductCover(id: string, photoId: string): Promise<{ message: string }> {
   return businessRequest(
     `/partner/products/${encodeURIComponent(id)}/photos/${encodeURIComponent(photoId)}/cover`,
     { method: 'POST', body: JSON.stringify({}) },
@@ -2736,7 +2733,8 @@ export async function downloadPartnerTemplate(): Promise<void> {
   const response = await fetch(`${BASE_URL}/partner/products/template.csv`, {
     headers: { 'x-business-token': businessToken() },
   });
-  if (!response.ok) throw new ApiError('The template could not be opened.', response.status, undefined);
+  if (!response.ok)
+    throw new ApiError('The template could not be opened.', response.status, undefined);
   const url = URL.createObjectURL(await response.blob());
   const link = document.createElement('a');
   link.href = url;
@@ -3659,8 +3657,14 @@ export interface OziStreamedReply extends OziReply {
 
 /** The headers every request carries, with whoever is asking (the same as `request` sends). */
 export function oziHeaders(as: OziAsker): Record<string, string> {
+  // The founder or staff may also be signed in as a Shopper on the same phone (11 November
+  // 2026): both go with the request, so his own assistant can shop from his own account.
   const token =
-    as.kind === 'runner' ? readRunnerToken() : as.kind === 'shopper' ? readToken() : null;
+    as.kind === 'runner'
+      ? readRunnerToken()
+      : as.kind === 'shopper' || as.kind === 'staff'
+        ? readToken()
+        : null;
   const device = deviceId();
   return {
     'content-type': 'application/json',
