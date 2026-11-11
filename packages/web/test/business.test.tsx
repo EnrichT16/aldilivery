@@ -307,9 +307,7 @@ describe('a Shop Partner', () => {
     ).toBeInTheDocument();
     expect(screen.getByText(/Partner Plus, £14\.99 a month, paid until/)).toBeInTheDocument();
     // A dashboard from before ruling 96, with no packages: the one plain button stays.
-    expect(
-      screen.getByRole('button', { name: 'Renew, £14.99 for a month' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Renew, £14.99 for a month' })).toBeInTheDocument();
     expect(screen.getByText(/Spotlight, 1 month, £19\.99/)).toBeInTheDocument();
     expect(screen.getByText(/Mentioned 4 times this month/)).toBeInTheDocument();
     // Only the count: no "of 100" target (30 October 2026).

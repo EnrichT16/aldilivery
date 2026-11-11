@@ -399,7 +399,9 @@ describe('two-step codes for staff', () => {
     expect(
       await screen.findByRole('heading', { name: 'Please set up two-step codes' }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('navigation', { name: 'Admin pages' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('navigation', { name: /^(Admin|Founder's) pages$/ }),
+    ).not.toBeInTheDocument();
     await noViolations();
     const user = userEvent.setup({ delay: null });
     await user.click(screen.getByRole('button', { name: 'Set up two-step codes' }));
@@ -409,7 +411,7 @@ describe('two-step codes for staff', () => {
     expect(await screen.findByText('abcd-efgh')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'I have written them down' }));
     // The fresh session opens their job.
-    await screen.findByRole('navigation', { name: 'Admin pages' });
+    await screen.findByRole('navigation', { name: /^(Admin|Founder's) pages$/ });
     expect(await openPage(user, 'Orders')).toBeInTheDocument();
     expect(
       sent.some(

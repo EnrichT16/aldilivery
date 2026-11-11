@@ -9,12 +9,14 @@ import type userEvent from '@testing-library/user-event';
 type User = ReturnType<typeof userEvent.setup>;
 
 async function nav(): Promise<HTMLElement> {
-  return screen.findByRole('navigation', { name: 'Admin pages' });
+  return screen.findByRole('navigation', { name: /^(Admin|Founder's) pages$/ });
 }
 
 /** The group tabs, as shown. */
 export async function groupTabs(): Promise<string[]> {
-  const groups = within(await nav()).getByRole('tablist', { name: 'Parts of the admin panel' });
+  const groups = within(await nav()).getByRole('tablist', {
+    name: /^Parts of the (admin panel|founder's dashboard)$/,
+  });
   return within(groups)
     .getAllByRole('tab')
     .map((tab) => tab.textContent ?? '');
@@ -23,7 +25,9 @@ export async function groupTabs(): Promise<string[]> {
 /** Every page tab, group by group, in the order a person meets them. */
 export async function pageTabs(user: User): Promise<string[]> {
   const panel = await nav();
-  const groups = within(panel).getByRole('tablist', { name: 'Parts of the admin panel' });
+  const groups = within(panel).getByRole('tablist', {
+    name: /^Parts of the (admin panel|founder's dashboard)$/,
+  });
   const names: string[] = [];
   for (const group of within(groups).getAllByRole('tab')) {
     await user.click(group);
@@ -40,7 +44,9 @@ export async function pageTabs(user: User): Promise<string[]> {
 /** Opens the page called `name`, whichever group it is in. */
 export async function openPage(user: User, name: string): Promise<HTMLElement> {
   const panel = await nav();
-  const groups = within(panel).getByRole('tablist', { name: 'Parts of the admin panel' });
+  const groups = within(panel).getByRole('tablist', {
+    name: /^Parts of the (admin panel|founder's dashboard)$/,
+  });
   for (const group of within(groups).getAllByRole('tab')) {
     await user.click(group);
     const pages = within(panel).getByRole('tablist', { name: /pages$/ });

@@ -343,7 +343,7 @@ describe('a new phone opening the admin page', () => {
     expect(engine.spoken.map((s) => s.text).join(' ')).not.toMatch(NEVER);
   });
 
-  it("signing in as the owner drops any waiting Shopper question, and his next words are his own", async () => {
+  it('signing in as the owner drops any waiting Shopper question, and his next words are his own', async () => {
     forgetKnownPhrases();
     firstVisit();
     const asked: Asked[] = [];
@@ -370,7 +370,10 @@ describe('a new phone opening the admin page', () => {
     await waitFor(() =>
       expect(engine.spoken.at(-1)?.text).toBe('Hello, Mr. Anthony. How can I help?'),
     );
-    const since = engine.spoken.slice(before).map((s) => s.text).join(' ');
+    const since = engine.spoken
+      .slice(before)
+      .map((s) => s.text)
+      .join(' ');
     expect(since).not.toMatch(NEVER);
   });
 });

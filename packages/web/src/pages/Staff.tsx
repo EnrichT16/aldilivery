@@ -418,13 +418,17 @@ export function Staff(): JSX.Element {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-display font-bold m-0">Admin</h1>
+        {/* He is the founder and director, not an administrator (Anthony, 11 November 2026):
+            his own page says so. Staff still see "Admin". */}
+        <h1 className="text-display font-bold m-0">
+          {me.isOwner ? 'Founder and Director' : 'Admin'}
+        </h1>
         <LiveClock />
       </div>
       {/* Their speakable Staff ID (ruling 97). */}
       <YourId words="Staff ID" id={me.publicId} heading={false} />
       <p className="m-0">
-        Signed in as {by}, {me.isOwner ? 'Founder and owner' : me.title}.
+        Signed in as {by}, {me.isOwner ? 'Founder and Director' : me.title}.
         {me.viewOnly ? ' You can look, but not change anything.' : ''}{' '}
         <button
           type="button"
@@ -487,10 +491,10 @@ export function Staff(): JSX.Element {
               }}
             />
           )}
-          <nav aria-label="Admin pages" className="space-y-3">
+          <nav aria-label={me.isOwner ? "Founder's pages" : 'Admin pages'} className="space-y-3">
             <TabList
               id="group"
-              label="Parts of the admin panel"
+              label={me.isOwner ? "Parts of the founder's dashboard" : 'Parts of the admin panel'}
               tabs={groups}
               selected={group}
               onSelect={openGroup}
@@ -2624,11 +2628,19 @@ function StaffPhoto({
         {photo.width} by {photo.height}
       </p>
       {large ? (
-        <button type="button" onClick={() => setLarge(null)} className="control bg-paper/10 text-paper underline !py-1">
+        <button
+          type="button"
+          onClick={() => setLarge(null)}
+          className="control bg-paper/10 text-paper underline !py-1"
+        >
           Smaller<span className="visually-hidden">: photo {index + 1}</span>
         </button>
       ) : (
-        <button type="button" onClick={showLarge} className="control bg-paper/10 text-paper underline !py-1">
+        <button
+          type="button"
+          onClick={showLarge}
+          className="control bg-paper/10 text-paper underline !py-1"
+        >
           Show it large<span className="visually-hidden">: photo {index + 1}</span>
         </button>
       )}
@@ -2685,8 +2697,8 @@ function Partners({
             <li key={product.id} className="border-2 border-paper rounded-2xl p-4 space-y-2">
               <h4 className="m-0 font-bold">
                 {product.name}
-                {product.variantLabel ? `, ${product.variantLabel}` : ''}, {money(product.pricePence)},
-                from {product.shopName}
+                {product.variantLabel ? `, ${product.variantLabel}` : ''},{' '}
+                {money(product.pricePence)}, from {product.shopName}
                 {product.priority === 'high' && (
                   <span className="ms-2 rounded-full px-2 bg-highlight text-on-accent text-base">
                     Checked first
@@ -2711,10 +2723,18 @@ function Partners({
               </p>
               {product.description && <p className="m-0">{product.description}</p>}
               {(product.photos ?? []).length > 0 && (
-                <ul className="list-none m-0 p-0 flex flex-wrap gap-2" aria-label={`Photos of ${product.name}`}>
+                <ul
+                  className="list-none m-0 p-0 flex flex-wrap gap-2"
+                  aria-label={`Photos of ${product.name}`}
+                >
                   {(product.photos ?? []).map((photo, index) => (
                     <li key={photo.id} className="space-y-1">
-                      <StaffPhoto staffKey={staffKey} photo={photo} index={index} onProblem={fail} />
+                      <StaffPhoto
+                        staffKey={staffKey}
+                        photo={photo}
+                        index={index}
+                        onProblem={fail}
+                      />
                     </li>
                   ))}
                 </ul>

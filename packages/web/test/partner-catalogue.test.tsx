@@ -96,10 +96,20 @@ function packages(current: 'free' | 'plus' | 'pro'): PartnerPackage[] {
     monthlyPence: tier === 'free' ? 0 : tier === 'plus' ? 1499 : 2999,
     payPence: tier === 'free' ? 0 : tier === 'plus' ? 1499 : 2999,
     limits: LIMITS[tier],
-    gives: [`Up to ${LIMITS[tier].products.toLocaleString('en-GB')} products`, `${LIMITS[tier].photosPerProduct} photos a product`],
+    gives: [
+      `Up to ${LIMITS[tier].products.toLocaleString('en-GB')} products`,
+      `${LIMITS[tier].photosPerProduct} photos a product`,
+    ],
     current: tier === current,
     paid: tier === current,
-    action: tier === 'free' ? 'none' : tier === current ? 'renew' : current === 'free' ? 'start' : 'upgrade',
+    action:
+      tier === 'free'
+        ? 'none'
+        : tier === current
+          ? 'renew'
+          : current === 'free'
+            ? 'start'
+            : 'upgrade',
     firstMonthFree: current === 'free',
   }));
 }
@@ -113,7 +123,16 @@ const CATALOGUE = {
   units: ['g', 'kg', 'ml', 'l', 'each', 'pack'],
   descriptionMaxLength: 600,
   photoRules: ['One product in the photo, in the middle, filling most of it.'],
-  bulkColumns: ['name', 'price', 'category', 'unit quantity', 'unit', 'allergens', 'barcode', 'description'],
+  bulkColumns: [
+    'name',
+    'price',
+    'category',
+    'unit quantity',
+    'unit',
+    'allergens',
+    'barcode',
+    'description',
+  ],
 };
 
 const BANANAS: PartnerProductRow = {
@@ -130,7 +149,14 @@ const BANANAS: PartnerProductRow = {
   durationMinutes: null,
   description: 'Five ripe bananas.',
   category: { id: 'fruit-veg', name: 'Fruit and vegetables' },
-  unit: { quantity: 5, unit: 'each', quantityWords: '5 each', perPence: 24, per: 'each', words: '£0.24 each' },
+  unit: {
+    quantity: 5,
+    unit: 'each',
+    quantityWords: '5 each',
+    perPence: 24,
+    per: 'each',
+    words: '£0.24 each',
+  },
   allergens: [],
   allergenWords: 'No listed allergens',
   featured: false,
@@ -220,7 +246,14 @@ const SHOP_PAGE: PublicShopPage = {
       catalogueItemId: 'c-rice1',
       description: 'Basmati.',
       category: { id: 'cupboard', name: 'Cupboard' },
-      unit: { quantity: 1, unit: 'kg', quantityWords: '1 kg', perPence: 200, per: 'kg', words: '£2.00 per kg' },
+      unit: {
+        quantity: 1,
+        unit: 'kg',
+        quantityWords: '1 kg',
+        perPence: 200,
+        per: 'kg',
+        words: '£2.00 per kg',
+      },
       allergens: [],
       allergenWords: 'No listed allergens',
       featured: true,
@@ -237,7 +270,14 @@ const SHOP_PAGE: PublicShopPage = {
       expiresOn: null,
       hasPhoto: false,
       catalogueItemId: 'c-rice5',
-      unit: { quantity: 5, unit: 'kg', quantityWords: '5 kg', perPence: 140, per: 'kg', words: '£1.40 per kg' },
+      unit: {
+        quantity: 5,
+        unit: 'kg',
+        quantityWords: '5 kg',
+        perPence: 140,
+        per: 'kg',
+        words: '£1.40 per kg',
+      },
       allergens: [],
       allergenWords: 'No listed allergens',
       featured: false,
@@ -256,7 +296,14 @@ const SHOP_PAGE: PublicShopPage = {
       catalogueItemId: 'c1',
       description: 'Five ripe bananas.',
       category: { id: 'fruit-veg', name: 'Fruit and vegetables' },
-      unit: { quantity: 5, unit: 'each', quantityWords: '5 each', perPence: 24, per: 'each', words: '£0.24 each' },
+      unit: {
+        quantity: 5,
+        unit: 'each',
+        quantityWords: '5 each',
+        perPence: 24,
+        per: 'each',
+        words: '£0.24 each',
+      },
       allergens: ['Milk'],
       allergenWords: 'Contains milk',
       featured: false,
@@ -284,15 +331,31 @@ beforeEach(() => {
       const body: unknown = init?.body ? JSON.parse(String(init.body)) : undefined;
       sent.push({ method, path, body });
       if (path === '/business/me') {
-        return json({ kind: 'partner', name: 'Bola', office: '', business: 'Corner Shop', mustChangePassword: false });
+        return json({
+          kind: 'partner',
+          name: 'Bola',
+          office: '',
+          business: 'Corner Shop',
+          mustChangePassword: false,
+        });
       }
       if (path === '/partner/dashboard') return json(dashboard);
-      if (path === '/partner/plan/checkout') return json({ url: null, message: 'Shop Partner Pro is on.' });
+      if (path === '/partner/plan/checkout')
+        return json({ url: null, message: 'Shop Partner Pro is on.' });
       if (path === '/partner/products' && method === 'POST') {
-        return json({ product: BANANAS, photoNotes: [], message: 'Thank you. Pears, £1.00, is waiting to be checked.' }, 201);
+        return json(
+          {
+            product: BANANAS,
+            photoNotes: [],
+            message: 'Thank you. Pears, £1.00, is waiting to be checked.',
+          },
+          201,
+        );
       }
-      if (path === '/partner/products/p1/featured') return json({ product: BANANAS, message: 'Bananas is featured: Shoppers see it first.' });
-      if (path === '/partner/products/order') return json({ message: 'Your order is saved. Shoppers see your page in that order.' });
+      if (path === '/partner/products/p1/featured')
+        return json({ product: BANANAS, message: 'Bananas is featured: Shoppers see it first.' });
+      if (path === '/partner/products/order')
+        return json({ message: 'Your order is saved. Shoppers see your page in that order.' });
       if (path === '/partner/products/bulk') {
         return json({
           results: [
@@ -310,14 +373,25 @@ beforeEach(() => {
         const product = SHOP_PAGE.products.find((row) => row.catalogueItemId === id);
         return json({
           found: true,
-          item: { id, name: `${product?.name ?? 'Thing'} (Corner Shop)`, category: 'From Corner Shop', estimatedPricePence: product?.pricePence ?? 100 },
+          item: {
+            id,
+            name: `${product?.name ?? 'Thing'} (Corner Shop)`,
+            category: 'From Corner Shop',
+            estimatedPricePence: product?.pricePence ?? 100,
+          },
         });
       }
       if (path === '/me') return json({ role: 'shopper', shopper: FAKE_SHOPPER });
       if (path === '/orders/current') return json({ order: null });
       if (path.startsWith('/config')) return json({ push: { publicKey: null } });
       // Staff (the review of waiting products).
-      const me = { name: 'Bola', role: 'partnerships', title: 'Partnerships officer', areas: ['enquiries', 'partners'], mustChangePassword: false };
+      const me = {
+        name: 'Bola',
+        role: 'partnerships',
+        title: 'Partnerships officer',
+        areas: ['enquiries', 'partners'],
+        mustChangePassword: false,
+      };
       if (path === '/staff/sign-in') return json({ token: 'st1.bola.sig', ...me });
       if (path === '/staff/me') return json({ ...me, account: true });
       if (path === '/staff/enquiries') return json({ enquiries: [] });
@@ -329,8 +403,18 @@ beforeEach(() => {
               status: 'pending',
               catalogueItemId: null,
               photos: [
-                { ...photo('ph1', 'Bananas'), thumb: 'https://cdn.example/ph1-thumb.webp', thumbJpeg: 'https://cdn.example/ph1-thumb.jpg', fullJpeg: 'https://cdn.example/ph1-full.jpg' },
-                { ...photo('ph2', 'Bananas, photo 2'), thumb: 'https://cdn.example/ph2-thumb.webp', thumbJpeg: 'https://cdn.example/ph2-thumb.jpg', fullJpeg: 'https://cdn.example/ph2-full.jpg' },
+                {
+                  ...photo('ph1', 'Bananas'),
+                  thumb: 'https://cdn.example/ph1-thumb.webp',
+                  thumbJpeg: 'https://cdn.example/ph1-thumb.jpg',
+                  fullJpeg: 'https://cdn.example/ph1-full.jpg',
+                },
+                {
+                  ...photo('ph2', 'Bananas, photo 2'),
+                  thumb: 'https://cdn.example/ph2-thumb.webp',
+                  thumbJpeg: 'https://cdn.example/ph2-thumb.jpg',
+                  fullJpeg: 'https://cdn.example/ph2-full.jpg',
+                },
               ],
               shopName: 'Corner Shop',
               shopKind: 'shop',
@@ -386,17 +470,25 @@ describe('the plan page', () => {
     const user = userEvent.setup({ delay: null });
     await openDashboard();
     const list = screen.getByRole('list', { name: 'The packages' });
-    expect(within(list).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
-      'Free listing',
-      'Shop Partner Plus (your package)',
-      'Shop Partner Pro',
-    ]);
+    expect(
+      within(list)
+        .getAllByRole('heading', { level: 3 })
+        .map((h) => h.textContent),
+    ).toEqual(['Free listing', 'Shop Partner Plus (your package)', 'Shop Partner Pro']);
     expect(within(list).getByText('Up to 3,000 products')).toBeInTheDocument();
     expect(within(list).getByText('£29.99 a month')).toBeInTheDocument();
-    expect(within(list).getByRole('button', { name: 'Renew Shop Partner Plus, £14.99 for a month' })).toBeInTheDocument();
-    await user.click(within(list).getByRole('button', { name: 'Move to Shop Partner Pro, £29.99 a month' }));
+    expect(
+      within(list).getByRole('button', { name: 'Renew Shop Partner Plus, £14.99 for a month' }),
+    ).toBeInTheDocument();
+    await user.click(
+      within(list).getByRole('button', { name: 'Move to Shop Partner Pro, £29.99 a month' }),
+    );
     await waitFor(() => {
-      expect(sent.find((r) => r.path === '/partner/plan/checkout')?.body).toEqual({ kind: 'pro', months: 1, returnTo: '/partner' });
+      expect(sent.find((r) => r.path === '/partner/plan/checkout')?.body).toEqual({
+        kind: 'pro',
+        months: 1,
+        returnTo: '/partner',
+      });
     });
     expect(await screen.findByText('Shop Partner Pro is on.')).toBeInTheDocument();
   });
@@ -404,8 +496,12 @@ describe('the plan page', () => {
   it('a Free shop is offered a start on Plus or Pro with the first month free', async () => {
     dashboard = dashboardOn('free');
     await openDashboard();
-    expect(screen.getByRole('button', { name: 'Start Shop Partner Plus, first month free' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Start Shop Partner Pro, first month free' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Start Shop Partner Plus, first month free' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Start Shop Partner Pro, first month free' }),
+    ).toBeInTheDocument();
   });
 });
 
@@ -416,7 +512,9 @@ describe('the add form', () => {
     const form = screen.getByRole('form', { name: 'Add a product' });
     expect(within(form).getByLabelText('Take a photo')).toHaveAttribute('capture', 'environment');
     expect(within(form).getByLabelText('Choose a photo')).toHaveAttribute('type', 'file');
-    expect(within(form).getByText('One product in the photo, in the middle, filling most of it.')).toBeInTheDocument();
+    expect(
+      within(form).getByText('One product in the photo, in the middle, filling most of it.'),
+    ).toBeInTheDocument();
     expect(within(form).getByText(/Photos: up to 6 on your package/)).toBeInTheDocument();
     await user.type(within(form).getByLabelText('What it is'), 'Pears');
     await user.type(within(form).getByLabelText('Your counter price, in pounds'), '1.00');
@@ -428,16 +526,18 @@ describe('the add form', () => {
     await user.click(within(form).getByLabelText('None of the fourteen'));
     await user.click(within(form).getByRole('button', { name: 'Send it to be checked' }));
     await waitFor(() => {
-      expect(sent.find((r) => r.path === '/partner/products' && r.method === 'POST')?.body).toEqual({
-        name: 'Pears',
-        pricePence: 100,
-        tags: '',
-        description: 'Conference pears.',
-        categoryId: 'fruit-veg',
-        unitQuantity: 4,
-        unitKind: 'each',
-        allergens: [],
-      });
+      expect(sent.find((r) => r.path === '/partner/products' && r.method === 'POST')?.body).toEqual(
+        {
+          name: 'Pears',
+          pricePence: 100,
+          tags: '',
+          description: 'Conference pears.',
+          categoryId: 'fruit-veg',
+          unitQuantity: 4,
+          unitKind: 'each',
+          allergens: [],
+        },
+      );
     });
     expect(await screen.findByText(/Pears, £1\.00, is waiting to be checked/)).toBeInTheDocument();
   });
@@ -458,17 +558,33 @@ describe('each product on a Pro dashboard', () => {
     await openDashboard();
     const list = screen.getByRole('heading', { name: 'Your products' }).parentElement!;
     // Both products (Apples is a copy of Bananas) carry the details line.
-    expect(within(list).getAllByText(/Fruit and vegetables\. Size 5 each\. £0\.24 each\. No listed allergens/)).toHaveLength(2);
+    expect(
+      within(list).getAllByText(
+        /Fruit and vegetables\. Size 5 each\. £0\.24 each\. No listed allergens/,
+      ),
+    ).toHaveLength(2);
     expect(within(list).getByRole('img', { name: 'Bananas (the cover)' })).toBeInTheDocument();
     expect(within(list).getByRole('img', { name: 'Bananas, photo 2' })).toBeInTheDocument();
-    expect(within(list).getByRole('button', { name: 'Make it the cover of Bananas, photo 2' })).toBeInTheDocument();
+    expect(
+      within(list).getByRole('button', { name: 'Make it the cover of Bananas, photo 2' }),
+    ).toBeInTheDocument();
     expect(within(list).getByLabelText('Take another photo')).toBeInTheDocument();
     await user.click(within(list).getByRole('button', { name: /Feature it.*Bananas/ }));
-    await waitFor(() => expect(sent.find((r) => r.path === '/partner/products/p1/featured')?.body).toEqual({ featured: true }));
+    await waitFor(() =>
+      expect(sent.find((r) => r.path === '/partner/products/p1/featured')?.body).toEqual({
+        featured: true,
+      }),
+    );
     expect(within(list).getByRole('button', { name: /Move up.*Bananas/ })).toBeDisabled();
     await user.click(within(list).getByRole('button', { name: /Move down.*Bananas/ }));
-    await waitFor(() => expect(sent.find((r) => r.path === '/partner/products/order')?.body).toEqual({ ids: ['p2', 'p1'] }));
-    await user.click(within(list).getByRole('button', { name: /Add a size or pack of this.*Bananas/ }));
+    await waitFor(() =>
+      expect(sent.find((r) => r.path === '/partner/products/order')?.body).toEqual({
+        ids: ['p2', 'p1'],
+      }),
+    );
+    await user.click(
+      within(list).getByRole('button', { name: /Add a size or pack of this.*Bananas/ }),
+    );
     const form = await screen.findByRole('form', { name: 'Add a size or pack of Bananas' });
     expect(within(form).getByLabelText(/Which size or pack/)).toBeInTheDocument();
     expect(within(form).getByLabelText('What it is')).toHaveValue('Bananas');
@@ -477,8 +593,12 @@ describe('each product on a Pro dashboard', () => {
   it('a Pro shop uploads a spreadsheet and reads each row’s outcome', async () => {
     const user = userEvent.setup({ delay: null });
     await openDashboard();
-    const section = screen.getByRole('heading', { name: 'Add products from a spreadsheet' }).parentElement!;
-    expect(within(section).getByRole('button', { name: 'Download the template (CSV)' })).toBeInTheDocument();
+    const section = screen.getByRole('heading', {
+      name: 'Add products from a spreadsheet',
+    }).parentElement!;
+    expect(
+      within(section).getByRole('button', { name: 'Download the template (CSV)' }),
+    ).toBeInTheDocument();
     await user.type(
       within(section).getByLabelText('Or paste the lines here'),
       'name,price,category,unit quantity,unit,allergens,barcode,description\nPears,1.00,Fruit and vegetables,4,each,none,,',
@@ -486,7 +606,11 @@ describe('each product on a Pro dashboard', () => {
     await user.click(within(section).getByRole('button', { name: 'Add these products' }));
     await waitFor(() => expect(sent.some((r) => r.path === '/partner/products/bulk')).toBe(true));
     const outcomes = await screen.findByRole('list', { name: 'What happened to each row' });
-    expect(within(outcomes).getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+    expect(
+      within(outcomes)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual([
       'Row 2, Pears: added, waiting to be checked.',
       'Row 3, Lager: We never bring alcohol.',
     ]);
@@ -497,9 +621,16 @@ describe('the shop page', () => {
   it('groups by category, puts featured first, shows the gallery, the unit price and the allergens, and chooses a size', async () => {
     const user = userEvent.setup({ delay: null });
     renderAt('/shops/shop-1');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Corner Shop' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Corner Shop' }),
+    ).toBeInTheDocument();
     // The taxonomy's order: Fruit and vegetables before Cupboard.
-    expect(screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent).filter((t) => t === 'Fruit and vegetables' || t === 'Cupboard')).toEqual(['Fruit and vegetables', 'Cupboard']);
+    expect(
+      screen
+        .getAllByRole('heading', { level: 2 })
+        .map((h) => h.textContent)
+        .filter((t) => t === 'Fruit and vegetables' || t === 'Cupboard'),
+    ).toEqual(['Fruit and vegetables', 'Cupboard']);
     expect(screen.getByText('Five ripe bananas.')).toBeInTheDocument();
     expect(screen.getByText('Contains milk.')).toBeInTheDocument();
     // The unit price beside the shown price, worked from the price with the item charge.
@@ -516,7 +647,7 @@ describe('the shop page', () => {
       within(chooser)
         .getAllByRole('option')
         .map((o) => o.textContent?.replace(/\s+/g, ' ').trim()),
-    // The item charge is in the shown price: 50p, plus 50p for the whole £6 in £7.00 (Rule Three).
+      // The item charge is in the shown price: 50p, plus 50p for the whole £6 in £7.00 (Rule Three).
     ).toEqual(['Standard, about £2.50', '5 kg, about £8.00']);
     await user.selectOptions(chooser, 'rice5');
     expect(screen.getByText(/About £8\.00 for 5 kg\. £1\.60 per kg\./)).toBeInTheDocument();
@@ -534,8 +665,16 @@ describe('the shop page', () => {
 
   it('groups and cards are worked out plainly', () => {
     const cards = variantCards(SHOP_PAGE.products);
-    expect(cards.map((card) => card.variants.map((v) => v.id))).toEqual([['rice1', 'rice5'], ['p1']]);
-    expect(productGroups(cards, SHOP_PAGE.categories ?? [], 'Products').map((g) => [g.name, g.cards.length])).toEqual([
+    expect(cards.map((card) => card.variants.map((v) => v.id))).toEqual([
+      ['rice1', 'rice5'],
+      ['p1'],
+    ]);
+    expect(
+      productGroups(cards, SHOP_PAGE.categories ?? [], 'Products').map((g) => [
+        g.name,
+        g.cards.length,
+      ]),
+    ).toEqual([
       ['Fruit and vegetables', 1],
       ['Cupboard', 1],
     ]);
@@ -550,16 +689,29 @@ describe('the staff review', () => {
     await user.type(screen.getByLabelText('Password'), 'a long password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
     await user.click(await screen.findByRole('tab', { name: 'Shops and organisations' }));
-    const heading = await screen.findByRole('heading', { level: 4, name: /Bananas, £1\.20, from Corner Shop/ });
+    const heading = await screen.findByRole('heading', {
+      level: 4,
+      name: /Bananas, £1\.20, from Corner Shop/,
+    });
     expect(heading).toHaveTextContent('Checked first');
     const card = heading.parentElement!;
-    expect(within(card).getByText(/Shop Partner Pro\. Fruit and vegetables\. Size 5 each, £0\.24 each\. No listed allergens\./)).toBeInTheDocument();
+    expect(
+      within(card).getByText(
+        /Shop Partner Pro\. Fruit and vegetables\. Size 5 each, £0\.24 each\. No listed allergens\./,
+      ),
+    ).toBeInTheDocument();
     expect(within(card).getByText('Five ripe bananas.')).toBeInTheDocument();
     const photos = within(card).getByRole('list', { name: 'Photos of Bananas' });
-    expect(within(photos).getByRole('img', { name: 'Bananas (the cover)' })).toHaveAttribute('src', 'https://cdn.example/ph1-thumb.jpg');
+    expect(within(photos).getByRole('img', { name: 'Bananas (the cover)' })).toHaveAttribute(
+      'src',
+      'https://cdn.example/ph1-thumb.jpg',
+    );
     expect(within(photos).getByRole('img', { name: 'Bananas, photo 2' })).toBeInTheDocument();
     await user.click(within(photos).getAllByRole('button', { name: /Show it large/ })[0]!);
-    expect(within(photos).getByRole('img', { name: 'Bananas (the cover)' })).toHaveAttribute('src', 'https://cdn.example/ph1-full.jpg');
+    expect(within(photos).getByRole('img', { name: 'Bananas (the cover)' })).toHaveAttribute(
+      'src',
+      'https://cdn.example/ph1-full.jpg',
+    );
     expect(within(card).getByRole('button', { name: 'Accept Bananas' })).toBeInTheDocument();
   });
 });

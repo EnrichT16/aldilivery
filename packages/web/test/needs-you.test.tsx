@@ -310,7 +310,7 @@ async function signIn(): Promise<ReturnType<typeof userEvent.setup>> {
   await user.type(await screen.findByLabelText('Username'), 'anthony');
   await user.type(screen.getByLabelText('Password'), 'a long password');
   await user.click(screen.getByRole('button', { name: 'Sign in' }));
-  await screen.findByRole('navigation', { name: 'Admin pages' });
+  await screen.findByRole('navigation', { name: /^(Admin|Founder's) pages$/ });
   return user;
 }
 
@@ -419,7 +419,9 @@ describe('needs you now', () => {
 
     await user.click(screen.getByRole('button', { name: 'Open the payments' }));
     expect(await screen.findByRole('heading', { name: 'Payments' })).toBeInTheDocument();
-    const groups = screen.getByRole('tablist', { name: 'Parts of the admin panel' });
+    const groups = screen.getByRole('tablist', {
+      name: /^Parts of the (admin panel|founder's dashboard)$/,
+    });
     expect(within(groups).getByRole('tab', { name: 'Money' })).toHaveAttribute(
       'aria-selected',
       'true',
@@ -468,7 +470,9 @@ describe('the tabs, in four groups', () => {
       'My settings',
     ]);
     // One tab stop per list; arrows move along it and choose as they go; the ends join up.
-    const groups = screen.getByRole('tablist', { name: 'Parts of the admin panel' });
+    const groups = screen.getByRole('tablist', {
+      name: /^Parts of the (admin panel|founder's dashboard)$/,
+    });
     const today = within(groups).getByRole('tab', { name: 'Today' });
     await user.click(today);
     expect(today).toHaveAttribute('aria-selected', 'true');

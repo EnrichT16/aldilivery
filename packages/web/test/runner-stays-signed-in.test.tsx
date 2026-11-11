@@ -139,7 +139,12 @@ describe('signing up to run survives a reload', () => {
     stubApiWith((path, init) =>
       path === '/runners' && init?.method === 'POST'
         ? answer(
-            { error: { code: 'conflict', message: 'There is already a Runner on that phone number.' } },
+            {
+              error: {
+                code: 'conflict',
+                message: 'There is already a Runner on that phone number.',
+              },
+            },
             409,
           )
         : undefined,
@@ -244,7 +249,13 @@ describe('the "type your code" step survives a reload', () => {
 
   it('is not brought back once the code is too old, or for the other kind of sign-in', async () => {
     stubApi();
-    const step = { phone: '07700 900123', step: 'code', role: 'runner', channel: 'text', message: '' };
+    const step = {
+      phone: '07700 900123',
+      step: 'code',
+      role: 'runner',
+      channel: 'text',
+      message: '',
+    };
     window.sessionStorage.setItem(
       CODE_STEP_KEY,
       JSON.stringify({ ...step, sentAt: Date.now() - 11 * 60_000 }),
@@ -319,9 +330,7 @@ describe('sending documents', () => {
       contentType: 'image/jpeg',
     });
     expect(String(posted[0]?.['image'])).not.toBe('');
-    expect(
-      await screen.findByText(/You have sent everything we need/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/You have sent everything we need/)).toBeInTheDocument();
   });
 
   it('a send with no answer after ninety seconds stops, in plain words, and holds reloads meanwhile', async () => {
@@ -397,7 +406,10 @@ describe('sending documents', () => {
 describe('the home-screen app keeps its own sign-in on an iPhone', () => {
   function pretend(userAgent: string, standalone: boolean): () => void {
     const before = Object.getOwnPropertyDescriptor(window.navigator, 'userAgent');
-    Object.defineProperty(window.navigator, 'userAgent', { configurable: true, get: () => userAgent });
+    Object.defineProperty(window.navigator, 'userAgent', {
+      configurable: true,
+      get: () => userAgent,
+    });
     Object.defineProperty(window.navigator, 'standalone', {
       configurable: true,
       get: () => standalone,

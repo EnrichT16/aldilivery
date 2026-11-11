@@ -414,7 +414,7 @@ describe('who may open Checkout insights', () => {
     await user.type(await screen.findByLabelText('Username'), 'kemi');
     await user.type(screen.getByLabelText('Password'), 'a long password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
-    await screen.findByRole('navigation', { name: 'Admin pages' });
+    await screen.findByRole('navigation', { name: /^(Admin|Founder's) pages$/ });
     return user;
   }
 

@@ -281,9 +281,10 @@ describe('Check an Ambassador', () => {
     const { container } = showCheck('/ambassador/check/K7Q2MA?next=%2Fbusiness%2Fjoin');
     expect(await screen.findByRole('heading', { name: 'Active: Ada' })).toBeInTheDocument();
     expect(screen.getByText('12 November 2026')).toBeInTheDocument();
-    expect(
-      screen.getByRole('img', { name: 'Ada, the Ambassador with this code' }),
-    ).toHaveAttribute('src', expect.stringContaining('/ambassador/check/K7Q2MA/photo'));
+    expect(screen.getByRole('img', { name: 'Ada, the Ambassador with this code' })).toHaveAttribute(
+      'src',
+      expect.stringContaining('/ambassador/check/K7Q2MA/photo'),
+    );
     await noViolations(container);
     await user.click(screen.getByRole('link', { name: 'Carry on' }));
     expect(await screen.findByText('The business join')).toBeInTheDocument();

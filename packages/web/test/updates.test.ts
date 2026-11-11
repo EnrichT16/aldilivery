@@ -403,7 +403,9 @@ describe('the self-healing script in index.html', () => {
           ],
         },
       },
-      document: { getElementById: (id: string) => (id === 'root' ? root : root.querySelector(`#${id}`)) },
+      document: {
+        getElementById: (id: string) => (id === 'root' ? root : root.querySelector(`#${id}`)),
+      },
       location: {
         origin: SITE,
         href: `${SITE}/`,
