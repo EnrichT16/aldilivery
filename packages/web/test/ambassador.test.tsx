@@ -991,7 +991,7 @@ describe('the staff Ambassadors page', () => {
     await user.type(await screen.findByLabelText('Username'), 'kemi');
     await user.type(screen.getByLabelText('Password'), 'a long password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
-    await screen.findByRole('navigation', { name: 'Admin pages' });
+    await screen.findByRole('navigation', { name: /^(Admin|Founder's) pages$/ });
     return user;
   }
 
@@ -1225,7 +1225,7 @@ describe('ending a suspension on the staff Ambassadors page (31 October 2026)', 
     await user.type(await screen.findByLabelText('Username'), 'kemi');
     await user.type(screen.getByLabelText('Password'), 'a long password');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
-    await screen.findByRole('navigation', { name: 'Admin pages' });
+    await screen.findByRole('navigation', { name: /^(Admin|Founder's) pages$/ });
     await openPage(user, 'Ambassadors');
     await user.click(await screen.findByRole('button', { name: 'Open Bea Obi' }));
     expect(

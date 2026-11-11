@@ -115,7 +115,9 @@ describe('reading a streamed reply (ruling 92)', () => {
     const first = readEvents('data: {"type":"sentence","text":"Hello."}\n\ndata: {"ty');
     expect(first.events).toEqual([{ type: 'sentence', text: 'Hello.' }]);
     expect(first.rest).toBe('data: {"ty');
-    const second = readEvents(`${first.rest}pe":"done","reply":"Hello.","unsaid":""}\n\ndata: nonsense\n\n`);
+    const second = readEvents(
+      `${first.rest}pe":"done","reply":"Hello.","unsaid":""}\n\ndata: nonsense\n\n`,
+    );
     expect(second.events).toEqual([{ type: 'done', reply: 'Hello.', unsaid: '' }]);
     expect(second.rest).toBe('');
   });

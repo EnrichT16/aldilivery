@@ -255,7 +255,10 @@ describe('the owner', () => {
     expect(sent.filter((r) => r.path === '/staff/sign-in').at(-1)?.body).toEqual(
       expect.objectContaining({ username: 'anthony', passcode: '123456#' }),
     );
-    await screen.findByRole('navigation', { name: 'Admin pages' });
+    await screen.findByRole('navigation', { name: "Founder's pages" });
+    // He is the founder and director, never "Admin" (Anthony, 11 November 2026).
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Founder and Director');
+    expect(screen.getByText(/Signed in as .*Founder and Director/)).toBeInTheDocument();
     expect(await groupTabs()).toEqual(['Today', 'Money', 'People', 'Settings']);
     expect(await pageTabs(user)).toEqual([
       'Needs you now',
@@ -333,7 +336,7 @@ describe('family', () => {
     const user = userEvent.setup({ delay: null });
     renderStaff();
     await signIn(user);
-    await screen.findByRole('navigation', { name: 'Admin pages' });
+    await screen.findByRole('navigation', { name: /^(Admin|Founder's) pages$/ });
     // Their own two-step codes are theirs to set up, like every admin sign-in (Section Q).
     expect(await groupTabs()).toEqual(['Today', 'Settings']);
     expect(await pageTabs(user)).toEqual(['Needs you now', 'Reminders', 'Two-step codes']);

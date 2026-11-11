@@ -410,7 +410,8 @@ describe('the owner, when the conversation is slow or streamed (ruling 92)', () 
       { type: 'sentence', text: 'Corner Shop and Bakery.' },
       {
         type: 'done',
-        reply: 'Two new shop partners are waiting. Corner Shop and Bakery. Shall I go through them?',
+        reply:
+          'Two new shop partners are waiting. Corner Shop and Bakery. Shall I go through them?',
         unsaid: 'Shall I go through them?',
       },
     ];

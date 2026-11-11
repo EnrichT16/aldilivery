@@ -153,13 +153,15 @@ describe('a staff member signing in', () => {
     expect(
       await screen.findByRole('heading', { name: 'Choose your own password' }),
     ).toBeInTheDocument();
-    expect(screen.queryByRole('navigation', { name: 'Admin pages' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('navigation', { name: /^(Admin|Founder's) pages$/ }),
+    ).not.toBeInTheDocument();
     await user.type(screen.getByLabelText('The password you were given'), 'abcd-efgh-jkmn');
     await user.type(screen.getByLabelText('Your new password'), 'chidis own password');
     await user.type(screen.getByLabelText('Your new password again'), 'chidis own password');
     await user.click(screen.getByRole('button', { name: 'Save my password' }));
 
-    await screen.findByRole('navigation', { name: 'Admin pages' });
+    await screen.findByRole('navigation', { name: /^(Admin|Founder's) pages$/ });
     expect(await pageTabs(user)).toEqual([
       'Problems',
       'Orders',
@@ -196,7 +198,7 @@ describe('the founder', () => {
     await user.type(screen.getByLabelText('Staff key'), 'right-key');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
 
-    await screen.findByRole('navigation', { name: 'Admin pages' });
+    await screen.findByRole('navigation', { name: /^(Admin|Founder's) pages$/ });
     // The staff key has no account, so no two-step codes of its own.
     expect(await pageTabs(user)).toHaveLength(10);
     await openPage(user, 'Team');
