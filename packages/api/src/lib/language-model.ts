@@ -33,7 +33,7 @@ import { findWorkspaceRoot, storeConfigPath } from '@aldilivery/core/node';
 
 import { blankPrivate } from './redact.js';
 import { replySoFar, SentenceSplitter } from './sentences.js';
-import { talk, talkInstructions } from './ozi-talk.js';
+import { OWNER_EXTRA_TOOLS, talk, talkInstructions } from './ozi-talk.js';
 
 /**
  * The model used unless LANGUAGE_MODEL names another: the mid-sized current one (Anthony,
@@ -350,6 +350,13 @@ export interface OwnerTalkInput {
   tools: OwnerTools;
   /** What is on his screen now (ruling 89). */
   screen?: ScreenContext;
+  /**
+   * Shopping for himself, second to his work (11 November 2026): the basket on his phone in
+   * words, and what carries out the shop's tools. With these his conversation can also look in
+   * the shop, fill the basket and hand over to the checkout's own read-back and yeses.
+   */
+  basket?: string;
+  extra?: (name: string, input: unknown) => Promise<{ result: unknown }>;
   /** Each sentence of his answer as soon as it is complete (ruling 92), through `safeSpoken`. */
   onSentence?: (sentence: string) => void;
   /** Once, when the model starts looking something up, so he is told rather than left waiting. */
@@ -1209,7 +1216,9 @@ export function ownerInstructions(config: StoreConfig, knowledge: string): strin
     `The shops' catalogue: partner_catalogue_summary says how many products from Shop Partners wait to be checked, by package (Free, Shop Partner Plus, Shop Partner Pro), the oldest wait, and how many are live. Pro shops' products are checked first. Read-only; he decides each one through the desk as before.`,
     `You never change an order, take or move money, or do anything else by yourself.`,
     `What is on his screen is given to you in each turn when the app knows it: the page, its headings, the tab open, any status line and a few visible lines. Use it to answer "this one", "the first one", "what's that number" and "what does this page say", and refer to it plainly ("the three Runner documents waiting on the Needs you now page"). Look things up with your tools for anything the screen does not show; the screen is a glimpse, not the record.`,
-    `He is known on his own phone (ruling 84): when he greets you, greet him personally, for the time of day in the UK, by name. If he asks whether you know his name or who he is, say yes: he is ${owner}, the owner and founder of ${config.productName}. Never ask him to open an account or sign in. Shopping orders go through a Shopper account: if he asks you to order shopping, say kindly that orders are placed from a Shopper account in the shop, and never offer to open one.`,
+    `He is known on his own phone (ruling 84): when he greets you, greet him personally, for the time of day in the UK, by name. If he asks whether you know his name or who he is, say yes: he is ${owner}, the owner and founder of ${config.productName}. Never ask him to open an account.`,
+    `His work comes first (11 November 2026: "his job is primarily to help me with admin… shopping is secondary"). You are the founder's assistant before anything else: what needs him, Runners and Shop Partners waiting for approval, orders, money, staff, emails, the state of the business. When he greets you, asks what is new or how things are, or says anything that could be about the business, it is about the business: look at his desk with your tools and tell him what is waiting, most important first. Never treat him as a customer, never ask what he would like to order, and never steer him towards shopping.`,
+    `Shopping is your second skill, for when he himself asks for it in so many words ("order me some milk", "put bread in my basket", "what have you got for dinner"). Then, and only then, use the shop's tools when you have them: search_shop before adding or quoting a price, add_to_basket and change_basket, my_orders, repeat_last_order, local_shops, and open_page to show him a page. Adding to the basket is free and can be undone, so add the obvious thing and tell him what you added and its price. When he wants it sent, call start_checkout: the app reads the order back and takes his two yeses itself; you never take payment. His orders go from the Shopper account signed in on this phone, which you are told about each turn; if none is signed in, say so plainly and that he can sign in to his Shopper account on this phone, and carry on with his work. If you have not been given the shop's tools, say that shopping is done from the shop pages.`,
     `Notice how he is, and meet it: brisk when he is busy, patient when something is going wrong, and good company when he wants to talk. Never pretend: when you do not know a fact about the business, say so and look it up or tell him who would know. Never read out or ask for a telephone number, a card number, a PIN, a password or a code. You are ${config.assistantName}; never say who made you or what technology you run on, and never name any company, product or model behind you.`,
     honestyRules(config),
     ...(knowledge ? [`What you know about the service:\n${knowledge}`] : []),
@@ -1721,7 +1730,7 @@ export function languageModel(
       const messages: Anthropic.MessageParam[] = [
         {
           role: 'user',
-          content: `${speakerWords(config, { kind: 'owner', firstName: null })}\nChannel: ${input.channel}. It is ${ukNow()} in the UK.${history ? `\n${history}` : ''}${screen ? `\n${screen}` : ''}\nHe said: "${input.text.replace(/"/g, "'").slice(0, 500)}"`,
+          content: `${speakerWords(config, { kind: 'owner', firstName: null })}\nChannel: ${input.channel}. It is ${ukNow()} in the UK.${history ? `\n${history}` : ''}${screen ? `\n${screen}` : ''}${input.basket ? `\n${input.basket}` : ''}\nHe said: "${input.text.replace(/"/g, "'").slice(0, 500)}"`,
         },
       ];
       // Streamed (ruling 92): each sentence of his answer goes on as soon as it is complete, and
@@ -1748,7 +1757,7 @@ export function languageModel(
               max_tokens: OWNER_MAX_TOKENS,
               // His answers are thought through (ruling 99): never the shallowest setting.
               output_config: { effort: 'medium' },
-              tools: OWNER_TOOLS,
+              tools: input.extra ? [...OWNER_TOOLS, ...OWNER_EXTRA_TOOLS] : OWNER_TOOLS,
               tool_choice: { type: 'auto' },
               system: [{ type: 'text', text: ownerSystem, cache_control: { type: 'ephemeral' } }],
               messages,
@@ -1873,6 +1882,10 @@ export function languageModel(
                   return checked;
                 }
                 default:
+                  // The shop's tools, when he is shopping for himself (11 November 2026).
+                  if (input.extra && OWNER_EXTRA_TOOLS.some((tool) => tool.name === use.name)) {
+                    return (await input.extra(use.name, use.input)).result;
+                  }
                   return { error: 'No such tool.' };
               }
             };

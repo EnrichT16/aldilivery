@@ -870,8 +870,10 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
     };
 
     const run = async (): Promise<void> => {
-      // The owner's conversation is his own (ruling 86): he is never answered from here.
-      if (account === 'owner' || !brain?.talk) {
+      const owner = account === 'owner';
+      // The founder is answered by his own model, with his desk tools and, second to them, the
+      // shop's (11 November 2026). Everybody else by the conversation.
+      if (!brain || (owner ? !brain.talkWithOwner : !brain.talk)) {
         send({ type: 'unavailable' });
         return;
       }
@@ -901,7 +903,7 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         return;
       }
       // The cost guard (31 October 2026): past the day's allowance the older parts answer.
-      if (!modelTurns.take(allowanceKey, config.ozi.maxModelTurnsPerDay, now(), false)) {
+      if (!modelTurns.take(allowanceKey, config.ozi.maxModelTurnsPerDay, now(), owner)) {
         send({ type: 'unavailable' });
         return;
       }
@@ -922,11 +924,13 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
               )
               .join('; ');
       const basketWords =
-        speaker.kind === 'shopper' || speaker.kind === 'visitor'
-          ? input.basket && input.basket.lines.length > 0
-            ? `Their basket now: ${basketNow()}. Shopping with its item charges ${money(input.basket.goodsPence)}, delivery ${money(input.basket.feePence)}, total ${money(input.basket.totalPence)}.`
-            : 'Their basket is empty.'
-          : '';
+        owner && !shopperId
+          ? 'No Shopper account is signed in on this phone, so nothing can be ordered from here yet.'
+          : speaker.kind === 'shopper' || speaker.kind === 'visitor' || owner
+            ? input.basket && input.basket.lines.length > 0
+              ? `Their basket now: ${basketNow()}. Shopping with its item charges ${money(input.basket.goodsPence)}, delivery ${money(input.basket.feePence)}, total ${money(input.basket.totalPence)}.`
+              : 'Their basket is empty.'
+            : '';
 
       const tool = async (name: string, raw: unknown): Promise<TalkToolOutcome> => {
         switch (name) {
@@ -1191,7 +1195,47 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
 
       const history = conversation ? await recentTurns(app.ctx, conversation) : [];
       const asked = Date.now();
-      const outcome = await brain.talk({
+      if (owner) {
+        const talked = await brain.talkWithOwner!({
+          text,
+          channel: 'app',
+          history,
+          tools: ownerTools(app.ctx, { id: request.staffActor?.id ?? null }),
+          basket:
+            shopperId && basketWords !== ''
+              ? `His own Shopper account is signed in on this phone. ${basketWords.replace(/^Their basket/, 'His basket')}`
+              : basketWords,
+          extra: tool,
+          ...(input.screen ? { screen: input.screen } : {}),
+          onSentence: sentence,
+          onStatus: sentence,
+        });
+        timing.modelMs = Date.now() - asked;
+        if (!talked || containsBanned(talked.reply, banned)) {
+          if (actions.length === 0 && sent.length === 0) {
+            send({ type: 'unavailable' });
+            return;
+          }
+          kept(sent.join(' '), 'model', 'answered', brain.ownerModel ?? brain.model);
+          send({ type: 'done', reply: sent.join(' '), awaitingYes: false, actions, unsaid: '' });
+          return;
+        }
+        // One decision read back, waiting for his yes in his next turn (Rule One).
+        if (talked.proposal && conversation) {
+          pendingDecisions.set(conversation, { ...talked.proposal, at: Date.now() });
+        }
+        const waits = Boolean(talked.proposal && conversation);
+        kept(talked.reply, 'model', waits ? 'asked' : 'answered', brain.ownerModel ?? brain.model);
+        send({
+          type: 'done',
+          reply: talked.reply,
+          awaitingYes: waits,
+          actions,
+          unsaid: unsaidPart(talked.reply, sent),
+        });
+        return;
+      }
+      const outcome = await brain.talk!({
         text,
         who: speaker,
         channel: 'app',
