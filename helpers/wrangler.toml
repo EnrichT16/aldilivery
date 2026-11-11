@@ -1,0 +1,29 @@
+# Cloudflare Workers settings for Tofadachi Helpers. Nothing secret goes in this file: secrets are
+# added with `npx wrangler secret put NAME` (see HOSTING.md for the full list and the steps).
+name = "tofadachi-helpers"
+main = "src/platform/worker.ts"
+compatibility_date = "2026-10-01"
+compatibility_flags = ["nodejs_compat"]
+
+# The timers, in UTC. Keep them the same as "schedule" in helpers.config.json.
+# The free plan allows 5 timers per account; these are 3.
+[triggers]
+crons = ["*/5 * * * *", "30 6 * * *", "0 7 * * 1"]
+
+# Memory: a D1 database. Make it with `npx wrangler d1 create tofadachi-helpers`,
+# then put the database_id it prints here.
+[[d1_databases]]
+binding = "DB"
+database_name = "tofadachi-helpers"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+# The free brain: Cloudflare Workers AI.
+[ai]
+binding = "AI"
+
+[vars]
+# Not secret. Secrets (ADMIN_TOKEN, INBOX_WEBHOOK_SECRET, OWNER_PHONE, and any API keys)
+# are set with `npx wrangler secret put`.
+
+[observability]
+enabled = true
