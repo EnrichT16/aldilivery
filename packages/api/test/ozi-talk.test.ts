@@ -28,6 +28,7 @@ import {
   talkInstructions,
   talkToolsFor,
 } from '../src/lib/ozi-talk.js';
+import { twilioSignature } from '../src/lib/twilio-voice.js';
 import { buildTestApp, seedCatalogue, signUpShopper, STAFF, type TestHarness } from './helpers.js';
 
 const config = loadStoreConfig();
@@ -552,9 +553,9 @@ describe('POST /ozi/talk', () => {
     expect(last).toContain('two pints of semi skimmed milk and white bread');
     // A visitor has nothing remembered.
     await harness.app.inject({ method: 'POST', url: '/ozi/talk', payload: { text: 'hello' } });
-    expect(String((sent[1]!['messages'] as Array<{ content: unknown }>).at(-1)!.content)).not.toContain(
-      'What you remember',
-    );
+    expect(
+      String((sent[1]!['messages'] as Array<{ content: unknown }>).at(-1)!.content),
+    ).not.toContain('What you remember');
   });
 
   it('says plainly that the assistant could not be reached when there is no model, or it fails', async () => {
@@ -909,5 +910,119 @@ describe("the founder's dashboard conversation (13 November 2026)", () => {
     }
     const unknown = await harness.app.inject({ method: 'GET', url: '/ozi/selftest/nobody' });
     expect(unknown.statusCode).toBe(400);
+  });
+});
+
+describe('the telephone line, as a conversation (13 November 2026)', () => {
+  const ORIGIN = 'https://shop.example.test';
+  const TOKEN = 'twilio-auth-token-for-tests';
+  let harness: TestHarness;
+  afterEach(async () => {
+    await harness?.close();
+  });
+  const twilio = (path: string, params: Record<string, string>) =>
+    harness.app.inject({
+      method: 'POST',
+      url: path,
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        'x-twilio-signature': twilioSignature(TOKEN, `${ORIGIN}${path}`, params),
+      },
+      payload: new URLSearchParams(params).toString(),
+    });
+  const nextStep = (twiml: string): string =>
+    (/action="([^"]+)"/.exec(twiml)?.[1] ?? '').replace(/&amp;/g, '&').replace(ORIGIN, '');
+  const spoken = (twiml: string): string =>
+    [...twiml.matchAll(/<Say[^>]*>([^<]*)<\/Say>/g)].map((m) => m[1]).join(' ');
+
+  it("sends what the caller says to everybody's model, fills the call's basket by tools, and hands over to the line's own read-back and yes", async () => {
+    const sent: Array<Record<string, unknown>> = [];
+    const script: Scripted[] = [];
+    harness = await buildTestApp(new Date('2026-10-07T10:00:00.000Z'), {
+      env: { primaryOrigin: ORIGIN, twilioAuthToken: TOKEN },
+      brain: brainWith(script, sent),
+      sendText: async () => undefined,
+    });
+    await seedCatalogue(harness.repository);
+    const shopper = await signUpShopper(harness, { displayName: 'Margaret Ade' });
+    await harness.repository.shoppers.update(shopper.shopperId, {
+      deliveryAddress: '1 High Street, London',
+    });
+    const milk = (
+      await harness.repository.catalogue.search('milk', { includeAgeRestricted: false, limit: 1 })
+    )[0]!;
+    const call = { CallSid: 'CT1', From: '+447700900001', Direction: 'inbound' };
+    const hello = await twilio('/api/webhooks/twilio/voice', call);
+
+    script.push(
+      {
+        deltas: ['Let me look. '],
+        toolUse: [{ id: 't1', name: 'search_shop', input: { query: 'milk' } }],
+      },
+      {
+        toolUse: [
+          {
+            id: 't2',
+            name: 'add_to_basket',
+            input: { items: [{ product_id: milk.id, quantity: 2 }] },
+          },
+        ],
+      },
+      { deltas: ["I've put two of the semi skimmed milk in. ", 'What else would you like?'] },
+    );
+    const added = await twilio(nextStep(hello.body), {
+      ...call,
+      SpeechResult: "Could I have a couple of pints of milk please, I've run out",
+    });
+    expect(spoken(added.body)).toContain(
+      "I've put two of the semi skimmed milk in. What else would you like?",
+    );
+    // The request: the mid-sized model, the telephone's four tools only, and no web search.
+    expect(sent[0]!['model']).toBe('claude-sonnet-5-5');
+    expect((sent[0]!['tools'] as Array<{ name: string }>).map((tool) => tool.name)).toEqual([
+      'search_shop',
+      'add_to_basket',
+      'change_basket',
+      'start_checkout',
+    ]);
+    expect(String((sent[0]!['messages'] as Array<{ content: unknown }>).at(-1)!.content)).toContain(
+      'Channel: phone',
+    );
+
+    // "That's everything" is the line's own: the read-back, with the total and the address.
+    const readBack = await twilio(nextStep(added.body), {
+      ...call,
+      SpeechResult: "That's everything.",
+    });
+    expect(spoken(readBack.body)).toMatch(/Here is your order\. 2 Semi skimmed milk/);
+    expect(spoken(readBack.body)).toMatch(
+      /It goes to your home address: 1 High Street, London\. Shall I send it\?/,
+    );
+    expect(await harness.repository.orders.listForShopper(shopper.shopperId)).toHaveLength(0);
+  });
+
+  it('says plainly when the model cannot be reached, orders nothing, and then takes the order the simple way', async () => {
+    const script: Scripted[] = [{ fail: Object.assign(new Error('down'), { status: 529 }) }];
+    harness = await buildTestApp(new Date('2026-10-07T10:00:00.000Z'), {
+      env: { primaryOrigin: ORIGIN, twilioAuthToken: TOKEN },
+      brain: brainWith(script),
+      sendText: async () => undefined,
+    });
+    await seedCatalogue(harness.repository);
+    const shopper = await signUpShopper(harness, { displayName: 'Margaret Ade' });
+    await harness.repository.shoppers.update(shopper.shopperId, {
+      deliveryAddress: '1 High Street, London',
+    });
+    const call = { CallSid: 'CT2', From: '+447700900001', Direction: 'inbound' };
+    const hello = await twilio('/api/webhooks/twilio/voice', call);
+    const failed = await twilio(nextStep(hello.body), { ...call, SpeechResult: 'Two milk please' });
+    expect(spoken(failed.body)).toMatch(
+      /I could not reach my assistant just now.*Nothing has been ordered or changed/,
+    );
+    const simple = await twilio(nextStep(failed.body), {
+      ...call,
+      SpeechResult: 'Two milk please',
+    });
+    expect(spoken(simple.body)).toMatch(/I've added 2 Semi skimmed milk/);
   });
 });
