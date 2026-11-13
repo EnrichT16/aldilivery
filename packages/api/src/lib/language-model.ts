@@ -1472,7 +1472,12 @@ OWNER_TOOLS.push(
         when: { type: ['string', 'null'] },
         due_at_iso: { type: ['string', 'null'] },
         repeat: { type: 'string', enum: ['none', 'daily', 'weekly', 'monthly'] },
-        how: { type: ['string', 'null'], enum: ['call', 'text', 'notification', null] },
+        // Written as "one of these, or null" (13 November 2026). As a list of choices on a type
+        // given as a pair, the provider refused the whole request, and so every single thing the
+        // owner said to his own assistant, from the day this tool was added.
+        how: {
+          anyOf: [{ type: 'string', enum: ['call', 'text', 'notification'] }, { type: 'null' }],
+        },
       },
       required: ['text', 'when', 'due_at_iso', 'repeat', 'how'],
     },
