@@ -103,14 +103,6 @@ jobs:
           echo "== health afterwards"
           curl -sS -m 40 https://www.ozidelivery.co.uk/api/health | head -c 900; echo
 
-      - name: The owner's model, asked a fixed sum through the dashboard's own code (at most one real request in ten minutes)
-        env:
-          SELFTEST: ${{ inputs.owner_selftest }}
-        run: |
-          if [ "$SELFTEST" != "yes" ]; then echo "Not asked for: skipping."; exit 0; fi
-          curl -sS -m 90 -w '\nstatus=%{http_code} time=%{time_total}s\n' https://www.ozidelivery.co.uk/api/ozi/selftest/owner | head -c 4000
-          echo
-
       - name: POST the Stripe webhook address, as Stripe would (unsigned, so a quick 400 is right)
         run: |
           for host in www.ozidelivery.co.uk lobster-app-3ilv6.ondigitalocean.app; do
@@ -161,3 +153,11 @@ jobs:
             cat headers.txt
             head -c 600 body.txt; echo
           done
+
+      - name: The owner's model, asked a fixed sum through the dashboard's own code (at most one real request in ten minutes)
+        env:
+          SELFTEST: ${{ inputs.owner_selftest }}
+        run: |
+          if [ "$SELFTEST" != "yes" ]; then echo "Not asked for: skipping."; exit 0; fi
+          curl -sS -m 90 -w '\nstatus=%{http_code} time=%{time_total}s\n' https://www.ozidelivery.co.uk/api/ozi/selftest/owner | head -c 4000
+          echo
