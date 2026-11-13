@@ -172,6 +172,28 @@ function sameLanguage(voiceLang: string, wanted: LanguageTag): boolean {
   return a === b || a.split('-')[0] === b.split('-')[0];
 }
 
+/**
+ * Wakes the phone's speech from inside a tap (13 November 2026, Anthony: after tapping and
+ * allowing the microphone, Ozi's words were on the screen but not spoken until he turned "talks
+ * out loud" off and on again). A phone only lets a page speak when the first words are started
+ * in the very moment of a touch; Ozi's first words came a little later, after the microphone
+ * question, so the phone dropped them in silence. A silent word said at the touch itself opens
+ * the way, and everything after it is heard. Safe to call at every touch.
+ */
+export function primeSpeech(): void {
+  try {
+    const speech = synthesis();
+    if (!speech) return;
+    speech.resume();
+    if (speech.speaking || speech.pending) return;
+    const silent = new SpeechSynthesisUtterance(' ');
+    silent.volume = 0;
+    speech.speak(silent);
+  } catch {
+    // A browser that will not: the next real sentence says so in its own way.
+  }
+}
+
 /** One sentence handed to the synthesiser and not yet finished. */
 interface Saying {
   text: string;

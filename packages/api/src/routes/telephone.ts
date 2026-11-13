@@ -55,6 +55,7 @@ import { itemWords } from '../lib/language-model.js';
 import { remember, spokenIn, type Brain, type Outcome } from '../lib/ozi-memory.js';
 import { phraseReply } from '../lib/phrases.js';
 import { modelTurnsOf, recentTurns } from '../lib/ozi-conversation.js';
+import { PHONE_TOOL_NAMES } from '../lib/ozi-talk.js';
 import {
   carriedPence,
   orderItemFor,
@@ -478,6 +479,162 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
     return { added, missing, tooDear, lines, said, estimated };
   }
 
+  /**
+   * One turn of the real conversation on the telephone (13 November 2026). The caller's words go
+   * to the model everybody's app uses, with what it remembers of this call and four tools: look
+   * in the shop, put things in this call's basket, change it, and hand over to the read-back.
+   * Twilio waits about fifteen seconds for an answer, so the turn has eleven. Null when the
+   * model could not answer.
+   */
+  async function talkOnTheLine(
+    state: CallState,
+    sid: string,
+    heard: string,
+    request: FastifyRequest,
+  ): Promise<string | null> {
+    const brain = app.ctx.brain;
+    if (!brain?.talk) return null;
+    const caller = state.shopperId ? await repository.shoppers.findById(state.shopperId) : null;
+    const accountKind = caller ? ('shopper' as const) : ('visitor' as const);
+    if (
+      !modelTurnsOf(app.ctx).take(
+        caller ? `shopper:${caller.id}` : `call:${sid}`,
+        config.ozi.maxModelTurnsPerDay,
+        now(),
+      )
+    )
+      return null;
+    let lines = [...state.lines];
+    let checkout = false;
+    const basketWords = async (): Promise<string> => {
+      if (lines.length === 0) return 'Their basket on this call is empty.';
+      const items = await repository.catalogue.findManyByIds(lines.map(([id]) => id));
+      return `Their basket on this call: ${lines
+        .map(([id, quantity]) => {
+          const item = items.find((row) => row.id === id);
+          return item
+            ? `${quantity} x ${item.name} (id ${id}, about ${money(displayPricePence(item.estimatedPricePence, config.fees))} each with its item charge)`
+            : `${quantity} x something (id ${id})`;
+        })
+        .join('; ')}.`;
+    };
+    const run = async (name: string, raw: unknown): Promise<{ result: unknown }> => {
+      const input = (raw ?? {}) as Record<string, unknown>;
+      switch (name) {
+        case 'search_shop': {
+          const query = String(input['query'] ?? '')
+            .trim()
+            .slice(0, 80);
+          if (query === '') return { result: { found: 0 } };
+          // Never true. Rule Six.
+          const found = await repository.catalogue.search(query, {
+            includeAgeRestricted: false,
+            limit: 8,
+          });
+          return {
+            result: {
+              found: found.length,
+              products: found.map((item) => ({
+                id: item.id,
+                name: item.name,
+                category: item.category,
+                price_pence_with_item_charge: displayPricePence(
+                  item.estimatedPricePence,
+                  config.fees,
+                ),
+              })),
+              note:
+                found.length === 0
+                  ? 'Nothing in the shop matches those words. Try plainer words once; if there is still nothing, say so and offer the nearest thing.'
+                  : 'Prices are estimates and already include the item charge; they pay what the till says. Delivery is added at the read-back.',
+            },
+          };
+        }
+        case 'add_to_basket': {
+          const asked = Array.isArray(input['items']) ? (input['items'] as unknown[]) : [];
+          const wanted = asked
+            .map((one) => one as { product_id?: unknown; quantity?: unknown })
+            .filter((one) => typeof one.product_id === 'string')
+            .slice(0, 20);
+          const found = await repository.catalogue.findManyByIds(
+            wanted.map((one) => String(one.product_id)),
+          );
+          const added: string[] = [];
+          const refused: string[] = [];
+          for (const one of wanted) {
+            const item = found.find((row) => row.id === one.product_id);
+            // Rule Six again, whatever id was given; and no single product over the most one
+            // product may cost (ruling 58).
+            if (
+              !item ||
+              item.ageRestricted ||
+              !productAllowed(item.estimatedPricePence, config.fees)
+            ) {
+              refused.push(String(one.product_id));
+              continue;
+            }
+            const quantity = Math.min(99, Math.max(1, Math.round(Number(one.quantity) || 1)));
+            const at = lines.findIndex(([id]) => id === item.id);
+            if (at >= 0) lines[at] = [item.id, Math.min(99, lines[at]![1] + quantity)];
+            else lines.push([item.id, quantity]);
+            added.push(`${quantity} x ${item.name}`);
+          }
+          return {
+            result: {
+              added,
+              could_not_add: refused,
+              basket: await basketWords(),
+            },
+          };
+        }
+        case 'change_basket': {
+          const id = String(input['product_id'] ?? '');
+          const quantity = Math.min(99, Math.max(0, Math.round(Number(input['quantity']) || 0)));
+          if (!lines.some(([line]) => line === id))
+            return { result: { ok: false, why: 'That is not in their basket.' } };
+          lines =
+            quantity === 0
+              ? lines.filter(([line]) => line !== id)
+              : lines.map(([line, was]) => (line === id ? [line, quantity] : [line, was]));
+          return { result: { ok: true, basket: await basketWords() } };
+        }
+        case 'start_checkout': {
+          if (lines.length === 0)
+            return { result: { ok: false, why: 'Their basket is empty: nothing to send.' } };
+          checkout = true;
+          return {
+            result: {
+              ok: true,
+              note: 'The line now reads the order back and takes their yes. Say only a few words.',
+            },
+          };
+        }
+        default:
+          return { result: { ok: false, why: 'Not available on the telephone.' } };
+      }
+    };
+    const outcome = await brain.talk({
+      text: heard,
+      who: { kind: accountKind, firstName: caller ? firstName(caller.displayName) : null },
+      channel: 'phone',
+      history: await recentTurns(app.ctx, sid),
+      basket: await basketWords(),
+      run,
+      waitMs: 11_000,
+      only: PHONE_TOOL_NAMES,
+    });
+    if (!outcome || outcome.reply.trim() === '') return null;
+    request.oziNote = {
+      brain: 'model',
+      outcome: checkout ? 'asked' : 'answered',
+      model: brain.model,
+      accountKind,
+    };
+    const after = { ...state, lines, quiet: 0 };
+    if (checkout && lines.length > 0) return confirmTwiml(after, sid, outcome.reply);
+    return ask(outcome.reply, next({ ...after, step: 'items' }, sid));
+  }
+
   /* -------------------------------------------------------------- the call arrives */
 
   app.post('/webhooks/twilio/voice', async (request, response) => {
@@ -798,6 +955,25 @@ export async function registerTelephoneRoutes(app: FastifyInstance): Promise<voi
             );
           }
           return reply(response, await confirmTwiml(state, sid));
+        }
+
+        // The conversation first (13 November 2026, Anthony: "let the telephone order go
+        // straight to the model"): whatever they said goes to the same conversation as the app,
+        // with tools that fill this call's basket. The read-back and the yes stay the line's own.
+        const talker = app.ctx.brain;
+        if (talker?.talk && !state.away) {
+          const talked = await talkOnTheLine(state, sid, heard, request);
+          if (talked) return reply(response, talked);
+          // Not reached: said plainly, once, and the call carries on the simpler way.
+          request.log.error({ sid }, 'The model gave no answer on the telephone line.');
+          request.oziNote = { brain: 'flow', outcome: 'unanswered' };
+          return reply(
+            response,
+            ask(
+              'I could not reach my assistant just now, and I will not make an answer up. Nothing has been ordered or changed. I can still take your order the simple way. Please say what you would like, one or two things at a time.',
+              next({ ...state, away: true, quiet: 0 }, sid),
+            ),
+          );
         }
 
         const { items: asked } = splitItems(heard, config.assistantName);

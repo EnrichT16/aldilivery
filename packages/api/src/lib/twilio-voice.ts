@@ -110,6 +110,11 @@ export interface CallState {
     chargeDay?: string;
     chargeTime?: string;
   };
+  /**
+   * The conversation could not be reached on this call (13 November 2026): the caller was told
+   * so plainly, and the rest of the call is taken down by the line's simpler parts.
+   */
+  away?: boolean;
   /** When this stops being accepted, in seconds since 1970. */
   expiresAt: number;
 }

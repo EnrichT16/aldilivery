@@ -71,6 +71,7 @@ import { ORDER_INTENT } from './voice-order';
 import { answerShoppingQuestion, orderWhere } from '../voice/shopping-questions';
 import { useBasket } from './basket';
 import type { SpeakOutcome } from '../voice';
+import { primeSpeech } from '../voice/browser-engine';
 import { useSession } from './session';
 import { spokenDigits } from './voice-sign-up';
 import { useVoiceOrdering } from './voice-order';
@@ -483,6 +484,8 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
    * nothing awaited, so the browser counts the microphone request as the person's own tap.
    */
   const tapToTalk = useCallback(() => {
+    // In the tap itself, before the microphone question, so the first answer is heard.
+    primeSpeech();
     touched.current = true;
     setWaitingForTouch(false);
     setMicNote(null);
@@ -496,6 +499,18 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
     reminderTimer.current = null;
     remindersGiven.current = 0;
     listenRef.current(true);
+  }, []);
+
+  // Every touch or key on the page keeps the phone's speech awake (13 November 2026), so the
+  // first words are spoken aloud whichever button was pressed first.
+  useEffect(() => {
+    const wake = (): void => primeSpeech();
+    document.addEventListener('pointerdown', wake, true);
+    document.addEventListener('keydown', wake, true);
+    return () => {
+      document.removeEventListener('pointerdown', wake, true);
+      document.removeEventListener('keydown', wake, true);
+    };
   }, []);
 
   /* ------------------------------------------------------------------ speaking */

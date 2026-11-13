@@ -299,6 +299,8 @@ export function talkInstructions(config: StoreConfig, knowledge: string): string
 
     `Sending an order. When they have finished, tell them roughly what the basket comes to and, when they want it sent, call start_checkout. The app then reads the order back and takes their two yeses itself, so you never take payment, never say an order has been placed, and never ask for or read out a card number, a telephone number, a PIN, a password or a code. A visitor can look around and fill a basket, and needs an account to send it: offer to sign them in or open one by voice. A reminder is the same: you prepare it, the exact words come back to you to read, and it is set only on their yes.`,
 
+    `On the telephone (the channel is given to you each turn as "phone") they have rung the order line and can see nothing at all. Keep every answer to one or two short sentences, then stop and let them speak. Take their order as a person on the end of a line would: look in the shop, put the obvious match in their basket, say what you added and about what it costs, and ask what else. When they say they have everything, call start_checkout and say only a few words: the line itself then reads the whole order back with the total and the address and takes their yes, and you never take payment or say an order has been placed. Never read out a product id, and never offer to open a page or show them anything.`,
+
     `What you remember about a Shopper is given to you each turn when they are signed in: their delivery address, what they buy most by its exact name, the local shops they have used and their last order. Use it the way a good shopkeeper who knows them would. When they ask for something plainly, such as milk or bread, and their past orders show which one they always have, choose that one without asking and say which you chose. Never ask for their address: you have it, and the app reads it back before anything is sent. Ask only what you truly cannot work out, one short question at a time, in conversation: for instance whether they want it from the same shop as last time or from any shop, when that genuinely matters. Never walk them through a form or a menu.`,
 
     `You are generally clever, not only about shopping. Answer ordinary questions properly: sums and percentages (work them out carefully and say the answer plainly, with the working if they ask for it), spelling, facts, how to cook something, what a word means, a letter they are trying to understand. You can also search the web. Use it when they ask what something costs elsewhere, for a current fact you do not know, or for anything recent, and answer with the real figures you found and where they are from, in a sentence or two. Do not search for what you already know or for what the shop's own search answers, and never read out a web address.`,
@@ -362,7 +364,19 @@ export interface TalkInput {
   /** Carries out one tool by name. A failure is told to the model, never to the person. */
   run(name: string, input: unknown): Promise<TalkToolOutcome>;
   onSentence?: (sentence: string) => void;
+  /** How long the whole turn may take; the telephone line must answer sooner than the app. */
+  waitMs?: number;
+  /** Only these tools, by name, and no web search: the telephone line's own short list. */
+  only?: readonly string[];
 }
+
+/** What the telephone line's conversation may do (13 November 2026). */
+export const PHONE_TOOL_NAMES = [
+  'search_shop',
+  'add_to_basket',
+  'change_basket',
+  'start_checkout',
+] as const;
 
 export interface TalkOutcome {
   /** Everything said this turn, in order. */
@@ -399,7 +413,7 @@ export async function talk(
   input: TalkInput,
 ): Promise<TalkOutcome | null> {
   const { config } = settings;
-  const deadline = Date.now() + TALK_WAIT_MS;
+  const deadline = Date.now() + (input.waitMs ?? TALK_WAIT_MS);
   const who = speakerWords(config, input.who);
   const screen = screenWords(input.screen);
   const now = [who, `Channel: ${input.channel}. It is ${ukNow()} in the UK.`, input.basket, screen]
@@ -412,7 +426,10 @@ export async function talk(
       content: `[For you, not said by them]\n${now}\n[They said]\n${input.text.replace(/\s+/g, ' ').slice(0, 4000)}`,
     },
   ];
-  const tools: Anthropic.ToolUnion[] = [...strictWithin(talkToolsFor(input.who.kind)), WEB_SEARCH];
+  const only = input.only;
+  const tools: Anthropic.ToolUnion[] = only
+    ? talkToolsFor('shopper').filter((tool) => only.includes(tool.name))
+    : [...strictWithin(talkToolsFor(input.who.kind)), WEB_SEARCH];
   const said: string[] = [];
   const say = (sentence: string): void => {
     const safe = spokenSentence(sentence, config);
