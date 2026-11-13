@@ -22,7 +22,7 @@ on:
         required: false
         default: ''
       owner_selftest:
-        description: "Type yes to put the fixed sum (17 times 23) to the owner's own model on the live service and print its reply"
+        description: "Type yes to put the fixed sum (17 times 23) to every kind of account's model on the live service and print each reply"
         required: false
         default: ''
       ask_ozi:
@@ -154,10 +154,13 @@ jobs:
             head -c 600 body.txt; echo
           done
 
-      - name: The owner's model, asked a fixed sum through the dashboard's own code (at most one real request in ten minutes)
+      - name: Every kind of account's model, asked a fixed sum through that account's own code (at most one real request each in ten minutes)
         env:
           SELFTEST: ${{ inputs.owner_selftest }}
         run: |
           if [ "$SELFTEST" != "yes" ]; then echo "Not asked for: skipping."; exit 0; fi
-          curl -sS -m 90 -w '\nstatus=%{http_code} time=%{time_total}s\n' https://www.ozidelivery.co.uk/api/ozi/selftest/owner | head -c 4000
-          echo
+          for kind in shopper visitor runner partner organisation staff owner; do
+            echo "== $kind"
+            curl -sS -m 90 -w '\nstatus=%{http_code} time=%{time_total}s\n' "https://www.ozidelivery.co.uk/api/ozi/selftest/$kind" | head -c 2500
+            echo
+          done

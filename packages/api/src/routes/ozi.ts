@@ -1315,52 +1315,82 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
   });
 
   /**
-   * GET /ozi/selftest/owner (13 November 2026): one fixed sum put to the owner's own model,
-   * through the very code his dashboard uses (his instructions, his tools, his limits), so it can
-   * be seen from outside whether that model is really answering, how long it takes and what it
-   * says. The question is fixed and nothing of the business is in reach: every tool answers that
-   * it is not available here. At most one real request every ten minutes; in between, the last
-   * result is given again.
+   * GET /ozi/selftest/:kind (13 November 2026): one fixed sum put to the model each kind of
+   * account really uses, through the very code that account's assistant uses (its instructions,
+   * its tools, its limits), so it can be seen from outside whether that model is answering, which
+   * model it is, how long it takes and what it says. "owner" is his own model and desk; shopper,
+   * visitor, runner, partner, organisation and staff are everybody else's conversation. The
+   * question is fixed and nothing of the business is in reach: every tool answers that it is not
+   * available here. At most one real request for each kind every ten minutes; in between, the
+   * last result is given again. A failure is only kept for a minute, so a fix shows at once.
    */
   const SELFTEST_QUESTION = 'What is 17 times 23, and explain how you worked it out.';
-  let selftest: { at: number; result: Record<string, unknown> } | null = null;
-  app.get('/ozi/selftest/owner', async () => {
+  const SELFTEST_KINDS = [
+    'owner',
+    'shopper',
+    'visitor',
+    'runner',
+    'partner',
+    'organisation',
+    'staff',
+  ] as const;
+  const selftests = new Map<string, { at: number; result: Record<string, unknown> }>();
+  app.get('/ozi/selftest/:kind', async (request) => {
+    const { kind } = z.object({ kind: z.enum(SELFTEST_KINDS) }).parse(request.params);
     const brain = app.ctx.brain;
-    if (!brain?.talkWithOwner)
-      return { ok: false, why: 'No language model is set up on this server.' };
-    // A failure is only kept for a minute, so a fix can be seen at once.
-    const keepFor = selftest?.result['ok'] === true ? 10 * 60_000 : 60_000;
-    if (selftest && Date.now() - selftest.at < keepFor) return { ...selftest.result, cached: true };
-    const unavailable = async (): Promise<unknown> => ({ note: 'Not available in the self-test.' });
-    const tools = new Proxy(
-      {},
-      {
-        get: (_target, name) =>
-          name === 'propose' || name === 'proposeAction'
-            ? async () => ({ ok: false, why: 'Not available in the self-test.' })
-            : unavailable,
-      },
-    ) as OwnerTools;
+    if (!brain || (kind === 'owner' ? !brain.talkWithOwner : !brain.talk))
+      return { ok: false, kind, why: 'No language model is set up on this server.' };
+    const last = selftests.get(kind);
+    const keepFor = last?.result['ok'] === true ? 10 * 60_000 : 60_000;
+    if (last && Date.now() - last.at < keepFor) return { ...last.result, cached: true };
     const started = Date.now();
     const sentences: string[] = [];
-    const talked = await brain.talkWithOwner({
-      text: SELFTEST_QUESTION,
-      channel: 'app',
-      history: [],
-      tools,
-      onSentence: (sentence) => sentences.push(sentence),
-    });
+    let reply: string | null = null;
+    if (kind === 'owner') {
+      const unavailable = async (): Promise<unknown> => ({
+        note: 'Not available in the self-test.',
+      });
+      const tools = new Proxy(
+        {},
+        {
+          get: (_target, name) =>
+            name === 'propose' || name === 'proposeAction'
+              ? async () => ({ ok: false, why: 'Not available in the self-test.' })
+              : unavailable,
+        },
+      ) as OwnerTools;
+      const talked = await brain.talkWithOwner?.({
+        text: SELFTEST_QUESTION,
+        channel: 'app',
+        history: [],
+        tools,
+        onSentence: (sentence) => sentences.push(sentence),
+      });
+      reply = talked?.reply ?? null;
+    } else {
+      const talked = await brain.talk?.({
+        text: SELFTEST_QUESTION,
+        who: { kind, firstName: null },
+        channel: 'app',
+        history: [],
+        basket: '',
+        run: async () => ({ result: { note: 'Not available in the self-test.' } }),
+        onSentence: (sentence) => sentences.push(sentence),
+      });
+      reply = talked?.reply ?? null;
+    }
     const result = {
-      ok: talked !== null,
-      model: brain.ownerModel ?? brain.model,
+      ok: reply !== null,
+      kind,
+      model: kind === 'owner' ? (brain.ownerModel ?? brain.model) : brain.model,
       question: SELFTEST_QUESTION,
-      reply: talked?.reply ?? null,
+      reply,
       sentencesStreamed: sentences.length,
       ms: Date.now() - started,
       at: new Date().toISOString(),
       health: modelHealth(),
     };
-    selftest = { at: Date.now(), result };
+    selftests.set(kind, { at: Date.now(), result });
     return result;
   });
 
