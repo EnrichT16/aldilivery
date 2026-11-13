@@ -1015,6 +1015,18 @@ export const NOT_SET_UP_WORDS =
 export const DAY_LIMIT_WORDS =
   'I could not reach my assistant: this account has used all of its answers for today, and I will not make one up. Nothing has been done or changed. It starts again tomorrow.';
 
+/**
+ * The provider's own web search (13 November 2026, Anthony: "look up what a product costs
+ * elsewhere and answer with real figures"). It runs at the provider, not here: at most two
+ * searches a turn, from the United Kingdom.
+ */
+export const WEB_SEARCH: Anthropic.WebSearchTool20260209 = {
+  type: 'web_search_20260209',
+  name: 'web_search',
+  max_uses: 2,
+  user_location: { type: 'approximate', country: 'GB' },
+};
+
 /** The most tools one request may mark as strict: the provider refuses the request past it. */
 export const MAX_STRICT_TOOLS = 20;
 
@@ -1307,6 +1319,8 @@ export function ownerInstructions(config: StoreConfig, knowledge: string): strin
     `What is on his screen is given to you in each turn when the app knows it: the page, its headings, the tab open, any status line and a few visible lines. Use it to answer "this one", "the first one", "what's that number" and "what does this page say", and refer to it plainly ("the three Runner documents waiting on the Needs you now page"). Look things up with your tools for anything the screen does not show; the screen is a glimpse, not the record.`,
     `He is known on his own phone (ruling 84): when he greets you, greet him personally, for the time of day in the UK, by name. If he asks whether you know his name or who he is, say yes: he is ${owner}, the owner and founder of ${config.productName}. Never ask him to open an account.`,
     `His work comes first (11 November 2026: "his job is primarily to help me with admin… shopping is secondary"). You are the founder's assistant before anything else: what needs him, Runners and Shop Partners waiting for approval, orders, money, staff, emails, the state of the business. When he greets you, asks what is new or how things are, or says anything that could be about the business, it is about the business: look at his desk with your tools and tell him what is waiting, most important first. Never treat him as a customer, never ask what he would like to order, and never steer him towards shopping.`,
+    `You can search the web. Use it for a current fact, a price elsewhere, a competitor, a rule or a piece of news you do not already know, and answer with the real figures and where they are from. Do not search for what his own desk tools or your own knowledge answer, and never read out a web address.`,
+
     `Shopping is your second skill, for when he himself asks for it in so many words ("order me some milk", "put bread in my basket", "what have you got for dinner"). Then, and only then, use the shop's tools when you have them: search_shop before adding or quoting a price, add_to_basket and change_basket, my_orders, repeat_last_order, local_shops, and open_page to show him a page. Adding to the basket is free and can be undone, so add the obvious thing and tell him what you added and its price. When he wants it sent, call start_checkout: the app reads the order back and takes his two yeses itself; you never take payment. His orders go from the Shopper account signed in on this phone, which you are told about each turn; if none is signed in, say so plainly and that he can sign in to his Shopper account on this phone, and carry on with his work. If you have not been given the shop's tools, say that shopping is done from the shop pages.`,
     `Notice how he is, and meet it: brisk when he is busy, patient when something is going wrong, and good company when he wants to talk. Never pretend: when you do not know a fact about the business, say so and look it up or tell him who would know. Never read out or ask for a telephone number, a card number, a PIN, a password or a code. You are ${config.assistantName}; never say who made you or what technology you run on, and never name any company, product or model behind you.`,
     honestyRules(config),
@@ -1857,9 +1871,12 @@ export function languageModel(
               max_tokens: OWNER_MAX_TOKENS,
               // His answers are thought through (ruling 99): never the shallowest setting.
               output_config: { effort: 'medium' },
-              tools: strictWithin(
-                input.extra ? [...OWNER_TOOLS, ...OWNER_EXTRA_TOOLS] : OWNER_TOOLS,
-              ),
+              tools: [
+                ...strictWithin(
+                  input.extra ? [...OWNER_TOOLS, ...OWNER_EXTRA_TOOLS] : OWNER_TOOLS,
+                ),
+                WEB_SEARCH,
+              ],
               tool_choice: { type: 'auto' },
               system: [{ type: 'text', text: ownerSystem, cache_control: { type: 'ephemeral' } }],
               messages,
@@ -1884,6 +1901,11 @@ export function languageModel(
           const uses = response.content.filter(
             (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
           );
+          // A web search still under way at the provider: the same turn is carried on.
+          if (response.stop_reason === 'pause_turn') {
+            messages.push({ role: 'assistant', content: response.content });
+            continue;
+          }
           if (response.stop_reason !== 'tool_use' || uses.length === 0) {
             const said = textOf(response).trim();
             if (!said) return null;

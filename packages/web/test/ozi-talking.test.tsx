@@ -401,6 +401,11 @@ describe('hearing its name, however the phone spells it', () => {
   it('knows the name inside a sentence', async () => {
     const { nameHeardIn, onlyName } = await import('../src/voice/name');
     expect(nameHeardIn('hey Aussie can you get bread')).toBe(true);
+    // Every way of calling Ozi opens the conversation (13 November 2026).
+    for (const wake of ['hey Ozi', 'hello Ozi', 'hi Ozi', 'okay Ozi', 'hey Ozi Delivery']) {
+      expect(nameHeardIn(wake)).toBe(true);
+      expect(nameHeardIn(`${wake}, get me two pints of semi skimmed milk`)).toBe(true);
+    }
     expect(nameHeardIn('the oz is hot')).toBe(false);
     expect(onlyName('Hey Ozzy!')).toBe(true);
     expect(onlyName('Ozzy get milk')).toBe(false);

@@ -32,6 +32,7 @@ import {
   serviceFacts,
   speakerWords,
   strictWithin,
+  WEB_SEARCH,
   ukNow,
   type AccountKind,
   type BrainClient,
@@ -42,7 +43,7 @@ import {
 import { SentenceSplitter } from './sentences.js';
 
 /** How long one whole turn may take, look-ups and all, before the app carries on without it. */
-export const TALK_WAIT_MS = 25_000;
+export const TALK_WAIT_MS = 40_000;
 /** Room for the model's own thinking and a reply as long as the moment needs. */
 export const TALK_MAX_TOKENS = 4000;
 /** The most rounds of look-ups in one turn. */
@@ -298,6 +299,10 @@ export function talkInstructions(config: StoreConfig, knowledge: string): string
 
     `Sending an order. When they have finished, tell them roughly what the basket comes to and, when they want it sent, call start_checkout. The app then reads the order back and takes their two yeses itself, so you never take payment, never say an order has been placed, and never ask for or read out a card number, a telephone number, a PIN, a password or a code. A visitor can look around and fill a basket, and needs an account to send it: offer to sign them in or open one by voice. A reminder is the same: you prepare it, the exact words come back to you to read, and it is set only on their yes.`,
 
+    `What you remember about a Shopper is given to you each turn when they are signed in: their delivery address, what they buy most by its exact name, the local shops they have used and their last order. Use it the way a good shopkeeper who knows them would. When they ask for something plainly, such as milk or bread, and their past orders show which one they always have, choose that one without asking and say which you chose. Never ask for their address: you have it, and the app reads it back before anything is sent. Ask only what you truly cannot work out, one short question at a time, in conversation: for instance whether they want it from the same shop as last time or from any shop, when that genuinely matters. Never walk them through a form or a menu.`,
+
+    `You are generally clever, not only about shopping. Answer ordinary questions properly: sums and percentages (work them out carefully and say the answer plainly, with the working if they ask for it), spelling, facts, how to cook something, what a word means, a letter they are trying to understand. You can also search the web. Use it when they ask what something costs elsewhere, for a current fact you do not know, or for anything recent, and answer with the real figures you found and where they are from, in a sentence or two. Do not search for what you already know or for what the shop's own search answers, and never read out a web address.`,
+
     `Who you are talking to is given to you each turn. For a Shopper or a visitor you are their shopping assistant and guide to the service. For a Runner, a Shop Partner, an organisation or a member of staff you are the assistant for their work: their deliveries, their shop and its orders, the people they look after, the admin panel. Help with what is on their screen and how things work, never offer them a Shopper account, and never shop for them from that sign-in: shopping goes through a Shopper account.`,
 
     `What is on their screen is given to you when the app can see it. Use it: "this one", "the first one", "what does this say" mean what is there. You can describe the page and tell them what they can do on it. Never read out anything from the screen that looks like a number, a code or an address.`,
@@ -407,7 +412,7 @@ export async function talk(
       content: `[For you, not said by them]\n${now}\n[They said]\n${input.text.replace(/\s+/g, ' ').slice(0, 4000)}`,
     },
   ];
-  const tools = strictWithin(talkToolsFor(input.who.kind));
+  const tools: Anthropic.ToolUnion[] = [...strictWithin(talkToolsFor(input.who.kind)), WEB_SEARCH];
   const said: string[] = [];
   const say = (sentence: string): void => {
     const safe = spokenSentence(sentence, config);
@@ -449,6 +454,11 @@ export async function talk(
       const uses = response.content.filter(
         (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
       );
+      // A web search still under way at the provider: the same turn is carried on as it stands.
+      if (response.stop_reason === 'pause_turn') {
+        messages.push({ role: 'assistant', content: response.content });
+        continue;
+      }
       if (response.stop_reason !== 'tool_use' || uses.length === 0) {
         return said.length > 0 ? { reply: said.join(' '), awaitingYes: false } : null;
       }
