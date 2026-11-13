@@ -15,10 +15,19 @@ import {
   languageModel,
   modelHealth,
   ownerInstructions,
+  ACCOUNT_KINDS,
+  MAX_STRICT_TOOLS,
   OWNER_TOOLS,
+  strictWithin,
   type BrainClient,
 } from '../src/lib/language-model.js';
-import { pagePath, spokenSentence, talkInstructions, talkToolsFor } from '../src/lib/ozi-talk.js';
+import {
+  OWNER_EXTRA_TOOLS,
+  pagePath,
+  spokenSentence,
+  talkInstructions,
+  talkToolsFor,
+} from '../src/lib/ozi-talk.js';
 import { buildTestApp, seedCatalogue, signUpShopper, STAFF, type TestHarness } from './helpers.js';
 
 const config = loadStoreConfig();
@@ -520,14 +529,16 @@ describe('POST /ozi/talk', () => {
     );
   });
 
-  it('says unavailable when there is no model, or it fails, so the older parts answer', async () => {
+  it('says plainly that the assistant could not be reached when there is no model, or it fails', async () => {
     harness = await buildTestApp();
     const none = await harness.app.inject({
       method: 'POST',
       url: '/ozi/talk',
       payload: { text: 'hello' },
     });
-    expect(eventsOf(none.body)).toEqual([{ type: 'unavailable' }]);
+    const noneDone = eventsOf(none.body).at(-1)!;
+    expect(noneDone).toMatchObject({ type: 'done', failed: true });
+    expect(String(noneDone['reply'])).toMatch(/could not reach my assistant/);
     await harness.app.close();
 
     harness = await buildTestApp(undefined, {
@@ -538,7 +549,10 @@ describe('POST /ozi/talk', () => {
       url: '/ozi/talk',
       payload: { text: 'hello' },
     });
-    expect(eventsOf(failed.body)).toEqual([{ type: 'unavailable' }]);
+    const failedDone = eventsOf(failed.body).at(-1)!;
+    expect(failedDone).toMatchObject({ type: 'done', failed: true });
+    expect(String(failedDone['reply'])).toMatch(/could not reach my assistant.*run out of credit/);
+    expect(eventsOf(failed.body).some((event) => event['type'] === 'unavailable')).toBe(false);
     const health = (await harness.app.inject({ method: 'GET', url: '/health' })).json() as {
       brain: { health: { lastError: { kind: string; detail: unknown } } };
     };
@@ -826,6 +840,23 @@ describe("the founder's dashboard conversation (13 November 2026)", () => {
     ).json() as Record<string, unknown>;
     expect(again).toMatchObject({ cached: true, reply: first['reply'] });
     expect(sent).toHaveLength(1);
+  });
+
+  it('never sends more strict tools than the provider allows, for the owner or anybody', () => {
+    const count = (tools: Array<{ strict?: boolean | null }>): number =>
+      tools.filter((tool) => tool.strict === true).length;
+    expect(count(OWNER_TOOLS)).toBeGreaterThan(MAX_STRICT_TOOLS);
+    const desk = strictWithin(OWNER_TOOLS);
+    const both = strictWithin([...OWNER_TOOLS, ...OWNER_EXTRA_TOOLS]);
+    expect(count(desk)).toBe(MAX_STRICT_TOOLS);
+    expect(count(both)).toBe(MAX_STRICT_TOOLS);
+    // Nothing is taken away: every tool is still there, by name, in the same order.
+    expect(both.map((tool) => tool.name)).toEqual(
+      [...OWNER_TOOLS, ...OWNER_EXTRA_TOOLS].map((tool) => tool.name),
+    );
+    for (const kind of ACCOUNT_KINDS) {
+      expect(count(strictWithin(talkToolsFor(kind)))).toBeLessThanOrEqual(MAX_STRICT_TOOLS);
+    }
   });
 
   it('GET /ozi/selftest/:kind puts the same sum to the model every other kind of account uses', async () => {

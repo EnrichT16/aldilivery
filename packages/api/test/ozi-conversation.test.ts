@@ -14,7 +14,7 @@ import type {
   Understanding,
   UnderstandInput,
 } from '../src/lib/language-model.js';
-import { isClearYes, SIMPLER_TODAY } from '../src/lib/ozi-conversation.js';
+import { isClearYes } from '../src/lib/ozi-conversation.js';
 import { trainingLine } from '../src/lib/ozi-memory.js';
 import { askOwner } from '../src/services/owner-desk.js';
 import { reviewOziWeek } from '../src/services/ozi-review.js';
@@ -248,7 +248,7 @@ describe('the owner by voice', () => {
 });
 
 describe('the daily limit', () => {
-  it('past the most model turns a day, Ozi says so once and carries on without the model', async () => {
+  it('past the most model turns a day, Ozi says plainly that it cannot answer until tomorrow', async () => {
     const { brain, heard } = standIn();
     await build(brain);
     (harness.app.ctx.config as { ozi: { maxModelTurnsPerDay: number } }).ozi = {
@@ -259,9 +259,11 @@ describe('the daily limit', () => {
     await ask('tell me about plans', shopper.authHeader);
     await ask('tell me about Runners', shopper.authHeader);
     const third = await ask('tell me about the weather', shopper.authHeader);
-    expect(third.json().reply).toContain(SIMPLER_TODAY);
+    // Said plainly, every time, and marked as a failure: never a line from a book instead.
+    expect(third.json()).toMatchObject({ failed: true });
+    expect(third.json().reply).toMatch(/could not reach my assistant.*answers for today/);
     const fourth = await ask('tell me about the moon', shopper.authHeader);
-    expect(fourth.json().reply ?? '').not.toContain(SIMPLER_TODAY);
+    expect(fourth.json()).toMatchObject({ failed: true });
     expect(heard).toHaveLength(2);
     // Somebody else still has their own turns.
     await ask('tell me about plans', {}, 'visit:someone-else');
@@ -297,7 +299,7 @@ describe("Ozi's weekly self-review", () => {
       ]),
     );
     // Never applied by itself: Ozi still does not answer with it.
-    expect((await ask('do you deliver to the moon')).json().reply).toBeNull();
+    expect((await ask('do you deliver to the moon')).json().reply).not.toContain('here on Earth');
     // Running again does nothing more, today or later in the week.
     expect(await reviewOziWeek(harness.app.ctx)).toMatchObject({ skipped: 'not-due' });
     harness.setNow(new Date(START.getTime() + 8 * 24 * 3600 * 1000));

@@ -31,6 +31,7 @@ import {
   screenWords,
   serviceFacts,
   speakerWords,
+  strictWithin,
   ukNow,
   type AccountKind,
   type BrainClient,
@@ -406,7 +407,7 @@ export async function talk(
       content: `[For you, not said by them]\n${now}\n[They said]\n${input.text.replace(/\s+/g, ' ').slice(0, 4000)}`,
     },
   ];
-  const tools = talkToolsFor(input.who.kind);
+  const tools = strictWithin(talkToolsFor(input.who.kind));
   const said: string[] = [];
   const say = (sentence: string): void => {
     const safe = spokenSentence(sentence, config);
