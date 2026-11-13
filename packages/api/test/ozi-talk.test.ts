@@ -239,6 +239,11 @@ describe('one turn of the conversation', () => {
     ]);
     expect(outcome).toEqual({ reply: heard.join(' '), awaitingYes: false });
     expect(ran).toEqual([{ name: 'search_shop', input: { query: 'milk' } }]);
+    // The provider's own web search goes with every turn, for everybody (13 November 2026).
+    expect((sent[0]!['tools'] as Array<{ type?: string; name: string }>).at(-1)).toMatchObject({
+      type: 'web_search_20260209',
+      name: 'web_search',
+    });
 
     const first = sent[0]!;
     expect(first['model']).toBe('claude-sonnet-5-5');
@@ -526,6 +531,29 @@ describe('POST /ozi/talk', () => {
     expect(eventsOf(yes.body).at(-1)).toMatchObject({ type: 'done' });
     expect(await harness.repository.reminders.listFor('shopper', shopper.shopperId)).toHaveLength(
       1,
+    );
+  });
+
+  it('tells the conversation what it remembers of a signed-in Shopper: the address and nothing invented', async () => {
+    const sent: Array<Record<string, unknown>> = [];
+    harness = await buildTestApp(undefined, {
+      brain: brainWith([{ deltas: ['Good morning. '] }], sent),
+    });
+    const shopper = await signUpShopper(harness, { displayName: 'Margaret Ade' });
+    await harness.app.inject({
+      method: 'POST',
+      url: '/ozi/talk',
+      headers: shopper.authHeader,
+      payload: { text: 'get me two pints of semi skimmed milk and white bread' },
+    });
+    const last = String((sent[0]!['messages'] as Array<{ content: unknown }>).at(-1)!.content);
+    expect(last).toContain('What you remember about them:');
+    expect(last).toContain('They have not ordered before.');
+    expect(last).toContain('two pints of semi skimmed milk and white bread');
+    // A visitor has nothing remembered.
+    await harness.app.inject({ method: 'POST', url: '/ozi/talk', payload: { text: 'hello' } });
+    expect(String((sent[1]!['messages'] as Array<{ content: unknown }>).at(-1)!.content)).not.toContain(
+      'What you remember',
     );
   });
 

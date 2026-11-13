@@ -57,7 +57,7 @@ const unreachable = (): Talked => {
 };
 
 /** How long a whole turn may take before the app carries on without it. */
-export const TALK_WAIT_MS = 28_000;
+export const TALK_WAIT_MS = 45_000;
 
 const ACTION_TYPES = new Set([
   'basket_add',

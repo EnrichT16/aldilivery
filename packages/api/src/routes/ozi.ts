@@ -965,6 +965,70 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
               : 'Their basket is empty.'
             : '';
 
+      /**
+       * What Ozi remembers of this Shopper (13 November 2026): their address, how they like
+       * swaps handled, what they buy most, the shops those came from and their last order, from
+       * their own last twenty orders, so gaps are filled without asking. Only ever their own.
+       */
+      const remembered = async (): Promise<string> => {
+        if (!shopperId) return '';
+        try {
+          const shopper = await repository.shoppers.findById(shopperId);
+          const orders = (await repository.orders.listForShopper(shopperId))
+            .filter((order) => order.status !== 'cancelled' && order.status !== 'refunded')
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+            .slice(0, 20);
+          const lines: string[] = [];
+          if (shopper?.deliveryAddress.trim())
+            lines.push(`Their delivery address: ${shopper.deliveryAddress.trim().slice(0, 200)}.`);
+          if (shopper?.substitutionDefault)
+            lines.push(`When a thing is out of stock they chose: ${shopper.substitutionDefault}.`);
+          if (orders.length === 0) {
+            lines.push('They have not ordered before.');
+          } else {
+            const times = new Map<string, number>();
+            const ids = new Set<string>();
+            for (const order of orders) {
+              for (const item of order.items) {
+                times.set(item.name, (times.get(item.name) ?? 0) + 1);
+                if (item.catalogueItemId) ids.add(item.catalogueItemId);
+              }
+            }
+            const usual = [...times.entries()]
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 15)
+              .map(([name, count]) => (count > 1 ? `${name} (${count} orders)` : name));
+            const shops = new Map<string, number>();
+            for (const item of await repository.catalogue.findManyByIds([...ids].slice(0, 200))) {
+              const from = /^From (.+)$/.exec(item.category)?.[1];
+              if (from) shops.set(from, (shops.get(from) ?? 0) + 1);
+            }
+            const last = orders[0]!;
+            lines.push(
+              `They have ordered ${orders.length} time${orders.length === 1 ? '' : 's'} lately. What they buy most, by its exact name in the shop: ${usual.join('; ')}.`,
+            );
+            if (shops.size > 0)
+              lines.push(
+                `Local shops they have bought from: ${[...shops.entries()]
+                  .sort((a, b) => b[1] - a[1])
+                  .slice(0, 6)
+                  .map(([name]) => name)
+                  .join(', ')}.`,
+              );
+            lines.push(
+              `Their last order, on ${last.createdAt.toISOString().slice(0, 10)}: ${last.items
+                .slice(0, 20)
+                .map((item) => `${item.quantity} x ${item.name}`)
+                .join(', ')}.`,
+            );
+          }
+          return `What you remember about them:\n${lines.join('\n')}`;
+        } catch (failure) {
+          request.log.warn({ err: failure }, "A Shopper's past orders could not be read for Ozi.");
+          return '';
+        }
+      };
+
       const tool = async (name: string, raw: unknown): Promise<TalkToolOutcome> => {
         switch (name) {
           case 'search_shop': {
@@ -1286,7 +1350,7 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         who: speaker,
         channel: 'app',
         history,
-        basket: basketWords,
+        basket: [basketWords, await remembered()].filter((part) => part !== '').join('\n'),
         ...(input.screen ? { screen: input.screen } : {}),
         run: tool,
         onSentence: sentence,

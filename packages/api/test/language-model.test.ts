@@ -680,6 +680,8 @@ describe('a real conversation (31 October 2026)', () => {
       'ambassador_link',
       'text_ambassador_link',
       'set_ambassador_rate',
+      // The provider's own web search (13 November 2026).
+      'web_search',
     ]);
     // At most twenty may be strict, or the provider refuses the whole request (13 November 2026).
     expect(tools0.filter((tool) => tool.strict).length).toBe(20);
