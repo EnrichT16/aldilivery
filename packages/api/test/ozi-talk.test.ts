@@ -101,8 +101,19 @@ describe('what is sent to the model', () => {
         );
       }
     }
+    // Nor, in any tool, a list of choices on a type given as a pair. The live service refused
+    // the owner's every request for exactly this in his reminder tool (13 November 2026):
+    // "tools.15.custom: Invalid schema: Enum value 'call' does not match declared type".
+    const pairedChoices =
+      /"type":\[[^\]]*\],"enum"|"enum":\[[^\]]*\],"type":\[|"enum":\[[^\]]*null/;
     for (const tool of OWNER_TOOLS) {
       expect(JSON.stringify(tool.input_schema), tool.name).not.toMatch(refused);
+      expect(JSON.stringify(tool.input_schema), tool.name).not.toMatch(pairedChoices);
+    }
+    for (const kind of kinds) {
+      for (const tool of talkToolsFor(kind)) {
+        expect(JSON.stringify(tool.input_schema), tool.name).not.toMatch(pairedChoices);
+      }
     }
     // Every answer shape the model module sends, read from the requests themselves.
     const sent: Array<Record<string, unknown>> = [];

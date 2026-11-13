@@ -1328,8 +1328,9 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
     const brain = app.ctx.brain;
     if (!brain?.talkWithOwner)
       return { ok: false, why: 'No language model is set up on this server.' };
-    if (selftest && Date.now() - selftest.at < 10 * 60_000)
-      return { ...selftest.result, cached: true };
+    // A failure is only kept for a minute, so a fix can be seen at once.
+    const keepFor = selftest?.result['ok'] === true ? 10 * 60_000 : 60_000;
+    if (selftest && Date.now() - selftest.at < keepFor) return { ...selftest.result, cached: true };
     const unavailable = async (): Promise<unknown> => ({ note: 'Not available in the self-test.' });
     const tools = new Proxy(
       {},
