@@ -234,7 +234,7 @@ describe('one turn of the conversation', () => {
     const first = sent[0]!;
     expect(first['model']).toBe('claude-sonnet-5-5');
     expect(first['tool_choice']).toEqual({ type: 'auto' });
-    expect(first['output_config']).toEqual({ effort: 'low' });
+    expect(first['output_config']).toEqual({ effort: 'medium' });
     expect(first).not.toHaveProperty('thinking');
     expect(first).not.toHaveProperty('temperature');
     // Earlier turns go back as real turns; this moment goes in the last user turn.
@@ -826,5 +826,29 @@ describe("the founder's dashboard conversation (13 November 2026)", () => {
     ).json() as Record<string, unknown>;
     expect(again).toMatchObject({ cached: true, reply: first['reply'] });
     expect(sent).toHaveLength(1);
+  });
+
+  it('GET /ozi/selftest/:kind puts the same sum to the model every other kind of account uses', async () => {
+    const kinds = ['shopper', 'visitor', 'runner', 'partner', 'organisation', 'staff'];
+    const sent: Array<Record<string, unknown>> = [];
+    const script: Scripted[] = kinds.map(() => ({
+      deltas: ['17 times 23 is 391. ', 'Seventeen twenties are 340 and seventeen threes are 51.'],
+    }));
+    harness = await buildTestApp(undefined, { brain: brainWith(script, sent) });
+    for (const kind of kinds) {
+      const result = (
+        await harness.app.inject({ method: 'GET', url: `/ozi/selftest/${kind}` })
+      ).json() as Record<string, unknown>;
+      expect(result).toMatchObject({ ok: true, kind, model: 'claude-sonnet-5-5' });
+      expect(String(result['reply'])).toMatch(/391/);
+    }
+    expect(sent).toHaveLength(kinds.length);
+    for (const request of sent) {
+      expect(request['model']).toBe('claude-sonnet-5-5');
+      expect(request['max_tokens']).toBeGreaterThanOrEqual(2000);
+      expect(request['output_config']).toEqual({ effort: 'medium' });
+    }
+    const unknown = await harness.app.inject({ method: 'GET', url: '/ozi/selftest/nobody' });
+    expect(unknown.statusCode).toBe(400);
   });
 });

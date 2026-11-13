@@ -369,8 +369,8 @@ export function pastMessages(
   history: PastTurn[],
   limits: { turns: number; heard: number; said: number } = {
     turns: TALK_HISTORY_TURNS,
-    heard: 600,
-    said: 1500,
+    heard: 2000,
+    said: 4000,
   },
 ): Anthropic.MessageParam[] {
   const messages: Anthropic.MessageParam[] = [];
@@ -403,7 +403,7 @@ export async function talk(
     ...pastMessages(input.history),
     {
       role: 'user',
-      content: `[For you, not said by them]\n${now}\n[They said]\n${input.text.replace(/\s+/g, ' ').slice(0, 800)}`,
+      content: `[For you, not said by them]\n${now}\n[They said]\n${input.text.replace(/\s+/g, ' ').slice(0, 4000)}`,
     },
   ];
   const tools = talkToolsFor(input.who.kind);
@@ -424,8 +424,9 @@ export async function talk(
         {
           model: settings.model,
           max_tokens: TALK_MAX_TOKENS,
-          // Quick for talk; a little deeper once it is working with what a look-up found.
-          output_config: { effort: step === 0 ? 'low' : 'medium' },
+          // Proper thought on every turn (13 November 2026: Anthony asked for real reasoning
+          // from everybody's assistant, not only his own).
+          output_config: { effort: 'medium' },
           tools,
           tool_choice: { type: 'auto' },
           system: [{ type: 'text', text: settings.system, cache_control: { type: 'ephemeral' } }],
