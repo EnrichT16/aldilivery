@@ -30,6 +30,8 @@ const HIS_WORDS = [
   'I do not mean shop products. I am saying shop partner to approve.',
 ];
 
+/** What he hears when his conversation gives no answer (13 November 2026). */
+const NO_ANSWER = /^I did not get an answer back, so I have nothing proper to tell you/;
 const PARTNER_SHOPS_SAID =
   /You have 2 new shop partners waiting for approval: Corner Shop and Bakery\./;
 
@@ -271,7 +273,7 @@ describe('the owner on /staff (ruling 86)', () => {
     expect(spoken(engine)).not.toMatch(PARTNER_SHOPS_SAID);
   });
 
-  it('with the conversation away, answers each of his phrasings about partner shops, never products', async () => {
+  it('with the conversation away, tells him so plainly each time, and never answers about products', async () => {
     model = 'down';
     const engine = fakeEngine();
     setVoiceEngine(engine);
@@ -279,25 +281,24 @@ describe('the owner on /staff (ruling 86)', () => {
     await waitFor(() => expect(spoken(engine)).toMatch(/Mr Anthony/));
     for (const [index, words] of HIS_WORDS.entries()) {
       await heard(engine, words);
+      // No hand-built line in the answer's place (13 November 2026): the plain truth.
       await waitFor(() => {
-        expect(engine.spoken.filter((s) => PARTNER_SHOPS_SAID.test(s.text))).toHaveLength(
-          index + 1,
-        );
+        expect(engine.spoken.filter((s) => NO_ANSWER.test(s.text))).toHaveLength(index + 1);
       });
-      expect(engine.spoken.at(-1)?.text).toMatch(/, sir\.$/);
     }
+    expect(engine.spoken.filter((s) => PARTNER_SHOPS_SAID.test(s.text))).toHaveLength(0);
     // Each was offered to his conversation first.
     expect(asked.map((one) => one.body.text)).toEqual(HIS_WORDS);
     expect(spoken(engine)).not.toMatch(/shop products/i);
   });
 
-  it('with the conversation too slow, answers each of his phrasings about partner shops', async () => {
+  it('with the conversation too slow, he hears a filler and then the plain truth, never a hand-built line', async () => {
     model = 'answers';
     const engine = fakeEngine();
     setVoiceEngine(engine);
     await signIn('anthony');
     await waitFor(() => expect(spoken(engine)).toMatch(/Mr Anthony/));
-    // The conversation never answers: the app stops waiting after about 20 seconds.
+    // The conversation never answers: the app stops waiting after about 50 seconds.
     const answering = vi.mocked(fetch).getMockImplementation()!;
     vi.mocked(fetch).mockImplementation(async (url, init) =>
       pathOf(String(url)) === '/ozi/reply'
@@ -308,11 +309,9 @@ describe('the owner on /staff (ruling 86)', () => {
     try {
       for (const [index, words] of HIS_WORDS.entries()) {
         await heard(engine, words);
-        await vi.advanceTimersByTimeAsync(21_000);
+        await vi.advanceTimersByTimeAsync(51_000);
         await waitFor(() => {
-          expect(engine.spoken.filter((s) => PARTNER_SHOPS_SAID.test(s.text))).toHaveLength(
-            index + 1,
-          );
+          expect(engine.spoken.filter((s) => NO_ANSWER.test(s.text))).toHaveLength(index + 1);
         });
       }
     } finally {

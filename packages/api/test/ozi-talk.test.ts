@@ -677,3 +677,143 @@ describe('the founder on POST /ozi/talk (11 November 2026)', () => {
     expect(eventsOf(send.body).some((e) => e['type'] === 'action')).toBe(false);
   });
 });
+
+describe("the founder's dashboard conversation (13 November 2026)", () => {
+  let harness: TestHarness;
+  afterEach(async () => {
+    await harness?.app.close();
+  });
+
+  async function ownerHeaders(): Promise<Record<string, string>> {
+    const post = (url: string, payload: object) =>
+      harness.app.inject({ method: 'POST', url, payload, headers: STAFF });
+    await post('/staff/owner', {
+      name: 'Anthony',
+      username: 'anthony',
+      password: 'a long password',
+      passcode: '123456#',
+    });
+    const signedIn = await post('/staff/sign-in', {
+      username: 'anthony',
+      password: 'a long password',
+      passcode: '123456#',
+    });
+    return { 'x-staff-token': signedIn.json().token as string };
+  }
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 40));
+
+  it('sends his model a real system prompt, room for a full answer, his whole long message and the earlier turns as real turns', async () => {
+    const sent: Array<Record<string, unknown>> = [];
+    const script: Scripted[] = [
+      { deltas: ['First answer.'] },
+      { deltas: ['Second answer.'] },
+      { deltas: ['Third answer.'] },
+    ];
+    harness = await buildTestApp(undefined, { brain: brainWith(script, sent) });
+    const headers = await ownerHeaders();
+    const ask = (text: string, turn: number) =>
+      harness.app.inject({
+        method: 'POST',
+        url: '/ozi/reply',
+        headers,
+        payload: { text, mode: 'within', turn, conversation: 'dash-1' },
+      });
+
+    // A dictated message far longer than the old 300-character limit: taken, and sent whole.
+    const long = `Ozi, ${'I have been thinking about how we bring more Runners on in Gillingham and Chatham, '.repeat(12)}so what would you do first, and the last word is zebra`;
+    expect(long.length).toBeGreaterThan(900);
+    const first = await ask(long, 0);
+    expect(first.statusCode, first.body).toBe(200);
+    expect(first.json().reply).toBe('First answer.');
+    await settle();
+    expect((await ask('And what about Shop Partners?', 1)).json().reply).toBe('Second answer.');
+    await settle();
+    expect((await ask('Thank you. Sum that up for me.', 2)).json().reply).toBe('Third answer.');
+
+    const request = sent[0]!;
+    expect(request['model']).toBe('claude-opus-5-5');
+    expect(request['max_tokens']).toBeGreaterThanOrEqual(2000);
+    const system = JSON.stringify(request['system']);
+    expect(system).toMatch(/talking to its owner and founder/);
+    expect(system.length).toBeGreaterThan(3000);
+    const firstTurn = String((request['messages'] as Array<{ content: unknown }>).at(-1)!.content);
+    expect(firstTurn).toContain('the last word is zebra');
+
+    // The third request carries the two earlier exchanges as real turns, whole, in order.
+    const third = sent[2]!['messages'] as Array<{ role: string; content: unknown }>;
+    expect(third.map((m) => m.role)).toEqual(['user', 'assistant', 'user', 'assistant', 'user']);
+    expect(String(third[0]!.content)).toContain('the last word is zebra');
+    expect(third[1]!.content).toBe('First answer.');
+    expect(third[2]!.content).toBe('And what about Shop Partners?');
+    expect(third[3]!.content).toBe('Second answer.');
+    expect(String(third[4]!.content)).toContain('Sum that up for me');
+    expect(String(third[4]!.content)).not.toContain('The conversation so far');
+  });
+
+  it('when his model fails he is told so plainly with the reason, on both routes, never a ready-made line', async () => {
+    const noCredit = Object.assign(new Error('credit balance too low'), { status: 402 });
+    const script: Scripted[] = [{ fail: noCredit }, { fail: noCredit }];
+    harness = await buildTestApp(undefined, { brain: brainWith(script) });
+    const headers = await ownerHeaders();
+    const reply = await harness.app.inject({
+      method: 'POST',
+      url: '/ozi/reply',
+      headers,
+      payload: { text: 'Good morning Ozi', mode: 'within', conversation: 'dash-2' },
+    });
+    const body = reply.json() as { reply: string; failed?: boolean };
+    expect(body.failed).toBe(true);
+    expect(body.reply).toMatch(/I have no proper answer for you, and I will not make one up/);
+    expect(body.reply).toMatch(/run out of credit, or is not allowed/);
+    expect(body.reply).not.toMatch(/Good morning|How can I help|Mr\. Anthony/);
+
+    const talked = await harness.app.inject({
+      method: 'POST',
+      url: '/ozi/talk',
+      headers,
+      payload: { text: 'Good morning Ozi', conversation: 'dash-2', turn: 1 },
+    });
+    const done = eventsOf(talked.body).at(-1)!;
+    expect(done).toMatchObject({ type: 'done', failed: true });
+    expect(String(done['reply'])).toMatch(/run out of credit/);
+  });
+
+  it('GET /ozi/selftest/owner puts the fixed sum to his own model and shows the reply, at most once in ten minutes', async () => {
+    const sent: Array<Record<string, unknown>> = [];
+    const script: Scripted[] = [
+      {
+        deltas: [
+          '17 times 23 is 391. ',
+          'Seventeen twenties are 340, and seventeen threes are 51; together 391.',
+        ],
+      },
+    ];
+    harness = await buildTestApp(undefined, { brain: brainWith(script, sent) });
+    const first = (
+      await harness.app.inject({ method: 'GET', url: '/ozi/selftest/owner' })
+    ).json() as Record<string, unknown>;
+    expect(first).toMatchObject({
+      ok: true,
+      model: 'claude-opus-5-5',
+      question: 'What is 17 times 23, and explain how you worked it out.',
+    });
+    expect(String(first['reply'])).toMatch(/391/);
+    expect(first['ms']).toEqual(expect.any(Number));
+    const health = first['health'] as {
+      byModel: Record<string, { ok: number; lastMs: number | null }>;
+    };
+    expect(health.byModel['claude-opus-5-5']!.ok).toBeGreaterThanOrEqual(1);
+    // The very request his dashboard makes: his instructions, his tools, his limits.
+    expect(sent[0]!['max_tokens']).toBeGreaterThanOrEqual(2000);
+    expect(JSON.stringify(sent[0]!['system'])).toMatch(/talking to its owner and founder/);
+    expect(String((sent[0]!['messages'] as Array<{ content: unknown }>).at(-1)!.content)).toContain(
+      'What is 17 times 23',
+    );
+    // Asked again at once: the same result, and the model is not asked a second time.
+    const again = (
+      await harness.app.inject({ method: 'GET', url: '/ozi/selftest/owner' })
+    ).json() as Record<string, unknown>;
+    expect(again).toMatchObject({ cached: true, reply: first['reply'] });
+    expect(sent).toHaveLength(1);
+  });
+});

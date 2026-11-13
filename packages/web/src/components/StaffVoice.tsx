@@ -55,6 +55,7 @@ import {
   CONVERSE_WAIT_MS,
   isKnownPhrase,
   OWNER_CONVERSE_WAIT_MS,
+  OWNER_NO_ANSWER,
 } from '../voice/phrases';
 import {
   analyticsWords,
@@ -395,6 +396,13 @@ export function StaffVoice({
         );
         filler.stop();
         turn.current += 1;
+        if (!answer?.reply && owner) {
+          // The owner (13 November 2026): told plainly that no answer came. Never the panel's
+          // own hand-built line, a greeting from configuration or the list of commands in its
+          // place: those are what made his assistant sound flat when his model was slow.
+          void latest.current.ozi.say(OWNER_NO_ANSWER);
+          return;
+        }
         if (!answer?.reply && fallback) {
           // Away, slow or silent: the panel's own answer, which names the right thing.
           fallback();

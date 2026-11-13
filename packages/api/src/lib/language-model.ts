@@ -33,7 +33,7 @@ import { findWorkspaceRoot, storeConfigPath } from '@aldilivery/core/node';
 
 import { blankPrivate } from './redact.js';
 import { replySoFar, SentenceSplitter } from './sentences.js';
-import { OWNER_EXTRA_TOOLS, talk, talkInstructions } from './ozi-talk.js';
+import { OWNER_EXTRA_TOOLS, pastMessages, talk, talkInstructions } from './ozi-talk.js';
 
 /**
  * The model used unless LANGUAGE_MODEL names another: the mid-sized current one (Anthony,
@@ -59,7 +59,17 @@ export const DEFAULT_OWNER_MODEL = 'claude-opus-5-5';
  * about 20 for the owner (ruling 86), whose model thinks first and may look things up.
  */
 export const CONVERSE_WAIT_MS = 7_500;
-export const OWNER_WAIT_MS = 19_500;
+/**
+ * The owner's turn may look several things up and think them through (13 November 2026): under
+ * twenty seconds was too little, and when it ran out the app said a ready-made line in the
+ * answer's place. He hears the answer a sentence at a time as it comes, so a longer limit costs
+ * him nothing when the answer is quick.
+ */
+export const OWNER_WAIT_MS = 45_000;
+/** How many earlier turns of his conversation go back to his model, as real turns. */
+export const OWNER_HISTORY_TURNS = 20;
+/** The most of what he said in one go that his model is given: a long dictated message, whole. */
+export const OWNER_HEARD_MAX = 4000;
 /**
  * Room for the model's own thinking as well as the short spoken reply (31 October 2026). The
  * thinking is adaptive, so most turns use far less; the reply itself is kept short to speak.
@@ -853,6 +863,11 @@ export interface ModelHealth {
   ok: number;
   failed: number;
   lastOkAt: string | null;
+  /** The same for each model by name (13 November 2026), with how long its last answer took. */
+  byModel: Record<
+    string,
+    { ok: number; failed: number; lastOkAt: string | null; lastMs: number | null }
+  >;
   lastError: {
     at: string;
     where: string;
@@ -870,13 +885,26 @@ export interface ModelHealth {
     detail: string | null;
   } | null;
 }
-const HEALTH: ModelHealth = { ok: 0, failed: 0, lastOkAt: null, lastError: null };
-export function modelHealth(): ModelHealth {
-  return { ...HEALTH, lastError: HEALTH.lastError ? { ...HEALTH.lastError } : null };
+const HEALTH: ModelHealth = { ok: 0, failed: 0, lastOkAt: null, lastError: null, byModel: {} };
+function modelRow(where: string): ModelHealth['byModel'][string] {
+  return (HEALTH.byModel[where] ??= { ok: 0, failed: 0, lastOkAt: null, lastMs: null });
 }
-export function noteModelOk(): void {
+export function modelHealth(): ModelHealth {
+  return {
+    ...HEALTH,
+    lastError: HEALTH.lastError ? { ...HEALTH.lastError } : null,
+    byModel: Object.fromEntries(
+      Object.entries(HEALTH.byModel).map(([name, row]) => [name, { ...row }]),
+    ),
+  };
+}
+export function noteModelOk(where = 'model', ms: number | null = null): void {
   HEALTH.ok += 1;
   HEALTH.lastOkAt = new Date().toISOString();
+  const row = modelRow(where);
+  row.ok += 1;
+  row.lastOkAt = HEALTH.lastOkAt;
+  row.lastMs = ms;
 }
 export function noteModelFailure(where: string, failure: unknown): void {
   const status =
@@ -902,6 +930,7 @@ export function noteModelFailure(where: string, failure: unknown): void {
                   ? 'too-slow'
                   : 'other';
   HEALTH.failed += 1;
+  modelRow(where).failed += 1;
   HEALTH.lastError = {
     at: new Date().toISOString(),
     where,
@@ -926,10 +955,10 @@ export function watchedClient(client: BrainClient): BrainClient {
   };
   const whereOf = (args: unknown[]): string =>
     String((args[0] as { model?: unknown } | undefined)?.model ?? 'model');
-  const noted = <T>(work: Promise<T>, where: string): Promise<T> =>
+  const noted = <T>(work: Promise<T>, where: string, started = Date.now()): Promise<T> =>
     work.then(
       (value) => {
-        noteModelOk();
+        noteModelOk(where, Date.now() - started);
         return value;
       },
       (failure: unknown) => {
@@ -950,6 +979,29 @@ export function watchedClient(client: BrainClient): BrainClient {
     };
   }
   return { messages } as unknown as BrainClient;
+}
+
+/**
+ * What the owner is told when his model did not answer (13 November 2026): the plain truth and
+ * the reason, never a ready-made greeting or a line from a book in the answer's place. He asked
+ * for exactly this: "remove them or make them show a clear error instead".
+ */
+export function ownerFailureWords(now: Date = new Date()): string {
+  const last = HEALTH.lastError;
+  const fresh = last !== null && now.getTime() - new Date(last.at).getTime() < 90_000;
+  const why: Record<NonNullable<ModelHealth['lastError']>['kind'], string> = {
+    'too-slow': 'My answer took too long to come, so I stopped waiting for it.',
+    key: 'The service I think with did not accept my key.',
+    'credit-or-permission':
+      'The service I think with says the account has run out of credit, or is not allowed to use it.',
+    'refused-request': 'The service I think with refused my request as badly formed.',
+    'no-such-model': 'The service I think with says the model I am set to use does not exist.',
+    'too-many': 'The service I think with says I am asking it too often just now.',
+    provider: 'The service I think with has a fault at its own end just now.',
+    other: 'I could not reach the service I think with.',
+  };
+  const reason = fresh ? why[last.kind] : 'I did not get an answer in time.';
+  return `I have no proper answer for you, and I will not make one up. ${reason} Nothing has been done or changed. Please ask me again in a moment.`;
 }
 
 /** What a streamed answer tells as it arrives: text deltas, and the start of a tool call. */
@@ -1725,12 +1777,18 @@ export function languageModel(
       // so he is not kept waiting, and "medium" once a tool's answer is being used, since
       // figures, names and applications must be right.
       const deadline = Date.now() + OWNER_WAIT_MS;
-      const history = historyWords(config, input.history);
       const screen = screenWords(input.screen);
+      // The whole conversation so far goes back as real turns (13 November 2026), not as a
+      // pasted summary, and what he has just said goes whole, however long he dictated.
       const messages: Anthropic.MessageParam[] = [
+        ...pastMessages(input.history, {
+          turns: OWNER_HISTORY_TURNS,
+          heard: OWNER_HEARD_MAX,
+          said: 6000,
+        }),
         {
           role: 'user',
-          content: `${speakerWords(config, { kind: 'owner', firstName: null })}\nChannel: ${input.channel}. It is ${ukNow()} in the UK.${history ? `\n${history}` : ''}${screen ? `\n${screen}` : ''}${input.basket ? `\n${input.basket}` : ''}\nHe said: "${input.text.replace(/"/g, "'").slice(0, 500)}"`,
+          content: `${speakerWords(config, { kind: 'owner', firstName: null })}\nChannel: ${input.channel}. It is ${ukNow()} in the UK.${screen ? `\n${screen}` : ''}${input.basket ? `\n${input.basket}` : ''}\nHe said: "${input.text.replace(/"/g, "'").slice(0, OWNER_HEARD_MAX)}"`,
         },
       ];
       // Streamed (ruling 92): each sentence of his answer goes on as soon as it is complete, and

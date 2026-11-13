@@ -594,7 +594,7 @@ describe('the owner’s spoken questions about the business (Section Q)', () => 
     );
   });
 
-  it('answers the owner aloud, with sir, from the actual data', async () => {
+  it('tells the owner plainly when his conversation gives no answer, and still reads what he asks to be read', async () => {
     window.sessionStorage.clear();
     window.localStorage.setItem('ozidelivery.voice.settings', JSON.stringify({ introHeard: true }));
     const asked: string[] = [];
@@ -689,14 +689,14 @@ describe('the owner’s spoken questions about the business (Section Q)', () => 
       expect(engine.listening).not.toBeNull();
     });
     engine.hear('how many signups this month');
+    // A question goes to his conversation. With no answer from it he is told so plainly (13
+    // November 2026), never given the panel's own hand-built line in the answer's place.
     await waitFor(() => {
       expect(engine.spoken.at(-1)?.text).toMatch(
-        /^(Yes|Okay|All right), sir\. This month, 12 Shoppers and 3 Runners signed up, sir\.$/,
+        /^I did not get an answer back, so I have nothing proper to tell you/,
       );
     });
-    expect(asked.some((path) => /\/staff\/reports\/signups\?period=month&from=/.test(path))).toBe(
-      true,
-    );
+    expect(asked).toContain('/ozi/reply');
     await waitFor(() => {
       expect(engine.listening).not.toBeNull();
     });

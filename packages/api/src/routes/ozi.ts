@@ -26,7 +26,15 @@ import type { LearnedPhrase, PartnerShop } from '../domain.js';
 import { BadRequestError, ForbiddenError, NotFoundError } from '../errors.js';
 import { businessActor } from '../lib/business.js';
 import { bannedList, containsBanned, fitToKeep } from '../lib/banned.js';
-import { itemWords, type Speaker, type Understanding } from '../lib/language-model.js';
+import {
+  itemWords,
+  modelHealth,
+  OWNER_HISTORY_TURNS,
+  ownerFailureWords,
+  type OwnerTools,
+  type Speaker,
+  type Understanding,
+} from '../lib/language-model.js';
 import { feltDelaysOf, summarise } from '../lib/ozi-latency.js';
 import {
   carryOutDecision,
@@ -118,7 +126,9 @@ const screenShape = z
   .strip();
 
 const body = z.object({
-  text: z.string().trim().min(1).max(300),
+  // A long dictated message is taken whole (13 November 2026): anything over 300 characters
+  // used to be refused outright, and the app then said a ready-made line in the answer's place.
+  text: z.string().trim().min(1).max(4000),
   mode: z.enum(['exact', 'within']),
   turn: z.number().int().min(0).max(1_000_000).default(0),
   /** The app's own id for this visit, so a conversation's turns read together (ruling 68). */
@@ -137,7 +147,7 @@ type ReplyBody = z.infer<typeof body>;
  * The basket is the app's own, so the model can speak of it and change it by id.
  */
 const talkBody = z.object({
-  text: z.string().trim().min(1).max(600),
+  text: z.string().trim().min(1).max(4000),
   turn: z.number().int().min(0).max(1_000_000).default(0),
   conversation: z.string().trim().min(1).max(80).optional(),
   basket: z
@@ -194,6 +204,8 @@ const feltBody = z.object({
 /** What one turn gives back: the same JSON whether it was streamed or not. */
 interface Answer {
   reply: string | null;
+  /** The owner's model did not answer, and `reply` says so plainly (13 November 2026). */
+  failed?: boolean;
   understood?: Understanding;
   awaitingYes?: boolean;
 }
@@ -671,7 +683,10 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
       return { reply: null };
     }
 
-    const history = brain && conversation ? await recentTurns(app.ctx, conversation) : [];
+    const history =
+      brain && conversation
+        ? await recentTurns(app.ctx, conversation, owner ? OWNER_HISTORY_TURNS : undefined)
+        : [];
 
     // The owner on the newest Opus (ruling 86), with his desk tools (31 October 2026). It may
     // read; a decision is only read back here, and waits for his yes in his next turn.
@@ -696,6 +711,11 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
           ? { reply: talk.reply, awaitingYes: true }
           : { reply: talk.reply };
       }
+      // His model did not answer (13 November 2026): he is told so plainly, with the reason,
+      // and never given a ready-made greeting or a line from a book in the answer's place.
+      const words = ownerFailureWords(now());
+      kept(words, 'flow', 'unanswered');
+      return { reply: words, failed: true };
     } else if (brain) {
       // Everybody else (ruling 69, now a conversation): it either hears shopping in the words,
       // which the app shops for as it would any list, or answers, knowing who is speaking and
@@ -1193,7 +1213,9 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         }
       };
 
-      const history = conversation ? await recentTurns(app.ctx, conversation) : [];
+      const history = conversation
+        ? await recentTurns(app.ctx, conversation, owner ? OWNER_HISTORY_TURNS : undefined)
+        : [];
       const asked = Date.now();
       if (owner) {
         const talked = await brain.talkWithOwner!({
@@ -1213,7 +1235,18 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         timing.modelMs = Date.now() - asked;
         if (!talked || containsBanned(talked.reply, banned)) {
           if (actions.length === 0 && sent.length === 0) {
-            send({ type: 'unavailable' });
+            // Told plainly, with the reason; never handed to the older, ready-made answers.
+            const words = ownerFailureWords(now());
+            sentence(words);
+            kept(words, 'flow', 'unanswered');
+            send({
+              type: 'done',
+              reply: words,
+              awaitingYes: false,
+              actions,
+              unsaid: '',
+              failed: true,
+            });
             return;
           }
           kept(sent.join(' '), 'model', 'answered', brain.ownerModel ?? brain.model);
@@ -1279,6 +1312,55 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
       .header('cache-control', 'no-cache, no-transform')
       .header('x-accel-buffering', 'no')
       .send(out);
+  });
+
+  /**
+   * GET /ozi/selftest/owner (13 November 2026): one fixed sum put to the owner's own model,
+   * through the very code his dashboard uses (his instructions, his tools, his limits), so it can
+   * be seen from outside whether that model is really answering, how long it takes and what it
+   * says. The question is fixed and nothing of the business is in reach: every tool answers that
+   * it is not available here. At most one real request every ten minutes; in between, the last
+   * result is given again.
+   */
+  const SELFTEST_QUESTION = 'What is 17 times 23, and explain how you worked it out.';
+  let selftest: { at: number; result: Record<string, unknown> } | null = null;
+  app.get('/ozi/selftest/owner', async () => {
+    const brain = app.ctx.brain;
+    if (!brain?.talkWithOwner)
+      return { ok: false, why: 'No language model is set up on this server.' };
+    if (selftest && Date.now() - selftest.at < 10 * 60_000)
+      return { ...selftest.result, cached: true };
+    const unavailable = async (): Promise<unknown> => ({ note: 'Not available in the self-test.' });
+    const tools = new Proxy(
+      {},
+      {
+        get: (_target, name) =>
+          name === 'propose' || name === 'proposeAction'
+            ? async () => ({ ok: false, why: 'Not available in the self-test.' })
+            : unavailable,
+      },
+    ) as OwnerTools;
+    const started = Date.now();
+    const sentences: string[] = [];
+    const talked = await brain.talkWithOwner({
+      text: SELFTEST_QUESTION,
+      channel: 'app',
+      history: [],
+      tools,
+      onSentence: (sentence) => sentences.push(sentence),
+    });
+    const result = {
+      ok: talked !== null,
+      model: brain.ownerModel ?? brain.model,
+      question: SELFTEST_QUESTION,
+      reply: talked?.reply ?? null,
+      sentencesStreamed: sentences.length,
+      ms: Date.now() - started,
+      at: new Date().toISOString(),
+      health: modelHealth(),
+    };
+    selftest = { at: Date.now(), result };
+    return result;
   });
 
   /**
