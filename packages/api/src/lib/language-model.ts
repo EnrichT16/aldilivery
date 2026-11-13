@@ -1001,7 +1001,44 @@ export function ownerFailureWords(now: Date = new Date()): string {
     other: 'I could not reach the service I think with.',
   };
   const reason = fresh ? why[last.kind] : 'I did not get an answer in time.';
-  return `I have no proper answer for you, and I will not make one up. ${reason} Nothing has been done or changed. Please ask me again in a moment.`;
+  return `I could not reach my assistant just now, so I have no proper answer for you, and I will not make one up. ${reason} Nothing has been done or changed. Please ask me again in a moment.`;
+}
+
+/** The same plain words for everybody (13 November 2026: never a silent stand-in, for any role). */
+export const failureWords = ownerFailureWords;
+
+/** Said when no model is set up on the server at all. */
+export const NOT_SET_UP_WORDS =
+  'I could not reach my assistant: it is not switched on for this service. Nothing has been done or changed. Please tell the office.';
+
+/** Said when an account has used the day's allowance of answers. */
+export const DAY_LIMIT_WORDS =
+  'I could not reach my assistant: this account has used all of its answers for today, and I will not make one up. Nothing has been done or changed. It starts again tomorrow.';
+
+/** The most tools one request may mark as strict: the provider refuses the request past it. */
+export const MAX_STRICT_TOOLS = 20;
+
+/**
+ * The same tools with at most MAX_STRICT_TOOLS marked strict (13 November 2026: the live self-test
+ * showed the owner's request refused, "Too many strict tools (22)"). Strictness is kept where it
+ * matters most, on the tools that take something from the model, in their given order; the rest
+ * are sent as ordinary tools, whose answers the server checks itself as it always has.
+ */
+export function strictWithin(tools: Anthropic.Tool[]): Anthropic.Tool[] {
+  const strict = tools.filter((tool) => tool.strict === true);
+  if (strict.length <= MAX_STRICT_TOOLS) return tools;
+  const takes = (tool: Anthropic.Tool): boolean =>
+    Array.isArray(tool.input_schema.required) && tool.input_schema.required.length > 0;
+  const keep = new Set(
+    [...strict.filter(takes), ...strict.filter((tool) => !takes(tool))]
+      .slice(0, MAX_STRICT_TOOLS)
+      .map((tool) => tool.name),
+  );
+  return tools.map((tool) => {
+    if (tool.strict !== true || keep.has(tool.name)) return tool;
+    const { strict: _dropped, ...plain } = tool;
+    return plain;
+  });
 }
 
 /** What a streamed answer tells as it arrives: text deltas, and the start of a tool call. */
@@ -1820,7 +1857,9 @@ export function languageModel(
               max_tokens: OWNER_MAX_TOKENS,
               // His answers are thought through (ruling 99): never the shallowest setting.
               output_config: { effort: 'medium' },
-              tools: input.extra ? [...OWNER_TOOLS, ...OWNER_EXTRA_TOOLS] : OWNER_TOOLS,
+              tools: strictWithin(
+                input.extra ? [...OWNER_TOOLS, ...OWNER_EXTRA_TOOLS] : OWNER_TOOLS,
+              ),
               tool_choice: { type: 'auto' },
               system: [{ type: 'text', text: ownerSystem, cache_control: { type: 'ephemeral' } }],
               messages,

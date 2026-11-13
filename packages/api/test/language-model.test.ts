@@ -681,7 +681,8 @@ describe('a real conversation (31 October 2026)', () => {
       'text_ambassador_link',
       'set_ambassador_rate',
     ]);
-    expect(tools0.every((tool) => tool.strict)).toBe(true);
+    // At most twenty may be strict, or the provider refuses the whole request (13 November 2026).
+    expect(tools0.filter((tool) => tool.strict).length).toBe(20);
     // The tool's answer went back to the model as a result, after its own call.
     const second = sent[1]!['messages'] as Array<{ role: string; content: unknown }>;
     expect(second.map((entry) => entry.role)).toEqual(['user', 'assistant', 'user']);

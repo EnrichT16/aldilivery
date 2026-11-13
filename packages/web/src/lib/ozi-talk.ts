@@ -48,6 +48,14 @@ export interface Talked {
   unsaid: string;
 }
 
+/** Said by the app itself when the server could not be reached at all. */
+export const COULD_NOT_REACH =
+  'I could not reach my assistant just now, so I have no answer for you, and I will not make one up. Nothing has been done or changed. Please check your connection and ask me again.';
+const unreachable = (): Talked => {
+  console.error('Ozi: the assistant could not be reached.');
+  return { reply: COULD_NOT_REACH, awaitingYes: false, unsaid: COULD_NOT_REACH };
+};
+
 /** How long a whole turn may take before the app carries on without it. */
 export const TALK_WAIT_MS = 28_000;
 
@@ -93,6 +101,8 @@ export async function talkToOzi(
       }),
       signal: stop.signal,
     });
+    // The server answered that it is in trouble: said plainly, never the older way in silence.
+    if (response.status >= 500) return unreachable();
     if (!response.ok || !response.body) return null;
     if (!/text\/event-stream/i.test(response.headers.get('content-type') ?? '')) return null;
     const reader = response.body.getReader();
@@ -137,8 +147,9 @@ export async function talkToOzi(
       if (ended) return began ? { reply: '', awaitingYes: false, unsaid: '' } : null;
     }
   } catch {
-    // Cut off or too slow. What was already said and done stands; otherwise the older way.
-    return began ? { reply: '', awaitingYes: false, unsaid: '' } : null;
+    // Cut off or too slow. What was already said and done stands; otherwise they are told
+    // plainly that the assistant could not be reached (13 November 2026).
+    return began ? { reply: '', awaitingYes: false, unsaid: '' } : unreachable();
   } finally {
     clearTimeout(timer);
   }

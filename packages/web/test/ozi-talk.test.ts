@@ -62,7 +62,7 @@ describe('one turn of the conversation, on the phone', () => {
     expect(JSON.parse(String(init.body))).toMatchObject({ text: 'some milk', turn: 3, basket });
   });
 
-  it('is null when the model cannot answer, the server is older, or nothing can be reached', async () => {
+  it('is null only for an older server, and says plainly when nothing can be reached', async () => {
     const handlers = { onSentence: () => undefined, onAction: () => undefined };
     vi.stubGlobal('fetch', async () => streamOf([{ type: 'unavailable' }]));
     expect(await talkToOzi('hello', 0, { kind: 'shopper' }, null, handlers)).toBeNull();
@@ -71,7 +71,12 @@ describe('one turn of the conversation, on the phone', () => {
     vi.stubGlobal('fetch', async () => {
       throw new TypeError('offline');
     });
-    expect(await talkToOzi('hello', 0, { kind: 'shopper' }, null, handlers)).toBeNull();
+    // Nothing can be reached: said plainly, never the older way in silence (13 November 2026).
+    const offline = await talkToOzi('hello', 0, { kind: 'shopper' }, null, handlers);
+    expect(offline?.unsaid).toMatch(/could not reach my assistant/);
+    vi.stubGlobal('fetch', async () => new Response('Bad gateway', { status: 502 }));
+    const down = await talkToOzi('hello', 0, { kind: 'shopper' }, null, handlers);
+    expect(down?.unsaid).toMatch(/could not reach my assistant/);
   });
 
   it('keeps what was already said when the stream is cut off, and ignores an action it does not know', async () => {

@@ -31,6 +31,9 @@ import {
   modelHealth,
   OWNER_HISTORY_TURNS,
   ownerFailureWords,
+  failureWords,
+  NOT_SET_UP_WORDS,
+  DAY_LIMIT_WORDS,
   type OwnerTools,
   type Speaker,
   type Understanding,
@@ -43,7 +46,6 @@ import {
   ownerTools,
   PendingDecisions,
   recentTurns,
-  SIMPLER_TODAY,
   whoIsSpeaking,
 } from '../lib/ozi-conversation.js';
 import {
@@ -347,7 +349,6 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
   // The day's model turns for each account, and the owner's one decision waiting for his yes
   // (31 October 2026), kept by this server.
   const modelTurns = modelTurnsOf(app.ctx);
-  const toldSimpler = new Set<string>();
   const pendingDecisions = new PendingDecisions();
 
   const names = {
@@ -671,16 +672,9 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
     // The cost guard (31 October 2026): at most `ozi.maxModelTurnsPerDay` model turns a day for
     // each account; the owner has no limit. Past it, Ozi says so once and carries on without.
     if (brain && !modelTurns.take(allowanceKey, config.ozi.maxModelTurnsPerDay, now(), owner)) {
-      const day = now().toISOString().slice(0, 10);
-      const first = !toldSimpler.has(`${day}:${allowanceKey}`);
-      if (first) toldSimpler.add(`${day}:${allowanceKey}`);
-      const known = personal();
-      if (known) return known;
-      const answered = looser(first ? `${SIMPLER_TODAY} ` : '');
-      if (answered) return answered;
-      kept(null, 'none', 'unanswered');
-      keepForLearning();
-      return { reply: null };
+      request.log.warn({ account }, "An account has used the day's allowance of model turns.");
+      kept(DAY_LIMIT_WORDS, 'flow', 'unanswered');
+      return { reply: DAY_LIMIT_WORDS, failed: true };
     }
 
     const history =
@@ -772,7 +766,16 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
         return { reply: understood.reply, understood };
       }
     }
-    // The model slow, away or silent: the owner and staff are still known (ruling 84).
+    // The model was asked and gave nothing (13 November 2026): said plainly and logged, for
+    // everybody. A line from a book never stands in for it.
+    if (brain) {
+      request.log.error({ account, health: modelHealth().lastError }, 'The model gave no answer.');
+      const words = failureWords(now());
+      kept(words, 'flow', 'unanswered');
+      keepForLearning();
+      return { reply: words, failed: true };
+    }
+    // No model on this server at all: the owner and staff are still known (ruling 84).
     const known = personal();
     if (known) return known;
     const fallback = looser();
@@ -889,12 +892,21 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
       send({ type: 'done', reply: words, awaitingYes, actions });
     };
 
+    /** The model could not be reached: said plainly, kept, and marked as a failure. */
+    const sayFailed = (words: string): void => {
+      sent.push(words);
+      send({ type: 'sentence', text: words });
+      kept(words, 'flow', 'unanswered');
+      send({ type: 'done', reply: words, awaitingYes: false, actions, failed: true });
+    };
+
     const run = async (): Promise<void> => {
       const owner = account === 'owner';
       // The founder is answered by his own model, with his desk tools and, second to them, the
       // shop's (11 November 2026). Everybody else by the conversation.
       if (!brain || (owner ? !brain.talkWithOwner : !brain.talk)) {
-        send({ type: 'unavailable' });
+        request.log.error('Ozi was spoken to, and no language model is set up on this server.');
+        sayFailed(NOT_SET_UP_WORDS);
         return;
       }
       // A read-back waiting for a yes (Rule One): only a clear yes carries it out.
@@ -924,7 +936,8 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
       }
       // The cost guard (31 October 2026): past the day's allowance the older parts answer.
       if (!modelTurns.take(allowanceKey, config.ozi.maxModelTurnsPerDay, now(), owner)) {
-        send({ type: 'unavailable' });
+        request.log.warn({ account }, "An account has used the day's allowance of model turns.");
+        sayFailed(DAY_LIMIT_WORDS);
         return;
       }
 
@@ -1280,9 +1293,11 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
       });
       timing.modelMs = Date.now() - asked;
       if (!outcome || outcome.reply.trim() === '') {
-        // Nothing heard from the model, and nothing done: the older parts answer this turn.
+        // Nothing heard from the model, and nothing done (13 November 2026): they are told so
+        // plainly, with the reason, and it is logged. No older part answers in its place.
         if (actions.length === 0 && sent.length === 0) {
-          send({ type: 'unavailable' });
+          request.log.error({ account, health: modelHealth().lastError }, 'The model gave no answer.');
+          sayFailed(failureWords(now()));
           return;
         }
         kept(sent.join(' '), 'model', 'answered', brain.model);
@@ -1302,9 +1317,8 @@ export async function registerOziRoutes(app: FastifyInstance): Promise<void> {
     void run()
       .catch((failure: unknown) => {
         request.log.error({ err: failure }, "A turn of Ozi's conversation failed.");
-        send(
-          sent.length === 0 && actions.length === 0 ? { type: 'unavailable' } : { type: 'error' },
-        );
+        if (sent.length === 0 && actions.length === 0) sayFailed(failureWords(now()));
+        else send({ type: 'error' });
       })
       .finally(() => out.end());
     return reply
