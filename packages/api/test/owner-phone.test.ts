@@ -180,7 +180,7 @@ describe('without the model, or when it is slow', () => {
     );
   });
 
-  it('is the same when the model gives nothing back in time', async () => {
+  it('when his model gives nothing back he is told so plainly, never a ready-made greeting (13 November 2026)', async () => {
     const brain: OziBrain = {
       name: 'model',
       model: 'stand-in',
@@ -193,9 +193,11 @@ describe('without the model, or when it is slow', () => {
     };
     await build(brain);
     const headers = await ownerHeaders();
-    expect((await ask('Hello Ozi', headers)).json().reply).toBe(
-      'Good morning, Mr. Anthony. How can I help?',
-    );
+    const answer = (await ask('Hello Ozi', headers)).json() as { reply: string; failed?: boolean };
+    expect(answer.failed).toBe(true);
+    expect(answer.reply).toMatch(/I have no proper answer for you, and I will not make one up/);
+    expect(answer.reply).toMatch(/Nothing has been done or changed/);
+    expect(answer.reply).not.toMatch(/Good morning|How can I help/);
   });
 });
 

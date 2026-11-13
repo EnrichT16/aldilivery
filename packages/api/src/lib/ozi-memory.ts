@@ -50,8 +50,11 @@ export type Outcome = (typeof OUTCOMES)[number];
 export const CHANNELS = ['app', 'phone', 'text'] as const;
 
 /** The most of each that is kept; speech recognisers can run on, and so can a read-back. */
-const HEARD_MAX = 300;
-const SAID_MAX = 600;
+// Whole turns (13 November 2026): the conversation's history is rebuilt from these, and a
+// dictated message or a thought-through answer cut at a few hundred characters made Ozi forget
+// most of what was said.
+const HEARD_MAX = 4000;
+const SAID_MAX = 6000;
 
 /** A one-way code for a conversation, the same every turn, that cannot be turned back. */
 export function conversationKey(secret: string, raw: string): string {

@@ -34,7 +34,15 @@ const WAIT_MS = 2500;
  * as before. The reply itself arrives a sentence at a time and is spoken as it comes.
  */
 export const CONVERSE_WAIT_MS = 8000;
-export const OWNER_CONVERSE_WAIT_MS = 20_000;
+// Longer than the server gives his model (13 November 2026), so the app never gives up first
+// and says a ready-made line while a real answer is still on its way.
+export const OWNER_CONVERSE_WAIT_MS = 50_000;
+/**
+ * What the owner hears when no answer came at all (13 November 2026): the plain truth, never a
+ * greeting or a hand-built line in the answer's place.
+ */
+export const OWNER_NO_ANSWER =
+  'I did not get an answer back, so I have nothing proper to tell you, and I will not make one up. Nothing has been done or changed. Please ask me again in a moment.';
 
 function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
   return new Promise((resolve) => {

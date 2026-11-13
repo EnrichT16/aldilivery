@@ -691,7 +691,10 @@ describe('a real conversation (31 October 2026)', () => {
   it('the owner stays on the newest Opus, and every owner request keeps its rules (ruling 86)', async () => {
     expect(DEFAULT_OWNER_MODEL).toBe('claude-opus-5-5');
     expect(OWNER_WAIT_MS).toBeGreaterThanOrEqual(15_000);
-    expect(OWNER_WAIT_MS).toBeLessThanOrEqual(20_000);
+    // Long enough for several look-ups thought through (13 November 2026), never under twenty
+    // seconds again; short enough that he is told plainly if it truly has not come.
+    expect(OWNER_WAIT_MS).toBeGreaterThanOrEqual(40_000);
+    expect(OWNER_WAIT_MS).toBeLessThanOrEqual(60_000);
     const sent: Array<Record<string, unknown>> = [];
     const replies = [
       {

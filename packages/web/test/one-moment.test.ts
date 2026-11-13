@@ -21,9 +21,9 @@ describe('One moment', () => {
     expect(presenceWord({ talking: false, presence: 'listening' })).toBe('Listening');
   });
 
-  it('waits about 8 seconds, and 20 for the owner (ruling 86); a filler only after 6 (ruling 92)', () => {
+  it('waits about 8 seconds, and 50 for the owner, longer than his model is given (13 November 2026); a filler only after 6 (ruling 92)', () => {
     expect(CONVERSE_WAIT_MS).toBe(8000);
-    expect(OWNER_CONVERSE_WAIT_MS).toBe(20_000);
+    expect(OWNER_CONVERSE_WAIT_MS).toBe(50_000);
     expect(storeConfig.ozi.fillerAfterMs).toBe(6000);
   });
 

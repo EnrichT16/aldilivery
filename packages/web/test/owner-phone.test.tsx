@@ -148,7 +148,7 @@ describe('the owner on his own phone, on the home page', () => {
     expect(everything).not.toMatch(NEVER);
   });
 
-  it('when the server does not answer, still greets him by name, never with an account offer', async () => {
+  it('when the server does not answer, he is told so plainly, never a ready-made line or an account offer', async () => {
     forgetKnownPhrases();
     rememberOwner();
     const asked: Asked[] = [];
@@ -171,7 +171,9 @@ describe('the owner on his own phone, on the home page', () => {
     await waitFor(() => expect(engine.spoken[0]?.text).toMatch(GREETING));
     await say(engine, 'Good morning Ozi');
     await waitFor(() => expect(engine.spoken.length).toBeGreaterThan(1));
-    await waitFor(() => expect(engine.spoken.at(-1)?.text).toMatch(GREETING));
+    await waitFor(() =>
+      expect(engine.spoken.at(-1)?.text).toMatch(/^I did not get an answer back/),
+    );
     expect(engine.spoken.map((s) => s.text).join(' ')).not.toMatch(NEVER);
   });
 });

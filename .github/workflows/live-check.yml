@@ -21,6 +21,10 @@ on:
         description: 'An extra path to GET on www and print, such as /api/catalogue/search?q=banana'
         required: false
         default: ''
+      owner_selftest:
+        description: "Type yes to put the fixed sum (17 times 23) to the owner's own model on the live service and print its reply"
+        required: false
+        default: ''
       ask_ozi:
         description: 'Words to say to Ozi as a visitor on www, to see whether the model answers (leave empty to skip)'
         required: false
@@ -149,3 +153,11 @@ jobs:
             cat headers.txt
             head -c 600 body.txt; echo
           done
+
+      - name: The owner's model, asked a fixed sum through the dashboard's own code (at most one real request in ten minutes)
+        env:
+          SELFTEST: ${{ inputs.owner_selftest }}
+        run: |
+          if [ "$SELFTEST" != "yes" ]; then echo "Not asked for: skipping."; exit 0; fi
+          curl -sS -m 90 -w '\nstatus=%{http_code} time=%{time_total}s\n' https://www.ozidelivery.co.uk/api/ozi/selftest/owner | head -c 4000
+          echo

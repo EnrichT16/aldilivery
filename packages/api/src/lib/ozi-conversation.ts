@@ -143,11 +143,13 @@ export async function whoIsSpeaking(request: FastifyRequest): Promise<Identity> 
 export async function recentTurns(
   ctx: Pick<AppContext, 'repository' | 'env'>,
   conversation: string,
+  /** How many turns back; the owner's conversation is given more (13 November 2026). */
+  most: number = HISTORY_TURNS,
 ): Promise<PastTurn[]> {
   try {
     const rows = await ctx.repository.memory.listConversation(
       conversationKey(ctx.env.authTokenSecret, conversation),
-      HISTORY_TURNS,
+      most,
     );
     return rows.map((row) => ({ heard: row.heard, said: row.said }));
   } catch {

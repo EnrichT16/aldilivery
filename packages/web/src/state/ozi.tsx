@@ -62,6 +62,7 @@ import {
   CONVERSE_WAIT_MS,
   isKnownPhrase,
   OWNER_CONVERSE_WAIT_MS,
+  OWNER_NO_ANSWER,
   phraseReply,
 } from '../voice/phrases';
 import { setTalkFirst } from '../voice/phrases';
@@ -728,18 +729,27 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
           break;
       }
     };
+    // The owner's model may look several things up and think them through: it is given longer.
+    const isOwner = knownHere()?.kind === 'owner';
     const answer = await think(
-      talkToOzi(text, turn, as, basket, {
-        onSentence: (sentence) => {
-          filler.arrived();
-          if (firstWordAt === null) firstWordAt = Date.now();
-          speaking.push(sayRef.current(sentence, false, true));
+      talkToOzi(
+        text,
+        turn,
+        as,
+        basket,
+        {
+          onSentence: (sentence) => {
+            filler.arrived();
+            if (firstWordAt === null) firstWordAt = Date.now();
+            speaking.push(sayRef.current(sentence, false, true));
+          },
+          onAction: (action) => {
+            filler.arrived();
+            act(action);
+          },
         },
-        onAction: (action) => {
-          filler.arrived();
-          act(action);
-        },
-      }),
+        isOwner ? OWNER_CONVERSE_WAIT_MS : undefined,
+      ),
     );
     filler.stop();
     if (!answer) return false;
@@ -1396,9 +1406,14 @@ export function OziProvider({ children }: { children: ReactNode }): JSX.Element 
         }
         return;
       }
-      const local = who ? knownSpeakerReply(text, who, KNOWN_NAMES, new Date()) : null;
+      // The owner is told plainly that no answer came (13 November 2026), never a ready-made
+      // greeting in its place. Staff keep their greeting from configuration.
+      const local =
+        who && who.kind !== 'owner' ? knownSpeakerReply(text, who, KNOWN_NAMES, new Date()) : null;
       await sayRef.current(
-        local ?? "Sorry, I couldn't answer that just now. Please say it again in a moment.",
+        who?.kind === 'owner'
+          ? OWNER_NO_ANSWER
+          : (local ?? "Sorry, I couldn't answer that just now. Please say it again in a moment."),
       );
     })();
   };

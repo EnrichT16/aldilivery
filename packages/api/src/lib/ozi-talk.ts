@@ -365,11 +365,18 @@ export interface TalkOutcome {
 }
 
 /** Earlier turns as real turns of the conversation, oldest first, ending before this one. */
-function pastMessages(history: PastTurn[]): Anthropic.MessageParam[] {
+export function pastMessages(
+  history: PastTurn[],
+  limits: { turns: number; heard: number; said: number } = {
+    turns: TALK_HISTORY_TURNS,
+    heard: 600,
+    said: 1500,
+  },
+): Anthropic.MessageParam[] {
   const messages: Anthropic.MessageParam[] = [];
-  for (const turn of history.slice(-TALK_HISTORY_TURNS)) {
-    const heard = turn.heard.replace(/\s+/g, ' ').trim().slice(0, 600);
-    const said = turn.said.replace(/\s+/g, ' ').trim().slice(0, 1500);
+  for (const turn of history.slice(-limits.turns)) {
+    const heard = turn.heard.replace(/\s+/g, ' ').trim().slice(0, limits.heard);
+    const said = turn.said.replace(/\s+/g, ' ').trim().slice(0, limits.said);
     if (heard === '' || said === '') continue;
     messages.push({ role: 'user', content: heard }, { role: 'assistant', content: said });
   }
