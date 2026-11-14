@@ -59,6 +59,26 @@ export function webAppManifest(store: StoreIdentity) {
   };
 }
 
+/** Where the staff's own manifest is served from. */
+export const STAFF_MANIFEST = 'staff.webmanifest';
+
+/**
+ * The same app, saved to a home screen from the staff sign-in page (14 November 2026, Anthony:
+ * "it does not save the exact same sign in page as shortcut"). A phone opens a saved app at the
+ * manifest's start address, not at the page it was saved from, so the staff page names this
+ * manifest instead, and its shortcut opens the staff sign-in.
+ */
+export function staffAppManifest(store: StoreIdentity) {
+  return {
+    ...webAppManifest(store),
+    id: '/staff',
+    name: `${store.productName} staff`,
+    short_name: `${store.productName} staff`,
+    start_url: '/staff',
+    shortcuts: [],
+  };
+}
+
 /** The service worker's rules for working without a signal. */
 export const WORKBOX = {
   globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
