@@ -6,7 +6,7 @@ import type { Plugin } from 'vite';
 import { defineConfig } from 'vitest/config';
 import { VitePWA } from 'vite-plugin-pwa';
 
-import { INCLUDE_ASSETS, WORKBOX, webAppManifest } from './pwa';
+import { INCLUDE_ASSETS, STAFF_MANIFEST, WORKBOX, staffAppManifest, webAppManifest } from './pwa';
 
 /**
  * The whole of the store's identity comes from one file (Rule Nine), including the values
@@ -68,6 +68,12 @@ function buildVersionFile(): Plugin {
         type: 'asset',
         fileName: 'version.json',
         source: JSON.stringify({ build: BUILD_ID }),
+      });
+      // The staff's own manifest, so a shortcut saved from /staff opens /staff (pwa.ts).
+      this.emitFile({
+        type: 'asset',
+        fileName: STAFF_MANIFEST,
+        source: JSON.stringify(staffAppManifest(storeConfig)),
       });
     },
   };

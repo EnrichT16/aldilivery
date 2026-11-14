@@ -292,6 +292,19 @@ export function Staff(): JSX.Element {
     setTab(null);
   }, []);
 
+  // A shortcut saved to the home screen from this page opens this page (14 November 2026): the
+  // phone reads the manifest named on the page at that moment, so the staff's own is named here
+  // and the shop's put back on leaving.
+  useEffect(() => {
+    const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+    if (!link) return;
+    const before = link.getAttribute('href');
+    link.setAttribute('href', '/staff.webmanifest');
+    return () => {
+      if (before) link.setAttribute('href', before);
+    };
+  }, []);
+
   // Who this is and what their job lets them see, asked of the server each time: a role
   // changed, or an account turned off, applies straight away.
   useEffect(() => {
