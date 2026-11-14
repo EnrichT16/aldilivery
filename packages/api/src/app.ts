@@ -510,9 +510,16 @@ export async function buildApp(options: BuildAppOptions): Promise<FastifyInstanc
     });
   });
 
+  // An old copy of the app, left open in a tab for weeks, asks for addresses the server no longer
+  // has and shows these words as they come (14 November 2026: Anthony's Chrome tab was a copy
+  // from before 16 October). So the words say what to do about it.
   app.setNotFoundHandler((_request, reply) => {
     void reply.status(404).send({
-      error: { code: 'not_found', message: 'There is nothing at that address.' },
+      error: {
+        code: 'not_found',
+        message:
+          'There is nothing at that address. If you are in the app, this may be an old copy of it: please close this tab or window, then open the website again.',
+      },
     });
   });
 
