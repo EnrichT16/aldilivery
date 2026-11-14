@@ -98,7 +98,11 @@ describe('every route answers with and without the /api prefix', () => {
 
     expect(response.statusCode).toBe(404);
     expect(response.json()).toMatchObject({
-      error: { code: 'not_found', message: 'There is nothing at that address.' },
+      error: {
+        code: 'not_found',
+        message:
+          'There is nothing at that address. If you are in the app, this may be an old copy of it: please close this tab or window, then open the website again.',
+      },
     });
   });
 
