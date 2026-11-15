@@ -29,6 +29,14 @@ export function runningAsApp(): boolean {
 }
 
 /**
+ * Said in the store apps where a plan or the Recipe Pass would be sold (15 November 2026): they
+ * are bought on the website only, and whoever has one has it in the app too. No web address and
+ * no link, because the stores do not allow an app to point at another way to pay.
+ */
+export const BOUGHT_ON_WEBSITE =
+  'This is not sold in the app. If you already have it, it works here too.';
+
+/**
  * Opened inside the App Store or Google Play app (packages/mobile), where Capacitor puts its
  * bridge on the window. Read from the window rather than imported, so the website does not
  * carry Capacitor's code.

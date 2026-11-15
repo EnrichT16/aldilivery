@@ -19,6 +19,7 @@ import {
   type PlusState,
 } from '../lib/api';
 import { money, planDeliveryWords } from '../lib/money';
+import { BOUGHT_ON_WEBSITE, runningInStoreApp } from '../components/GetTheApp';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
 
@@ -152,6 +153,8 @@ export function Plus(): JSX.Element {
       setBusy(false);
     }
   }
+
+  const inStoreApp = runningInStoreApp();
 
   function join(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -340,7 +343,21 @@ export function Plus(): JSX.Element {
               <h2 id="get" className="text-lead font-bold m-0">
                 {state?.plan ? 'Change your plan' : 'Join a plan'}
               </h2>
+              {/* In the store apps the plans are shown and never sold (15 November 2026,
+                  Anthony: "every purchase should be made on the website… they can still see
+                  it"). No button and no link to pay: the stores do not allow either. */}
+              {inStoreApp && (
+                <ul className="m-0 pl-5 space-y-2">
+                  {plans.map((entry) => (
+                    <li key={entry.plan}>
+                      {entry.name}: {money(entry.pence)} a month.
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {inStoreApp && <p className="m-0 font-bold">{BOUGHT_ON_WEBSITE}</p>}
               {plans
+                .filter(() => !inStoreApp)
                 .filter((entry) => entry.plan !== state?.plan || !state.renews)
                 .map((entry) => {
                   const freeNow =

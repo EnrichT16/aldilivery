@@ -7,6 +7,7 @@ import { buyRecipePass } from '../lib/api';
 import { addNamedItems, listInWords, RECIPES, recipePassActive, type Recipe } from '../lib/extras';
 import { money } from '../lib/money';
 import { useBasket } from '../state/basket';
+import { BOUGHT_ON_WEBSITE, runningInStoreApp } from '../components/GetTheApp';
 import { useOzi } from '../state/ozi';
 import { useSession } from '../state/session';
 
@@ -29,6 +30,9 @@ export function Recipes(): JSX.Element {
   const price = money(recipePassPence);
   // Every plan includes Recipes, and so does the free month (ruling 58).
   const unlocked = recipePassActive(shopper?.recipePassUntil) || Boolean(shopper?.membershipExtras);
+
+  // In the store apps the pass is shown and never sold (15 November 2026).
+  const inStoreApp = runningInStoreApp();
 
   async function unlock(): Promise<void> {
     setBusy(true);
@@ -104,6 +108,8 @@ export function Recipes(): JSX.Element {
             <Link to="/sign-up" className="control bg-highlight text-on-accent">
               Set up an account first
             </Link>
+          ) : inStoreApp ? (
+            <p className="m-0 font-bold">{BOUGHT_ON_WEBSITE}</p>
           ) : confirming ? (
             <>
               <p className="m-0 font-bold">
